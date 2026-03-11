@@ -15,7 +15,8 @@
 
 namespace mc::config {
 
-bool config_validator::validate_app_config(const app_config& config) {
+bool config_validator::validate_app_config(const app_config& config)
+{
     if (config.kind.empty()) {
         elog("application config validation failed: missing resource type(kind)");
         return false;
@@ -39,7 +40,8 @@ bool config_validator::validate_app_config(const app_config& config) {
     return true;
 }
 
-bool config_validator::validate_supervisor_config(const supervisor_config& config) {
+bool config_validator::validate_supervisor_config(const supervisor_config& config)
+{
     if (config.kind.empty()) {
         elog("supervisor config validation failed: missing resource type(kind)");
         return false;
@@ -63,7 +65,8 @@ bool config_validator::validate_supervisor_config(const supervisor_config& confi
     return true;
 }
 
-bool config_validator::validate_service_config(const service_config& config) {
+bool config_validator::validate_service_config(const service_config& config)
+{
     if (config.kind.empty()) {
         elog("service config validation failed: missing resource type(kind)");
         return false;
@@ -87,7 +90,8 @@ bool config_validator::validate_service_config(const service_config& config) {
     return true;
 }
 
-bool config_validator::validate_plugin_config(const plugin_config& config) {
+bool config_validator::validate_plugin_config(const plugin_config& config)
+{
     if (config.kind.empty()) {
         elog("plugin config validation failed: missing resource type(kind)");
         return false;

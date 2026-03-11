@@ -26,26 +26,29 @@ namespace mc::interprocess {
 using namespace detail;
 
 ipc_shared_mutex::ipc_shared_mutex()
-    : m_writer_pid(0), m_write_time(0), m_reader_count(0), m_reader_slot(INVALID_ID), m_last_free_slot(0) {
+    : m_writer_pid(0), m_write_time(0), m_reader_count(0), m_reader_slot(INVALID_ID), m_last_free_slot(0)
+{
     for (size_t i = 0; i < MAX_READERS; i++) {
         m_readers[i].pid       = 0;
         m_readers[i].read_time = 0;
     }
 }
 
-ipc_shared_mutex::~ipc_shared_mutex() {
+ipc_shared_mutex::~ipc_shared_mutex()
+{
     // 如果当前进程持有读锁，释放它
     if (m_reader_slot != INVALID_ID) {
         unlock_shared();
     }
-    
+
     // 如果当前进程持有写锁，释放它
     if (m_writer_pid == getpid()) {
         unlock();
     }
 }
 
-bool ipc_shared_mutex::try_lock_shared() {
+bool ipc_shared_mutex::try_lock_shared()
+{
     pid_t pid = getpid();
 
     // 使用互斥锁保护整个操作
@@ -68,7 +71,8 @@ bool ipc_shared_mutex::try_lock_shared() {
     return register_reader_unsafe();
 }
 
-void ipc_shared_mutex::lock_shared() {
+void ipc_shared_mutex::lock_shared()
+{
     // 使用新的等待策略
     size_t attempt_count = 0;
     while (!try_lock_shared()) {
@@ -76,30 +80,32 @@ void ipc_shared_mutex::lock_shared() {
     }
 }
 
-void ipc_shared_mutex::unlock_shared() {
+void ipc_shared_mutex::unlock_shared()
+{
     std::lock_guard<ipc_mutex> lock(m_reader_mutex);
-    
+
     // 如果没有持有读锁，直接返回
     if (m_reader_slot == INVALID_ID) {
         return;
     }
-    
+
     // 清除读者信息
-    m_readers[m_reader_slot].pid = 0;
+    m_readers[m_reader_slot].pid       = 0;
     m_readers[m_reader_slot].read_time = 0;
-    
+
     // 更新最后一个已知的空闲槽位
     m_last_free_slot = m_reader_slot;
-    
+
     m_reader_slot = INVALID_ID;
-    
+
     // 减少读者计数
     if (m_reader_count > 0) {
         m_reader_count--;
     }
 }
 
-bool ipc_shared_mutex::try_lock() {
+bool ipc_shared_mutex::try_lock()
+{
     pid_t pid = getpid();
 
     // 使用互斥锁保护整个操作
@@ -127,7 +133,7 @@ bool ipc_shared_mutex::try_lock() {
     if (m_reader_count > 0) {
         // 清理死亡或超时的读者
         aggressive_cleanup_readers_unsafe();
-        
+
         // 如果还有活跃读者，不能获取写锁
         if (m_reader_count > 0) {
             return false;
@@ -141,7 +147,8 @@ bool ipc_shared_mutex::try_lock() {
     return true;
 }
 
-void ipc_shared_mutex::lock() {
+void ipc_shared_mutex::lock()
+{
     // 使用新的等待策略
     size_t attempt_count = 0;
     while (!try_lock()) {
@@ -149,7 +156,8 @@ void ipc_shared_mutex::lock() {
     }
 }
 
-void ipc_shared_mutex::unlock() {
+void ipc_shared_mutex::unlock()
+{
     pid_t pid = getpid();
 
     // 使用互斥锁保护写锁释放操作
@@ -165,25 +173,27 @@ void ipc_shared_mutex::unlock() {
     m_write_time = 0;
 }
 
-void ipc_shared_mutex::cleanup_dead_locks() {
+void ipc_shared_mutex::cleanup_dead_locks()
+{
     std::lock_guard<ipc_mutex> guard(m_reader_mutex);
     aggressive_cleanup_readers_unsafe();
 }
 
-bool ipc_shared_mutex::register_reader_unsafe() {
+bool ipc_shared_mutex::register_reader_unsafe()
+{
     pid_t pid = getpid();
-    
+
     // 检查当前进程是否已经是读者
     if (m_reader_slot != INVALID_ID) {
-        return true;  // 当前进程已经注册为读者（使用已保存的槽位）
+        return true; // 当前进程已经注册为读者（使用已保存的槽位）
     }
-    
+
     // 检查当前进程是否已经是写者
     if (m_writer_pid == pid) {
         wlog("当前进程已持有写锁，不能再获取读锁");
         return false;
     }
-    
+
     // 查找空闲槽位
     size_t free_slot = find_free_reader_slot();
     if (free_slot == INVALID_ID) {
@@ -192,23 +202,24 @@ bool ipc_shared_mutex::register_reader_unsafe() {
             free_slot = find_free_reader_slot();
         }
     }
-    
+
     // 如果仍然没有空闲槽位，返回失败
     if (free_slot == INVALID_ID) {
         dlog("没有可用的读者槽位，当前读者数量已达到最大值${max_readers}", ("max_readers", MAX_READERS));
         return false;
     }
-    
+
     // 注册读者
-    m_readers[free_slot].pid = pid;
+    m_readers[free_slot].pid       = pid;
     m_readers[free_slot].read_time = get_current_time_us();
-    m_reader_slot = free_slot;
+    m_reader_slot                  = free_slot;
     m_reader_count++;
-    
+
     return true;
 }
 
-bool ipc_shared_mutex::is_writer_alive() const {
+bool ipc_shared_mutex::is_writer_alive() const
+{
     // 注意：此函数假设调用者已经持有m_reader_mutex锁，或者在不需要准确性的场合调用
 
     // 快速检查：无写锁
@@ -224,7 +235,7 @@ bool ipc_shared_mutex::is_writer_alive() const {
 
     // 检查写锁是否超时
     uint64_t write_time = m_write_time;
-    uint64_t now = get_current_time_us();
+    uint64_t now        = get_current_time_us();
     if (write_time > 0 && now - write_time > SHARED_MUTEX_TIMEOUT_US) {
         wlog("写锁已超时${time}秒", ("time", (now - write_time) / 1000000.0));
         return false;
@@ -234,49 +245,52 @@ bool ipc_shared_mutex::is_writer_alive() const {
 }
 
 // 检查读锁是否需要清理
-bool ipc_shared_mutex::should_clean_reader(size_t slot, uint64_t now) const {
-    pid_t reader_pid = m_readers[slot].pid;
+bool ipc_shared_mutex::should_clean_reader(size_t slot, uint64_t now) const
+{
+    pid_t reader_pid  = m_readers[slot].pid;
     pid_t current_pid = getpid();
-    
+
     // 空槽位或当前进程占用的不需要清理
     if (reader_pid == 0 || reader_pid == current_pid) {
         return false;
     }
-    
+
     // 检查进程是否已死亡
     if (!ipc_mutex::is_process_alive(reader_pid)) {
         wlog("读锁拥有者进程${pid}已死亡，清除读锁", ("pid", reader_pid));
         return true;
     }
-    
+
     // 检查读锁是否超时
     if (m_readers[slot].read_time > 0 && now - m_readers[slot].read_time > SHARED_MUTEX_TIMEOUT_US) {
         wlog("读锁已超时${time}秒，清除读锁",
              ("time", (now - m_readers[slot].read_time) / 1000000.0));
         return true;
     }
-    
+
     return false;
 }
 
 // 清理读锁槽位
-void ipc_shared_mutex::clean_reader_slot(size_t slot) {
-    m_readers[slot].pid = 0;
+void ipc_shared_mutex::clean_reader_slot(size_t slot)
+{
+    m_readers[slot].pid       = 0;
     m_readers[slot].read_time = 0;
-    
+
     // 更新最后一个已知的空闲槽位
     m_last_free_slot = slot;
 }
 
 // 清理已经死亡或超时的所有锁
-int ipc_shared_mutex::aggressive_cleanup_readers_unsafe() {
+int ipc_shared_mutex::aggressive_cleanup_readers_unsafe()
+{
     if (m_reader_count == 0) {
-        return 0;  // 没有读者，不需要清理
+        return 0; // 没有读者，不需要清理
     }
-    
-    uint64_t now = get_current_time_us();
-    int cleaned_count = 0;
-    
+
+    uint64_t now           = get_current_time_us();
+    int      cleaned_count = 0;
+
     // 清理死亡或超时的读者
     for (size_t i = 0; i < MAX_READERS; i++) {
         if (should_clean_reader(i, now)) {
@@ -284,7 +298,7 @@ int ipc_shared_mutex::aggressive_cleanup_readers_unsafe() {
             cleaned_count++;
         }
     }
-    
+
     // 清理死亡的写者
     pid_t pid = getpid();
     if (m_writer_pid != 0 && m_writer_pid != pid && !is_writer_alive()) {
@@ -293,23 +307,24 @@ int ipc_shared_mutex::aggressive_cleanup_readers_unsafe() {
         m_writer_pid = 0;
         m_write_time = 0;
     }
-    
+
     // 更新读者计数
     if (cleaned_count > 0) {
         m_reader_count = std::max(0, static_cast<int>(m_reader_count) - cleaned_count);
         dlog("已清理${count}个读锁", ("count", cleaned_count));
     }
-    
+
     return cleaned_count;
 }
 
 // 查找空闲的读者槽位
-size_t ipc_shared_mutex::find_free_reader_slot() const {
+size_t ipc_shared_mutex::find_free_reader_slot() const
+{
     // 先检查上次记录的空闲槽位
     if (m_last_free_slot < MAX_READERS && m_readers[m_last_free_slot].pid == 0) {
         return m_last_free_slot;
     }
-    
+
     // 否则遍历查找第一个空闲槽位
     for (size_t i = 0; i < MAX_READERS; i++) {
         if (m_readers[i].pid == 0) {
@@ -319,4 +334,4 @@ size_t ipc_shared_mutex::find_free_reader_slot() const {
     return INVALID_ID;
 }
 
-} // namespace mc::interprocess 
+} // namespace mc::interprocess

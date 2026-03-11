@@ -22,13 +22,15 @@ class string_builtin_test : public ::testing::Test {
 protected:
     string_builtin_test() = default;
 
-    void SetUp() override {
+    void SetUp() override
+    {
         auto& builtin = mc::expr::builtin::get_instance();
         auto& ctx     = builtin.get_context();
         m_context     = engine.make_context(&ctx);
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
     }
 
     mc::expr::engine  engine;
@@ -37,7 +39,8 @@ protected:
 } // namespace
 
 // 测试 length 函数
-TEST_F(string_builtin_test, LengthFunction) {
+TEST_F(string_builtin_test, LengthFunction)
+{
     // 测试空字符串
     EXPECT_EQ(engine.evaluate("length('')", m_context), 0);
 
@@ -59,7 +62,8 @@ TEST_F(string_builtin_test, LengthFunction) {
 }
 
 // 测试 concat 函数
-TEST_F(string_builtin_test, ConcatFunction) {
+TEST_F(string_builtin_test, ConcatFunction)
+{
     // 测试空字符串
     EXPECT_EQ(engine.evaluate("concat()", m_context), "");
 
@@ -80,7 +84,8 @@ TEST_F(string_builtin_test, ConcatFunction) {
 }
 
 // 测试 substring 函数
-TEST_F(string_builtin_test, SubstringFunction) {
+TEST_F(string_builtin_test, SubstringFunction)
+{
     // 测试基本功能
     EXPECT_EQ(engine.evaluate("substring('hello world', 0, 5)", m_context), "hello");
     EXPECT_EQ(engine.evaluate("substring('hello world', 6, 5)", m_context), "world");
@@ -107,7 +112,8 @@ TEST_F(string_builtin_test, SubstringFunction) {
 }
 
 // 测试 to_upper 函数
-TEST_F(string_builtin_test, UpperFunction) {
+TEST_F(string_builtin_test, UpperFunction)
+{
     // 测试基本功能
     EXPECT_EQ(engine.evaluate("to_upper('hello')", m_context), "HELLO");
 
@@ -132,7 +138,8 @@ TEST_F(string_builtin_test, UpperFunction) {
 }
 
 // 测试 to_lower 函数
-TEST_F(string_builtin_test, LowerFunction) {
+TEST_F(string_builtin_test, LowerFunction)
+{
     // 测试基本功能
     EXPECT_EQ(engine.evaluate("to_lower('HELLO')", m_context), "hello");
 
@@ -158,7 +165,8 @@ TEST_F(string_builtin_test, LowerFunction) {
 }
 
 // 测试 trim 函数
-TEST_F(string_builtin_test, TrimFunction) {
+TEST_F(string_builtin_test, TrimFunction)
+{
     // 测试基本功能
     EXPECT_EQ(engine.evaluate("trim('  hello  ')", m_context), "hello");
 

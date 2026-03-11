@@ -50,12 +50,14 @@ public:
     bool           remove_child(const std::string& name) override;
     supervisor_ptr get_child(const std::string& name) const override;
 
-    const config::supervisor_config& get_config() const override {
+    const config::supervisor_config& get_config() const override
+    {
         return m_config;
     }
     bool is_healthy() const override;
 
-    const std::string& name() const override {
+    const std::string& name() const override
+    {
         return m_name;
     }
 

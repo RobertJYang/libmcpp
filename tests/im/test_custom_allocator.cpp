@@ -41,12 +41,14 @@ public:
     using difference_type = std::ptrdiff_t;
 
     // 默认构造函数
-    tracking_allocator() noexcept {
+    tracking_allocator() noexcept
+    {
     }
 
     // 拷贝构造函数
     template <typename U>
-    tracking_allocator(const tracking_allocator<U>&) noexcept {
+    tracking_allocator(const tracking_allocator<U>&) noexcept
+    {
     }
 
     // 析构函数
@@ -59,51 +61,60 @@ public:
     };
 
     // 分配内存
-    pointer allocate(size_type n) {
+    pointer allocate(size_type n)
+    {
         allocation_count++;
         return static_cast<pointer>(::operator new(n * sizeof(T)));
     }
 
     // 释放内存
-    void deallocate(pointer p, size_type n) noexcept {
+    void deallocate(pointer p, size_type n) noexcept
+    {
         deallocation_count++;
         ::operator delete(p);
     }
 
     // 构造对象
     template <typename U, typename... Args>
-    void construct(U* p, Args&&... args) {
+    void construct(U* p, Args&&... args)
+    {
         ::new (static_cast<void*>(p)) U(std::forward<Args>(args)...);
     }
 
     // 析构对象
     template <typename U>
-    void destroy(U* p) {
+    void destroy(U* p)
+    {
         p->~U();
     }
 
     // 添加比较运算符以支持标准库容器
-    bool operator==(const tracking_allocator&) const noexcept {
+    bool operator==(const tracking_allocator&) const noexcept
+    {
         return true;
     }
 
-    bool operator!=(const tracking_allocator&) const noexcept {
+    bool operator!=(const tracking_allocator&) const noexcept
+    {
         return false;
     }
 
     // 重置计数器
-    static void reset_counters() {
+    static void reset_counters()
+    {
         allocation_count   = 0;
         deallocation_count = 0;
     }
 
     // 获取分配计数
-    static int get_allocation_count() {
+    static int get_allocation_count()
+    {
         return allocation_count;
     }
 
     // 获取释放计数
-    static int get_deallocation_count() {
+    static int get_deallocation_count()
+    {
         return deallocation_count;
     }
 };
@@ -113,12 +124,17 @@ struct test_value {
     std::string text;
     int         number;
 
-    test_value() : text(), number(0) {
+    test_value()
+        : text(), number(0)
+    {
     }
-    test_value(const std::string& t, int n) : text(t), number(n) {
+    test_value(const std::string& t, int n)
+        : text(t), number(n)
+    {
     }
 
-    bool operator==(const test_value& other) const {
+    bool operator==(const test_value& other) const
+    {
         return text == other.text && number == other.number;
     }
 };
@@ -128,7 +144,8 @@ template <typename T>
 using tracked_tree_config = tree_config<T, tracking_allocator<char>>;
 
 // 测试用例：基本的跟踪分配器测试
-TEST(CustomAllocatorTest, BasicTrackingAllocator) {
+TEST(CustomAllocatorTest, BasicTrackingAllocator)
+{
     // 重置计数器
     tracking_allocator<int>::reset_counters();
 
@@ -176,7 +193,8 @@ TEST(CustomAllocatorTest, BasicTrackingAllocator) {
 }
 
 // 测试用例：事务操作和分配跟踪
-TEST(CustomAllocatorTest, TransactionAllocation) {
+TEST(CustomAllocatorTest, TransactionAllocation)
+{
     // 重置计数器
     tracking_allocator<int>::reset_counters();
 
@@ -224,7 +242,8 @@ TEST(CustomAllocatorTest, TransactionAllocation) {
 }
 
 // 测试用例：保存点与内存分配
-TEST(CustomAllocatorTest, SavePointAllocation) {
+TEST(CustomAllocatorTest, SavePointAllocation)
+{
     // 重置计数器
     tracking_allocator<int>::reset_counters();
 
@@ -266,7 +285,8 @@ TEST(CustomAllocatorTest, SavePointAllocation) {
 }
 
 // 测试用例：大量数据与内存分配性能
-TEST(CustomAllocatorTest, LargeDataAllocation) {
+TEST(CustomAllocatorTest, LargeDataAllocation)
+{
     // 重置计数器
     tracking_allocator<int>::reset_counters();
 

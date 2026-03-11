@@ -19,7 +19,8 @@ namespace mc::sync::test {
 
 class SmallMutexTest : public ::testing::Test {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         // 重新初始化小锁
         mutex = small_mutex{};
     }
@@ -28,13 +29,15 @@ protected:
 };
 
 // 测试基本的锁定和解锁功能
-TEST_F(SmallMutexTest, BasicLockUnlock) {
+TEST_F(SmallMutexTest, BasicLockUnlock)
+{
     ASSERT_TRUE(mutex.try_lock());
     mutex.unlock();
 }
 
 // 测试数据存储功能
-TEST_F(SmallMutexTest, DataStorage) {
+TEST_F(SmallMutexTest, DataStorage)
+{
     // 初始数据应该为 0
     EXPECT_EQ(mutex.load_data(), 0);
 
@@ -52,7 +55,8 @@ TEST_F(SmallMutexTest, DataStorage) {
 }
 
 // 测试锁定状态检查
-TEST_F(SmallMutexTest, LockStatus) {
+TEST_F(SmallMutexTest, LockStatus)
+{
     EXPECT_FALSE(mutex.is_locked());
 
     mutex.lock();
@@ -63,7 +67,8 @@ TEST_F(SmallMutexTest, LockStatus) {
 }
 
 // 测试竞争条件下的基本功能
-TEST_F(SmallMutexTest, BasicConcurrency) {
+TEST_F(SmallMutexTest, BasicConcurrency)
+{
     constexpr int num_threads           = 4;
     constexpr int iterations_per_thread = 100;
 
@@ -82,7 +87,8 @@ TEST_F(SmallMutexTest, BasicConcurrency) {
 }
 
 // 测试数据存储的并发安全性
-TEST_F(SmallMutexTest, ConcurrentDataAccess) {
+TEST_F(SmallMutexTest, ConcurrentDataAccess)
+{
     constexpr int num_threads           = 4;
     constexpr int iterations_per_thread = 50;
 
@@ -109,24 +115,26 @@ TEST_F(SmallMutexTest, ConcurrentDataAccess) {
 }
 
 // 测试超时锁定
-TEST_F(SmallMutexTest, TimeoutLock) {
+TEST_F(SmallMutexTest, TimeoutLock)
+{
     // 先获取锁，确保后续的 try_lock_for 只能依赖超时返回
     mutex.lock();
 
-        auto start  = std::chrono::steady_clock::now();
+    auto start  = std::chrono::steady_clock::now();
     bool result = mutex.try_lock_for(std::chrono::milliseconds(20));
-        auto end    = std::chrono::steady_clock::now();
+    auto end    = std::chrono::steady_clock::now();
     mutex.unlock();
 
-        EXPECT_FALSE(result); // 应该超时失败
+    EXPECT_FALSE(result); // 应该超时失败
 
-        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     EXPECT_GE(duration.count(), 10);  // 至少等待了 10ms
     EXPECT_LE(duration.count(), 200); // 不超过 200ms，防止环境波动
 }
 
 // 测试内存布局：确保 small_mutex 占用 4 字节
-TEST_F(SmallMutexTest, MemoryFootprint) {
+TEST_F(SmallMutexTest, MemoryFootprint)
+{
     EXPECT_EQ(sizeof(small_mutex), 4);
     EXPECT_EQ(sizeof(basic_small_mutex<standard_small_mutex_policy>), 4);
     EXPECT_EQ(sizeof(spin_mutex), 4);
@@ -137,7 +145,8 @@ TEST_F(SmallMutexTest, MemoryFootprint) {
 }
 
 // 测试不同策略的 small_mutex
-TEST_F(SmallMutexTest, DifferentPolicies) {
+TEST_F(SmallMutexTest, DifferentPolicies)
+{
     spin_mutex mutex;
 
     // 测试自旋策略锁
@@ -148,7 +157,8 @@ TEST_F(SmallMutexTest, DifferentPolicies) {
 }
 
 // 测试原子操作的直接访问
-TEST_F(SmallMutexTest, AtomicWordAccess) {
+TEST_F(SmallMutexTest, AtomicWordAccess)
+{
     auto& atomic_word = mutex.get_atomic_word();
 
     // 直接设置一些值

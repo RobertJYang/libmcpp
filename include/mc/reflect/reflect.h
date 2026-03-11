@@ -62,7 +62,8 @@
 #define MC_REMOVE_PARENS(MEMBER)                      \
     BOOST_PP_IIF(MC_REFLECT_IS_DOUBLE_PARENS(MEMBER), \
                  MC_REMOVE_DOUBLE_PARENS,             \
-                 BOOST_PP_REMOVE_PARENS)(MEMBER)
+                 BOOST_PP_REMOVE_PARENS)              \
+    (MEMBER)
 
 #define MC_REFLECT_IS_DOUBLE_PARENS(param) \
     MC_REFLECT_IS_TUPLE(BOOST_PP_REMOVE_PARENS(param))
@@ -73,45 +74,53 @@
                 BOOST_PP_IIF(MC_REFLECT_IS_DOUBLE_PARENS(param), \
                              MC_REFLECT_DOUBLE_PARENS_PARAM,     \
                              MC_REFLECT_SINGLE_PARENS_PARAM),    \
-                MC_REFLECT_NO_PARENS_PARAM)(param)
+                MC_REFLECT_NO_PARENS_PARAM)                      \
+    (param)
 
 // ------------------------------------------------------------------------------------------------
 
 namespace mc::reflect::detail {
 // 创建成员元数据（根据成员类型分发到属性、方法或用户自定义的成员信息）
 template <typename T, typename M, typename BaseT>
-constexpr auto create_member_info(M BaseT::* member_ptr, std::string_view name = {}) {
+constexpr auto create_member_info(M BaseT::*member_ptr, std::string_view name = {})
+{
     return member_info_creator<T, M, BaseT>::create(member_ptr, name);
 }
 
 template <typename T, typename Getter, typename Setter>
-constexpr auto create_member_info(Getter getter, Setter setter, std::string_view name) {
+constexpr auto create_member_info(Getter getter, Setter setter, std::string_view name)
+{
     return computed_property_info_creator::create<T>(getter, setter, name);
 }
 
 template <typename T, typename R, typename... Args>
-constexpr auto create_member_info(R (*static_func)(Args...), std::string_view name = {}) {
+constexpr auto create_member_info(R (*static_func)(Args...), std::string_view name = {})
+{
     return member_info_creator<T, R (*)(Args...), void>::create(static_func, name);
 }
 
 template <typename T, typename BaseT>
-constexpr auto create_base_class_info(std::string_view base_class_name = {}) {
+constexpr auto create_base_class_info(std::string_view base_class_name = {})
+{
     return base_class_info_creator<T, BaseT>::create(base_class_name);
 }
 
 template <typename T, typename... Args>
-constexpr auto create_type_info(Args... args) {
+constexpr auto create_type_info(Args... args)
+{
     return 1;
 }
 
 template <typename EnumType>
-constexpr auto create_enum_member_info(EnumType value, std::string_view name) {
+constexpr auto create_enum_member_info(EnumType value, std::string_view name)
+{
     return enum_member_info(name, value);
 }
 
 template <size_t Index, typename... Tuples>
 bool is_member_override(const member_info_base&      base_member,
-                        const std::tuple<Tuples...>& all_members) {
+                        const std::tuple<Tuples...>& all_members)
+{
     if constexpr (Index >= sizeof...(Tuples)) {
         return false;
     } else {
@@ -126,7 +135,8 @@ bool is_member_override(const member_info_base&      base_member,
 // 默认的成员检查模板，总是返回true
 template <typename T, typename Member, typename = void>
 struct has_members_check {
-    static constexpr bool check(const Member&) {
+    static constexpr bool check(const Member&)
+    {
         return true;
     }
 };
@@ -142,7 +152,8 @@ struct has_check_members<
 
 // 辅助函数：验证某个成员
 template <typename T, typename Members>
-static constexpr bool validate_members(const Members& members) {
+static constexpr bool validate_members(const Members& members)
+{
     if constexpr (has_check_members<T, Members>::value) {
         return T::check_members(members);
     }
@@ -161,7 +172,8 @@ struct has_initial_members<
 
 // 辅助函数：初始化某个成员
 template <typename T, typename Members>
-static constexpr auto initial_members(Members members) {
+static constexpr auto initial_members(Members members)
+{
     if constexpr (has_initial_members<T, Members>::value) {
         T::initial_members(members);
     }
@@ -197,14 +209,16 @@ template <typename T>
 inline constexpr bool has_custom_from_variant_v = decltype(has_custom_from_variant<T>(0))::value;
 
 template <typename T>
-void custom_from_variant(const mc::dict& d, T& obj) {
+void custom_from_variant(const mc::dict& d, T& obj)
+{
     if constexpr (has_custom_from_variant_v<T>) {
         T::from_variant(d, obj);
     }
 }
 
 template <typename T>
-void custom_to_variant(const T& obj, mc::dict& dict) {
+void custom_to_variant(const T& obj, mc::dict& dict)
+{
     if constexpr (has_custom_to_variant_v<T>) {
         T::to_variant(obj, dict);
     }
@@ -219,7 +233,8 @@ void custom_to_variant(const T& obj, mc::dict& dict) {
  * @param var 转换后的变体
  */
 template <typename T>
-void to_variant(const T& obj, variant& var) {
+void to_variant(const T& obj, variant& var)
+{
     if constexpr (reflectable<T>::is_enum::value) {
         reflector<T>::to_variant(obj, var);
     } else {
@@ -236,7 +251,8 @@ void to_variant(const T& obj, variant& var) {
  * @param dict 转换后的可变字典
  */
 template <typename T>
-void to_variant(const T& obj, mc::dict& dict) {
+void to_variant(const T& obj, mc::dict& dict)
+{
     if constexpr (reflectable<T>::is_enum::value) {
         variant var;
         reflector<T>::to_variant(obj, var);
@@ -253,7 +269,8 @@ void to_variant(const T& obj, mc::dict& dict) {
  * @param obj 转换后的对象
  */
 template <typename T>
-void from_variant(const variant& var, T& obj) {
+void from_variant(const variant& var, T& obj)
+{
     if constexpr (reflectable<T>::is_enum::value) {
         reflector<T>::from_variant(var, obj);
     } else if (var.is_object()) {
@@ -279,7 +296,8 @@ void from_variant(const variant& var, T& obj) {
  * @param visitor 访问者函数
  */
 template <typename T, typename Visitor>
-void visit_properties(const Visitor& visitor) {
+void visit_properties(const Visitor& visitor)
+{
     if constexpr (is_reflectable<T>()) {
         reflector<T>::visit(visitor);
     }
@@ -288,22 +306,26 @@ void visit_properties(const Visitor& visitor) {
 } // namespace reflect
 
 template <typename T, std::enable_if_t<mc::reflect::is_reflectable<T>(), int> = 0>
-void to_variant(const T& o, variant& v) {
+void to_variant(const T& o, variant& v)
+{
     mc::reflect::to_variant(o, v);
 }
 
 template <typename T, std::enable_if_t<mc::reflect::is_reflectable<T>(), int> = 0>
-void from_variant(const variant& v, T& o) {
+void from_variant(const variant& v, T& o)
+{
     mc::reflect::from_variant(v, o);
 }
 
 template <typename T, std::enable_if_t<mc::reflect::is_normal_enum<T>(), int> = 0>
-void to_variant(const T& o, variant& v) {
+void to_variant(const T& o, variant& v)
+{
     v = mc::variant(static_cast<int32_t>(o));
 }
 
 template <typename T, std::enable_if_t<mc::reflect::is_normal_enum<T>(), int> = 0>
-void from_variant(const variant& v, T& o) {
+void from_variant(const variant& v, T& o)
+{
     o = static_cast<T>(v.as_int32());
 }
 
@@ -314,7 +336,8 @@ namespace mc::reflect::detail {
 // 对反射类型的特化
 template <typename T>
 struct signature_helper<T, std::enable_if_t<mc::reflect::is_reflectable<T>()>> {
-    static void apply(std::string& sig) {
+    static void apply(std::string& sig)
+    {
         if constexpr (mc::reflect::is_enum<T>()) {
             // 可反射的枚举类型用的是 string
             sig += type_to_char(type_code::string_type);
@@ -329,7 +352,8 @@ struct signature_helper<T, std::enable_if_t<mc::reflect::is_reflectable<T>()>> {
 // 普通的枚举类型用 int32_t 表示，可反射的枚举类型用的是 string
 template <typename T>
 struct signature_helper<T, std::enable_if_t<mc::reflect::is_normal_enum<T>()>> {
-    static void apply(std::string& sig) {
+    static void apply(std::string& sig)
+    {
         sig += type_to_char(type_code::int32_type);
     }
 };
@@ -366,7 +390,8 @@ struct MC_API reflector<
                   std::is_invocable_v<Visitor, std::string_view, getter_t, setter_t> &&
                       !std::is_same_v<std::decay_t<Visitor>, visitor_t>,
                   int> = 0>
-    static void visit(Visitor&& visitor) {
+    static void visit(Visitor&& visitor)
+    {
         visit(visitor_t([&](std::string_view name, getter_t getter, setter_t setter) {
             visitor(name, getter, setter);
         }));
@@ -467,24 +492,29 @@ struct MC_API reflector<
         get_reflect_factory<TYPE>().template register_type<TYPE>();                                    \
     metadata_extension mc::reflect::static_metadata<TYPE>::extension = {nullptr, nullptr};             \
     template <>                                                                                        \
-    [[maybe_unused]] std::string_view reflector<TYPE>::get_name() {                                    \
+    [[maybe_unused]] std::string_view reflector<TYPE>::get_name()                                      \
+    {                                                                                                  \
         return get_type_name<TYPE>();                                                                  \
     }                                                                                                  \
     template <>                                                                                        \
-    [[maybe_unused]] type_id_type reflector<TYPE>::get_type_id() {                                     \
+    [[maybe_unused]] type_id_type reflector<TYPE>::get_type_id()                                       \
+    {                                                                                                  \
         return mc::reflect::static_metadata<TYPE>::type_id;                                            \
     }                                                                                                  \
     template <>                                                                                        \
-    [[maybe_unused]] metadata_extension& reflector<TYPE>::get_extension() {                            \
+    [[maybe_unused]] metadata_extension& reflector<TYPE>::get_extension()                              \
+    {                                                                                                  \
         return mc::reflect::static_metadata<TYPE>::extension;                                          \
     }                                                                                                  \
     template <>                                                                                        \
-    [[maybe_unused]] type_id_type reflector<TYPE>::register_type() {                                   \
+    [[maybe_unused]] type_id_type reflector<TYPE>::register_type()                                     \
+    {                                                                                                  \
         return get_reflect_factory<TYPE>().template register_type<TYPE>(                               \
             mc::reflect::static_metadata<TYPE>::type_id);                                              \
     }                                                                                                  \
     template <>                                                                                        \
-    [[maybe_unused]] void reflector<TYPE>::unregister_type() {                                         \
+    [[maybe_unused]] void reflector<TYPE>::unregister_type()                                           \
+    {                                                                                                  \
         auto factory = try_get_reflect_factory<TYPE>();                                                \
         if (factory) {                                                                                 \
             factory->unregister_type_impl(get_name());                                                 \
@@ -495,13 +525,15 @@ struct MC_API reflector<
         }                                                                                              \
     }                                                                                                  \
     template <>                                                                                        \
-    [[maybe_unused]] const mc::reflect::struct_metadata& reflector<TYPE>::get_metadata() {             \
+    [[maybe_unused]] const mc::reflect::struct_metadata& reflector<TYPE>::get_metadata()               \
+    {                                                                                                  \
         static mc::reflect::struct_metadata metadata(                                                  \
             get_name(), MC_REFLECT_STATIC_MEMBERS(TYPE), static_cast<TYPE*>(nullptr));                 \
         return metadata;                                                                               \
     }                                                                                                  \
     template <>                                                                                        \
-    [[maybe_unused]] void reflector<TYPE>::visit(const visitor_t& visitor) {                           \
+    [[maybe_unused]] void reflector<TYPE>::visit(const visitor_t& visitor)                             \
+    {                                                                                                  \
         get_metadata().visit_properties([&](const property_type_info* property) {                      \
             const auto* p = static_cast<const property_info_base<TYPE>*>(property);                    \
             visitor(property->name, p->getter(), p->setter());                                         \
@@ -509,7 +541,8 @@ struct MC_API reflector<
         });                                                                                            \
     }                                                                                                  \
     template <>                                                                                        \
-    [[maybe_unused]] void reflector<TYPE>::to_variant(const TYPE& obj, mc::dict& dict) {               \
+    [[maybe_unused]] void reflector<TYPE>::to_variant(const TYPE& obj, mc::dict& dict)                 \
+    {                                                                                                  \
         if constexpr (mc::reflect::detail::has_custom_to_variant_v<TYPE>) {                            \
             mc::reflect::detail::custom_to_variant(obj, dict);                                         \
         } else {                                                                                       \
@@ -521,7 +554,8 @@ struct MC_API reflector<
         }                                                                                              \
     }                                                                                                  \
     template <>                                                                                        \
-    [[maybe_unused]] void reflector<TYPE>::from_variant(const mc::dict& d, TYPE& obj) {                \
+    [[maybe_unused]] void reflector<TYPE>::from_variant(const mc::dict& d, TYPE& obj)                  \
+    {                                                                                                  \
         if constexpr (mc::reflect::detail::has_custom_from_variant_v<TYPE>) {                          \
             mc::reflect::detail::custom_from_variant(d, obj);                                          \
         } else {                                                                                       \
@@ -533,11 +567,13 @@ struct MC_API reflector<
         }                                                                                              \
     }                                                                                                  \
     template <>                                                                                        \
-    [[maybe_unused]] mc::reflect::reflection<TYPE>& reflector<TYPE>::get_reflection() {                \
+    [[maybe_unused]] mc::reflect::reflection<TYPE>& reflector<TYPE>::get_reflection()                  \
+    {                                                                                                  \
         return mc::reflect::reflection<TYPE>::instance();                                              \
     }                                                                                                  \
     template <>                                                                                        \
-    [[maybe_unused]] void reflector<TYPE>::get_signature(std::string& sig) {                           \
+    [[maybe_unused]] void reflector<TYPE>::get_signature(std::string& sig)                             \
+    {                                                                                                  \
         get_metadata().visit_properties([&](const property_type_info* property) {                      \
             sig += property->get_signature();                                                          \
             return visit_status::VS_CONTINUE;                                                          \
@@ -624,7 +660,8 @@ struct MC_API reflector<
  */
 #define MC_REFLECT_ENUM_ELEMENT(r, ENUM_TYPE, VALUE)                           \
     BOOST_PP_IIF(MC_REFLECT_IS_TUPLE(VALUE), MC_REFLECT_ENUM_MEMBER_WITH_NAME, \
-                 MC_REFLECT_ENUM_MEMBER_WITHOUT_NAME)(r, ENUM_TYPE, VALUE)
+                 MC_REFLECT_ENUM_MEMBER_WITHOUT_NAME)                          \
+    (r, ENUM_TYPE, VALUE)
 
 #define MC_REFLECT_ENUM_STATIC_METADATA(TYPE, VALUES)                                 \
     template <>                                                                       \
@@ -647,20 +684,24 @@ struct MC_API reflector<
     type_id_type mc::reflect::static_metadata<TYPE>::type_id =                                         \
         get_reflect_factory<TYPE>().template register_type<TYPE>();                                    \
     template <>                                                                                        \
-    [[maybe_unused]] std::string_view reflector<TYPE>::get_name() {                                    \
+    [[maybe_unused]] std::string_view reflector<TYPE>::get_name()                                      \
+    {                                                                                                  \
         return get_type_name<TYPE>();                                                                  \
     }                                                                                                  \
     template <>                                                                                        \
-    [[maybe_unused]] type_id_type reflector<TYPE>::get_type_id() {                                     \
+    [[maybe_unused]] type_id_type reflector<TYPE>::get_type_id()                                       \
+    {                                                                                                  \
         return mc::reflect::static_metadata<TYPE>::type_id;                                            \
     }                                                                                                  \
     template <>                                                                                        \
-    [[maybe_unused]] type_id_type reflector<TYPE>::register_type() {                                   \
+    [[maybe_unused]] type_id_type reflector<TYPE>::register_type()                                     \
+    {                                                                                                  \
         return get_reflect_factory<TYPE>().template register_type<TYPE>(                               \
             mc::reflect::static_metadata<TYPE>::type_id);                                              \
     }                                                                                                  \
     template <>                                                                                        \
-    [[maybe_unused]] void reflector<TYPE>::unregister_type() {                                         \
+    [[maybe_unused]] void reflector<TYPE>::unregister_type()                                           \
+    {                                                                                                  \
         auto factory = try_get_reflect_factory<TYPE>();                                                \
         if (factory) {                                                                                 \
             factory->unregister_type_impl(get_name());                                                 \
@@ -671,13 +712,15 @@ struct MC_API reflector<
         }                                                                                              \
     }                                                                                                  \
     template <>                                                                                        \
-    [[maybe_unused]] const mc::reflect::enum_metadata& reflector<TYPE>::get_metadata() {               \
+    [[maybe_unused]] const mc::reflect::enum_metadata& reflector<TYPE>::get_metadata()                 \
+    {                                                                                                  \
         static mc::reflect::enum_metadata metadata(                                                    \
             get_name(), mc::reflect::enum_values{MC_REFLECT_STATIC_MEMBERS(TYPE)});                    \
         return metadata;                                                                               \
     }                                                                                                  \
     template <>                                                                                        \
-    [[maybe_unused]] void reflector<TYPE>::to_variant(const TYPE& e, mc::variant& var) {               \
+    [[maybe_unused]] void reflector<TYPE>::to_variant(const TYPE& e, mc::variant& var)                 \
+    {                                                                                                  \
         auto value = get_metadata().try_get_name(static_cast<enum_value_type>(e));                     \
         if (!value) {                                                                                  \
             mc::reflect::throw_bad_enum_cast(static_cast<int64_t>(e), #TYPE);                          \
@@ -685,7 +728,8 @@ struct MC_API reflector<
         var = *value;                                                                                  \
     }                                                                                                  \
     template <>                                                                                        \
-    [[maybe_unused]] void reflector<TYPE>::from_variant(const mc::variant& var, TYPE& e) {             \
+    [[maybe_unused]] void reflector<TYPE>::from_variant(const mc::variant& var, TYPE& e)               \
+    {                                                                                                  \
         auto value = get_metadata().try_get_value_from_variant(var);                                   \
         if (!value) {                                                                                  \
             auto va = var.as_string();                                                                 \
@@ -694,7 +738,8 @@ struct MC_API reflector<
         e = static_cast<TYPE>(*value);                                                                 \
     }                                                                                                  \
     template <>                                                                                        \
-    [[maybe_unused]] mc::reflect::reflection<TYPE>& reflector<TYPE>::get_reflection() {                \
+    [[maybe_unused]] mc::reflect::reflection<TYPE>& reflector<TYPE>::get_reflection()                  \
+    {                                                                                                  \
         return mc::reflect::reflection<TYPE>::instance();                                              \
     }                                                                                                  \
     }

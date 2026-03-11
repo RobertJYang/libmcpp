@@ -31,22 +31,26 @@ namespace test {
  */
 class MC_API TestBase : public ::testing::Test {
 protected:
-    static void SetUpTestSuite() {
+    static void SetUpTestSuite()
+    {
         // 设置默认日志级别为 warn，减少测试输出
         mc::log::default_logger().set_level(mc::log::level::warn);
     }
 
-    static void TearDownTestSuite() {
+    static void TearDownTestSuite()
+    {
         // 恢复默认日志级别
         mc::log::default_logger().set_level(mc::log::level::info);
     }
 
-    void SetUp() override {
+    void SetUp() override
+    {
         // 每个测试用例开始时确保日志级别为 warn
         mc::log::default_logger().set_level(mc::log::level::warn);
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         // 每个测试用例结束时恢复日志级别为 info
         mc::log::default_logger().set_level(mc::log::level::info);
     }
@@ -54,35 +58,42 @@ protected:
 
 class MC_API TestWithRuntime : public TestBase {
 protected:
-    static mc::runtime::runtime_context& get_runtime() {
+    static mc::runtime::runtime_context& get_runtime()
+    {
         return mc::runtime::get_runtime_context();
     }
 
-    static void reset_runtime() {
+    static void reset_runtime()
+    {
         mc::runtime::reset_runtime_context();
     }
 
-    static void SetUpTestSuite() {
+    static void SetUpTestSuite()
+    {
         mc::runtime::reset_runtime_context();
     }
 
-    static void TearDownTestSuite() {
+    static void TearDownTestSuite()
+    {
         reset_runtime();
     }
 };
 
 class MC_API TestWithDbusDaemon : public TestWithRuntime {
 protected:
-    static dbus_daemon_manager& get_dbus_daemon() {
+    static dbus_daemon_manager& get_dbus_daemon()
+    {
         return mc::singleton<dbus_daemon_manager>::instance();
     }
 
-    static void SetUpTestSuite() {
+    static void SetUpTestSuite()
+    {
         TestWithRuntime::SetUpTestSuite();
         ASSERT_TRUE(get_dbus_daemon().start()) << "启动 DBus 守护进程失败";
     }
 
-    static void TearDownTestSuite() {
+    static void TearDownTestSuite()
+    {
         // 在重置runtime context之前，先清理可能持有io_context资源的harbor单例
         // 这样可以避免访问已销毁的io_context资源导致的段错误
         try {
@@ -98,13 +109,15 @@ protected:
 
 class MC_API TestWithApplication : public TestWithDbusDaemon {
 protected:
-    static void SetUpTestSuite() {
+    static void SetUpTestSuite()
+    {
         TestWithDbusDaemon::SetUpTestSuite();
 
         mc::core::app().start();
     }
 
-    static void TearDownTestSuite() {
+    static void TearDownTestSuite()
+    {
         mc::core::app().stop();
         mc::core::application::reset_for_test();
         TestWithDbusDaemon::TearDownTestSuite();
@@ -113,15 +126,18 @@ protected:
 
 class MC_API TestWithEngine : public TestWithApplication {
 protected:
-    static mc::engine::engine& get_engine() {
+    static mc::engine::engine& get_engine()
+    {
         return mc::engine::get_engine();
     }
 
-    static void SetUpTestSuite() {
+    static void SetUpTestSuite()
+    {
         TestWithApplication::SetUpTestSuite();
     }
 
-    static void TearDownTestSuite() {
+    static void TearDownTestSuite()
+    {
         mc::engine::engine::reset_for_test();
         TestWithApplication::TearDownTestSuite();
     };

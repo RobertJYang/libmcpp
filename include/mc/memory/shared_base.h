@@ -108,34 +108,44 @@ public:
     static constexpr counter_type INVALID   = std::numeric_limits<counter_type>::max();
     static constexpr counter_type DESTROYED = 0;
 
-    shared_counter() : m_ref_count(INVALID), m_weak_count(1) {
+    shared_counter()
+        : m_ref_count(INVALID), m_weak_count(1)
+    {
     }
 
-    virtual ~shared_counter() {
+    virtual ~shared_counter()
+    {
     }
 
     // 弱引用计数保底设置为 1，这是因为 shared_ptr 需要两阶段销毁对象：
     // 第一阶段：调用 Deleter 的 destroy 方法处理对象析构
     // 第二阶段：归还保底弱引用，如果弱引用计数为 0 则释放内存
     // 保底弱引用策略可以保证第一阶段析构对象时不会因为其他 weak_ptr 销毁而导致内存提前被释放
-    shared_counter(const shared_counter&) : m_ref_count(INVALID), m_weak_count(1) {
+    shared_counter(const shared_counter&)
+        : m_ref_count(INVALID), m_weak_count(1)
+    {
     }
 
-    shared_counter& operator=(const shared_counter&) {
+    shared_counter& operator=(const shared_counter&)
+    {
         // 赋值操作不改变引用计数和管理状态
         return *this;
     }
 
-    shared_counter(shared_counter&&) noexcept : m_ref_count(INVALID), m_weak_count(1) {
+    shared_counter(shared_counter&&) noexcept
+        : m_ref_count(INVALID), m_weak_count(1)
+    {
     }
 
-    shared_counter& operator=(shared_counter&&) noexcept {
+    shared_counter& operator=(shared_counter&&) noexcept
+    {
         // 赋值操作不改变引用计数和管理状态
         return *this;
     }
 
     // 增加强引用计数
-    void add_ref() const {
+    void add_ref() const
+    {
         atomic_counter_ref ref(m_ref_count);
         counter_type       current = ref.load(std::memory_order_acquire);
 
@@ -154,7 +164,8 @@ public:
     }
 
     // 减少强引用计数，如果引用计数为 0 则返回 true
-    bool release_ref() const {
+    bool release_ref() const
+    {
         atomic_counter_ref ref(m_ref_count);
         counter_type       current = ref.load(std::memory_order_acquire);
 
@@ -171,12 +182,14 @@ public:
     }
 
     // 增加弱引用计数
-    void add_weak_ref() const {
+    void add_weak_ref() const
+    {
         atomic_counter_ref(m_weak_count).fetch_add(1, std::memory_order_relaxed);
     }
 
     // 减少弱引用计数，如果弱引用计数为0且对象已销毁则返回true
-    bool release_weak_ref() const {
+    bool release_weak_ref() const
+    {
         if (atomic_counter_ref(m_weak_count).fetch_sub(1, std::memory_order_acq_rel) == 1) {
             // 弱引用计数为0且对象已销毁时，可以释放内存
             return is_destroyed();
@@ -186,17 +199,20 @@ public:
     }
 
     // 获取当前强引用计数
-    counter_type ref_count() const {
+    counter_type ref_count() const
+    {
         return atomic_counter_ref(m_ref_count).load(std::memory_order_relaxed);
     }
 
     // 获取当前弱引用计数
-    counter_type weak_count() const {
+    counter_type weak_count() const
+    {
         return atomic_counter_ref(m_weak_count).load(std::memory_order_relaxed);
     }
 
     // 尝试从弱引用升级为强引用
-    bool try_add_ref() const {
+    bool try_add_ref() const
+    {
         atomic_counter_ref ref(m_ref_count);
         counter_type       current = ref.load(std::memory_order_acquire);
 
@@ -214,7 +230,8 @@ public:
     /**
      * @brief 检查对象是否已被智能指针管理
      */
-    bool is_managed() const {
+    bool is_managed() const
+    {
         counter_type current = atomic_counter_ref(m_ref_count).load(std::memory_order_acquire);
         return current != INVALID;
     }
@@ -222,7 +239,8 @@ public:
     /**
      * @brief 检查对象是否已析构
      */
-    bool is_destroyed() const {
+    bool is_destroyed() const
+    {
         counter_type current = atomic_counter_ref(m_ref_count).load(std::memory_order_acquire);
         return current == DESTROYED;
     }
@@ -258,26 +276,31 @@ public:
      *
      * 由于对象创建时引用计数就是1，现在总是安全的
      */
-    shared_ptr_type shared_from_this() const {
+    shared_ptr_type shared_from_this() const
+    {
         return shared_ptr_type(static_cast<const element_type*>(this));
     }
 
     /**
      * @brief 安全地获取 shared_ptr，类似 std::enable_shared_from_this
      */
-    shared_ptr_type shared_from_this() {
+    shared_ptr_type shared_from_this()
+    {
         return shared_ptr_type(static_cast<element_type*>(this));
     }
 
-    weak_ptr_type weak_from_this() const {
+    weak_ptr_type weak_from_this() const
+    {
         return weak_ptr_type(static_cast<const element_type*>(this));
     }
 
-    weak_ptr_type weak_from_this() {
+    weak_ptr_type weak_from_this()
+    {
         return weak_ptr_type(static_cast<element_type*>(this));
     }
 
-    static shared_ptr_type from_raw(void* ptr, bool add_ref = false) {
+    static shared_ptr_type from_raw(void* ptr, bool add_ref = false)
+    {
         if (!ptr) {
             return {};
         }

@@ -36,28 +36,34 @@ template <typename C, typename Signature>
 struct signal_info : public mc::reflect::member_info_base {
     using tag_type = mc::reflect::signal_tag;
 
-    mc::signal<Signature> C::* signal_ptr;
+    mc::signal<Signature> C::*signal_ptr;
 
-    constexpr signal_info(std::string_view n, mc::signal<Signature> C::* ptr)
-        : mc::reflect::member_info_base(n), signal_ptr(ptr) {
+    constexpr signal_info(std::string_view n, mc::signal<Signature> C::*ptr)
+        : mc::reflect::member_info_base(n), signal_ptr(ptr)
+    {
     }
 
-    std::type_index typeinfo() const override {
+    std::type_index typeinfo() const override
+    {
         return typeid(mc::signal<Signature>);
     }
-    std::string_view type_name() const override {
+    std::string_view type_name() const override
+    {
         return "signal";
     }
 
-    int type() const override {
+    int type() const override
+    {
         return static_cast<int>(mc::reflect::member_info_type::custom_start) + 1;
     }
 
-    uint32_t offset() const override {
+    uint32_t offset() const override
+    {
         return static_cast<uint32_t>(MC_MEMBER_OFFSETOF(C, signal_ptr));
     }
 
-    member_info_base* clone() const override {
+    member_info_base* clone() const override
+    {
         return new signal_info<C, Signature>(this->name, this->signal_ptr);
     }
 };
@@ -74,14 +80,16 @@ public:
     mc::signal<void(const std::string&)> name_changed;
 
     // 普通方法
-    void set_value(int v) {
+    void set_value(int v)
+    {
         if (m_value != v) {
             m_value = v;
             value_changed(v);
         }
     }
 
-    void set_name(const std::string& n) {
+    void set_name(const std::string& n)
+    {
         if (m_name != n) {
             m_name = n;
             name_changed(n);
@@ -99,7 +107,8 @@ namespace mc::reflect {
 
 template <typename Signature>
 struct member_info_creator<TestValue, mc::signal<Signature>> {
-    static constexpr auto create(mc::signal<Signature> TestValue::* member_ptr, std::string_view name) {
+    static constexpr auto create(mc::signal<Signature> TestValue::*member_ptr, std::string_view name)
+    {
         return std::make_tuple(signal_info<TestValue, Signature>{name, member_ptr});
     }
 };
@@ -115,7 +124,8 @@ MC_REFLECT(test_custom_member_info::TestValue,
            (set_value)(set_name))
 
 // 测试自定义成员信息提取
-TEST(CustomMemberInfoTest, SignalMemberInfo) {
+TEST(CustomMemberInfoTest, SignalMemberInfo)
+{
     // 检查可反射性
     EXPECT_TRUE(mc::reflect::is_reflectable<TestValue>());
 

@@ -33,7 +33,8 @@ class ExecutorTest : public mc::test::TestWithRuntime {
 } // namespace
 
 // 测试 executor 的基本构造和使用
-TEST_F(ExecutorTest, BasicConstruction) {
+TEST_F(ExecutorTest, BasicConstruction)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
@@ -50,7 +51,8 @@ TEST_F(ExecutorTest, BasicConstruction) {
 }
 
 // 测试 executor 的默认构造
-TEST_F(ExecutorTest, DefaultConstruction) {
+TEST_F(ExecutorTest, DefaultConstruction)
+{
     mc::executor default_executor;
 
     // 默认构造的执行器应该是无效的
@@ -58,7 +60,8 @@ TEST_F(ExecutorTest, DefaultConstruction) {
 }
 
 // 测试 executor 的拷贝语义（共享底层实现）
-TEST_F(ExecutorTest, CopySemantics) {
+TEST_F(ExecutorTest, CopySemantics)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
@@ -81,7 +84,8 @@ TEST_F(ExecutorTest, CopySemantics) {
 }
 
 // 测试 executor 的移动语义
-TEST_F(ExecutorTest, MoveSemantics) {
+TEST_F(ExecutorTest, MoveSemantics)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
@@ -101,7 +105,8 @@ TEST_F(ExecutorTest, MoveSemantics) {
 }
 
 // 测试 executor 的 post 操作
-TEST_F(ExecutorTest, PostOperation) {
+TEST_F(ExecutorTest, PostOperation)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
@@ -136,12 +141,13 @@ TEST_F(ExecutorTest, PostOperation) {
 }
 
 // 测试 executor 的 defer 操作
-TEST_F(ExecutorTest, DeferOperation) {
+TEST_F(ExecutorTest, DeferOperation)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
-    bool                                task_executed{false};
-    mc::test::runtime::future_flag      task_ready;
+    bool                           task_executed{false};
+    mc::test::runtime::future_flag task_ready;
 
     mc::executor exec_io(mc::make_io_strand());
 
@@ -155,12 +161,13 @@ TEST_F(ExecutorTest, DeferOperation) {
 }
 
 // 测试 executor 的 dispatch 操作
-TEST_F(ExecutorTest, DispatchOperation) {
+TEST_F(ExecutorTest, DispatchOperation)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
-    bool                                task_executed{false};
-    mc::test::runtime::future_flag      task_ready;
+    bool                           task_executed{false};
+    mc::test::runtime::future_flag task_ready;
 
     mc::executor exec_io(mc::make_io_strand());
 
@@ -174,7 +181,8 @@ TEST_F(ExecutorTest, DispatchOperation) {
 }
 
 // 测试 executor 的比较操作
-TEST_F(ExecutorTest, ComparisonOperations) {
+TEST_F(ExecutorTest, ComparisonOperations)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.start();
     auto io_strand1  = mc::make_io_strand();
@@ -204,7 +212,8 @@ TEST_F(ExecutorTest, ComparisonOperations) {
 }
 
 // 测试 executor 包装不同类型的 boost::asio 执行器
-TEST_F(ExecutorTest, WrappingDifferentExecutorTypes) {
+TEST_F(ExecutorTest, WrappingDifferentExecutorTypes)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
@@ -230,7 +239,8 @@ TEST_F(ExecutorTest, WrappingDifferentExecutorTypes) {
 }
 
 // 测试 executor 的 strand 串行执行特性
-TEST_F(ExecutorTest, StrandSerialExecution) {
+TEST_F(ExecutorTest, StrandSerialExecution)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
@@ -265,7 +275,8 @@ TEST_F(ExecutorTest, StrandSerialExecution) {
 }
 
 // 测试 executor 的异常处理
-TEST_F(ExecutorTest, ExceptionHandling) {
+TEST_F(ExecutorTest, ExceptionHandling)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
@@ -284,7 +295,8 @@ TEST_F(ExecutorTest, ExceptionHandling) {
 }
 
 // 测试 executor 的生命周期管理
-TEST_F(ExecutorTest, LifecycleManagement) {
+TEST_F(ExecutorTest, LifecycleManagement)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
@@ -312,7 +324,8 @@ TEST_F(ExecutorTest, LifecycleManagement) {
 }
 
 // 测试 executor 的共享语义
-TEST_F(ExecutorTest, SharedSemantics) {
+TEST_F(ExecutorTest, SharedSemantics)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
@@ -353,7 +366,8 @@ TEST_F(ExecutorTest, SharedSemantics) {
 }
 
 // 测试 nullptr 拷贝构造
-TEST_F(ExecutorTest, CopyConstructionWithNullptr) {
+TEST_F(ExecutorTest, CopyConstructionWithNullptr)
+{
     mc::executor invalid_executor;
 
     // 从无效执行器拷贝构造
@@ -363,7 +377,8 @@ TEST_F(ExecutorTest, CopyConstructionWithNullptr) {
 }
 
 // 测试 nullptr 拷贝赋值
-TEST_F(ExecutorTest, CopyAssignmentWithNullptr) {
+TEST_F(ExecutorTest, CopyAssignmentWithNullptr)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
@@ -376,7 +391,8 @@ TEST_F(ExecutorTest, CopyAssignmentWithNullptr) {
 }
 
 // 测试相同 impl 指针的相等性
-TEST_F(ExecutorTest, EqualitySameImplPointer) {
+TEST_F(ExecutorTest, EqualitySameImplPointer)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
@@ -389,7 +405,8 @@ TEST_F(ExecutorTest, EqualitySameImplPointer) {
 }
 
 // 测试与 nullptr 的相等性
-TEST_F(ExecutorTest, EqualityWithNullptr) {
+TEST_F(ExecutorTest, EqualityWithNullptr)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
@@ -406,7 +423,8 @@ TEST_F(ExecutorTest, EqualityWithNullptr) {
 }
 
 // 测试不等操作符
-TEST_F(ExecutorTest, InequalityOperator) {
+TEST_F(ExecutorTest, InequalityOperator)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
@@ -426,7 +444,8 @@ TEST_F(ExecutorTest, InequalityOperator) {
 }
 
 // 测试 nullptr 的工作生命周期
-TEST_F(ExecutorTest, WorkLifecycleWithNullptr) {
+TEST_F(ExecutorTest, WorkLifecycleWithNullptr)
+{
     mc::executor invalid_exec;
 
     // 对无效执行器调用工作生命周期方法应该不抛出异常
@@ -435,7 +454,8 @@ TEST_F(ExecutorTest, WorkLifecycleWithNullptr) {
 }
 
 // 测试 nullptr 的 context 抛出异常
-TEST_F(ExecutorTest, ContextWithNullptrThrows) {
+TEST_F(ExecutorTest, ContextWithNullptrThrows)
+{
     mc::executor invalid_exec;
 
     // 对无效执行器调用 context 应该抛出异常
@@ -443,7 +463,8 @@ TEST_F(ExecutorTest, ContextWithNullptrThrows) {
 }
 
 // 测试多引用的析构函数
-TEST_F(ExecutorTest, DestructorWithMultipleReferences) {
+TEST_F(ExecutorTest, DestructorWithMultipleReferences)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
@@ -461,7 +482,8 @@ TEST_F(ExecutorTest, DestructorWithMultipleReferences) {
 }
 
 // 测试单引用的析构函数
-TEST_F(ExecutorTest, DestructorWithSingleReference) {
+TEST_F(ExecutorTest, DestructorWithSingleReference)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
@@ -474,7 +496,8 @@ TEST_F(ExecutorTest, DestructorWithSingleReference) {
 }
 
 // 测试两个 nullptr 的拷贝赋值
-TEST_F(ExecutorTest, CopyAssignmentBothNullptr) {
+TEST_F(ExecutorTest, CopyAssignmentBothNullptr)
+{
     mc::executor invalid1;
     mc::executor invalid2;
 
@@ -485,7 +508,8 @@ TEST_F(ExecutorTest, CopyAssignmentBothNullptr) {
 }
 
 // 测试 release 返回 false 的拷贝赋值
-TEST_F(ExecutorTest, CopyAssignmentReleaseReturnsFalse) {
+TEST_F(ExecutorTest, CopyAssignmentReleaseReturnsFalse)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
@@ -502,7 +526,8 @@ TEST_F(ExecutorTest, CopyAssignmentReleaseReturnsFalse) {
 }
 
 // 测试 equal 返回 false 的相等性
-TEST_F(ExecutorTest, EqualityEqualReturnsFalse) {
+TEST_F(ExecutorTest, EqualityEqualReturnsFalse)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
@@ -516,7 +541,8 @@ TEST_F(ExecutorTest, EqualityEqualReturnsFalse) {
 }
 
 // 测试 context 抛出异常
-TEST_F(ExecutorTest, ContextThrowsException) {
+TEST_F(ExecutorTest, ContextThrowsException)
+{
     mc::executor invalid_exec;
 
     // 对无效执行器调用 context 应该抛出异常
@@ -526,7 +552,8 @@ TEST_F(ExecutorTest, ContextThrowsException) {
 // WrapDifferentExecutorTypes 已删除，功能已合并到 WrappingDifferentExecutorTypes 中
 
 // 测试 this 为 nullptr 的拷贝赋值
-TEST_F(ExecutorTest, CopyAssignmentThisNullptr) {
+TEST_F(ExecutorTest, CopyAssignmentThisNullptr)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
@@ -540,7 +567,8 @@ TEST_F(ExecutorTest, CopyAssignmentThisNullptr) {
 }
 
 // 测试 release 返回 true 的拷贝赋值
-TEST_F(ExecutorTest, CopyAssignmentReleaseReturnsTrue) {
+TEST_F(ExecutorTest, CopyAssignmentReleaseReturnsTrue)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
@@ -559,7 +587,8 @@ TEST_F(ExecutorTest, CopyAssignmentReleaseReturnsTrue) {
 }
 
 // 测试 other 为 nullptr 的拷贝赋值
-TEST_F(ExecutorTest, CopyAssignmentOtherNullptr) {
+TEST_F(ExecutorTest, CopyAssignmentOtherNullptr)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
@@ -572,7 +601,8 @@ TEST_F(ExecutorTest, CopyAssignmentOtherNullptr) {
 }
 
 // 测试 other 非 nullptr 的拷贝赋值
-TEST_F(ExecutorTest, CopyAssignmentOtherNonNullptr) {
+TEST_F(ExecutorTest, CopyAssignmentOtherNonNullptr)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
@@ -589,7 +619,8 @@ TEST_F(ExecutorTest, CopyAssignmentOtherNonNullptr) {
 }
 
 // 测试 other 为 nullptr 的移动赋值
-TEST_F(ExecutorTest, MoveAssignmentOtherNullptr) {
+TEST_F(ExecutorTest, MoveAssignmentOtherNullptr)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
@@ -602,7 +633,8 @@ TEST_F(ExecutorTest, MoveAssignmentOtherNullptr) {
 }
 
 // 测试 executor 的自赋值（拷贝赋值）
-TEST_F(ExecutorTest, CopyAssignmentSelf) {
+TEST_F(ExecutorTest, CopyAssignmentSelf)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
@@ -621,7 +653,8 @@ TEST_F(ExecutorTest, CopyAssignmentSelf) {
 }
 
 // 测试 executor 的自赋值（移动赋值）
-TEST_F(ExecutorTest, MoveAssignmentSelf) {
+TEST_F(ExecutorTest, MoveAssignmentSelf)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
@@ -640,7 +673,8 @@ TEST_F(ExecutorTest, MoveAssignmentSelf) {
 }
 
 // 测试 executor 的 on_work_started() 方法（有效执行器）
-TEST_F(ExecutorTest, OnWorkStartedWithValidExecutor) {
+TEST_F(ExecutorTest, OnWorkStartedWithValidExecutor)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
@@ -651,7 +685,8 @@ TEST_F(ExecutorTest, OnWorkStartedWithValidExecutor) {
 }
 
 // 测试 executor 的 on_work_finished() 方法（有效执行器）
-TEST_F(ExecutorTest, OnWorkFinishedWithValidExecutor) {
+TEST_F(ExecutorTest, OnWorkFinishedWithValidExecutor)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
@@ -662,7 +697,8 @@ TEST_F(ExecutorTest, OnWorkFinishedWithValidExecutor) {
 }
 
 // 测试 executor 的 context() 方法（有效执行器）
-TEST_F(ExecutorTest, ContextWithValidExecutor) {
+TEST_F(ExecutorTest, ContextWithValidExecutor)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
@@ -674,44 +710,59 @@ TEST_F(ExecutorTest, ContextWithValidExecutor) {
 }
 
 // 测试 executor 的 post/defer/dispatch - 无效执行器异常分支
-TEST_F(ExecutorTest, PostDeferDispatchInvalidExecutor) {
+TEST_F(ExecutorTest, PostDeferDispatchInvalidExecutor)
+{
     mc::executor invalid_executor;
 
     // 对无效执行器调用 post 应该抛出异常
-    EXPECT_THROW(invalid_executor.post([]() {}), mc::invalid_op_exception);
+    EXPECT_THROW(invalid_executor.post([]() {
+    }),
+                 mc::invalid_op_exception);
 
     // 对无效执行器调用 defer 应该抛出异常
-    EXPECT_THROW(invalid_executor.defer([]() {}), mc::invalid_op_exception);
+    EXPECT_THROW(invalid_executor.defer([]() {
+    }),
+                 mc::invalid_op_exception);
 
     // 对无效执行器调用 dispatch 应该抛出异常
-    EXPECT_THROW(invalid_executor.dispatch([]() {}), mc::invalid_op_exception);
+    EXPECT_THROW(invalid_executor.dispatch([]() {
+    }),
+                 mc::invalid_op_exception);
 }
 
 // 测试 executor 的 post/defer/dispatch 使用自定义分配器
-TEST_F(ExecutorTest, PostDeferDispatchWithCustomAllocator) {
+TEST_F(ExecutorTest, PostDeferDispatchWithCustomAllocator)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
-    std::atomic<int> task_count{0};
+    std::atomic<int>     task_count{0};
     std::allocator<void> custom_allocator;
 
     mc::executor exec(mc::make_io_strand());
 
     // 使用自定义分配器调用 post
-    exec.post([&task_count]() { task_count++; }, custom_allocator);
+    exec.post([&task_count]() {
+        task_count++;
+    }, custom_allocator);
 
     // 使用自定义分配器调用 defer
-    exec.defer([&task_count]() { task_count++; }, custom_allocator);
+    exec.defer([&task_count]() {
+        task_count++;
+    }, custom_allocator);
 
     // 使用自定义分配器调用 dispatch
-    exec.dispatch([&task_count]() { task_count++; }, custom_allocator);
+    exec.dispatch([&task_count]() {
+        task_count++;
+    }, custom_allocator);
 
     std::this_thread::sleep_for(100ms);
     EXPECT_EQ(task_count.load(), 3);
 }
 
 // 测试 executor 的引用计数，当不是最后一个引用时 release() 返回 false
-TEST_F(ExecutorTest, ExecutorReferenceCountingKeepsImplAlive) {
+TEST_F(ExecutorTest, ExecutorReferenceCountingKeepsImplAlive)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
@@ -724,7 +775,7 @@ TEST_F(ExecutorTest, ExecutorReferenceCountingKeepsImplAlive) {
         mc::executor copy(original);
         EXPECT_TRUE(copy.valid());
         EXPECT_EQ(original, copy);
-        
+
         // 此时引用计数应该是 2（original 和 copy）
         // 当 copy 析构时，release() 应该返回 false（因为还有 original 引用）
     }
@@ -738,17 +789,18 @@ TEST_F(ExecutorTest, ExecutorReferenceCountingKeepsImplAlive) {
 }
 
 // 测试 executor 的右值构造
-TEST_F(ExecutorTest, ExecutorConstructorRvalue) {
+TEST_F(ExecutorTest, ExecutorConstructorRvalue)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
     // 使用右值构造 executor，并传入自定义分配器
     std::allocator<void> custom_allocator;
-    auto io_strand = mc::make_io_strand();
-    
+    auto                 io_strand = mc::make_io_strand();
+
     // 使用右值引用和自定义分配器构造 executor
     mc::executor exec(std::move(io_strand), custom_allocator);
-    
+
     // 验证执行器有效
     EXPECT_TRUE(exec.valid());
 
@@ -763,25 +815,34 @@ TEST_F(ExecutorTest, ExecutorConstructorRvalue) {
 }
 
 // 测试无效执行器的 post 调用
-TEST_F(ExecutorTest, PostOnInvalidExecutorThrows) {
+TEST_F(ExecutorTest, PostOnInvalidExecutorThrows)
+{
     mc::executor invalid_executor;
 
     // 对无效执行器调用 post 应该抛出异常
-    EXPECT_THROW(invalid_executor.post([]() {}), mc::invalid_op_exception);
+    EXPECT_THROW(invalid_executor.post([]() {
+    }),
+                 mc::invalid_op_exception);
 }
 
 // 测试无效执行器的 defer 调用
-TEST_F(ExecutorTest, DeferOnInvalidExecutorThrows) {
+TEST_F(ExecutorTest, DeferOnInvalidExecutorThrows)
+{
     mc::executor invalid_executor;
 
     // 对无效执行器调用 defer 应该抛出异常
-    EXPECT_THROW(invalid_executor.defer([]() {}), mc::invalid_op_exception);
+    EXPECT_THROW(invalid_executor.defer([]() {
+    }),
+                 mc::invalid_op_exception);
 }
 
 // 测试无效执行器的 dispatch 调用
-TEST_F(ExecutorTest, DispatchOnInvalidExecutorThrows) {
+TEST_F(ExecutorTest, DispatchOnInvalidExecutorThrows)
+{
     mc::executor invalid_executor;
 
     // 对无效执行器调用 dispatch 应该抛出异常
-    EXPECT_THROW(invalid_executor.dispatch([]() {}), mc::invalid_op_exception);
+    EXPECT_THROW(invalid_executor.dispatch([]() {
+    }),
+                 mc::invalid_op_exception);
 }

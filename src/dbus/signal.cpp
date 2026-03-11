@@ -22,8 +22,9 @@ namespace mc::dbus {
 constexpr uint64_t          SD_BUS_VTABLE_PROPERTY_EMITS_INVALIDATION = 1 << 6;
 static DBus::Match::Context s_ctx;
 
-void send_signal(connection& conn, message& signal) {
-    auto start = std::chrono::steady_clock::now();
+void send_signal(connection& conn, message& signal)
+{
+    auto                                         start = std::chrono::steady_clock::now();
     std::unordered_map<std::string, std::string> destinations;
     shm_global_lock_shared_exec([&]() {
         auto& shm = shm::shared_memory::get_instance().get_base();
@@ -58,13 +59,14 @@ void send_signal(connection& conn, message& signal) {
         }
     }
     free(raw_data);
-    auto end = std::chrono::steady_clock::now();
+    auto end      = std::chrono::steady_clock::now();
     auto duration = end - start;
     dlog("dbus send message cost '${time}' microseconds", ("time", std::chrono::duration_cast<std::chrono::microseconds>(duration)));
 }
 
 void emit_properties_changed(connection& conn, engine::abstract_object& obj,
-                             const engine::property_base& prop, const variant& value) {
+                             const engine::property_base& prop, const variant& value)
+{
     auto iface     = prop.get_interface()->get_interface_name();
     auto prop_name = prop.get_name();
     auto signal    = mc::dbus::message::new_signal(obj.get_object_path(), "org.freedesktop.DBus.Properties",
@@ -84,7 +86,8 @@ void emit_properties_changed(connection& conn, engine::abstract_object& obj,
     send_signal(conn, signal);
 }
 
-void emit_interfaces_added(connection& conn, const engine::abstract_object& obj) {
+void emit_interfaces_added(connection& conn, const engine::abstract_object& obj)
+{
     auto signal = mc::dbus::message::new_signal(
         obj.get_object_path(), "org.freedesktop.DBus.ObjectManager", "InterfacesAdded");
     auto writer = signal.writer();
@@ -93,7 +96,8 @@ void emit_interfaces_added(connection& conn, const engine::abstract_object& obj)
     conn.send(std::move(signal));
 }
 
-void emit_interfaces_removed(connection& conn, const engine::abstract_object& obj) {
+void emit_interfaces_removed(connection& conn, const engine::abstract_object& obj)
+{
     auto signal = mc::dbus::message::new_signal(
         obj.get_object_path(), "org.freedesktop.DBus.ObjectManager", "InterfacesRemoved");
     auto writer = signal.writer();

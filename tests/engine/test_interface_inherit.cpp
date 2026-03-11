@@ -27,12 +27,14 @@ public:
     mc::signal<void(std::string)>      m_common_signal;
 
     // 接口方法
-    std::string base_method(int32_t val) {
+    std::string base_method(int32_t val)
+    {
         return "base:" + std::to_string(val);
     }
 
     // 公共方法 - 在子接口中被覆盖
-    std::string common_method(const std::string& val) {
+    std::string common_method(const std::string& val)
+    {
         return "base:" + val;
     }
 };
@@ -48,12 +50,14 @@ public:
     mc::signal<void(std::string)> m_common_signal; // 覆盖基础接口信号
 
     // 接口方法
-    double middle_method(const std::string& val) {
+    double middle_method(const std::string& val)
+    {
         return std::stod(val) * 2.0;
     }
 
     // 覆盖基础接口方法
-    std::string common_method(const std::string& val) {
+    std::string common_method(const std::string& val)
+    {
         return "middle:" + val;
     }
 };
@@ -69,12 +73,14 @@ public:
     mc::signal<void(std::string)> m_common_signal; // 覆盖中间接口信号
 
     // 接口方法
-    bool extended_method(double val) {
+    bool extended_method(double val)
+    {
         return val > 0;
     }
 
     // 再次覆盖公共方法
-    std::string common_method(const std::string& val) {
+    std::string common_method(const std::string& val)
+    {
         return "extended:" + val;
     }
 };
@@ -90,7 +96,8 @@ public:
     mc::signal<void(std::string)> m_common_signal; // 覆盖中间接口信号
 
     // 对象方法覆盖接口方法
-    std::string common_method(const std::string& val) {
+    std::string common_method(const std::string& val)
+    {
         return "object:" + val;
     }
 };
@@ -123,17 +130,20 @@ using namespace test_interface_inherit;
 
 class interface_inherit_test : public ::testing::Test {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
     }
 
     TestObject obj;
 };
 
 // 测试接口属性继承
-TEST_F(interface_inherit_test, test_interface_property_inherit) {
+TEST_F(interface_inherit_test, test_interface_property_inherit)
+{
     // 通过接口直接访问属性
     EXPECT_EQ(obj.m_iface.m_base_value, 100);
     EXPECT_EQ(obj.m_iface.m_middle_value, "middle");
@@ -142,7 +152,8 @@ TEST_F(interface_inherit_test, test_interface_property_inherit) {
 }
 
 // 测试通过 abstract_interface 访问属性
-TEST_F(interface_inherit_test, test_abstract_interface) {
+TEST_F(interface_inherit_test, test_abstract_interface)
+{
     mc::engine::abstract_interface* base_iface = &obj.m_iface;
 
     // 测试能否通过抽象接口获取所有属性（包括继承的）
@@ -166,7 +177,8 @@ TEST_F(interface_inherit_test, test_abstract_interface) {
 }
 
 // 测试通过 abstract_object 访问属性
-TEST_F(interface_inherit_test, test_abstract_object) {
+TEST_F(interface_inherit_test, test_abstract_object)
+{
     mc::engine::abstract_object* base_obj = &obj;
 
     // 测试不指定接口名时，访问对象属性
@@ -190,7 +202,8 @@ TEST_F(interface_inherit_test, test_abstract_object) {
 }
 
 // 测试 get_all_properties 方法
-TEST_F(interface_inherit_test, test_get_all_properties) {
+TEST_F(interface_inherit_test, test_get_all_properties)
+{
     obj.m_iface.m_base_value     = 123;
     obj.m_iface.m_middle_value   = "test_middle";
     obj.m_iface.m_extended_value = 9.99;
@@ -235,7 +248,8 @@ TEST_F(interface_inherit_test, test_get_all_properties) {
 }
 
 // 测试属性存在性检查
-TEST_F(interface_inherit_test, test_property_existence) {
+TEST_F(interface_inherit_test, test_property_existence)
+{
     mc::engine::abstract_object* base_obj = &obj;
 
     // 测试对象属性
@@ -255,7 +269,8 @@ TEST_F(interface_inherit_test, test_property_existence) {
 }
 
 // 测试信号连接和触发
-TEST_F(interface_inherit_test, test_signals) {
+TEST_F(interface_inherit_test, test_signals)
+{
     {
         bool base_signal_called     = false;
         bool middle_signal_called   = false;
@@ -315,7 +330,8 @@ TEST_F(interface_inherit_test, test_signals) {
 }
 
 // 测试方法的覆盖关系
-TEST_F(interface_inherit_test, test_method_override) {
+TEST_F(interface_inherit_test, test_method_override)
+{
     // 直接调用对象方法和接口方法
     EXPECT_EQ(obj.common_method("test"), "object:test");           // 对象方法
     EXPECT_EQ(obj.m_iface.common_method("test"), "extended:test"); // 接口方法(最终覆盖版本)
@@ -325,7 +341,8 @@ TEST_F(interface_inherit_test, test_method_override) {
 }
 
 // 测试通过 abstract_interface 调用方法
-TEST_F(interface_inherit_test, test_abstract_interface_method) {
+TEST_F(interface_inherit_test, test_abstract_interface_method)
+{
     mc::engine::abstract_interface* iface = obj.get_interface("org.test.ExtendedInterface");
     ASSERT_NE(iface, nullptr);
 
@@ -345,7 +362,8 @@ TEST_F(interface_inherit_test, test_abstract_interface_method) {
 }
 
 // 测试通过 abstract_object 调用方法
-TEST_F(interface_inherit_test, test_abstract_object_method) {
+TEST_F(interface_inherit_test, test_abstract_object_method)
+{
     mc::engine::abstract_object* base_obj = &obj;
 
     // 不指定接口名 - 应该调用对象的方法
@@ -363,7 +381,8 @@ TEST_F(interface_inherit_test, test_abstract_object_method) {
 }
 
 // 测试信号的覆盖关系
-TEST_F(interface_inherit_test, test_signal_override) {
+TEST_F(interface_inherit_test, test_signal_override)
+{
     // 测试不同级别的同名信号
     bool base_signal_triggered     = false;
     bool middle_signal_triggered   = false;
@@ -387,7 +406,8 @@ TEST_F(interface_inherit_test, test_signal_override) {
 }
 
 // 测试通过 abstract_object 连接和触发覆盖的信号
-TEST_F(interface_inherit_test, test_abstract_signal_override) {
+TEST_F(interface_inherit_test, test_abstract_signal_override)
+{
     mc::engine::abstract_object* base_obj = &obj;
 
     {

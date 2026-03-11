@@ -36,7 +36,9 @@ public:
      * @brief 构造函数
      * @param count 毫秒数
      */
-    constexpr explicit milliseconds(int64_t count = 0) : m_count(count) {
+    constexpr explicit milliseconds(int64_t count = 0)
+        : m_count(count)
+    {
     }
 
     /**
@@ -44,14 +46,16 @@ public:
      */
     template <typename Rep, typename Period>
     constexpr milliseconds(const std::chrono::duration<Rep, Period>& duration)
-        : m_count(std::chrono::duration_cast<std::chrono::milliseconds>(duration).count()) {
+        : m_count(std::chrono::duration_cast<std::chrono::milliseconds>(duration).count())
+    {
     }
 
     /**
      * @brief 获取最大毫秒值
      * @return milliseconds 最大毫秒值
      */
-    static constexpr milliseconds maximum() {
+    static constexpr milliseconds maximum()
+    {
         return milliseconds(0x7fffffffffffffffll);
     }
 
@@ -59,70 +63,80 @@ public:
      * @brief 获取零毫秒值
      * @return milliseconds 零毫秒值
      */
-    static constexpr milliseconds zero() {
+    static constexpr milliseconds zero()
+    {
         return milliseconds(0);
     }
 
     /**
      * @brief 加法运算符
      */
-    friend constexpr milliseconds operator+(const milliseconds& l, const milliseconds& r) {
+    friend constexpr milliseconds operator+(const milliseconds& l, const milliseconds& r)
+    {
         return milliseconds(l.m_count + r.m_count);
     }
 
     /**
      * @brief 减法运算符
      */
-    friend constexpr milliseconds operator-(const milliseconds& l, const milliseconds& r) {
+    friend constexpr milliseconds operator-(const milliseconds& l, const milliseconds& r)
+    {
         return milliseconds(l.m_count - r.m_count);
     }
 
     /**
      * @brief 相等比较运算符
      */
-    constexpr bool operator==(const milliseconds& c) const {
+    constexpr bool operator==(const milliseconds& c) const
+    {
         return m_count == c.m_count;
     }
 
     /**
      * @brief 不等比较运算符
      */
-    constexpr bool operator!=(const milliseconds& c) const {
+    constexpr bool operator!=(const milliseconds& c) const
+    {
         return m_count != c.m_count;
     }
 
     /**
      * @brief 大于比较运算符
      */
-    friend constexpr bool operator>(const milliseconds& a, const milliseconds& b) {
+    friend constexpr bool operator>(const milliseconds& a, const milliseconds& b)
+    {
         return a.m_count > b.m_count;
     }
 
     /**
      * @brief 大于等于比较运算符
      */
-    friend constexpr bool operator>=(const milliseconds& a, const milliseconds& b) {
+    friend constexpr bool operator>=(const milliseconds& a, const milliseconds& b)
+    {
         return a.m_count >= b.m_count;
     }
 
     /**
      * @brief 小于比较运算符
      */
-    constexpr friend bool operator<(const milliseconds& a, const milliseconds& b) {
+    constexpr friend bool operator<(const milliseconds& a, const milliseconds& b)
+    {
         return a.m_count < b.m_count;
     }
 
     /**
      * @brief 小于等于比较运算符
      */
-    constexpr friend bool operator<=(const milliseconds& a, const milliseconds& b) {
+    constexpr friend bool operator<=(const milliseconds& a, const milliseconds& b)
+    {
         return a.m_count <= b.m_count;
     }
 
     /**
      * @brief 加法赋值运算符
      */
-    constexpr milliseconds& operator+=(const milliseconds& c) {
+    constexpr milliseconds& operator+=(const milliseconds& c)
+    {
         m_count += c.m_count;
         return *this;
     }
@@ -130,7 +144,8 @@ public:
     /**
      * @brief 减法赋值运算符
      */
-    constexpr milliseconds& operator-=(const milliseconds& c) {
+    constexpr milliseconds& operator-=(const milliseconds& c)
+    {
         m_count -= c.m_count;
         return *this;
     }
@@ -139,7 +154,8 @@ public:
      * @brief 获取毫秒数
      * @return int64_t 毫秒数
      */
-    constexpr int64_t count() const {
+    constexpr int64_t count() const
+    {
         return m_count;
     }
 
@@ -147,7 +163,8 @@ public:
      * @brief 转换为秒数
      * @return int64_t 秒数
      */
-    constexpr int64_t to_seconds() const {
+    constexpr int64_t to_seconds() const
+    {
         return m_count / 1000;
     }
 
@@ -155,7 +172,8 @@ public:
      * @brief 转换为std::chrono::duration
      */
     template <typename Rep, typename Period>
-    constexpr operator std::chrono::duration<Rep, Period>() const {
+    constexpr operator std::chrono::duration<Rep, Period>() const
+    {
         return std::chrono::duration_cast<std::chrono::duration<Rep, Period>>(
             std::chrono::milliseconds(m_count));
     }
@@ -170,7 +188,8 @@ private:
  * @param s 秒数
  * @return milliseconds 毫秒时间间隔
  */
-inline constexpr milliseconds seconds(int64_t s) {
+inline constexpr milliseconds seconds(int64_t s)
+{
     return milliseconds(s * 1000);
 }
 
@@ -179,7 +198,8 @@ inline constexpr milliseconds seconds(int64_t s) {
  * @param m 分钟数
  * @return milliseconds 毫秒时间间隔
  */
-inline constexpr milliseconds minutes(int64_t m) {
+inline constexpr milliseconds minutes(int64_t m)
+{
     return seconds(60 * m);
 }
 
@@ -188,7 +208,8 @@ inline constexpr milliseconds minutes(int64_t m) {
  * @param h 小时数
  * @return milliseconds 毫秒时间间隔
  */
-inline constexpr milliseconds hours(int64_t h) {
+inline constexpr milliseconds hours(int64_t h)
+{
     return minutes(60 * h);
 }
 
@@ -197,7 +218,8 @@ inline constexpr milliseconds hours(int64_t h) {
  * @param d 天数
  * @return milliseconds 毫秒时间间隔
  */
-inline constexpr milliseconds days(int64_t d) {
+inline constexpr milliseconds days(int64_t d)
+{
     return hours(24 * d);
 }
 
@@ -210,14 +232,17 @@ public:
      * @brief 构造函数
      * @param elapsed 时间间隔
      */
-    constexpr explicit time_point(milliseconds elapsed = milliseconds()) : m_elapsed(elapsed) {
+    constexpr explicit time_point(milliseconds elapsed = milliseconds())
+        : m_elapsed(elapsed)
+    {
     }
 
     /**
      * @brief 从std::chrono::time_point构造
      */
     template <typename Clock, typename Duration>
-    time_point(const std::chrono::time_point<Clock, Duration>& tp) {
+    time_point(const std::chrono::time_point<Clock, Duration>& tp)
+    {
         auto ms_tp = std::chrono::time_point_cast<std::chrono::milliseconds>(tp);
         m_elapsed  = milliseconds(ms_tp.time_since_epoch().count());
     }
@@ -232,7 +257,8 @@ public:
      * @brief 获取最大时间点
      * @return time_point 最大时间点
      */
-    static constexpr time_point maximum() {
+    static constexpr time_point maximum()
+    {
         return time_point(milliseconds::maximum());
     }
 
@@ -240,7 +266,8 @@ public:
      * @brief 获取最小时间点
      * @return time_point 最小时间点
      */
-    static constexpr time_point min() {
+    static constexpr time_point min()
+    {
         return time_point();
     }
 
@@ -269,7 +296,8 @@ public:
      * @brief 获取从纪元以来的时间间隔
      * @return const milliseconds& 时间间隔
      */
-    constexpr const milliseconds& time_since_epoch() const {
+    constexpr const milliseconds& time_since_epoch() const
+    {
         return m_elapsed;
     }
 
@@ -277,7 +305,8 @@ public:
      * @brief 获取从纪元以来的秒数
      * @return uint32_t 秒数
      */
-    constexpr uint32_t sec_since_epoch() const {
+    constexpr uint32_t sec_since_epoch() const
+    {
         return m_elapsed.count() / 1000;
     }
 
@@ -285,7 +314,8 @@ public:
      * @brief 转换为std::chrono::time_point
      */
     template <typename Clock, typename Duration>
-    operator std::chrono::time_point<Clock, Duration>() const {
+    operator std::chrono::time_point<Clock, Duration>() const
+    {
         return std::chrono::time_point<Clock, Duration>(
             std::chrono::milliseconds(m_elapsed.count()));
     }
@@ -293,49 +323,56 @@ public:
     /**
      * @brief 大于比较运算符
      */
-    constexpr bool operator>(const time_point& t) const {
+    constexpr bool operator>(const time_point& t) const
+    {
         return m_elapsed.m_count > t.m_elapsed.m_count;
     }
 
     /**
      * @brief 大于等于比较运算符
      */
-    constexpr bool operator>=(const time_point& t) const {
+    constexpr bool operator>=(const time_point& t) const
+    {
         return m_elapsed.m_count >= t.m_elapsed.m_count;
     }
 
     /**
      * @brief 小于比较运算符
      */
-    constexpr bool operator<(const time_point& t) const {
+    constexpr bool operator<(const time_point& t) const
+    {
         return m_elapsed.m_count < t.m_elapsed.m_count;
     }
 
     /**
      * @brief 小于等于比较运算符
      */
-    constexpr bool operator<=(const time_point& t) const {
+    constexpr bool operator<=(const time_point& t) const
+    {
         return m_elapsed.m_count <= t.m_elapsed.m_count;
     }
 
     /**
      * @brief 相等比较运算符
      */
-    constexpr bool operator==(const time_point& t) const {
+    constexpr bool operator==(const time_point& t) const
+    {
         return m_elapsed.m_count == t.m_elapsed.m_count;
     }
 
     /**
      * @brief 不等比较运算符
      */
-    constexpr bool operator!=(const time_point& t) const {
+    constexpr bool operator!=(const time_point& t) const
+    {
         return m_elapsed.m_count != t.m_elapsed.m_count;
     }
 
     /**
      * @brief 加法赋值运算符
      */
-    constexpr time_point& operator+=(const milliseconds& m) {
+    constexpr time_point& operator+=(const milliseconds& m)
+    {
         m_elapsed += m;
         return *this;
     }
@@ -343,7 +380,8 @@ public:
     /**
      * @brief 减法赋值运算符
      */
-    constexpr time_point& operator-=(const milliseconds& m) {
+    constexpr time_point& operator-=(const milliseconds& m)
+    {
         m_elapsed -= m;
         return *this;
     }
@@ -351,21 +389,24 @@ public:
     /**
      * @brief 加法运算符
      */
-    constexpr time_point operator+(const milliseconds& m) const {
+    constexpr time_point operator+(const milliseconds& m) const
+    {
         return time_point(m_elapsed + m);
     }
 
     /**
      * @brief 减法运算符
      */
-    constexpr time_point operator-(const milliseconds& m) const {
+    constexpr time_point operator-(const milliseconds& m) const
+    {
         return time_point(m_elapsed - m);
     }
 
     /**
      * @brief 减法运算符
      */
-    constexpr milliseconds operator-(const time_point& m) const {
+    constexpr milliseconds operator-(const time_point& m) const
+    {
         return milliseconds(m_elapsed.count() - m.m_elapsed.count());
     }
 
@@ -387,14 +428,18 @@ public:
     /**
      * @brief 默认构造函数
      */
-    constexpr time_point_sec() : m_utc_seconds(0) {
+    constexpr time_point_sec()
+        : m_utc_seconds(0)
+    {
     }
 
     /**
      * @brief 构造函数
      * @param seconds 秒数
      */
-    constexpr explicit time_point_sec(uint32_t seconds) : m_utc_seconds(seconds) {
+    constexpr explicit time_point_sec(uint32_t seconds)
+        : m_utc_seconds(seconds)
+    {
     }
 
     /**
@@ -402,14 +447,16 @@ public:
      * @param t 时间点
      */
     constexpr time_point_sec(const time_point& t)
-        : m_utc_seconds(t.time_since_epoch().count() / 1000ll) {
+        : m_utc_seconds(t.time_since_epoch().count() / 1000ll)
+    {
     }
 
     /**
      * @brief 从std::chrono::time_point构造
      */
     template <typename Clock, typename Duration>
-    time_point_sec(const std::chrono::time_point<Clock, Duration>& tp) {
+    time_point_sec(const std::chrono::time_point<Clock, Duration>& tp)
+    {
         auto s_tp     = std::chrono::time_point_cast<std::chrono::seconds>(tp);
         m_utc_seconds = s_tp.time_since_epoch().count();
     }
@@ -424,7 +471,8 @@ public:
      * @brief 获取最大时间点
      * @return time_point_sec 最大时间点
      */
-    static constexpr time_point_sec maximum() {
+    static constexpr time_point_sec maximum()
+    {
         return time_point_sec(0xffffffff);
     }
 
@@ -432,14 +480,16 @@ public:
      * @brief 获取最小时间点
      * @return time_point_sec 最小时间点
      */
-    static constexpr time_point_sec min() {
+    static constexpr time_point_sec min()
+    {
         return time_point_sec(0);
     }
 
     /**
      * @brief 转换为时间点
      */
-    constexpr operator time_point() const {
+    constexpr operator time_point() const
+    {
         return time_point(seconds(m_utc_seconds));
     }
 
@@ -447,7 +497,8 @@ public:
      * @brief 转换为std::chrono::time_point
      */
     template <typename Clock, typename Duration>
-    operator std::chrono::time_point<Clock, Duration>() const {
+    operator std::chrono::time_point<Clock, Duration>() const
+    {
         return std::chrono::time_point<Clock, Duration>(
             std::chrono::seconds(m_utc_seconds));
     }
@@ -456,14 +507,16 @@ public:
      * @brief 获取从纪元以来的秒数
      * @return uint32_t 秒数
      */
-    constexpr uint32_t sec_since_epoch() const {
+    constexpr uint32_t sec_since_epoch() const
+    {
         return m_utc_seconds;
     }
 
     /**
      * @brief 赋值运算符
      */
-    constexpr time_point_sec operator=(const time_point& t) {
+    constexpr time_point_sec operator=(const time_point& t)
+    {
         m_utc_seconds = t.time_since_epoch().count() / 1000ll;
         return *this;
     }
@@ -471,49 +524,56 @@ public:
     /**
      * @brief 小于比较运算符
      */
-    constexpr friend bool operator<(const time_point_sec& a, const time_point_sec& b) {
+    constexpr friend bool operator<(const time_point_sec& a, const time_point_sec& b)
+    {
         return a.m_utc_seconds < b.m_utc_seconds;
     }
 
     /**
      * @brief 大于比较运算符
      */
-    constexpr friend bool operator>(const time_point_sec& a, const time_point_sec& b) {
+    constexpr friend bool operator>(const time_point_sec& a, const time_point_sec& b)
+    {
         return a.m_utc_seconds > b.m_utc_seconds;
     }
 
     /**
      * @brief 小于等于比较运算符
      */
-    constexpr friend bool operator<=(const time_point_sec& a, const time_point_sec& b) {
+    constexpr friend bool operator<=(const time_point_sec& a, const time_point_sec& b)
+    {
         return a.m_utc_seconds <= b.m_utc_seconds;
     }
 
     /**
      * @brief 大于等于比较运算符
      */
-    constexpr friend bool operator>=(const time_point_sec& a, const time_point_sec& b) {
+    constexpr friend bool operator>=(const time_point_sec& a, const time_point_sec& b)
+    {
         return a.m_utc_seconds >= b.m_utc_seconds;
     }
 
     /**
      * @brief 相等比较运算符
      */
-    constexpr friend bool operator==(const time_point_sec& a, const time_point_sec& b) {
+    constexpr friend bool operator==(const time_point_sec& a, const time_point_sec& b)
+    {
         return a.m_utc_seconds == b.m_utc_seconds;
     }
 
     /**
      * @brief 不等比较运算符
      */
-    constexpr friend bool operator!=(const time_point_sec& a, const time_point_sec& b) {
+    constexpr friend bool operator!=(const time_point_sec& a, const time_point_sec& b)
+    {
         return a.m_utc_seconds != b.m_utc_seconds;
     }
 
     /**
      * @brief 加法赋值运算符
      */
-    constexpr time_point_sec& operator+=(uint32_t m) {
+    constexpr time_point_sec& operator+=(uint32_t m)
+    {
         m_utc_seconds += m;
         return *this;
     }
@@ -521,7 +581,8 @@ public:
     /**
      * @brief 加法赋值运算符
      */
-    constexpr time_point_sec& operator+=(milliseconds m) {
+    constexpr time_point_sec& operator+=(milliseconds m)
+    {
         m_utc_seconds += m.to_seconds();
         return *this;
     }
@@ -529,7 +590,8 @@ public:
     /**
      * @brief 减法赋值运算符
      */
-    constexpr time_point_sec& operator-=(uint32_t m) {
+    constexpr time_point_sec& operator-=(uint32_t m)
+    {
         m_utc_seconds -= m;
         return *this;
     }
@@ -537,7 +599,8 @@ public:
     /**
      * @brief 减法赋值运算符
      */
-    constexpr time_point_sec& operator-=(milliseconds m) {
+    constexpr time_point_sec& operator-=(milliseconds m)
+    {
         m_utc_seconds -= m.to_seconds();
         return *this;
     }
@@ -545,42 +608,48 @@ public:
     /**
      * @brief 加法运算符
      */
-    constexpr time_point_sec operator+(uint32_t offset) const {
+    constexpr time_point_sec operator+(uint32_t offset) const
+    {
         return time_point_sec(m_utc_seconds + offset);
     }
 
     /**
      * @brief 减法运算符
      */
-    constexpr time_point_sec operator-(uint32_t offset) const {
+    constexpr time_point_sec operator-(uint32_t offset) const
+    {
         return time_point_sec(m_utc_seconds - offset);
     }
 
     /**
      * @brief 加法运算符
      */
-    friend constexpr time_point operator+(const time_point_sec& t, const milliseconds& m) {
+    friend constexpr time_point operator+(const time_point_sec& t, const milliseconds& m)
+    {
         return time_point(t) + m;
     }
 
     /**
      * @brief 减法运算符
      */
-    friend constexpr time_point operator-(const time_point_sec& t, const milliseconds& m) {
+    friend constexpr time_point operator-(const time_point_sec& t, const milliseconds& m)
+    {
         return time_point(t) - m;
     }
 
     /**
      * @brief 减法运算符
      */
-    friend constexpr milliseconds operator-(const time_point_sec& t, const time_point_sec& m) {
+    friend constexpr milliseconds operator-(const time_point_sec& t, const time_point_sec& m)
+    {
         return time_point(t) - time_point(m);
     }
 
     /**
      * @brief 减法运算符
      */
-    friend constexpr milliseconds operator-(const time_point& t, const time_point_sec& m) {
+    friend constexpr milliseconds operator-(const time_point& t, const time_point_sec& m)
+    {
         return time_point(t) - time_point(m);
     }
 

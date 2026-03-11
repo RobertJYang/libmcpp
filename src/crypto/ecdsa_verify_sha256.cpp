@@ -10,13 +10,13 @@
  * See the Mulan PSL v2 for more details.
  */
 
- #include <mc/crypto/ecdsa_verify_sha256.h>
+#include <mc/crypto/ecdsa_verify_sha256.h>
 #include <mc/log.h>
 
 #include <openssl/bn.h>
- #include <openssl/ecdsa.h>
+#include <openssl/ecdsa.h>
 #include <openssl/evp.h>
- #include <openssl/sha.h>
+#include <openssl/sha.h>
 
 // 抑制 OpenSSL 3.0 废弃 API 警告
 #if defined(__GNUC__) || defined(__clang__)
@@ -24,16 +24,17 @@
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #endif
 
- namespace mc::crypto {
+namespace mc::crypto {
 namespace {
 
-constexpr uint32_t RSLEN              = 32;
-constexpr uint32_t SHA256_DIGEST_LEN  = 32;
-constexpr uint32_t ECC_SIGN_MIN_LEN   = 70;
-constexpr uint32_t TL_LEN             = 2;
+constexpr uint32_t RSLEN             = 32;
+constexpr uint32_t SHA256_DIGEST_LEN = 32;
+constexpr uint32_t ECC_SIGN_MIN_LEN  = 70;
+constexpr uint32_t TL_LEN            = 2;
 
-int32_t construct_ecdsa_sig(ECDSA_SIG* ec_sig, const unsigned char* sign_data, uint32_t sign_data_len) {
-    if (ec_sig == nullptr || sign_data == nullptr ) {
+int32_t construct_ecdsa_sig(ECDSA_SIG* ec_sig, const unsigned char* sign_data, uint32_t sign_data_len)
+{
+    if (ec_sig == nullptr || sign_data == nullptr) {
         elog("construct_ecdsa_sig: null input");
         return ECDSA_VERIFY_FAILED;
     }
@@ -41,12 +42,12 @@ int32_t construct_ecdsa_sig(ECDSA_SIG* ec_sig, const unsigned char* sign_data, u
         elog("construct_ecdsa_sig: sign too short, len=%d", sign_data_len);
         return ECDSA_VERIFY_FAILED;
     }
-    
+
     uint32_t r_val_len_offset = TL_LEN + 1;
     uint32_t r_val_offset     = r_val_len_offset + 1;
     if (r_val_len_offset >= sign_data_len) {
         elog("construct_ecdsa_sig: r_len_offset overflow, offset=%u len=%d",
-                     r_val_len_offset, sign_data_len);
+             r_val_len_offset, sign_data_len);
         return ECDSA_VERIFY_FAILED;
     }
     if (sign_data[r_val_len_offset] > RSLEN) {
@@ -92,10 +93,11 @@ int32_t construct_ecdsa_sig(ECDSA_SIG* ec_sig, const unsigned char* sign_data, u
         return ECDSA_VERIFY_FAILED;
     }
     return ECDSA_VERIFY_OK;
- }
+}
 
 int32_t generate_sha256_digest(const unsigned char* data, uint32_t data_len, unsigned char* digest,
-                               uint32_t& digest_len) {
+                               uint32_t& digest_len)
+{
     if (data == nullptr || data_len == 0 || digest == nullptr) {
         elog("generate_sha256_digest: null input or bad len:%u", data_len);
         return ECDSA_VERIFY_FAILED;
@@ -105,7 +107,7 @@ int32_t generate_sha256_digest(const unsigned char* data, uint32_t data_len, uns
         elog("generate_sha256_digest: EVP_MD_CTX_new failed");
         return ECDSA_VERIFY_FAILED;
     }
-    
+
     (void)EVP_DigestInit(md_ctx, EVP_sha256());
     (void)EVP_DigestUpdate(md_ctx, static_cast<const void*>(data), data_len);
     unsigned int digest_len_uint = 0;
@@ -116,7 +118,8 @@ int32_t generate_sha256_digest(const unsigned char* data, uint32_t data_len, uns
     return ECDSA_VERIFY_OK;
 }
 
-int32_t construct_ec_key(EC_KEY** ec_key, const unsigned char* public_key, uint32_t public_key_len) {
+int32_t construct_ec_key(EC_KEY** ec_key, const unsigned char* public_key, uint32_t public_key_len)
+{
     if (public_key == nullptr || public_key_len == 0) {
         elog("construct_ec_key: null input or bad len:%u", public_key_len);
         return ECDSA_VERIFY_FAILED;
@@ -140,13 +143,14 @@ int32_t construct_ec_key(EC_KEY** ec_key, const unsigned char* public_key, uint3
 } // namespace
 
 int32_t ecdsa_verify_sha256(std::string& data, std::string& signature,
-                                                 std::string& public_key) {
+                            std::string& public_key)
+{
     if (data.empty() || signature.empty() || public_key.empty()) {
         elog("ecdsa_verify_sha256: null input or bad len: data=%zu, sig=%zu, pub=%zu",
-                     data.size(), signature.size(), public_key.size());
+             data.size(), signature.size(), public_key.size());
         return ECDSA_VERIFY_FAILED;
     }
-    
+
     ECDSA_SIG* ec_sig = ECDSA_SIG_new();
     if (ec_sig == nullptr) {
         elog("ecdsa_verify_sha256: ECDSA_SIG_new failed");
@@ -158,11 +162,11 @@ int32_t ecdsa_verify_sha256(std::string& data, std::string& signature,
         ECDSA_SIG_free(ec_sig);
         return ECDSA_VERIFY_FAILED;
     }
-    
+
     unsigned char digest[SHA256_DIGEST_LEN] = {0};
     uint32_t      digest_len                = 0;
-    ret = generate_sha256_digest(reinterpret_cast<const unsigned char*>(data.data()),
-                                 static_cast<uint32_t>(data.size()), digest, digest_len);
+    ret                                     = generate_sha256_digest(reinterpret_cast<const unsigned char*>(data.data()),
+                                                                     static_cast<uint32_t>(data.size()), digest, digest_len);
     if (ret != ECDSA_VERIFY_OK) {
         ECDSA_SIG_free(ec_sig);
         return ECDSA_VERIFY_FAILED;
@@ -186,7 +190,7 @@ int32_t ecdsa_verify_sha256(std::string& data, std::string& signature,
         return ECDSA_VERIFY_FAILED;
     }
     return ECDSA_VERIFY_OK;
-    }
+}
 
 } // namespace mc::crypto
 

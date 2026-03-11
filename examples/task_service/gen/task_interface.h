@@ -32,10 +32,12 @@ struct tasks_interface : public mc::engine::interface<tasks_interface> {
 
     virtual ~tasks_interface() = default;
 
-    virtual std::string_view create_task(const std::string& name) {
+    virtual std::string_view create_task(const std::string& name)
+    {
         return {}; // 空函数，在对象中重载
     }
-    virtual std::vector<std::string_view> get_tasks() {
+    virtual std::vector<std::string_view> get_tasks()
+    {
         return {}; // 空函数，在对象中重载
     }
 };

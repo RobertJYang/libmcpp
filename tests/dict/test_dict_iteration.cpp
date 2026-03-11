@@ -19,7 +19,8 @@
 namespace {
 
 // 测试 dict 的正确迭代方式（修复后）
-TEST(DictIterationTest, CorrectIteration) {
+TEST(DictIterationTest, CorrectIteration)
+{
     mc::dict dict;
     dict["key1"] = "value1";
     dict["key2"] = "value2";
@@ -38,7 +39,8 @@ TEST(DictIterationTest, CorrectIteration) {
 }
 
 // 测试不应该使用的结构化绑定方式
-TEST(DictIterationTest, StructuredBindingNotSupported) {
+TEST(DictIterationTest, StructuredBindingNotSupported)
+{
     mc::dict dict;
     dict["key1"] = "value1";
     dict["key2"] = "value2";
@@ -60,7 +62,8 @@ TEST(DictIterationTest, StructuredBindingNotSupported) {
 }
 
 // 测试 dict 的迭代
-TEST(DictIterationTest, MutableDictIteration) {
+TEST(DictIterationTest, MutableDictIteration)
+{
     mc::dict dict;
     dict["item1"] = 10;
     dict["item2"] = 20;
@@ -79,7 +82,8 @@ TEST(DictIterationTest, MutableDictIteration) {
 }
 
 // 测试 const dict 的迭代
-TEST(DictIterationTest, ConstDictIteration) {
+TEST(DictIterationTest, ConstDictIteration)
+{
     mc::dict dict;
     dict["const1"] = "value1";
     dict["const2"] = "value2";
@@ -106,7 +110,8 @@ TEST(DictIterationTest, ConstDictIteration) {
 }
 
 // 测试复杂对象的迭代
-TEST(DictIterationTest, ComplexObjectIteration) {
+TEST(DictIterationTest, ComplexObjectIteration)
+{
     mc::dict dict;
 
     // 添加不同类型的值
@@ -134,7 +139,8 @@ TEST(DictIterationTest, ComplexObjectIteration) {
 }
 
 // 测试空字典的迭代
-TEST(DictIterationTest, EmptyDictIteration) {
+TEST(DictIterationTest, EmptyDictIteration)
+{
     mc::dict empty_dict;
 
     int count = 0;
@@ -148,7 +154,8 @@ TEST(DictIterationTest, EmptyDictIteration) {
 }
 
 // 测试迭代器的性能和正确性
-TEST(DictIterationTest, IteratorPerformance) {
+TEST(DictIterationTest, IteratorPerformance)
+{
     mc::dict large_dict;
 
     // 创建一个较大的字典
@@ -170,7 +177,8 @@ TEST(DictIterationTest, IteratorPerformance) {
 }
 
 // 测试迭代过程中的查找操作
-TEST(DictIterationTest, IterationWithLookup) {
+TEST(DictIterationTest, IterationWithLookup)
+{
     mc::dict dict;
     dict["apple"]  = 10;
     dict["banana"] = 20;
@@ -188,7 +196,8 @@ TEST(DictIterationTest, IterationWithLookup) {
 }
 
 // 测试 const dict 的反向迭代器（rbegin() 和 rend()）
-TEST(DictIterationTest, DictConstReverseIterator) {
+TEST(DictIterationTest, DictConstReverseIterator)
+{
     const dict d({{"key1", 1}, {"key2", 2}, {"key3", 3}});
 
     // 使用反向迭代器遍历
@@ -217,14 +226,16 @@ TEST(DictIterationTest, DictConstReverseIterator) {
 }
 
 // 测试 find(nullptr) 异常
-TEST(DictIterationTest, DictFindWithNullPointerKey) {
+TEST(DictIterationTest, DictFindWithNullPointerKey)
+{
     const dict d({{"key1", 123}});
     EXPECT_THROW(d.find(nullptr), std::invalid_argument);
 }
 
 // 测试 find(const variant&)
-TEST(DictIterationTest, DictFindWithVariantKey) {
-    dict d({{"key1", 123}, {"key2", "value"}});
+TEST(DictIterationTest, DictFindWithVariantKey)
+{
+    dict        d({{"key1", 123}, {"key2", "value"}});
     const dict& const_d = d;
 
     variant key1("key1");
@@ -244,14 +255,16 @@ TEST(DictIterationTest, DictFindWithVariantKey) {
 }
 
 // 测试非 const find(nullptr) 异常
-TEST(DictIterationTest, MutableDictFindWithNullPointerKey) {
+TEST(DictIterationTest, MutableDictFindWithNullPointerKey)
+{
     dict md;
     md["key1"] = 123;
     EXPECT_THROW(md.find(nullptr), std::invalid_argument);
 }
 
 // 测试非 const find(const variant&)
-TEST(DictIterationTest, MutableDictFindWithVariantKey) {
+TEST(DictIterationTest, MutableDictFindWithVariantKey)
+{
     dict md;
     md["key1"] = 123;
     md["key2"] = "value";
@@ -263,7 +276,7 @@ TEST(DictIterationTest, MutableDictFindWithVariantKey) {
     auto it1 = md.find(key1);
     ASSERT_NE(it1, md.end());
     EXPECT_EQ(it1->value.as<int>(), 123);
-    it1->value = 456;  // 可以修改
+    it1->value = 456; // 可以修改
     EXPECT_EQ(md["key1"].as<int>(), 456);
 
     auto it2 = md.find(key2);
@@ -275,7 +288,8 @@ TEST(DictIterationTest, MutableDictFindWithVariantKey) {
 }
 
 // 测试非 const find 键不存在返回 end()
-TEST(DictIterationTest, MutableDictFindWithNonExistentKey) {
+TEST(DictIterationTest, MutableDictFindWithNonExistentKey)
+{
     dict md;
     md["key1"] = 123;
     md["key2"] = "value";

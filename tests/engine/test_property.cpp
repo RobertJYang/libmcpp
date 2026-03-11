@@ -34,10 +34,12 @@ struct Point {
 
     Point() = default;
     Point(int x, int y)
-        : x(x), y(y) {
+        : x(x), y(y)
+    {
     }
 
-    bool operator==(const Point& other) const {
+    bool operator==(const Point& other) const
+    {
         return x == other.x && y == other.y;
     }
 };
@@ -46,12 +48,14 @@ struct test_observer {
     int         m_count{0};
     mc::variant m_last_value;
 
-    void notify(mc::variant value, mc::engine::property_base& property) {
+    void notify(mc::variant value, mc::engine::property_base& property)
+    {
         m_count++;
         m_last_value = value;
     }
 
-    void notify_update_shm(mc::variant value, mc::engine::property_base& property) {
+    void notify_update_shm(mc::variant value, mc::engine::property_base& property)
+    {
     }
 };
 
@@ -89,7 +93,8 @@ public:
 
     cpu_interface m_interface;
 
-    cpu_object() {
+    cpu_object()
+    {
         m_interface.temperature = 75.5;
         m_interface.usage       = 50.0;
     }
@@ -101,7 +106,8 @@ public:
 
     memory_interface m_interface;
 
-    memory_object() {
+    memory_object()
+    {
         m_interface.usage = 85.2;
         m_interface.total = 16384ULL; // 16GB
     }
@@ -113,7 +119,8 @@ public:
 
     gpu_interface m_interface;
 
-    gpu_object() {
+    gpu_object()
+    {
         m_interface.load        = 60.8;
         m_interface.temperature = 70.0;
     }
@@ -126,7 +133,8 @@ public:
 
     mc::engine::property<std::string> test_prop;
 
-    test_interface() {
+    test_interface()
+    {
         test_prop = "initial_value";
     }
 };
@@ -143,10 +151,12 @@ public:
 class real_test_service : public mc::engine::service {
 public:
     real_test_service()
-        : mc::engine::service(generate_unique_service_name()) {
+        : mc::engine::service(generate_unique_service_name())
+    {
     }
 
-    bool init_for_test() {
+    bool init_for_test()
+    {
         // 为测试初始化服务，设置服务路径参数
         mc::dict args;
         args["service_path"] = "/org/test/service";
@@ -154,12 +164,14 @@ public:
         return mc::engine::service::init(args);
     }
 
-    bool start_for_test() {
+    bool start_for_test()
+    {
         // 启动真实的服务
         return mc::engine::service::start();
     }
 
-    void setup_test_objects() {
+    void setup_test_objects()
+    {
         // 创建真实的对象并注册到服务
         // 为每个对象使用不同的位置以避免名称冲突
         m_cpu = cpu_object::create();
@@ -184,7 +196,8 @@ public:
     }
 
     // 创建一个模拟函数用于测试hook_ref_properties
-    mc::variant create_test_function() {
+    mc::variant create_test_function()
+    {
         // 创建一个简单的测试函数，计算CPU和GPU温度的平均值
         [[maybe_unused]] auto test_func = [this](const std::string& position, const mc::dict& params) -> mc::variant {
             auto   cpu_temp = m_cpu->m_interface.temperature.value();
@@ -198,21 +211,26 @@ public:
         return mc::variant(std::string("computed_average_temp"));
     }
 
-    mc::shared_ptr<cpu_object> get_cpu() const {
+    mc::shared_ptr<cpu_object> get_cpu() const
+    {
         return m_cpu;
     }
-    mc::shared_ptr<memory_object> get_memory() const {
+    mc::shared_ptr<memory_object> get_memory() const
+    {
         return m_memory;
     }
-    mc::shared_ptr<gpu_object> get_gpu() const {
+    mc::shared_ptr<gpu_object> get_gpu() const
+    {
         return m_gpu;
     }
-    mc::shared_ptr<test_object_with_properties> get_test_obj() const {
+    mc::shared_ptr<test_object_with_properties> get_test_obj() const
+    {
         return m_test_obj;
     }
 
 private:
-    static std::string generate_unique_service_name() {
+    static std::string generate_unique_service_name()
+    {
         static int counter = 0;
         return "org.test.property_test_" + std::to_string(++counter);
     }
@@ -239,7 +257,8 @@ MC_REFLECT(test_object_with_properties, ((m_interface, "interface")))
 
 // 全局测试初始化，注册属性处理器
 struct PropertyTestEnvironment : public ::testing::Environment {
-    void SetUp() override {
+    void SetUp() override
+    {
         mc::engine::register_property_processors();
     }
 };
@@ -249,7 +268,8 @@ struct PropertyTestEnvironment : public ::testing::Environment {
     ::testing::AddGlobalTestEnvironment(new PropertyTestEnvironment);
 
 // 测试基础类型的 property
-TEST(PropertyTest, BasicType) {
+TEST(PropertyTest, BasicType)
+{
     // 测试默认构造函数
     property<int> p1;
     EXPECT_EQ(p1.value(), 0);
@@ -275,7 +295,8 @@ TEST(PropertyTest, BasicType) {
 }
 
 // 测试自定义类型的 property
-TEST(PropertyTest, CustomType) {
+TEST(PropertyTest, CustomType)
+{
     // 测试默认构造函数
     property<Point> p1;
     EXPECT_EQ(p1.value().x, 0);
@@ -314,7 +335,8 @@ TEST(PropertyTest, CustomType) {
 }
 
 // 测试比较操作符
-TEST(PropertyTest, Comparison) {
+TEST(PropertyTest, Comparison)
+{
     property<int> p1(10);
     property<int> p2(10);
     property<int> p3(20);
@@ -341,7 +363,8 @@ TEST(PropertyTest, Comparison) {
 }
 
 // 测试值变更不触发通知的情况
-TEST(PropertyTest, NoNotify) {
+TEST(PropertyTest, NoNotify)
+{
     property<int> p(10);
 
     // 设置相同的值不应该触发通知
@@ -357,7 +380,8 @@ TEST(PropertyTest, NoNotify) {
 }
 
 // 测试 variant 转换
-TEST(PropertyTest, VariantConversion) {
+TEST(PropertyTest, VariantConversion)
+{
     property<int> p(42);
 
     // 测试 to_variant
@@ -372,7 +396,8 @@ TEST(PropertyTest, VariantConversion) {
 }
 
 // 测试通知机制
-TEST(PropertyTest, Notify) {
+TEST(PropertyTest, Notify)
+{
     property<int, test_observer> p(10);
     EXPECT_EQ(p.get_observer().m_count, 0);
 
@@ -402,7 +427,8 @@ TEST(PropertyTest, Notify) {
 // 测试属性相关功能的测试基类
 class PropertyRelateTest : public mc::test::TestWithEngine {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         TestWithEngine::SetUp();
 
         // 创建独立的服务实例
@@ -418,7 +444,8 @@ protected:
         mc::expr::func_collection::get_instance().add(position, m_service, functions);
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         if (m_service) {
             m_service->stop();
         }
@@ -429,7 +456,8 @@ protected:
 };
 
 // 测试 property 的 get_relate_property 方法（使用真实的对象）
-TEST_F(PropertyRelateTest, GetRelateProperty) {
+TEST_F(PropertyRelateTest, GetRelateProperty)
+{
     // 创建一个带有接口的真实对象
     auto test_obj = m_service->get_test_obj();
     ASSERT_NE(test_obj, nullptr);
@@ -473,7 +501,8 @@ TEST_F(PropertyRelateTest, GetRelateProperty) {
 }
 
 // 测试 property 的 set_relate_property 方法
-TEST_F(PropertyRelateTest, SetRelateProperty) {
+TEST_F(PropertyRelateTest, SetRelateProperty)
+{
     // 创建一个带有接口的真实对象
     auto test_obj = m_service->get_test_obj();
     ASSERT_NE(test_obj, nullptr);
@@ -503,7 +532,8 @@ TEST_F(PropertyRelateTest, SetRelateProperty) {
 }
 
 // 测试引用属性的基本功能（使用processor系统）
-TEST_F(PropertyRelateTest, ReferencePropertyBasics) {
+TEST_F(PropertyRelateTest, ReferencePropertyBasics)
+{
     // 创建一个带有接口的真实对象
     auto test_obj = m_service->get_test_obj();
     ASSERT_NE(test_obj, nullptr);
@@ -530,7 +560,8 @@ TEST_F(PropertyRelateTest, ReferencePropertyBasics) {
 }
 
 // 测试 relate_property 中不同对象类型的属性访问
-TEST_F(PropertyRelateTest, DifferentObjectTypes) {
+TEST_F(PropertyRelateTest, DifferentObjectTypes)
+{
     auto test_obj = m_service->get_test_obj();
     ASSERT_NE(test_obj, nullptr);
 
@@ -572,7 +603,8 @@ TEST_F(PropertyRelateTest, DifferentObjectTypes) {
 }
 
 // 测试错误场景处理
-TEST_F(PropertyRelateTest, ErrorHandling) {
+TEST_F(PropertyRelateTest, ErrorHandling)
+{
     auto test_obj = m_service->get_test_obj();
     ASSERT_NE(test_obj, nullptr);
 
@@ -601,7 +633,8 @@ TEST_F(PropertyRelateTest, ErrorHandling) {
 }
 
 // 测试 property 的 hook_ref_properties 方法
-TEST_F(PropertyRelateTest, HookRefProperties) {
+TEST_F(PropertyRelateTest, HookRefProperties)
+{
     // 创建一个带有接口的真实对象
     auto test_obj = m_service->get_test_obj();
     ASSERT_NE(test_obj, nullptr);
@@ -635,7 +668,8 @@ TEST_F(PropertyRelateTest, HookRefProperties) {
 }
 
 // 测试 hook_ref_properties 使用函数表达式计算多个属性值
-TEST_F(PropertyRelateTest, HookRefPropertiesWithExpressionCalculation) {
+TEST_F(PropertyRelateTest, HookRefPropertiesWithExpressionCalculation)
+{
     mc::expr::func_collection::get_instance().clear();
     // 创建一个带有接口的真实对象
     auto test_obj = m_service->get_test_obj();
@@ -761,7 +795,8 @@ TEST_F(PropertyRelateTest, HookRefPropertiesWithExpressionCalculation) {
 }
 
 // 测试 hook_ref_properties 的基本多属性引用功能
-TEST_F(PropertyRelateTest, HookRefPropertiesBasicMultiReference) {
+TEST_F(PropertyRelateTest, HookRefPropertiesBasicMultiReference)
+{
     mc::expr::func_collection::get_instance().clear();
     // 创建一个带有接口的真实对象
     auto test_obj = m_service->get_test_obj();
@@ -918,7 +953,8 @@ TEST_F(PropertyRelateTest, HookRefPropertiesBasicMultiReference) {
 }
 
 // 测试 property 的 hook_relate_properties 方法
-TEST_F(PropertyRelateTest, HookRelateProperties) {
+TEST_F(PropertyRelateTest, HookRelateProperties)
+{
     // 创建一个带有接口的真实对象
     auto test_obj = m_service->get_test_obj();
     ASSERT_NE(test_obj, nullptr);
@@ -942,7 +978,8 @@ TEST_F(PropertyRelateTest, HookRelateProperties) {
 }
 
 // 测试 hook_relate_properties 与func_collection集成的表达式计算
-TEST_F(PropertyRelateTest, HookRelatePropertiesWithFuncCollection) {
+TEST_F(PropertyRelateTest, HookRelatePropertiesWithFuncCollection)
+{
     mc::expr::func_collection::get_instance().clear();
     // 创建一个带有接口的真实对象
     auto test_obj = m_service->get_test_obj();
@@ -1071,7 +1108,8 @@ TEST_F(PropertyRelateTest, HookRelatePropertiesWithFuncCollection) {
 }
 
 // 测试 property 的 process_property_value 方法
-TEST_F(PropertyRelateTest, ProcessPropertyValue) {
+TEST_F(PropertyRelateTest, ProcessPropertyValue)
+{
     // 创建一个带有接口的真实对象
     auto test_obj = m_service->get_test_obj();
     ASSERT_NE(test_obj, nullptr);
@@ -1104,7 +1142,8 @@ TEST_F(PropertyRelateTest, ProcessPropertyValue) {
 }
 
 // 测试 from_variant 方法处理引用属性
-TEST_F(PropertyRelateTest, FromVariantRefProperty) {
+TEST_F(PropertyRelateTest, FromVariantRefProperty)
+{
     // 创建一个带有接口的真实对象
     auto test_obj = m_service->get_test_obj();
     ASSERT_NE(test_obj, nullptr);
@@ -1133,7 +1172,8 @@ TEST_F(PropertyRelateTest, FromVariantRefProperty) {
 }
 
 // 测试 from_variant 方法处理普通值
-TEST_F(PropertyRelateTest, FromVariantNormalValue) {
+TEST_F(PropertyRelateTest, FromVariantNormalValue)
+{
     // 创建一个带有接口的真实对象
     auto test_obj = m_service->get_test_obj();
     ASSERT_NE(test_obj, nullptr);
@@ -1156,7 +1196,8 @@ TEST_F(PropertyRelateTest, FromVariantNormalValue) {
 }
 
 // 测试多个引用属性的组合使用
-TEST_F(PropertyRelateTest, MultipleRefPropertyCombination) {
+TEST_F(PropertyRelateTest, MultipleRefPropertyCombination)
+{
     // 使用同一个测试对象的属性进行多次引用设置
     auto  test_obj  = m_service->get_test_obj();
     auto& test_prop = test_obj->m_interface.test_prop;
@@ -1203,7 +1244,8 @@ TEST_F(PropertyRelateTest, MultipleRefPropertyCombination) {
 }
 
 // 测试引用属性的数据类型转换准确性
-TEST_F(PropertyRelateTest, RefPropertyDataTypeConversionAccuracy) {
+TEST_F(PropertyRelateTest, RefPropertyDataTypeConversionAccuracy)
+{
     auto test_obj = m_service->get_test_obj();
     ASSERT_NE(test_obj, nullptr);
 
@@ -1252,7 +1294,8 @@ TEST_F(PropertyRelateTest, RefPropertyDataTypeConversionAccuracy) {
 }
 
 // 测试引用属性的实时更新能力
-TEST_F(PropertyRelateTest, RefPropertyRealTimeUpdate) {
+TEST_F(PropertyRelateTest, RefPropertyRealTimeUpdate)
+{
     auto test_obj = m_service->get_test_obj();
     ASSERT_NE(test_obj, nullptr);
 
@@ -1283,7 +1326,8 @@ TEST_F(PropertyRelateTest, RefPropertyRealTimeUpdate) {
 }
 
 // 测试引用属性的表达式计算结果验证
-TEST_F(PropertyRelateTest, RefPropertyExpressionCalculationVerification) {
+TEST_F(PropertyRelateTest, RefPropertyExpressionCalculationVerification)
+{
     auto test_obj = m_service->get_test_obj();
     ASSERT_NE(test_obj, nullptr);
 
@@ -1328,7 +1372,8 @@ TEST_F(PropertyRelateTest, RefPropertyExpressionCalculationVerification) {
 }
 
 // 测试引用属性的不同数据类型引用
-TEST_F(PropertyRelateTest, RefPropertyDifferentDataTypes) {
+TEST_F(PropertyRelateTest, RefPropertyDifferentDataTypes)
+{
     auto  test_obj  = m_service->get_test_obj();
     auto& test_prop = test_obj->m_interface.test_prop;
 
@@ -1373,7 +1418,8 @@ TEST_F(PropertyRelateTest, RefPropertyDifferentDataTypes) {
 }
 
 // 测试 from_variant 方法处理同步属性
-TEST_F(PropertyRelateTest, FromVariantSyncProperty) {
+TEST_F(PropertyRelateTest, FromVariantSyncProperty)
+{
     // 创建一个带有接口的真实对象
     auto test_obj = m_service->get_test_obj();
     ASSERT_NE(test_obj, nullptr);
@@ -1406,11 +1452,12 @@ TEST_F(PropertyRelateTest, FromVariantSyncProperty) {
 
     // 同步属性应该自动更新为新的值
     std::this_thread::sleep_for(std::chrono::milliseconds(20)); // 给同步一点时间
-    EXPECT_EQ(test_prop.value(), "85.5");                        // 应该反映新的GPU负载值
+    EXPECT_EQ(test_prop.value(), "85.5");                       // 应该反映新的GPU负载值
 }
 
 // 测试同步属性的基本功能（使用processor系统）
-TEST_F(PropertyRelateTest, SyncPropertyBasics) {
+TEST_F(PropertyRelateTest, SyncPropertyBasics)
+{
     // 创建一个带有接口的真实对象
     auto test_obj = m_service->get_test_obj();
     ASSERT_NE(test_obj, nullptr);
@@ -1440,11 +1487,12 @@ TEST_F(PropertyRelateTest, SyncPropertyBasics) {
 
     // 同步属性应该自动更新为新的值
     std::this_thread::sleep_for(std::chrono::milliseconds(20)); // 给同步一点时间
-    EXPECT_EQ(test_prop.value(), "88.8");                        // 应该反映新的温度值
+    EXPECT_EQ(test_prop.value(), "88.8");                       // 应该反映新的温度值
 }
 
 // 测试同步属性延迟连接功能（使用processor系统）
-TEST_F(PropertyRelateTest, SyncPropertyDeferredConnection) {
+TEST_F(PropertyRelateTest, SyncPropertyDeferredConnection)
+{
     mc::expr::func_collection::get_instance().clear();
     // 创建一个新的服务实例，用于测试延迟连接
     auto delayed_service = std::make_shared<real_test_service>();
@@ -1501,7 +1549,8 @@ TEST_F(PropertyRelateTest, SyncPropertyDeferredConnection) {
 }
 
 // 测试 hook_sync_properties 方法（多属性同步）
-TEST_F(PropertyRelateTest, HookSyncProperties) {
+TEST_F(PropertyRelateTest, HookSyncProperties)
+{
     mc::expr::func_collection::get_instance().clear();
     // 创建一个带有接口的真实对象
     auto test_obj = m_service->get_test_obj();
@@ -1585,7 +1634,8 @@ TEST_F(PropertyRelateTest, HookSyncProperties) {
 }
 
 // 测试同步属性的错误处理
-TEST_F(PropertyRelateTest, SyncPropertyErrorHandling) {
+TEST_F(PropertyRelateTest, SyncPropertyErrorHandling)
+{
     // 创建一个带有接口的真实对象
     auto test_obj = m_service->get_test_obj();
     ASSERT_NE(test_obj, nullptr);
@@ -1635,7 +1685,8 @@ TEST_F(PropertyRelateTest, SyncPropertyErrorHandling) {
 }
 
 // 测试同步属性的实时更新能力
-TEST_F(PropertyRelateTest, SyncPropertyRealTimeUpdate) {
+TEST_F(PropertyRelateTest, SyncPropertyRealTimeUpdate)
+{
     auto test_obj = m_service->get_test_obj();
     ASSERT_NE(test_obj, nullptr);
 
@@ -1668,7 +1719,8 @@ TEST_F(PropertyRelateTest, SyncPropertyRealTimeUpdate) {
 }
 
 // 测试同步属性的数据类型转换
-TEST_F(PropertyRelateTest, SyncPropertyDataTypeConversion) {
+TEST_F(PropertyRelateTest, SyncPropertyDataTypeConversion)
+{
     auto  test_obj  = m_service->get_test_obj();
     auto& test_prop = test_obj->m_interface.test_prop;
 
@@ -1715,7 +1767,8 @@ TEST_F(PropertyRelateTest, SyncPropertyDataTypeConversion) {
 }
 
 // 测试多个同步属性的连接管理
-TEST_F(PropertyRelateTest, MultipleSyncPropertyConnectionManagement) {
+TEST_F(PropertyRelateTest, MultipleSyncPropertyConnectionManagement)
+{
     mc::expr::func_collection::get_instance().clear();
 
     // 重新注册服务，因为上面的 clear() 清空了所有注册
@@ -1778,7 +1831,8 @@ TEST_F(PropertyRelateTest, MultipleSyncPropertyConnectionManagement) {
 }
 
 // 测试带接口的属性引用功能
-TEST_F(PropertyRelateTest, GetRelatePropertyWithInterface) {
+TEST_F(PropertyRelateTest, GetRelatePropertyWithInterface)
+{
     // 创建一个带有接口的真实对象
     auto test_obj = m_service->get_test_obj();
     ASSERT_NE(test_obj, nullptr);
@@ -1824,7 +1878,8 @@ TEST_F(PropertyRelateTest, GetRelatePropertyWithInterface) {
 }
 
 // 测试带接口的属性设置功能
-TEST_F(PropertyRelateTest, SetRelatePropertyWithInterface) {
+TEST_F(PropertyRelateTest, SetRelatePropertyWithInterface)
+{
     auto test_obj = m_service->get_test_obj();
     ASSERT_NE(test_obj, nullptr);
 
@@ -1866,7 +1921,8 @@ TEST_F(PropertyRelateTest, SetRelatePropertyWithInterface) {
 }
 
 // 测试引用属性的新语法解析和应用
-TEST_F(PropertyRelateTest, HookRefPropertyWithInterface) {
+TEST_F(PropertyRelateTest, HookRefPropertyWithInterface)
+{
     auto test_obj = m_service->get_test_obj();
     ASSERT_NE(test_obj, nullptr);
 
@@ -1909,7 +1965,8 @@ TEST_F(PropertyRelateTest, HookRefPropertyWithInterface) {
 }
 
 // 测试引用对象语法 #/ObjectName
-TEST_F(PropertyRelateTest, RefObjectBasicUsage) {
+TEST_F(PropertyRelateTest, RefObjectBasicUsage)
+{
     auto test_obj = m_service->get_test_obj();
     ASSERT_NE(test_obj, nullptr);
 
@@ -1949,7 +2006,8 @@ TEST_F(PropertyRelateTest, RefObjectBasicUsage) {
 }
 
 // 测试引用对象的错误处理
-TEST_F(PropertyRelateTest, RefObjectErrorHandling) {
+TEST_F(PropertyRelateTest, RefObjectErrorHandling)
+{
     auto  test_obj  = m_service->get_test_obj();
     auto& test_prop = test_obj->m_interface.test_prop;
 
@@ -1989,7 +2047,8 @@ TEST_F(PropertyRelateTest, RefObjectErrorHandling) {
 }
 
 // 测试引用对象的动态查找功能
-TEST_F(PropertyRelateTest, RefObjectDynamicLookup) {
+TEST_F(PropertyRelateTest, RefObjectDynamicLookup)
+{
     auto  test_obj  = m_service->get_test_obj();
     auto& test_prop = test_obj->m_interface.test_prop;
 
@@ -2023,7 +2082,8 @@ TEST_F(PropertyRelateTest, RefObjectDynamicLookup) {
 }
 
 // 测试引用对象与不同数据类型的兼容性
-TEST_F(PropertyRelateTest, RefObjectTypeCompatibility) {
+TEST_F(PropertyRelateTest, RefObjectTypeCompatibility)
+{
     auto test_obj = m_service->get_test_obj();
 
     // 测试variant类型属性
@@ -2069,7 +2129,8 @@ TEST_F(PropertyRelateTest, RefObjectTypeCompatibility) {
 }
 
 // 测试引用对象的接口属性访问
-TEST_F(PropertyRelateTest, RefObjectInterfaceAccess) {
+TEST_F(PropertyRelateTest, RefObjectInterfaceAccess)
+{
     auto  test_obj  = m_service->get_test_obj();
     auto& test_prop = test_obj->m_interface.test_prop;
 
@@ -2107,7 +2168,8 @@ TEST_F(PropertyRelateTest, RefObjectInterfaceAccess) {
 }
 
 // 测试引用对象的克隆功能
-TEST_F(PropertyRelateTest, RefObjectClone) {
+TEST_F(PropertyRelateTest, RefObjectClone)
+{
     auto  test_obj  = m_service->get_test_obj();
     auto& test_prop = test_obj->m_interface.test_prop;
 
@@ -2143,7 +2205,8 @@ TEST_F(PropertyRelateTest, RefObjectClone) {
 }
 
 // 测试引用对象与引用属性的区分
-TEST_F(PropertyRelateTest, RefObjectVsRefProperty) {
+TEST_F(PropertyRelateTest, RefObjectVsRefProperty)
+{
     auto  test_obj   = m_service->get_test_obj();
     auto& test_prop1 = test_obj->m_interface.test_prop;
 
@@ -2185,7 +2248,8 @@ TEST_F(PropertyRelateTest, RefObjectVsRefProperty) {
     EXPECT_TRUE(!prop_value.is_null());
 }
 // 测试引用对象的内存优化
-TEST_F(PropertyRelateTest, RefObjectMemoryOptimization) {
+TEST_F(PropertyRelateTest, RefObjectMemoryOptimization)
+{
     auto test_obj = m_service->get_test_obj();
 
     // 使用现有的属性来测试内存优化
@@ -2220,7 +2284,8 @@ TEST_F(PropertyRelateTest, RefObjectMemoryOptimization) {
 }
 
 // 测试引用对象的 invoke 方法（不指定接口）
-TEST_F(PropertyRelateTest, RefObjectBasicInvoke) {
+TEST_F(PropertyRelateTest, RefObjectBasicInvoke)
+{
     auto  test_obj  = m_service->get_test_obj();
     auto& test_prop = test_obj->m_interface.test_prop;
 
@@ -2239,7 +2304,8 @@ TEST_F(PropertyRelateTest, RefObjectBasicInvoke) {
 }
 
 // 测试引用对象的 invoke 方法（指定接口）
-TEST_F(PropertyRelateTest, RefObjectInterfaceInvoke) {
+TEST_F(PropertyRelateTest, RefObjectInterfaceInvoke)
+{
     auto  test_obj  = m_service->get_test_obj();
     auto& test_prop = test_obj->m_interface.test_prop;
 
@@ -2264,7 +2330,8 @@ TEST_F(PropertyRelateTest, RefObjectInterfaceInvoke) {
 }
 
 // 测试引用对象的 async_invoke 方法（不指定接口）
-TEST_F(PropertyRelateTest, RefObjectBasicAsyncInvoke) {
+TEST_F(PropertyRelateTest, RefObjectBasicAsyncInvoke)
+{
     auto  test_obj  = m_service->get_test_obj();
     auto& test_prop = test_obj->m_interface.test_prop;
 
@@ -2282,7 +2349,8 @@ TEST_F(PropertyRelateTest, RefObjectBasicAsyncInvoke) {
 }
 
 // 测试引用对象的 async_invoke 方法（指定接口）
-TEST_F(PropertyRelateTest, RefObjectInterfaceAsyncInvoke) {
+TEST_F(PropertyRelateTest, RefObjectInterfaceAsyncInvoke)
+{
     auto  test_obj  = m_service->get_test_obj();
     auto& test_prop = test_obj->m_interface.test_prop;
 
@@ -2307,7 +2375,8 @@ TEST_F(PropertyRelateTest, RefObjectInterfaceAsyncInvoke) {
 }
 
 // 测试引用对象不存在时的 invoke 方法
-TEST_F(PropertyRelateTest, RefObjectInvokeNonExistentObject) {
+TEST_F(PropertyRelateTest, RefObjectInvokeNonExistentObject)
+{
     auto  test_obj  = m_service->get_test_obj();
     auto& test_prop = test_obj->m_interface.test_prop;
 
@@ -2345,7 +2414,8 @@ TEST_F(PropertyRelateTest, RefObjectInvokeNonExistentObject) {
 }
 
 // 测试引用对象的复杂参数传递
-TEST_F(PropertyRelateTest, RefObjectComplexParameterPassing) {
+TEST_F(PropertyRelateTest, RefObjectComplexParameterPassing)
+{
     auto  test_obj  = m_service->get_test_obj();
     auto& test_prop = test_obj->m_interface.test_prop;
 
@@ -2369,7 +2439,8 @@ TEST_F(PropertyRelateTest, RefObjectComplexParameterPassing) {
 }
 
 // 测试引用对象的并发调用
-TEST_F(PropertyRelateTest, RefObjectConcurrentInvoke) {
+TEST_F(PropertyRelateTest, RefObjectConcurrentInvoke)
+{
     auto  test_obj  = m_service->get_test_obj();
     auto& test_prop = test_obj->m_interface.test_prop;
 
@@ -2428,7 +2499,8 @@ TEST_F(PropertyRelateTest, RefObjectConcurrentInvoke) {
 }
 
 // 测试引用对象的对象查找器为空的情况
-TEST_F(PropertyRelateTest, RefObjectNullObjectFinder) {
+TEST_F(PropertyRelateTest, RefObjectNullObjectFinder)
+{
     // 创建一个没有对象查找器的引用对象
     mc::engine::ref_object ref_obj("TestObject", nullptr);
 
@@ -2455,7 +2527,8 @@ TEST_F(PropertyRelateTest, RefObjectNullObjectFinder) {
 }
 
 // 测试引用对象的边界情况
-TEST_F(PropertyRelateTest, RefObjectEdgeCases) {
+TEST_F(PropertyRelateTest, RefObjectEdgeCases)
+{
     // 测试明确不存在的对象名称
     mc::engine::ref_object non_existent_ref_obj("NonExistentObjectForEdgeCase", [this](const std::string& name) -> mc::engine::abstract_object* {
         auto& object_table = m_service->get_object_table();
@@ -2491,7 +2564,8 @@ TEST_F(PropertyRelateTest, RefObjectEdgeCases) {
 }
 
 // 测试outsider getter和setter功能
-TEST(PropertyTest, OutsiderGetterSetter) {
+TEST(PropertyTest, OutsiderGetterSetter)
+{
     // 创建测试属性
     property<int> test_prop(42);
 
@@ -2564,7 +2638,8 @@ TEST(PropertyTest, OutsiderGetterSetter) {
 }
 
 // 测试outsider getter和setter的字符串类型验证
-TEST(PropertyTest, OutsiderGetterSetterStringValidation) {
+TEST(PropertyTest, OutsiderGetterSetterStringValidation)
+{
     property<std::string> string_prop("initial");
 
     // 简化测试，只测试基本功能避免复杂的状态管理
@@ -2609,7 +2684,8 @@ TEST(PropertyTest, OutsiderGetterSetterStringValidation) {
 }
 
 // 测试outsider getter和setter与观察者模式的交互
-TEST(PropertyTest, OutsiderGetterSetterWithObserver) {
+TEST(PropertyTest, OutsiderGetterSetterWithObserver)
+{
     property<int, test_observer> observed_prop(100);
 
     // 简化测试，使用基本的标志变量
@@ -2663,7 +2739,8 @@ TEST(PropertyTest, OutsiderGetterSetterWithObserver) {
 }
 
 // 测试outsider getter和setter的复杂类型（Point）
-TEST(PropertyTest, OutsiderGetterSetterComplexType) {
+TEST(PropertyTest, OutsiderGetterSetterComplexType)
+{
     property<Point> point_prop(Point(10, 20));
 
     // 简化测试，使用基本的标志变量
@@ -2708,7 +2785,8 @@ TEST(PropertyTest, OutsiderGetterSetterComplexType) {
 }
 
 // 测试引用对象的属性设置功能
-TEST_F(PropertyRelateTest, RefObjectSetProperty) {
+TEST_F(PropertyRelateTest, RefObjectSetProperty)
+{
     auto  test_obj  = m_service->get_test_obj();
     auto& test_prop = test_obj->m_interface.test_prop;
 
@@ -2740,7 +2818,8 @@ TEST_F(PropertyRelateTest, RefObjectSetProperty) {
 }
 
 // 测试引用对象的生命周期管理
-TEST_F(PropertyRelateTest, RefObjectLifecycleManagementExtended) {
+TEST_F(PropertyRelateTest, RefObjectLifecycleManagementExtended)
+{
     auto  test_obj  = m_service->get_test_obj();
     auto& test_prop = test_obj->m_interface.test_prop;
 
@@ -2772,7 +2851,8 @@ TEST_F(PropertyRelateTest, RefObjectLifecycleManagementExtended) {
 }
 
 // 测试引用对象的variant_extension_base接口实现
-TEST_F(PropertyRelateTest, RefObjectVariantExtension) {
+TEST_F(PropertyRelateTest, RefObjectVariantExtension)
+{
     auto  test_obj  = m_service->get_test_obj();
     auto& test_prop = test_obj->m_interface.test_prop;
 
@@ -2812,7 +2892,8 @@ TEST_F(PropertyRelateTest, RefObjectVariantExtension) {
 }
 
 // 测试引用对象的扩展错误处理
-TEST_F(PropertyRelateTest, RefObjectExtendedErrorHandling) {
+TEST_F(PropertyRelateTest, RefObjectExtendedErrorHandling)
+{
     auto  test_obj  = m_service->get_test_obj();
     auto& test_prop = test_obj->m_interface.test_prop;
 
@@ -2844,7 +2925,8 @@ TEST_F(PropertyRelateTest, RefObjectExtendedErrorHandling) {
     EXPECT_TRUE(async_result.is_value() && async_result.get_value().is_null());
 }
 
-TEST_F(PropertyRelateTest, RefObjectPerformanceAndMemoryExtended) {
+TEST_F(PropertyRelateTest, RefObjectPerformanceAndMemoryExtended)
+{
     auto  test_obj  = m_service->get_test_obj();
     auto& test_prop = test_obj->m_interface.test_prop;
 
@@ -2871,7 +2953,8 @@ TEST_F(PropertyRelateTest, RefObjectPerformanceAndMemoryExtended) {
 }
 
 // 测试引用对象的并发安全性
-TEST_F(PropertyRelateTest, RefObjectConcurrency) {
+TEST_F(PropertyRelateTest, RefObjectConcurrency)
+{
     auto  test_obj  = m_service->get_test_obj();
     auto& test_prop = test_obj->m_interface.test_prop;
 
@@ -2966,7 +3049,8 @@ TEST_F(PropertyRelateTest, RefObjectConcurrency) {
 }
 
 // 测试引用对象的信号连接和发射功能（通过目标对象）
-TEST_F(PropertyRelateTest, RefObjectSignalConnect) {
+TEST_F(PropertyRelateTest, RefObjectSignalConnect)
+{
     auto  test_obj  = m_service->get_test_obj();
     auto& test_prop = test_obj->m_interface.test_prop;
 
@@ -3005,7 +3089,8 @@ TEST_F(PropertyRelateTest, RefObjectSignalConnect) {
     EXPECT_FALSE(conn.connected());
 }
 
-TEST_F(PropertyRelateTest, TestPropertyRefInfo) {
+TEST_F(PropertyRelateTest, TestPropertyRefInfo)
+{
     auto        test_obj   = m_service->get_test_obj();
     std::string ref_source = R"({"ObjectName":"Event_CPUPresence","type":"local reference object"})";
     test_obj->set_property_ref_info("test_prop", ref_source, "interface");
@@ -3013,7 +3098,8 @@ TEST_F(PropertyRelateTest, TestPropertyRefInfo) {
     EXPECT_EQ(ref_info_result, ref_source);
 }
 
-TEST_F(PropertyRelateTest, TestPropertySyncInfo) {
+TEST_F(PropertyRelateTest, TestPropertySyncInfo)
+{
     auto        sync_info   = std::make_shared<mc::engine::property_sync_info>();
     std::string sync_source = R"#({"properties":[],"expressions":["expr($1 + $2 * 3)"],"Default":3.14})#";
     sync_info->source       = sync_source;

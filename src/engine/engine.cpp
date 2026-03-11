@@ -27,10 +27,12 @@ using work_guard           = boost::asio::executor_work_guard<boost::asio::io_co
 // 使用全局变量而不是跟随 engine 单例的原因是避免在单例销毁后 path_resolver 被销毁，导致路径表达式求值函数无法使用，因为
 // 在单元测试中经常需要销毁 engine 单例。
 static path_resolver s_path_resolver;
-void                 engine::set_path_resolver(path_resolver resolver) {
+void                 engine::set_path_resolver(path_resolver resolver)
+{
     s_path_resolver = resolver;
 }
-path_resolver& engine::get_path_resolver() {
+path_resolver& engine::get_path_resolver()
+{
     return s_path_resolver;
 }
 
@@ -49,15 +51,19 @@ public:
     table_connection_map m_connections;
 };
 
-engine::engine_impl::engine_impl() : m_object_table(std::make_shared<object_table>()) {
+engine::engine_impl::engine_impl()
+    : m_object_table(std::make_shared<object_table>())
+{
     m_database.register_table(m_object_table);
 }
 
-engine::engine_impl::~engine_impl() {
+engine::engine_impl::~engine_impl()
+{
     m_object_table->clear();
 }
 
-void engine::engine_impl::add_object(abstract_object& object) {
+void engine::engine_impl::add_object(abstract_object& object)
+{
     std::lock_guard lock(m_mutex);
 
     auto object_id = object.get_object_id();
@@ -68,13 +74,15 @@ void engine::engine_impl::add_object(abstract_object& object) {
     m_object_table->add(object_ptr(&object));
 }
 
-void engine::engine_impl::remove_object(abstract_object& object) {
+void engine::engine_impl::remove_object(abstract_object& object)
+{
     std::lock_guard lock(m_mutex);
 
     m_object_table->remove(object_ptr(&object));
 }
 
-void engine::engine_impl::update_object(abstract_object& old_object, abstract_object& new_object) {
+void engine::engine_impl::update_object(abstract_object& old_object, abstract_object& new_object)
+{
     std::lock_guard lock(m_mutex);
 
     auto& idx = m_object_table->get<by_path>();
@@ -88,29 +96,35 @@ void engine::engine_impl::update_object(abstract_object& old_object, abstract_ob
     idx.update(*it, object_ptr(&new_object));
 }
 
-engine::engine() {
+engine::engine()
+{
     m_impl = std::make_shared<engine_impl>();
 }
 
-engine::~engine() {
+engine::~engine()
+{
     m_impl.reset();
 }
 
-engine& engine::get_instance() {
+engine& engine::get_instance()
+{
     return mc::singleton<engine>::instance_with_creator([]() {
         return new engine();
     });
 }
 
-void engine::reset_for_test() {
+void engine::reset_for_test()
+{
     mc::singleton<engine>::reset_for_test();
 }
 
-mc::db::database& engine::get_database() {
+mc::db::database& engine::get_database()
+{
     return m_impl->m_database;
 }
 
-bool engine::register_table(mc::db::table_ptr table) {
+bool engine::register_table(mc::db::table_ptr table)
+{
     if (!table || table->get_table_name().empty()) {
         return false;
     }
@@ -140,13 +154,15 @@ bool engine::register_table(mc::db::table_ptr table) {
     return true;
 }
 
-mc::db::table_ptr engine::find_table(std::string_view table_name) {
+mc::db::table_ptr engine::find_table(std::string_view table_name)
+{
     std::lock_guard lock(m_impl->m_mutex);
 
     return m_impl->m_database.get_table(table_name);
 }
 
-void engine::unregister_table(mc::db::table_ptr table) {
+void engine::unregister_table(mc::db::table_ptr table)
+{
     if (!table || table->get_table_name().empty()) {
         return;
     }
@@ -157,7 +173,8 @@ void engine::unregister_table(mc::db::table_ptr table) {
     m_impl->m_database.unregister_table(table->get_table_name());
 }
 
-object_table& engine::get_object_table() {
+object_table& engine::get_object_table()
+{
     return *m_impl->m_object_table;
 }
 

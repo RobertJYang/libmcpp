@@ -25,7 +25,8 @@
 
 namespace mc {
 
-thread_id get_thread_id() {
+thread_id get_thread_id()
+{
 #ifdef __linux__
     // Linux平台使用系统调用获取线程ID
     return static_cast<thread_id>(syscall(SYS_gettid));
@@ -45,7 +46,8 @@ thread_id get_thread_id() {
 #endif
 }
 
-void set_current_thread_name(const std::string& name) {
+void set_current_thread_name(const std::string& name)
+{
 #if defined(__linux__)
     pthread_setname_np(pthread_self(), name.c_str());
 #elif defined(__APPLE__)

@@ -82,7 +82,8 @@ struct MC_API json_encode_options {
     /**
      * @brief 验证并调整选项值到有效范围
      */
-    void normalize() {
+    void normalize()
+    {
         // 缩进大小限制在[0, 8]范围内
         if (indent_size < 0) {
             indent_size = 0;
@@ -170,7 +171,8 @@ struct MC_API json_decode_options {
      * @note 所有限制值都必须大于等于1
      *       此函数会自动调整无效值到最近的有效值
      */
-    void normalize() {
+    void normalize()
+    {
         max_depth         = std::max(1, max_depth);
         max_input_length  = std::max<size_t>(1, max_input_length);
         max_string_length = std::max<size_t>(1, max_string_length);

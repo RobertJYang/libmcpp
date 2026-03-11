@@ -47,14 +47,17 @@ struct wrapper {
 // pretty_name测试套件
 class pretty_name_test : public ::testing::Test {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
     }
-    void TearDown() override {
+    void TearDown() override
+    {
     }
 };
 
 // 测试基本类型的名称
-TEST_F(pretty_name_test, basic_types) {
+TEST_F(pretty_name_test, basic_types)
+{
     // 基本类型
     std::string int_name    = mc::pretty_name<int>();
     std::string double_name = mc::pretty_name<double>();
@@ -67,13 +70,15 @@ TEST_F(pretty_name_test, basic_types) {
 }
 
 // 测试自定义类型的名称
-TEST_F(pretty_name_test, custom_types) {
+TEST_F(pretty_name_test, custom_types)
+{
     std::string user_name = mc::pretty_name<test_user>();
     EXPECT_TRUE(user_name.find("test_user") != std::string::npos);
 }
 
 // 测试模板类型的名称
-TEST_F(pretty_name_test, template_types) {
+TEST_F(pretty_name_test, template_types)
+{
     std::string int_wrapper = mc::pretty_name<wrapper<int>>();
     EXPECT_TRUE(int_wrapper.find("wrapper") != std::string::npos);
     EXPECT_TRUE(int_wrapper.find("int") != std::string::npos);

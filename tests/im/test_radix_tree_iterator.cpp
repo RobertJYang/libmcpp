@@ -27,18 +27,24 @@ struct test_value {
     std::string text;
     int         number;
 
-    test_value() : text(), number(0) {
+    test_value()
+        : text(), number(0)
+    {
     }
-    test_value(const std::string& t, int n) : text(t), number(n) {
+    test_value(const std::string& t, int n)
+        : text(t), number(n)
+    {
     }
 
-    bool operator==(const test_value& other) const {
+    bool operator==(const test_value& other) const
+    {
         return text == other.text && number == other.number;
     }
 };
 
 // 基础迭代器测试 - 验证基本遍历功能
-TEST(RadixTreeIteratorTest, BasicIteration) {
+TEST(RadixTreeIteratorTest, BasicIteration)
+{
     // 创建事务并填充数据
     transaction<tree_config<test_value>> tx;
 
@@ -81,7 +87,8 @@ TEST(RadixTreeIteratorTest, BasicIteration) {
 }
 
 // 测试用例：可修改迭代器
-TEST(RadixTreeIteratorTest, MutableIterator) {
+TEST(RadixTreeIteratorTest, MutableIterator)
+{
     // 创建事务并填充数据
     transaction<tree_config<test_value>> tx;
 
@@ -134,7 +141,8 @@ TEST(RadixTreeIteratorTest, MutableIterator) {
 }
 
 // 测试用例：空树迭代器
-TEST(RadixTreeIteratorTest, EmptyTreeIterator) {
+TEST(RadixTreeIteratorTest, EmptyTreeIterator)
+{
     using tree_type = radix_tree<tree_config<test_value>>;
 
     // 创建空树
@@ -153,7 +161,8 @@ TEST(RadixTreeIteratorTest, EmptyTreeIterator) {
 }
 
 // 测试用例：迭代器比较和复制
-TEST(RadixTreeIteratorTest, IteratorComparisonAndCopy) {
+TEST(RadixTreeIteratorTest, IteratorComparisonAndCopy)
+{
     // 创建事务并填充数据
     transaction<tree_config<test_value>> tx;
     for (int i = 0; i < 5; i++) {
@@ -186,7 +195,8 @@ TEST(RadixTreeIteratorTest, IteratorComparisonAndCopy) {
 }
 
 // 测试用例：成员访问操作符
-TEST(RadixTreeIteratorTest, MemberAccessOperator) {
+TEST(RadixTreeIteratorTest, MemberAccessOperator)
+{
     // 创建事务并填充数据
     transaction<tree_config<test_value>> tx;
     tx.insert("test_key", test_value("测试文本", 100));
@@ -218,7 +228,8 @@ TEST(RadixTreeIteratorTest, MemberAccessOperator) {
 }
 
 // 测试用例：随机访问测试
-TEST(RadixTreeIteratorTest, RandomAccess) {
+TEST(RadixTreeIteratorTest, RandomAccess)
+{
     // 创建事务并填充数据
     transaction<tree_config<test_value>> tx;
 
@@ -262,7 +273,8 @@ TEST(RadixTreeIteratorTest, RandomAccess) {
 }
 
 // 测试用例：查找具有特定键的元素
-TEST(RadixTreeIteratorTest, Find) {
+TEST(RadixTreeIteratorTest, Find)
+{
     using tree_type = radix_tree<tree_config<test_value>>;
 
     // 创建事务并填充数据
@@ -297,7 +309,8 @@ TEST(RadixTreeIteratorTest, Find) {
 }
 
 // 测试用例：lower_bound和upper_bound函数
-TEST(RadixTreeIteratorTest, BoundaryFunctions) {
+TEST(RadixTreeIteratorTest, BoundaryFunctions)
+{
     // 创建事务并填充数据
     transaction<tree_config<test_value>> tx;
 
@@ -361,7 +374,8 @@ TEST(RadixTreeIteratorTest, BoundaryFunctions) {
 }
 
 // 测试用例：复杂的lower_bound场景
-TEST(RadixTreeIteratorTest, ComplexLowerBound) {
+TEST(RadixTreeIteratorTest, ComplexLowerBound)
+{
     // 创建事务并填充数据
     transaction<tree_config<test_value>> tx;
 
@@ -500,7 +514,8 @@ TEST(RadixTreeIteratorTest, ComplexLowerBound) {
 }
 
 // 测试用例：复杂的upper_bound场景
-TEST(RadixTreeIteratorTest, ComplexUpperBound) {
+TEST(RadixTreeIteratorTest, ComplexUpperBound)
+{
     // 创建事务并填充数据
     transaction<tree_config<test_value>> tx;
 
@@ -671,7 +686,8 @@ TEST(RadixTreeIteratorTest, ComplexUpperBound) {
 }
 
 // 测试空树迭代器构造
-TEST(RadixTreeIteratorTest, IteratorConstructFromEmptyTree) {
+TEST(RadixTreeIteratorTest, IteratorConstructFromEmptyTree)
+{
     using tree_type = radix_tree<tree_config<test_value>>;
 
     // 创建空树
@@ -684,7 +700,8 @@ TEST(RadixTreeIteratorTest, IteratorConstructFromEmptyTree) {
 }
 
 // 测试单叶子根节点迭代器构造
-TEST(RadixTreeIteratorTest, IteratorConstructFromSingleLeafRoot) {
+TEST(RadixTreeIteratorTest, IteratorConstructFromSingleLeafRoot)
+{
     // 创建事务并插入单个键
     transaction<tree_config<test_value>> tx;
     tx.insert("a", test_value("值a", 1));
@@ -701,7 +718,8 @@ TEST(RadixTreeIteratorTest, IteratorConstructFromSingleLeafRoot) {
 }
 
 // 测试在 end() 状态递增迭代器
-TEST(RadixTreeIteratorTest, IteratorIncrementAtEnd) {
+TEST(RadixTreeIteratorTest, IteratorIncrementAtEnd)
+{
     // 创建事务并插入数据
     transaction<tree_config<test_value>> tx;
     tx.insert("key1", test_value("值1", 1));
@@ -721,7 +739,8 @@ TEST(RadixTreeIteratorTest, IteratorIncrementAtEnd) {
 }
 
 // 测试对 end() 迭代器解引用抛出异常
-TEST(RadixTreeIteratorTest, IteratorDereferenceAtEndThrows) {
+TEST(RadixTreeIteratorTest, IteratorDereferenceAtEndThrows)
+{
     // 创建事务并插入数据
     transaction<tree_config<test_value>> tx;
     tx.insert("key1", test_value("值1", 1));
@@ -739,7 +758,8 @@ TEST(RadixTreeIteratorTest, IteratorDereferenceAtEndThrows) {
 }
 
 // 测试对 end() 迭代器使用 -> 抛出异常
-TEST(RadixTreeIteratorTest, IteratorArrowAtEndThrows) {
+TEST(RadixTreeIteratorTest, IteratorArrowAtEndThrows)
+{
     // 创建事务并插入数据
     transaction<tree_config<test_value>> tx;
     tx.insert("key1", test_value("值1", 1));

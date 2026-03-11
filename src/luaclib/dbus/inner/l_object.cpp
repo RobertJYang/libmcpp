@@ -24,7 +24,8 @@ extern "C" {
 
 namespace mc::dbus::lua {
 
-static int l_set_property(lua_State* L) {
+static int l_set_property(lua_State* L)
+{
     l_object*   object    = reinterpret_cast<l_object*>(luaL_checkudata(L, 1, OBJECT_METATABLE));
     const char* intf_name = luaL_checkstring(L, 2);
     const char* prop_name = luaL_checkstring(L, 3);
@@ -37,7 +38,8 @@ static int l_set_property(lua_State* L) {
     return 1;
 }
 
-static int l_get_property(lua_State* L) {
+static int l_get_property(lua_State* L)
+{
     l_object*   object    = reinterpret_cast<l_object*>(luaL_checkudata(L, 1, OBJECT_METATABLE));
     const char* intf_name = luaL_checkstring(L, 2);
     const char* prop_name = luaL_checkstring(L, 3);
@@ -59,7 +61,8 @@ static int l_get_property(lua_State* L) {
     }
 }
 
-int new_object_class(lua_State* L) {
+int new_object_class(lua_State* L)
+{
     const char* path = luaL_checkstring(L, 1);
     LDBusError  error;
     if (!dbus_validate_path(path, &error)) {
@@ -73,14 +76,16 @@ int new_object_class(lua_State* L) {
     return 1;
 }
 
-static int l_register_interface(lua_State* L) {
+static int l_register_interface(lua_State* L)
+{
     l_object*    object    = reinterpret_cast<l_object*>(luaL_checkudata(L, 1, OBJECT_METATABLE));
     l_interface* interface = reinterpret_cast<l_interface*>(luaL_checkudata(L, 2, INTERFACE_METATABLE));
     object->impl->add_interface(interface->impl);
     return 0;
 }
 
-static int l_get_interface(lua_State* L) {
+static int l_get_interface(lua_State* L)
+{
     l_object*   object    = reinterpret_cast<l_object*>(luaL_checkudata(L, 1, OBJECT_METATABLE));
     const char* intf_name = luaL_checkstring(L, 2);
     auto        intf      = object->impl->get_interface(intf_name);
@@ -91,13 +96,15 @@ static int l_get_interface(lua_State* L) {
     return 1;
 }
 
-static int l_gc_func(lua_State* L) {
+static int l_gc_func(lua_State* L)
+{
     l_object* object = reinterpret_cast<l_object*>(luaL_checkudata(L, 1, OBJECT_METATABLE));
     object->~l_object();
     return 0;
 }
 
-static int l_update_shm_prop(lua_State* L) {
+static int l_update_shm_prop(lua_State* L)
+{
     l_object*   object    = reinterpret_cast<l_object*>(luaL_checkudata(L, 1, OBJECT_METATABLE));
     const char* intf_name = luaL_checkstring(L, 2);
     const char* prop_name = luaL_checkstring(L, 3);
@@ -120,7 +127,8 @@ const luaL_Reg dbus_object_methods[] = {{"set_property", l_set_property},
                                         {nullptr, nullptr}};
 
 // 注册 object 模块的 metatable
-void register_object_metatable(lua_State* L) {
+void register_object_metatable(lua_State* L)
+{
     luaL_newmetatable(L, OBJECT_METATABLE);
     luaL_setfuncs(L, dbus_object_methods, 0);
     lua_pushvalue(L, -1);

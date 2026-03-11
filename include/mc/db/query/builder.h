@@ -41,7 +41,8 @@ public:
      *
      * @param cond 条件对象
      */
-    query_builder(const condition& cond) {
+    query_builder(const condition& cond)
+    {
         m_condition = cond;
     }
 
@@ -52,7 +53,8 @@ public:
      * @param expr 查询表达式
      */
     template <typename Expr>
-    query_builder(const dsl::query_expr<Expr>& expr) {
+    query_builder(const dsl::query_expr<Expr>& expr)
+    {
         m_condition = to_condition(expr);
     }
 
@@ -64,7 +66,8 @@ public:
      * @param value 比较值
      * @return 查询构建器引用，用于链式调用
      */
-    query_builder& where(std::string_view field, const mc::variant& value) {
+    query_builder& where(std::string_view field, const mc::variant& value)
+    {
         return where(field, compare_op::eq, value);
     }
 
@@ -77,7 +80,8 @@ public:
      * @param value 比较值
      * @return 查询构建器引用，用于链式调用
      */
-    query_builder& where(std::string_view field, compare_op op, const mc::variant& value) {
+    query_builder& where(std::string_view field, compare_op op, const mc::variant& value)
+    {
         condition cond(op, std::string(field), value);
         return add_condition(cond);
     }
@@ -89,7 +93,8 @@ public:
      * @param value 比较值
      * @return 查询构建器引用，用于链式调用
      */
-    query_builder& or_where(std::string_view field, const mc::variant& value) {
+    query_builder& or_where(std::string_view field, const mc::variant& value)
+    {
         return or_where(field, compare_op::eq, value);
     }
 
@@ -101,7 +106,8 @@ public:
      * @param value 比较值
      * @return 查询构建器引用，用于链式调用
      */
-    query_builder& or_where(std::string_view field, compare_op op, const mc::variant& value) {
+    query_builder& or_where(std::string_view field, compare_op op, const mc::variant& value)
+    {
         condition cond(op, std::string(field), value);
         if (!m_condition.has_value()) {
             m_condition = cond;
@@ -126,7 +132,8 @@ public:
      * @param cond 条件
      * @return 查询构建器引用，用于链式调用
      */
-    query_builder& where(const condition& cond) {
+    query_builder& where(const condition& cond)
+    {
         return add_condition(cond);
     }
 
@@ -138,7 +145,8 @@ public:
      * @return 查询构建器引用，用于链式调用
      */
     template <typename T>
-    query_builder& where_in(std::string_view field, const std::vector<T>& values) {
+    query_builder& where_in(std::string_view field, const std::vector<T>& values)
+    {
         if (values.empty()) {
             // 空值列表总是返回空结果
             // 添加一个永假条件
@@ -160,7 +168,8 @@ public:
      * @return 查询构建器引用，用于链式调用
      */
     template <typename T>
-    query_builder& where_between(std::string_view field, const T& lower, const T& upper) {
+    query_builder& where_between(std::string_view field, const T& lower, const T& upper)
+    {
         condition between_cond = conditions::between(std::string(field), lower, upper);
         return add_condition(between_cond);
     }
@@ -173,7 +182,8 @@ public:
      * @return 查询构建器引用，用于链式调用
      */
     template <typename T>
-    query_builder& where_gt(std::string_view field, const T& value) {
+    query_builder& where_gt(std::string_view field, const T& value)
+    {
         return where(field, compare_op::gt, mc::variant(value));
     }
 
@@ -185,7 +195,8 @@ public:
      * @return 查询构建器引用，用于链式调用
      */
     template <typename T>
-    query_builder& where_ge(std::string_view field, const T& value) {
+    query_builder& where_ge(std::string_view field, const T& value)
+    {
         return where(field, compare_op::ge, mc::variant(value));
     }
 
@@ -197,7 +208,8 @@ public:
      * @return 查询构建器引用，用于链式调用
      */
     template <typename T>
-    query_builder& where_lt(std::string_view field, const T& value) {
+    query_builder& where_lt(std::string_view field, const T& value)
+    {
         return where(field, compare_op::lt, mc::variant(value));
     }
 
@@ -209,7 +221,8 @@ public:
      * @return 查询构建器引用，用于链式调用
      */
     template <typename T>
-    query_builder& where_le(std::string_view field, const T& value) {
+    query_builder& where_le(std::string_view field, const T& value)
+    {
         return where(field, compare_op::le, mc::variant(value));
     }
 
@@ -220,7 +233,8 @@ public:
      * @param pattern 模式字符串 (包含%通配符)
      * @return 查询构建器引用，用于链式调用
      */
-    query_builder& where_like(std::string_view field, std::string_view pattern) {
+    query_builder& where_like(std::string_view field, std::string_view pattern)
+    {
         condition like_cond = conditions::like(std::string(field), std::string(pattern));
         return add_condition(like_cond);
     }
@@ -229,7 +243,8 @@ public:
      * 检查查询构建器是否为空（没有条件）
      * @return 是否为空
      */
-    bool is_empty() const {
+    bool is_empty() const
+    {
         return !m_condition.has_value();
     }
 
@@ -237,7 +252,8 @@ public:
      * 检查是否有条件
      * @return 是否有条件
      */
-    bool has_condition() const {
+    bool has_condition() const
+    {
         return m_condition.has_value();
     }
 
@@ -245,7 +261,8 @@ public:
      * 获取查询条件
      * @return 条件对象
      */
-    const condition& get_condition() const {
+    const condition& get_condition() const
+    {
         if (!m_condition.has_value()) {
             static condition empty_condition;
             return empty_condition;
@@ -261,7 +278,8 @@ public:
      * @return 是否满足
      */
     template <typename T>
-    bool matches(const T& obj) const {
+    bool matches(const T& obj) const
+    {
         if (!has_condition()) {
             return true;
         }
@@ -271,14 +289,16 @@ public:
     /**
      * 清空所有条件
      */
-    void clear() {
+    void clear()
+    {
         m_condition.reset();
     }
 
     /**
      * 获取条件的字符串表示（用于调试）
      */
-    std::string to_string() const {
+    std::string to_string() const
+    {
         if (!has_condition()) {
             return "空条件";
         }
@@ -290,7 +310,8 @@ public:
      * @param limit_value 最大数量
      * @return 查询构建器引用，用于链式调用
      */
-    query_builder& limit(size_t limit_value) {
+    query_builder& limit(size_t limit_value)
+    {
         m_limit = limit_value;
         return *this;
     }
@@ -299,7 +320,8 @@ public:
      * 获取结果限制数量
      * @return 限制数量，如果未设置则为 0（表示无限制）
      */
-    size_t get_limit() const {
+    size_t get_limit() const
+    {
         return m_limit;
     }
 
@@ -307,7 +329,8 @@ public:
      * 是否设置了结果限制
      * @return 是否设置限制
      */
-    bool has_limit() const {
+    bool has_limit() const
+    {
         return m_limit > 0;
     }
 
@@ -315,7 +338,8 @@ private:
     /**
      * 添加条件，与现有条件使用AND连接
      */
-    query_builder& add_condition(const condition& cond) {
+    query_builder& add_condition(const condition& cond)
+    {
         if (!m_condition.has_value()) {
             m_condition = cond;
         } else {

@@ -24,18 +24,21 @@ namespace mc::dbus::lua {
 constexpr const char* NON_BLOCKING_DBUS_METATABLE = "dbus.nonblock";
 
 // 静态 io_context（延迟初始化）
-static std::shared_ptr<mc::io_context>& get_static_io_context() {
+static std::shared_ptr<mc::io_context>& get_static_io_context()
+{
     static auto s_io_context = std::make_shared<mc::io_context>(1, "lua-dbus-nonblock");
     return s_io_context;
 }
 
 // dbus.nonblock.shutdown()
-int dbus_nonblock_shutdown(lua_State* L) {
+int dbus_nonblock_shutdown(lua_State* L)
+{
     return dbus_shutdown(L);
 }
 
 // dbus.nonblock.open_user([start_now])
-int dbus_nonblock_open_user(lua_State* L) {
+int dbus_nonblock_open_user(lua_State* L)
+{
     // 获取 start_now 参数（默认 true）
     bool start_now = true;
     if (lua_isboolean(L, 1)) {
@@ -52,46 +55,55 @@ int dbus_nonblock_open_user(lua_State* L) {
 }
 
 // dbus.nonblock.new(arg)
-int dbus_nonblock_new(lua_State* L) {
+int dbus_nonblock_new(lua_State* L)
+{
     return dbus_new_impl(L, NON_BLOCKING_DBUS_METATABLE, "lua-dbus-nonblock", false);
 }
 
 // conn:start()
-int dbus_nonblock_start(lua_State* L) {
+int dbus_nonblock_start(lua_State* L)
+{
     return dbus_start(L);
 }
 
 // conn:request_name(name, flags)
-int dbus_nonblock_request_name(lua_State* L) {
+int dbus_nonblock_request_name(lua_State* L)
+{
     return dbus_request_name(L);
 }
 
 // __index 元方法
-int dbus_nonblock_index(lua_State* L) {
+int dbus_nonblock_index(lua_State* L)
+{
     return dbus_index(L);
 }
 
 // conn:close()
-int dbus_nonblock_close(lua_State* L) {
+int dbus_nonblock_close(lua_State* L)
+{
     return dbus_close(L);
 }
 
 // conn:flush()
-int dbus_nonblock_flush(lua_State* L) {
+int dbus_nonblock_flush(lua_State* L)
+{
     return dbus_flush(L);
 }
 
 // conn:dispatch()
-int dbus_nonblock_dispatch(lua_State* L) {
+int dbus_nonblock_dispatch(lua_State* L)
+{
     return dbus_dispatch(L);
 }
 
 // __gc 元方法
-int dbus_nonblock_gc(lua_State* L) {
+int dbus_nonblock_gc(lua_State* L)
+{
     return dbus_gc(L);
 }
 
-int dbus_nonblock_async_call(lua_State* L) {
+int dbus_nonblock_async_call(lua_State* L)
+{
     try {
         auto* wrapper = static_cast<dbus_wrapper*>(luaL_checkudata(L, 1, NON_BLOCKING_DBUS_METATABLE));
         luaL_checktype(L, 2, LUA_TFUNCTION); // 回调函数
@@ -140,7 +152,8 @@ int dbus_nonblock_async_call(lua_State* L) {
     }
 }
 
-int dbus_nonblock_async_timeout_call(lua_State* L) {
+int dbus_nonblock_async_timeout_call(lua_State* L)
+{
     try {
         auto* wrapper    = static_cast<dbus_wrapper*>(luaL_checkudata(L, 1, NON_BLOCKING_DBUS_METATABLE));
         int   timeout_ms = luaL_checkinteger(L, 2);
@@ -190,7 +203,8 @@ int dbus_nonblock_async_timeout_call(lua_State* L) {
     }
 }
 
-int dbus_nonblock_async_shm_timeout_call(lua_State* L) {
+int dbus_nonblock_async_shm_timeout_call(lua_State* L)
+{
     try {
         auto* wrapper    = static_cast<dbus_wrapper*>(luaL_checkudata(L, 1, NON_BLOCKING_DBUS_METATABLE));
         int   timeout_ms = luaL_checkinteger(L, 2);
@@ -245,11 +259,13 @@ int dbus_nonblock_async_shm_timeout_call(lua_State* L) {
     }
 }
 
-int dbus_non_block_notify_signal(lua_State* L) {
+int dbus_non_block_notify_signal(lua_State* L)
+{
     return notify_signal(L);
 }
 
-int dbus_non_block_add_match(lua_State* L) {
+int dbus_non_block_add_match(lua_State* L)
+{
     return add_match(L);
 }
 
@@ -268,7 +284,8 @@ const luaL_Reg dbus_nonblock_methods[] = {{"start", dbus_nonblock_start},
                                           {nullptr, nullptr}};
 
 // 注册 nonblock 模块的 metatable
-void register_nonblock_metatable(lua_State* L) {
+void register_nonblock_metatable(lua_State* L)
+{
     register_metatable_impl(L, NON_BLOCKING_DBUS_METATABLE, dbus_nonblock_methods, dbus_nonblock_index,
                             dbus_nonblock_gc);
 }

@@ -21,26 +21,32 @@ struct builtin::impl {
     context builtin_context;
 };
 
-builtin& builtin::get_instance() {
+builtin& builtin::get_instance()
+{
     // 不使用 mc::singleton 管理，在程序启动时各个模块会注册自己的内建函数，单例销毁后无法重建
     static builtin instance;
     return instance;
 }
 
-builtin::builtin() : m_impl(std::make_unique<impl>()) {
+builtin::builtin()
+    : m_impl(std::make_unique<impl>())
+{
 }
 
 builtin::~builtin() = default;
 
-int builtin::register_symbol(std::shared_ptr<function> func) {
+int builtin::register_symbol(std::shared_ptr<function> func)
+{
     return m_impl->builtin_context.register_function(func);
 }
 
-int builtin::register_symbol(std::string name, mc::variant value) {
+int builtin::register_symbol(std::string name, mc::variant value)
+{
     return m_impl->builtin_context.register_variable(std::move(name), value);
 }
 
-context& builtin::get_context() {
+context& builtin::get_context()
+{
     return m_impl->builtin_context;
 }
 

@@ -25,7 +25,8 @@ namespace mc::mdb::lua {
 // privilege.get_privilege_str(privileges_table)
 // 输入：Lua table，包含权限值数组
 // 输出：字符串，权限值的按位或结果
-static int l_get_privilege_str(lua_State* L) {
+static int l_get_privilege_str(lua_State* L)
+{
     try {
         // 检查参数是否为 table
         luaL_checktype(L, 1, LUA_TTABLE);
@@ -54,7 +55,8 @@ static int l_get_privilege_str(lua_State* L) {
 // privilege.validate(expected_privilege)
 // 输入：整数，期望的权限值
 // 输出：无（成功时），或抛出异常
-static int l_validate(lua_State* L) {
+static int l_validate(lua_State* L)
+{
     try {
         // 检查参数
         uint32_t expected_privilege = static_cast<uint32_t>(luaL_checkinteger(L, 1));
@@ -69,7 +71,8 @@ static int l_validate(lua_State* L) {
 }
 
 // 注册 privilege 常量到 Lua
-void register_privilege_constants(lua_State* L) {
+void register_privilege_constants(lua_State* L)
+{
     // 权限枚举常量
     lua_pushinteger(L, mc::mdb::privilege::privilege::read_only);
     lua_setfield(L, -2, "ReadOnly");
@@ -107,7 +110,8 @@ void register_privilege_constants(lua_State* L) {
 }
 
 // 注册 privilege 函数
-void register_privilege_functions(lua_State* L) {
+void register_privilege_functions(lua_State* L)
+{
     static const luaL_Reg privilege_funcs[] = {
         {"get_privilege_str", l_get_privilege_str},
         {"validate", l_validate},

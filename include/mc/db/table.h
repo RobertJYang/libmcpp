@@ -65,7 +65,8 @@ struct verify_object_type<T> {
  * 递归检查索引类型是否匹配
  */
 template <typename ObjectType, typename Tuple, std::size_t... Is>
-constexpr bool verify_indices_object_type_impl(std::index_sequence<Is...>) {
+constexpr bool verify_indices_object_type_impl(std::index_sequence<Is...>)
+{
     if constexpr (sizeof...(Is) <= 1) {
         return true;
     } else {
@@ -79,7 +80,8 @@ constexpr bool verify_indices_object_type_impl(std::index_sequence<Is...>) {
  * 检查一个索引元组中所有索引是否使用相同的对象类型
  */
 template <typename ObjectType, typename Tuple>
-constexpr bool verify_indices_object_type() {
+constexpr bool verify_indices_object_type()
+{
     return verify_indices_object_type_impl<ObjectType, Tuple>(
         std::make_index_sequence<std::tuple_size_v<Tuple>>{});
 }
@@ -88,7 +90,8 @@ constexpr bool verify_indices_object_type() {
  * 创建对象ID索引
  */
 template <typename ObjectType, typename Alloc>
-auto make_object_id_index(const Alloc& alloc = Alloc()) {
+auto make_object_id_index(const Alloc& alloc = Alloc())
+{
     return index<ObjectType, detail::object_id_key<ObjectType>, true, void, Alloc>(
         detail::object_id_key<ObjectType>{}, alloc, 0);
 }
@@ -97,7 +100,8 @@ auto make_object_id_index(const Alloc& alloc = Alloc()) {
  * 生成索引元组帮助类，包含用户定义的索引
  */
 template <typename ObjectType, typename Tuple, std::size_t... Is, typename Alloc>
-auto make_indices_with_user_indices_impl(std::index_sequence<Is...>, const Alloc& alloc) {
+auto make_indices_with_user_indices_impl(std::index_sequence<Is...>, const Alloc& alloc)
+{
     return std::make_tuple(
         make_object_id_index<ObjectType, Alloc>(alloc),
         index<ObjectType, typename std::tuple_element_t<Is, Tuple>::key_extractor_type,
@@ -110,12 +114,14 @@ auto make_indices_with_user_indices_impl(std::index_sequence<Is...>, const Alloc
  * 遍历索引元组并执行操作的辅助函数
  */
 template <typename Tuple, typename Func, std::size_t... Is>
-bool for_each_index_impl(Tuple& tuple, Func&& func, std::index_sequence<Is...>) {
+bool for_each_index_impl(Tuple& tuple, Func&& func, std::index_sequence<Is...>)
+{
     return (func(std::get<Is>(tuple)) && ...);
 }
 
 template <typename Tuple, typename Func>
-bool for_each_index(Tuple& tuple, Func&& func) {
+bool for_each_index(Tuple& tuple, Func&& func)
+{
     return for_each_index_impl(tuple, std::forward<Func>(func),
                                std::make_index_sequence<std::tuple_size_v<Tuple>>{});
 }
@@ -124,12 +130,14 @@ bool for_each_index(Tuple& tuple, Func&& func) {
  * 遍历索引元组并执行操作，直到某个操作返回false
  */
 template <typename Tuple, typename Func, std::size_t... Is>
-void for_each_index_until_impl(Tuple& tuple, Func&& func, std::index_sequence<Is...>) {
+void for_each_index_until_impl(Tuple& tuple, Func&& func, std::index_sequence<Is...>)
+{
     (func(std::get<Is>(tuple)) && ...);
 }
 
 template <typename Tuple, typename Func>
-void for_each_index_until(Tuple& tuple, Func&& func) {
+void for_each_index_until(Tuple& tuple, Func&& func)
+{
     for_each_index_until_impl(tuple, std::forward<Func>(func),
                               std::make_index_sequence<std::tuple_size_v<Tuple>>{});
 }
@@ -151,7 +159,8 @@ struct has_member_key<
  * 获取成员键名
  */
 template <typename KeyExtractor, typename ObjectType, typename MemberType>
-std::string get_property_name() {
+std::string get_property_name()
+{
     if constexpr (has_member_key<KeyExtractor, ObjectType, MemberType>::value) {
         return KeyExtractor::template get_property_name<ObjectType, MemberType>();
     }
@@ -175,7 +184,8 @@ struct has_member_function_key<
  * 获取成员函数键名
  */
 template <typename KeyExtractor, typename ObjectType, typename ReturnType>
-std::string get_member_function_name() {
+std::string get_member_function_name()
+{
     if constexpr (has_member_function_key<KeyExtractor, ObjectType, ReturnType>::value) {
         return KeyExtractor::template get_member_function_name<ObjectType, ReturnType>();
     }
@@ -245,7 +255,8 @@ public:
     table(std::string_view name = std::string_view(), uint32_t table_id = 0,
           const alloc_type& alloc = alloc_type())
         : m_indices(make_indices(alloc)),
-          m_table_id(table_id ? table_id : transaction::alloc_table_id()), m_name(name) {
+          m_table_id(table_id ? table_id : transaction::alloc_table_id()), m_name(name)
+    {
         size_t i = 0;
         detail::for_each_index(m_indices, [&i, this](auto& idx) {
             m_indices_array[i++] = &idx;
@@ -258,7 +269,8 @@ public:
         }
     }
 
-    ~table() {
+    ~table()
+    {
     }
 
     /**
@@ -266,7 +278,8 @@ public:
      * @param obj 记录对象
      * @return 成功返回true，失败返回false
      */
-    object_ptr_type add(const object_type& obj, transaction* txn = nullptr) {
+    object_ptr_type add(const object_type& obj, transaction* txn = nullptr)
+    {
         auto obj_ptr = mc::make_shared<object_type>(obj);
         return add(obj_ptr, txn);
     }
@@ -276,7 +289,8 @@ public:
      * @param obj_ptr 记录对象的引用计数指针
      * @return 成功返回true，失败返回false
      */
-    object_ptr_type add(object_ptr_type obj_ptr, transaction* txn = nullptr) {
+    object_ptr_type add(object_ptr_type obj_ptr, transaction* txn = nullptr)
+    {
         std::lock_guard lock(m_mutex);
 
         // 如果对象没有有效ID，则分配新ID
@@ -325,7 +339,8 @@ public:
     }
 
     object_ptr_type update(object_ptr_type old_obj_ptr, const object_type& new_obj,
-                           transaction* txn = nullptr) {
+                           transaction* txn = nullptr)
+    {
         auto new_obj_ptr = mc::make_shared<object_type>(new_obj);
         new_obj_ptr->set_object_id(old_obj_ptr->get_object_id());
         return update(old_obj_ptr, new_obj_ptr, txn);
@@ -338,7 +353,8 @@ public:
      * @return 成功返回true，失败返回false
      */
     object_ptr_type update(object_ptr_type old_obj_ptr, object_ptr_type new_obj_ptr,
-                           transaction* txn = nullptr) {
+                           transaction* txn = nullptr)
+    {
         std::lock_guard lock(m_mutex);
 
         bool need_txn = (txn != nullptr);
@@ -385,7 +401,8 @@ public:
      * @param obj 要删除的记录
      * @return 删除的记录数量
      */
-    bool remove(object_ptr_type obj_ptr, transaction* txn = nullptr) {
+    bool remove(object_ptr_type obj_ptr, transaction* txn = nullptr)
+    {
         std::lock_guard lock(m_mutex);
 
         bool need_txn = (txn != nullptr);
@@ -427,19 +444,22 @@ public:
         return true;
     }
 
-    void commit() {
+    void commit()
+    {
         std::lock_guard lock(m_mutex);
 
         commit_internal();
     }
 
-    void rollback() {
+    void rollback()
+    {
         std::lock_guard lock(m_mutex);
 
         rollback_internal();
     }
 
-    void rollback_to(int32_t savepoint_id) {
+    void rollback_to(int32_t savepoint_id)
+    {
         std::lock_guard lock(m_mutex);
 
         detail::for_each_index(m_indices, [savepoint_id](auto& idx) {
@@ -450,17 +470,21 @@ public:
     }
 
     struct lock_guard {
-        lock_guard(table& t) : m_table(t) {
+        lock_guard(table& t)
+            : m_table(t)
+        {
             m_table.lock_db();
         }
-        ~lock_guard() {
+        ~lock_guard()
+        {
             m_table.unlock_db();
         }
 
         table& m_table;
     };
 
-    void lock_db() {
+    void lock_db()
+    {
         std::lock_guard lock(m_mutex);
 
         detail::for_each_index(m_indices, [](auto& idx) {
@@ -469,7 +493,8 @@ public:
         });
     }
 
-    void unlock_db() {
+    void unlock_db()
+    {
         std::lock_guard lock(m_mutex);
 
         detail::for_each_index(m_indices, [](auto& idx) {
@@ -483,7 +508,8 @@ public:
      * @param id 对象ID
      * @return 迭代器
      */
-    auto find_by_object_id(object_id_type id) {
+    auto find_by_object_id(object_id_type id)
+    {
         std::lock_guard lock(m_mutex);
 
         return std::get<0>(m_indices).find(id);
@@ -496,7 +522,8 @@ public:
      * @return 迭代器
      */
     template <size_t I, typename... KeyTypes>
-    auto find(const KeyTypes&... keys) {
+    auto find(const KeyTypes&... keys)
+    {
         std::lock_guard lock(m_mutex);
 
         return std::get<I>(m_indices).find(keys...);
@@ -509,13 +536,15 @@ public:
      * @return 迭代器
      */
     template <typename Tag, typename... KeyTypes>
-    auto find(const KeyTypes&... keys) {
+    auto find(const KeyTypes&... keys)
+    {
         std::lock_guard lock(m_mutex);
 
         return get<Tag>().find(keys...);
     }
 
-    object_ptr_type find_by_index(size_t index_id, const mc::variant& value) {
+    object_ptr_type find_by_index(size_t index_id, const mc::variant& value)
+    {
         std::lock_guard lock(m_mutex);
 
         if (index_id >= std::tuple_size_v<indices_tuple_type>) {
@@ -525,7 +554,8 @@ public:
         return m_indices_array[index_id]->raw_find(value);
     }
 
-    raw_iterator lower_bound_by_index(size_t index_id, const mc::variant& value) {
+    raw_iterator lower_bound_by_index(size_t index_id, const mc::variant& value)
+    {
         std::lock_guard lock(m_mutex);
 
         if (index_id >= std::tuple_size_v<indices_tuple_type>) {
@@ -535,7 +565,8 @@ public:
         return m_indices_array[index_id]->raw_lower_bound(value);
     }
 
-    raw_iterator upper_bound_by_index(size_t index_id, const mc::variant& value) {
+    raw_iterator upper_bound_by_index(size_t index_id, const mc::variant& value)
+    {
         std::lock_guard lock(m_mutex);
 
         if (index_id >= std::tuple_size_v<indices_tuple_type>) {
@@ -545,7 +576,8 @@ public:
         return m_indices_array[index_id]->raw_upper_bound(value);
     }
 
-    raw_iterator begin(std::size_t index_id = 0) {
+    raw_iterator begin(std::size_t index_id = 0)
+    {
         std::lock_guard lock(m_mutex);
 
         if (index_id >= std::tuple_size_v<indices_tuple_type>) {
@@ -555,7 +587,8 @@ public:
         return m_indices_array[index_id]->raw_begin();
     }
 
-    raw_iterator end(std::size_t index_id = 0) {
+    raw_iterator end(std::size_t index_id = 0)
+    {
         std::lock_guard lock(m_mutex);
 
         if (index_id >= std::tuple_size_v<indices_tuple_type>) {
@@ -571,7 +604,8 @@ public:
      * @return 索引引用
      */
     template <size_t I>
-    auto& get() {
+    auto& get()
+    {
         std::lock_guard lock(m_mutex);
 
         return std::get<I>(m_indices);
@@ -583,7 +617,8 @@ public:
      * @return 索引引用
      */
     template <typename Tag, typename = std::enable_if_t<mc::db::is_tag_v<Tag>>>
-    auto& get() {
+    auto& get()
+    {
         std::lock_guard lock(m_mutex);
 
         if constexpr (std::is_same_v<Tag, by_object_id_tag>) {
@@ -594,7 +629,8 @@ public:
         }
     }
 
-    int alloc_savepoint(transaction* txn) {
+    int alloc_savepoint(transaction* txn)
+    {
         std::lock_guard lock(m_mutex);
 
         return alloc_savepoint_internal(txn);
@@ -604,7 +640,8 @@ public:
      * 获取表ID
      * @return 表ID
      */
-    uint32_t get_table_id() const override {
+    uint32_t get_table_id() const override
+    {
         return m_table_id;
     }
 
@@ -612,7 +649,8 @@ public:
      * 设置表ID
      * @param id 表ID
      */
-    void set_table_id(uint32_t id) override {
+    void set_table_id(uint32_t id) override
+    {
         m_table_id = id;
     }
 
@@ -620,7 +658,8 @@ public:
      * 获取表名
      * @return 表名
      */
-    std::string_view get_table_name() const override {
+    std::string_view get_table_name() const override
+    {
         return m_name;
     }
 
@@ -629,7 +668,8 @@ public:
      * @param builder 查询构建器
      * @return 找到的记录的可选包装
      */
-    object_ptr_type find(const query_builder& builder) {
+    object_ptr_type find(const query_builder& builder)
+    {
         return table_query<table<object_type, IndexDef>>(*this).query_one(builder);
     }
 
@@ -639,7 +679,8 @@ public:
      * @param limit 限制返回的记录数量，0表示不限制
      * @return 查询结果
      */
-    std::vector<object_ptr_type> query(const query_builder& builder, size_t limit = 0) {
+    std::vector<object_ptr_type> query(const query_builder& builder, size_t limit = 0)
+    {
         return table_query<table<object_type, IndexDef>>(*this).query(builder, limit);
     }
 
@@ -651,12 +692,14 @@ public:
      */
     template <typename Handler,
               typename = std::enable_if_t<std::is_invocable_r_v<bool, Handler, object_type&>>>
-    bool query(const query_builder& builder, Handler&& handler) {
+    bool query(const query_builder& builder, Handler&& handler)
+    {
         return table_query<table<object_type, IndexDef>>(*this).query(
             builder, std::forward<Handler>(handler));
     }
 
-    std::vector<object_ptr_type> all() {
+    std::vector<object_ptr_type> all()
+    {
         query_builder builder;
         return table_query<table<object_type, IndexDef>>(*this).query_all(builder);
     }
@@ -668,14 +711,16 @@ public:
      * @return 更新的记录数量
      */
     size_t update(const query_builder& condition, const mc::dict& values,
-                  transaction* txn = nullptr) {
+                  transaction* txn = nullptr)
+    {
         std::lock_guard lock(m_mutex);
 
         return update_internal(condition, values, txn);
     }
 
     size_t update(const query_builder& condition, const std::map<std::string, variant>& values,
-                  transaction* txn = nullptr) {
+                  transaction* txn = nullptr)
+    {
         std::lock_guard lock(m_mutex);
 
         return update_internal(condition, values, txn);
@@ -686,7 +731,8 @@ public:
      * @param condition 查询条件
      * @return 删除的记录数量
      */
-    size_t remove(const query_builder& condition, transaction* txn = nullptr) {
+    size_t remove(const query_builder& condition, transaction* txn = nullptr)
+    {
         size_t removed_count = 0;
 
         auto handler = [&](object_type& obj) -> bool {
@@ -700,7 +746,8 @@ public:
         return removed_count;
     }
 
-    void clear() override {
+    void clear() override
+    {
         std::lock_guard lock(m_mutex);
 
         auto& idx = std::get<0>(m_indices);
@@ -714,20 +761,23 @@ public:
         });
     }
 
-    bool empty() const override {
+    bool empty() const override
+    {
         std::lock_guard lock(m_mutex);
 
         return std::get<0>(m_indices).empty();
     }
 
-    size_t size() const override {
+    size_t size() const override
+    {
         std::lock_guard lock(m_mutex);
 
         return std::get<0>(m_indices).size();
     }
 
 protected:
-    void commit_internal() {
+    void commit_internal()
+    {
         detail::for_each_index(m_indices, [](auto& idx) {
             idx.commit();
             return true;
@@ -736,7 +786,8 @@ protected:
         m_index_savepoint_id = -1;
     }
 
-    void rollback_internal() {
+    void rollback_internal()
+    {
         detail::for_each_index(m_indices, [](auto& idx) {
             idx.rollback();
             return true;
@@ -745,7 +796,8 @@ protected:
         m_index_savepoint_id = -1;
     }
 
-    int alloc_savepoint_internal(transaction* txn) {
+    int alloc_savepoint_internal(transaction* txn)
+    {
         auto sp = txn->last_savepoint_id();
         if (m_txn_savepoint_id != sp) {
             detail::for_each_index(m_indices, [&](auto& idx) {
@@ -757,7 +809,8 @@ protected:
         return m_index_savepoint_id;
     }
 
-    object_ptr do_add_object(const mc::dict& var, transaction* txn) override {
+    object_ptr do_add_object(const mc::dict& var, transaction* txn) override
+    {
         if constexpr (mc::reflect::is_reflectable<object_type>() &&
                       std::is_constructible_v<object_type>) {
             auto obj = mc::make_shared<object_type>();
@@ -770,7 +823,8 @@ protected:
         return nullptr;
     }
 
-    size_t do_remove_object(const query_builder& condition, transaction* txn) override {
+    size_t do_remove_object(const query_builder& condition, transaction* txn) override
+    {
         if constexpr (mc::reflect::is_reflectable<object_type>()) {
             return remove(condition, txn);
         } else {
@@ -780,7 +834,8 @@ protected:
         return 0;
     }
 
-    object_ptr do_find_object(const query_builder& condition) override {
+    object_ptr do_find_object(const query_builder& condition) override
+    {
         if constexpr (mc::reflect::is_reflectable<object_type>()) {
             return find(condition).template static_pointer_cast<object_base>();
         }
@@ -789,7 +844,8 @@ protected:
     }
 
     bool do_query_object(const query_builder&        builder,
-                         table_base::query_handler&& handler) override {
+                         table_base::query_handler&& handler) override
+    {
         if constexpr (mc::reflect::is_reflectable<object_type>()) {
             return query(builder, [handler = std::forward<table_base::query_handler>(handler)](
                                       object_type& obj) {
@@ -800,7 +856,8 @@ protected:
     }
 
     size_t do_update_object(const query_builder& condition, const mc::dict& values,
-                            transaction* txn) override {
+                            transaction* txn) override
+    {
         if constexpr (mc::reflect::is_reflectable<object_type>()) {
             return update_internal(condition, values, txn);
         } else {
@@ -811,7 +868,8 @@ protected:
 
     size_t do_update_object(const query_builder&                  condition,
                             const std::map<std::string, variant>& values,
-                            transaction*                          txn) override {
+                            transaction*                          txn) override
+    {
         if constexpr (mc::reflect::is_reflectable<object_type>()) {
             return update_internal(condition, values, txn);
         } else {
@@ -822,21 +880,24 @@ protected:
 
 private:
     // 从 dict 更新对象
-    void update_object(object_type& obj, const dict& values) {
+    void update_object(object_type& obj, const dict& values)
+    {
         for (auto& entry : values) {
             mc::reflect::set_property(obj, entry.key.get_string(), entry.value);
         }
     }
 
     // 从 map 更新对象
-    void update_object(object_type& obj, const std::map<std::string, variant>& values) {
+    void update_object(object_type& obj, const std::map<std::string, variant>& values)
+    {
         for (auto& entry : values) {
             mc::reflect::set_property(obj, entry.first, entry.second);
         }
     }
 
     template <typename T>
-    size_t update_internal(const query_builder& condition, const T& values, transaction* txn) {
+    size_t update_internal(const query_builder& condition, const T& values, transaction* txn)
+    {
         size_t updated_count = 0;
 
         auto handler = [&](const object_type& obj) -> bool {
@@ -863,7 +924,8 @@ private:
     /**
      * 根据IndexDef选择合适的索引创建方法
      */
-    indices_tuple_type make_indices(const alloc_type& alloc = alloc_type()) {
+    indices_tuple_type make_indices(const alloc_type& alloc = alloc_type())
+    {
         if constexpr (std::is_same_v<IndexDef, no_indices>) {
             // 只使用默认的对象ID索引
             return std::make_tuple(detail::make_object_id_index<object_type>(alloc));

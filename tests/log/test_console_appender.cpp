@@ -32,7 +32,8 @@ using namespace mc::log;
 
 class console_appender_test : public mc::test::TestBase {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         mc::test::TestBase::SetUp();
         mc::log::default_logger().set_level(mc::log::level::off);
 
@@ -41,25 +42,29 @@ protected:
         start_capture();
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         stop_capture();
         m_appender.reset();
         mc::test::TestBase::TearDown();
     }
 
     // 创建一个测试消息
-    message create_test_message(level lvl, const std::string& msg) {
+    message create_test_message(level lvl, const std::string& msg)
+    {
         mc::log::context ctx("test_file.cpp", "test_function", 123);
         return message(lvl, msg, ctx);
     }
 
     // 创建一个格式化测试消息
-    message create_format_message(level lvl, const std::string& fmt, const mc::dict& args) {
+    message create_format_message(level lvl, const std::string& fmt, const mc::dict& args)
+    {
         mc::log::context ctx("test_file.cpp", "test_function", 123);
         return message(lvl, ctx, fmt, args);
     }
 
-    void start_capture() {
+    void start_capture()
+    {
         if (m_capture_active) {
             return;
         }
@@ -68,7 +73,8 @@ protected:
         m_capture_active = true;
     }
 
-    void stop_capture() {
+    void stop_capture()
+    {
         if (!m_capture_active) {
             return;
         }
@@ -77,7 +83,8 @@ protected:
         m_capture_active  = false;
     }
 
-    std::string consume_stderr() {
+    std::string consume_stderr()
+    {
         stop_capture();
         std::string output = m_captured_stderr;
         m_captured_stdout.clear();
@@ -86,7 +93,8 @@ protected:
         return output;
     }
 
-    std::string consume_stdout() {
+    std::string consume_stdout()
+    {
         stop_capture();
         std::string output = m_captured_stdout;
         m_captured_stdout.clear();
@@ -96,19 +104,20 @@ protected:
     }
 
     std::shared_ptr<console_appender> m_appender;
-    bool                               m_capture_active{false};
-    std::string                        m_captured_stdout;
-    std::string                        m_captured_stderr;
+    bool                              m_capture_active{false};
+    std::string                       m_captured_stdout;
+    std::string                       m_captured_stderr;
 };
 
 // 测试默认构造函数
-TEST_F(console_appender_test, DefaultConstructor) {
+TEST_F(console_appender_test, DefaultConstructor)
+{
     ASSERT_NE(m_appender, nullptr);
 }
 
-
 // 测试初始化函数
-TEST_F(console_appender_test, Init) {
+TEST_F(console_appender_test, Init)
+{
     mc::dict dict;
     dict["stream"]    = "std_error";
     dict["use_color"] = true;
@@ -117,9 +126,9 @@ TEST_F(console_appender_test, Init) {
     ASSERT_TRUE(result);
 }
 
-
 // 测试不同日志级别
-TEST_F(console_appender_test, DifferentLogLevels) {
+TEST_F(console_appender_test, DifferentLogLevels)
+{
     // 这个测试只是确保append不会崩溃
     auto trace_msg = create_test_message(level::trace, "跟踪消息");
     auto debug_msg = create_test_message(level::debug, "调试消息");
@@ -137,13 +146,15 @@ TEST_F(console_appender_test, DifferentLogLevels) {
 }
 
 // 测试工厂创建
-TEST_F(console_appender_test, FactoryCreate) {
+TEST_F(console_appender_test, FactoryCreate)
+{
     auto appender = appender_factory::instance().create_by_type<console_appender>("console");
     ASSERT_NE(appender, nullptr);
 }
 
 // 测试创建并命名
-TEST_F(console_appender_test, FactoryCreateNamed) {
+TEST_F(console_appender_test, FactoryCreateNamed)
+{
     mc::dict config;
     auto     appender = appender_factory::instance().create("test_console", "console", config);
     ASSERT_NE(appender, nullptr);
@@ -156,7 +167,8 @@ TEST_F(console_appender_test, FactoryCreateNamed) {
 }
 
 // 测试获取或创建
-TEST_F(console_appender_test, GetOrCreateAppender) {
+TEST_F(console_appender_test, GetOrCreateAppender)
+{
     mc::dict config;
 
     // 首次调用应该创建新的appender
@@ -173,7 +185,8 @@ TEST_F(console_appender_test, GetOrCreateAppender) {
 }
 
 // 手动测试 - 这个测试会输出各种颜色的消息
-TEST_F(console_appender_test, DISABLED_ManualColorTest) {
+TEST_F(console_appender_test, DISABLED_ManualColorTest)
+{
     std::cout << "=== 手动颜色测试 (需要人工验证) ===" << std::endl;
 
     console_appender::config cfg;
@@ -198,7 +211,8 @@ TEST_F(console_appender_test, DISABLED_ManualColorTest) {
 }
 
 // 测试 init 函数 - 异常处理分支
-TEST_F(console_appender_test, InitWithInvalidArgs) {
+TEST_F(console_appender_test, InitWithInvalidArgs)
+{
     // 使用无效的 variant 类型触发异常
     mc::variant invalid_args = 42; // 非对象类型，会触发异常
     bool        result       = m_appender->init(invalid_args);
@@ -208,7 +222,8 @@ TEST_F(console_appender_test, InitWithInvalidArgs) {
 }
 
 // 测试配置 - level_colors 配置处理
-TEST_F(console_appender_test, ConfigureWithLevelColors) {
+TEST_F(console_appender_test, ConfigureWithLevelColors)
+{
     console_appender::config cfg;
     cfg.use_color = true;
     cfg.level_colors.push_back(console_appender::level_color(level::info, console_appender::color_type::blue));
@@ -217,7 +232,7 @@ TEST_F(console_appender_test, ConfigureWithLevelColors) {
     mc::dict dict;
     dict["use_color"] = true;
     mc::variants level_colors;
-    mc::dict lc1;
+    mc::dict     lc1;
     lc1["level"] = static_cast<int>(level::info);
     lc1["color"] = static_cast<int>(console_appender::color_type::blue);
     level_colors.push_back(lc1);
@@ -235,24 +250,26 @@ TEST_F(console_appender_test, ConfigureWithLevelColors) {
 }
 
 // 测试追加函数 - 空文件名上下文
-TEST_F(console_appender_test, AppendWithEmptyFileContext) {
+TEST_F(console_appender_test, AppendWithEmptyFileContext)
+{
     // 创建空文件名的上下文
     mc::log::context ctx("", "test_function", 123);
-    auto msg = message(level::info, "测试消息", ctx);
+    auto             msg = message(level::info, "测试消息", ctx);
     ASSERT_NO_THROW(m_appender->append(msg));
 }
 
 // 测试追加函数 - 包含命名空间前缀的函数名
-TEST_F(console_appender_test, AppendWithNamespacedFunction) {
+TEST_F(console_appender_test, AppendWithNamespacedFunction)
+{
     // 创建包含命名空间前缀的函数名上下文
     mc::log::context ctx("test_file.cpp", "mc::log::test_function", 123);
-    auto msg = message(level::info, "测试消息", ctx);
+    auto             msg = message(level::info, "测试消息", ctx);
     ASSERT_NO_THROW(m_appender->append(msg));
 }
 
-
 // 测试配置 - 禁用颜色
-TEST_F(console_appender_test, ConfigureWithoutColor) {
+TEST_F(console_appender_test, ConfigureWithoutColor)
+{
     mc::dict dict;
     dict["use_color"] = false;
     dict["flush"]     = false;
@@ -264,7 +281,8 @@ TEST_F(console_appender_test, ConfigureWithoutColor) {
 }
 
 // 测试配置 - std_error 流
-TEST_F(console_appender_test, ConfigureStdErrorStream) {
+TEST_F(console_appender_test, ConfigureStdErrorStream)
+{
     mc::dict dict;
     dict["stream"] = "std_error";
 
@@ -275,7 +293,8 @@ TEST_F(console_appender_test, ConfigureStdErrorStream) {
 }
 
 // 测试配置 - 所有颜色类型（覆盖 get_console_color 函数）
-TEST_F(console_appender_test, ConfigureAllColorTypesForGetConsoleColor) {
+TEST_F(console_appender_test, ConfigureAllColorTypesForGetConsoleColor)
+{
     // 配置所有颜色类型以覆盖 get_console_color 函数的所有分支
     mc::dict dict;
     dict["use_color"] = true;
@@ -314,7 +333,8 @@ TEST_F(console_appender_test, ConfigureAllColorTypesForGetConsoleColor) {
 }
 
 // 测试配置 - flush 为 false 的分支
-TEST_F(console_appender_test, ConfigureFlushFalse) {
+TEST_F(console_appender_test, ConfigureFlushFalse)
+{
     mc::dict dict;
     dict["use_color"] = true;
     dict["flush"]     = false; // 测试 flush 为 false 的分支
@@ -326,7 +346,8 @@ TEST_F(console_appender_test, ConfigureFlushFalse) {
 }
 
 // 测试复杂场景 - 融合所有配置选项
-TEST_F(console_appender_test, ComplexScenarioAllOptions) {
+TEST_F(console_appender_test, ComplexScenarioAllOptions)
+{
     // 配置所有选项：std_error 流、禁用颜色、flush=false、所有颜色类型
     mc::dict dict;
     dict["stream"]    = "std_error";
@@ -351,14 +372,15 @@ TEST_F(console_appender_test, ComplexScenarioAllOptions) {
 }
 
 // 测试复杂场景 - 空文件名和命名空间函数名组合
-TEST_F(console_appender_test, ComplexScenarioEmptyFileAndNamespacedFunction) {
+TEST_F(console_appender_test, ComplexScenarioEmptyFileAndNamespacedFunction)
+{
     mc::dict dict;
     dict["use_color"] = true;
     EXPECT_TRUE(m_appender->init(dict));
 
     // 创建空文件名和命名空间函数名的上下文
     mc::log::context ctx("", "mc::log::test_function", 123);
-    auto msg = message(level::info, "测试消息", ctx);
+    auto             msg = message(level::info, "测试消息", ctx);
     ASSERT_NO_THROW(m_appender->append(msg));
 }
 
@@ -367,7 +389,8 @@ TEST_F(console_appender_test, ComplexScenarioEmptyFileAndNamespacedFunction) {
 // 因为 isatty() 在重定向的输出流中返回 false。
 // 要完全覆盖，需要在真实的终端环境中运行，或者使用伪终端（pty）。
 // 详见 tests/log/README.md 中的说明。
-TEST_F(console_appender_test, GetConsoleColorAllBranches) {
+TEST_F(console_appender_test, GetConsoleColorAllBranches)
+{
     // 停止输出捕获，尝试让 isatty 返回 true
     stop_capture();
 
@@ -377,13 +400,13 @@ TEST_F(console_appender_test, GetConsoleColorAllBranches) {
 
     // 配置所有颜色类型，覆盖 get_console_color 的所有 case 分支
     std::vector<std::pair<level, console_appender::color_type>> color_mappings = {
-        {level::trace, console_appender::color_type::red},         // 覆盖 red case
-        {level::debug, console_appender::color_type::green},       // 覆盖 green case
-        {level::info, console_appender::color_type::brown},         // 覆盖 brown case
-        {level::warn, console_appender::color_type::blue},         // 覆盖 blue case
-        {level::error, console_appender::color_type::magenta},     // 覆盖 magenta case
-        {level::fatal, console_appender::color_type::cyan},         // 覆盖 cyan case
-        {level::notice, console_appender::color_type::white},       // 覆盖 white case
+        {level::trace, console_appender::color_type::red},     // 覆盖 red case
+        {level::debug, console_appender::color_type::green},   // 覆盖 green case
+        {level::info, console_appender::color_type::brown},    // 覆盖 brown case
+        {level::warn, console_appender::color_type::blue},     // 覆盖 blue case
+        {level::error, console_appender::color_type::magenta}, // 覆盖 magenta case
+        {level::fatal, console_appender::color_type::cyan},    // 覆盖 cyan case
+        {level::notice, console_appender::color_type::white},  // 覆盖 white case
     };
 
     for (const auto& mapping : color_mappings) {
@@ -412,14 +435,15 @@ TEST_F(console_appender_test, GetConsoleColorAllBranches) {
 }
 
 // 测试空文件名的格式化
-TEST_F(console_appender_test, FormatMessageEmptyFileUsesUnknown) {
+TEST_F(console_appender_test, FormatMessageEmptyFileUsesUnknown)
+{
     mc::dict dict;
     dict["use_color"] = false;
     EXPECT_TRUE(m_appender->init(dict));
 
     // 创建空文件名的上下文
     mc::log::context ctx("", "test_function", 123);
-    auto msg = message(level::info, "测试消息", ctx);
+    auto             msg = message(level::info, "测试消息", ctx);
 
     // 清空现有的输出，确保只检查当前 append 的内容
     consume_stdout();
@@ -433,7 +457,8 @@ TEST_F(console_appender_test, FormatMessageEmptyFileUsesUnknown) {
 }
 
 // 测试通过伪终端让 isatty 返回 true，覆盖颜色输出分支
-TEST_F(console_appender_test, ColorOutputWithPseudoTerminal) {
+TEST_F(console_appender_test, ColorOutputWithPseudoTerminal)
+{
 #ifdef __linux__
     // 创建伪终端
     int master_fd = posix_openpt(O_RDWR | O_NOCTTY);
@@ -495,7 +520,7 @@ TEST_F(console_appender_test, ColorOutputWithPseudoTerminal) {
     m_appender->append(msg);
 
     // 从主端读取输出
-    char buffer[1024];
+    char    buffer[1024];
     ssize_t bytes_read = read(master_fd, buffer, sizeof(buffer) - 1);
     if (bytes_read > 0) {
         buffer[bytes_read] = '\0';

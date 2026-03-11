@@ -23,12 +23,14 @@ namespace mc::runtime {
 // data_t 实现
 // ============================================================================
 
-runtime_strand::data_t::~data_t() {
+runtime_strand::data_t::~data_t()
+{
     destory_queue(&waiting_queue);
     destory_queue(&ready_queue);
 }
 
-void runtime_strand::data_t::destory_queue(task_queue* q) {
+void runtime_strand::data_t::destory_queue(task_queue* q)
+{
     while (!q->empty()) {
         task_operation_base* op = q->front();
         q->pop_front();
@@ -41,10 +43,12 @@ void runtime_strand::data_t::destory_queue(task_queue* q) {
 // ============================================================================
 
 runtime_strand::invoker::invoker(mc::shared_ptr<data_t> data)
-    : m_data(data) {
+    : m_data(data)
+{
 }
 
-void runtime_strand::invoker::operator()() {
+void runtime_strand::invoker::operator()()
+{
     while (true) {
         if (run_ready_handlers()) {
             return; // 已经调度到新线程池直接返回
@@ -60,7 +64,8 @@ void runtime_strand::invoker::operator()() {
     }
 }
 
-bool runtime_strand::invoker::run_ready_handlers() {
+bool runtime_strand::invoker::run_ready_handlers()
+{
     // 标记当前线程正在执行
     m_data->running_thread.store(std::this_thread::get_id(), std::memory_order_release);
 
@@ -108,7 +113,8 @@ bool runtime_strand::invoker::run_ready_handlers() {
     return false;
 }
 
-void runtime_strand::invoker::schedule_next(thread_pool* target_pool) {
+void runtime_strand::invoker::schedule_next(thread_pool* target_pool)
+{
     if (target_pool) {
         target_pool->get_executor().post(invoker(m_data), std::allocator<void>{});
     }
@@ -118,11 +124,14 @@ void runtime_strand::invoker::schedule_next(thread_pool* target_pool) {
 // runtime_strand 实现
 // ============================================================================
 
-runtime_strand::runtime_strand() : m_data(mc::make_shared<data_t>()) {
+runtime_strand::runtime_strand()
+    : m_data(mc::make_shared<data_t>())
+{
     ;
 }
 
-runtime_strand::~runtime_strand() {
+runtime_strand::~runtime_strand()
+{
     if (!m_data) {
         return;
     }
@@ -131,33 +140,39 @@ runtime_strand::~runtime_strand() {
     m_data->shutdown = true;
 }
 
-bool runtime_strand::running_in_this_thread() const noexcept {
+bool runtime_strand::running_in_this_thread() const noexcept
+{
     if (!m_data) {
         return false;
     }
     return m_data->running_thread.load(std::memory_order_acquire) == std::this_thread::get_id();
 }
 
-bool runtime_strand::operator==(const runtime_strand& other) const noexcept {
+bool runtime_strand::operator==(const runtime_strand& other) const noexcept
+{
     return m_data == other.m_data;
 }
 
-bool runtime_strand::operator!=(const runtime_strand& other) const noexcept {
+bool runtime_strand::operator!=(const runtime_strand& other) const noexcept
+{
     return !(*this == other);
 }
 
-execution_context& runtime_strand::context() const {
+execution_context& runtime_strand::context() const
+{
     if (m_bound_pool) {
         return *m_bound_pool;
     }
     return get_runtime_context().io();
 }
 
-thread_pool::executor_type runtime_strand::get_default_executor() {
+thread_pool::executor_type runtime_strand::get_default_executor()
+{
     return get_io_executor();
 }
 
-bool runtime_strand::enqueue_op(task_operation_base* op) const {
+bool runtime_strand::enqueue_op(task_operation_base* op) const
+{
     std::lock_guard lock(m_data->mutex);
 
     if (m_data->shutdown) {

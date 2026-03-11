@@ -22,7 +22,8 @@
 using namespace mc;
 
 // 测试基本数据类型的variant流输出
-TEST(VariantIOTest, BasicTypes) {
+TEST(VariantIOTest, BasicTypes)
+{
     std::stringstream ss;
 
     // 测试null类型
@@ -98,7 +99,8 @@ TEST(VariantIOTest, BasicTypes) {
 }
 
 // 测试复杂数据类型的variant流输出
-TEST(VariantIOTest, ComplexTypes) {
+TEST(VariantIOTest, ComplexTypes)
+{
     std::stringstream ss;
 
     // 测试数组类型
@@ -141,7 +143,8 @@ TEST(VariantIOTest, ComplexTypes) {
 }
 
 // 测试嵌套数据结构的variant流输出
-TEST(VariantIOTest, NestedTypes) {
+TEST(VariantIOTest, NestedTypes)
+{
     std::stringstream ss;
 
     // 创建嵌套的字典结构
@@ -172,7 +175,8 @@ TEST(VariantIOTest, NestedTypes) {
 }
 
 // 测试在其他流操作中使用variant
-TEST(VariantIOTest, StreamOperations) {
+TEST(VariantIOTest, StreamOperations)
+{
     std::stringstream ss;
 
     // 在复杂的流操作中测试variant输出
@@ -185,7 +189,8 @@ TEST(VariantIOTest, StreamOperations) {
 }
 
 // 测试type_id枚举类型的流输出
-TEST(VariantIOTest, TypeIDOutput) {
+TEST(VariantIOTest, TypeIDOutput)
+{
     std::stringstream ss;
 
     // 测试各种type_id枚举值的输出
@@ -267,7 +272,8 @@ TEST(VariantIOTest, TypeIDOutput) {
 }
 
 // 测试直接使用blob类型的流输出运算符
-TEST(VariantIOTest, BlobDirectOutput) {
+TEST(VariantIOTest, BlobDirectOutput)
+{
     std::stringstream ss;
 
     // 创建不同大小的blob对象进行测试

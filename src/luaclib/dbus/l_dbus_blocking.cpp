@@ -22,53 +22,63 @@ namespace mc::dbus::lua {
 constexpr const char* BLOCKING_DBUS_METATABLE = "dbus.blocking";
 
 // 静态 io_context（延迟初始化）
-static std::shared_ptr<mc::io_context>& get_static_io_context() {
+static std::shared_ptr<mc::io_context>& get_static_io_context()
+{
     static auto s_io_context = std::make_shared<mc::io_context>(1, "lua-dbus-blocking");
     return s_io_context;
 }
 
 // dbus.blocking.shutdown()
-int dbus_blocking_shutdown(lua_State* L) {
+int dbus_blocking_shutdown(lua_State* L)
+{
     return dbus_shutdown(L);
 }
 
 // dbus.blocking.open_user()
-int dbus_blocking_open_user(lua_State* L) {
+int dbus_blocking_open_user(lua_State* L)
+{
     return dbus_open_user_impl(L, get_static_io_context(), BLOCKING_DBUS_METATABLE, true);
 }
 
 // dbus.blocking.new(arg)
-int dbus_blocking_new(lua_State* L) {
+int dbus_blocking_new(lua_State* L)
+{
     return dbus_new_impl(L, BLOCKING_DBUS_METATABLE, "lua-dbus-blocking", true);
 }
 
 // conn:request_name(name, flags)
-int dbus_blocking_request_name(lua_State* L) {
+int dbus_blocking_request_name(lua_State* L)
+{
     return dbus_request_name(L);
 }
 
 // __index 元方法
-int dbus_blocking_index(lua_State* L) {
+int dbus_blocking_index(lua_State* L)
+{
     return dbus_index(L);
 }
 
 // conn:close()
-int dbus_blocking_close(lua_State* L) {
+int dbus_blocking_close(lua_State* L)
+{
     return dbus_close(L);
 }
 
 // conn:flush()
-int dbus_blocking_flush(lua_State* L) {
+int dbus_blocking_flush(lua_State* L)
+{
     return dbus_flush(L);
 }
 
 // conn:dispatch()
-int dbus_blocking_dispatch(lua_State* L) {
+int dbus_blocking_dispatch(lua_State* L)
+{
     return dbus_dispatch(L);
 }
 
 // conn:run_once(timeout_ms)
-int dbus_blocking_run_once(lua_State* L) {
+int dbus_blocking_run_once(lua_State* L)
+{
     try {
         auto* wrapper    = static_cast<dbus_wrapper*>(luaL_checkudata(L, 1, BLOCKING_DBUS_METATABLE));
         int   timeout_ms = luaL_checkinteger(L, 2);
@@ -84,7 +94,8 @@ int dbus_blocking_run_once(lua_State* L) {
 }
 
 // conn:run_until(callback, total_timeout_ms, step_ms)
-int dbus_blocking_run_until(lua_State* L) {
+int dbus_blocking_run_until(lua_State* L)
+{
     try {
         auto* wrapper = static_cast<dbus_wrapper*>(luaL_checkudata(L, 1, BLOCKING_DBUS_METATABLE));
         luaL_checktype(L, 2, LUA_TFUNCTION); // 回调函数
@@ -124,11 +135,13 @@ int dbus_blocking_run_until(lua_State* L) {
 }
 
 // __gc 元方法
-int dbus_blocking_gc(lua_State* L) {
+int dbus_blocking_gc(lua_State* L)
+{
     return dbus_gc(L);
 }
 
-int dbus_blocking_call(lua_State* L) {
+int dbus_blocking_call(lua_State* L)
+{
     try {
         auto*       wrapper      = static_cast<dbus_wrapper*>(luaL_checkudata(L, 1, BLOCKING_DBUS_METATABLE));
         std::string service_name = luaL_checkstring(L, 2);
@@ -150,7 +163,8 @@ int dbus_blocking_call(lua_State* L) {
     }
 }
 
-int dbus_blocking_timeout_call(lua_State* L) {
+int dbus_blocking_timeout_call(lua_State* L)
+{
     try {
         auto*       wrapper      = static_cast<dbus_wrapper*>(luaL_checkudata(L, 1, BLOCKING_DBUS_METATABLE));
         int         timeout_ms   = luaL_checkinteger(L, 2);
@@ -186,7 +200,8 @@ const luaL_Reg dbus_blocking_methods[] = {{"request_name", dbus_blocking_request
                                           {nullptr, nullptr}};
 
 // 注册 blocking 模块的 metatable
-void register_blocking_metatable(lua_State* L) {
+void register_blocking_metatable(lua_State* L)
+{
     register_metatable_impl(L, BLOCKING_DBUS_METATABLE, dbus_blocking_methods, dbus_blocking_index, dbus_blocking_gc);
 }
 

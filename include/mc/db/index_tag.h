@@ -51,7 +51,8 @@ struct field_tag : public tag_base<field_tag<FieldName>> {
      * 获取字段名称列表
      * @return 字段名称列表
      */
-    static std::vector<std::string> get_field_names() {
+    static std::vector<std::string> get_field_names()
+    {
         return {field_name};
     }
 
@@ -209,7 +210,8 @@ struct extract_extractor;
 template <typename Tuple, auto Ptr, auto... Ptrs>
 struct extract_extractor<Tuple, Ptr, Ptrs...> {
     using value_type = typename member_pointer_traits<decltype(Ptr)>::value_type;
-    static auto get_type() {
+    static auto get_type()
+    {
         if constexpr (is_tag_v<mc::traits::remove_pointers_t<value_type>>) {
             return Tuple{};
         } else {

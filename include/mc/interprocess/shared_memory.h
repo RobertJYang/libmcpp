@@ -136,7 +136,8 @@ public:
      * @return 偏移指针
      */
     template <typename T>
-    offset_ptr<T> make_offset_ptr(T* ptr) const {
+    offset_ptr<T> make_offset_ptr(T* ptr) const
+    {
         return offset_ptr<T>(this, ptr);
     }
 
@@ -147,7 +148,8 @@ public:
      * @return 偏移指针
      */
     template <typename T>
-    offset_ptr<T> make_offset_ptr(size_t offset) const {
+    offset_ptr<T> make_offset_ptr(size_t offset) const
+    {
         return offset_ptr<T>(this, offset);
     }
 
@@ -159,7 +161,8 @@ public:
      * @return 偏移指针
      */
     template <typename T>
-    offset_ptr<T> make_offset_ptr(offset_ptr<T> other) const {
+    offset_ptr<T> make_offset_ptr(offset_ptr<T> other) const
+    {
         return offset_ptr<T>(this, other.get_offset());
     }
 
@@ -292,7 +295,9 @@ public:
     /**
      * @brief 默认构造函数，创建空指针
      */
-    shared_ptr() : m_ptr(nullptr), m_counter(nullptr) {
+    shared_ptr()
+        : m_ptr(nullptr), m_counter(nullptr)
+    {
     }
 
     /**
@@ -301,7 +306,8 @@ public:
      * @param counter 引用计数器
      */
     shared_ptr(T* ptr, std::shared_ptr<shared_ref_counter> counter)
-        : m_ptr(ptr), m_counter(counter) {
+        : m_ptr(ptr), m_counter(counter)
+    {
         if (m_ptr && m_counter) {
             m_counter->add_ref();
         }
@@ -311,7 +317,9 @@ public:
      * @brief 拷贝构造函数
      * @param other 其他共享指针
      */
-    shared_ptr(const shared_ptr& other) : m_ptr(other.m_ptr), m_counter(other.m_counter) {
+    shared_ptr(const shared_ptr& other)
+        : m_ptr(other.m_ptr), m_counter(other.m_counter)
+    {
         if (m_ptr && m_counter) {
             m_counter->add_ref();
         }
@@ -322,14 +330,16 @@ public:
      * @param other 其他共享指针
      */
     shared_ptr(shared_ptr&& other) noexcept
-        : m_ptr(other.m_ptr), m_counter(std::move(other.m_counter)) {
+        : m_ptr(other.m_ptr), m_counter(std::move(other.m_counter))
+    {
         other.m_ptr = nullptr;
     }
 
     /**
      * @brief 析构函数
      */
-    ~shared_ptr() {
+    ~shared_ptr()
+    {
         reset();
     }
 
@@ -338,7 +348,8 @@ public:
      * @param other 其他共享指针
      * @return 共享指针引用
      */
-    shared_ptr& operator=(const shared_ptr& other) {
+    shared_ptr& operator=(const shared_ptr& other)
+    {
         if (this != &other) {
             reset();
             m_ptr     = other.m_ptr;
@@ -355,7 +366,8 @@ public:
      * @param other 其他共享指针
      * @return 共享指针引用
      */
-    shared_ptr& operator=(shared_ptr&& other) noexcept {
+    shared_ptr& operator=(shared_ptr&& other) noexcept
+    {
         if (this != &other) {
             reset();
             m_ptr       = other.m_ptr;
@@ -368,7 +380,8 @@ public:
     /**
      * @brief 重置指针
      */
-    void reset() {
+    void reset()
+    {
         if (m_ptr && m_counter) {
             if (m_counter->release() == 0) {
                 m_ptr->~T();
@@ -383,7 +396,8 @@ public:
      * @brief 获取原始指针
      * @return 原始指针
      */
-    T* get() const {
+    T* get() const
+    {
         return m_ptr;
     }
 
@@ -391,7 +405,8 @@ public:
      * @brief 解引用运算符
      * @return 对象引用
      */
-    T& operator*() const {
+    T& operator*() const
+    {
         return *m_ptr;
     }
 
@@ -399,7 +414,8 @@ public:
      * @brief 箭头运算符
      * @return 对象指针
      */
-    T* operator->() const {
+    T* operator->() const
+    {
         return m_ptr;
     }
 
@@ -407,7 +423,8 @@ public:
      * @brief 布尔运算符
      * @return 如果指针不为空则返回true，否则返回false
      */
-    explicit operator bool() const {
+    explicit operator bool() const
+    {
         return m_ptr != nullptr;
     }
 
@@ -415,7 +432,8 @@ public:
      * @brief 获取引用计数
      * @return 当前引用计数
      */
-    size_t use_count() const {
+    size_t use_count() const
+    {
         return m_counter ? m_counter->get_count() : 0;
     }
 
@@ -433,7 +451,8 @@ private:
  * @return 共享指针
  */
 template <typename T, typename... Args>
-shared_ptr<T> make_shared(shared_memory_allocator& allocator, Args&&... args) {
+shared_ptr<T> make_shared(shared_memory_allocator& allocator, Args&&... args)
+{
     // 分配内存
     void* mem = allocator.allocate(sizeof(T));
     if (!mem) {

@@ -18,14 +18,17 @@
 
 namespace mc::core {
 
-supervisor_manager::supervisor_manager() {
+supervisor_manager::supervisor_manager()
+{
 }
 
-supervisor_manager::~supervisor_manager() {
+supervisor_manager::~supervisor_manager()
+{
     stop_supervisors();
 }
 
-bool supervisor_manager::init() {
+bool supervisor_manager::init()
+{
     // 创建根监督器
     config::supervisor_config config;
     config.api_version  = "v1";
@@ -45,7 +48,8 @@ bool supervisor_manager::init() {
     return true;
 }
 
-supervisor_ptr supervisor_manager::create_supervisor(const config::supervisor_config& config) {
+supervisor_ptr supervisor_manager::create_supervisor(const config::supervisor_config& config)
+{
     if (m_supervisors.find(config.meta.name) != m_supervisors.end()) {
         elog("error: supervisor '${name}' already exists", ("name", config.meta.name));
         return nullptr;
@@ -67,7 +71,8 @@ supervisor_ptr supervisor_manager::create_supervisor(const config::supervisor_co
     }
 }
 
-supervisor_ptr supervisor_manager::get_supervisor(const std::string& name) const {
+supervisor_ptr supervisor_manager::get_supervisor(const std::string& name) const
+{
     auto it = m_supervisors.find(name);
     if (it != m_supervisors.end()) {
         return it->second;
@@ -75,11 +80,13 @@ supervisor_ptr supervisor_manager::get_supervisor(const std::string& name) const
     return nullptr;
 }
 
-supervisor_ptr supervisor_manager::get_root_supervisor() const {
+supervisor_ptr supervisor_manager::get_root_supervisor() const
+{
     return m_root_supervisor;
 }
 
-bool supervisor_manager::add_supervisor(const std::string& name, supervisor_ptr supervisor) {
+bool supervisor_manager::add_supervisor(const std::string& name, supervisor_ptr supervisor)
+{
     if (!supervisor) {
         elog("error: supervisor pointer is null");
         return false;
@@ -94,7 +101,8 @@ bool supervisor_manager::add_supervisor(const std::string& name, supervisor_ptr 
     return true;
 }
 
-bool supervisor_manager::start_supervisors() {
+bool supervisor_manager::start_supervisors()
+{
     bool success = true;
 
     for (auto& pair : m_supervisors) {
@@ -115,7 +123,8 @@ bool supervisor_manager::start_supervisors() {
     return success;
 }
 
-bool supervisor_manager::stop_supervisors() {
+bool supervisor_manager::stop_supervisors()
+{
     bool success = true;
 
     for (auto& pair : m_supervisors) {
@@ -137,7 +146,8 @@ bool supervisor_manager::stop_supervisors() {
 }
 
 bool supervisor_manager::initialize_from_configs(
-    const std::vector<config::supervisor_config>& configs) {
+    const std::vector<config::supervisor_config>& configs)
+{
     for (const auto& sup_config : configs) {
         auto supervisor = std::make_shared<default_supervisor>();
         if (!supervisor->init(sup_config)) {

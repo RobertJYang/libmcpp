@@ -25,17 +25,20 @@ template <typename Alloc = std::allocator<char>>
 using key_buffer = std::basic_string<char, std::char_traits<char>, Alloc>;
 
 // 便捷函数
-inline key_buffer<> to_key_buffer(key_view view) {
+inline key_buffer<> to_key_buffer(key_view view)
+{
     return key_buffer<>(view);
 }
 
 template <typename Alloc>
-key_buffer<Alloc> to_key_buffer(key_view view, const Alloc& alloc) {
+key_buffer<Alloc> to_key_buffer(key_view view, const Alloc& alloc)
+{
     return key_buffer<Alloc>(view, alloc);
 }
 
 template <typename Key1, typename Key2>
-inline size_t longest_prefix(Key1 k1, Key2 k2) {
+inline size_t longest_prefix(Key1 k1, Key2 k2)
+{
     size_t max_len = std::min(k1.size(), k2.size());
     size_t i       = 0;
     for (; i < max_len; i++) {
@@ -53,7 +56,8 @@ inline size_t longest_prefix(Key1 k1, Key2 k2) {
  * @return 如果prefix是key的前缀则返回true，否则返回false
  */
 template <typename Key, typename Prefix>
-inline bool has_prefix(Key key, Prefix prefix) {
+inline bool has_prefix(Key key, Prefix prefix)
+{
     // 如果前缀长度大于键长度，肯定不是前缀
     if (prefix.size() > key.size()) {
         return false;

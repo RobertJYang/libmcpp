@@ -34,7 +34,8 @@ static const luaL_Reg ldft_functions[] = {
  * @return 返回值数量（1个，模块表）
  */
 __attribute__((visibility("default")))
-int luaopen_ldft(::lua_State* L) {
+int luaopen_ldft(::lua_State* L)
+{
     // 创建模块表并注册函数
     luaL_newlib(L, ldft_functions);
     return 1;

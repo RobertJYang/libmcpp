@@ -25,13 +25,15 @@ constexpr const char*      INTROSPECT_METHOD       = "Introspect";
 constexpr mc::milliseconds INTROSPECTION_TIMEOUT   = mc::milliseconds(3000); // 3秒
 } // namespace
 
-introspection_cache& introspection_cache::instance() {
+introspection_cache& introspection_cache::instance()
+{
     static introspection_cache inst;
     return inst;
 }
 
 const interface_info& introspection_cache::get_interface(mc::dbus::sd_bus* bus, const std::string& service,
-                                                         const std::string& path, const std::string& interface) {
+                                                         const std::string& path, const std::string& interface)
+{
     const auto                  key = make_key(service, path);
     std::lock_guard<std::mutex> lock(m_mutex);
 
@@ -49,17 +51,20 @@ const interface_info& introspection_cache::get_interface(mc::dbus::sd_bus* bus, 
     return iface_it->second;
 }
 
-void introspection_cache::invalidate(const std::string& service, const std::string& path) {
+void introspection_cache::invalidate(const std::string& service, const std::string& path)
+{
     std::lock_guard<std::mutex> lock(m_mutex);
     m_cache.erase(make_key(service, path));
 }
 
-std::string introspection_cache::make_key(const std::string& service, const std::string& path) const {
+std::string introspection_cache::make_key(const std::string& service, const std::string& path) const
+{
     return service + ":" + path;
 }
 
 node_info introspection_cache::fetch_from_dbus(mc::dbus::sd_bus* bus, const std::string& service,
-                                               const std::string& path) {
+                                               const std::string& path)
+{
     // 使用 timeout_call 调用 Introspect 方法
     mc::variants                 args;
     mc::dbus::method_call_params params{service, path, INTROSPECTION_INTERFACE, INTROSPECT_METHOD, "", args};

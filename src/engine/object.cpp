@@ -21,18 +21,21 @@ namespace mc::engine {
 namespace detail {
 
 // 获取 property<T> 类型属性在接口中的地址
-static property_base* to_property_base(const object_impl* self, const interface_item<property_type_info>& info) {
+static property_base* to_property_base(const object_impl* self, const interface_item<property_type_info>& info)
+{
     return info.template to_item_ptr<property_base>(self);
 }
 
 // 获取接口属性在对象中的地址
-static interface_impl* get_interface(const object_impl* self, const property_type_info* iface) {
+static interface_impl* get_interface(const object_impl* self, const property_type_info* iface)
+{
     return static_cast<interface_impl*>(to_interface_ptr(self, iface));
 }
 
 template <typename ResultType>
 ResultType do_invoke(object_impl* self, context& ctx, std::string_view method_name,
-                     const mc::variants& args, std::string_view interface_name) {
+                     const mc::variants& args, std::string_view interface_name)
+{
     // 方法查找顺序：标准接口方法 -> 对象方法 -> 接口方法
 
     // TODO:: 后续这里需要增加消息钩子机制，支持在不修改已有实现的情况下实现消息的拦截和修改
@@ -81,7 +84,8 @@ ResultType do_invoke(object_impl* self, context& ctx, std::string_view method_na
 
 template <typename ResultType>
 ResultType invoke_impl(object_impl* self, std::string_view method_name, const mc::variants& args,
-                       std::string_view interface_name) {
+                       std::string_view interface_name)
+{
     // 跟踪对象调用
     object_call_stack::context object_ctx{self->get_service(), *self};
 
@@ -99,17 +103,20 @@ ResultType invoke_impl(object_impl* self, std::string_view method_name, const mc
 } // namespace detail
 
 object_impl::object_impl(core_object* parent)
-    : abstract_object(parent) {
+    : abstract_object(parent)
+{
 }
 
-object_impl::~object_impl() {
+object_impl::~object_impl()
+{
     m_object_path.clear();
     m_position.clear();
     m_managed_objects.clear();
     m_property_changed_signal.reset();
 }
 
-bool object_impl::init(const mc::dict& args) {
+bool object_impl::init(const mc::dict& args)
+{
     try {
         from_variant(args, *this);
         return true;
@@ -120,7 +127,8 @@ bool object_impl::init(const mc::dict& args) {
     }
 }
 
-std::string_view object_impl::get_object_path() const {
+std::string_view object_impl::get_object_path() const
+{
     if (!m_object_path.empty()) {
         return m_object_path;
     }
@@ -130,11 +138,13 @@ std::string_view object_impl::get_object_path() const {
     return m_object_path;
 }
 
-const abstract_object::managed_objects& object_impl::get_managed_objects() const {
+const abstract_object::managed_objects& object_impl::get_managed_objects() const
+{
     return m_managed_objects;
 }
 
-void object_impl::add_managed_object(abstract_object* obj) {
+void object_impl::add_managed_object(abstract_object* obj)
+{
     if (!obj || obj == this) {
         return;
     }
@@ -169,7 +179,8 @@ void object_impl::add_managed_object(abstract_object* obj) {
     m_managed_objects[path] = obj;
 }
 
-void object_impl::remove_managed_object(abstract_object* obj) {
+void object_impl::remove_managed_object(abstract_object* obj)
+{
     if (obj->get_owner() != this) {
         return;
     }
@@ -181,13 +192,15 @@ void object_impl::remove_managed_object(abstract_object* obj) {
     }
 }
 
-void object_impl::notify_property_changed(const mc::variant& value, const property_base& prop) {
+void object_impl::notify_property_changed(const mc::variant& value, const property_base& prop)
+{
     if (m_property_changed_signal) {
         (*m_property_changed_signal)(value, prop);
     }
 }
 
-property_changed_signal& object_impl::property_changed() {
+property_changed_signal& object_impl::property_changed()
+{
     if (m_property_changed_signal == nullptr) {
         m_property_changed_signal = std::make_unique<property_changed_signal>();
     }
@@ -195,24 +208,28 @@ property_changed_signal& object_impl::property_changed() {
     return *m_property_changed_signal;
 }
 
-void object_impl::notify_property_update_shm(const mc::variant& value, const property_base& prop) {
+void object_impl::notify_property_update_shm(const mc::variant& value, const property_base& prop)
+{
     if (m_property_update_shm_signal) {
         (*m_property_update_shm_signal)(value, prop);
     }
 }
 
-property_changed_signal& object_impl::property_update_shm() {
+property_changed_signal& object_impl::property_update_shm()
+{
     if (m_property_update_shm_signal == nullptr) {
         m_property_update_shm_signal = std::make_unique<property_changed_signal>();
     }
     return *m_property_update_shm_signal;
 }
 
-abstract_object* object_impl::get_owner() const {
+abstract_object* object_impl::get_owner() const
+{
     return m_owner;
 }
 
-void object_impl::set_owner(abstract_object* new_owner) {
+void object_impl::set_owner(abstract_object* new_owner)
+{
     if (m_owner == new_owner) {
         return;
     }
@@ -243,7 +260,8 @@ void object_impl::set_owner(abstract_object* new_owner) {
  * - 移除了对象级缓存，因为基类已经处理了缓存逻辑
  * - 保持了线程安全性
  */
-std::string_view object_impl::get_object_name() const {
+std::string_view object_impl::get_object_name() const
+{
     return this->get_name();
 }
 
@@ -252,20 +270,24 @@ std::string_view object_impl::get_object_name() const {
  * - 使用基类的线程安全接口进行名称设置
  * - 名称唯一性检查现在由基类 core::object::set_name() 统一处理
  */
-void object_impl::set_object_name(std::string_view name) {
+void object_impl::set_object_name(std::string_view name)
+{
     // 直接调用基类方法，检查逻辑已在基类中实现
     this->set_name(name);
 }
 
-object_identifier_t object_impl::get_object_identifier() const {
+object_identifier_t object_impl::get_object_identifier() const
+{
     return m_object_identifier;
 }
 
-void object_impl::set_object_identifier(const object_identifier_t& identifier) {
+void object_impl::set_object_identifier(const object_identifier_t& identifier)
+{
     m_object_identifier = identifier;
 }
 
-void object_impl::set_object_path(std::string_view path) {
+void object_impl::set_object_path(std::string_view path)
+{
     // 去除尾部多余的 '/'
     while (path.size() > 1 && path.back() == '/') {
         path = path.substr(0, path.size() - 1);
@@ -283,23 +305,28 @@ void object_impl::set_object_path(std::string_view path) {
     m_object_path = path;
 }
 
-std::string_view object_impl::get_position() const {
+std::string_view object_impl::get_position() const
+{
     return m_position;
 }
 
-void object_impl::set_position(std::string_view position) {
+void object_impl::set_position(std::string_view position)
+{
     m_position = position;
 }
 
-void object_impl::set_service(service* s) {
+void object_impl::set_service(service* s)
+{
     m_service = s;
 }
 
-service* object_impl::get_service() const {
+service* object_impl::get_service() const
+{
     return m_service;
 }
 
-void object_impl::init_interface_object(const object_metadata& metadata) {
+void object_impl::init_interface_object(const object_metadata& metadata)
+{
     /* 初始化子类对象的属性（interface、property）
      *
      * 这个做法不符合 C++ 对象构造顺序，因为基类先于子类构造，这里强制转换成子类指针，
@@ -319,7 +346,8 @@ void object_impl::init_interface_object(const object_metadata& metadata) {
 }
 
 mc::variant object_impl::get_property(std::string_view property_name,
-                                      std::string_view interface_name, int options) const {
+                                      std::string_view interface_name, int options) const
+{
     // TODO:: 属性目前没有实现对象重载接口属性，后续需要实现
     const auto& metadata = get_metadata();
     auto        info     = metadata.get_property_info(property_name, interface_name);
@@ -335,7 +363,8 @@ mc::variant object_impl::get_property(std::string_view property_name,
 }
 
 bool object_impl::handle_override(property_base* prop, std::string_view property_name, const mc::variant& new_value,
-                                  std::string_view interface_name) {
+                                  std::string_view interface_name)
+{
     auto* ctx = context::get_current_context_ptr();
     if (!ctx) {
         return false;
@@ -367,7 +396,8 @@ bool object_impl::handle_override(property_base* prop, std::string_view property
 }
 
 bool object_impl::set_property(std::string_view property_name, const mc::variant& value,
-                               std::string_view interface_name) {
+                               std::string_view interface_name)
+{
     const auto& metadata = get_metadata();
     auto        info     = metadata.get_property_info(property_name, interface_name);
     if (info.item == nullptr) {
@@ -391,7 +421,8 @@ bool object_impl::set_property(std::string_view property_name, const mc::variant
     }
 }
 
-mc::dict object_impl::get_all_properties(std::string_view interface_name, int options) const {
+mc::dict object_impl::get_all_properties(std::string_view interface_name, int options) const
+{
     const auto& metadata = get_metadata();
     if (interface_name.empty()) {
         mc::dict dict;
@@ -408,7 +439,8 @@ mc::dict object_impl::get_all_properties(std::string_view interface_name, int op
 }
 
 void object_impl::set_property_ref_info(std::string_view property_name, const std::string& info,
-                                        std::string_view interface_name) {
+                                        std::string_view interface_name)
+{
     if (!m_properties_ref_info) {
         m_properties_ref_info = std::make_unique<object_optional_data<std::string>>();
     }
@@ -416,7 +448,8 @@ void object_impl::set_property_ref_info(std::string_view property_name, const st
 }
 
 std::string object_impl::get_property_ref_info(std::string_view property_name,
-                                               std::string_view interface_name) const {
+                                               std::string_view interface_name) const
+{
     if (!m_properties_ref_info) {
         return "";
     }
@@ -424,7 +457,8 @@ std::string object_impl::get_property_ref_info(std::string_view property_name,
 }
 
 void object_impl::set_property_sync_info(std::string_view property_name, property_sync_info_ptr info,
-                                         std::string_view interface_name) {
+                                         std::string_view interface_name)
+{
     if (!m_properties_sync_info) {
         m_properties_sync_info = std::make_unique<object_optional_data<property_sync_info_ptr>>();
     }
@@ -432,14 +466,16 @@ void object_impl::set_property_sync_info(std::string_view property_name, propert
 }
 
 property_sync_info_ptr object_impl::get_property_sync_info(std::string_view property_name,
-                                                           std::string_view interface_name) const {
+                                                           std::string_view interface_name) const
+{
     if (!m_properties_sync_info) {
         return {};
     }
     return m_properties_sync_info->get(interface_name, property_name);
 }
 
-abstract_interface* object_impl::get_interface(std::string_view interface_name) const noexcept {
+abstract_interface* object_impl::get_interface(std::string_view interface_name) const noexcept
+{
     const auto& metadata   = get_metadata();
     auto*       iface_info = metadata.get_interface_info(interface_name);
     if (iface_info == nullptr) {
@@ -449,7 +485,8 @@ abstract_interface* object_impl::get_interface(std::string_view interface_name) 
     return detail::get_interface(this, iface_info);
 }
 
-void object_impl::from_variant(const mc::dict& d, object_impl& obj) {
+void object_impl::from_variant(const mc::dict& d, object_impl& obj)
+{
     const auto& metadata = obj.get_metadata();
     metadata.visit_properties([&](interface_item<property_type_info> info) {
         if (!d.contains(info.item->name)) {
@@ -485,7 +522,8 @@ void object_impl::from_variant(const mc::dict& d, object_impl& obj) {
     });
 }
 
-void object_impl::to_variant(const object_impl& obj, mc::dict& dict, int options) {
+void object_impl::to_variant(const object_impl& obj, mc::dict& dict, int options)
+{
     const auto& metadata = obj.get_metadata();
 
     if (options & property_options::with_object_property) {
@@ -518,7 +556,8 @@ void object_impl::to_variant(const object_impl& obj, mc::dict& dict, int options
     });
 }
 
-bool object_impl::has_property(std::string_view property_name, std::string_view interface_name) const {
+bool object_impl::has_property(std::string_view property_name, std::string_view interface_name) const
+{
     const auto& metadata = get_metadata();
     auto        info     = metadata.get_property_info(property_name, interface_name);
     if (info.item != nullptr) {
@@ -528,12 +567,14 @@ bool object_impl::has_property(std::string_view property_name, std::string_view 
     return false;
 }
 
-bool object_impl::has_interface(std::string_view interface_name) const {
+bool object_impl::has_interface(std::string_view interface_name) const
+{
     return get_metadata().get_interface_info(interface_name) != nullptr;
 }
 
 mc::connection_type object_impl::connect(std::string_view signal_name,
-                                         slot_type slot, std::string_view interface_name) {
+                                         slot_type slot, std::string_view interface_name)
+{
     const auto& metadata = get_metadata();
     auto        info     = metadata.get_signal_info(signal_name, interface_name);
     if (info.item != nullptr) {
@@ -544,7 +585,8 @@ mc::connection_type object_impl::connect(std::string_view signal_name,
 }
 
 mc::variant object_impl::emit(std::string_view    signal_name,
-                              const mc::variants& args, std::string_view interface_name) {
+                              const mc::variants& args, std::string_view interface_name)
+{
     const auto& metadata = get_metadata();
     auto        info     = metadata.get_signal_info(signal_name, interface_name);
     if (info.item != nullptr) {
@@ -555,17 +597,20 @@ mc::variant object_impl::emit(std::string_view    signal_name,
 }
 
 invoke_result object_impl::invoke(std::string_view method_name, const mc::variants& args,
-                                  std::string_view interface_name) {
+                                  std::string_view interface_name)
+{
     return detail::invoke_impl<invoke_result>(this, method_name, args, interface_name);
 }
 
 result<mc::variant> object_impl::async_invoke(std::string_view method_name, const mc::variants& args,
-                                              std::string_view interface_name) {
+                                              std::string_view interface_name)
+{
     return detail::invoke_impl<result<mc::variant>>(this, method_name, args, interface_name);
 }
 
 bool object_impl::has_method(std::string_view method_name,
-                             std::string_view interface_name) const {
+                             std::string_view interface_name) const
+{
     const auto& metadata = get_metadata();
     auto        info     = metadata.get_method_info(method_name, interface_name);
     return info.item != nullptr;

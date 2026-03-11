@@ -25,7 +25,8 @@
 
 using namespace mc::core;
 
-int main(int argc, char* argv[]) {
+int main(int argc, char* argv[])
+{
     // 初始化应用程序
     app().set_version("1.0.0");
     if (!app().initialize(argc, argv)) {

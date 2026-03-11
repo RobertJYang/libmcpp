@@ -34,11 +34,15 @@ public:
     using reference         = const value_type&;
 
     // 默认构造函数（end迭代器）
-    const_iterator() : m_is_end(true) {
+    const_iterator()
+        : m_is_end(true)
+    {
     }
 
     // 构造函数（begin迭代器）
-    explicit const_iterator(const node_ptr& root) : m_is_end(false), m_root(root) {
+    explicit const_iterator(const node_ptr& root)
+        : m_is_end(false), m_root(root)
+    {
         if (!root) {
             m_is_end = true;
             return;
@@ -57,7 +61,8 @@ public:
     }
 
     // 复制构造函数
-    const_iterator(const const_iterator& other) {
+    const_iterator(const const_iterator& other)
+    {
         m_is_end       = other.m_is_end;
         m_current_node = other.m_current_node;
         m_key_buffer   = other.m_key_buffer;
@@ -66,7 +71,8 @@ public:
     }
 
     // 复制赋值运算符
-    const_iterator& operator=(const const_iterator& other) {
+    const_iterator& operator=(const const_iterator& other)
+    {
         if (this != &other) {
             m_is_end       = other.m_is_end;
             m_current_node = other.m_current_node;
@@ -78,7 +84,8 @@ public:
     }
 
     // 移动构造函数
-    const_iterator(const_iterator&& other) noexcept {
+    const_iterator(const_iterator&& other) noexcept
+    {
         m_is_end       = other.m_is_end;
         m_current_node = other.m_current_node;
         m_key_buffer   = std::move(other.m_key_buffer);
@@ -90,7 +97,8 @@ public:
     }
 
     // 移动赋值运算符
-    const_iterator& operator=(const_iterator&& other) noexcept {
+    const_iterator& operator=(const_iterator&& other) noexcept
+    {
         if (this != &other) {
             m_is_end       = other.m_is_end;
             m_current_node = other.m_current_node;
@@ -105,7 +113,8 @@ public:
     }
 
     // 前置递增
-    const_iterator& operator++() {
+    const_iterator& operator++()
+    {
         if (m_is_end || m_path.empty()) {
             m_is_end = true;
             return *this;
@@ -122,14 +131,16 @@ public:
     }
 
     // 后置递增
-    const_iterator operator++(int) {
+    const_iterator operator++(int)
+    {
         const_iterator tmp = *this;
         ++(*this);
         return tmp;
     }
 
     // 解引用操作符
-    reference operator*() const {
+    reference operator*() const
+    {
         if (m_is_end) {
             throw std::out_of_range("迭代器指向了末尾");
         }
@@ -137,7 +148,8 @@ public:
     }
 
     // 箭头操作符
-    pointer operator->() const {
+    pointer operator->() const
+    {
         if (m_is_end) {
             throw std::out_of_range("迭代器指向了末尾");
         }
@@ -145,7 +157,8 @@ public:
     }
 
     // 相等比较操作符
-    bool operator==(const const_iterator& other) const {
+    bool operator==(const const_iterator& other) const
+    {
         if (m_is_end && other.m_is_end) {
             return true;
         }
@@ -158,12 +171,14 @@ public:
     }
 
     // 不等比较操作符
-    bool operator!=(const const_iterator& other) const {
+    bool operator!=(const const_iterator& other) const
+    {
         return !(*this == other);
     }
 
     // 跳到下一个前缀
-    void to_next_prefix(std::string_view key) {
+    void to_next_prefix(std::string_view key)
+    {
         if (m_is_end || !mc::im::has_prefix(m_key_buffer, key)) {
             return;
         }
@@ -197,7 +212,8 @@ public:
         m_is_end = true;
     }
 
-    bool is_end() const {
+    bool is_end() const
+    {
         return m_is_end;
     }
 
@@ -205,7 +221,8 @@ public:
 
 protected:
     // 前进到下一个叶子节点
-    bool advance_to_next_leaf() {
+    bool advance_to_next_leaf()
+    {
         while (!m_path.empty()) {
             auto& current = m_path.back();
 
@@ -230,7 +247,8 @@ protected:
     }
 
     // 更新当前项
-    void update_current_item() {
+    void update_current_item()
+    {
         if (m_current_node && m_current_node->is_leaf()) {
             // 为了让m_current_item的值和m_current_node->m_leaf.value()绑定，
             // 因为C++引用不能重绑定，这里用了一个挫办法，利用placement
@@ -264,19 +282,26 @@ public:
     using reference         = value_type&;
 
     // 默认构造函数（end迭代器）
-    iterator() : const_iterator() {
+    iterator()
+        : const_iterator()
+    {
     }
 
     // 构造函数（begin迭代器）
-    explicit iterator(const node_ptr& root) : const_iterator(root) {
+    explicit iterator(const node_ptr& root)
+        : const_iterator(root)
+    {
     }
 
     // 复制构造函数
-    iterator(const iterator& other) : const_iterator(other) {
+    iterator(const iterator& other)
+        : const_iterator(other)
+    {
     }
 
     // 复制赋值运算符
-    iterator& operator=(const iterator& other) {
+    iterator& operator=(const iterator& other)
+    {
         if (this != &other) {
             const_iterator::operator=(other);
         }
@@ -284,11 +309,14 @@ public:
     }
 
     // 移动构造函数
-    iterator(iterator&& other) noexcept : const_iterator(std::move(other)) {
+    iterator(iterator&& other) noexcept
+        : const_iterator(std::move(other))
+    {
     }
 
     // 移动赋值运算符
-    iterator& operator=(iterator&& other) noexcept {
+    iterator& operator=(iterator&& other) noexcept
+    {
         if (this != &other) {
             const_iterator::operator=(std::move(other));
         }
@@ -296,20 +324,23 @@ public:
     }
 
     // 前置递增
-    iterator& operator++() {
+    iterator& operator++()
+    {
         const_iterator::operator++();
         return *this;
     }
 
     // 后置递增
-    iterator operator++(int) {
+    iterator operator++(int)
+    {
         iterator tmp = *this;
         ++(*this);
         return tmp;
     }
 
     // 解引用操作符
-    reference operator*() const {
+    reference operator*() const
+    {
         if (this->m_is_end) {
             throw std::out_of_range("迭代器指向了末尾");
         }
@@ -317,7 +348,8 @@ public:
     }
 
     // 箭头操作符
-    pointer operator->() const {
+    pointer operator->() const
+    {
         if (this->m_is_end) {
             throw std::out_of_range("迭代器指向了末尾");
         }
@@ -328,7 +360,8 @@ public:
      * 获取当前项的键
      * @return 键
      */
-    key_view key() const {
+    key_view key() const
+    {
         if (this->m_is_end) {
             throw std::out_of_range("迭代器指向了末尾");
         }

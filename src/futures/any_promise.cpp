@@ -20,10 +20,12 @@
 namespace mc::futures {
 
 any_promise::any_promise(state_base_ptr state)
-    : m_state(std::move(state)) {
+    : m_state(std::move(state))
+{
 }
 
-void any_promise::set_result_inner(bool strict_once) {
+void any_promise::set_result_inner(bool strict_once)
+{
     if (!m_state || m_state->is_cancelled()) {
         return;
     }
@@ -37,7 +39,8 @@ void any_promise::set_result_inner(bool strict_once) {
     m_state->m_ready.store(true, std::memory_order_release);
 }
 
-void any_promise::set_exception(std::exception_ptr e, bool strict_once) {
+void any_promise::set_exception(std::exception_ptr e, bool strict_once)
+{
     if (!m_state || m_state->is_cancelled()) {
         return;
     }
@@ -61,7 +64,8 @@ void any_promise::set_exception(std::exception_ptr e, bool strict_once) {
     m_state->mark_ready();
 }
 
-void any_promise::set_exception(const mc::exception& e, bool strict_once) {
+void any_promise::set_exception(const mc::exception& e, bool strict_once)
+{
     if (!m_state || m_state->is_cancelled()) {
         return;
     }
@@ -73,13 +77,15 @@ void any_promise::set_exception(const mc::exception& e, bool strict_once) {
     }
 }
 
-void any_promise::cancel() {
+void any_promise::cancel()
+{
     if (m_state) {
         m_state->cancel();
     }
 }
 
-any_future any_promise::get_future() {
+any_future any_promise::get_future()
+{
     if (m_future_retrieved) {
         MC_THROW(future_already_retrieved, "Future 已被获取");
     }
@@ -88,7 +94,8 @@ any_future any_promise::get_future() {
     return any_future(m_state);
 }
 
-bool any_promise::set_bound() {
+bool any_promise::set_bound()
+{
     if (!m_state || m_state->is_cancelled()) {
         return false;
     }
@@ -98,17 +105,20 @@ bool any_promise::set_bound() {
     return true;
 }
 
-const state_base_ptr& any_promise::get_state() const noexcept {
+const state_base_ptr& any_promise::get_state() const noexcept
+{
     return m_state;
 }
 
-void any_promise::set_executor(const any_executor& executor) {
+void any_promise::set_executor(const any_executor& executor)
+{
     if (m_state) {
         m_state->m_executor = executor;
     }
 }
 
-void any_promise::reset() {
+void any_promise::reset()
+{
     m_state.reset();
     m_future_retrieved = false;
 }

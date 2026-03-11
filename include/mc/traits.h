@@ -245,19 +245,22 @@ inline constexpr bool is_setter_v = detail::is_setter_impl<T, F>::value;
 
 // tuple_for_each实现：遍历元组中的每个元素并应用函数
 template <typename Tuple, typename Func, std::size_t... Is>
-constexpr void tuple_for_each_impl(Tuple&& tuple, Func&& func, std::index_sequence<Is...>) {
+constexpr void tuple_for_each_impl(Tuple&& tuple, Func&& func, std::index_sequence<Is...>)
+{
     (func(std::get<Is>(tuple)), ...);
 }
 
 template <typename Tuple, typename Func>
-constexpr void tuple_for_each(Tuple&& tuple, Func&& func) {
+constexpr void tuple_for_each(Tuple&& tuple, Func&& func)
+{
     tuple_for_each_impl(std::forward<Tuple>(tuple), std::forward<Func>(func),
                         std::make_index_sequence<std::tuple_size_v<std::decay_t<Tuple>>>{});
 }
 
 // 遍历元组中的每个元素并应用函数，返回 map 后的新元组
 template <typename Tuple, typename Func>
-constexpr auto tuple_map(const Tuple& tuple, Func&& func) {
+constexpr auto tuple_map(const Tuple& tuple, Func&& func)
+{
     return std::apply(
         [&](auto&... element) {
         return (std::tuple_cat(func(element)...));
@@ -272,18 +275,21 @@ struct tuple_element_for_each_type_wrap {
 };
 } // namespace detail
 template <typename Tuple, typename Func, size_t... I>
-constexpr void tuple_element_for_each_impl(Func&& func, std::index_sequence<I...>) {
+constexpr void tuple_element_for_each_impl(Func&& func, std::index_sequence<I...>)
+{
     (func(detail::tuple_element_for_each_type_wrap<Tuple, I>{}), ...);
 }
 template <typename Tuple, typename Func>
-constexpr void tuple_element_for_each(Func&& func) {
+constexpr void tuple_element_for_each(Func&& func)
+{
     tuple_element_for_each_impl<Tuple>(
         std::forward<Func>(func),
         std::make_index_sequence<std::tuple_size_v<std::decay_t<Tuple>>>{});
 }
 
 template <typename F, size_t I = 0, typename... Ts>
-void apply_tuple_element_impl(F&& func, const std::tuple<Ts...>& tup, size_t index) {
+void apply_tuple_element_impl(F&& func, const std::tuple<Ts...>& tup, size_t index)
+{
     if constexpr (I < sizeof...(Ts)) {
         if (I == index) {
             func(std::get<I>(tup));
@@ -302,7 +308,8 @@ void apply_tuple_element_impl(F&& func, const std::tuple<Ts...>& tup, size_t ind
  * @param index 索引
  */
 template <typename F, typename... Ts>
-void apply_tuple_element(F&& func, const std::tuple<Ts...>& tup, size_t index) {
+void apply_tuple_element(F&& func, const std::tuple<Ts...>& tup, size_t index)
+{
     apply_tuple_element_impl<F>(std::forward<F>(func), tup, index);
 }
 

@@ -55,14 +55,16 @@ public:
      * @param slot 槽函数
      * @return 连接对象，可用于手动断开连接
      */
-    connection_type connect(slot_type&& slot) {
+    connection_type connect(slot_type&& slot)
+    {
         return base_type::connect(std::forward<slot_type>(slot));
     }
 
     /**
      * @brief 断开所有连接
      */
-    void disconnect_all() {
+    void disconnect_all()
+    {
         base_type::disconnect_all_slots();
     }
 
@@ -70,7 +72,8 @@ public:
      * @brief 检查信号是否有连接的槽
      * @return 如果有连接的槽则返回true，否则返回false
      */
-    bool empty() const {
+    bool empty() const
+    {
         return base_type::empty();
     }
 };
@@ -88,7 +91,8 @@ public:
     /**
      * @brief 析构函数，会自动断开所有连接
      */
-    ~connection_manager() {
+    ~connection_manager()
+    {
         disconnect_all();
     }
 
@@ -96,14 +100,16 @@ public:
      * @brief 添加连接
      * @param connection 要管理的连接对象
      */
-    void add(const boost::signals2::connection& connection) {
+    void add(const boost::signals2::connection& connection)
+    {
         connections_.push_back(connection);
     }
 
     /**
      * @brief 断开所有连接
      */
-    void disconnect_all() {
+    void disconnect_all()
+    {
         for (auto& connection : connections_) {
             connection.disconnect();
         }

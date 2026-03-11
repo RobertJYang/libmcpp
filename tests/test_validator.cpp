@@ -17,9 +17,9 @@
 #include <cmath>
 #include <gtest/gtest.h>
 #include <limits>
-#include <mc/validate/validator.h>
 #include <mc/error.h>
 #include <mc/exception.h>
+#include <mc/validate/validator.h>
 
 using namespace mc::validate;
 
@@ -36,7 +36,8 @@ namespace test {
  * | false       | name      | val_str  |
  * | true        | %name     | %name:val_str |
  */
-TEST(ValidatorTest, FormatNameAndValue) {
+TEST(ValidatorTest, FormatNameAndValue)
+{
     // need_convert = false
     {
         auto [name, val] = validator::format_name_and_value("Prop1", "100", false);
@@ -83,7 +84,8 @@ TEST(ValidatorTest, FormatNameAndValue) {
  *
  * 注意：实现使用 MC_THROW_ERROR 抛出 mc::error_exception
  */
-TEST(ValidatorTest, CheckInteger) {
+TEST(ValidatorTest, CheckInteger)
+{
     // 情况1: 整数，范围内，need_convert = false
     EXPECT_NO_THROW(validator::check_integer("Prop1", 50.0, 0.0, 100.0, false));
 
@@ -144,7 +146,8 @@ TEST(ValidatorTest, CheckInteger) {
  *
  * 注意：实现使用 MC_THROW_ERROR 抛出 mc::error_exception
  */
-TEST(ValidatorTest, Ranges) {
+TEST(ValidatorTest, Ranges)
+{
     // 情况1: 范围内，allow_nil = false，need_convert = false
     EXPECT_NO_THROW(validator::ranges("Prop1", 50.0, 0.0, 100.0, false, false));
 
@@ -201,7 +204,8 @@ TEST(ValidatorTest, Ranges) {
  *
  * 注意：实现使用 MC_THROW_ERROR 抛出 mc::error_exception
  */
-TEST(ValidatorTest, Lens) {
+TEST(ValidatorTest, Lens)
+{
     // 情况1: 长度正常，allow_nil = false，need_convert = false
     EXPECT_NO_THROW(validator::lens("Prop1", "hello", 1, 10, false, false));
 
@@ -256,7 +260,8 @@ TEST(ValidatorTest, Lens) {
  *
  * 注意：实现使用 MC_THROW_ERROR 抛出 mc::error_exception
  */
-TEST(ValidatorTest, Regex) {
+TEST(ValidatorTest, Regex)
+{
     // 情况1: 匹配，allow_nil = false，need_convert = false
     EXPECT_NO_THROW(validator::regex("Prop1", "hello123", "[a-z0-9]+", false, false));
 
@@ -313,7 +318,8 @@ TEST(ValidatorTest, Regex) {
  *
  * 注意：实现使用 MC_THROW_ERROR 抛出 mc::error_exception
  */
-TEST(ValidatorTest, Json) {
+TEST(ValidatorTest, Json)
+{
     // 情况1: 有效 JSON - 对象
     EXPECT_NO_THROW(validator::json(R"({"key": "value"})"));
 
@@ -349,7 +355,7 @@ TEST(ValidatorTest, Json) {
     EXPECT_THROW(validator::json(R"({"a": 1 "b": 2})"), mc::error_exception);
 
     // 情况12: 无效 JSON - 多余的逗号
-    //EXPECT_THROW(validator::json(R"({"a": 1,})"), mc::error_exception);
+    // EXPECT_THROW(validator::json(R"({"a": 1,})"), mc::error_exception);
 
     // 情况13: 无效 JSON - 未闭合的括号
     EXPECT_THROW(validator::json(R"({"a": 1)"), mc::error_exception);
@@ -367,7 +373,8 @@ TEST(ValidatorTest, Json) {
 /**
  * @brief 异常消息格式测试
  */
-TEST(ValidatorTest, ExceptionMessageFormat) {
+TEST(ValidatorTest, ExceptionMessageFormat)
+{
     // 测试 PropertyValueTypeError 消息格式
     try {
         validator::check_integer("Prop1", 3.14, 0.0, 100.0, false);
@@ -377,7 +384,7 @@ TEST(ValidatorTest, ExceptionMessageFormat) {
         EXPECT_EQ(err->get_name(), "PropertyValueTypeError");
         // 验证参数被正确传递
         mc::dict args = err->get_args();
-        EXPECT_TRUE(args.contains(1));  // 参数名应该在 key 1
+        EXPECT_TRUE(args.contains(1)); // 参数名应该在 key 1
         std::string prop_name = args[1].as<std::string>();
         EXPECT_EQ(prop_name, "Prop1");
     }
@@ -391,7 +398,7 @@ TEST(ValidatorTest, ExceptionMessageFormat) {
         EXPECT_EQ(err->get_name(), "PropertyValueOutOfRange");
         // 验证参数被正确传递
         mc::dict args = err->get_args();
-        EXPECT_TRUE(args.contains(1));  // 参数名应该在 key 1
+        EXPECT_TRUE(args.contains(1)); // 参数名应该在 key 1
         std::string prop_name = args[1].as<std::string>();
         EXPECT_EQ(prop_name, "Prop1");
     }
@@ -407,7 +414,7 @@ TEST(ValidatorTest, ExceptionMessageFormat) {
         mc::dict args = err->get_args();
         EXPECT_TRUE(args.contains(1));
         std::string prop_name = args[1].as<std::string>();
-        EXPECT_EQ(prop_name, "%Prop1");  // need_convert=true 时应该有 % 前缀
+        EXPECT_EQ(prop_name, "%Prop1"); // need_convert=true 时应该有 % 前缀
     }
 
     // 测试 StringValueTooShort 消息格式

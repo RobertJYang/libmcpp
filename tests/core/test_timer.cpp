@@ -19,13 +19,17 @@
 namespace {
 
 struct timer_service : public mc::core::service_base {
-    timer_service() : mc::core::service_base("org.openubmc.test_service") {
+    timer_service()
+        : mc::core::service_base("org.openubmc.test_service")
+    {
     }
 
-    ~timer_service() override {
+    ~timer_service() override
+    {
     }
 
-    void test_single_shot() {
+    void test_single_shot()
+    {
         m_is_called.set_value(true);
     }
 
@@ -34,11 +38,13 @@ struct timer_service : public mc::core::service_base {
 
 class timer_test : public mc::test::TestWithApplication {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         service = mc::make_shared<timer_service>();
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         service.reset();
     }
 
@@ -47,7 +53,8 @@ protected:
 
 } // namespace
 
-TEST_F(timer_test, test_single_shot) {
+TEST_F(timer_test, test_single_shot)
+{
     mc::core::timer::single_shot(mc::milliseconds(10), service, &timer_service::test_single_shot);
 
     auto future = service->m_is_called.get_future();
@@ -57,7 +64,8 @@ TEST_F(timer_test, test_single_shot) {
 }
 
 // 测试周期性定时器
-TEST_F(timer_test, test_periodic_timer) {
+TEST_F(timer_test, test_periodic_timer)
+{
     auto timer = mc::make_shared<mc::core::timer>(service.get());
 
     int                count          = 0;
@@ -72,9 +80,9 @@ TEST_F(timer_test, test_periodic_timer) {
         }
     });
     timer->set_single_shot(false);
-    timer->start(mc::milliseconds(50));  // 从 100ms 减少到 50ms
+    timer->start(mc::milliseconds(50)); // 从 100ms 减少到 50ms
 
-    auto status = wait.get_future().wait_for(std::chrono::milliseconds(250));  // 从 500ms 减少到 250ms
+    auto status = wait.get_future().wait_for(std::chrono::milliseconds(250)); // 从 500ms 减少到 250ms
     EXPECT_EQ(status, std::future_status::ready);
     EXPECT_EQ(count, expected_count);
 
@@ -82,34 +90,36 @@ TEST_F(timer_test, test_periodic_timer) {
 }
 
 // 测试取消定时器
-TEST_F(timer_test, test_cancel_timer) {
+TEST_F(timer_test, test_cancel_timer)
+{
     auto timer = mc::core::timer::single_shot(mc::milliseconds(100), service,
                                               &timer_service::test_single_shot);
     timer->stop();
 
     auto future = service->m_is_called.get_future();
-    auto status = future.wait_for(std::chrono::milliseconds(150));  // 从 300ms 减少到 150ms
+    auto status = future.wait_for(std::chrono::milliseconds(150)); // 从 300ms 减少到 150ms
     EXPECT_EQ(status, std::future_status::timeout);
 }
 
 // 测试多个定时器同时运行
-TEST_F(timer_test, test_multiple_timers) {
+TEST_F(timer_test, test_multiple_timers)
+{
     std::promise<bool> timer1_called;
     std::promise<bool> timer2_called;
     std::promise<bool> timer3_called;
 
     // 保存 timer 指针，确保在测试结束前它们不会被销毁
-    auto timer1 = mc::core::timer::single_shot(mc::milliseconds(30), service, [&]() {  // 从 100ms 减少到 30ms
+    auto timer1 = mc::core::timer::single_shot(mc::milliseconds(30), service, [&]() { // 从 100ms 减少到 30ms
         timer1_called.set_value(true);
     });
-    auto timer2 = mc::core::timer::single_shot(mc::milliseconds(60), service, [&]() {  // 从 200ms 减少到 60ms
+    auto timer2 = mc::core::timer::single_shot(mc::milliseconds(60), service, [&]() { // 从 200ms 减少到 60ms
         timer2_called.set_value(true);
     });
-    auto timer3 = mc::core::timer::single_shot(mc::milliseconds(90), service, [&]() {  // 从 300ms 减少到 90ms
+    auto timer3 = mc::core::timer::single_shot(mc::milliseconds(90), service, [&]() { // 从 300ms 减少到 90ms
         timer3_called.set_value(true);
     });
 
-    auto s1 = timer1_called.get_future().wait_for(std::chrono::milliseconds(200));  // 从 500ms 减少到 200ms
+    auto s1 = timer1_called.get_future().wait_for(std::chrono::milliseconds(200)); // 从 500ms 减少到 200ms
     auto s2 = timer2_called.get_future().wait_for(std::chrono::milliseconds(200));
     auto s3 = timer3_called.get_future().wait_for(std::chrono::milliseconds(200));
 
@@ -124,16 +134,17 @@ TEST_F(timer_test, test_multiple_timers) {
 }
 
 // 测试嵌套定时器
-TEST_F(timer_test, test_nested_timers) {
+TEST_F(timer_test, test_nested_timers)
+{
     int                count = 0;
     std::promise<void> wait;
 
     // 保存第一个 timer 指针，确保在测试结束前它不会被销毁
-    auto timer1 = mc::core::timer::single_shot(mc::milliseconds(50), service, [&]() {  // 从 100ms 减少到 50ms
+    auto timer1 = mc::core::timer::single_shot(mc::milliseconds(50), service, [&]() { // 从 100ms 减少到 50ms
         count++;
 
         // 第二个 timer 在第一个 timer 的回调中创建，会在回调完成后自动停止
-        auto timer2 = mc::core::timer::single_shot(mc::milliseconds(50), service, [&]() {  // 从 100ms 减少到 50ms
+        auto timer2 = mc::core::timer::single_shot(mc::milliseconds(50), service, [&]() { // 从 100ms 减少到 50ms
             count++;
             wait.set_value();
         });
@@ -141,7 +152,7 @@ TEST_F(timer_test, test_nested_timers) {
         MC_UNUSED(timer2);
     });
 
-    auto status = wait.get_future().wait_for(std::chrono::milliseconds(150));  // 从 300ms 减少到 150ms
+    auto status = wait.get_future().wait_for(std::chrono::milliseconds(150)); // 从 300ms 减少到 150ms
     EXPECT_EQ(status, std::future_status::ready);
     EXPECT_EQ(count, 2);
 
@@ -150,7 +161,8 @@ TEST_F(timer_test, test_nested_timers) {
 }
 
 // 测试定时器间隔设置
-TEST_F(timer_test, test_timer_interval) {
+TEST_F(timer_test, test_timer_interval)
+{
     auto timer = mc::make_shared<mc::core::timer>(service.get());
 
     // 测试设置间隔
@@ -166,7 +178,8 @@ TEST_F(timer_test, test_timer_interval) {
 }
 
 // 测试定时器状态检查
-TEST_F(timer_test, test_timer_status) {
+TEST_F(timer_test, test_timer_status)
+{
     auto timer = mc::make_shared<mc::core::timer>(service.get());
 
     // 初始状态应该是不活跃的
@@ -185,7 +198,8 @@ TEST_F(timer_test, test_timer_status) {
 }
 
 // 测试定时器重复启动
-TEST_F(timer_test, test_timer_restart) {
+TEST_F(timer_test, test_timer_restart)
+{
     auto timer = mc::make_shared<mc::core::timer>(service.get());
 
     int                count = 0;
@@ -221,7 +235,8 @@ TEST_F(timer_test, test_timer_restart) {
 }
 
 // 测试定时器间隔变更
-TEST_F(timer_test, test_timer_interval_change) {
+TEST_F(timer_test, test_timer_interval_change)
+{
     auto timer = mc::make_shared<mc::core::timer>(service.get());
 
     int                count          = 0;
@@ -236,20 +251,21 @@ TEST_F(timer_test, test_timer_interval_change) {
     });
 
     // 启动定时器
-    timer->start(mc::milliseconds(50));  // 从 100ms 减少到 50ms
+    timer->start(mc::milliseconds(50)); // 从 100ms 减少到 50ms
 
     // 在定时器运行期间改变间隔
-    std::this_thread::sleep_for(std::chrono::milliseconds(25));  // 从 50ms 减少到 25ms
-    timer->set_interval(mc::milliseconds(100));  // 从 200ms 减少到 100ms
+    std::this_thread::sleep_for(std::chrono::milliseconds(25)); // 从 50ms 减少到 25ms
+    timer->set_interval(mc::milliseconds(100));                 // 从 200ms 减少到 100ms
 
     // 等待回调完成，而不是使用固定的 sleep
-    auto status = done.get_future().wait_for(std::chrono::milliseconds(500));  // 从 1000ms 减少到 500ms
+    auto status = done.get_future().wait_for(std::chrono::milliseconds(500)); // 从 1000ms 减少到 500ms
     EXPECT_EQ(status, std::future_status::ready);
     EXPECT_EQ(count, expected_count);
 }
 
 // 测试空回调函数
-TEST_F(timer_test, test_null_callback) {
+TEST_F(timer_test, test_null_callback)
+{
     // 测试空回调函数应该返回空定时器
     auto timer1 = mc::core::timer::single_shot(mc::milliseconds(100), nullptr);
     EXPECT_FALSE(timer1);
@@ -260,7 +276,8 @@ TEST_F(timer_test, test_null_callback) {
 }
 
 // 测试零间隔定时器
-TEST_F(timer_test, test_zero_interval_timer) {
+TEST_F(timer_test, test_zero_interval_timer)
+{
     auto timer = mc::make_shared<mc::core::timer>(service.get());
 
     int                count          = 0;
@@ -286,7 +303,8 @@ TEST_F(timer_test, test_zero_interval_timer) {
 }
 
 // 测试定时器析构
-TEST_F(timer_test, test_timer_destruction) {
+TEST_F(timer_test, test_timer_destruction)
+{
     std::promise<bool> timer_called;
 
     {

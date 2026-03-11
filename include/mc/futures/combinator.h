@@ -56,11 +56,13 @@ struct AllState : public AllStateBase {
     ResultType results;
 
     AllState(std::size_t total_count, mc::any_executor executor)
-        : AllStateBase(total_count, make_promise<ResultType>(std::move(executor))) {
+        : AllStateBase(total_count, make_promise<ResultType>(std::move(executor)))
+    {
     }
 
     template <typename ValueType, typename ForwardType>
-    void set_value(std::size_t index, ValueType& result, ForwardType&& value) {
+    void set_value(std::size_t index, ValueType& result, ForwardType&& value)
+    {
         result = std::forward<ForwardType>(value);
         if (!set_completed(index)) {
             return;
@@ -69,7 +71,8 @@ struct AllState : public AllStateBase {
         promise_type(any_promise(m_promise)).set_value(std::move(this->results));
     }
 
-    future_type get_future() {
+    future_type get_future()
+    {
         return future_type(
             *reinterpret_cast<const state_ptr<typename future_type::state_type>*>(&m_promise.get_state()));
     }
@@ -97,11 +100,13 @@ struct AnyState : public AnyStateBase {
     using variant_type = typename ResultType::second_type;
 
     AnyState(std::size_t total_count, mc::any_executor executor)
-        : AnyStateBase(total_count, make_promise<ResultType>(std::move(executor))) {
+        : AnyStateBase(total_count, make_promise<ResultType>(std::move(executor)))
+    {
     }
 
     template <typename ValueType>
-    void set_value(std::size_t index, ValueType&& value) {
+    void set_value(std::size_t index, ValueType&& value)
+    {
         if (!set_completed(index)) {
             return;
         }
@@ -110,14 +115,16 @@ struct AnyState : public AnyStateBase {
         execute_cancel_callbacks();
     }
 
-    future_type get_future() {
+    future_type get_future()
+    {
         return future_type(
             *reinterpret_cast<const state_ptr<typename future_type::state_type>*>(&m_promise.get_state()));
     }
 };
 
 template <typename State, typename Future, typename Result>
-void process_all(std::shared_ptr<State> state, std::size_t index, Result& result, Future& future) {
+void process_all(std::shared_ptr<State> state, std::size_t index, Result& result, Future& future)
+{
     using result_type = typename Future::result_type;
 
     auto f = future.then([state, index, &result](auto&& value) mutable {
@@ -141,7 +148,8 @@ void process_all(std::shared_ptr<State> state, std::size_t index, Result& result
 }
 
 template <std::size_t I, std::size_t N, typename State, typename Futures>
-void process_all(std::shared_ptr<State> state, Futures& futures) {
+void process_all(std::shared_ptr<State> state, Futures& futures)
+{
     if constexpr (I < N) {
         process_all(state, I, std::get<I>(state->results), std::get<I>(futures));
         process_all<I + 1, N>(state, futures);
@@ -149,7 +157,8 @@ void process_all(std::shared_ptr<State> state, Futures& futures) {
 }
 
 template <typename State, typename Future>
-void process_any(std::shared_ptr<State> state, std::size_t index, Future& future) {
+void process_any(std::shared_ptr<State> state, std::size_t index, Future& future)
+{
     using result_type = typename Future::result_type;
 
     auto f = future.then([state, index](auto&& value) mutable {
@@ -173,7 +182,8 @@ void process_any(std::shared_ptr<State> state, std::size_t index, Future& future
 }
 
 template <std::size_t I, std::size_t N, typename State, typename Futures>
-void process_any(std::shared_ptr<State> state, Futures& futures) {
+void process_any(std::shared_ptr<State> state, Futures& futures)
+{
     if constexpr (I < N) {
         process_any(state, I, std::get<I>(futures));
         process_any<I + 1, N>(state, futures);
@@ -185,7 +195,8 @@ void process_any(std::shared_ptr<State> state, Futures& futures) {
 // 可变参数版本的 all 函数实现
 template <typename... Futures>
 auto all(Futures&&... futures)
-    -> Future<std::tuple<typename std::decay_t<Futures>::result_type...>> {
+    -> Future<std::tuple<typename std::decay_t<Futures>::result_type...>>
+{
     static_assert(sizeof...(Futures) > 0, "all requires at least one future");
 
     using ResultType = std::tuple<typename std::decay_t<Futures>::result_type...>;
@@ -210,7 +221,8 @@ auto all(Futures&&... futures)
 // 容器版本的 all 函数实现
 template <typename Iterator>
 auto all(Iterator begin, Iterator end)
-    -> Future<std::vector<typename std::iterator_traits<Iterator>::value_type::result_type>> {
+    -> Future<std::vector<typename std::iterator_traits<Iterator>::value_type::result_type>>
+{
     using future_type = typename std::iterator_traits<Iterator>::value_type;
     using value_type  = typename future_type::result_type;
     using ResultType  = std::vector<value_type>;
@@ -243,7 +255,8 @@ auto any(Futures&&... futures)
     -> Future<std::pair<std::size_t,
                         mc::traits::apply_type_t<
                             std::variant,
-                            mc::traits::type_set_t<typename std::decay_t<Futures>::result_type...>>>> {
+                            mc::traits::type_set_t<typename std::decay_t<Futures>::result_type...>>>>
+{
     static_assert(sizeof...(Futures) > 0, "any requires at least one future");
 
     using VariantType = mc::traits::apply_type_t<
@@ -271,7 +284,8 @@ auto any(Futures&&... futures)
 // 容器版本的 any 函数实现
 template <typename Iterator>
 auto any(Iterator begin, Iterator end)
-    -> Future<std::pair<std::size_t, typename std::iterator_traits<Iterator>::value_type::result_type>> {
+    -> Future<std::pair<std::size_t, typename std::iterator_traits<Iterator>::value_type::result_type>>
+{
     using future_type = typename std::iterator_traits<Iterator>::value_type;
     using value_type  = typename future_type::result_type;
     using ResultType  = std::pair<std::size_t, value_type>;

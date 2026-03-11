@@ -35,21 +35,26 @@ public:
     user() = default;
 
     user(std::string name, int age, double score = 0.0)
-        : m_name(std::move(name)), m_age(age), m_score(score) {
+        : m_name(std::move(name)), m_age(age), m_score(score)
+    {
     }
 
-    ~user() override {
+    ~user() override
+    {
     }
 
-    const std::string& name() const {
+    const std::string& name() const
+    {
         return m_name;
     }
 
-    int get_age() const {
+    int get_age() const
+    {
         return m_age;
     }
 
-    double score() const {
+    double score() const
+    {
         return m_score;
     }
 
@@ -74,16 +79,19 @@ auto field_score = mc::db::field(&user::m_score);
 
 class table_test : public ::testing::Test {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
     }
 };
 } // namespace
 
 // 测试表格创建和基本操作
-TEST_F(table_test, create_table) {
+TEST_F(table_test, create_table)
+{
     // 创建表
     user_table users;
 
@@ -123,7 +131,8 @@ TEST_F(table_test, create_table) {
 }
 
 // 测试通过标签访问索引
-TEST_F(table_test, tag_index_access) {
+TEST_F(table_test, tag_index_access)
+{
     // 创建表
     user_table users;
 
@@ -172,7 +181,8 @@ TEST_F(table_test, tag_index_access) {
 }
 
 // 测试统一的get接口
-TEST_F(table_test, unified_get_interface) {
+TEST_F(table_test, unified_get_interface)
+{
     user_table users;
 
     // 添加用户
@@ -215,7 +225,8 @@ TEST_F(table_test, unified_get_interface) {
 }
 
 // 高级查询测试，使用DSL构建查询语句
-TEST_F(table_test, advanced_query) {
+TEST_F(table_test, advanced_query)
+{
     user_table users;
 
     // 添加一些测试数据
@@ -335,7 +346,8 @@ TEST_F(table_test, advanced_query) {
 }
 
 // 高级更新测试，使用DSL构建更新语句
-TEST_F(table_test, advanced_update) {
+TEST_F(table_test, advanced_update)
+{
     user_table users;
 
     // 添加一些测试数据
@@ -384,7 +396,8 @@ TEST_F(table_test, advanced_update) {
 }
 
 // 高级删除测试，使用DSL构建删除语句
-TEST_F(table_test, advanced_remove) {
+TEST_F(table_test, advanced_remove)
+{
     user_table users;
 
     // 添加一些测试数据
@@ -491,7 +504,8 @@ TEST_F(table_test, advanced_remove) {
     }
 }
 
-TEST_F(table_test, index_name) {
+TEST_F(table_test, index_name)
+{
     user_table users;
 
     // 使用反射名命名索引
@@ -504,7 +518,8 @@ TEST_F(table_test, index_name) {
     EXPECT_EQ(users.get<3>().index_name(), "name_age");
 }
 
-TEST_F(table_test, index_name_composite) {
+TEST_F(table_test, index_name_composite)
+{
     using user_table_1 = mdb::table<
         user, mdb::indexed_by<
                   mdb::ordered_unique<&user::m_name, &user::get_age>>>;
@@ -524,7 +539,8 @@ TEST_F(table_test, index_name_composite) {
 }
 
 // 测试 table::update 触发 on_object_updated 和 update_index 分支
-TEST_F(table_test, update_existing_record) {
+TEST_F(table_test, update_existing_record)
+{
     user_table users;
 
     // 添加一些测试数据
@@ -540,9 +556,9 @@ TEST_F(table_test, update_existing_record) {
     EXPECT_DOUBLE_EQ(it1->score(), 85.5);
 
     // 记录 on_object_updated 是否被调用
-    bool update_called = false;
-    user* old_obj_ptr  = nullptr;
-    user* new_obj_ptr  = nullptr;
+    bool  update_called = false;
+    user* old_obj_ptr   = nullptr;
+    user* new_obj_ptr   = nullptr;
 
     // 连接 on_object_updated 信号
     users.on_object_updated.connect([&](mc::db::object_base& old_obj, mc::db::object_base& new_obj) {

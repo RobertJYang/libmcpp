@@ -73,14 +73,16 @@ private:
     std::unique_ptr<impl> m_impl;
 };
 
-inline application& app() {
+inline application& app()
+{
     return mc::core::application::instance();
 }
 } // namespace mc::core
 
 namespace mc {
 
-inline mc::core::application& app() {
+inline mc::core::application& app()
+{
     return mc::core::app();
 }
 

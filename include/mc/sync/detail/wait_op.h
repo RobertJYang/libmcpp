@@ -22,7 +22,8 @@ namespace mc::sync::detail {
 /**
  * @brief 在自旋循环中暂停 CPU，以降低功耗并提高性能
  */
-inline void cpu_pause() noexcept {
+inline void cpu_pause() noexcept
+{
 #if defined(__i386__) || defined(__x86_64__)
     __asm__ __volatile__("pause"); // x86/x86_64 上使用 'pause' 指令
 #elif defined(__aarch64__)
@@ -71,7 +72,8 @@ public:
     template <typename T>
     void wait(const std::atomic<T>* addr, T& expected,
               std::chrono::nanoseconds timeout   = std::chrono::nanoseconds::max(),
-              uint32_t                 wait_mask = FUTEX_BITSET_MATCH_ANY) noexcept {
+              uint32_t                 wait_mask = FUTEX_BITSET_MATCH_ANY) noexcept
+    {
         if (m_wait_count <= spin_threshold) {
             cpu_pause();
             expected = addr->load(std::memory_order_relaxed);
@@ -87,7 +89,8 @@ public:
     /**
      * @brief 执行轻量自旋操作，不进入 futex 等待
      */
-    void spin() noexcept {
+    void spin() noexcept
+    {
         if (m_wait_count <= spin_threshold) {
             cpu_pause();
         } else {
@@ -99,21 +102,24 @@ public:
     /**
      * @brief 获取当前的等待次数
      */
-    uint32_t get_wait_count() const noexcept {
+    uint32_t get_wait_count() const noexcept
+    {
         return m_wait_count;
     }
 
     /**
      * @brief 重置等待状态
      */
-    void reset() noexcept {
+    void reset() noexcept
+    {
         m_wait_count = 0;
     }
 
     /**
      * @brief 检查是否已进入或即将进入 futex 等待阶段
      */
-    bool is_in_futex_phase() const noexcept {
+    bool is_in_futex_phase() const noexcept
+    {
         return m_wait_count > yield_threshold;
     }
 

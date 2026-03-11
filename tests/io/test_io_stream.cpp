@@ -10,16 +10,17 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include <cstring>
 #include <gtest/gtest.h>
 #include <mc/exception.h>
 #include <mc/io/io_stream.h>
-#include <cstring>
 #include <optional>
 #include <string>
 #include <vector>
 
 // io_stream 基本功能测试
-TEST(io_stream_test, basic_operations) {
+TEST(io_stream_test, basic_operations)
+{
     // 创建一个容量为 100 的流
     mc::io::io_stream stream(100);
 
@@ -55,7 +56,8 @@ TEST(io_stream_test, basic_operations) {
 }
 
 // 测试基本数据类型的读写
-TEST(io_stream_test, basic_data_types) {
+TEST(io_stream_test, basic_data_types)
+{
     mc::io::io_stream stream(1024);
 
     // 写入各种基本数据类型
@@ -86,7 +88,8 @@ TEST(io_stream_test, basic_data_types) {
 }
 
 // 测试字符串读写
-TEST(io_stream_test, string_operations) {
+TEST(io_stream_test, string_operations)
+{
     mc::io::io_stream stream(1024);
 
     // 写入普通字符串
@@ -114,7 +117,8 @@ TEST(io_stream_test, string_operations) {
 }
 
 // 测试位置操作
-TEST(io_stream_test, position_operations) {
+TEST(io_stream_test, position_operations)
+{
     mc::io::io_stream stream(1024);
 
     // 写入一些数据
@@ -144,7 +148,8 @@ TEST(io_stream_test, position_operations) {
 }
 
 // 测试边界条件
-TEST(io_stream_test, boundary_conditions) {
+TEST(io_stream_test, boundary_conditions)
+{
     mc::io::io_stream stream(10);
 
     // 写入超过当前容量
@@ -170,7 +175,8 @@ TEST(io_stream_test, boundary_conditions) {
 }
 
 // 测试流的复位和清空
-TEST(io_stream_test, reset_and_clear) {
+TEST(io_stream_test, reset_and_clear)
+{
     mc::io::io_stream stream(100);
 
     // 写入数据
@@ -202,7 +208,8 @@ TEST(io_stream_test, reset_and_clear) {
 }
 
 // 测试使用共享 io_buffer 创建流
-TEST(io_stream_test, buffer_sharing) {
+TEST(io_stream_test, buffer_sharing)
+{
     // 创建一个 buffer 并写入数据
     auto        buffer   = mc::io::io_buffer::create(100);
     const char* test_str = "共享缓冲区测试";
@@ -222,7 +229,8 @@ TEST(io_stream_test, buffer_sharing) {
 }
 
 // 测试负向 seek_write 时扩展前置空间
-TEST(io_stream_test, seek_write_negative_expands_headroom) {
+TEST(io_stream_test, seek_write_negative_expands_headroom)
+{
     mc::io::io_stream stream(8);
 
     stream.seek_write(-5, mc::io::seek_mode::current);
@@ -237,7 +245,8 @@ TEST(io_stream_test, seek_write_negative_expands_headroom) {
 }
 
 // 测试随机访问
-TEST(io_stream_test, random_access) {
+TEST(io_stream_test, random_access)
+{
     mc::io::io_stream stream(100);
 
     // 写入一系列整数
@@ -263,7 +272,8 @@ TEST(io_stream_test, random_access) {
     EXPECT_EQ(stream.read_value<uint32_t>(), 50);
 }
 
-TEST(io_stream_test, read_some_string_view_behavior) {
+TEST(io_stream_test, read_some_string_view_behavior)
+{
     mc::io::io_stream stream(32);
     stream.write("abcdef");
 
@@ -277,18 +287,20 @@ TEST(io_stream_test, read_some_string_view_behavior) {
     EXPECT_EQ(stream.get_read_pos(), 8U); // 根据实现，位置按照请求长度增加
 }
 
-TEST(io_stream_test, try_read_failure_keeps_position) {
+TEST(io_stream_test, try_read_failure_keeps_position)
+{
     mc::io::io_stream stream(16);
     stream.write("hello");
 
     stream.seek_read(stream.length());
     uint8_t buffer[4] = {0};
-    auto     position = stream.get_read_pos();
+    auto    position  = stream.get_read_pos();
     EXPECT_FALSE(stream.try_read(buffer, sizeof(buffer)));
     EXPECT_EQ(stream.get_read_pos(), position);
 }
 
-TEST(io_stream_test, align_read_throws_on_insufficient_bytes) {
+TEST(io_stream_test, align_read_throws_on_insufficient_bytes)
+{
     mc::io::io_stream stream(16);
     stream.write("abc");
 
@@ -296,7 +308,8 @@ TEST(io_stream_test, align_read_throws_on_insufficient_bytes) {
     EXPECT_THROW(stream.align_read(4), mc::eof_exception);
 }
 
-TEST(io_stream_test, reserve_adjusts_head_and_tailroom) {
+TEST(io_stream_test, reserve_adjusts_head_and_tailroom)
+{
     mc::io::io_stream stream(4);
     stream.reserve(8, 12);
     EXPECT_GE(stream.get_headroom(), 8U);
@@ -305,7 +318,8 @@ TEST(io_stream_test, reserve_adjusts_head_and_tailroom) {
     EXPECT_GE(stream.get_tailroom(), 12U - 4U);
 }
 
-TEST(io_stream_test, get_data_and_align_readAlreadyAligned) {
+TEST(io_stream_test, get_data_and_align_readAlreadyAligned)
+{
     mc::io::io_stream stream(32);
     stream.write("payload");
 
@@ -322,7 +336,8 @@ TEST(io_stream_test, get_data_and_align_readAlreadyAligned) {
 }
 
 // 测试扩展写入位置超出当前长度
-TEST(io_stream_test, expand_write_position) {
+TEST(io_stream_test, expand_write_position)
+{
     mc::io::io_stream stream(10);
 
     // 直接设置写入位置到更远处
@@ -340,7 +355,8 @@ TEST(io_stream_test, expand_write_position) {
 }
 
 // 测试字节序
-TEST(io_stream_test, endianness) {
+TEST(io_stream_test, endianness)
+{
     mc::io::io_stream stream(100);
 
     // 默认字节序写入
@@ -360,7 +376,8 @@ TEST(io_stream_test, endianness) {
 }
 
 // 测试对齐功能
-TEST(io_stream_test, alignment) {
+TEST(io_stream_test, alignment)
+{
     mc::io::io_stream stream(100);
 
     // 写入一个字节的数据，使后续写入不对齐
@@ -415,7 +432,8 @@ TEST(io_stream_test, alignment) {
 }
 
 // 测试对齐功能，需要扩展缓冲区
-TEST(io_stream_test, alignment_need_expand) {
+TEST(io_stream_test, alignment_need_expand)
+{
     {
         mc::io::io_stream stream;
         stream.reserve(0, 32);
@@ -466,7 +484,8 @@ TEST(io_stream_test, alignment_need_expand) {
 }
 
 // 测试 try_align_read 行为
-TEST(io_stream_test, try_align_read_behavior) {
+TEST(io_stream_test, try_align_read_behavior)
+{
     mc::io::io_stream stream(32);
     std::string       payload = "ABCDEFGHIJ"; // 10 字节
     stream.write(payload);
@@ -483,7 +502,8 @@ TEST(io_stream_test, try_align_read_behavior) {
 }
 
 // 测试头部预留空间功能
-TEST(io_stream_test, front_space_operations) {
+TEST(io_stream_test, front_space_operations)
+{
     mc::io::io_stream stream(100);
 
     // 预留前向空间
@@ -520,7 +540,8 @@ TEST(io_stream_test, front_space_operations) {
 }
 
 // 测试 peek 与 get_writeable_data 行为
-TEST(io_stream_test, peek_and_get_writeable_data) {
+TEST(io_stream_test, peek_and_get_writeable_data)
+{
     mc::io::io_stream stream(16);
     stream.write("hello");
 
@@ -529,7 +550,7 @@ TEST(io_stream_test, peek_and_get_writeable_data) {
     EXPECT_EQ(view, "hel");
     EXPECT_EQ(stream.get_read_pos(), 0U);
 
-    auto initial_tail = stream.get_tailroom();
+    auto initial_tail  = stream.get_tailroom();
     auto writable_span = stream.get_writeable_data(initial_tail + 10);
     EXPECT_GE(stream.get_tailroom(), initial_tail + 10);
     EXPECT_EQ(writable_span.size(), initial_tail);
@@ -543,15 +564,17 @@ TEST(io_stream_test, peek_and_get_writeable_data) {
 }
 
 // 测试不可写流抛出异常
-TEST(io_stream_test, ensure_writable_throws_when_disabled) {
-    auto buffer = mc::io::io_buffer::create(16);
+TEST(io_stream_test, ensure_writable_throws_when_disabled)
+{
+    auto              buffer = mc::io::io_buffer::create(16);
     mc::io::io_stream stream(buffer->clone(), false);
 
     EXPECT_THROW(stream.write("x"), mc::eof_exception);
     EXPECT_THROW(stream.align(4), mc::eof_exception);
 }
 
-TEST(io_stream_test, constructor_and_move_semantics) {
+TEST(io_stream_test, constructor_and_move_semantics)
+{
     mc::io::io_stream original(32);
     original.write("move-test");
 
@@ -573,7 +596,8 @@ TEST(io_stream_test, constructor_and_move_semantics) {
     EXPECT_EQ(assigned.read(assigned.length()), "move-test");
 }
 
-TEST(io_stream_test, reset_with_null_buffer_reinitialises_stream) {
+TEST(io_stream_test, reset_with_null_buffer_reinitialises_stream)
+{
     mc::io::io_stream stream(16);
     stream.write("data");
     stream.reset(nullptr, false);
@@ -588,7 +612,8 @@ TEST(io_stream_test, reset_with_null_buffer_reinitialises_stream) {
     EXPECT_EQ(stream.length(), 2U);
 }
 
-TEST(io_stream_test, skip_and_readable_bytes_behavior) {
+TEST(io_stream_test, skip_and_readable_bytes_behavior)
+{
     mc::io::io_stream stream(32);
     stream.write("123456");
     stream.seek_read(0);
@@ -599,7 +624,8 @@ TEST(io_stream_test, skip_and_readable_bytes_behavior) {
     EXPECT_EQ(stream.skip(1), 0U);
 }
 
-TEST(io_stream_test, try_align_read_already_aligned) {
+TEST(io_stream_test, try_align_read_already_aligned)
+{
     mc::io::io_stream stream(16);
     stream.write("ABCDEFG");
     stream.seek_read(0);
@@ -609,7 +635,8 @@ TEST(io_stream_test, try_align_read_already_aligned) {
     EXPECT_EQ(stream.get_read_pos(), 0U);
 }
 
-TEST(io_stream_test, peek_empty_returns_empty_view) {
+TEST(io_stream_test, peek_empty_returns_empty_view)
+{
     mc::io::io_stream stream(8);
     stream.write("12");
     stream.seek_read(2);
@@ -617,7 +644,8 @@ TEST(io_stream_test, peek_empty_returns_empty_view) {
     EXPECT_EQ(stream.get_read_pos(), 2U);
 }
 
-TEST(io_stream_test, get_writeable_data_recycles_positions_when_consumed) {
+TEST(io_stream_test, get_writeable_data_recycles_positions_when_consumed)
+{
     mc::io::io_stream stream(16);
     stream.write("payload");
     stream.seek_read(stream.length());
@@ -638,7 +666,8 @@ TEST(io_stream_test, get_writeable_data_recycles_positions_when_consumed) {
     EXPECT_EQ(remaining, "oad");
 }
 
-TEST(io_stream_test, align_requires_reserve_when_in_middle) {
+TEST(io_stream_test, align_requires_reserve_when_in_middle)
+{
     mc::io::io_stream stream(8);
     stream.write("ABCDEFGH");
     stream.seek_write(1);
@@ -651,7 +680,8 @@ TEST(io_stream_test, align_requires_reserve_when_in_middle) {
     EXPECT_EQ(stream.read(1), "Z");
 }
 
-TEST(io_stream_test, try_read_string_view_failure_returns_empty) {
+TEST(io_stream_test, try_read_string_view_failure_returns_empty)
+{
     mc::io::io_stream stream(8);
     stream.write("test");
     stream.seek_read(stream.length());
@@ -661,104 +691,111 @@ TEST(io_stream_test, try_read_string_view_failure_returns_empty) {
 }
 
 // 测试构造函数传入空 buffer 的情况
-TEST(io_stream_test, IOStreamConstructorWithNullBuffer) {
+TEST(io_stream_test, IOStreamConstructorWithNullBuffer)
+{
     // 调用 io_stream(std::unique_ptr<io_buffer>(nullptr), true)
     mc::io::io_stream stream(std::unique_ptr<mc::io::io_buffer>(nullptr), true);
-    
+
     // 验证 stream.get_buffer() 不为 nullptr
     EXPECT_NE(stream.get_buffer(), nullptr);
 }
 
 // 测试 get_buffer 函数
-TEST(io_stream_test, IOStreamGetBuffer) {
+TEST(io_stream_test, IOStreamGetBuffer)
+{
     // 创建一个 io_stream
     mc::io::io_stream stream(10);
     stream.write("test", 4);
-    
+
     // 调用 get_buffer()
     auto buffer = stream.get_buffer();
-    
+
     // 验证返回的指针不为 nullptr
     EXPECT_NE(buffer, nullptr);
 }
 
 // 测试 written_bytes 函数
-TEST(io_stream_test, IOStreamWrittenBytes) {
+TEST(io_stream_test, IOStreamWrittenBytes)
+{
     // 创建一个 io_stream 并写入一些数据
     mc::io::io_stream stream(10);
-    const char* test_data = "test";
-    std::size_t data_len = strlen(test_data);
+    const char*       test_data = "test";
+    std::size_t       data_len  = strlen(test_data);
     stream.write(test_data, data_len);
-    
+
     // 调用 written_bytes()
     std::size_t written = stream.written_bytes();
-    
+
     // 验证返回值等于写入的字节数
     EXPECT_EQ(written, data_len);
 }
 
 // 测试 seek_read 负位置的情况
-TEST(io_stream_test, IOStreamSeekReadNegativePosition) {
+TEST(io_stream_test, IOStreamSeekReadNegativePosition)
+{
     // 创建一个 io_stream 并写入一些数据
     mc::io::io_stream stream(10);
     stream.write("test", 4);
-    
+
     // 调用 seek_read(-100, seek_mode::current)（使 new_pos < 0）
     stream.seek_read(0); // 先设置到开始位置
     stream.seek_read(-100, mc::io::seek_mode::current);
-    
+
     // 验证 read_pos 为 0
     EXPECT_EQ(stream.get_read_pos(), 0U);
 }
 
 // 测试 seek_read 超出长度的情况
-TEST(io_stream_test, IOStreamSeekReadExceedsLength) {
+TEST(io_stream_test, IOStreamSeekReadExceedsLength)
+{
     // 创建一个 io_stream 并写入 10 字节数据
     mc::io::io_stream stream(20);
     stream.write("0123456789", 10);
-    
+
     // 调用 seek_read(100, seek_mode::begin)（使 new_pos > length()）
     stream.seek_read(100, mc::io::seek_mode::begin);
-    
+
     // 验证 read_pos 为 10
     EXPECT_EQ(stream.get_read_pos(), 10U);
 }
 
 // 测试 read_some(void* data, std::size_t length) 函数
-TEST(io_stream_test, IOStreamReadSomeToBuffer) {
+TEST(io_stream_test, IOStreamReadSomeToBuffer)
+{
     // 创建一个 io_stream 并写入一些数据
     mc::io::io_stream stream(10);
-    const char* test_data = "test";
-    std::size_t data_len = strlen(test_data);
+    const char*       test_data = "test";
+    std::size_t       data_len  = strlen(test_data);
     stream.write(test_data, data_len);
-    
+
     // 将读取位置移动到 0，准备从头读取
     stream.seek_read(0);
-    
+
     // 调用 read_some(buffer, length)
-    char buffer[10] = {0};
-    std::size_t read_len = stream.read_some(buffer, data_len);
-    
+    char        buffer[10] = {0};
+    std::size_t read_len   = stream.read_some(buffer, data_len);
+
     // 验证返回的字节数正确
     EXPECT_EQ(read_len, data_len);
     EXPECT_STREQ(buffer, test_data);
 }
 
 // 测试 try_read 成功的情况
-TEST(io_stream_test, IOStreamTryReadSuccess) {
+TEST(io_stream_test, IOStreamTryReadSuccess)
+{
     // 创建一个 io_stream 并写入一些数据
     mc::io::io_stream stream(10);
-    const char* test_data = "test";
-    std::size_t data_len = strlen(test_data);
+    const char*       test_data = "test";
+    std::size_t       data_len  = strlen(test_data);
     stream.write(test_data, data_len);
-    
+
     // 重置读取位置，准备从头读取
     stream.seek_read(0);
-    
+
     // 调用 try_read(buffer, length)
     char buffer[10] = {0};
-    bool success = stream.try_read(buffer, data_len);
-    
+    bool success    = stream.try_read(buffer, data_len);
+
     // 验证返回 true 且 read_pos 已更新
     EXPECT_TRUE(success);
     EXPECT_EQ(stream.get_read_pos(), data_len);
@@ -766,19 +803,20 @@ TEST(io_stream_test, IOStreamTryReadSuccess) {
 }
 
 // 测试 try_read(std::size_t length) 成功的情况
-TEST(io_stream_test, IOStreamTryReadStringViewSuccess) {
+TEST(io_stream_test, IOStreamTryReadStringViewSuccess)
+{
     // 创建一个 io_stream 并写入一些数据
     mc::io::io_stream stream(10);
-    const char* test_data = "test";
-    std::size_t data_len = strlen(test_data);
+    const char*       test_data = "test";
+    std::size_t       data_len  = strlen(test_data);
     stream.write(test_data, data_len);
-    
+
     // 重置读取位置
     stream.seek_read(0);
-    
+
     // 调用 try_read(length)
     auto view = stream.try_read(data_len);
-    
+
     // 验证返回非空 string_view 且 read_pos 已更新
     EXPECT_FALSE(view.empty());
     EXPECT_EQ(view.size(), data_len);
@@ -787,25 +825,27 @@ TEST(io_stream_test, IOStreamTryReadStringViewSuccess) {
 }
 
 // 测试 align_read 失败的情况
-TEST(io_stream_test, IOStreamAlignReadFailure) {
+TEST(io_stream_test, IOStreamAlignReadFailure)
+{
     // 创建一个 io_stream 并写入少量数据（如 1 字节）
     mc::io::io_stream stream(10);
     stream.write("a", 1);
-    
+
     // 为了触发异常，强制将读取位置设置为 1（非对齐且剩余字节不足）
     stream.seek_read(1);
-    
+
     // 调用 align_read(8)（需要 7 字节填充，但只有 1 字节可读）
     EXPECT_THROW(stream.align_read(8), mc::eof_exception);
 }
 
 // 测试 write_value 在不可写流上抛出异常的场景
-TEST(io_stream_test, IOStreamWriteValueOnNonWritableStream) {
+TEST(io_stream_test, IOStreamWriteValueOnNonWritableStream)
+{
     // 创建一个不可写的流（使用 io_stream(buffer->clone(), false)）
     auto buffer = mc::io::io_buffer::create(10);
     buffer->write("test", 4);
     mc::io::io_stream stream(buffer->clone(), false);
-    
+
     // 调用 stream.write_value<uint32_t>(42)
     EXPECT_THROW(stream.write_value<uint32_t>(42), mc::eof_exception);
 }

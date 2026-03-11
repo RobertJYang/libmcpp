@@ -40,25 +40,31 @@ using namespace mc::dbus;
  */
 class signal_send_receive_test : public mc::test::TestWithDbusDaemon {
 protected:
-    signal_send_receive_test() {
+    signal_send_receive_test()
+    {
     }
 
-    static void SetUpTestSuite() {
+    static void SetUpTestSuite()
+    {
         mc::log::default_logger().set_level(mc::log::level::info);
         TestWithDbusDaemon::SetUpTestSuite();
     }
 
-    static void TearDownTestSuite() {
+    static void TearDownTestSuite()
+    {
         TestWithDbusDaemon::TearDownTestSuite();
     }
 
-    void SetUp() override {
+    void SetUp() override
+    {
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
     }
 
-    mc::io_context& get_io_context() {
+    mc::io_context& get_io_context()
+    {
         return mc::runtime::get_io_context();
     }
 };
@@ -74,7 +80,8 @@ protected:
  * 5. 服务A发送信号，验证服务B能接收到
  * 6. 服务B发送信号，验证服务A能接收到
  */
-TEST_F(signal_send_receive_test, test_two_services_bidirectional_signal) {
+TEST_F(signal_send_receive_test, test_two_services_bidirectional_signal)
+{
     // 创建两个独立的DBUS连接
     auto conn_a = connection::open_session_bus(get_io_context());
     auto conn_b = connection::open_session_bus(get_io_context());
@@ -227,7 +234,8 @@ TEST_F(signal_send_receive_test, test_two_services_bidirectional_signal) {
 /**
  * @brief 测试多个信号发送和接收（带调试信息）
  */
-TEST_F(signal_send_receive_test, test_multiple_signals_bidirectional) {
+TEST_F(signal_send_receive_test, test_multiple_signals_bidirectional)
+{
     // 创建两个独立的DBUS连接
     auto conn_a = connection::open_session_bus(get_io_context());
     auto conn_b = connection::open_session_bus(get_io_context());
@@ -370,7 +378,8 @@ TEST_F(signal_send_receive_test, test_multiple_signals_bidirectional) {
 /**
  * @brief 测试信号订阅和取消订阅（带调试信息）
  */
-TEST_F(signal_send_receive_test, test_signal_subscribe_unsubscribe) {
+TEST_F(signal_send_receive_test, test_signal_subscribe_unsubscribe)
+{
     // 创建两个独立的DBUS连接
     auto conn_a = connection::open_session_bus(get_io_context());
     auto conn_b = connection::open_session_bus(get_io_context());

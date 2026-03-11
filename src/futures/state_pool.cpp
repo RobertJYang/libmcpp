@@ -21,11 +21,13 @@
 
 namespace mc::futures {
 
-void state_base_deleter::destroy(state_base* ptr) {
+void state_base_deleter::destroy(state_base* ptr)
+{
     ptr->destory();
 }
 
-void state_base_deleter::deallocate(const void* ptr) {
+void state_base_deleter::deallocate(const void* ptr)
+{
     state_base* p_state = static_cast<state_base*>(const_cast<void*>(ptr));
     MC_ASSERT_THROW((p_state != nullptr && p_state->ref_count() == 0 && p_state->weak_count() == 0),
                     mc::runtime_exception, "state_base 指针不能为 nullptr 或 value_size 不能为 0");
@@ -39,14 +41,18 @@ void state_base_deleter::deallocate(const void* ptr) {
 // 固定大小的 State 缓存池
 class sized_state_pool {
 public:
-    explicit sized_state_pool(std::size_t max_size) : m_max_size(max_size) {
+    explicit sized_state_pool(std::size_t max_size)
+        : m_max_size(max_size)
+    {
     }
 
-    ~sized_state_pool() {
+    ~sized_state_pool()
+    {
         clear();
     }
 
-    void* acquire() {
+    void* acquire()
+    {
         if (m_pool.empty()) {
             return nullptr;
         }
@@ -57,7 +63,8 @@ public:
         return ptr;
     }
 
-    bool release(state_base* ptr) {
+    bool release(state_base* ptr)
+    {
         if (m_pool.size() >= m_max_size) {
             return false;
         }
@@ -66,16 +73,19 @@ public:
         return true;
     }
 
-    bool empty() const {
+    bool empty() const
+    {
         return m_pool.empty();
     }
 
-    std::size_t size() const {
+    std::size_t size() const
+    {
         return m_pool.size();
     }
 
     // 清空池中的所有对象
-    void clear() {
+    void clear()
+    {
         while (!m_pool.empty()) {
             auto* ptr = m_pool.front();
             m_pool.pop();
@@ -122,19 +132,22 @@ private:
 };
 
 // 设置缓存池配置
-void state_pool::impl::set_config(const state_pool_config& config) {
+void state_pool::impl::set_config(const state_pool_config& config)
+{
     std::lock_guard<std::mutex> lock(m_mutex);
     m_config = config;
     clear_all_pools_unlocked();
 }
 
 // 获取当前缓存池配置
-const state_pool_config& state_pool::impl::get_config() const {
+const state_pool_config& state_pool::impl::get_config() const
+{
     return m_config;
 }
 
 // 获取缓存池统计信息
-state_pool::pool_stats state_pool::impl::get_stats() const {
+state_pool::pool_stats state_pool::impl::get_stats() const
+{
     std::lock_guard<std::mutex> lock(m_mutex);
     state_pool::pool_stats      stats;
 
@@ -148,13 +161,15 @@ state_pool::pool_stats state_pool::impl::get_stats() const {
 }
 
 // 清理所有池中的缓存对象
-void state_pool::impl::clear_all_pools() {
+void state_pool::impl::clear_all_pools()
+{
     std::lock_guard<std::mutex> lock(m_mutex);
     clear_all_pools_unlocked();
 }
 
 // 尝试获取指定大小的 State 对象
-void* state_pool::impl::try_acquire_state(std::size_t size) {
+void* state_pool::impl::try_acquire_state(std::size_t size)
+{
     auto aligned_size = MC_ALIGN_UP(size, m_config.alignment);
     if (aligned_size > m_config.max_cacheable_size) {
         return nullptr;
@@ -171,7 +186,8 @@ void* state_pool::impl::try_acquire_state(std::size_t size) {
 }
 
 // 将 State 对象释放回池中，返回是否成功放入池中
-bool state_pool::impl::try_release_state_to_pool(state_base* ptr, std::size_t size) {
+bool state_pool::impl::try_release_state_to_pool(state_base* ptr, std::size_t size)
+{
     if (!ptr) {
         return false;
     }
@@ -192,7 +208,8 @@ bool state_pool::impl::try_release_state_to_pool(state_base* ptr, std::size_t si
 }
 
 // 获取或创建全局池
-sized_state_pool* state_pool::impl::get_global_pool(std::size_t state_size, bool need_create) {
+sized_state_pool* state_pool::impl::get_global_pool(std::size_t state_size, bool need_create)
+{
     auto it = m_global_pools.find(state_size);
     if (it != m_global_pools.end()) {
         return &*it->second;
@@ -216,11 +233,13 @@ sized_state_pool* state_pool::impl::get_global_pool(std::size_t state_size, bool
 }
 
 // 清理所有池（不加锁版本，假设调用者已持有锁）
-void state_pool::impl::clear_all_pools_unlocked() {
+void state_pool::impl::clear_all_pools_unlocked()
+{
     m_global_pools.clear();
 }
 
-void state_pool::impl::remove_global_pool_unlocked(std::size_t state_size) {
+void state_pool::impl::remove_global_pool_unlocked(std::size_t state_size)
+{
     auto it = m_global_pools.find(state_size);
     if (it != m_global_pools.end()) {
         m_global_pools.erase(it);
@@ -229,38 +248,47 @@ void state_pool::impl::remove_global_pool_unlocked(std::size_t state_size) {
 
 // state_pool 实现
 
-state_pool::state_pool() : m_pimpl(std::make_unique<impl>()) {
+state_pool::state_pool()
+    : m_pimpl(std::make_unique<impl>())
+{
 }
 
 state_pool::~state_pool() = default;
 
-state_pool& state_pool::instance() {
+state_pool& state_pool::instance()
+{
     return mc::singleton<state_pool>::instance_with_creator([]() {
         return new state_pool();
     });
 }
 
-void state_pool::set_config(const state_pool_config& config) {
+void state_pool::set_config(const state_pool_config& config)
+{
     m_pimpl->set_config(config);
 }
 
-const state_pool_config& state_pool::get_config() const {
+const state_pool_config& state_pool::get_config() const
+{
     return m_pimpl->get_config();
 }
 
-state_pool::pool_stats state_pool::get_stats() const {
+state_pool::pool_stats state_pool::get_stats() const
+{
     return m_pimpl->get_stats();
 }
 
-void state_pool::clear_all_pools() {
+void state_pool::clear_all_pools()
+{
     m_pimpl->clear_all_pools();
 }
 
-void* state_pool::try_acquire_state(std::size_t state_size) {
+void* state_pool::try_acquire_state(std::size_t state_size)
+{
     return m_pimpl->try_acquire_state(state_size);
 }
 
-bool state_pool::try_release_to_pool(state_base* ptr, std::size_t state_size) {
+bool state_pool::try_release_to_pool(state_base* ptr, std::size_t state_size)
+{
     return m_pimpl->try_release_state_to_pool(ptr, state_size);
 }
 

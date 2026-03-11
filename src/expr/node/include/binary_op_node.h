@@ -28,10 +28,12 @@ namespace mc::expr {
 class binary_op_node : public node {
 public:
     binary_op_node(operator_type op, node_ptr left, node_ptr right)
-        : m_operator(op), m_left(std::move(left)), m_right(std::move(right)) {
+        : m_operator(op), m_left(std::move(left)), m_right(std::move(right))
+    {
     }
 
-    node_type get_type() const override {
+    node_type get_type() const override
+    {
         return node_type::binary_op;
     }
 
@@ -39,15 +41,18 @@ public:
 
     std::string to_string() const override;
 
-    operator_type get_operator() const {
+    operator_type get_operator() const
+    {
         return m_operator;
     }
 
-    const node& get_left() const {
+    const node& get_left() const
+    {
         return *m_left;
     }
 
-    const node& get_right() const {
+    const node& get_right() const
+    {
         return *m_right;
     }
 

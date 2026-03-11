@@ -22,7 +22,8 @@
 using namespace mc;
 
 // 测试 dict 对 string_view 的支持
-TEST(DictStringViewTest, DictStringViewSupport) {
+TEST(DictStringViewTest, DictStringViewSupport)
+{
     dict d({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
     // 测试 std::string_view 接口
@@ -57,7 +58,8 @@ TEST(DictStringViewTest, DictStringViewSupport) {
 }
 
 // 测试 dict 对 const char* 的支持
-TEST(DictStringViewTest, DictConstCharSupport) {
+TEST(DictStringViewTest, DictConstCharSupport)
+{
     dict d({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
     // 测试 const char* 接口
@@ -92,7 +94,8 @@ TEST(DictStringViewTest, DictConstCharSupport) {
 }
 
 // 测试 dict 对 string_view 的支持
-TEST(DictStringViewTest, MutableDictStringViewSupport) {
+TEST(DictStringViewTest, MutableDictStringViewSupport)
+{
     dict md({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
     // 测试 std::string_view 接口
@@ -117,7 +120,8 @@ TEST(DictStringViewTest, MutableDictStringViewSupport) {
 }
 
 // 测试 dict 对 const char* 的支持
-TEST(DictStringViewTest, MutableDictConstCharSupport) {
+TEST(DictStringViewTest, MutableDictConstCharSupport)
+{
     dict md({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
     // 测试 const char* 接口
@@ -142,7 +146,8 @@ TEST(DictStringViewTest, MutableDictConstCharSupport) {
 }
 
 // 测试混合字符串类型
-TEST(DictStringViewTest, MixedStringTypes) {
+TEST(DictStringViewTest, MixedStringTypes)
+{
     // 使用不同类型的字符串作为键
     std::string key1_str  = "key1";
     std::string key2_view = "key2";

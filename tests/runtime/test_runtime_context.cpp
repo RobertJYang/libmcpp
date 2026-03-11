@@ -25,11 +25,13 @@ using namespace std::chrono_literals;
 namespace {
 
 class RuntimeContextTest : public mc::test::TestWithRuntime {
-    void SetUp() override {
+    void SetUp() override
+    {
         mc::test::TestWithRuntime::reset_runtime();
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         mc::test::TestWithRuntime::reset_runtime();
     }
 };
@@ -37,7 +39,8 @@ class RuntimeContextTest : public mc::test::TestWithRuntime {
 } // namespace
 
 // 测试基本的初始化和启动
-TEST_F(RuntimeContextTest, BasicInitializeAndStart) {
+TEST_F(RuntimeContextTest, BasicInitializeAndStart)
+{
     auto& runtime = mc::get_runtime_context();
 
     EXPECT_TRUE(runtime.is_stopped());
@@ -56,7 +59,8 @@ TEST_F(RuntimeContextTest, BasicInitializeAndStart) {
 }
 
 // 测试重复启动应该被忽略
-TEST_F(RuntimeContextTest, DuplicateStart) {
+TEST_F(RuntimeContextTest, DuplicateStart)
+{
     auto& runtime = mc::get_runtime_context();
 
     runtime.initialize(mc::runtime_config{.io_threads = 1});
@@ -67,7 +71,8 @@ TEST_F(RuntimeContextTest, DuplicateStart) {
 }
 
 // 测试IO执行器的基本功能
-TEST_F(RuntimeContextTest, IoExecutorBasicPost) {
+TEST_F(RuntimeContextTest, IoExecutorBasicPost)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.initialize(mc::runtime_config{.io_threads = 1});
     runtime.start();
@@ -86,7 +91,8 @@ TEST_F(RuntimeContextTest, IoExecutorBasicPost) {
 }
 
 // 测试系统执行器的基本功能
-TEST_F(RuntimeContextTest, SystemExecutorBasicPost) {
+TEST_F(RuntimeContextTest, SystemExecutorBasicPost)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
@@ -104,7 +110,8 @@ TEST_F(RuntimeContextTest, SystemExecutorBasicPost) {
 }
 
 // 测试defer操作
-TEST_F(RuntimeContextTest, DeferOperation) {
+TEST_F(RuntimeContextTest, DeferOperation)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.initialize(mc::runtime_config{.io_threads = 1});
     runtime.start();
@@ -131,7 +138,8 @@ TEST_F(RuntimeContextTest, DeferOperation) {
 }
 
 // 测试dispatch操作
-TEST_F(RuntimeContextTest, DispatchOperation) {
+TEST_F(RuntimeContextTest, DispatchOperation)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
@@ -148,7 +156,8 @@ TEST_F(RuntimeContextTest, DispatchOperation) {
 }
 
 // 测试多线程IO执行器
-TEST_F(RuntimeContextTest, MultiThreadIoExecutor) {
+TEST_F(RuntimeContextTest, MultiThreadIoExecutor)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.initialize(mc::runtime_config{.io_threads = 4}); // 4个IO线程
     runtime.start();
@@ -169,7 +178,8 @@ TEST_F(RuntimeContextTest, MultiThreadIoExecutor) {
 }
 
 // 测试混合使用IO执行器和系统执行器
-TEST_F(RuntimeContextTest, MixedExecutorUsage) {
+TEST_F(RuntimeContextTest, MixedExecutorUsage)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.initialize(mc::runtime_config{.io_threads = 2});
     runtime.start();
@@ -208,7 +218,8 @@ TEST_F(RuntimeContextTest, MixedExecutorUsage) {
 }
 
 // 测试执行器对象的生命周期
-TEST_F(RuntimeContextTest, ExecutorLifetime) {
+TEST_F(RuntimeContextTest, ExecutorLifetime)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.initialize(mc::runtime_config{.io_threads = 1});
     runtime.start();
@@ -232,7 +243,8 @@ TEST_F(RuntimeContextTest, ExecutorLifetime) {
 }
 
 // 测试重复初始化
-TEST_F(RuntimeContextTest, DuplicateInitialize) {
+TEST_F(RuntimeContextTest, DuplicateInitialize)
+{
     auto& runtime = mc::get_runtime_context();
 
     runtime.initialize(mc::runtime_config{.io_threads = 1});
@@ -246,7 +258,8 @@ TEST_F(RuntimeContextTest, DuplicateInitialize) {
 }
 
 // 测试从未初始化状态确保启动
-TEST_F(RuntimeContextTest, EnsureStartFromUninitialized) {
+TEST_F(RuntimeContextTest, EnsureStartFromUninitialized)
+{
     auto& runtime = mc::get_runtime_context();
 
     // 未初始化状态直接调用 start，应该使用默认配置
@@ -258,7 +271,8 @@ TEST_F(RuntimeContextTest, EnsureStartFromUninitialized) {
 }
 
 // 测试从已初始化状态确保启动
-TEST_F(RuntimeContextTest, EnsureStartFromInitialized) {
+TEST_F(RuntimeContextTest, EnsureStartFromInitialized)
+{
     auto& runtime = mc::get_runtime_context();
 
     runtime.initialize(mc::runtime_config{.io_threads = 2});
@@ -271,7 +285,8 @@ TEST_F(RuntimeContextTest, EnsureStartFromInitialized) {
 }
 
 // 测试从已停止状态确保启动（会抛出异常）
-TEST_F(RuntimeContextTest, EnsureStartFromStopped) {
+TEST_F(RuntimeContextTest, EnsureStartFromStopped)
+{
     auto& runtime = mc::get_runtime_context();
 
     runtime.initialize(mc::runtime_config{.io_threads = 1});
@@ -284,7 +299,8 @@ TEST_F(RuntimeContextTest, EnsureStartFromStopped) {
 }
 
 // 测试未运行时停止
-TEST_F(RuntimeContextTest, StopWhenNotRunning) {
+TEST_F(RuntimeContextTest, StopWhenNotRunning)
+{
     auto& runtime = mc::get_runtime_context();
 
     // 未启动时停止应该不抛出异常
@@ -295,7 +311,8 @@ TEST_F(RuntimeContextTest, StopWhenNotRunning) {
 }
 
 // 测试空线程列表时 join
-TEST_F(RuntimeContextTest, JoinWhenEmpty) {
+TEST_F(RuntimeContextTest, JoinWhenEmpty)
+{
     auto& runtime = mc::get_runtime_context();
 
     // 未启动时 join 应该不抛出异常
@@ -303,7 +320,8 @@ TEST_F(RuntimeContextTest, JoinWhenEmpty) {
 }
 
 // 测试获取线程数
-TEST_F(RuntimeContextTest, GetThreadCount) {
+TEST_F(RuntimeContextTest, GetThreadCount)
+{
     auto& runtime = mc::get_runtime_context();
 
     runtime.initialize(mc::runtime_config{.io_threads = 4, .work_threads = 2});
@@ -317,7 +335,8 @@ TEST_F(RuntimeContextTest, GetThreadCount) {
 }
 
 // 测试零线程使用默认值
-TEST_F(RuntimeContextTest, ZeroThreadsUsesDefault) {
+TEST_F(RuntimeContextTest, ZeroThreadsUsesDefault)
+{
     auto& runtime = mc::get_runtime_context();
 
     // 零线程应该使用默认值（至少1个线程）
@@ -331,7 +350,8 @@ TEST_F(RuntimeContextTest, ZeroThreadsUsesDefault) {
 }
 
 // 测试线程数超过最大值
-TEST_F(RuntimeContextTest, ThreadCountExceedsMax) {
+TEST_F(RuntimeContextTest, ThreadCountExceedsMax)
+{
     auto& runtime = mc::get_runtime_context();
 
     // 线程数超过最大值应该被限制
@@ -345,7 +365,8 @@ TEST_F(RuntimeContextTest, ThreadCountExceedsMax) {
 }
 
 // 测试立即执行器基础功能
-TEST_F(RuntimeContextTest, ImmediateExecutorBasic) {
+TEST_F(RuntimeContextTest, ImmediateExecutorBasic)
+{
     mc::immediate_executor executor;
 
     std::atomic<bool> task_executed{false};
@@ -359,7 +380,8 @@ TEST_F(RuntimeContextTest, ImmediateExecutorBasic) {
 }
 
 // 测试立即上下文基础功能
-TEST_F(RuntimeContextTest, ImmediateContextBasic) {
+TEST_F(RuntimeContextTest, ImmediateContextBasic)
+{
     mc::immediate_context context;
     auto                  executor = context.get_executor();
 
@@ -374,7 +396,8 @@ TEST_F(RuntimeContextTest, ImmediateContextBasic) {
 }
 
 // 测试向上下文投递任务
-TEST_F(RuntimeContextTest, PostToContexts) {
+TEST_F(RuntimeContextTest, PostToContexts)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
@@ -401,7 +424,8 @@ TEST_F(RuntimeContextTest, PostToContexts) {
 }
 
 // 测试向上下文延迟投递任务
-TEST_F(RuntimeContextTest, DeferToContexts) {
+TEST_F(RuntimeContextTest, DeferToContexts)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
@@ -428,7 +452,8 @@ TEST_F(RuntimeContextTest, DeferToContexts) {
 }
 
 // 测试向上下文分发任务
-TEST_F(RuntimeContextTest, DispatchToContexts) {
+TEST_F(RuntimeContextTest, DispatchToContexts)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
@@ -455,7 +480,8 @@ TEST_F(RuntimeContextTest, DispatchToContexts) {
 }
 
 // 测试创建 strand 执行器
-TEST_F(RuntimeContextTest, MakeStrands) {
+TEST_F(RuntimeContextTest, MakeStrands)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
@@ -486,7 +512,8 @@ TEST_F(RuntimeContextTest, MakeStrands) {
 }
 
 // 测试停止后上下文重启
-TEST_F(RuntimeContextTest, ContextRestartAfterStop) {
+TEST_F(RuntimeContextTest, ContextRestartAfterStop)
+{
     auto& runtime = mc::get_runtime_context();
 
     runtime.initialize(mc::runtime_config{.io_threads = 1});
@@ -516,7 +543,8 @@ TEST_F(RuntimeContextTest, ContextRestartAfterStop) {
 }
 
 // 测试未初始化状态的 is_stopped
-TEST_F(RuntimeContextTest, IsStoppedUninitialized) {
+TEST_F(RuntimeContextTest, IsStoppedUninitialized)
+{
     auto& runtime = mc::get_runtime_context();
 
     // 未初始化时应该返回 true
@@ -524,7 +552,8 @@ TEST_F(RuntimeContextTest, IsStoppedUninitialized) {
 }
 
 // 测试未停止时的析构函数
-TEST_F(RuntimeContextTest, DestructorWithoutStop) {
+TEST_F(RuntimeContextTest, DestructorWithoutStop)
+{
     // 注意：runtime_context 是单例，不会析构，所以这个测试需要验证的是：
     // 即使不调用 stop，单例仍然保持运行状态
     // 但析构函数会在单例被销毁时（测试结束时）自动调用 stop 和 join
@@ -553,7 +582,8 @@ TEST_F(RuntimeContextTest, DestructorWithoutStop) {
 }
 
 // 测试线程数边缘情况
-TEST_F(RuntimeContextTest, ThreadCountEdgeCases) {
+TEST_F(RuntimeContextTest, ThreadCountEdgeCases)
+{
     auto& runtime = mc::get_runtime_context();
 
     // 测试最小值
@@ -575,7 +605,8 @@ TEST_F(RuntimeContextTest, ThreadCountEdgeCases) {
 }
 
 // 测试线程列表非空时启动
-TEST_F(RuntimeContextTest, StartImplWithNonEmptyThreads) {
+TEST_F(RuntimeContextTest, StartImplWithNonEmptyThreads)
+{
     auto& runtime = mc::get_runtime_context();
 
     runtime.initialize(mc::runtime_config{.io_threads = 1});
@@ -589,7 +620,8 @@ TEST_F(RuntimeContextTest, StartImplWithNonEmptyThreads) {
 }
 
 // 测试线程列表为空时 join
-TEST_F(RuntimeContextTest, JoinWhenThreadListEmpty) {
+TEST_F(RuntimeContextTest, JoinWhenThreadListEmpty)
+{
     auto& runtime = mc::get_runtime_context();
 
     // 未启动时 join 应该立即返回（线程列表为空）
@@ -597,7 +629,8 @@ TEST_F(RuntimeContextTest, JoinWhenThreadListEmpty) {
 }
 
 // 测试两个线程列表都不为空时启动
-TEST_F(RuntimeContextTest, StartImplBothThreadListsNonEmpty) {
+TEST_F(RuntimeContextTest, StartImplBothThreadListsNonEmpty)
+{
     auto& runtime = mc::get_runtime_context();
 
     runtime.initialize(mc::runtime_config{.io_threads = 2, .work_threads = 2});
@@ -611,7 +644,8 @@ TEST_F(RuntimeContextTest, StartImplBothThreadListsNonEmpty) {
 }
 
 // 测试停止状态的 is_stopped
-TEST_F(RuntimeContextTest, IsStoppedStateStopped) {
+TEST_F(RuntimeContextTest, IsStoppedStateStopped)
+{
     auto& runtime = mc::get_runtime_context();
 
     runtime.initialize(mc::runtime_config{.io_threads = 1});
@@ -625,7 +659,8 @@ TEST_F(RuntimeContextTest, IsStoppedStateStopped) {
 }
 
 // 测试线程异常处理
-TEST_F(RuntimeContextTest, ThreadExceptionHandling) {
+TEST_F(RuntimeContextTest, ThreadExceptionHandling)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.initialize(mc::runtime_config{.io_threads = 1});
     runtime.start();
@@ -650,7 +685,8 @@ TEST_F(RuntimeContextTest, ThreadExceptionHandling) {
 }
 
 // 测试 immediate_executor 的 operator!= 和 require
-TEST_F(RuntimeContextTest, ImmediateExecutorCompareAndRequire) {
+TEST_F(RuntimeContextTest, ImmediateExecutorCompareAndRequire)
+{
     mc::immediate_executor exec1;
     mc::immediate_executor exec2;
 
@@ -669,7 +705,8 @@ TEST_F(RuntimeContextTest, ImmediateExecutorCompareAndRequire) {
 }
 
 // 测试工作线程异常捕获
-TEST_F(RuntimeContextTest, WorkThreadExceptionLogged) {
+TEST_F(RuntimeContextTest, WorkThreadExceptionLogged)
+{
     auto& runtime = mc::get_runtime_context();
 
     // 配置为只有 1 个工作线程，以便更容易触发异常

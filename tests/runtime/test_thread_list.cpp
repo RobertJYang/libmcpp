@@ -25,17 +25,20 @@ namespace {
 
 class ThreadListTest : public ::testing::Test {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
     }
 };
 
 } // namespace
 
 // 测试 thread_node 的基本构造和析构
-TEST_F(ThreadListTest, ThreadNodeBasic) {
+TEST_F(ThreadListTest, ThreadNodeBasic)
+{
     std::atomic<bool> task_executed{false};
 
     {
@@ -52,7 +55,8 @@ TEST_F(ThreadListTest, ThreadNodeBasic) {
 }
 
 // 测试 thread_node 的移动构造
-TEST_F(ThreadListTest, ThreadNodeMove) {
+TEST_F(ThreadListTest, ThreadNodeMove)
+{
     std::atomic<bool> task_executed{false};
 
     mc::runtime::thread_node node1([&task_executed]() {
@@ -72,7 +76,8 @@ TEST_F(ThreadListTest, ThreadNodeMove) {
 }
 
 // 测试 thread_node 的 joinable
-TEST_F(ThreadListTest, ThreadNodeJoinable) {
+TEST_F(ThreadListTest, ThreadNodeJoinable)
+{
     auto stop_signal = std::make_shared<std::promise<void>>();
     auto stop_future = stop_signal->get_future().share();
 
@@ -88,7 +93,8 @@ TEST_F(ThreadListTest, ThreadNodeJoinable) {
 }
 
 // 测试 thread_node 的 get_id
-TEST_F(ThreadListTest, ThreadNodeGetId) {
+TEST_F(ThreadListTest, ThreadNodeGetId)
+{
     std::atomic<bool> task_done{false};
 
     mc::runtime::thread_node node([&task_done]() {
@@ -103,7 +109,8 @@ TEST_F(ThreadListTest, ThreadNodeGetId) {
 }
 
 // 测试 thread_node 的 join 在不可join时
-TEST_F(ThreadListTest, ThreadNodeJoinWhenNotJoinable) {
+TEST_F(ThreadListTest, ThreadNodeJoinWhenNotJoinable)
+{
     std::atomic<bool> task_done{false};
 
     mc::runtime::thread_node node([&task_done]() {
@@ -118,7 +125,8 @@ TEST_F(ThreadListTest, ThreadNodeJoinWhenNotJoinable) {
 }
 
 // 测试 thread_list 的基本构造和析构
-TEST_F(ThreadListTest, ThreadListBasic) {
+TEST_F(ThreadListTest, ThreadListBasic)
+{
     std::atomic<int> task_count{0};
 
     {
@@ -140,7 +148,8 @@ TEST_F(ThreadListTest, ThreadListBasic) {
 }
 
 // 测试 thread_list 的 start_threads (无索引版本)
-TEST_F(ThreadListTest, StartThreadsWithoutIndex) {
+TEST_F(ThreadListTest, StartThreadsWithoutIndex)
+{
     std::atomic<int> task_count{0};
 
     mc::runtime::thread_list list;
@@ -160,7 +169,8 @@ TEST_F(ThreadListTest, StartThreadsWithoutIndex) {
 }
 
 // 测试 thread_list 的 start_threads (带索引版本)
-TEST_F(ThreadListTest, StartThreadsWithIndex) {
+TEST_F(ThreadListTest, StartThreadsWithIndex)
+{
     mc::sync::mutex_box<std::vector<std::size_t>> thread_indices;
 
     mc::runtime::thread_list list;
@@ -186,7 +196,8 @@ TEST_F(ThreadListTest, StartThreadsWithIndex) {
 }
 
 // 测试 thread_list 的 add_thread
-TEST_F(ThreadListTest, AddThread) {
+TEST_F(ThreadListTest, AddThread)
+{
     std::atomic<int> task_count{0};
 
     mc::runtime::thread_list list;
@@ -208,7 +219,8 @@ TEST_F(ThreadListTest, AddThread) {
 }
 
 // 测试 thread_list 的 remove_thread - 成功情况
-TEST_F(ThreadListTest, RemoveThreadSuccess) {
+TEST_F(ThreadListTest, RemoveThreadSuccess)
+{
     std::atomic<int> task_count{0};
 
     mc::runtime::thread_list list;
@@ -230,7 +242,8 @@ TEST_F(ThreadListTest, RemoveThreadSuccess) {
 }
 
 // 测试 thread_list 的 remove_thread - nullptr 情况
-TEST_F(ThreadListTest, RemoveThreadWithNullptr) {
+TEST_F(ThreadListTest, RemoveThreadWithNullptr)
+{
     mc::runtime::thread_list list;
 
     // 尝试移除 nullptr 应该返回 false
@@ -239,7 +252,8 @@ TEST_F(ThreadListTest, RemoveThreadWithNullptr) {
 }
 
 // 测试 thread_list 的 remove_thread - 节点不在列表中
-TEST_F(ThreadListTest, RemoveThreadNotInList) {
+TEST_F(ThreadListTest, RemoveThreadNotInList)
+{
     std::atomic<bool> task_done{false};
 
     mc::runtime::thread_list list1;
@@ -258,7 +272,8 @@ TEST_F(ThreadListTest, RemoveThreadNotInList) {
 }
 
 // 测试 thread_list 的 join_all
-TEST_F(ThreadListTest, JoinAll) {
+TEST_F(ThreadListTest, JoinAll)
+{
     std::atomic<int> task_count{0};
 
     mc::runtime::thread_list list;
@@ -278,7 +293,8 @@ TEST_F(ThreadListTest, JoinAll) {
 }
 
 // 测试 thread_list 的 clear
-TEST_F(ThreadListTest, Clear) {
+TEST_F(ThreadListTest, Clear)
+{
     std::atomic<int> task_count{0};
 
     {
@@ -302,7 +318,8 @@ TEST_F(ThreadListTest, Clear) {
 }
 
 // 测试 thread_list 的 get_thread_count
-TEST_F(ThreadListTest, GetThreadCount) {
+TEST_F(ThreadListTest, GetThreadCount)
+{
     mc::runtime::thread_list list;
 
     EXPECT_EQ(list.get_thread_count(), 0);
@@ -317,7 +334,8 @@ TEST_F(ThreadListTest, GetThreadCount) {
 }
 
 // 测试 thread_list 的 empty
-TEST_F(ThreadListTest, Empty) {
+TEST_F(ThreadListTest, Empty)
+{
     mc::runtime::thread_list list;
 
     EXPECT_TRUE(list.empty());
@@ -332,7 +350,8 @@ TEST_F(ThreadListTest, Empty) {
 }
 
 // 测试 thread_list 的 visit_threads (非const版本)
-TEST_F(ThreadListTest, VisitThreads) {
+TEST_F(ThreadListTest, VisitThreads)
+{
     std::atomic<int> visit_count{0};
 
     mc::runtime::thread_list list;
@@ -352,7 +371,8 @@ TEST_F(ThreadListTest, VisitThreads) {
 }
 
 // 测试 thread_list 的 visit_threads (const版本)
-TEST_F(ThreadListTest, VisitThreadsConst) {
+TEST_F(ThreadListTest, VisitThreadsConst)
+{
     std::atomic<int> visit_count{0};
 
     mc::runtime::thread_list list;
@@ -373,7 +393,8 @@ TEST_F(ThreadListTest, VisitThreadsConst) {
 }
 
 // 测试 thread_list 的 join_all 在空列表时
-TEST_F(ThreadListTest, JoinAllWhenEmpty) {
+TEST_F(ThreadListTest, JoinAllWhenEmpty)
+{
     mc::runtime::thread_list list;
 
     // 在空列表上调用 join_all 应该不抛出异常
@@ -381,7 +402,8 @@ TEST_F(ThreadListTest, JoinAllWhenEmpty) {
 }
 
 // 测试 thread_list 的 clear 在空列表时
-TEST_F(ThreadListTest, ClearWhenEmpty) {
+TEST_F(ThreadListTest, ClearWhenEmpty)
+{
     mc::runtime::thread_list list;
 
     // 在空列表上调用 clear 应该不抛出异常
@@ -390,7 +412,8 @@ TEST_F(ThreadListTest, ClearWhenEmpty) {
 }
 
 // 测试 thread_list 的复杂场景 - 添加和移除混合
-TEST_F(ThreadListTest, MixedAddRemove) {
+TEST_F(ThreadListTest, MixedAddRemove)
+{
     std::atomic<int> task_count{0};
 
     mc::runtime::thread_list list;
@@ -429,8 +452,9 @@ TEST_F(ThreadListTest, MixedAddRemove) {
 }
 
 // 测试 thread_list 的析构函数会等待所有线程
-TEST_F(ThreadListTest, DestructorWaitsForThreads) {
-    std::atomic<int> task_count{0};
+TEST_F(ThreadListTest, DestructorWaitsForThreads)
+{
+    std::atomic<int>  task_count{0};
     std::atomic<bool> all_tasks_done{false};
 
     {
@@ -453,7 +477,8 @@ TEST_F(ThreadListTest, DestructorWaitsForThreads) {
 }
 
 // 测试 thread_node 析构时线程不可 join 的分支
-TEST_F(ThreadListTest, ThreadNodeDestructorNotJoinable) {
+TEST_F(ThreadListTest, ThreadNodeDestructorNotJoinable)
+{
     std::atomic<bool> task_done{false};
 
     {
@@ -471,29 +496,33 @@ TEST_F(ThreadListTest, ThreadNodeDestructorNotJoinable) {
     EXPECT_TRUE(task_done.load());
 }
 
-
 // 测试 thread_list start_threads 中 thread_count 为 0 的分支
-TEST_F(ThreadListTest, StartThreadsZeroCount) {
+TEST_F(ThreadListTest, StartThreadsZeroCount)
+{
     mc::runtime::thread_list list;
 
     // 启动 0 个线程应该不抛出异常
-    EXPECT_NO_THROW(list.start_threads(0, []() {}));
+    EXPECT_NO_THROW(list.start_threads(0, []() {
+    }));
     EXPECT_EQ(list.get_thread_count(), 0);
     EXPECT_TRUE(list.empty());
 }
 
 // 测试 thread_list start_threads 带索引版本中 thread_count 为 0 的分支
-TEST_F(ThreadListTest, StartThreadsZeroCountWithIndex) {
+TEST_F(ThreadListTest, StartThreadsZeroCountWithIndex)
+{
     mc::runtime::thread_list list;
 
     // 启动 0 个线程应该不抛出异常
-    EXPECT_NO_THROW(list.start_threads(0, [](std::size_t) {}));
+    EXPECT_NO_THROW(list.start_threads(0, [](std::size_t) {
+    }));
     EXPECT_EQ(list.get_thread_count(), 0);
     EXPECT_TRUE(list.empty());
 }
 
 // 测试 thread_list clear 后再次操作
-TEST_F(ThreadListTest, ClearThenReuse) {
+TEST_F(ThreadListTest, ClearThenReuse)
+{
     std::atomic<int> task_count{0};
 
     mc::runtime::thread_list list;
@@ -522,7 +551,8 @@ TEST_F(ThreadListTest, ClearThenReuse) {
 }
 
 // 测试 thread_list visit_threads 在空列表时的行为
-TEST_F(ThreadListTest, VisitThreadsEmpty) {
+TEST_F(ThreadListTest, VisitThreadsEmpty)
+{
     mc::runtime::thread_list list;
 
     int visit_count = 0;
@@ -536,7 +566,8 @@ TEST_F(ThreadListTest, VisitThreadsEmpty) {
 }
 
 // 测试 thread_list visit_threads const 版本在空列表时的行为
-TEST_F(ThreadListTest, VisitThreadsConstEmpty) {
+TEST_F(ThreadListTest, VisitThreadsConstEmpty)
+{
     const mc::runtime::thread_list list;
 
     int visit_count = 0;
@@ -550,7 +581,8 @@ TEST_F(ThreadListTest, VisitThreadsConstEmpty) {
 }
 
 // 测试 thread_node 析构时 joinable 为 true 的分支
-TEST_F(ThreadListTest, ThreadNodeDestructorJoinable) {
+TEST_F(ThreadListTest, ThreadNodeDestructorJoinable)
+{
     std::atomic<bool>              task_done{false};
     mc::test::runtime::future_flag task_ready;
 
@@ -568,7 +600,8 @@ TEST_F(ThreadListTest, ThreadNodeDestructorJoinable) {
 }
 
 // 测试 thread_node join 时 joinable 为 true 的分支
-TEST_F(ThreadListTest, ThreadNodeJoinWhenJoinable) {
+TEST_F(ThreadListTest, ThreadNodeJoinWhenJoinable)
+{
     std::atomic<bool> task_done{false};
 
     mc::runtime::thread_node node([&task_done]() {
@@ -583,7 +616,8 @@ TEST_F(ThreadListTest, ThreadNodeJoinWhenJoinable) {
 }
 
 // 测试 thread_list remove_thread 中循环查找 found 为 true 的分支
-TEST_F(ThreadListTest, RemoveThreadFoundInLoop) {
+TEST_F(ThreadListTest, RemoveThreadFoundInLoop)
+{
     std::atomic<int> task_count{0};
 
     mc::runtime::thread_list list;
@@ -613,13 +647,14 @@ TEST_F(ThreadListTest, RemoveThreadFoundInLoop) {
 }
 
 // 测试 thread_list remove_thread 中循环查找 found 为 false 的分支（直到循环结束）
-TEST_F(ThreadListTest, RemoveThreadNotFoundAfterLoop) {
+TEST_F(ThreadListTest, RemoveThreadNotFoundAfterLoop)
+{
     mc::runtime::thread_list list;
 
     // 创建一个不在列表中的节点指针（野指针，但这里只是测试逻辑）
     // 实际上我们应该创建一个真实的节点但不在列表中
     mc::runtime::thread_list list2;
-    auto*                     node = list2.add_thread([]() {
+    auto*                    node = list2.add_thread([]() {
     });
 
     // 尝试从 list 中移除 list2 的节点
@@ -628,5 +663,3 @@ TEST_F(ThreadListTest, RemoveThreadNotFoundAfterLoop) {
 
     list2.join_all();
 }
-
-

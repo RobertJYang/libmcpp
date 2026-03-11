@@ -31,10 +31,12 @@ private:
 
 public:
     explicit sync_barrier(std::size_t count)
-        : m_threshold(count), m_count(count), m_generation(0) {
+        : m_threshold(count), m_count(count), m_generation(0)
+    {
     }
 
-    void arrive_and_wait() const {
+    void arrive_and_wait() const
+    {
         std::unique_lock<std::mutex> lock(m_mutex);
         auto                         gen = m_generation;
         if (--m_count == 0) {
@@ -58,10 +60,13 @@ private:
     mutable std::string m_cached_name;
 
 public:
-    explicit concurrent_string_test(const std::string& name) : m_base_name(name) {
+    explicit concurrent_string_test(const std::string& name)
+        : m_base_name(name)
+    {
     }
 
-    std::string get_object_name() const {
+    std::string get_object_name() const
+    {
         m_cached_name = m_base_name; // 使用对象级缓存，避免 thread_local 问题
         return m_cached_name;
     }
@@ -70,7 +75,8 @@ public:
 // 并发安全性测试类
 class PropertyConcurrentFixTest : public ::testing::Test {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         // 创建测试对象，每个都有不同的名称
         for (int i = 0; i < 10; ++i) {
             std::string name = "TestObject_" + std::to_string(i);
@@ -78,14 +84,16 @@ protected:
         }
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         test_objects_.clear();
     }
 
     std::vector<concurrent_string_test> test_objects_;
 };
 
-TEST_F(PropertyConcurrentFixTest, GetObjectNameConcurrentSafety) {
+TEST_F(PropertyConcurrentFixTest, GetObjectNameConcurrentSafety)
+{
     const int num_threads           = 10;
     const int iterations_per_thread = 1000;
 
@@ -137,7 +145,8 @@ TEST_F(PropertyConcurrentFixTest, GetObjectNameConcurrentSafety) {
     EXPECT_EQ(error_count.load(), 0) << "发现 " << error_count.load() << " 个并发错误";
 }
 
-TEST_F(PropertyConcurrentFixTest, HighConcurrencyStressTest) {
+TEST_F(PropertyConcurrentFixTest, HighConcurrencyStressTest)
+{
     const int num_threads = 20;
     const int iterations  = 500;
 

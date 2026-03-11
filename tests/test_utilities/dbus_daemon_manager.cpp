@@ -31,14 +31,17 @@
 
 namespace mc::test {
 
-dbus_daemon_manager::dbus_daemon_manager() {
+dbus_daemon_manager::dbus_daemon_manager()
+{
 }
 
-dbus_daemon_manager::~dbus_daemon_manager() {
+dbus_daemon_manager::~dbus_daemon_manager()
+{
     stop();
 }
 
-bool dbus_daemon_manager::start() {
+bool dbus_daemon_manager::start()
+{
     if (m_is_running) {
         return true;
     }
@@ -198,7 +201,8 @@ bool dbus_daemon_manager::start() {
     }
 }
 
-void dbus_daemon_manager::stop() {
+void dbus_daemon_manager::stop()
+{
     if (!m_is_running) {
         return;
     }
@@ -209,7 +213,8 @@ void dbus_daemon_manager::stop() {
     m_is_running = false;
 }
 
-bool dbus_daemon_manager::find_existing_dbus() {
+bool dbus_daemon_manager::find_existing_dbus()
+{
     dlog("正在查找可用的 DBus 实例...");
 
     // 扫描所有可能的DBus测试目录
@@ -245,7 +250,8 @@ bool dbus_daemon_manager::find_existing_dbus() {
     return false;
 }
 
-std::vector<mc::filesystem::path> dbus_daemon_manager::scan_dbus_test_dirs() {
+std::vector<mc::filesystem::path> dbus_daemon_manager::scan_dbus_test_dirs()
+{
     std::vector<mc::filesystem::path> result;
     mc::filesystem::path              temp_dir = mc::filesystem::temp_directory_path();
 
@@ -267,7 +273,8 @@ std::vector<mc::filesystem::path> dbus_daemon_manager::scan_dbus_test_dirs() {
 // 创建 DBus 连接
 DBusConnection* dbus_daemon_manager::create_dbus_connection(const std::string& address,
                                                             DBusError* error, int retry,
-                                                            int max_retries) {
+                                                            int max_retries)
+{
     dbus_error_init(error);
     DBusConnection* conn = dbus_connection_open_private(address.c_str(), error);
     if (!dbus_error_is_set(error)) {
@@ -282,7 +289,8 @@ DBusConnection* dbus_daemon_manager::create_dbus_connection(const std::string& a
 
 // 注册到 DBus 总线
 bool dbus_daemon_manager::register_to_bus(DBusConnection* conn, DBusError* error,
-                                          const std::string& socket_path) {
+                                          const std::string& socket_path)
+{
     dbus_error_init(error);
     if (dbus_bus_register(conn, error)) {
         return true;
@@ -301,7 +309,8 @@ bool dbus_daemon_manager::register_to_bus(DBusConnection* conn, DBusError* error
 }
 
 // 关闭并释放 DBus 连接
-void dbus_daemon_manager::close_connection(DBusConnection* conn) {
+void dbus_daemon_manager::close_connection(DBusConnection* conn)
+{
     if (!conn) {
         return;
     }
@@ -310,7 +319,8 @@ void dbus_daemon_manager::close_connection(DBusConnection* conn) {
     dbus_connection_unref(conn);
 }
 
-bool dbus_daemon_manager::test_dbus_connection(const mc::filesystem::path& socket_path) {
+bool dbus_daemon_manager::test_dbus_connection(const mc::filesystem::path& socket_path)
+{
     DBusError error;
     const int max_retries = 3;
     for (int retry = 0; retry < max_retries; ++retry) {
@@ -341,23 +351,28 @@ bool dbus_daemon_manager::test_dbus_connection(const mc::filesystem::path& socke
     return false;
 }
 
-std::string dbus_daemon_manager::get_address() const {
+std::string dbus_daemon_manager::get_address() const
+{
     return m_dbus_address;
 }
 
-mc::filesystem::path dbus_daemon_manager::get_socket_path() const {
+mc::filesystem::path dbus_daemon_manager::get_socket_path() const
+{
     return m_socket_path;
 }
 
-mc::filesystem::path dbus_daemon_manager::get_config_path() const {
+mc::filesystem::path dbus_daemon_manager::get_config_path() const
+{
     return m_config_path;
 }
 
-mc::filesystem::path dbus_daemon_manager::get_temp_dir() const {
+mc::filesystem::path dbus_daemon_manager::get_temp_dir() const
+{
     return m_temp_dir;
 }
 
-bool dbus_daemon_manager::create_temp_dir() {
+bool dbus_daemon_manager::create_temp_dir()
+{
     // 创建临时目录用于 DBus 套接字和配置文件
     m_temp_dir                    = mc::filesystem::temp_directory_path() / "dbus_test_XXXXXX";
     std::string temp_dir_template = m_temp_dir.string();
@@ -374,7 +389,8 @@ bool dbus_daemon_manager::create_temp_dir() {
     return true;
 }
 
-bool dbus_daemon_manager::create_config_file() {
+bool dbus_daemon_manager::create_config_file()
+{
     // 创建 DBus 配置文件
     std::ofstream config_file(m_config_path);
     if (!config_file.is_open()) {
@@ -399,7 +415,8 @@ bool dbus_daemon_manager::create_config_file() {
     return true;
 }
 
-void dbus_daemon_manager::cleanup_temp_dir() {
+void dbus_daemon_manager::cleanup_temp_dir()
+{
     if (!m_temp_dir.empty() && mc::filesystem::exists(m_temp_dir)) {
         try {
             mc::filesystem::remove_all(m_temp_dir);
@@ -410,7 +427,8 @@ void dbus_daemon_manager::cleanup_temp_dir() {
     }
 }
 
-void dbus_daemon_manager::cleanup_stale_instances() {
+void dbus_daemon_manager::cleanup_stale_instances()
+{
     dlog("开始清理不可用的DBus测试实例...");
 
     auto test_dirs = scan_dbus_test_dirs();
@@ -430,7 +448,8 @@ void dbus_daemon_manager::cleanup_stale_instances() {
     dlog("DBus测试实例清理完成");
 }
 
-void dbus_daemon_manager::cleanup_stale_directories() {
+void dbus_daemon_manager::cleanup_stale_directories()
+{
     mc::filesystem::path temp_dir = mc::filesystem::temp_directory_path();
     try {
         for (const auto& entry : mc::filesystem::directory_iterator(temp_dir)) {
@@ -453,7 +472,8 @@ void dbus_daemon_manager::cleanup_stale_directories() {
     }
 }
 
-void dbus_daemon_manager::cleanup_stale_processes() {
+void dbus_daemon_manager::cleanup_stale_processes()
+{
     // 不要清理任何dbus-daemon进程，因为我们希望复用它们
     // 只有在清理不可用的实例时才会间接地清理对应的进程
     dlog("跳过清理dbus-daemon进程，保留进程以供后续测试使用");

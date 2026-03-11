@@ -33,7 +33,8 @@ public:
     MC_OBJECT(service_test_object, "ServiceObject", "/org/openubmc/test_service_object",
               (service_test_interface))
 
-    void init(std::string_view path, std::string_view name) {
+    void init(std::string_view path, std::string_view name)
+    {
         set_object_name(name);
         set_object_path(path);
     }
@@ -53,10 +54,12 @@ using mc::test::engine_tests::service_test_object;
 class ResolverGuard {
 public:
     ResolverGuard()
-        : m_previous(::mc::engine::engine::get_path_resolver()) {
+        : m_previous(::mc::engine::engine::get_path_resolver())
+    {
     }
 
-    ~ResolverGuard() {
+    ~ResolverGuard()
+    {
         ::mc::engine::engine::set_path_resolver(m_previous);
     }
 
@@ -64,7 +67,8 @@ private:
     ::mc::engine::path_resolver m_previous;
 };
 
-TEST(ServiceUtilsTest, ResolveObjectPathWithFallback) {
+TEST(ServiceUtilsTest, ResolveObjectPathWithFallback)
+{
     auto parent = ::mc::make_shared<service_test_object>();
     parent->init("/org/openubmc/parent", "Parent");
 
@@ -81,13 +85,14 @@ TEST(ServiceUtilsTest, ResolveObjectPathWithFallback) {
     EXPECT_EQ(resolved, "/absolute/path");
 }
 
-TEST(ServiceUtilsTest, ResolveObjectPathWithCustomResolver) {
+TEST(ServiceUtilsTest, ResolveObjectPathWithCustomResolver)
+{
     ResolverGuard guard;
     ::mc::engine::engine::set_path_resolver(
         [](std::string_view pattern, const ::mc::engine::abstract_object&, std::string& out) {
-            out = std::string("/custom/") + std::string(pattern);
-            return true;
-        });
+        out = std::string("/custom/") + std::string(pattern);
+        return true;
+    });
 
     auto parent = ::mc::make_shared<service_test_object>();
     parent->init("/org/openubmc/parent", "Parent");
@@ -101,4 +106,3 @@ TEST(ServiceUtilsTest, ResolveObjectPathWithCustomResolver) {
 }
 
 } // namespace
-

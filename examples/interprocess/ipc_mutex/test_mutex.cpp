@@ -21,7 +21,8 @@ namespace interprocess {
 namespace test {
 
 // 测试进程间互斥锁
-void test_mutex() {
+void test_mutex()
+{
     ilog("===== 进程间互斥锁测试 =====");
 
     // 创建共享内存管理器
@@ -46,7 +47,7 @@ void test_mutex() {
 
     // 创建IPC互斥锁
     ipc_mutex* mutex_ptr = allocator.create<ipc_mutex>();
-    ipc_mutex& mutex = *mutex_ptr;
+    ipc_mutex& mutex     = *mutex_ptr;
     ilog("IPC互斥锁创建成功");
 
     // 测试锁定和解锁
@@ -94,4 +95,3 @@ void test_mutex() {
 } // namespace test
 } // namespace interprocess
 } // namespace mc
-    

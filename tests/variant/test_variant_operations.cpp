@@ -27,11 +27,13 @@ namespace test {
 
 class VariantOperationsTest : public TestBase {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         TestBase::SetUp();
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         // 清理测试中创建的资源
         TestBase::TearDown();
     }
@@ -40,7 +42,8 @@ protected:
 /**
  * @brief 测试整数加法运算
  */
-TEST_F(VariantOperationsTest, IntegerAddition) {
+TEST_F(VariantOperationsTest, IntegerAddition)
+{
     variant v1(42);
     variant v2(23);
     variant result = v1 + v2;
@@ -67,7 +70,8 @@ TEST_F(VariantOperationsTest, IntegerAddition) {
 /**
  * @brief 测试无符号整数加法运算
  */
-TEST_F(VariantOperationsTest, UnsignedIntegerAddition) {
+TEST_F(VariantOperationsTest, UnsignedIntegerAddition)
+{
     variant v1(uint64_t(9000000000000000000ULL));
     variant v2(uint64_t(1000000000000000000ULL));
     variant result = v1 + v2;
@@ -79,7 +83,8 @@ TEST_F(VariantOperationsTest, UnsignedIntegerAddition) {
 /**
  * @brief 测试字符串加法（连接）运算
  */
-TEST_F(VariantOperationsTest, StringConcatenation) {
+TEST_F(VariantOperationsTest, StringConcatenation)
+{
     variant v1("Hello, ");
     variant v2("World!");
     variant result = v1 + v2;
@@ -104,7 +109,8 @@ TEST_F(VariantOperationsTest, StringConcatenation) {
 /**
  * @brief 测试减法运算
  */
-TEST_F(VariantOperationsTest, Subtraction) {
+TEST_F(VariantOperationsTest, Subtraction)
+{
     variant v1(100);
     variant v2(30);
     variant result = v1 - v2;
@@ -131,7 +137,8 @@ TEST_F(VariantOperationsTest, Subtraction) {
 /**
  * @brief 测试乘法运算
  */
-TEST_F(VariantOperationsTest, Multiplication) {
+TEST_F(VariantOperationsTest, Multiplication)
+{
     variant v1(7);
     variant v2(6);
     variant result = v1 * v2;
@@ -158,7 +165,8 @@ TEST_F(VariantOperationsTest, Multiplication) {
 /**
  * @brief 测试除法运算
  */
-TEST_F(VariantOperationsTest, Division) {
+TEST_F(VariantOperationsTest, Division)
+{
     variant v1(100);
     variant v2(20);
     variant result = v1 / v2;
@@ -202,7 +210,8 @@ TEST_F(VariantOperationsTest, Division) {
 /**
  * @brief 测试取模运算
  */
-TEST_F(VariantOperationsTest, Modulo) {
+TEST_F(VariantOperationsTest, Modulo)
+{
     variant v1(100);
     variant v2(30);
     variant result = v1 % v2;
@@ -240,7 +249,8 @@ TEST_F(VariantOperationsTest, Modulo) {
 /**
  * @brief 测试位与运算
  */
-TEST_F(VariantOperationsTest, BitwiseAnd) {
+TEST_F(VariantOperationsTest, BitwiseAnd)
+{
     variant v1(0b1010);
     variant v2(0b1100);
     variant result = v1 & v2;
@@ -278,7 +288,8 @@ TEST_F(VariantOperationsTest, BitwiseAnd) {
 /**
  * @brief 测试位或运算
  */
-TEST_F(VariantOperationsTest, BitwiseOr) {
+TEST_F(VariantOperationsTest, BitwiseOr)
+{
     variant v1(0b1010);
     variant v2(0b1100);
     variant result = v1 | v2;
@@ -305,7 +316,8 @@ TEST_F(VariantOperationsTest, BitwiseOr) {
 /**
  * @brief 测试位异或运算
  */
-TEST_F(VariantOperationsTest, BitwiseXor) {
+TEST_F(VariantOperationsTest, BitwiseXor)
+{
     variant v1(0b1010);
     variant v2(0b1100);
     variant result = v1 ^ v2;
@@ -332,7 +344,8 @@ TEST_F(VariantOperationsTest, BitwiseXor) {
 /**
  * @brief 测试位取反运算
  */
-TEST_F(VariantOperationsTest, BitwiseNot) {
+TEST_F(VariantOperationsTest, BitwiseNot)
+{
     variant v1(0b1010);
     variant result = ~v1;
 
@@ -354,7 +367,8 @@ TEST_F(VariantOperationsTest, BitwiseNot) {
 /**
  * @brief 测试左移运算
  */
-TEST_F(VariantOperationsTest, LeftShift) {
+TEST_F(VariantOperationsTest, LeftShift)
+{
     variant v1(0b0001);
     variant v2(2);
     variant result = v1 << v2;
@@ -389,7 +403,8 @@ TEST_F(VariantOperationsTest, LeftShift) {
 /**
  * @brief 测试右移运算
  */
-TEST_F(VariantOperationsTest, RightShift) {
+TEST_F(VariantOperationsTest, RightShift)
+{
     variant v1(0b1000);
     variant v2(2);
     variant result = v1 >> v2;
@@ -444,7 +459,8 @@ TEST_F(VariantOperationsTest, RightShift) {
 /**
  * @brief 测试浮点数算术运算
  */
-TEST_F(VariantOperationsTest, FloatingPointArithmetic) {
+TEST_F(VariantOperationsTest, FloatingPointArithmetic)
+{
     variant v1(3.5);
     variant v2(1.5);
 
@@ -505,7 +521,8 @@ TEST_F(VariantOperationsTest, FloatingPointArithmetic) {
 /**
  * @brief 测试字符串连接（友元运算符）
  */
-TEST_F(VariantOperationsTest, StringConcatenationFriend) {
+TEST_F(VariantOperationsTest, StringConcatenationFriend)
+{
     variant v1("World");
 
     // 字符串字面量 + variant
@@ -534,7 +551,8 @@ TEST_F(VariantOperationsTest, StringConcatenationFriend) {
 /**
  * @brief 测试混合类型运算
  */
-TEST_F(VariantOperationsTest, MixedTypeOperations) {
+TEST_F(VariantOperationsTest, MixedTypeOperations)
+{
     variant v_int(10);
     variant v_double(2.5);
     variant v_bool(true);
@@ -563,7 +581,8 @@ TEST_F(VariantOperationsTest, MixedTypeOperations) {
 /**
  * @brief 测试不兼容类型的运算错误
  */
-TEST_F(VariantOperationsTest, IncompatibleOperations) {
+TEST_F(VariantOperationsTest, IncompatibleOperations)
+{
     variant v_str("text");
     variant v_int(42);
 
@@ -585,7 +604,8 @@ TEST_F(VariantOperationsTest, IncompatibleOperations) {
 /**
  * @brief 测试溢出和边界情况
  */
-TEST_F(VariantOperationsTest, OverflowAndEdgeCases) {
+TEST_F(VariantOperationsTest, OverflowAndEdgeCases)
+{
     // 整数溢出
     variant v1(INT64_MAX);
     variant v2(1);
@@ -610,7 +630,8 @@ TEST_F(VariantOperationsTest, OverflowAndEdgeCases) {
 /**
  * @brief 测试固定类型模式下的复合赋值运算符
  */
-TEST_F(VariantOperationsTest, FixedTypeOperations) {
+TEST_F(VariantOperationsTest, FixedTypeOperations)
+{
     // 测试固定类型模式下的复合赋值运算符
 
     // 整数类型 - 使用明确的类型
@@ -658,7 +679,8 @@ TEST_F(VariantOperationsTest, FixedTypeOperations) {
 /**
  * @brief 测试数组加法运算
  */
-TEST_F(VariantOperationsTest, ArrayAddition) {
+TEST_F(VariantOperationsTest, ArrayAddition)
+{
     // 数组 + 数组
     variant arr1(variants{1, 2, 3});
     variant arr2(variants{4, 5, 6});
@@ -686,7 +708,8 @@ TEST_F(VariantOperationsTest, ArrayAddition) {
 /**
  * @brief 测试字典加法运算
  */
-TEST_F(VariantOperationsTest, DictionaryAddition) {
+TEST_F(VariantOperationsTest, DictionaryAddition)
+{
     // 字典 + 字典
     variant dict1 = dict{
         {"a", 1},
@@ -715,14 +738,16 @@ TEST_F(VariantOperationsTest, DictionaryAddition) {
     ASSERT_EQ(dict1["c"], 4);
 }
 
-TEST_F(VariantOperationsTest, DictionaryAdditionInvalidOperand) {
+TEST_F(VariantOperationsTest, DictionaryAdditionInvalidOperand)
+{
     variant dict_value = dict{{"key", 1}};
     variant scalar(5);
 
     EXPECT_THROW({ auto result = dict_value + scalar; (void)result; }, mc::invalid_op_exception);
 }
 
-TEST_F(VariantOperationsTest, AdditionInvalidNumericConversionThrows) {
+TEST_F(VariantOperationsTest, AdditionInvalidNumericConversionThrows)
+{
     variant bool_value(true);
     variant object_value = dict{{"nested", 1}};
 
@@ -732,7 +757,8 @@ TEST_F(VariantOperationsTest, AdditionInvalidNumericConversionThrows) {
 /**
  * @brief 测试字符串转数值参与运算
  */
-TEST_F(VariantOperationsTest, StringToNumberConversion) {
+TEST_F(VariantOperationsTest, StringToNumberConversion)
+{
     // 整数字符串
     variant v_str_int("123");
     variant v_int(100);
@@ -785,7 +811,8 @@ TEST_F(VariantOperationsTest, StringToNumberConversion) {
 /**
  * @brief 测试不同进制字符串转数值
  */
-TEST_F(VariantOperationsTest, DifferentRadixStringConversion) {
+TEST_F(VariantOperationsTest, DifferentRadixStringConversion)
+{
     // 十六进制
     variant v_hex("0x1A");
     variant v_int(10);
@@ -818,7 +845,8 @@ TEST_F(VariantOperationsTest, DifferentRadixStringConversion) {
 /**
  * @brief 测试特殊字符串情况
  */
-TEST_F(VariantOperationsTest, SpecialStringCases) {
+TEST_F(VariantOperationsTest, SpecialStringCases)
+{
     // 空字符串
     variant v_empty("");
     variant v_int(10);
@@ -885,7 +913,8 @@ TEST_F(VariantOperationsTest, SpecialStringCases) {
 /**
  * @brief 测试字符串与布尔值的交互
  */
-TEST_F(VariantOperationsTest, StringBoolInteraction) {
+TEST_F(VariantOperationsTest, StringBoolInteraction)
+{
     // 字符串 "true"/"false" 与布尔值
     variant v_true_str("true");
     variant v_false_str("false");
@@ -930,7 +959,8 @@ TEST_F(VariantOperationsTest, StringBoolInteraction) {
 /**
  * @brief 测试字符串与位运算
  */
-TEST_F(VariantOperationsTest, StringBitwiseOperations) {
+TEST_F(VariantOperationsTest, StringBitwiseOperations)
+{
     variant v_str("42");
     variant v_int(15); // 0xF
 
@@ -972,7 +1002,8 @@ TEST_F(VariantOperationsTest, StringBitwiseOperations) {
 /**
  * @brief 测试 blob 类型与运算符的交互
  */
-TEST_F(VariantOperationsTest, BlobOperations) {
+TEST_F(VariantOperationsTest, BlobOperations)
+{
     // 创建测试用的 blob 对象
     mc::blob blob1 = {0x41, 0x42, 0x43, 0x44}; // ABCD
     mc::blob blob2 = {0x45, 0x46, 0x47, 0x48}; // EFGH
@@ -1146,10 +1177,11 @@ TEST_F(VariantOperationsTest, BlobOperations) {
 /**
  * @brief 测试字符串 variant 与 blob 的拼接分支
  */
-TEST_F(VariantOperationsTest, StringVariantBlobCombination) {
-    variant    string_value("head");
-    mc::blob   blob_data   = {'t', 'a', 'i', 'l'};
-    variant    blob_value(blob_data);
+TEST_F(VariantOperationsTest, StringVariantBlobCombination)
+{
+    variant  string_value("head");
+    mc::blob blob_data = {'t', 'a', 'i', 'l'};
+    variant  blob_value(blob_data);
 
     variant combined = string_value + blob_value;
     EXPECT_TRUE(combined.is_string());
@@ -1163,7 +1195,8 @@ TEST_F(VariantOperationsTest, StringVariantBlobCombination) {
 /**
  * @brief 测试数组与对象在加法运算中的边界分支
  */
-TEST_F(VariantOperationsTest, ArrayAndObjectEdgeCases) {
+TEST_F(VariantOperationsTest, ArrayAndObjectEdgeCases)
+{
     variants array_items{variant(1)};
     variant  array_value(array_items);
     variant  appended = array_value + variant(2);
@@ -1187,7 +1220,8 @@ TEST_F(VariantOperationsTest, ArrayAndObjectEdgeCases) {
 /**
  * @brief 测试无符号整数的运算路径
  */
-TEST_F(VariantOperationsTest, UnsignedSpecificOperations) {
+TEST_F(VariantOperationsTest, UnsignedSpecificOperations)
+{
     variant diff = variant(uint64_t(2)) - variant(uint64_t(5));
     EXPECT_TRUE(diff.is_integer());
     EXPECT_EQ(diff.as_int64(), -3);
@@ -1216,22 +1250,23 @@ TEST_F(VariantOperationsTest, UnsignedSpecificOperations) {
 }
 
 // 测试 blob + string 拼接
-TEST_F(VariantOperationsTest, BlobPlusStringKeepsBinary) {
+TEST_F(VariantOperationsTest, BlobPlusStringKeepsBinary)
+{
     // 构造 blob variant
     blob blob_data;
     blob_data.data = {'h', 'e', 'l', 'l', 'o'};
     variant v_blob(blob_data);
-    
+
     // blob + string_view
     variant result1 = v_blob + std::string_view(", world");
     EXPECT_TRUE(result1.is_blob());
     EXPECT_EQ(result1.get_blob().as_string_view(), "hello, world");
-    
+
     // string_view + blob
     variant result2 = std::string_view("prefix: ") + v_blob;
     EXPECT_TRUE(result2.is_string());
     EXPECT_EQ(result2.as_string(), "prefix: hello");
-    
+
     // blob + blob
     blob blob_data2;
     blob_data2.data = {',', ' ', 'w', 'o', 'r', 'l', 'd'};
@@ -1242,10 +1277,11 @@ TEST_F(VariantOperationsTest, BlobPlusStringKeepsBinary) {
 }
 
 // 测试无符号减法（无下溢）
-TEST_F(VariantOperationsTest, UnsignedSubtractionWithoutUnderflow) {
+TEST_F(VariantOperationsTest, UnsignedSubtractionWithoutUnderflow)
+{
     variant v1(uint64_t(100));
     variant v2(uint64_t(30));
-    
+
     // 无符号减法，第一个 >= 第二个
     variant result = v1 - v2;
     EXPECT_TRUE(result.is_unsigned_integer());
@@ -1253,13 +1289,14 @@ TEST_F(VariantOperationsTest, UnsignedSubtractionWithoutUnderflow) {
 }
 
 // 测试一元负号处理无符号数和回退路径
-TEST_F(VariantOperationsTest, UnaryMinusCoversUnsignedAndFallback) {
+TEST_F(VariantOperationsTest, UnaryMinusCoversUnsignedAndFallback)
+{
     // 测试 uint64 的一元负号
     variant v_uint64(uint64_t(100));
     variant result1 = -v_uint64;
     EXPECT_TRUE(result1.is_signed_integer());
     EXPECT_EQ(result1.as_int64(), -100);
-    
+
     // 测试 string 的一元负号（回退到 as_int64）
     variant v_string("123");
     variant result2 = -v_string;
@@ -1268,11 +1305,12 @@ TEST_F(VariantOperationsTest, UnaryMinusCoversUnsignedAndFallback) {
 }
 
 // 测试 operator+(string_view) 的 fallback 路径
-TEST_F(VariantOperationsTest, StringViewPlusVariantFallback) {
+TEST_F(VariantOperationsTest, StringViewPlusVariantFallback)
+{
     // 使用 bool 与 string_view 相加，触发 fallback
-    variant v_bool(true);
+    variant          v_bool(true);
     std::string_view sv = "test";
-    
+
     // bool + string_view 应该触发 fallback: return *this + variant(other)
     variant result = v_bool + sv;
     EXPECT_TRUE(result.is_string());
@@ -1282,7 +1320,8 @@ TEST_F(VariantOperationsTest, StringViewPlusVariantFallback) {
 /**
  * @brief 测试自增自减与一元运算符
  */
-TEST_F(VariantOperationsTest, IncrementDecrementSpecialCases) {
+TEST_F(VariantOperationsTest, IncrementDecrementSpecialCases)
+{
     variant bool_value(true);
     variant negated_bool = -bool_value;
     EXPECT_EQ(negated_bool.as_int64(), -1);

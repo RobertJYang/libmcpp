@@ -29,7 +29,8 @@ constexpr char   empty_signature      = '\0';
 constexpr size_t max_signature_length = 255;
 constexpr size_t max_path_length      = 1023;
 
-inline char first_type(const std::string& sig) {
+inline char first_type(const std::string& sig)
+{
     if (sig.empty()) {
         return '\0';
     }
@@ -86,15 +87,18 @@ public:
      */
     signature& operator+=(char c);
 
-    signature operator+(char c) const {
+    signature operator+(char c) const
+    {
         return signature(*this) += c;
     }
 
-    signature operator+(type_code c) const {
+    signature operator+(type_code c) const
+    {
         return signature(*this) += type_to_char(c);
     }
 
-    signature operator+(std::string_view str) const {
+    signature operator+(std::string_view str) const
+    {
         return signature(*this) += str;
     }
 
@@ -104,7 +108,8 @@ public:
      * @param c 类型代码
      * @return 追加后的签名引用
      */
-    signature& operator+=(type_code c) {
+    signature& operator+=(type_code c)
+    {
         operator+=(type_to_char(c));
         return *this;
     }
@@ -127,20 +132,25 @@ public:
 
     signature& operator=(std::string_view str);
     signature& operator=(std::string str);
-    signature& operator=(const char* str) {
+    signature& operator=(const char* str)
+    {
         return operator=(std::string_view(str));
     }
 
-    bool operator==(std::string_view str) const {
+    bool operator==(std::string_view str) const
+    {
         return m_sig == str;
     }
-    bool operator!=(std::string_view str) const {
+    bool operator!=(std::string_view str) const
+    {
         return m_sig != str;
     }
-    friend bool operator==(std::string_view str, const signature& sig) {
+    friend bool operator==(std::string_view str, const signature& sig)
+    {
         return sig.m_sig == str;
     }
-    friend bool operator!=(std::string_view str, const signature& sig) {
+    friend bool operator!=(std::string_view str, const signature& sig)
+    {
         return sig.m_sig != str;
     }
 
@@ -287,10 +297,12 @@ public:
      */
     signature_iterator(std::string_view sig, size_t pos = 0);
     signature_iterator(const char* sig, size_t pos = 0)
-        : signature_iterator(std::string_view(sig), pos) {
+        : signature_iterator(std::string_view(sig), pos)
+    {
     }
     signature_iterator(const std::string& sig, size_t pos = 0)
-        : signature_iterator(std::string_view(sig), pos) {
+        : signature_iterator(std::string_view(sig), pos)
+    {
     }
 
     /**
@@ -388,7 +400,8 @@ namespace detail {
 // 对 signature 的特化
 template <>
 struct signature_helper<mc::reflect::signature> {
-    static void apply(std::string& sig) {
+    static void apply(std::string& sig)
+    {
         sig += type_to_char(mc::reflect::type_code::signature_type);
     }
 };
@@ -396,11 +409,13 @@ struct signature_helper<mc::reflect::signature> {
 
 } // namespace reflect
 
-inline void to_variant(const reflect::signature& sig, variant& v) {
+inline void to_variant(const reflect::signature& sig, variant& v)
+{
     v = sig.str();
 }
 
-inline void from_variant(const variant& v, reflect::signature& sig) {
+inline void from_variant(const variant& v, reflect::signature& sig)
+{
     sig = reflect::signature(v.as_string());
 }
 

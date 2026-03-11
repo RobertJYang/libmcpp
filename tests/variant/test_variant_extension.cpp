@@ -20,10 +20,10 @@
 #include <mc/exception.h>
 #include <mc/variant.h>
 #include <mc/variant/variant_extension.h>
+#include <stdexcept>
 #include <test_utilities/test_base.h>
 #include <unordered_map>
 #include <vector>
-#include <stdexcept>
 
 namespace mc {
 namespace test {
@@ -31,55 +31,72 @@ namespace test {
 // 测试用的扩展类型
 class test_extension : public variant_extension<test_extension> {
 public:
-    test_extension() : m_value(0) {
+    test_extension()
+        : m_value(0)
+    {
     }
-    explicit test_extension(int value) : m_value(value) {
+    explicit test_extension(int value)
+        : m_value(value)
+    {
     }
-    test_extension(const test_extension& other) : m_value(other.m_value) {
+    test_extension(const test_extension& other)
+        : m_value(other.m_value)
+    {
     }
-    test_extension& operator=(const test_extension& other) {
+    test_extension& operator=(const test_extension& other)
+    {
         if (this != &other) {
             m_value = other.m_value;
         }
         return *this;
     }
 
-    bool operator==(const test_extension& other) const {
+    bool operator==(const test_extension& other) const
+    {
         return m_value == other.m_value;
     }
 
-    std::size_t hash() const override {
+    std::size_t hash() const override
+    {
         return std::hash<int>()(m_value);
     }
 
-    int get_value() const {
+    int get_value() const
+    {
         return m_value;
     }
-    void set_value(int value) {
+    void set_value(int value)
+    {
         m_value = value;
     }
 
-    int64_t as_int64() const override {
+    int64_t as_int64() const override
+    {
         return m_value;
     }
 
-    uint64_t as_uint64() const override {
+    uint64_t as_uint64() const override
+    {
         return m_value;
     }
 
-    double as_double() const override {
+    double as_double() const override
+    {
         return m_value;
     }
 
-    bool as_bool() const override {
+    bool as_bool() const override
+    {
         return m_value != 0;
     }
 
-    std::string as_string() const override {
+    std::string as_string() const override
+    {
         return "test_extension(" + std::to_string(m_value) + ")";
     }
 
-    mc::shared_ptr<variant_extension_base> copy() const override {
+    mc::shared_ptr<variant_extension_base> copy() const override
+    {
         return mc::make_shared<test_extension>(*this);
     }
 
@@ -90,13 +107,20 @@ private:
 // 另一个测试用的扩展类型
 class complex_extension : public variant_extension<complex_extension> {
 public:
-    complex_extension() : m_name(""), m_count(0) {
+    complex_extension()
+        : m_name(""), m_count(0)
+    {
     }
-    complex_extension(std::string name, int count) : m_name(std::move(name)), m_count(count) {
+    complex_extension(std::string name, int count)
+        : m_name(std::move(name)), m_count(count)
+    {
     }
-    complex_extension(const complex_extension& other) : m_name(other.m_name), m_count(other.m_count) {
+    complex_extension(const complex_extension& other)
+        : m_name(other.m_name), m_count(other.m_count)
+    {
     }
-    complex_extension& operator=(const complex_extension& other) {
+    complex_extension& operator=(const complex_extension& other)
+    {
         if (this != &other) {
             m_name  = other.m_name;
             m_count = other.m_count;
@@ -104,24 +128,29 @@ public:
         return *this;
     }
 
-    bool operator==(const complex_extension& other) const {
+    bool operator==(const complex_extension& other) const
+    {
         return m_name == other.m_name && m_count == other.m_count;
     }
 
-    std::size_t hash() const override {
+    std::size_t hash() const override
+    {
         std::size_t h1 = std::hash<std::string>()(m_name);
         std::size_t h2 = std::hash<int>()(m_count);
         return h1 ^ (h2 << 1);
     }
 
-    std::string as_string() const override {
+    std::string as_string() const override
+    {
         return "complex_extension(name=" + m_name + ", count=" + std::to_string(m_count) + ")";
     }
 
-    const std::string& get_name() const {
+    const std::string& get_name() const
+    {
         return m_name;
     }
-    int get_count() const {
+    int get_count() const
+    {
         return m_count;
     }
 
@@ -133,32 +162,38 @@ private:
 // 简单的支持引用访问的扩展类型（用于测试零开销引用访问路径）
 class simple_extension : public variant_extension<simple_extension> {
 public:
-    simple_extension(int value, bool allow_reference) 
-        : m_allow_reference(allow_reference), m_value_variant(value) {
+    simple_extension(int value, bool allow_reference)
+        : m_allow_reference(allow_reference), m_value_variant(value)
+    {
     }
 
-    bool operator==(const simple_extension& other) const {
+    bool operator==(const simple_extension& other) const
+    {
         return current_value() == other.current_value();
     }
 
-    std::size_t hash() const override {
+    std::size_t hash() const override
+    {
         return std::hash<int>()(current_value());
     }
 
     // 启用零开销引用访问
-    bool supports_reference_access() const override {
+    bool supports_reference_access() const override
+    {
         return m_allow_reference;
     }
 
     // 返回内部 variant 指针（键访问，零开销）
-    mc::variant* get_ptr(std::string_view key) override {
+    mc::variant* get_ptr(std::string_view key) override
+    {
         if (m_allow_reference && key == "value") {
             return &m_value_variant;
         }
         return nullptr;
     }
 
-    const mc::variant* get_ptr(std::string_view key) const override {
+    const mc::variant* get_ptr(std::string_view key) const override
+    {
         if (m_allow_reference && key == "value") {
             return &m_value_variant;
         }
@@ -166,14 +201,16 @@ public:
     }
 
     // 值访问（向后兼容）
-    mc::variant get(std::string_view key) const override {
+    mc::variant get(std::string_view key) const override
+    {
         if (key == "value") {
             return m_value_variant;
         }
         throw std::out_of_range("键不存在");
     }
 
-    void set(std::string_view key, const mc::variant& value) override {
+    void set(std::string_view key, const mc::variant& value) override
+    {
         if (key == "value") {
             m_value_variant = value;
         } else {
@@ -181,15 +218,18 @@ public:
         }
     }
 
-    std::string as_string() const override {
+    std::string as_string() const override
+    {
         return "simple_extension(value=" + std::to_string(current_value()) + ")";
     }
 
-    int current_value() const {
+    int current_value() const
+    {
         return m_value_variant.as_int64();
     }
 
-    mc::shared_ptr<variant_extension_base> copy() const override {
+    mc::shared_ptr<variant_extension_base> copy() const override
+    {
         return mc::make_shared<simple_extension>(*this);
     }
 
@@ -204,27 +244,32 @@ public:
     variant_array_extension() = default;
 
     explicit variant_array_extension(mc::array<mc::variant> data)
-        : m_data(std::move(data)) {
+        : m_data(std::move(data))
+    {
     }
 
-    bool operator==(const variant_array_extension& other) const {
+    bool operator==(const variant_array_extension& other) const
+    {
         return m_data == other.m_data;
     }
 
     // ✅ 启用零开销引用访问
-    bool supports_reference_access() const override {
+    bool supports_reference_access() const override
+    {
         return true;
     }
 
     // ✅ 返回内部 variant 指针（零开销）
-    mc::variant* get_ptr(std::size_t index) override {
+    mc::variant* get_ptr(std::size_t index) override
+    {
         if (index < m_data.size()) {
             return &m_data[index];
         }
         return nullptr;
     }
 
-    const mc::variant* get_ptr(std::size_t index) const override {
+    const mc::variant* get_ptr(std::size_t index) const override
+    {
         if (index < m_data.size()) {
             return &m_data[index];
         }
@@ -232,21 +277,24 @@ public:
     }
 
     // 值访问（向后兼容，但优化路径不会使用）
-    mc::variant get(std::size_t index) const override {
+    mc::variant get(std::size_t index) const override
+    {
         if (index >= m_data.size()) {
             throw std::out_of_range("索引越界");
         }
         return m_data[index];
     }
 
-    void set(std::size_t index, const mc::variant& value) override {
+    void set(std::size_t index, const mc::variant& value) override
+    {
         if (index >= m_data.size()) {
             throw std::out_of_range("索引越界");
         }
         m_data[index] = value;
     }
 
-    std::size_t hash() const override {
+    std::size_t hash() const override
+    {
         std::size_t h = 0;
         for (const auto& v : m_data) {
             h ^= v.hash() + 0x9e3779b9 + (h << 6) + (h >> 2);
@@ -254,11 +302,13 @@ public:
         return h;
     }
 
-    std::string as_string() const override {
+    std::string as_string() const override
+    {
         return "variant_array_extension[" + std::to_string(m_data.size()) + "]";
     }
 
-    const mc::array<mc::variant>& get_data() const {
+    const mc::array<mc::variant>& get_data() const
+    {
         return m_data;
     }
 
@@ -272,27 +322,32 @@ public:
     variant_object_extension() = default;
 
     explicit variant_object_extension(dict data)
-        : m_data(std::move(data)) {
+        : m_data(std::move(data))
+    {
     }
 
-    bool operator==(const variant_object_extension& other) const {
+    bool operator==(const variant_object_extension& other) const
+    {
         return m_data == other.m_data;
     }
 
     // ✅ 启用零开销引用访问
-    bool supports_reference_access() const override {
+    bool supports_reference_access() const override
+    {
         return true;
     }
 
     // ✅ 返回内部 variant 指针（键访问，零开销）
-    mc::variant* get_ptr(std::string_view key) override {
+    mc::variant* get_ptr(std::string_view key) override
+    {
         if (m_data.contains(key)) {
             return &m_data[key];
         }
         return nullptr;
     }
 
-    const mc::variant* get_ptr(std::string_view key) const override {
+    const mc::variant* get_ptr(std::string_view key) const override
+    {
         if (m_data.contains(key)) {
             return &const_cast<dict&>(m_data)[key];
         }
@@ -300,26 +355,31 @@ public:
     }
 
     // 值访问（向后兼容，但优化路径不会使用）
-    mc::variant get(std::string_view key) const override {
+    mc::variant get(std::string_view key) const override
+    {
         if (!m_data.contains(key)) {
             throw std::out_of_range("键不存在");
         }
         return m_data[key];
     }
 
-    void set(std::string_view key, const mc::variant& value) override {
+    void set(std::string_view key, const mc::variant& value) override
+    {
         m_data[std::string(key)] = value;
     }
 
-    std::size_t hash() const override {
+    std::size_t hash() const override
+    {
         return m_data.hash();
     }
 
-    std::string as_string() const override {
+    std::string as_string() const override
+    {
         return "variant_object_extension{" + std::to_string(m_data.size()) + " keys}";
     }
 
-    const dict& get_data() const {
+    const dict& get_data() const
+    {
         return m_data;
     }
 
@@ -332,19 +392,23 @@ class fallback_object_extension : public variant_extension<fallback_object_exten
 public:
     fallback_object_extension() = default;
     explicit fallback_object_extension(std::unordered_map<std::string, mc::variant> entries)
-        : m_entries(std::move(entries)) {
+        : m_entries(std::move(entries))
+    {
     }
 
-    bool equals(const variant_extension_base& other) const override {
+    bool equals(const variant_extension_base& other) const override
+    {
         auto* rhs = dynamic_cast<const fallback_object_extension*>(&other);
         return rhs != nullptr && rhs->m_entries == m_entries;
     }
 
-    std::size_t hash() const override {
+    std::size_t hash() const override
+    {
         return m_entries.size();
     }
 
-    mc::variant get(std::string_view key) const override {
+    mc::variant get(std::string_view key) const override
+    {
         auto it = m_entries.find(std::string(key));
         if (it == m_entries.end()) {
             throw std::out_of_range("key not found");
@@ -352,11 +416,13 @@ public:
         return it->second;
     }
 
-    void set(std::string_view key, const mc::variant& value) override {
+    void set(std::string_view key, const mc::variant& value) override
+    {
         m_entries[std::string(key)] = value;
     }
 
-    const std::unordered_map<std::string, mc::variant>& entries() const {
+    const std::unordered_map<std::string, mc::variant>& entries() const
+    {
         return m_entries;
     }
 
@@ -369,33 +435,39 @@ class fallback_array_extension : public variant_extension<fallback_array_extensi
 public:
     fallback_array_extension() = default;
     explicit fallback_array_extension(std::vector<mc::variant> entries)
-        : m_entries(std::move(entries)) {
+        : m_entries(std::move(entries))
+    {
     }
 
-    bool equals(const variant_extension_base& other) const override {
+    bool equals(const variant_extension_base& other) const override
+    {
         auto* rhs = dynamic_cast<const fallback_array_extension*>(&other);
         return rhs != nullptr && rhs->m_entries == m_entries;
     }
 
-    std::size_t hash() const override {
+    std::size_t hash() const override
+    {
         return m_entries.size();
     }
 
-    mc::variant get(std::size_t index) const override {
+    mc::variant get(std::size_t index) const override
+    {
         if (index >= m_entries.size()) {
             throw std::out_of_range("index out of range");
         }
         return m_entries[index];
     }
 
-    void set(std::size_t index, const mc::variant& value) override {
+    void set(std::size_t index, const mc::variant& value) override
+    {
         if (index >= m_entries.size()) {
             throw std::out_of_range("index out of range");
         }
         m_entries[index] = value;
     }
 
-    const std::vector<mc::variant>& entries() const {
+    const std::vector<mc::variant>& entries() const
+    {
         return m_entries;
     }
 
@@ -405,13 +477,16 @@ private:
 
 class VariantExtensionTest : public mc::test::TestBase {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
     }
-    void TearDown() override {
+    void TearDown() override
+    {
     }
 };
 
-TEST_F(VariantExtensionTest, VariantExtensionConstruction) {
+TEST_F(VariantExtensionTest, VariantExtensionConstruction)
+{
     // 测试 variant 从扩展类型构造
     variant v(mc::make_shared<complex_extension>("test", 10));
 
@@ -423,7 +498,8 @@ TEST_F(VariantExtensionTest, VariantExtensionConstruction) {
     EXPECT_EQ(result->get_count(), 10);
 }
 
-TEST_F(VariantExtensionTest, VariantExtensionCopy) {
+TEST_F(VariantExtensionTest, VariantExtensionCopy)
+{
     // 测试 variant 扩展类型的拷贝
     auto    ext = mc::make_shared<test_extension>(600);
     variant v1(std::move(ext));
@@ -440,7 +516,8 @@ TEST_F(VariantExtensionTest, VariantExtensionCopy) {
     EXPECT_EQ(ext1->get_value(), ext2->get_value());
 }
 
-TEST_F(VariantExtensionTest, ExtensionEqualityUsesEquals) {
+TEST_F(VariantExtensionTest, ExtensionEqualityUsesEquals)
+{
     auto ext1 = mc::make_shared<test_extension>(135);
     auto ext2 = mc::make_shared<test_extension>(135);
     auto ext3 = mc::make_shared<test_extension>(246);
@@ -455,7 +532,8 @@ TEST_F(VariantExtensionTest, ExtensionEqualityUsesEquals) {
     EXPECT_TRUE(v1 != v3);
 }
 
-TEST_F(VariantExtensionTest, VariantExtensionMove) {
+TEST_F(VariantExtensionTest, VariantExtensionMove)
+{
     // 测试 variant 扩展类型的移动
     auto    ext = std::make_unique<test_extension>(700);
     variant v1(std::move(ext));
@@ -469,7 +547,8 @@ TEST_F(VariantExtensionTest, VariantExtensionMove) {
     EXPECT_EQ(ext2->get_value(), 700);
 }
 
-TEST_F(VariantExtensionTest, ExtensionTypeConversionMethods) {
+TEST_F(VariantExtensionTest, ExtensionTypeConversionMethods)
+{
     // 测试扩展类型的转换方法
     auto    ext = mc::make_shared<test_extension>(800);
     variant v(std::move(ext));
@@ -485,7 +564,8 @@ TEST_F(VariantExtensionTest, ExtensionTypeConversionMethods) {
     EXPECT_EQ(blob.as_string_view(), "test_extension(800)");
 }
 
-TEST_F(VariantExtensionTest, ComplexExtensionType) {
+TEST_F(VariantExtensionTest, ComplexExtensionType)
+{
     // 测试复杂扩展类型
     auto    ext = mc::make_shared<complex_extension>("complex_test", 15);
     variant v(std::move(ext));
@@ -498,7 +578,8 @@ TEST_F(VariantExtensionTest, ComplexExtensionType) {
     EXPECT_EQ(result->get_count(), 15);
 }
 
-TEST_F(VariantExtensionTest, ExtensionTypeHash) {
+TEST_F(VariantExtensionTest, ExtensionTypeHash)
+{
     // 测试扩展类型的哈希值
     auto ext1 = mc::make_shared<test_extension>(1000);
     auto ext2 = mc::make_shared<test_extension>(1000);
@@ -508,7 +589,8 @@ TEST_F(VariantExtensionTest, ExtensionTypeHash) {
     EXPECT_NE(ext1->hash(), ext3->hash());
 }
 
-TEST_F(VariantExtensionTest, ExtensionTypeInArray) {
+TEST_F(VariantExtensionTest, ExtensionTypeInArray)
+{
     // 测试扩展类型在数组中的使用
     variants array;
 
@@ -535,7 +617,8 @@ TEST_F(VariantExtensionTest, ExtensionTypeInArray) {
     EXPECT_EQ(array[2].as_int64(), 42);
 }
 
-TEST_F(VariantExtensionTest, ExtensionTypeInObject) {
+TEST_F(VariantExtensionTest, ExtensionTypeInObject)
+{
     // 测试扩展类型在对象中的使用
     dict obj;
 
@@ -562,11 +645,12 @@ TEST_F(VariantExtensionTest, ExtensionTypeInObject) {
     EXPECT_EQ(obj["normal_value"].as_string(), "string_value");
 }
 
-TEST_F(VariantExtensionTest, ExtensionReferenceFallbackByKey) {
+TEST_F(VariantExtensionTest, ExtensionReferenceFallbackByKey)
+{
     std::unordered_map<std::string, mc::variant> entries{
         {"count", 7},
         {"desc", "value"}};
-    auto ext = mc::make_shared<fallback_object_extension>(entries);
+    auto    ext = mc::make_shared<fallback_object_extension>(entries);
     variant v(ext);
 
     auto ref = v["count"];
@@ -582,7 +666,8 @@ TEST_F(VariantExtensionTest, ExtensionReferenceFallbackByKey) {
     EXPECT_EQ(const_view["desc"].as_string(), "value");
 }
 
-TEST_F(VariantExtensionTest, ExtensionReferenceFallbackByIndex) {
+TEST_F(VariantExtensionTest, ExtensionReferenceFallbackByIndex)
+{
     std::vector<mc::variant> entries{1, "middle", 3.14};
     auto                     ext = mc::make_shared<fallback_array_extension>(entries);
     variant                  v(ext);
@@ -600,7 +685,8 @@ TEST_F(VariantExtensionTest, ExtensionReferenceFallbackByIndex) {
     EXPECT_EQ(const_view[0].as_int64(), 1);
 }
 
-TEST_F(VariantExtensionTest, NullExtensionThrowsOnAccess) {
+TEST_F(VariantExtensionTest, NullExtensionThrowsOnAccess)
+{
     variant null_ext(mc::shared_ptr<variant_extension_base>{});
     EXPECT_THROW(null_ext["any"], mc::runtime_exception);
     EXPECT_THROW(null_ext[0], mc::runtime_exception);
@@ -610,7 +696,8 @@ TEST_F(VariantExtensionTest, NullExtensionThrowsOnAccess) {
     EXPECT_THROW(null_const[0], mc::runtime_exception);
 }
 
-TEST_F(VariantExtensionTest, ExtensionSerialization) {
+TEST_F(VariantExtensionTest, ExtensionSerialization)
+{
     // 测试扩展类型的序列化和反序列化
     auto    ext = mc::make_shared<complex_extension>("serialization_test", 42);
     variant v(std::move(ext));
@@ -633,7 +720,8 @@ TEST_F(VariantExtensionTest, ExtensionSerialization) {
     EXPECT_EQ(complex_ext->get_count(), 42);
 }
 
-TEST_F(VariantExtensionTest, FromVariant) {
+TEST_F(VariantExtensionTest, FromVariant)
+{
     complex_extension ext("serialization_test", 42);
     variant           v(ext);
 
@@ -645,7 +733,8 @@ TEST_F(VariantExtensionTest, FromVariant) {
 
 // ========== 零开销引用访问测试 ==========
 
-TEST_F(VariantExtensionTest, ArrayExtensionWithZeroCopyAccess) {
+TEST_F(VariantExtensionTest, ArrayExtensionWithZeroCopyAccess)
+{
     // 创建支持零开销访问的数组扩展
     auto ext = mc::make_shared<variant_array_extension>(
         mc::array<mc::variant>{10, 20, 30, 40, 50});
@@ -675,7 +764,8 @@ TEST_F(VariantExtensionTest, ArrayExtensionWithZeroCopyAccess) {
     EXPECT_EQ(ext->get_data()[1], 200);
 }
 
-TEST_F(VariantExtensionTest, ObjectExtensionWithZeroCopyAccess) {
+TEST_F(VariantExtensionTest, ObjectExtensionWithZeroCopyAccess)
+{
     // 创建支持零开销访问的对象扩展
     auto ext = mc::make_shared<variant_object_extension>(
         dict{{"name", "Alice"}, {"age", 30}, {"score", 95.5}});
@@ -705,7 +795,8 @@ TEST_F(VariantExtensionTest, ObjectExtensionWithZeroCopyAccess) {
     EXPECT_EQ(ext->get_data()["age"], 35);
 }
 
-TEST_F(VariantExtensionTest, ExtensionOperatorChainedAccess) {
+TEST_F(VariantExtensionTest, ExtensionOperatorChainedAccess)
+{
     // 测试嵌套的 extension + 链式访问
     auto inner_ext = mc::make_shared<variant_array_extension>(
         mc::array<mc::variant>{100, 200, 300});
@@ -729,7 +820,8 @@ TEST_F(VariantExtensionTest, ExtensionOperatorChainedAccess) {
     EXPECT_EQ(v["data"][1], 250);
 }
 
-TEST_F(VariantExtensionTest, ExtensionMixedWithNormalVariant) {
+TEST_F(VariantExtensionTest, ExtensionMixedWithNormalVariant)
+{
     // 测试扩展对象与普通 variant 的混合使用
     auto ext = mc::make_shared<variant_array_extension>(
         mc::array<mc::variant>{
@@ -757,7 +849,8 @@ TEST_F(VariantExtensionTest, ExtensionMixedWithNormalVariant) {
     EXPECT_EQ(v[2]["x"], 10);
 }
 
-TEST_F(VariantExtensionTest, ExtensionNestedExtensions) {
+TEST_F(VariantExtensionTest, ExtensionNestedExtensions)
+{
     // 测试嵌套的 extension（extension 中包含 extension）
     auto inner_ext1 = mc::make_shared<variant_array_extension>(
         mc::array<mc::variant>{1, 2, 3});
@@ -791,7 +884,8 @@ TEST_F(VariantExtensionTest, ExtensionNestedExtensions) {
     EXPECT_EQ(v["first"][2] * v["second"][0], 30); // 3 * 10
 }
 
-TEST_F(VariantExtensionTest, ExtensionZeroCopyVerification) {
+TEST_F(VariantExtensionTest, ExtensionZeroCopyVerification)
+{
     // 验证确实是零开销（通过指针地址验证）
     auto ext = mc::make_shared<variant_array_extension>(
         mc::array<mc::variant>{10, 20, 30});
@@ -811,7 +905,8 @@ TEST_F(VariantExtensionTest, ExtensionZeroCopyVerification) {
     EXPECT_EQ(internal_ptr1, ref_ptr1) << "v[1] 应该直接引用内部数据";
 }
 
-TEST_F(VariantExtensionTest, ExtensionStringConcatenation) {
+TEST_F(VariantExtensionTest, ExtensionStringConcatenation)
+{
     // 测试字符串扩展的拼接操作
     auto ext = mc::make_shared<variant_array_extension>(
         mc::array<mc::variant>{"Hello", " ", "World", "!"});
@@ -827,7 +922,8 @@ TEST_F(VariantExtensionTest, ExtensionStringConcatenation) {
     EXPECT_EQ(("Prefix: " + v[0]).as_string(), "Prefix: Hello");
 }
 
-TEST_F(VariantExtensionTest, ExtensionModificationPersistence) {
+TEST_F(VariantExtensionTest, ExtensionModificationPersistence)
+{
     // 验证通过 operator[] 修改的数据持久化到 extension 内部
     auto ext = mc::make_shared<variant_object_extension>(
         dict{{"x", 10}, {"y", 20}, {"z", 30}});
@@ -852,7 +948,8 @@ TEST_F(VariantExtensionTest, ExtensionModificationPersistence) {
     EXPECT_EQ(v["y"], 200);
 }
 
-TEST_F(VariantExtensionTest, ExtensionMixedOperations) {
+TEST_F(VariantExtensionTest, ExtensionMixedOperations)
+{
     // 测试扩展对象的混合操作场景
     auto arr_ext = mc::make_shared<variant_array_extension>(
         mc::array<mc::variant>{5, 10, 15});
@@ -874,7 +971,8 @@ TEST_F(VariantExtensionTest, ExtensionMixedOperations) {
     EXPECT_EQ(obj_var["offset"], 110); // 100 + 10
 }
 
-TEST_F(VariantExtensionTest, ExtensionOperatorAllTypes) {
+TEST_F(VariantExtensionTest, ExtensionOperatorAllTypes)
+{
     // 测试扩展对象支持所有操作符类型
     auto ext = mc::make_shared<variant_array_extension>(
         mc::array<mc::variant>{12, 10, 5, true, "text"});
@@ -903,7 +1001,8 @@ TEST_F(VariantExtensionTest, ExtensionOperatorAllTypes) {
 }
 
 // 测试非数组的 extension 不应该被转换为数组
-TEST_F(VariantExtensionTest, NonArrayExtensionCannotConvertToArray) {
+TEST_F(VariantExtensionTest, NonArrayExtensionCannotConvertToArray)
+{
     // 创建一个非数组的 extension
     auto ext = mc::make_shared<test_extension>(42);
 
@@ -933,7 +1032,8 @@ TEST_F(VariantExtensionTest, NonArrayExtensionCannotConvertToArray) {
 }
 
 // 测试内置数组转换到强类型数组
-TEST_F(VariantExtensionTest, BuiltinArrayToTypedArray) {
+TEST_F(VariantExtensionTest, BuiltinArrayToTypedArray)
+{
     // mc::variants -> mc::array<int>
     mc::variants var_arr = {1, 2, 3, 4, 5};
     mc::variant  v       = var_arr;
@@ -966,38 +1066,40 @@ TEST_F(VariantExtensionTest, BuiltinArrayToTypedArray) {
 }
 
 // 测试 extension 零开销引用访问路径
-TEST_F(VariantExtensionTest, ExtensionReferenceAccessFastPath) {
+TEST_F(VariantExtensionTest, ExtensionReferenceAccessFastPath)
+{
     // 创建一个支持引用访问的 extension
-    auto ext = mc::make_shared<simple_extension>(42, true); // allow_reference = true
+    auto    ext = mc::make_shared<simple_extension>(42, true); // allow_reference = true
     variant v(ext);
 
     // 通过 operator[] 访问，应该使用零开销引用路径
     variant_reference ref = v["value"];
-    
+
     // 验证引用可以修改值
     ref = variant(100);
     EXPECT_EQ(v["value"].as_int64(), 100);
-    
+
     // 验证修改后的值被正确保存
     EXPECT_EQ(ext->current_value(), 100);
 }
 
 // 测试 extension 比较时底层指针缺失的情况
-TEST_F(VariantExtensionTest, ExtensionMissingUnderlyingPtr) {
+TEST_F(VariantExtensionTest, ExtensionMissingUnderlyingPtr)
+{
     // 创建一个 extension 并赋值给 v1
-    auto ext1 = mc::make_shared<test_extension>(42);
+    auto    ext1 = mc::make_shared<test_extension>(42);
     variant v1(ext1);
-    
+
     // 创建一个空的 extension_ptr
     variant v2;
     v2 = variant(mc::shared_ptr<mc::variant_extension_base>()); // nullptr extension
-    
+
     // 比较空 extension 和有效 extension
     EXPECT_FALSE(v1 == v2);
     EXPECT_FALSE(v2 == v1);
-    
+
     // 比较两个有效的 extension
-    auto ext2 = mc::make_shared<test_extension>(42);
+    auto    ext2 = mc::make_shared<test_extension>(42);
     variant v3(ext2);
     EXPECT_TRUE(v1 == v3);
 }

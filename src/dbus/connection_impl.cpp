@@ -22,17 +22,20 @@ namespace mc::dbus {
 static std::once_flag s_init_dbus;
 
 connection_impl::connection_impl(mc::io_context& executor)
-    : m_executor(executor) {
+    : m_executor(executor)
+{
     std::call_once(s_init_dbus, []() {
         dbus_threads_init_default();
     });
 }
 
-connection_impl::~connection_impl() {
+connection_impl::~connection_impl()
+{
     disconnect();
 }
 
-uint32_t connection_impl::get_next_serial() {
+uint32_t connection_impl::get_next_serial()
+{
     std::size_t retry = 0;
     do {
         if (m_next_serial == std::numeric_limits<uint32_t>::max()) {
@@ -46,7 +49,8 @@ uint32_t connection_impl::get_next_serial() {
     MC_THROW(mc::system_exception, "Failed to allocate message serial number");
 }
 
-void connection_impl::disconnect() {
+void connection_impl::disconnect()
+{
     std::lock_guard lock(m_mutex);
     if (!m_connection || m_status == connect_status::disconnected ||
         m_status == connect_status::disconnecting) {
@@ -57,7 +61,8 @@ void connection_impl::disconnect() {
     release();
 }
 
-bool connection_impl::send(message&& msg) {
+bool connection_impl::send(message&& msg)
+{
     std::lock_guard lock(m_mutex);
     if (!is_connected()) {
         return false;
@@ -72,7 +77,8 @@ bool connection_impl::send(message&& msg) {
     return dbus_connection_send(m_connection, msg.get_dbus_message(), nullptr);
 }
 
-message connection_impl::send_with_reply_and_block(message&& msg, mc::milliseconds timeout) {
+message connection_impl::send_with_reply_and_block(message&& msg, mc::milliseconds timeout)
+{
     if (!m_connection) {
         MC_THROW(mc::system_exception, "DBus connection not established");
     }
@@ -95,7 +101,8 @@ message connection_impl::send_with_reply_and_block(message&& msg, mc::millisecon
 }
 
 connection::future<message> connection_impl::async_send_with_reply(message&&        msg,
-                                                                   mc::milliseconds timeout) {
+                                                                   mc::milliseconds timeout)
+{
     std::lock_guard lock(m_mutex);
 
     auto promise = mc::make_promise<message>(m_executor.get_executor());
@@ -140,7 +147,8 @@ connection::future<message> connection_impl::async_send_with_reply(message&&    
     return future;
 }
 
-static DBusHandlerResult path_handler(DBusConnection* conn, DBusMessage* msg, void* user_data) {
+static DBusHandlerResult path_handler(DBusConnection* conn, DBusMessage* msg, void* user_data)
+{
     auto handler = static_cast<path_handler_type*>(user_data);
     try {
         auto message = mc::dbus::message(msg, true);
@@ -160,12 +168,14 @@ static DBusHandlerResult path_handler(DBusConnection* conn, DBusMessage* msg, vo
     }
 }
 
-static void path_unregister(DBusConnection* conn, void* user_data) {
+static void path_unregister(DBusConnection* conn, void* user_data)
+{
     auto handler = static_cast<path_handler_type*>(user_data);
     delete handler;
 }
 
-void connection_impl::register_path(std::string_view path, path_handler_type handler) {
+void connection_impl::register_path(std::string_view path, path_handler_type handler)
+{
     std::lock_guard lock(m_mutex);
     if (!is_connected()) {
         return;
@@ -178,7 +188,8 @@ void connection_impl::register_path(std::string_view path, path_handler_type han
     dbus_connection_register_object_path(m_connection, path.data(), &vtable, handler_data);
 }
 
-void connection_impl::unregister_path(std::string_view path) {
+void connection_impl::unregister_path(std::string_view path)
+{
     std::lock_guard lock(m_mutex);
     if (!is_connected()) {
         return;
@@ -187,15 +198,18 @@ void connection_impl::unregister_path(std::string_view path) {
     dbus_connection_unregister_object_path(m_connection, path.data());
 }
 
-bool connection_impl::is_connected() const {
+bool connection_impl::is_connected() const
+{
     return m_connection && m_status == connect_status::connected;
 }
 
-bool connection_impl::get_is_connected() const {
+bool connection_impl::get_is_connected() const
+{
     return m_connection && dbus_connection_get_is_connected(m_connection);
 }
 
-void connection_impl::release() {
+void connection_impl::release()
+{
     if (m_connection) {
         dbus_connection_close(m_connection);
         dbus_connection_unref(m_connection);
@@ -207,7 +221,8 @@ void connection_impl::release() {
     m_match_strs.clear();
 }
 
-bool connection_impl::start() {
+bool connection_impl::start()
+{
     std::lock_guard lock(m_mutex);
 
     if (!m_connection || m_status != connect_status::connecting) {
@@ -228,7 +243,8 @@ bool connection_impl::start() {
 }
 
 std::tuple<bool, std::optional<error>> connection_impl::request_name(std::string_view name,
-                                                                     uint32_t         flags) {
+                                                                     uint32_t         flags)
+{
     error err;
 
     if (name.empty()) {
@@ -270,7 +286,8 @@ std::tuple<bool, std::optional<error>> connection_impl::request_name(std::string
     return {false, std::move(err)};
 }
 
-void connection_impl::initialize() {
+void connection_impl::initialize()
+{
     dbus_connection_set_exit_on_disconnect(m_connection, false);
     dbus_connection_set_watch_functions(m_connection, watch_add, watch_remove, watch_toggled, this,
                                         nullptr);
@@ -281,7 +298,8 @@ void connection_impl::initialize() {
                                                  nullptr);
 }
 
-DBusHandlerResult connection_impl::process_message(mc::dbus::message message) {
+DBusHandlerResult connection_impl::process_message(mc::dbus::message message)
+{
     auto msg_type = message.get_type();
     if (msg_type == message_type::method_return || msg_type == message_type::error) {
         uint32_t reply_serial = message.get_reply_serial();
@@ -299,7 +317,8 @@ DBusHandlerResult connection_impl::process_message(mc::dbus::message message) {
     return on_filter_message(message).get_value_or(DBUS_HANDLER_RESULT_NOT_YET_HANDLED);
 }
 
-void connection_impl::process_reply(uint32_t reply_serial, message& msg) {
+void connection_impl::process_reply(uint32_t reply_serial, message& msg)
+{
     std::lock_guard lock(m_mutex);
 
     auto it = m_pending_calls.find(reply_serial);
@@ -316,20 +335,23 @@ void connection_impl::process_reply(uint32_t reply_serial, message& msg) {
     });
 }
 
-void connection_impl::dispatch() {
+void connection_impl::dispatch()
+{
     std::lock_guard lock(m_mutex);
     while (is_connected() && dbus_connection_dispatch(m_connection) == DBUS_DISPATCH_DATA_REMAINS) {
     }
 }
 
-void connection_impl::flush() {
+void connection_impl::flush()
+{
     std::lock_guard lock(m_mutex);
     if (is_connected()) {
         dbus_connection_flush(m_connection);
     }
 }
 
-dbus_bool_t connection_impl::watch_add(DBusWatch* watch, void* data) {
+dbus_bool_t connection_impl::watch_add(DBusWatch* watch, void* data)
+{
     connection_impl* conn = static_cast<connection_impl*>(data);
     if (!dbus_watch_get_enabled(watch)) {
         return TRUE;
@@ -345,14 +367,16 @@ dbus_bool_t connection_impl::watch_add(DBusWatch* watch, void* data) {
     return TRUE;
 }
 
-void connection_impl::watch_remove(DBusWatch* watch, void*) {
+void connection_impl::watch_remove(DBusWatch* watch, void*)
+{
     auto* watch_data = dbus_watch_get_data(watch);
     if (watch_data) {
         static_cast<mc::dbus::watch*>(watch_data)->stop();
     }
 }
 
-void connection_impl::watch_toggled(DBusWatch* watch, void* data) {
+void connection_impl::watch_toggled(DBusWatch* watch, void* data)
+{
     auto* watch_data = dbus_watch_get_data(watch);
     if (!watch_data) {
         return;
@@ -366,7 +390,8 @@ void connection_impl::watch_toggled(DBusWatch* watch, void* data) {
     }
 }
 
-dbus_bool_t connection_impl::timeout_add(DBusTimeout* timeout, void* data) {
+dbus_bool_t connection_impl::timeout_add(DBusTimeout* timeout, void* data)
+{
     connection_impl* conn = static_cast<connection_impl*>(data);
     if (!dbus_timeout_get_enabled(timeout)) {
         return TRUE;
@@ -383,14 +408,16 @@ dbus_bool_t connection_impl::timeout_add(DBusTimeout* timeout, void* data) {
     return TRUE;
 }
 
-void connection_impl::timeout_remove(DBusTimeout* timeout, void*) {
+void connection_impl::timeout_remove(DBusTimeout* timeout, void*)
+{
     auto* timeout_data = dbus_timeout_get_data(timeout);
     if (timeout_data) {
         static_cast<mc::dbus::timeout*>(timeout_data)->stop();
     }
 }
 
-void connection_impl::timeout_toggled(DBusTimeout* timeout, void* data) {
+void connection_impl::timeout_toggled(DBusTimeout* timeout, void* data)
+{
     auto* timeout_data = dbus_timeout_get_data(timeout);
     if (!timeout_data) {
         return;
@@ -405,13 +432,15 @@ void connection_impl::timeout_toggled(DBusTimeout* timeout, void* data) {
 }
 
 DBusHandlerResult connection_impl::message_filter(DBusConnection*, DBusMessage* msg,
-                                                  void* user_data) {
+                                                  void* user_data)
+{
     connection_impl* conn = static_cast<connection_impl*>(user_data);
     return conn->process_message(mc::dbus::message(msg, true));
 }
 
 void connection_impl::dispatch_status_changed(DBusConnection*, DBusDispatchStatus new_status,
-                                              void* user_data) {
+                                              void* user_data)
+{
     connection* conn = static_cast<connection*>(user_data);
 
     if (new_status == DBUS_DISPATCH_DATA_REMAINS) {
@@ -419,7 +448,8 @@ void connection_impl::dispatch_status_changed(DBusConnection*, DBusDispatchStatu
     }
 }
 
-void connection_impl::add_rule(match_rule& rule, match_cb_t&& cb, uint64_t id) {
+void connection_impl::add_rule(match_rule& rule, match_cb_t&& cb, uint64_t id)
+{
     std::lock_guard lock(m_mutex);
 
     // 添加连接状态检查
@@ -434,7 +464,8 @@ void connection_impl::add_rule(match_rule& rule, match_cb_t&& cb, uint64_t id) {
     m_match_strs.emplace(id, std::move(str));
 }
 
-void connection_impl::remove_rule(uint64_t id) {
+void connection_impl::remove_rule(uint64_t id)
+{
     std::lock_guard lock(m_mutex);
 
     m_match.remove_rule(id);
@@ -450,7 +481,8 @@ void connection_impl::remove_rule(uint64_t id) {
     }
 }
 
-void connection_impl::add_match(match_rule& rule, match_cb_t&& cb, uint64_t id) {
+void connection_impl::add_match(match_rule& rule, match_cb_t&& cb, uint64_t id)
+{
     std::lock_guard lock(m_mutex);
 
     // 添加连接状态检查
@@ -472,7 +504,8 @@ void connection_impl::add_match(match_rule& rule, match_cb_t&& cb, uint64_t id) 
     m_match_strs.emplace(id, std::move(str));
 }
 
-void connection_impl::add_match_only(match_rule& rule, match_cb_t&& cb, uint64_t id) {
+void connection_impl::add_match_only(match_rule& rule, match_cb_t&& cb, uint64_t id)
+{
     std::lock_guard lock(m_mutex);
     // 添加连接状态检查
     if (!is_connected()) {
@@ -489,7 +522,8 @@ void connection_impl::add_match_only(match_rule& rule, match_cb_t&& cb, uint64_t
     }
 }
 
-void connection_impl::remove_match(uint64_t id) {
+void connection_impl::remove_match(uint64_t id)
+{
     std::lock_guard lock(m_mutex);
 
     m_match.remove_rule(id);
@@ -513,11 +547,13 @@ void connection_impl::remove_match(uint64_t id) {
     m_match_strs.erase(it);
 }
 
-match& connection_impl::get_match() {
+match& connection_impl::get_match()
+{
     return m_match;
 }
 
-std::string connection_impl::get_service_name() const {
+std::string connection_impl::get_service_name() const
+{
     return m_service_name;
 }
 

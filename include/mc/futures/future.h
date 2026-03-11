@@ -29,13 +29,15 @@ struct invoke_func_convert_arg;
 template <typename T, typename F, typename... Args>
 struct invoke_func_convert_arg<T, F, std::tuple<Args...>> {
     template <typename... InputArgs>
-    static auto invoke(F&& func, InputArgs&&... args) {
+    static auto invoke(F&& func, InputArgs&&... args)
+    {
         return func(mc::detail::convert_arg<Args>("future_arg", std::forward<InputArgs>(args))...);
     }
 };
 
 template <typename T, typename F, typename... Args>
-auto invoke_func(F&& func, Args&&... args) {
+auto invoke_func(F&& func, Args&&... args)
+{
     if constexpr (std::is_invocable_v<F>) {
         // 1、不管有没有参数的 future，都支持在链式调用时提供没有参数的 func，
         return func(); // 丢弃参数直接调用 func
@@ -123,7 +125,8 @@ using result_t = typename result_test<T, F, std::tuple<Args...>>::type;
 
 // 快速构造已完成的 future，直接设置结果和状态避免加锁
 template <typename T, typename Executor>
-auto make_resolved_state(T value, Executor executor) {
+auto make_resolved_state(T value, Executor executor)
+{
     auto state = make_pooled_state<T>(std::move(executor));
     state->set_value(std::move(value));
     state->set_ready();
@@ -132,7 +135,8 @@ auto make_resolved_state(T value, Executor executor) {
 
 // 快速构造已完成的 future，直接设置结果和状态避免加锁（void 特化）
 template <typename Executor>
-auto make_resolved_state(Executor executor) {
+auto make_resolved_state(Executor executor)
+{
     auto state = make_pooled_state<void>(std::move(executor));
     state->set_value();
     state->set_ready();
@@ -141,7 +145,8 @@ auto make_resolved_state(Executor executor) {
 
 // 快速构造已失败的 future，直接设置异常和状态，避免加锁
 template <typename T, typename Executor>
-auto make_rejected_state(std::exception_ptr error, Executor executor) {
+auto make_rejected_state(std::exception_ptr error, Executor executor)
+{
     auto state = make_pooled_state<T>(std::move(executor));
     state->set_exception(error);
     state->set_ready();
@@ -149,7 +154,8 @@ auto make_rejected_state(std::exception_ptr error, Executor executor) {
 }
 
 template <typename T, typename Executor>
-auto make_rejected_state(mc::exception error, Executor executor) {
+auto make_rejected_state(mc::exception error, Executor executor)
+{
     return make_rejected_state<T>(std::make_exception_ptr(error), std::move(executor));
 }
 
@@ -169,10 +175,12 @@ public:
 
     Future() = default;
     explicit Future(state_ptr<state_type> state)
-        : any_future(*reinterpret_cast<state_base_ptr*>(&state)) {
+        : any_future(*reinterpret_cast<state_base_ptr*>(&state))
+    {
     }
     explicit Future(any_future&& future)
-        : any_future(std::forward<any_future>(future)) {
+        : any_future(std::forward<any_future>(future))
+    {
     }
     ~Future() = default;
 
@@ -222,12 +230,12 @@ public:
     // 添加取消回调（用于清理资源）- 左值引用版本
     template <typename F>
     auto on_cancel(F&& callback) & -> std::enable_if_t<
-        detail::is_cancel_callback_v<F>, future_type&>;
+                                       detail::is_cancel_callback_v<F>, future_type&>;
 
     // 添加取消回调（用于清理资源）- 右值引用版本
     template <typename F>
     auto on_cancel(F&& callback) && -> std::enable_if_t<
-        detail::is_cancel_callback_v<F>, future_type>;
+                                        detail::is_cancel_callback_v<F>, future_type>;
 
     // 获取结果（异步等待）
     template <typename CompletionToken>
@@ -245,7 +253,8 @@ public:
     auto as_future(std::optional<mc::any_executor> executor = std::nullopt)
         -> Future<detail::state_tt<OtherT>>;
 
-    const state_ptr<state_type>& get_state() const {
+    const state_ptr<state_type>& get_state() const
+    {
         auto& state = any_future::get_state();
         return *reinterpret_cast<const state_ptr<state_type>*>(&state);
     }

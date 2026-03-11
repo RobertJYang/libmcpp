@@ -12,25 +12,25 @@
 
 #ifndef MC_DEBOUNCE_BINARY_CONTINUE_H
 #define MC_DEBOUNCE_BINARY_CONTINUE_H
+#include "mc/debounce/base.h"
 #include <cstdint>
 #include <optional>
-#include "mc/debounce/base.h"
 
 namespace mc::debounce {
 class MC_API BinaryContinue : public Base {
 public:
     BinaryContinue(int h_count, int l_count);
     std::optional<int> get_debounce_val(int val) override;
-    void clear_debounce_val() override;
+    void               clear_debounce_val() override;
 
 private:
-    int m_high_level_count;
-    int m_low_level_count;
-    int m_stable_val;
-    int m_unstable_val;
-    int m_unstable_val_count;
+    int  m_high_level_count;
+    int  m_low_level_count;
+    int  m_stable_val;
+    int  m_unstable_val;
+    int  m_unstable_val_count;
     bool is_valid;
 };
-}
+} // namespace mc::debounce
 
 #endif // MC_DEBOUNCE_BINARY_CONTINUE_H

@@ -1,14 +1,14 @@
 /*
-* Copyright (c) 2025 Huawei Technologies Co., Ltd.
-* openUBMC is licensed under Mulan PSL v2.
-* You can use this software according to the terms and conditions of the Mulan PSL v2.
-* You may obtain a copy of Mulan PSL v2 at:
-*         http://license.coscl.org.cn/MulanPSL2
-* THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
-* EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
-* MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
-* See the Mulan PSL v2 for more details.
-*/
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * openUBMC is licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *         http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
 
 #include <gtest/gtest.h>
 
@@ -21,7 +21,8 @@ namespace {
 // 测试 variant_base::copy 以及 to_variant/from_variant 转换函数
 class VariantConversionTest : public ::testing::Test {};
 
-TEST_F(VariantConversionTest, CopyOnVariousTypes) {
+TEST_F(VariantConversionTest, CopyOnVariousTypes)
+{
     // 数值
     mc::variant v_num = 123;
     auto        c1    = v_num.copy();
@@ -43,7 +44,8 @@ TEST_F(VariantConversionTest, CopyOnVariousTypes) {
     EXPECT_TRUE(c4 == v_obj);
 }
 
-TEST_F(VariantConversionTest, ToVariantOverloads) {
+TEST_F(VariantConversionTest, ToVariantOverloads)
+{
     // bool -> variant
     mc::variant v1;
     mc::to_variant(true, v1);
@@ -51,14 +53,14 @@ TEST_F(VariantConversionTest, ToVariantOverloads) {
     EXPECT_TRUE(v1 == true);
 
     // const char* -> variant
-    mc::variant  v2;
-    const char*  s1 = "abc";
+    mc::variant v2;
+    const char* s1 = "abc";
     mc::to_variant(s1, v2);
     EXPECT_TRUE(v2.is_string());
     EXPECT_TRUE(v2 == std::string("abc"));
 
     // char* -> variant（可变 C 字符串）
-    char buf[] = {'x', 'y', 'z', '\0'};
+    char        buf[] = {'x', 'y', 'z', '\0'};
     mc::variant v3;
     mc::to_variant(buf, v3);
     EXPECT_TRUE(v3.is_string());
@@ -72,16 +74,17 @@ TEST_F(VariantConversionTest, ToVariantOverloads) {
     EXPECT_TRUE(v4 == arr);
 
     // const char* 为 nullptr -> 空字符串
-    mc::variant  v5;
-    const char*  pnull = nullptr;
+    mc::variant v5;
+    const char* pnull = nullptr;
     mc::to_variant(pnull, v5);
     EXPECT_TRUE(v5.is_string());
     EXPECT_EQ(v5.as_string(), std::string(""));
 }
 
-TEST_F(VariantConversionTest, FromVariantOverloads) {
+TEST_F(VariantConversionTest, FromVariantOverloads)
+{
     // string -> const char* / char*
-    mc::variant vs = std::string("hello");
+    mc::variant vs  = std::string("hello");
     const char* pcs = nullptr;
     mc::from_variant(vs, pcs);
     ASSERT_NE(pcs, nullptr);
@@ -111,7 +114,8 @@ TEST_F(VariantConversionTest, FromVariantOverloads) {
     EXPECT_EQ(out.size(), 2u);
 }
 
-TEST_F(VariantConversionTest, StreamOutputFormatting) {
+TEST_F(VariantConversionTest, StreamOutputFormatting)
+{
     // 覆盖 operator<< 的多个分支
     std::ostringstream os;
 
@@ -140,38 +144,41 @@ TEST_F(VariantConversionTest, StreamOutputFormatting) {
     os << vobj; // object
 
     // blob 输出 blob[size]
-    mc::blob     b{"xy", 2};
-    mc::variant  vblob = b;
+    mc::blob           b{"xy", 2};
+    mc::variant        vblob = b;
     std::ostringstream os_blob;
     os_blob << vblob;
     auto blob_out = os_blob.str();
     EXPECT_NE(blob_out.find("blob[2]"), std::string::npos);
 }
 
-TEST_F(VariantConversionTest, CopyBlobShouldBeEqual) {
-    const char data[] = {'A', 'B'};
-    mc::blob   b{data, sizeof(data)};
+TEST_F(VariantConversionTest, CopyBlobShouldBeEqual)
+{
+    const char  data[] = {'A', 'B'};
+    mc::blob    b{data, sizeof(data)};
     mc::variant vb = b;
-    auto        c   = vb.copy();
+    auto        c  = vb.copy();
     EXPECT_TRUE(c == vb);
 }
 
 // 测试 std::vector 转换时元素类型不匹配抛异常
-TEST_F(VariantConversionTest, StdVectorConversionTypeMismatch) {
+TEST_F(VariantConversionTest, StdVectorConversionTypeMismatch)
+{
     // 输入字符串数组
     mc::variants str_array;
     str_array.push_back("hello");
     str_array.push_back("world");
     str_array.push_back("test");
     mc::variant v(str_array);
-    
+
     // 尝试转换为 std::vector<int>，应该抛出异常
     std::vector<int> int_vec;
     EXPECT_THROW(mc::from_variant(v, int_vec), mc::exception);
 }
 
 // 测试 from_variant 从字符串转换为ay数组
-TEST_F(VariantConversionTest, VectorByteFromString) {
+TEST_F(VariantConversionTest, VectorByteFromString)
+{
     const char*         raw_str1 = "abcd";
     mc::variant         var1     = std::string(raw_str1, 4);
     std::vector<int8_t> arr1;

@@ -16,11 +16,13 @@
 
 namespace mc::expr {
 
-mc::variant literal_node::evaluate(const context_base& ctx) const {
+mc::variant literal_node::evaluate(const context_base& ctx) const
+{
     return m_value;
 }
 
-std::string literal_node::to_string() const {
+std::string literal_node::to_string() const
+{
     if (m_value.is_string()) {
         return "\"" + m_value.get_string() + "\"";
     } else {
@@ -28,7 +30,8 @@ std::string literal_node::to_string() const {
     }
 }
 
-node_ptr make_literal(mc::variant value) {
+node_ptr make_literal(mc::variant value)
+{
     return std::make_shared<literal_node>(std::move(value));
 }
 

@@ -50,11 +50,13 @@ enum class type_code {
     dict_entry_end   = '}', // 字典条目结束
 };
 
-inline char type_to_char(type_code dt) {
+inline char type_to_char(type_code dt)
+{
     return static_cast<char>(dt);
 }
 
-inline type_code char_to_type(char c) {
+inline type_code char_to_type(char c)
+{
     return static_cast<type_code>(c);
 }
 

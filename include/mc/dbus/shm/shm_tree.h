@@ -304,14 +304,16 @@ struct MC_API shm_obj_visitor : mc::engine::metadata_visitor {
      * @param obj [in] 抽象对象
      */
     shm_obj_visitor(shm::object& shm_obj, const mc::engine::abstract_object& obj)
-        : m_obj(obj), m_shm_ins(shm::shared_memory::get_instance()), m_shm_obj(shm_obj) {
+        : m_obj(obj), m_shm_ins(shm::shared_memory::get_instance()), m_shm_obj(shm_obj)
+    {
     }
 
     /**
      * @brief 处理接口开始
      * @param iface [in] 接口元数据
      */
-    void handle_interface_begin(const mc::engine::interface_metadata& iface) override {
+    void handle_interface_begin(const mc::engine::interface_metadata& iface) override
+    {
         m_shm_intf = &m_shm_obj.register_interface(m_shm_ins, false, iface.metadata->get_class_name());
         if (iface.metadata->get_class_name() == OBJECT_PROPERTIES_INTERFACE) {
             m_shm_obj.add_named_object_view(m_shm_ins, OBJECT_PROPERTIES_INTERFACE);
@@ -324,14 +326,16 @@ struct MC_API shm_obj_visitor : mc::engine::metadata_visitor {
      * @brief 处理接口结束
      * @param iface [in] 接口元数据
      */
-    void handle_interface_end(const mc::engine::interface_metadata& iface) override {
+    void handle_interface_end(const mc::engine::interface_metadata& iface) override
+    {
     }
 
     /**
      * @brief 处理属性
      * @param info [in] 属性类型信息
      */
-    void handle(const mc::engine::property_type_info* info) override {
+    void handle(const mc::engine::property_type_info* info) override
+    {
         shm::shared_ptr<shm::property> shm_prop = m_shm_intf->add_p(m_shm_ins, info->name, info->get_signature());
         shm_prop->set_read_privilege(0);
         shm_prop->set_write_privilege(0);
@@ -349,7 +353,8 @@ struct MC_API shm_obj_visitor : mc::engine::metadata_visitor {
      * @brief 处理方法
      * @param info [in] 方法类型信息
      */
-    void handle(const mc::engine::method_type_info* info) override {
+    void handle(const mc::engine::method_type_info* info) override
+    {
         shm::method& shm_method =
             m_shm_intf->add_m(m_shm_ins, info->name, info->get_args_signature(), info->get_result_signature());
         shm_method.set_privilege(0);
@@ -360,7 +365,8 @@ struct MC_API shm_obj_visitor : mc::engine::metadata_visitor {
      * @brief 处理信号
      * @param info [in] 信号类型信息
      */
-    void handle(const mc::engine::signal_type_info* info) override {
+    void handle(const mc::engine::signal_type_info* info) override
+    {
         shm::signal& shm_signal = m_shm_intf->add_s(m_shm_ins, info->name, info->get_args_signature());
         shm_signal.set_flags(info->flags);
     }

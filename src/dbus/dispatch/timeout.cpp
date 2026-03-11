@@ -18,11 +18,13 @@
 
 namespace mc::dbus {
 
-timeout::~timeout() {
+timeout::~timeout()
+{
     stop();
 }
 
-void timeout::start(connection_weak_ptr conn) {
+void timeout::start(connection_weak_ptr conn)
+{
     if (!dbus_timeout_get_enabled(m_timeout)) {
         return;
     }
@@ -58,7 +60,8 @@ void timeout::start(connection_weak_ptr conn) {
     });
 }
 
-void timeout::stop() {
+void timeout::stop()
+{
     m_timeout = nullptr;
     m_timer.cancel();
 }

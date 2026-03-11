@@ -35,7 +35,8 @@ struct user : mc::db::object_base {
     user() = default;
     user(int id, std::string name, int age, double score = 0.0, std::string city = std::string(),
          std::string department = std::string())
-        : m_name(name), m_age(age), m_score(score), m_city(city), m_department(department) {
+        : m_name(name), m_age(age), m_score(score), m_city(city), m_department(department)
+    {
         set_object_id(id);
     }
 
@@ -45,15 +46,18 @@ struct user : mc::db::object_base {
     std::string m_city;
     std::string m_department;
 
-    const std::string& name() const {
+    const std::string& name() const
+    {
         return m_name;
     }
 
-    int age() const {
+    int age() const
+    {
         return m_age;
     }
 
-    double score() const {
+    double score() const
+    {
         return m_score;
     }
 };
@@ -62,7 +66,8 @@ class database_index_test : public mc::test::TestBase {
 };
 
 // 测试 mc::db::index 的基本功能
-TEST_F(database_index_test, mc_database_index_basic) {
+TEST_F(database_index_test, mc_database_index_basic)
+{
     // 创建测试用户数据
     user u1(1, "张三", 20);
     user u2(2, "李四", 25);
@@ -98,7 +103,8 @@ TEST_F(database_index_test, mc_database_index_basic) {
 }
 
 // 测试 mc::db 函数对象键提取器
-TEST_F(database_index_test, mc_database_index_functor_key) {
+TEST_F(database_index_test, mc_database_index_functor_key)
+{
     // 创建测试用户数据
     user u1(1, "张三", 20);
     user u2(2, "李四", 25);
@@ -124,7 +130,8 @@ TEST_F(database_index_test, mc_database_index_functor_key) {
 }
 
 // 测试 mc::db 复合操作
-TEST_F(database_index_test, mc_database_index_operations) {
+TEST_F(database_index_test, mc_database_index_operations)
+{
     // 创建测试用户数据
     user u1(1, "张三", 20);
     user u2(2, "李四", 25);
@@ -164,7 +171,8 @@ TEST_F(database_index_test, mc_database_index_operations) {
 }
 
 // 测试组合键索引及前缀查询迭代
-TEST_F(database_index_test, compound_key_test) {
+TEST_F(database_index_test, compound_key_test)
+{
     // 创建测试用户数据
     user u1(1, "张三", 20);
     user u2(2, "张三", 25);
@@ -297,7 +305,8 @@ TEST_F(database_index_test, compound_key_test) {
 }
 
 // 测试浮点数索引功能
-TEST_F(database_index_test, float_index_test) {
+TEST_F(database_index_test, float_index_test)
+{
     // 创建测试用户数据，包含正数、负数和零的分数
     user u1(1, "张三", 20, 85.5);
     user u2(2, "李四", 25, -12.3);
@@ -355,7 +364,8 @@ TEST_F(database_index_test, float_index_test) {
 }
 
 // 测试浮点数作为非唯一键索引功能
-TEST_F(database_index_test, non_unique_key_test) {
+TEST_F(database_index_test, non_unique_key_test)
+{
     // 创建测试用户数据，包含相同分数的用户
     user u1(1, "张三", 20, 85.5);
     user u2(2, "李四", 25, 85.5); // 与张三分数相同
@@ -456,7 +466,8 @@ TEST_F(database_index_test, non_unique_key_test) {
 }
 
 // 测试非唯一索引的组合键场景
-TEST_F(database_index_test, non_unique_compound_key_test) {
+TEST_F(database_index_test, non_unique_compound_key_test)
+{
     // 创建组合键提取器
     using key_extractor = mc::db::detail::composite_key<
         mc::db::detail::member_key<user, int, &user::m_age>,

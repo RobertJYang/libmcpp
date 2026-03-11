@@ -22,7 +22,8 @@
  * @brief 测试 devices 模块加载
  * @return 测试是否成功
  */
-bool test_devices_module() {
+bool test_devices_module()
+{
     try {
         ilog("=== 1. 验证 devices 模块加载 ===");
 
@@ -57,7 +58,8 @@ bool test_devices_module() {
  * @brief 测试 network 模块加载
  * @return 测试是否成功
  */
-bool test_network_module() {
+bool test_network_module()
+{
     try {
         ilog("=== 2. 验证 network 模块加载 ===");
 
@@ -94,7 +96,8 @@ bool test_network_module() {
  * @brief 测试 protocol 模块加载
  * @return 测试是否成功
  */
-bool test_protocol_module() {
+bool test_protocol_module()
+{
     try {
         ilog("=== 3. 验证 protocol 模块加载 (init.so 模式) ===");
 
@@ -131,7 +134,8 @@ bool test_protocol_module() {
  * @brief 测试 database 模块加载
  * @return 测试是否成功
  */
-bool test_database_module() {
+bool test_database_module()
+{
     try {
         ilog("=== 4. 验证深层路径 database 模块加载 ===");
 
@@ -175,7 +179,8 @@ bool test_database_module() {
 /**
  * @brief 模块路径查找验证总结
  */
-void test_module_path_summary() {
+void test_module_path_summary()
+{
     ilog("=== 5. 模块路径查找验证总结 ===");
     ilog("✓ mc.devices -> modules/mc/devices.so (标准模式)");
     ilog("✓ mc.network -> modules/mc/network.so (标准模式)");
@@ -188,7 +193,8 @@ void test_module_path_summary() {
  * @brief 测试模块两阶段卸载机制
  * @return 测试是否成功
  */
-bool test_two_phase_unload() {
+bool test_two_phase_unload()
+{
     try {
         ilog("=== 6. 模块两阶段卸载机制验证 ===");
         ilog("验证 unload() 只是减少引用计数，真正卸载需要释放所有 module_ptr");
@@ -344,7 +350,8 @@ bool test_two_phase_unload() {
 /**
  * @brief 演示模块系统
  */
-int main() {
+int main()
+{
     try {
         ilog("开始演示模块加载功能");
 

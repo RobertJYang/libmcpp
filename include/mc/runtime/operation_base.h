@@ -45,14 +45,17 @@ struct operation_base {
     destroy_type destroy_func;
 
     operation_base(func_type f, destroy_type d)
-        : next(nullptr), func(f), destroy_func(d) {
+        : next(nullptr), func(f), destroy_func(d)
+    {
     }
 
-    void execute() {
+    void execute()
+    {
         func(this);
     }
 
-    void destroy() {
+    void destroy()
+    {
         destroy_func(this);
     }
 };

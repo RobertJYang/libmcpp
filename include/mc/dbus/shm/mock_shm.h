@@ -28,7 +28,8 @@
 static constexpr int SHM_LOCK_TIMEOUT_DEFAULT_MS = 60000;
 
 // mock 内部使用：大小写不敏感的字符串比较（用于 map/set 排序和异构查找）
-inline bool str_less_i(std::string_view a, std::string_view b) {
+inline bool str_less_i(std::string_view a, std::string_view b)
+{
     const size_t n = std::min(a.size(), b.size());
     for (size_t i = 0; i < n; ++i) {
         const unsigned char ca = static_cast<unsigned char>(a[i]);
@@ -49,10 +50,12 @@ namespace shmlock {
 
 class LockHandle {
 public:
-    LockHandle() {
+    LockHandle()
+    {
     }
 
-    void release() {
+    void release()
+    {
     }
 };
 
@@ -62,10 +65,12 @@ static std::unique_ptr<ShmLockManager> _shm_instance;
 
 class ShmLockManager {
 public:
-    ShmLockManager() {
+    ShmLockManager()
+    {
     }
 
-    static ShmLockManager& get_instance() {
+    static ShmLockManager& get_instance()
+    {
         std::lock_guard lock(_shm_instance_mutex);
 
         if (!_shm_instance) {
@@ -75,15 +80,18 @@ public:
         return *_shm_instance;
     }
 
-    static uint16_t allocate_service_id() {
+    static uint16_t allocate_service_id()
+    {
         return 1;
     }
 
-    LockHandle acquire_read_lock(uint64_t object_id, uint16_t service_id, uint32_t timeout_ms = SHM_LOCK_TIMEOUT_DEFAULT_MS) {
+    LockHandle acquire_read_lock(uint64_t object_id, uint16_t service_id, uint32_t timeout_ms = SHM_LOCK_TIMEOUT_DEFAULT_MS)
+    {
         return LockHandle();
     }
 
-    LockHandle acquire_write_lock(uint64_t object_id, uint16_t service_id, uint32_t timeout_ms = SHM_LOCK_TIMEOUT_DEFAULT_MS) {
+    LockHandle acquire_write_lock(uint64_t object_id, uint16_t service_id, uint32_t timeout_ms = SHM_LOCK_TIMEOUT_DEFAULT_MS)
+    {
         return LockHandle();
     }
 };
@@ -105,74 +113,92 @@ class shared_memory;
 class Rule {
 public:
     Rule()
-        : m_type(MessageType::signal), m_path_namespace(false) {
+        : m_type(MessageType::signal), m_path_namespace(false)
+    {
     }
 
-    void member(const std::string_view& member) {
+    void member(const std::string_view& member)
+    {
         m_member = std::string(member);
     }
 
-    std::string_view member() const {
+    std::string_view member() const
+    {
         return m_member;
     }
 
-    void interface(const std::string_view& interface) {
+    void interface(const std::string_view& interface)
+    {
         m_interface = std::string(interface);
     }
 
-    std::string_view interface() const {
+    std::string_view interface() const
+    {
         return m_interface;
     }
 
-    void path(const std::string_view& path) {
+    void path(const std::string_view& path)
+    {
         m_path = std::string(path);
     }
 
-    std::string_view path() const {
+    std::string_view path() const
+    {
         return m_path;
     }
 
-    void path_namespace(const std::string_view& path_namespace) {
+    void path_namespace(const std::string_view& path_namespace)
+    {
         m_path           = std::string(path_namespace);
         m_path_namespace = true;
     }
 
-    bool path_namespace() const {
+    bool path_namespace() const
+    {
         return m_path_namespace;
     }
 
-    void sender(const std::string_view& sender) {
+    void sender(const std::string_view& sender)
+    {
         m_sender = std::string(sender);
     }
 
-    std::string_view sender() const {
+    std::string_view sender() const
+    {
         return m_sender;
     }
 
-    void type(MessageType type) {
+    void type(MessageType type)
+    {
         m_type = type;
     }
 
-    MessageType type() const {
+    MessageType type() const
+    {
         return m_type;
     }
 
-    bool is_connected() {
+    bool is_connected()
+    {
         return false;
     }
 
-    void disconnect() {
+    void disconnect()
+    {
     }
 
-    void destination(const std::string_view& destination) {
+    void destination(const std::string_view& destination)
+    {
         m_destination = std::string(destination);
     }
 
-    std::string_view destination() const {
+    std::string_view destination() const
+    {
         return m_destination;
     }
 
-    std::string as_string() const {
+    std::string as_string() const
+    {
         std::string result;
         result.reserve(200);
 
@@ -257,7 +283,8 @@ private:
 using RulePtr = std::shared_ptr<Rule>;
 
 struct Context {
-    void set_req(DBusMessage* msg) {
+    void set_req(DBusMessage* msg)
+    {
         req = msg;
     }
 
@@ -266,11 +293,13 @@ struct Context {
 
 class Matchs {
 public:
-    void add_rule(RulePtr& rule, std::function<void(Context&)> cb) {
+    void add_rule(RulePtr& rule, std::function<void(Context&)> cb)
+    {
         m_rules.push_back({rule, cb});
     }
 
-    bool run(Context& ctx) {
+    bool run(Context& ctx)
+    {
         if (!ctx.req) {
             return false;
         }
@@ -285,7 +314,8 @@ public:
         return matched;
     }
 
-    bool test_match(Context& ctx) {
+    bool test_match(Context& ctx)
+    {
         if (!ctx.req) {
             return false;
         }
@@ -299,7 +329,8 @@ public:
     }
 
 private:
-    bool test_rule_match(const Rule* rule, DBusMessage* msg) {
+    bool test_rule_match(const Rule* rule, DBusMessage* msg)
+    {
         // 检查消息类型
         int msg_type = dbus_message_get_type(msg);
         if (rule->type() == MessageType::signal && msg_type != DBUS_MESSAGE_TYPE_SIGNAL) {
@@ -386,18 +417,20 @@ namespace shm {
 template <typename T>
 using shared_ptr = std::shared_ptr<T>;
 template <typename T>
-using weak_ptr   = std::weak_ptr<T>;
+using weak_ptr = std::weak_ptr<T>;
 
 class shared_memory;
 class object_tree;
 class message_queue_t {
 public:
     bool pop_front(std::function<void(const std::string_view&, int)> handler, int timeout_ms,
-                   int max_read_count, std::string& read_buf) {
+                   int max_read_count, std::string& read_buf)
+    {
         return true;
     }
 
-    bool push_back(const std::string_view& data, int timeout_ms) {
+    bool push_back(const std::string_view& data, int timeout_ms)
+    {
         return true;
     }
 };
@@ -405,31 +438,39 @@ public:
 class property {
 public:
     property()
-        : m_data(""), m_signature("") {
+        : m_data(""), m_signature("")
+    {
     }
 
     property(const std::string_view& signature)
-        : m_data(""), m_signature(signature) {
+        : m_data(""), m_signature(signature)
+    {
     }
 
-    void set_read_privilege(int read_privilege) {
+    void set_read_privilege(int read_privilege)
+    {
     }
 
-    void set_write_privilege(int write_privilege) {
+    void set_write_privilege(int write_privilege)
+    {
     }
 
-    void set_flags(int flags) {
+    void set_flags(int flags)
+    {
     }
 
-    void set_data(shared_memory& ins, const std::string_view& value) {
+    void set_data(shared_memory& ins, const std::string_view& value)
+    {
         m_data = std::string(value);
     }
 
-    std::optional<std::string_view> get_data() const {
+    std::optional<std::string_view> get_data() const
+    {
         return m_data;
     }
 
-    std::string_view get_signature() const {
+    std::string_view get_signature() const
+    {
         return m_signature;
     }
 
@@ -439,16 +480,19 @@ public:
 
 class method {
 public:
-    void set_privilege(int privilege) {
+    void set_privilege(int privilege)
+    {
     }
 
-    void set_flags(int flags) {
+    void set_flags(int flags)
+    {
     }
 };
 
 class signal {
 public:
-    void set_flags(int flags) {
+    void set_flags(int flags)
+    {
     }
 };
 
@@ -457,23 +501,27 @@ public:
     using properties_t = std::unordered_map<std::string, shared_ptr<property>>;
 
     shared_ptr<property> add_p(shared_memory& ins, const std::string_view& name,
-                               const std::string_view& signature) {
+                               const std::string_view& signature)
+    {
         auto p = std::make_shared<property>(signature);
         m_properties.emplace(std::string(name), p);
         return p;
     }
 
     method& add_m(shared_memory& ins, const std::string_view& name,
-                  const std::string_view& signature, const std::string_view& return_signature) {
+                  const std::string_view& signature, const std::string_view& return_signature)
+    {
         return m_method;
     }
 
     signal& add_s(shared_memory& ins, const std::string_view& name,
-                  const std::string_view& signature) {
+                  const std::string_view& signature)
+    {
         return m_signal;
     }
 
-    shared_ptr<property> find_p(const std::string_view& name) {
+    shared_ptr<property> find_p(const std::string_view& name)
+    {
         auto it = m_properties.find(std::string(name));
         if (it == m_properties.end()) {
             return nullptr;
@@ -481,7 +529,8 @@ public:
         return it->second;
     }
 
-    properties_t& properties() {
+    properties_t& properties()
+    {
         return m_properties;
     }
 
@@ -495,24 +544,29 @@ public:
     using interface_map_t = std::unordered_map<std::string_view, interface*>;
 
     interface& register_interface(shared_memory& ins, bool is_remote,
-                                  const std::string_view& name) {
+                                  const std::string_view& name)
+    {
         auto p = new interface();
         m_interfaces.emplace(name, p);
         return *p;
     }
 
-    void add_named_object_view(shared_memory& ins, const std::string_view& name) {
+    void add_named_object_view(shared_memory& ins, const std::string_view& name)
+    {
     }
 
-    interface_map_t& interfaces() {
+    interface_map_t& interfaces()
+    {
         return m_interfaces;
     }
 
-    std::string_view path() const {
+    std::string_view path() const
+    {
         return m_path;
     }
 
-    object_tree* get_tree() {
+    object_tree* get_tree()
+    {
         return m_tree;
     }
 
@@ -524,50 +578,62 @@ public:
 class object_tree {
 public:
     object_tree()
-        : m_unique_name("1.23"), m_harbor_name("") {
+        : m_unique_name("1.23"), m_harbor_name("")
+    {
     }
 
-    std::string_view unique_name() const {
+    std::string_view unique_name() const
+    {
         return m_unique_name;
     }
 
-    std::string_view wellknow_name() const {
+    std::string_view wellknow_name() const
+    {
         return m_wellknow_name;
     }
 
-    std::string_view harbor_name() const {
+    std::string_view harbor_name() const
+    {
         return m_harbor_name;
     }
 
-    void set_unique_name(const std::string_view& name) {
+    void set_unique_name(const std::string_view& name)
+    {
         m_unique_name = std::string(name);
     }
 
-    void set_harbor_name(const std::string_view& name) {
+    void set_harbor_name(const std::string_view& name)
+    {
         m_harbor_name = std::string(name);
     }
 
-    object& register_object(shared_memory& ins, const std::string_view& napathme) {
+    object& register_object(shared_memory& ins, const std::string_view& napathme)
+    {
         return m_object;
     }
 
-    void unregister_object(shared_memory& ins, const std::string_view& name) {
+    void unregister_object(shared_memory& ins, const std::string_view& name)
+    {
     }
 
-    message_queue_t& create_message_queue(shared_memory& ins, int size) {
+    message_queue_t& create_message_queue(shared_memory& ins, int size)
+    {
         return m_queue;
     }
 
-    message_queue_t* get_message_queue() {
+    message_queue_t* get_message_queue()
+    {
         return &m_queue;
     }
 
-    object* find_object(const std::string_view& path) {
+    object* find_object(const std::string_view& path)
+    {
         return &m_object;
     }
 
     template <typename Func>
-    bool travel(Func&& f, int depth, bool leaf_only) {
+    bool travel(Func&& f, int depth, bool leaf_only)
+    {
         (void)depth;
         if (!leaf_only || !m_object.m_interfaces.empty()) {
             if (!f(m_object, 0)) {
@@ -589,16 +655,20 @@ public:
 struct str_less {
     using is_transparent = void;
 
-    bool operator()(const std::string& lhs, const std::string& rhs) const {
+    bool operator()(const std::string& lhs, const std::string& rhs) const
+    {
         return str_less_i(std::string_view(lhs), std::string_view(rhs));
     }
-    bool operator()(std::string_view lhs, std::string_view rhs) const {
+    bool operator()(std::string_view lhs, std::string_view rhs) const
+    {
         return str_less_i(lhs, rhs);
     }
-    bool operator()(const std::string& lhs, std::string_view rhs) const {
+    bool operator()(const std::string& lhs, std::string_view rhs) const
+    {
         return str_less_i(std::string_view(lhs), rhs);
     }
-    bool operator()(std::string_view lhs, const std::string& rhs) const {
+    bool operator()(std::string_view lhs, const std::string& rhs) const
+    {
         return str_less_i(lhs, std::string_view(rhs));
     }
 };
@@ -611,10 +681,12 @@ class matchs {
 public:
     using match_cb_t = std::function<void(DBus::Match::Context&, object_tree*)>;
 
-    void run(DBus::Match::Context& ctx, match_cb_t cb) {
+    void run(DBus::Match::Context& ctx, match_cb_t cb)
+    {
     }
 
-    std::function<void()> add_rule(shared_memory& ins, DBus::Match::Rule& rule, object_tree* tree) {
+    std::function<void()> add_rule(shared_memory& ins, DBus::Match::Rule& rule, object_tree* tree)
+    {
         return []() {
         };
     }
@@ -632,13 +704,15 @@ struct mdb_interface {
 class mdb_object {
 public:
     mdb_object(shared_memory& shm, const std::string_view& path, void* t)
-        : m_path(path) {
+        : m_path(path)
+    {
     }
 
     using mdb_interfaces     = std::unordered_map<std::string, mdb_interface>;
     using mdb_interfaces_all = std::unordered_map<std::string, mdb_interfaces>;
 
-    mdb_interfaces* find_interfaces(const std::string_view& interface) {
+    mdb_interfaces* find_interfaces(const std::string_view& interface)
+    {
         auto it = m_interfaces.find(std::string(interface));
         if (it != m_interfaces.end()) {
             return &it->second;
@@ -646,15 +720,18 @@ public:
         return nullptr;
     }
 
-    bool empty() const {
+    bool empty() const
+    {
         return m_interfaces.empty();
     }
 
-    mdb_interfaces_all& interfaces() {
+    mdb_interfaces_all& interfaces()
+    {
         return m_interfaces;
     }
 
-    std::string_view path() {
+    std::string_view path()
+    {
         return m_path;
     }
 
@@ -668,15 +745,18 @@ class mdb_objects_tree {
 public:
     using travel_cb_t = std::function<bool(mdb_object&, int level)>;
 
-    mdb_objects_tree() {
+    mdb_objects_tree()
+    {
     }
 
     template <typename Func>
-    void travel(Func&& f, uint32_t depth, bool) {
+    void travel(Func&& f, uint32_t depth, bool)
+    {
         // 打桩实现：不执行任何操作
     }
 
-    mdb_objects_tree* find_node(const std::string_view& path, bool ignore_case) {
+    mdb_objects_tree* find_node(const std::string_view& path, bool ignore_case)
+    {
         // 打桩实现：返回 nullptr
         return nullptr;
     }
@@ -704,44 +784,55 @@ public:
     using tree_map_t        = std::unordered_map<std::string_view, object_tree*>;
     using unique_name_map_t = std::unordered_map<std::string, std::string>;
 
-    shared_memory() {
+    shared_memory()
+    {
     }
 
-    static shared_memory& get_instance() {
+    static shared_memory& get_instance()
+    {
         static shared_memory instance;
         return instance;
     }
 
-    shm::shared_memory_base& get_base() {
+    shm::shared_memory_base& get_base()
+    {
         return m_base;
     }
 
-    const shm::shared_memory_base& get_base() const {
+    const shm::shared_memory_base& get_base() const
+    {
         return m_base;
     }
 
     // 打桩实现：返回 well-known 名称到 object_tree 的映射
-    object_tree_map_t& get_wellknow_names() {
+    object_tree_map_t& get_wellknow_names()
+    {
         return m_base.wellknow_names;
     }
 
-    void lock() {
+    void lock()
+    {
     }
 
-    void unlock() {
+    void unlock()
+    {
     }
 
-    void lock_shared() {
+    void lock_shared()
+    {
     }
 
-    void unlock_shared() {
+    void unlock_shared()
+    {
     }
 
-    void set_harbor_name(const std::string_view& name, const std::string_view& harbor_name) {
+    void set_harbor_name(const std::string_view& name, const std::string_view& harbor_name)
+    {
         unique_name_map[std::string(name)] = std::string(harbor_name);
     }
 
-    std::string_view get_harbor_name(const std::string_view& name) {
+    std::string_view get_harbor_name(const std::string_view& name)
+    {
         std::string_view harbor_name;
         if (tree_map.find(name) != tree_map.end()) {
             harbor_name = unique_name_map[std::string(tree_map[name]->unique_name())];
@@ -754,7 +845,8 @@ public:
         return harbor_name;
     }
 
-    object_tree* get_tree(const std::string_view& name) {
+    object_tree* get_tree(const std::string_view& name)
+    {
         auto it = tree_map.find(name);
         if (it == tree_map.end()) {
             auto p   = new object_tree();
@@ -764,7 +856,8 @@ public:
         return it->second;
     }
 
-    tree_map_t& get_object_tree_map(const std::string_view& harbor_name) {
+    tree_map_t& get_object_tree_map(const std::string_view& harbor_name)
+    {
         if (tree_map.find(harbor_name) == tree_map.end()) {
             auto p = new object_tree();
             tree_map.emplace(harbor_name, p);
@@ -772,14 +865,16 @@ public:
         return tree_map;
     }
 
-    mdb_object* find_mdb_object(const std::string_view& path, bool ignore_case) {
+    mdb_object* find_mdb_object(const std::string_view& path, bool ignore_case)
+    {
         // 打桩实现：返回 nullptr
         return nullptr;
     }
 
     using query_interface_view_t = std::function<bool(mdb_interface&)>;
     mdb_interface* query_interface_view(const std::string_view&       iface_name,
-                                        const query_interface_view_t& filter) {
+                                        const query_interface_view_t& filter)
+    {
         // 打桩实现：返回 nullptr
         return nullptr;
     }

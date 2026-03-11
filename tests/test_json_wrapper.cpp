@@ -42,14 +42,16 @@ typedef struct TagJsonChildList {
 
 // ======================== JSON值创建测试 ========================
 
-TEST(JsonValueCreateTest, create_null) {
+TEST(JsonValueCreateTest, create_null)
+{
     JsonValue val = JsonValue::make_null();
     EXPECT_TRUE(val.is_null());
     EXPECT_FALSE(val.is_bool());
     EXPECT_FALSE(val.is_number());
 }
 
-TEST(JsonValueCreateTest, create_bool) {
+TEST(JsonValueCreateTest, create_bool)
+{
     JsonValue val_true = JsonValue::make_bool(true);
     EXPECT_TRUE(val_true.is_bool());
     EXPECT_TRUE(val_true.as_bool());
@@ -59,33 +61,38 @@ TEST(JsonValueCreateTest, create_bool) {
     EXPECT_FALSE(val_false.as_bool());
 }
 
-TEST(JsonValueCreateTest, create_int) {
+TEST(JsonValueCreateTest, create_int)
+{
     JsonValue val = JsonValue::make_int(12345);
     EXPECT_TRUE(val.is_int());
     EXPECT_TRUE(val.is_number());
     EXPECT_EQ(val.as_int(), 12345);
 }
 
-TEST(JsonValueCreateTest, create_double) {
+TEST(JsonValueCreateTest, create_double)
+{
     JsonValue val = JsonValue::make_double(3.14159);
     EXPECT_TRUE(val.is_double());
     EXPECT_TRUE(val.is_number());
     EXPECT_DOUBLE_EQ(val.as_double(), 3.14159);
 }
 
-TEST(JsonValueCreateTest, create_string) {
+TEST(JsonValueCreateTest, create_string)
+{
     JsonValue val = JsonValue::make_string("hello world");
     EXPECT_TRUE(val.is_string());
     EXPECT_EQ(val.as_string(), "hello world");
 }
 
-TEST(JsonValueCreateTest, create_string_empty) {
+TEST(JsonValueCreateTest, create_string_empty)
+{
     JsonValue val = JsonValue::make_string("");
     EXPECT_TRUE(val.is_string());
     EXPECT_EQ(val.as_string(), "");
 }
 
-TEST(JsonValueCreateTest, create_from_direct_constructor) {
+TEST(JsonValueCreateTest, create_from_direct_constructor)
+{
     JsonValue val_bool_true(true);
     EXPECT_TRUE(val_bool_true.is_bool());
     EXPECT_TRUE(val_bool_true.as_bool());
@@ -137,13 +144,15 @@ TEST(JsonValueCreateTest, create_from_direct_constructor) {
     EXPECT_EQ(arr_values[2], "test");
 }
 
-TEST(JsonValueCreateTest, create_array) {
+TEST(JsonValueCreateTest, create_array)
+{
     JsonValue val = JsonValue::make_array();
     EXPECT_TRUE(val.is_array());
     EXPECT_EQ(val.as_array().size(), 0);
 }
 
-TEST(JsonValueCreateTest, create_object) {
+TEST(JsonValueCreateTest, create_object)
+{
     JsonValue val = JsonValue::make_object();
     EXPECT_TRUE(val.is_object());
     EXPECT_EQ(val.as_object().size(), 0);
@@ -151,7 +160,8 @@ TEST(JsonValueCreateTest, create_object) {
 
 // ======================== Vector<T> 转 JsonArray 并赋给 JsonValue ========================
 
-TEST(JsonValueVectorTest, assign_vector_int64_t) {
+TEST(JsonValueVectorTest, assign_vector_int64_t)
+{
     std::vector<int64_t> vec = {1, 2, 3};
     JsonValue            jv;
     jv = vec;
@@ -165,7 +175,8 @@ TEST(JsonValueVectorTest, assign_vector_int64_t) {
     EXPECT_EQ(jv[2], 3);
 }
 
-TEST(JsonValueVectorTest, assign_vector_integral) {
+TEST(JsonValueVectorTest, assign_vector_integral)
+{
     std::vector<int> vec = {10, 20};
     JsonValue        jv;
     jv = vec;
@@ -177,7 +188,8 @@ TEST(JsonValueVectorTest, assign_vector_integral) {
     EXPECT_EQ(jv[1], 20);
 }
 
-TEST(JsonValueVectorTest, assign_vector_double) {
+TEST(JsonValueVectorTest, assign_vector_double)
+{
     std::vector<double> vec = {1.5, 2.5, 3.5};
     JsonValue           jv;
     jv = vec;
@@ -191,7 +203,8 @@ TEST(JsonValueVectorTest, assign_vector_double) {
     EXPECT_EQ(jv[2], 3.5);
 }
 
-TEST(JsonValueVectorTest, assign_vector_bool) {
+TEST(JsonValueVectorTest, assign_vector_bool)
+{
     std::vector<bool> vec = {true, false, true};
     JsonValue         jv;
     jv = vec;
@@ -205,7 +218,8 @@ TEST(JsonValueVectorTest, assign_vector_bool) {
     EXPECT_EQ(jv[2], true);
 }
 
-TEST(JsonValueVectorTest, assign_vector_string) {
+TEST(JsonValueVectorTest, assign_vector_string)
+{
     std::vector<std::string> vec = {"a", "b", "c"};
     JsonValue                jv;
     jv = vec;
@@ -219,7 +233,8 @@ TEST(JsonValueVectorTest, assign_vector_string) {
     EXPECT_EQ(jv[2], "c");
 }
 
-TEST(JsonValueVectorTest, assign_vector_string_view) {
+TEST(JsonValueVectorTest, assign_vector_string_view)
+{
     std::vector<std::string_view> vec = {"x", "y"};
     JsonValue                     jv;
     jv = vec;
@@ -231,7 +246,8 @@ TEST(JsonValueVectorTest, assign_vector_string_view) {
     EXPECT_EQ(jv[1], "y");
 }
 
-TEST(JsonValueVectorTest, assign_vector_jsonvalue) {
+TEST(JsonValueVectorTest, assign_vector_jsonvalue)
+{
     std::vector<JsonValue> vec = {JsonValue(1), JsonValue("hello"), JsonValue(true)};
     JsonValue              jv;
     jv = vec;
@@ -245,7 +261,8 @@ TEST(JsonValueVectorTest, assign_vector_jsonvalue) {
     EXPECT_EQ(jv[2], true);
 }
 
-TEST(JsonValueVectorTest, construct_from_vector) {
+TEST(JsonValueVectorTest, construct_from_vector)
+{
     std::vector<int64_t> vec = {100, 200};
     JsonValue            jv(vec);
     EXPECT_TRUE(jv.is_array());
@@ -255,7 +272,8 @@ TEST(JsonValueVectorTest, construct_from_vector) {
     EXPECT_EQ(jv[1], 200);
 }
 
-TEST(JsonValueVectorTest, reassign_vector_to_existing_jsonvalue) {
+TEST(JsonValueVectorTest, reassign_vector_to_existing_jsonvalue)
+{
     JsonValue jv = JsonValue::make_int(42);
     EXPECT_TRUE(jv.is_int());
     std::vector<std::string> vec = {"one", "two"};
@@ -270,7 +288,8 @@ TEST(JsonValueVectorTest, reassign_vector_to_existing_jsonvalue) {
 
 // ======================== JSON值拷贝测试 ========================
 
-TEST(JsonValueCopyTest, copy_constructor) {
+TEST(JsonValueCopyTest, copy_constructor)
+{
     JsonValue val1 = JsonValue::make_int(100);
     JsonValue val2(val1);
     EXPECT_EQ(val1.as_int(), val2.as_int());
@@ -279,7 +298,8 @@ TEST(JsonValueCopyTest, copy_constructor) {
 
 // ======================== JsonValue 赋值构造与重新赋值测试 ========================
 
-TEST(JsonValueAssignTest, assignment_construction) {
+TEST(JsonValueAssignTest, assignment_construction)
+{
     JsonValue jv_int = 42;
     EXPECT_TRUE(jv_int.is_int());
     EXPECT_EQ(jv_int.as_int(), 42);
@@ -323,7 +343,8 @@ TEST(JsonValueAssignTest, assignment_construction) {
     EXPECT_EQ(jv_obj, obj);
 }
 
-TEST(JsonValueAssignTest, default_constructed_and_reassign) {
+TEST(JsonValueAssignTest, default_constructed_and_reassign)
+{
     JsonValue jv;
     EXPECT_EQ(jv.type(), JsonValueType::Undefined);
     EXPECT_EQ(jv.get_raw(), nullptr);
@@ -373,7 +394,8 @@ TEST(JsonValueAssignTest, default_constructed_and_reassign) {
     EXPECT_EQ(jv, JsonValue::make_object());
 }
 
-TEST(JsonValueAssignTest, constructed_and_reassign) {
+TEST(JsonValueAssignTest, constructed_and_reassign)
+{
     JsonValue jv(1);
     EXPECT_EQ(jv.as_int(), 1);
     EXPECT_EQ(jv, 1);
@@ -417,7 +439,8 @@ TEST(JsonValueAssignTest, constructed_and_reassign) {
     EXPECT_EQ(jv, obj_val.as_object());
 }
 
-TEST(JsonValueCopyTest, copy_assignment) {
+TEST(JsonValueCopyTest, copy_assignment)
+{
     JsonValue val1 = JsonValue::make_string("test");
     JsonValue val2 = JsonValue::make_null();
     val2           = val1;
@@ -425,13 +448,15 @@ TEST(JsonValueCopyTest, copy_assignment) {
     EXPECT_EQ(val1, val2);
 }
 
-TEST(JsonValueCopyTest, move_constructor) {
+TEST(JsonValueCopyTest, move_constructor)
+{
     JsonValue val1 = JsonValue::make_int(200);
     JsonValue val2(std::move(val1));
     EXPECT_EQ(val2.as_int(), 200);
 }
 
-TEST(JsonValueCopyTest, move_assignment) {
+TEST(JsonValueCopyTest, move_assignment)
+{
     JsonValue val1 = JsonValue::make_string("move test");
     JsonValue val2 = JsonValue::make_null();
     val2           = std::move(val1);
@@ -440,7 +465,8 @@ TEST(JsonValueCopyTest, move_assignment) {
 
 // ======================== JSON类型判断测试 ========================
 
-TEST(JsonValueTypeTest, type_check) {
+TEST(JsonValueTypeTest, type_check)
+{
     JsonValue null_val = JsonValue::make_null();
     EXPECT_TRUE(null_val.is_null());
     EXPECT_FALSE(null_val.is_bool());
@@ -474,7 +500,8 @@ TEST(JsonValueTypeTest, type_check) {
     EXPECT_TRUE(obj_val.is_object());
 }
 
-TEST(JsonValueTypeTest, invalid_type_cast) {
+TEST(JsonValueTypeTest, invalid_type_cast)
+{
     JsonValue val = JsonValue::make_int(42);
     EXPECT_THROW(val.as_bool(), bad_cast_exception);
     EXPECT_THROW(val.as_string(), bad_cast_exception);
@@ -484,7 +511,8 @@ TEST(JsonValueTypeTest, invalid_type_cast) {
 
 // ======================== variant转换测试 ========================
 
-TEST(JsonValueVariantTest, to_variant_basic_types) {
+TEST(JsonValueVariantTest, to_variant_basic_types)
+{
     JsonValue null_val = JsonValue::make_null();
     variant   v_null   = null_val.to_variant();
     EXPECT_TRUE(v_null.is_null());
@@ -506,7 +534,8 @@ TEST(JsonValueVariantTest, to_variant_basic_types) {
     EXPECT_EQ(v_str, "hello");
 }
 
-TEST(JsonValueVariantTest, to_variant_array) {
+TEST(JsonValueVariantTest, to_variant_array)
+{
     JsonValue arr = JsonValue::make_array();
     arr.as_array().push_back(JsonValue::make_int(1));
     arr.as_array().push_back(JsonValue::make_string("test"));
@@ -520,7 +549,8 @@ TEST(JsonValueVariantTest, to_variant_array) {
     EXPECT_EQ(v_arr.get_array()[2], true);
 }
 
-TEST(JsonValueVariantTest, to_variant_object) {
+TEST(JsonValueVariantTest, to_variant_object)
+{
     JsonValue obj = JsonValue::make_object();
     obj.as_object().set("name", JsonValue::make_string("test"));
     obj.as_object().set("age", JsonValue::make_int(30));
@@ -531,7 +561,8 @@ TEST(JsonValueVariantTest, to_variant_object) {
     EXPECT_EQ(v_obj.get_object()["age"], 30);
 }
 
-TEST(JsonValueVariantTest, from_variant_basic_types) {
+TEST(JsonValueVariantTest, from_variant_basic_types)
+{
     JsonValue null_val = JsonValue::from_variant(variant());
     EXPECT_TRUE(null_val.is_null());
 
@@ -548,14 +579,16 @@ TEST(JsonValueVariantTest, from_variant_basic_types) {
     EXPECT_EQ(str_val.as_string(), "hello");
 }
 
-TEST(JsonValueVariantTest, from_variant_array) {
+TEST(JsonValueVariantTest, from_variant_array)
+{
     variants  arr{variant(1), variant("test"), variant(true)};
     JsonValue json_arr = JsonValue::from_variant(variant(arr));
     EXPECT_TRUE(json_arr.is_array());
     EXPECT_EQ(json_arr.as_array().size(), 3);
 }
 
-TEST(JsonValueVariantTest, from_variant_object) {
+TEST(JsonValueVariantTest, from_variant_object)
+{
     dict      obj{{"name", "test"}, {"age", 30}};
     JsonValue json_obj = JsonValue::from_variant(variant(obj));
     EXPECT_TRUE(json_obj.is_object());
@@ -563,7 +596,8 @@ TEST(JsonValueVariantTest, from_variant_object) {
     EXPECT_EQ(json_obj.as_object().get("name").as_string(), "test");
 }
 
-TEST(JsonValueVariantTest, round_trip) {
+TEST(JsonValueVariantTest, round_trip)
+{
     dict    original{{"name", "test"}, {"age", 30}, {"scores", variants{85, 92, 78}}};
     variant v_original(original);
 
@@ -577,7 +611,8 @@ TEST(JsonValueVariantTest, round_trip) {
 
 // ======================== 相等比较测试 ========================
 
-TEST(JsonValueEqualTest, equal_basic_types) {
+TEST(JsonValueEqualTest, equal_basic_types)
+{
     EXPECT_EQ(JsonValue::make_null(), JsonValue::make_null());
     EXPECT_EQ(JsonValue::make_bool(true), JsonValue::make_bool(true));
     EXPECT_EQ(JsonValue::make_int(42), JsonValue::make_int(42));
@@ -585,7 +620,8 @@ TEST(JsonValueEqualTest, equal_basic_types) {
     EXPECT_EQ(JsonValue::make_string("test"), JsonValue::make_string("test"));
 }
 
-TEST(JsonValueEqualTest, not_equal_basic_types) {
+TEST(JsonValueEqualTest, not_equal_basic_types)
+{
     EXPECT_NE(JsonValue::make_null(), JsonValue::make_bool(false));
     EXPECT_NE(JsonValue::make_bool(true), JsonValue::make_bool(false));
     EXPECT_NE(JsonValue::make_int(42), JsonValue::make_int(43));
@@ -593,7 +629,8 @@ TEST(JsonValueEqualTest, not_equal_basic_types) {
     EXPECT_NE(JsonValue::make_string("test"), JsonValue::make_string("test2"));
 }
 
-TEST(JsonValueEqualTest, compare_with_int) {
+TEST(JsonValueEqualTest, compare_with_int)
+{
     JsonValue jv = JsonValue::make_int(42);
     EXPECT_TRUE(jv == 42);
     EXPECT_TRUE(jv == static_cast<int64_t>(42));
@@ -612,7 +649,8 @@ TEST(JsonValueEqualTest, compare_with_int) {
     EXPECT_TRUE(2LL == JsonValue(2));
 }
 
-TEST(JsonValueEqualTest, compare_with_bool) {
+TEST(JsonValueEqualTest, compare_with_bool)
+{
     JsonValue jv_true  = JsonValue::make_bool(true);
     JsonValue jv_false = JsonValue::make_bool(false);
     EXPECT_TRUE(jv_true == true);
@@ -624,7 +662,8 @@ TEST(JsonValueEqualTest, compare_with_bool) {
     EXPECT_TRUE(jv_true != false);
 }
 
-TEST(JsonValueEqualTest, compare_with_double) {
+TEST(JsonValueEqualTest, compare_with_double)
+{
     JsonValue jv_int    = JsonValue::make_int(1);
     JsonValue jv_double = JsonValue::make_double(3.14);
     EXPECT_TRUE(jv_int == 1.0);
@@ -635,7 +674,8 @@ TEST(JsonValueEqualTest, compare_with_double) {
     EXPECT_TRUE(jv_double != 3.15);
 }
 
-TEST(JsonValueEqualTest, compare_with_string) {
+TEST(JsonValueEqualTest, compare_with_string)
+{
     JsonValue jv = JsonValue::make_string("hello");
     EXPECT_TRUE(jv == "hello");
     EXPECT_TRUE("hello" == jv);
@@ -647,7 +687,8 @@ TEST(JsonValueEqualTest, compare_with_string) {
     EXPECT_TRUE(jv != "world");
 }
 
-TEST(JsonValueEqualTest, compare_null_empty) {
+TEST(JsonValueEqualTest, compare_null_empty)
+{
     JsonValue jv_null = JsonValue::make_null();
     // 空与空相等
     EXPECT_EQ(jv_null, JsonValue::make_null());
@@ -680,7 +721,8 @@ TEST(JsonValueEqualTest, compare_null_empty) {
     EXPECT_NE(JsonValue::make_int(0), jv_null);
 }
 
-TEST(JsonValueEqualTest, compare_type_mismatch_returns_false) {
+TEST(JsonValueEqualTest, compare_type_mismatch_returns_false)
+{
     JsonValue jv_int    = JsonValue::make_int(42);
     JsonValue jv_bool   = JsonValue::make_bool(true);
     JsonValue jv_str    = JsonValue::make_string("42");
@@ -701,7 +743,8 @@ TEST(JsonValueEqualTest, compare_type_mismatch_returns_false) {
     EXPECT_TRUE(jv_double == 42);
 }
 
-TEST(JsonValueEqualTest, equal_array) {
+TEST(JsonValueEqualTest, equal_array)
+{
     JsonValue arr1 = JsonValue::make_array();
     arr1.as_array().push_back(JsonValue::make_int(1));
     arr1.as_array().push_back(JsonValue::make_string("test"));
@@ -713,7 +756,8 @@ TEST(JsonValueEqualTest, equal_array) {
     EXPECT_EQ(arr1, arr2);
 }
 
-TEST(JsonValueEqualTest, not_equal_array) {
+TEST(JsonValueEqualTest, not_equal_array)
+{
     JsonValue arr1 = JsonValue::make_array();
     arr1.as_array().push_back(JsonValue::make_int(1));
 
@@ -723,7 +767,8 @@ TEST(JsonValueEqualTest, not_equal_array) {
     EXPECT_NE(arr1, arr2);
 }
 
-TEST(JsonValueEqualTest, equal_object) {
+TEST(JsonValueEqualTest, equal_object)
+{
     JsonValue obj1 = JsonValue::make_object();
     obj1.as_object().set("name", JsonValue::make_string("test"));
     obj1.as_object().set("age", JsonValue::make_int(30));
@@ -735,7 +780,8 @@ TEST(JsonValueEqualTest, equal_object) {
     EXPECT_EQ(obj1, obj2);
 }
 
-TEST(JsonValueEqualTest, not_equal_object) {
+TEST(JsonValueEqualTest, not_equal_object)
+{
     JsonValue obj1 = JsonValue::make_object();
     obj1.as_object().set("name", JsonValue::make_string("test"));
 
@@ -747,7 +793,8 @@ TEST(JsonValueEqualTest, not_equal_object) {
 
 // ======================== JsonValue 下标访问测试 ========================
 
-TEST(JsonValueSubscriptTest, array_subscript_access) {
+TEST(JsonValueSubscriptTest, array_subscript_access)
+{
     JsonValue arr = JsonValue::make_array();
     arr.as_array().push_back(JsonValue::make_int(10));
     arr.as_array().push_back(JsonValue::make_string("hello"));
@@ -761,7 +808,8 @@ TEST(JsonValueSubscriptTest, array_subscript_access) {
     EXPECT_EQ(arr[2], true);
 }
 
-TEST(JsonValueSubscriptTest, object_subscript_access) {
+TEST(JsonValueSubscriptTest, object_subscript_access)
+{
     JsonValue obj = JsonValue::make_object();
     obj.as_object().set("a", JsonValue::make_int(1));
     obj.as_object().set("b", JsonValue::make_string("two"));
@@ -775,7 +823,8 @@ TEST(JsonValueSubscriptTest, object_subscript_access) {
     EXPECT_EQ(obj["c"], 3.14);
 }
 
-TEST(JsonValueSubscriptTest, assignment_construction_from_subscript) {
+TEST(JsonValueSubscriptTest, assignment_construction_from_subscript)
+{
     JsonValue arr = JsonValue::make_array();
     arr.as_array().push_back(JsonValue::make_int(10));
     arr.as_array().push_back(JsonValue::make_string("hello"));
@@ -807,7 +856,8 @@ TEST(JsonValueSubscriptTest, assignment_construction_from_subscript) {
     EXPECT_EQ(vx_direct, 42);
 }
 
-TEST(JsonValueSubscriptTest, non_array_subscript_index_throws) {
+TEST(JsonValueSubscriptTest, non_array_subscript_index_throws)
+{
     JsonValue jv_null   = JsonValue::make_null();
     JsonValue jv_bool   = JsonValue::make_bool(true);
     JsonValue jv_int    = JsonValue::make_int(42);
@@ -820,7 +870,8 @@ TEST(JsonValueSubscriptTest, non_array_subscript_index_throws) {
     EXPECT_THROW((void)jv_double[0], bad_cast_exception);
 }
 
-TEST(JsonValueSubscriptTest, non_object_subscript_key_throws) {
+TEST(JsonValueSubscriptTest, non_object_subscript_key_throws)
+{
     JsonValue jv_null  = JsonValue::make_null();
     JsonValue jv_bool  = JsonValue::make_bool(true);
     JsonValue jv_int   = JsonValue::make_int(42);
@@ -835,7 +886,8 @@ TEST(JsonValueSubscriptTest, non_object_subscript_key_throws) {
 
 // ======================== JsonArrayValue / JsonObjectValue 下标赋值 ========================
 
-TEST(JsonArrayValueTest, subscript_assign_via_json_value) {
+TEST(JsonArrayValueTest, subscript_assign_via_json_value)
+{
     JsonValue jv = JsonValue::make_array();
     jv.as_array().push_back(JsonValue::make_int(10));
     jv.as_array().push_back(JsonValue::make_int(20));
@@ -849,7 +901,8 @@ TEST(JsonArrayValueTest, subscript_assign_via_json_value) {
     EXPECT_EQ(jv[1], "hello");
 }
 
-TEST(JsonArrayValueTest, subscript_assign_scalar_overloads) {
+TEST(JsonArrayValueTest, subscript_assign_scalar_overloads)
+{
     JsonValue jv;
     jv[0] = 42;
     jv[1] = 3.14;
@@ -866,7 +919,8 @@ TEST(JsonArrayValueTest, subscript_assign_scalar_overloads) {
     EXPECT_EQ(jv[3], "world");
 }
 
-TEST(JsonArrayValueTest, append_only_when_null_index_equals_size) {
+TEST(JsonArrayValueTest, append_only_when_null_index_equals_size)
+{
     JsonValue jv = JsonValue::make_array();
     jv.as_array().push_back(JsonValue::make_int(1));
     EXPECT_EQ(jv.as_array().size(), 1);
@@ -876,13 +930,15 @@ TEST(JsonArrayValueTest, append_only_when_null_index_equals_size) {
     EXPECT_EQ(jv[1], 100);
 }
 
-TEST(JsonArrayValueTest, index_out_of_range_throws) {
+TEST(JsonArrayValueTest, index_out_of_range_throws)
+{
     JsonValue jv = JsonValue::make_array();
     jv.as_array().push_back(JsonValue::make_int(1));
     EXPECT_THROW((void)jv[2], mc::out_of_range_exception);
 }
 
-TEST(JsonArrayValueTest, return_type_inherits_jsonvalue) {
+TEST(JsonArrayValueTest, return_type_inherits_jsonvalue)
+{
     JsonValue jv = JsonValue::make_array();
     jv.as_array().push_back(JsonValue::make_int(99));
 
@@ -894,7 +950,8 @@ TEST(JsonArrayValueTest, return_type_inherits_jsonvalue) {
     EXPECT_EQ(jv[0], 200);
 }
 
-TEST(JsonArrayValueTest, constructor_with_parent_index_and_optional_value) {
+TEST(JsonArrayValueTest, constructor_with_parent_index_and_optional_value)
+{
     JsonValue parent = JsonValue::make_array();
     parent.as_array().push_back(JsonValue::make_int(1));
     parent.as_array().push_back(JsonValue::make_string("x"));
@@ -910,7 +967,8 @@ TEST(JsonArrayValueTest, constructor_with_parent_index_and_optional_value) {
     EXPECT_EQ(parent[2], 42);
 }
 
-TEST(JsonArrayValueTest, assign_when_parent_null_creates_array) {
+TEST(JsonArrayValueTest, assign_when_parent_null_creates_array)
+{
     JsonValue      jv;
     JsonArrayValue ref(&jv, 0);
     EXPECT_TRUE(ref.is_undefined());
@@ -920,13 +978,15 @@ TEST(JsonArrayValueTest, assign_when_parent_null_creates_array) {
     EXPECT_EQ(ref, 42);
 }
 
-TEST(JsonObjectValueTest, assign_jsonvalue_type) {
+TEST(JsonObjectValueTest, assign_jsonvalue_type)
+{
     JsonValue jv = JsonValue::make_object();
     jv["v"]      = JsonValue::make_string("str");
     EXPECT_EQ(jv["v"].as_string(), "str");
 }
 
-TEST(JsonArrayValueTest, integral_template_assign) {
+TEST(JsonArrayValueTest, integral_template_assign)
+{
     JsonValue jv = JsonValue::make_array();
     jv[0]        = 1u;
     jv[1]        = static_cast<long>(2);
@@ -935,7 +995,8 @@ TEST(JsonArrayValueTest, integral_template_assign) {
 }
 
 // 测试链式下标赋值和访问
-TEST(JsonValueSubscriptTest, array_and_object_chain_subscript_assign_and_access) {
+TEST(JsonValueSubscriptTest, array_and_object_chain_subscript_assign_and_access)
+{
     JsonValue jv;
     EXPECT_TRUE(jv.is_undefined());
     jv[0]            = 1;
@@ -974,14 +1035,16 @@ TEST(JsonValueSubscriptTest, array_and_object_chain_subscript_assign_and_access)
     EXPECT_EQ(jv[5]["key6"][4], "value7");
 }
 
-TEST(JsonValueSubscriptTest, non_const_subscript_object_when_null_does_not_modify_jv) {
+TEST(JsonValueSubscriptTest, non_const_subscript_object_when_null_does_not_modify_jv)
+{
     JsonValue jv;
     EXPECT_TRUE(jv.is_undefined());
     jv["key"] = 1;
     EXPECT_TRUE(jv.is_object());
 }
 
-TEST(JsonObjectValueTest, subscript_assign_via_json_value) {
+TEST(JsonObjectValueTest, subscript_assign_via_json_value)
+{
     JsonValue jv = JsonValue::make_object();
     jv["a"]      = 1;
     jv["b"]      = std::string_view("two");
@@ -995,7 +1058,8 @@ TEST(JsonObjectValueTest, subscript_assign_via_json_value) {
     EXPECT_EQ(jv["c"], 3.14);
 }
 
-TEST(JsonObjectValueTest, subscript_assign_overwrite) {
+TEST(JsonObjectValueTest, subscript_assign_overwrite)
+{
     JsonValue jv = JsonValue::make_object();
     jv["x"]      = 10;
     jv["x"]      = 20;
@@ -1003,7 +1067,8 @@ TEST(JsonObjectValueTest, subscript_assign_overwrite) {
     EXPECT_EQ(jv["x"], 20);
 }
 
-TEST(JsonObjectValueTest, return_type_inherits_jsonvalue) {
+TEST(JsonObjectValueTest, return_type_inherits_jsonvalue)
+{
     JsonValue jv = JsonValue::make_object();
     jv["k"]      = JsonValue::make_string("v");
 
@@ -1015,7 +1080,8 @@ TEST(JsonObjectValueTest, return_type_inherits_jsonvalue) {
     EXPECT_EQ(jv["k"], "updated");
 }
 
-TEST(JsonObjectValueTest, assign_jsonvalue) {
+TEST(JsonObjectValueTest, assign_jsonvalue)
+{
     JsonValue jv          = JsonValue::make_object();
     jv["nested"]          = JsonValue::make_object();
     jv["nested"]["inner"] = 42;
@@ -1023,7 +1089,8 @@ TEST(JsonObjectValueTest, assign_jsonvalue) {
     EXPECT_EQ(jv["nested"]["inner"], 42);
 }
 
-TEST(JsonObjectValueTest, assign_when_parent_null_creates_object) {
+TEST(JsonObjectValueTest, assign_when_parent_null_creates_object)
+{
     JsonValue       parent;
     JsonObjectValue ref(&parent, "k");
     EXPECT_TRUE(ref.is_undefined());
@@ -1035,7 +1102,8 @@ TEST(JsonObjectValueTest, assign_when_parent_null_creates_object) {
     EXPECT_EQ(parent["k"], 42);
 }
 
-TEST(JsonObjectValueTest, assign_bool_and_double) {
+TEST(JsonObjectValueTest, assign_bool_and_double)
+{
     JsonValue jv = JsonValue::make_object();
     jv["b"]      = true;
     jv["d"]      = 2.5;
@@ -1045,7 +1113,8 @@ TEST(JsonObjectValueTest, assign_bool_and_double) {
     EXPECT_EQ(jv["d"], 2.5);
 }
 
-TEST(JsonObjectValueTest, integral_template_assign) {
+TEST(JsonObjectValueTest, integral_template_assign)
+{
     JsonValue jv = JsonValue::make_object();
     jv["n"]      = 1u;
     jv["m"]      = static_cast<long>(2);
@@ -1057,13 +1126,15 @@ TEST(JsonObjectValueTest, integral_template_assign) {
 
 // ======================== JsonArray测试 ========================
 
-TEST(JsonArrayTest, empty_array) {
+TEST(JsonArrayTest, empty_array)
+{
     JsonArray arr = JsonValue::make_array().as_array();
     EXPECT_EQ(arr.size(), 0);
     EXPECT_TRUE(arr.empty());
 }
 
-TEST(JsonArrayTest, push_back) {
+TEST(JsonArrayTest, push_back)
+{
     JsonValue val = JsonValue::make_array();
     JsonArray arr = val.as_array();
 
@@ -1075,7 +1146,8 @@ TEST(JsonArrayTest, push_back) {
     EXPECT_FALSE(arr.empty());
 }
 
-TEST(JsonArrayTest, at_access) {
+TEST(JsonArrayTest, at_access)
+{
     JsonValue val = JsonValue::make_array();
     JsonArray arr = val.as_array();
 
@@ -1088,7 +1160,8 @@ TEST(JsonArrayTest, at_access) {
     EXPECT_EQ(arr.at(2).as_int(), 30);
 }
 
-TEST(JsonArrayTest, operator_access) {
+TEST(JsonArrayTest, operator_access)
+{
     JsonValue val = JsonValue::make_array();
     JsonArray arr = val.as_array();
 
@@ -1099,7 +1172,8 @@ TEST(JsonArrayTest, operator_access) {
     EXPECT_EQ(arr[1].as_string(), "b");
 }
 
-TEST(JsonArrayTest, set_element) {
+TEST(JsonArrayTest, set_element)
+{
     JsonValue val = JsonValue::make_array();
     JsonArray arr = val.as_array();
 
@@ -1111,7 +1185,8 @@ TEST(JsonArrayTest, set_element) {
     EXPECT_EQ(arr[1].as_int(), 2);
 }
 
-TEST(JsonArrayTest, iteration) {
+TEST(JsonArrayTest, iteration)
+{
     JsonValue val = JsonValue::make_array();
     JsonArray arr = val.as_array();
 
@@ -1131,7 +1206,8 @@ TEST(JsonArrayTest, iteration) {
     EXPECT_EQ(arr[1], 2);
 }
 
-TEST(JsonArrayTest, copy_semantics) {
+TEST(JsonArrayTest, copy_semantics)
+{
     JsonValue val  = JsonValue::make_array();
     JsonArray arr1 = val.as_array();
     arr1.push_back(JsonValue::make_int(42));
@@ -1143,13 +1219,15 @@ TEST(JsonArrayTest, copy_semantics) {
 
 // ======================== JsonObject测试 ========================
 
-TEST(JsonObjectTest, empty_object) {
+TEST(JsonObjectTest, empty_object)
+{
     JsonObject obj = JsonValue::make_object().as_object();
     EXPECT_EQ(obj.size(), 0);
     EXPECT_TRUE(obj.empty());
 }
 
-TEST(JsonObjectTest, set_and_get) {
+TEST(JsonObjectTest, set_and_get)
+{
     JsonValue  val = JsonValue::make_object();
     JsonObject obj = val.as_object();
 
@@ -1164,7 +1242,8 @@ TEST(JsonObjectTest, set_and_get) {
     EXPECT_EQ(obj.get("age").as_int(), 30);
 }
 
-TEST(JsonObjectTest, operator_access) {
+TEST(JsonObjectTest, operator_access)
+{
     JsonValue  val = JsonValue::make_object();
     JsonObject obj = val.as_object();
 
@@ -1172,7 +1251,8 @@ TEST(JsonObjectTest, operator_access) {
     EXPECT_EQ(obj["key"].as_string(), "value");
 }
 
-TEST(JsonObjectTest, erase) {
+TEST(JsonObjectTest, erase)
+{
     JsonValue  val = JsonValue::make_object();
     JsonObject obj = val.as_object();
 
@@ -1185,7 +1265,8 @@ TEST(JsonObjectTest, erase) {
     EXPECT_TRUE(obj.has("key2"));
 }
 
-TEST(JsonObjectTest, size) {
+TEST(JsonObjectTest, size)
+{
     JsonValue  val = JsonValue::make_object();
     JsonObject obj = val.as_object();
 
@@ -1201,7 +1282,8 @@ TEST(JsonObjectTest, size) {
     EXPECT_EQ(obj.size(), 3);
 }
 
-TEST(JsonObjectTest, iteration) {
+TEST(JsonObjectTest, iteration)
+{
     JsonValue  val = JsonValue::make_object();
     JsonObject obj = val.as_object();
 
@@ -1249,7 +1331,8 @@ TEST(JsonObjectTest, iteration) {
     EXPECT_EQ(obj["b"], 4);
 }
 
-TEST(JsonObjectTest, copy_semantics) {
+TEST(JsonObjectTest, copy_semantics)
+{
     JsonValue  val  = JsonValue::make_object();
     JsonObject obj1 = val.as_object();
     obj1.set("key", JsonValue::make_string("value"));
@@ -1261,7 +1344,8 @@ TEST(JsonObjectTest, copy_semantics) {
 
 // ======================== 复杂场景测试 ========================
 
-TEST(JsonComplexTest, nested_structure) {
+TEST(JsonComplexTest, nested_structure)
+{
     JsonValue  root     = JsonValue::make_object();
     JsonObject root_obj = root.as_object();
 
@@ -1290,7 +1374,8 @@ TEST(JsonComplexTest, nested_structure) {
     EXPECT_EQ(root_obj.get("address").as_object().get("city").as_string(), "Beijing");
 }
 
-TEST(JsonComplexTest, modify_existing_structure) {
+TEST(JsonComplexTest, modify_existing_structure)
+{
     // 手动构建 JSON 结构
     JsonValue  val = JsonValue::make_object();
     JsonObject obj = val.as_object();
@@ -1313,7 +1398,8 @@ TEST(JsonComplexTest, modify_existing_structure) {
     EXPECT_EQ(scores_arr.size(), 4);
 }
 
-TEST(JsonComplexTest, variant_round_trip_complex) {
+TEST(JsonComplexTest, variant_round_trip_complex)
+{
     dict complex_obj{{"name", "test"},
                      {"numbers", variants{1, 2, 3}},
                      {"nested", dict{{"key", "value"}}}};
@@ -1327,7 +1413,8 @@ TEST(JsonComplexTest, variant_round_trip_complex) {
 }
 
 // 演示混合类型数组的JSON输出
-TEST(JsonComplexTest, mixed_type_array_output) {
+TEST(JsonComplexTest, mixed_type_array_output)
+{
     JsonArray arr = JsonValue::make_array().as_array();
 
     // 添加不同类型的元素
@@ -1353,7 +1440,8 @@ TEST(JsonComplexTest, mixed_type_array_output) {
 // ======================== 复杂场景：API使用示例 ========================
 
 // 场景1：构建用户列表JSON
-TEST(JsonRealWorldTest, build_user_list) {
+TEST(JsonRealWorldTest, build_user_list)
+{
     // 目标: {"users":[{"name":"Alice","age":30},{"name":"Bob","age":25}],"count":2}
 
     // 创建根对象
@@ -1392,7 +1480,8 @@ TEST(JsonRealWorldTest, build_user_list) {
 }
 
 // 场景2：构建并修改JSON
-TEST(JsonRealWorldTest, build_and_modify) {
+TEST(JsonRealWorldTest, build_and_modify)
+{
     // 手动构建 JSON 结构
     JsonValue  root     = JsonValue::make_object();
     JsonObject root_obj = root.as_object();
@@ -1427,7 +1516,8 @@ TEST(JsonRealWorldTest, build_and_modify) {
 }
 
 // 场景3：统一处理不同类型的JSON值
-TEST(JsonRealWorldTest, generic_json_processing) {
+TEST(JsonRealWorldTest, generic_json_processing)
+{
     // 辅助函数：计算JSON中的值数量
     auto count_values = [](const JsonValue& value, auto& count_func) -> int {
         if (value.is_array()) {
@@ -1470,7 +1560,8 @@ TEST(JsonRealWorldTest, generic_json_processing) {
 }
 
 // 场景4：类型检查和安全访问
-TEST(JsonRealWorldTest, type_safe_access) {
+TEST(JsonRealWorldTest, type_safe_access)
+{
     // 手动构建 JSON 结构
     JsonValue  root = JsonValue::make_object();
     JsonObject obj  = root.as_object();
@@ -1508,7 +1599,8 @@ TEST(JsonRealWorldTest, type_safe_access) {
 }
 
 // 场景5：JsonValue作为统一接口
-TEST(JsonRealWorldTest, unified_interface_with_json_value) {
+TEST(JsonRealWorldTest, unified_interface_with_json_value)
+{
     // 函数接受JsonValue作为参数，可以处理任何类型
     auto process_json = [](const JsonValue& value) -> std::string {
         if (value.is_null()) {
@@ -1547,7 +1639,8 @@ TEST(JsonRealWorldTest, unified_interface_with_json_value) {
 // ======================== 引用计数和内存安全测试 ========================
 
 // 测试：引用计数基础功能（拷贝、移动、共享）
-TEST(JsonRefCountTest, basic_reference_counting) {
+TEST(JsonRefCountTest, basic_reference_counting)
+{
     // 测试拷贝共享
     JsonValue val1 = JsonValue::make_int(42);
     JsonValue val2(val1);
@@ -1578,7 +1671,8 @@ TEST(JsonRefCountTest, basic_reference_counting) {
 }
 
 // 测试：容器类型的引用计数
-TEST(JsonRefCountTest, container_reference_counting) {
+TEST(JsonRefCountTest, container_reference_counting)
+{
     // 测试 JsonArray
     JsonValue val_arr = JsonValue::make_array();
     Json*     raw_arr = val_arr.get_raw();
@@ -1601,7 +1695,8 @@ TEST(JsonRefCountTest, container_reference_counting) {
 }
 
 // 测试：对象包含子对象时的引用计数
-TEST(JsonRefCountTest, object_child_reference_counting) {
+TEST(JsonRefCountTest, object_child_reference_counting)
+{
     // 创建父对象和子对象
     JsonValue parent_val = JsonValue::make_object();
     JsonValue child_val  = JsonValue::make_object();
@@ -1633,7 +1728,8 @@ TEST(JsonRefCountTest, object_child_reference_counting) {
 }
 
 // 测试：数组包含子对象时的引用计数
-TEST(JsonRefCountTest, array_child_reference_counting) {
+TEST(JsonRefCountTest, array_child_reference_counting)
+{
     // 创建数组和子对象
     JsonValue arr_val   = JsonValue::make_array();
     JsonValue child_val = JsonValue::make_object();
@@ -1665,7 +1761,8 @@ TEST(JsonRefCountTest, array_child_reference_counting) {
 }
 
 // 测试：循环引用时的引用计数
-TEST(JsonRefCountTest, circular_reference_counting) {
+TEST(JsonRefCountTest, circular_reference_counting)
+{
     // 创建两个对象，形成循环引用
     JsonValue obj1_val = JsonValue::make_object();
     JsonValue obj2_val = JsonValue::make_object();
@@ -1719,7 +1816,8 @@ TEST(JsonRefCountTest, circular_reference_counting) {
 }
 
 // 测试：数组循环引用时的引用计数
-TEST(JsonRefCountTest, array_circular_reference_counting) {
+TEST(JsonRefCountTest, array_circular_reference_counting)
+{
     // 创建两个数组，形成循环引用
     JsonValue arr1_val = JsonValue::make_array();
     JsonValue arr2_val = JsonValue::make_array();
@@ -1773,7 +1871,8 @@ TEST(JsonRefCountTest, array_circular_reference_counting) {
 }
 
 // 测试：多层嵌套对象的引用计数
-TEST(JsonRefCountTest, nested_object_reference_counting) {
+TEST(JsonRefCountTest, nested_object_reference_counting)
+{
     // 创建三层嵌套对象
     JsonValue level1_val = JsonValue::make_object();
     JsonValue level2_val = JsonValue::make_object();
@@ -1836,7 +1935,8 @@ TEST(JsonRefCountTest, nested_object_reference_counting) {
 // ======================== Quote 引用正确性测试 ========================
 
 // 测试：Quote 类型的解引用和替换
-TEST(JsonQuoteTest, quote_dereference_and_replacement) {
+TEST(JsonQuoteTest, quote_dereference_and_replacement)
+{
     // 测试数组中 Quote 的解引用
     JsonValue orig_arr = JsonValue::make_string("original");
     Json*     raw_arr  = orig_arr.get_raw();
@@ -1877,7 +1977,8 @@ TEST(JsonQuoteTest, quote_dereference_and_replacement) {
 // ======================== 取值正确性测试 ========================
 
 // 测试：嵌套访问和多路径访问的正确性
-TEST(JsonValueCorrectnessTest, access_correctness) {
+TEST(JsonValueCorrectnessTest, access_correctness)
+{
     // 测试嵌套结构访问
     JsonValue  root = JsonValue::make_object();
     JsonObject obj  = root.as_object();
@@ -1899,7 +2000,8 @@ TEST(JsonValueCorrectnessTest, access_correctness) {
 // ======================== 内存安全测试 ========================
 
 // 测试：生命周期管理（创建销毁、拷贝、独立生命周期）
-TEST(JsonMemorySafetyTest, lifecycle_management) {
+TEST(JsonMemorySafetyTest, lifecycle_management)
+{
     // 测试大量创建销毁
     for (int i = 0; i < 500; ++i) {
         JsonValue val = JsonValue::make_int(i);
@@ -1934,7 +2036,8 @@ TEST(JsonMemorySafetyTest, lifecycle_management) {
 }
 
 // 测试：迭代器和移动安全性
-TEST(JsonMemorySafetyTest, iterator_and_move_safety) {
+TEST(JsonMemorySafetyTest, iterator_and_move_safety)
+{
     // 测试迭代器失效安全
     JsonValue arr = JsonValue::make_array();
     for (int i = 0; i < 3; ++i) {
@@ -1957,7 +2060,8 @@ TEST(JsonMemorySafetyTest, iterator_and_move_safety) {
 // ======================== Double Free 防御测试 ========================
 
 // 测试：移动操作防止 double free
-TEST(JsonDoubleFreeTest, move_safety) {
+TEST(JsonDoubleFreeTest, move_safety)
+{
     // 测试移动构造
     JsonValue val1 = JsonValue::make_string("test");
     JsonValue val2(std::move(val1));
@@ -1987,7 +2091,8 @@ TEST(JsonDoubleFreeTest, move_safety) {
 // ======================== 引用链测试 ========================
 
 // 测试：引用链传递的正确性
-TEST(JsonRefChainTest, reference_chain) {
+TEST(JsonRefChainTest, reference_chain)
+{
     // 测试长引用链
     JsonValue              original = JsonValue::make_string("chain");
     Json*                  orig_raw = original.get_raw();
@@ -2020,7 +2125,8 @@ TEST(JsonRefChainTest, reference_chain) {
 // ======================== 压力测试 ========================
 
 // 测试：综合压力测试（大量引用、多次替换、深层嵌套）
-TEST(JsonStressTest, comprehensive_stress) {
+TEST(JsonStressTest, comprehensive_stress)
+{
     // 测试大量引用
     JsonValue              original = JsonValue::make_string("shared");
     std::vector<JsonValue> refs;
@@ -2059,7 +2165,8 @@ TEST(JsonStressTest, comprehensive_stress) {
 // ======================== json_encode 和 json_decode 一致性测试 ========================
 
 // 测试：json_wrapper::json_encode 与 mc::json::json_encode 输出一致性
-TEST(JsonConsistencyTest, encode_consistency_with_mc_json) {
+TEST(JsonConsistencyTest, encode_consistency_with_mc_json)
+{
     // 准备测试数据
     mc::variant  test_null         = mc::variant();
     mc::variant  test_bool         = mc::variant(true);
@@ -2094,19 +2201,22 @@ TEST(JsonConsistencyTest, encode_consistency_with_mc_json) {
 }
 
 // 测试：使用 dict 参数的 json_encode 一致性
-TEST(JsonConsistencyTest, encode_dict_consistency) {
+TEST(JsonConsistencyTest, encode_dict_consistency)
+{
     mc::dict test_dict = {{"key1", "value1"}, {"key2", 42}, {"key3", true}};
     EXPECT_EQ(json_wrapper::json_encode(test_dict), mc::json::json_encode(test_dict));
 }
 
 // 测试：使用 vector<variant> 参数的 json_encode 一致性
-TEST(JsonConsistencyTest, encode_vector_consistency) {
+TEST(JsonConsistencyTest, encode_vector_consistency)
+{
     std::vector<mc::variant> test_vector = {mc::variant(1), mc::variant(2), mc::variant(3)};
     EXPECT_EQ(json_wrapper::json_encode(test_vector), mc::json::json_encode(test_vector));
 }
 
 // 测试：json_decode 与 json_encode 往返转换一致性
-TEST(JsonConsistencyTest, decode_encode_round_trip) {
+TEST(JsonConsistencyTest, decode_encode_round_trip)
+{
     // 原始数据
     mc::dict original_dict = {
         {"name", "Charlie"},
@@ -2129,7 +2239,8 @@ TEST(JsonConsistencyTest, decode_encode_round_trip) {
 }
 
 // 测试：两个 json_decode 解析同一 JSON 字符串的结果一致性
-TEST(JsonConsistencyTest, decode_consistency) {
+TEST(JsonConsistencyTest, decode_consistency)
+{
     // JSON 测试字符串
     std::string json_str = R"({
         "name": "David",
@@ -2156,7 +2267,8 @@ TEST(JsonConsistencyTest, decode_consistency) {
 }
 
 // 测试：各种特殊值的编码一致性
-TEST(JsonConsistencyTest, encode_special_values_consistency) {
+TEST(JsonConsistencyTest, encode_special_values_consistency)
+{
     // 空对象
     mc::dict empty_dict{};
     EXPECT_EQ(json_wrapper::json_encode(empty_dict), mc::json::json_encode(empty_dict));
@@ -2183,7 +2295,8 @@ TEST(JsonConsistencyTest, encode_special_values_consistency) {
 }
 
 // 测试：深嵌套结构的编解码一致性
-TEST(JsonConsistencyTest, deep_nesting_consistency) {
+TEST(JsonConsistencyTest, deep_nesting_consistency)
+{
     // 构建深嵌套结构
     mc::variant current = mc::variant(mc::dict{{"level", 20}});
     for (int i = 20; i >= 0; --i) {
@@ -2207,7 +2320,8 @@ TEST(JsonConsistencyTest, deep_nesting_consistency) {
 // ======================== dump 函数测试 ========================
 
 // 测试：dump variant 到文件（紧凑格式）
-TEST(JsonDumpTest, dump_variant_compact) {
+TEST(JsonDumpTest, dump_variant_compact)
+{
     mc::filesystem::path test_file = "/tmp/test_json_dump_variant_compact.json";
 
     mc::dict    data{{"name", "test"}, {"age", 30}, {"active", true}};
@@ -2224,7 +2338,8 @@ TEST(JsonDumpTest, dump_variant_compact) {
 }
 
 // 测试：dump variant 到文件（格式化输出）
-TEST(JsonDumpTest, dump_variant_pretty) {
+TEST(JsonDumpTest, dump_variant_pretty)
+{
     mc::filesystem::path test_file = "/tmp/test_json_dump_variant_pretty.json";
 
     mc::dict    data{{"name", "test"}, {"age", 30}, {"active", true}};
@@ -2244,7 +2359,8 @@ TEST(JsonDumpTest, dump_variant_pretty) {
 }
 
 // 测试：dump dict 到文件
-TEST(JsonDumpTest, dump_dict) {
+TEST(JsonDumpTest, dump_dict)
+{
     mc::filesystem::path test_file = "/tmp/test_json_dump_dict.json";
 
     mc::dict data{{"key1", "value1"}, {"key2", 42}, {"key3", false}};
@@ -2260,7 +2376,8 @@ TEST(JsonDumpTest, dump_dict) {
 }
 
 // 测试：dump vector<variant> 到文件
-TEST(JsonDumpTest, dump_vector) {
+TEST(JsonDumpTest, dump_vector)
+{
     mc::filesystem::path test_file = "/tmp/test_json_dump_vector.json";
 
     std::vector<mc::variant> arr{mc::variant(1), mc::variant("test"), mc::variant(true)};
@@ -2276,7 +2393,8 @@ TEST(JsonDumpTest, dump_vector) {
 }
 
 // 测试：dump 嵌套结构到文件
-TEST(JsonDumpTest, dump_nested_structure) {
+TEST(JsonDumpTest, dump_nested_structure)
+{
     mc::filesystem::path test_file = "/tmp/test_json_dump_nested.json";
 
     mc::dict complex_data{
@@ -2299,7 +2417,8 @@ TEST(JsonDumpTest, dump_nested_structure) {
 }
 
 // 测试：dump 空对象到文件
-TEST(JsonDumpTest, dump_empty_object) {
+TEST(JsonDumpTest, dump_empty_object)
+{
     mc::filesystem::path test_file = "/tmp/test_json_dump_empty.json";
 
     mc::dict    empty_data{};
@@ -2316,7 +2435,8 @@ TEST(JsonDumpTest, dump_empty_object) {
 }
 
 // 测试：dump 基本类型到文件
-TEST(JsonDumpTest, dump_basic_types) {
+TEST(JsonDumpTest, dump_basic_types)
+{
     mc::filesystem::path test_file = "/tmp/test_json_dump_basic.json";
 
     mc::variant null_val;
@@ -2344,7 +2464,8 @@ TEST(JsonDumpTest, dump_basic_types) {
 }
 
 // 测试：dump 后读取验证数据一致性
-TEST(JsonDumpTest, dump_then_read_consistency) {
+TEST(JsonDumpTest, dump_then_read_consistency)
+{
     mc::filesystem::path test_file = "/tmp/test_json_dump_consistency.json";
 
     mc::dict original_data{
@@ -2367,7 +2488,8 @@ TEST(JsonDumpTest, dump_then_read_consistency) {
 }
 
 // 测试：dump 格式化输出验证
-TEST(JsonDumpTest, dump_formatted_output) {
+TEST(JsonDumpTest, dump_formatted_output)
+{
     mc::filesystem::path test_file = "/tmp/test_json_dump_formatted.json";
 
     mc::dict data{
@@ -2389,7 +2511,8 @@ TEST(JsonDumpTest, dump_formatted_output) {
 }
 
 // 测试：dump 到不存在的目录
-TEST(JsonDumpTest, dump_to_invalid_path) {
+TEST(JsonDumpTest, dump_to_invalid_path)
+{
     mc::filesystem::path test_file = "/nonexistent/directory/test.json";
 
     mc::dict    data{{"key", "value"}};
@@ -2402,7 +2525,8 @@ TEST(JsonDumpTest, dump_to_invalid_path) {
 // ======================== json_encode 直接编码优化测试 ========================
 
 // 测试套件：json_encode(const mc::dict&, bool) 直接编码测试
-TEST(JsonDirectEncodeTest, encode_dict_basic) {
+TEST(JsonDirectEncodeTest, encode_dict_basic)
+{
     // 测试空对象
     mc::dict    empty_dict{};
     std::string result = json_wrapper::json_encode(empty_dict, false);
@@ -2421,7 +2545,8 @@ TEST(JsonDirectEncodeTest, encode_dict_basic) {
     EXPECT_TRUE(result.find("95.5") != std::string::npos);
 }
 
-TEST(JsonDirectEncodeTest, encode_dict_nested) {
+TEST(JsonDirectEncodeTest, encode_dict_nested)
+{
     // 测试嵌套对象
     mc::dict nested_dict{
         {"user", mc::dict{{"name", "Alice"}, {"age", 25}}},
@@ -2435,7 +2560,8 @@ TEST(JsonDirectEncodeTest, encode_dict_nested) {
     EXPECT_TRUE(result.find("[85,92,78]") != std::string::npos);
 }
 
-TEST(JsonDirectEncodeTest, encode_dict_pretty_print) {
+TEST(JsonDirectEncodeTest, encode_dict_pretty_print)
+{
     // 测试格式化输出
     mc::dict data{
         {"name", "张三"},
@@ -2455,7 +2581,8 @@ TEST(JsonDirectEncodeTest, encode_dict_pretty_print) {
     EXPECT_NE(pretty.find("    "), std::string::npos);
 }
 
-TEST(JsonDirectEncodeTest, encode_dict_consistency_with_variant) {
+TEST(JsonDirectEncodeTest, encode_dict_consistency_with_variant)
+{
     // 验证直接编码 dict 与通过 variant 编码结果一致
     mc::dict test_dict{
         {"null_value", mc::variant()},
@@ -2475,7 +2602,8 @@ TEST(JsonDirectEncodeTest, encode_dict_consistency_with_variant) {
     EXPECT_EQ(direct_result, variant_result);
 }
 
-TEST(JsonDirectEncodeTest, encode_dict_chinese) {
+TEST(JsonDirectEncodeTest, encode_dict_chinese)
+{
     // 测试中文字符
     mc::dict chinese_dict{{"姓名", "张三"}, {"年龄", 30}, {"城市", "北京"}};
 
@@ -2493,7 +2621,8 @@ TEST(JsonDirectEncodeTest, encode_dict_chinese) {
     EXPECT_EQ(decoded.get_object()["城市"].as<std::string>(), "北京");
 }
 
-TEST(JsonDirectEncodeTest, encode_dict_special_characters) {
+TEST(JsonDirectEncodeTest, encode_dict_special_characters)
+{
     // 测试特殊字符转义
     mc::dict special_dict{
         {"newline", "hello\nworld"},
@@ -2515,7 +2644,8 @@ TEST(JsonDirectEncodeTest, encode_dict_special_characters) {
     EXPECT_EQ(decoded.get_object()["backslash"].as<std::string>(), "hello\\world");
 }
 
-TEST(JsonDirectEncodeTest, encode_dict_deep_nesting) {
+TEST(JsonDirectEncodeTest, encode_dict_deep_nesting)
+{
     // 测试深层嵌套
     mc::variant current = mc::variant(mc::dict{{"level", 10}});
     for (int i = 9; i >= 0; --i) {
@@ -2533,7 +2663,8 @@ TEST(JsonDirectEncodeTest, encode_dict_deep_nesting) {
     EXPECT_EQ(variant_result, direct_result);
 }
 
-TEST(JsonDirectEncodeTest, encode_dict_empty_and_null_values) {
+TEST(JsonDirectEncodeTest, encode_dict_empty_and_null_values)
+{
     // 测试空值和 null 处理
     mc::dict null_dict{
         {"empty_string", ""},
@@ -2549,7 +2680,8 @@ TEST(JsonDirectEncodeTest, encode_dict_empty_and_null_values) {
 }
 
 // 测试套件：json_encode(const std::vector<mc::variant>&, bool) 直接编码测试
-TEST(JsonDirectEncodeTest, encode_vector_basic) {
+TEST(JsonDirectEncodeTest, encode_vector_basic)
+{
     // 测试空数组
     std::vector<mc::variant> empty_vector{};
     std::string              result = json_wrapper::json_encode(empty_vector, false);
@@ -2565,7 +2697,8 @@ TEST(JsonDirectEncodeTest, encode_vector_basic) {
     EXPECT_EQ(result, "[1,\"test\",true,3.14]");
 }
 
-TEST(JsonDirectEncodeTest, encode_vector_nested) {
+TEST(JsonDirectEncodeTest, encode_vector_nested)
+{
     // 测试嵌套数组
     std::vector<mc::variant> nested_vector = {
         mc::variant(1),
@@ -2579,7 +2712,8 @@ TEST(JsonDirectEncodeTest, encode_vector_nested) {
     EXPECT_TRUE(result.find("{\"key\":\"value\"}") != std::string::npos);
 }
 
-TEST(JsonDirectEncodeTest, encode_vector_pretty_print) {
+TEST(JsonDirectEncodeTest, encode_vector_pretty_print)
+{
     // 测试格式化输出
     std::vector<mc::variant> data = {
         mc::variant("姓名"),
@@ -2599,7 +2733,8 @@ TEST(JsonDirectEncodeTest, encode_vector_pretty_print) {
     EXPECT_NE(pretty.find("    "), std::string::npos);
 }
 
-TEST(JsonDirectEncodeTest, encode_vector_consistency_with_variant) {
+TEST(JsonDirectEncodeTest, encode_vector_consistency_with_variant)
+{
     // 验证直接编码 vector 与通过 variant 编码结果一致
     std::vector<mc::variant> test_vector = {
         mc::variant(),
@@ -2619,7 +2754,8 @@ TEST(JsonDirectEncodeTest, encode_vector_consistency_with_variant) {
     EXPECT_EQ(direct_result, variant_result);
 }
 
-TEST(JsonDirectEncodeTest, encode_vector_mixed_types) {
+TEST(JsonDirectEncodeTest, encode_vector_mixed_types)
+{
     // 测试混合类型数组
     std::vector<mc::variant> mixed_vector = {
         mc::variant(),                // null
@@ -2655,7 +2791,8 @@ TEST(JsonDirectEncodeTest, encode_vector_mixed_types) {
     EXPECT_TRUE(decoded.get_array()[7].is_object());
 }
 
-TEST(JsonDirectEncodeTest, encode_vector_chinese) {
+TEST(JsonDirectEncodeTest, encode_vector_chinese)
+{
     // 测试中文字符数组
     std::vector<mc::variant> chinese_vector = {
         mc::variant("姓名"),
@@ -2680,7 +2817,8 @@ TEST(JsonDirectEncodeTest, encode_vector_chinese) {
     EXPECT_EQ(decoded.get_array()[5].as<std::string>(), "北京");
 }
 
-TEST(JsonDirectEncodeTest, encode_vector_special_characters) {
+TEST(JsonDirectEncodeTest, encode_vector_special_characters)
+{
     // 测试特殊字符转义
     std::vector<mc::variant> special_vector = {
         mc::variant("hello\nworld"),
@@ -2702,7 +2840,8 @@ TEST(JsonDirectEncodeTest, encode_vector_special_characters) {
     EXPECT_EQ(decoded.get_array()[3].as<std::string>(), "hello\\world");
 }
 
-TEST(JsonDirectEncodeTest, encode_vector_large_numbers) {
+TEST(JsonDirectEncodeTest, encode_vector_large_numbers)
+{
     // 测试大数字
     std::vector<mc::variant> large_numbers = {
         mc::variant(int64_t{9223372036854775807LL}),    // int64 max
@@ -2724,7 +2863,8 @@ TEST(JsonDirectEncodeTest, encode_vector_large_numbers) {
 }
 
 // 测试套件：性能优化验证测试
-TEST(JsonDirectEncodeTest, performance_optimization_dict) {
+TEST(JsonDirectEncodeTest, performance_optimization_dict)
+{
     // 验证直接编码 dict 与通过 variant 编码结果完全一致
     mc::dict complex_dict{
         {"string", "hello world"},
@@ -2749,7 +2889,8 @@ TEST(JsonDirectEncodeTest, performance_optimization_dict) {
     EXPECT_EQ(direct_pretty, variant_pretty);
 }
 
-TEST(JsonDirectEncodeTest, performance_optimization_vector) {
+TEST(JsonDirectEncodeTest, performance_optimization_vector)
+{
     // 验证直接编码 vector 与通过 variant 编码结果完全一致
     std::vector<mc::variant> complex_vector = {
         mc::variant("first"),
@@ -2773,7 +2914,8 @@ TEST(JsonDirectEncodeTest, performance_optimization_vector) {
 }
 
 // 测试套件：往返转换测试
-TEST(JsonDirectEncodeTest, round_trip_dict) {
+TEST(JsonDirectEncodeTest, round_trip_dict)
+{
     // 创建复杂 dict
     mc::dict original{
         {"name", "测试用户"},
@@ -2801,7 +2943,8 @@ TEST(JsonDirectEncodeTest, round_trip_dict) {
     EXPECT_NEAR(decoded.get_object()["balance"].as<double>(), 1234.56, 0.01);
 }
 
-TEST(JsonDirectEncodeTest, round_trip_vector) {
+TEST(JsonDirectEncodeTest, round_trip_vector)
+{
     // 创建复杂 vector
     std::vector<mc::variant> original = {
         mc::variant("数据"),

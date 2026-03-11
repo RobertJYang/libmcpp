@@ -16,46 +16,58 @@
 
 namespace mc::expr {
 
-static bool is_digit(char c) {
+static bool is_digit(char c)
+{
     return std::isdigit(static_cast<unsigned char>(c));
 }
 
-static bool is_alpha(char c) {
+static bool is_alpha(char c)
+{
     return std::isalpha(static_cast<unsigned char>(c)) || c == '_';
 }
 
-static bool is_alnum(char c) {
+static bool is_alnum(char c)
+{
     return is_alpha(c) || is_digit(c);
 }
 
-static bool is_xdigit(char c) {
+static bool is_xdigit(char c)
+{
     return isxdigit(static_cast<unsigned char>(c));
 }
 
-static bool is_binary_digit(char c) {
+static bool is_binary_digit(char c)
+{
     return c == '0' || c == '1';
 }
 
-static bool is_octal_digit(char c) {
+static bool is_octal_digit(char c)
+{
     return c >= '0' && c <= '7';
 }
 
-static bool is_whitespace(char c) {
+static bool is_whitespace(char c)
+{
     return c == ' ' || c == '\r' || c == '\t' || c == '\n';
 }
 
-lexer::lexer(std::string_view source) : m_source(source), m_current(0), m_start(0) {
+lexer::lexer(std::string_view source)
+    : m_source(source), m_current(0), m_start(0)
+{
 }
 
-bool lexer::is_at_end() const {
+bool lexer::is_at_end() const
+{
     return m_current >= m_source.size();
 }
 
-char lexer::advance() {
+char lexer::advance()
+{
     return m_source[m_current++];
 }
 
-bool lexer::match(char expected) {
+bool lexer::match(char expected)
+{
     if (is_at_end() || m_source[m_current] != expected) {
         return false;
     }
@@ -64,63 +76,74 @@ bool lexer::match(char expected) {
     return true;
 }
 
-char lexer::peek() const {
+char lexer::peek() const
+{
     if (is_at_end()) {
         return '\0';
     }
     return m_source[m_current];
 }
 
-char lexer::peek_next() const {
+char lexer::peek_next() const
+{
     if (m_current + 1 >= m_source.size()) {
         return '\0';
     }
     return m_source[m_current + 1];
 }
 
-void lexer::skip_while(const std::function<bool(char)>& predicate) {
+void lexer::skip_while(const std::function<bool(char)>& predicate)
+{
     while (!is_at_end() && predicate(peek())) {
         advance();
     }
 }
 
-void lexer::skip_until(const std::function<bool(char)>& predicate) {
+void lexer::skip_until(const std::function<bool(char)>& predicate)
+{
     while (!is_at_end() && !predicate(peek())) {
         advance();
     }
 }
 
 // 提取当前词素（从m_start到m_current）
-std::string_view lexer::lexeme() const {
+std::string_view lexer::lexeme() const
+{
     return m_source.substr(m_start, m_current - m_start);
 }
 
 // 提取词素（从m_start到指定位置）
-std::string_view lexer::lexeme(std::size_t end) const {
+std::string_view lexer::lexeme(std::size_t end) const
+{
     return m_source.substr(m_start, end - m_start);
 }
 
 // 提取词素（指定范围）
-std::string_view lexer::lexeme(std::size_t start, std::size_t end) const {
+std::string_view lexer::lexeme(std::size_t start, std::size_t end) const
+{
     return m_source.substr(start, end - start);
 }
 
-std::size_t lexer::lexlen() const {
+std::size_t lexer::lexlen() const
+{
     return m_current - m_start;
 }
 
 // 添加词法单元
-void lexer::add_token(token_type type) {
+void lexer::add_token(token_type type)
+{
     add_token(type, {});
 }
 
 // 添加带有字面值的词法单元
-void lexer::add_token(token_type type, mc::variant literal) {
+void lexer::add_token(token_type type, mc::variant literal)
+{
     m_tokens.emplace_back(type, std::string(lexeme()), std::move(literal), m_start);
 }
 
 // 处理运算符
-void lexer::handle_operator(char c) {
+void lexer::handle_operator(char c)
+{
     switch (c) {
     case '(':
         add_token(token_type::left_paren);
@@ -205,7 +228,8 @@ void lexer::handle_operator(char c) {
 }
 
 // 检查是否是模板字符串
-bool lexer::is_template_string(std::string_view source) {
+bool lexer::is_template_string(std::string_view source)
+{
     // 跳过字符直到遇到 $ 或结束引号
     size_t current = 0;
     while (current < source.size()) {
@@ -232,7 +256,8 @@ bool lexer::is_template_string(std::string_view source) {
     return false;
 }
 
-bool lexer::is_template_string() {
+bool lexer::is_template_string()
+{
     if (m_current >= m_source.size()) {
         return false;
     }
@@ -240,7 +265,8 @@ bool lexer::is_template_string() {
     return is_template_string(m_source.substr(m_current));
 }
 
-void lexer::scan_template_string(char delimiter) {
+void lexer::scan_template_string(char delimiter)
+{
     size_t string_start = m_current; // 记录字符串内容开始位置
 
     // 扫描第一部分文本直到 ${ 或结束引号
@@ -371,7 +397,8 @@ void lexer::scan_template_string(char delimiter) {
 }
 
 // 修改扫描词法单元的方法
-void lexer::scan_token() {
+void lexer::scan_token()
+{
     char c = advance();
 
     if (c == '"' || c == '\'') {
@@ -395,7 +422,8 @@ void lexer::scan_token() {
 }
 
 // 扫描字符串字面值
-void lexer::scan_string() {
+void lexer::scan_string()
+{
     char delimiter = m_source[m_start]; // 获取字符串的开始引号类型（单引号或双引号）
 
     // 跳过字符直到遇到未转义的结束引号
@@ -415,7 +443,8 @@ void lexer::scan_string() {
 }
 
 // 处理字符串字面值内容（处理转义序列）
-void lexer::process_string_literal(char delimiter) {
+void lexer::process_string_literal(char delimiter)
+{
     auto value = lexeme(m_start + 1, m_current - 1);
 
     std::string result;
@@ -463,7 +492,8 @@ void lexer::process_string_literal(char delimiter) {
 
 // 检测数字的进制
 // 返回值: 0 = 十进制, 16 = 十六进制, 8 = 八进制, 2 = 二进制，-1 = 浮点数
-int lexer::detect_number_radix() {
+int lexer::detect_number_radix()
+{
     if (m_source[m_start] == '0' && m_current < m_source.size()) {
         auto pos = m_current - m_start;
         if (pos == 1 && (peek() == 'x' || peek() == 'X')) {
@@ -492,7 +522,8 @@ int lexer::detect_number_radix() {
 }
 
 // 扫描数字字面值
-void lexer::scan_number() {
+void lexer::scan_number()
+{
     int              radix   = detect_number_radix();
     std::string_view num_str = lexeme();
     if ((radix == 16 || radix == 2)) {
@@ -531,7 +562,8 @@ void lexer::scan_number() {
     add_token(token_type::number, mc::variant(value));
 }
 
-void lexer::scan_identifier() {
+void lexer::scan_identifier()
+{
     skip_while(is_alnum);
 
     std::string_view text = lexeme();
@@ -548,7 +580,8 @@ void lexer::scan_identifier() {
     add_token(token_type::identifier, text);
 }
 
-std::vector<token> lexer::scan_tokens() {
+std::vector<token> lexer::scan_tokens()
+{
     m_tokens.clear();
 
     while (!is_at_end()) {
@@ -560,7 +593,8 @@ std::vector<token> lexer::scan_tokens() {
     return m_tokens;
 }
 
-std::vector<token> lexer::scan_template_string_tokens() {
+std::vector<token> lexer::scan_template_string_tokens()
+{
     m_tokens.clear();
 
     while (!is_at_end()) {

@@ -127,7 +127,8 @@ using test_types = std::tuple<
 
 class reflection_factory_advanced_test : public mc::test::TestBase {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         // 重置工厂单例，确保每个测试开始时都有干净的工厂状态
         mc::singleton<mc::reflect::factory_ptr, mc_devices_namespace>::reset_for_test();
         mc::singleton<mc::reflect::factory_ptr, mc_devices_sensors_namespace>::reset_for_test();
@@ -145,7 +146,8 @@ protected:
         mc::log::default_logger().set_level(mc::log::level::error);
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         // 清理测试单例
         mc::singleton<mc::reflect::factory_ptr, mc_devices_namespace>::reset_for_test();
         mc::singleton<mc::reflect::factory_ptr, mc_devices_sensors_namespace>::reset_for_test();
@@ -160,7 +162,8 @@ protected:
 };
 
 // 测试工厂名称验证
-TEST_F(reflection_factory_advanced_test, FactoryNameValidation) {
+TEST_F(reflection_factory_advanced_test, FactoryNameValidation)
+{
     // 有效的工厂名称
     EXPECT_TRUE(mc::reflect::is_valid_namespace("devices"));
     EXPECT_TRUE(mc::reflect::is_valid_namespace("mc.devices"));
@@ -185,7 +188,8 @@ TEST_F(reflection_factory_advanced_test, FactoryNameValidation) {
 }
 
 // 测试自定义命名空间工厂创建
-TEST_F(reflection_factory_advanced_test, CustomNamespaceFactory) {
+TEST_F(reflection_factory_advanced_test, CustomNamespaceFactory)
+{
     // 获取自定义命名空间工厂
     auto& devices_factory = mc::reflect::reflection_factory::instance<mc_devices_namespace>();
     auto& sensors_factory = mc::reflect::reflection_factory::instance<mc_devices_sensors_namespace>();
@@ -202,7 +206,8 @@ TEST_F(reflection_factory_advanced_test, CustomNamespaceFactory) {
 }
 
 // 测试命名空间要求验证
-TEST_F(reflection_factory_advanced_test, NamespaceRequirement) {
+TEST_F(reflection_factory_advanced_test, NamespaceRequirement)
+{
     auto& devices_factory = mc::reflect::reflection_factory::instance<mc_devices_namespace>();
 
     // 正确的命名空间注册应该成功
@@ -226,7 +231,8 @@ TEST_F(reflection_factory_advanced_test, NamespaceRequirement) {
 }
 
 // 测试工厂注册到另一个工厂
-TEST_F(reflection_factory_advanced_test, FactoryRegistration) {
+TEST_F(reflection_factory_advanced_test, FactoryRegistration)
+{
     auto& global_factory  = mc::reflect::reflection_factory::global();
     auto& devices_factory = mc::reflect::reflection_factory::instance<mc_devices_namespace>();
     auto& sensors_factory = mc::reflect::reflection_factory::instance<mc_devices_sensors_namespace>();
@@ -274,7 +280,8 @@ TEST_F(reflection_factory_advanced_test, FactoryRegistration) {
 }
 
 // 测试工厂注册命名要求
-TEST_F(reflection_factory_advanced_test, FactoryRegistrationNamingRequirement) {
+TEST_F(reflection_factory_advanced_test, FactoryRegistrationNamingRequirement)
+{
     auto& global_factory  = mc::reflect::reflection_factory::global();
     auto& devices_factory = mc::reflect::reflection_factory::instance<mc_devices_namespace>();
     auto& drivers_factory = mc::reflect::reflection_factory::instance<mc_drivers_namespace>();
@@ -301,7 +308,8 @@ TEST_F(reflection_factory_advanced_test, FactoryRegistrationNamingRequirement) {
 }
 
 // 测试跨工厂对象创建
-TEST_F(reflection_factory_advanced_test, CrossFactoryObjectCreation) {
+TEST_F(reflection_factory_advanced_test, CrossFactoryObjectCreation)
+{
     auto& global_factory  = mc::reflect::reflection_factory::global();
     auto& devices_factory = mc::reflect::reflection_factory::instance<mc_devices_namespace>();
     auto& sensors_factory = mc::reflect::reflection_factory::instance<mc_devices_sensors_namespace>();
@@ -335,7 +343,8 @@ TEST_F(reflection_factory_advanced_test, CrossFactoryObjectCreation) {
 }
 
 // 测试枚举元数据自动注销
-TEST_F(reflection_factory_advanced_test, EnumMetadataAutoUnregister) {
+TEST_F(reflection_factory_advanced_test, EnumMetadataAutoUnregister)
+{
     auto& devices_factory = mc::reflect::reflection_factory::instance<mc_devices_namespace>();
 
     // 验证枚举类型存在
@@ -364,7 +373,8 @@ TEST_F(reflection_factory_advanced_test, EnumMetadataAutoUnregister) {
 }
 
 // 测试子工厂销毁时自动注销
-TEST_F(reflection_factory_advanced_test, SubFactoryAutoUnregister) {
+TEST_F(reflection_factory_advanced_test, SubFactoryAutoUnregister)
+{
     auto& devices_factory = mc::reflect::reflection_factory::instance<mc_devices_namespace>();
 
     // 创建一个新的传感器工厂实例并注册
@@ -388,7 +398,8 @@ TEST_F(reflection_factory_advanced_test, SubFactoryAutoUnregister) {
 }
 
 // 测试工厂层次结构和模块路径
-TEST_F(reflection_factory_advanced_test, FactoryHierarchyAndModulePaths) {
+TEST_F(reflection_factory_advanced_test, FactoryHierarchyAndModulePaths)
+{
     auto& global_factory  = mc::reflect::reflection_factory::global();
     auto& devices_factory = mc::reflect::reflection_factory::instance<mc_devices_namespace>();
     auto& sensors_factory = mc::reflect::reflection_factory::instance<mc_devices_sensors_namespace>();
@@ -434,7 +445,8 @@ TEST_F(reflection_factory_advanced_test, FactoryHierarchyAndModulePaths) {
 }
 
 // 测试工厂注销
-TEST_F(reflection_factory_advanced_test, FactoryUnregistration) {
+TEST_F(reflection_factory_advanced_test, FactoryUnregistration)
+{
     auto& global_factory  = mc::reflect::reflection_factory::global();
     auto& devices_factory = mc::reflect::reflection_factory::instance<mc_devices_namespace>();
 
@@ -464,7 +476,8 @@ TEST_F(reflection_factory_advanced_test, FactoryUnregistration) {
 }
 
 // 测试错误情况处理
-TEST_F(reflection_factory_advanced_test, ErrorHandling) {
+TEST_F(reflection_factory_advanced_test, ErrorHandling)
+{
     auto& global_factory = mc::reflect::reflection_factory::global();
 
     // 测试注册空名称工厂
@@ -487,7 +500,8 @@ TEST_F(reflection_factory_advanced_test, ErrorHandling) {
 }
 
 // 测试统一的命名空间映射机制
-TEST_F(reflection_factory_advanced_test, UnifiedNamespaceMapping) {
+TEST_F(reflection_factory_advanced_test, UnifiedNamespaceMapping)
+{
     // 验证枚举是否注册到了正确的命名空间工厂
     auto& devices_factory  = mc::reflect::reflection_factory::instance<mc_devices_namespace>();
     auto  registered_types = devices_factory.get_registered_types();

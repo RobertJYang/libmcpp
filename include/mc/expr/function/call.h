@@ -44,7 +44,9 @@ public:
     func() = default;
 
     // 修改构造函数参数顺序，使其与测试用例匹配
-    func(const std::string& result, const mc::dict& args) : m_result(result), m_args(args) {
+    func(const std::string& result, const mc::dict& args)
+        : m_result(result), m_args(args)
+    {
     }
 
     void        validate_result();
@@ -53,10 +55,12 @@ public:
     mc::dict    get_relate_properties(const std::string_view& position, mc::dict& params);
 
     // 添加访问 m_args 的方法
-    const mc::dict& get_args() const {
+    const mc::dict& get_args() const
+    {
         return m_args;
     }
-    void set_args(const mc::dict& args) {
+    void set_args(const mc::dict& args)
+    {
         m_args = args;
     }
 

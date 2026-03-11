@@ -14,17 +14,21 @@
 namespace mc::db {
 static std::atomic<object_id_type> m_next_id{1}; ///< 下一个可用的对象ID
 
-object_id_type table_base::generate_id() {
+object_id_type table_base::generate_id()
+{
     return m_next_id.fetch_add(1, std::memory_order_relaxed);
 }
 
-database::database() {
+database::database()
+{
 }
 
-database::~database() {
+database::~database()
+{
 }
 
-void database::register_table(table_ptr table) {
+void database::register_table(table_ptr table)
+{
     MC_ASSERT(!table->get_table_name().empty(), "Table name is empty");
 
     std::lock_guard lock(m_mutex);
@@ -33,7 +37,8 @@ void database::register_table(table_ptr table) {
     m_table_ids[table->get_table_id()] = table;
 }
 
-void database::unregister_table(std::string_view table_name) {
+void database::unregister_table(std::string_view table_name)
+{
     std::lock_guard lock(m_mutex);
 
     auto it = m_tables.find(table_name);
@@ -45,13 +50,15 @@ void database::unregister_table(std::string_view table_name) {
     m_tables.erase(it);
 }
 
-bool database::is_table_registered(std::string_view table_name) const {
+bool database::is_table_registered(std::string_view table_name) const
+{
     std::lock_guard lock(m_mutex);
 
     return m_tables.find(table_name) != m_tables.end();
 }
 
-table_ptr database::get_table(std::string_view table_name) const {
+table_ptr database::get_table(std::string_view table_name) const
+{
     std::lock_guard lock(m_mutex);
 
     auto it = m_tables.find(table_name);
@@ -61,7 +68,8 @@ table_ptr database::get_table(std::string_view table_name) const {
     return it->second;
 }
 
-object_ptr database::add(std::string_view table_name, const mc::dict& var, transaction* txn) {
+object_ptr database::add(std::string_view table_name, const mc::dict& var, transaction* txn)
+{
     std::lock_guard lock(m_mutex);
 
     auto table = m_tables.find(table_name);
@@ -71,7 +79,8 @@ object_ptr database::add(std::string_view table_name, const mc::dict& var, trans
     return table->second->add_object(var, txn);
 }
 
-bool database::remove(std::string_view table_name, const query_builder& builder, transaction* txn) {
+bool database::remove(std::string_view table_name, const query_builder& builder, transaction* txn)
+{
     std::lock_guard lock(m_mutex);
 
     auto table = m_tables.find(table_name);
@@ -81,7 +90,8 @@ bool database::remove(std::string_view table_name, const query_builder& builder,
     return table->second->remove_object(builder, txn);
 }
 
-bool database::empty(std::string_view table_name) const {
+bool database::empty(std::string_view table_name) const
+{
     std::lock_guard lock(m_mutex);
 
     auto table = m_tables.find(table_name);
@@ -91,7 +101,8 @@ bool database::empty(std::string_view table_name) const {
     return table->second->empty();
 }
 
-size_t database::size(std::string_view table_name) const {
+size_t database::size(std::string_view table_name) const
+{
     std::lock_guard lock(m_mutex);
 
     auto table = m_tables.find(table_name);
@@ -101,7 +112,8 @@ size_t database::size(std::string_view table_name) const {
     return table->second->size();
 }
 
-void database::clear(std::string_view table_name) {
+void database::clear(std::string_view table_name)
+{
     std::lock_guard lock(m_mutex);
 
     auto table = m_tables.find(table_name);
@@ -112,7 +124,8 @@ void database::clear(std::string_view table_name) {
 }
 
 bool database::update(std::string_view table_name, const query_builder& builder,
-                      const mc::dict& values, transaction* txn) {
+                      const mc::dict& values, transaction* txn)
+{
     std::lock_guard lock(m_mutex);
 
     auto table = m_tables.find(table_name);
@@ -123,7 +136,8 @@ bool database::update(std::string_view table_name, const query_builder& builder,
 }
 
 bool database::update(std::string_view table_name, const query_builder& builder,
-                      const std::map<std::string, variant>& values, transaction* txn) {
+                      const std::map<std::string, variant>& values, transaction* txn)
+{
     std::lock_guard lock(m_mutex);
 
     auto table = m_tables.find(table_name);

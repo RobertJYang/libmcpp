@@ -42,9 +42,9 @@ namespace mdb::service {
  * @param interfaces [in] 接口名称列表
  * @return 返回对象信息
  */
-MC_API mc::variant get_object(mc::dbus::sd_bus* bus,
-                              std::string_view                         path,
-                              const mc::variants&                      interfaces);
+MC_API mc::variant get_object(mc::dbus::sd_bus*   bus,
+                              std::string_view    path,
+                              const mc::variants& interfaces);
 
 /**
  * @brief 获取子对象
@@ -75,9 +75,9 @@ MC_API mc::variant get_sub_paths(mc::dbus::sd_bus* bus, std::string_view path,
  * @param interfaces [in] 接口名称列表
  * @return 返回父对象信息
  */
-MC_API mc::variant get_parent_objects(mc::dbus::sd_bus* bus,
-                                      std::string_view                         path,
-                                      const mc::variants&                      interfaces);
+MC_API mc::variant get_parent_objects(mc::dbus::sd_bus*   bus,
+                                      std::string_view    path,
+                                      const mc::variants& interfaces);
 
 /**
  * @brief 获取服务名称
@@ -113,7 +113,7 @@ MC_API mc::variant get_path(mc::dbus::sd_bus* bus, std::string_view interface,
  * @return 返回接口拥有者列表
  */
 MC_API mc::variant get_interface_owners(mc::dbus::sd_bus* bus,
-                                        std::string_view                         interface);
+                                        std::string_view  interface);
 
 /**
  * @brief 验证路径是否有效
@@ -171,8 +171,8 @@ MC_API mc::variant get_object_owner(mc::dbus::sd_bus* bus, std::string_view obje
  * @return 返回匹配的对象列表
  */
 MC_API mc::variant get_matched_objects(mc::dbus::sd_bus* bus,
-                                       std::string_view                         object_name,
-                                       std::string_view                         interface_pattern);
+                                       std::string_view  object_name,
+                                       std::string_view  interface_pattern);
 
 /**
  * @brief 获取追踪对象

@@ -44,7 +44,8 @@ namespace mc {
 namespace detail {
 
 template <typename F, typename Arg>
-static auto invoke_visitor(F&& func, Arg&& v) {
+static auto invoke_visitor(F&& func, Arg&& v)
+{
     if constexpr (std::is_invocable_v<F>) {
         MC_UNUSED(v);
         return func();
@@ -80,17 +81,20 @@ public:
     using extension_ptr_type = typename Config::extension_ptr_type;
 
     variant_base()
-        : m_uint64(0), m_type(type_id::null_type), m_is_fixed(false) {
+        : m_uint64(0), m_type(type_id::null_type), m_is_fixed(false)
+    {
         static_assert(sizeof(uint64_t) >= sizeof(void*) && sizeof(uint64_t) >= sizeof(double),
                       "uint64_t 不是联合体中最大的成员");
     }
     variant_base(std::nullptr_t)
-        : variant_base() {
+        : variant_base()
+    {
     }
     variant_base(type_id type);
 
     template <typename T, std::enable_if_t<std::is_fundamental_v<T>, int> = 0>
-    variant_base(type_id type, T val) {
+    variant_base(type_id type, T val)
+    {
         if constexpr (std::is_same_v<T, bool>) {
             m_bool = static_cast<bool>(val);
         } else if constexpr (std::is_integral_v<T> && std::is_signed_v<T>) {
@@ -108,13 +112,16 @@ public:
      * @brief 从字符串构造 variant_base
      */
     variant_base(const char* str)
-        : variant_base(std::string_view(str)) {
+        : variant_base(std::string_view(str))
+    {
     }
     variant_base(const std::string& str)
-        : variant_base(std::string_view(str)) {
+        : variant_base(std::string_view(str))
+    {
     }
     variant_base(std::string_view str)
-        : m_uint64(0), m_type(type_id::string_type), m_is_fixed(false) {
+        : m_uint64(0), m_type(type_id::string_type), m_is_fixed(false)
+    {
         m_string_ptr = mc::allocate_ptr<string_type>(allocator_type(), str.data(), str.size());
     }
 
@@ -122,37 +129,44 @@ public:
      * 从各种基础类型构造 variant_base
      */
     variant_base(bool val)
-        : variant_base(type_id::bool_type, val) {
+        : variant_base(type_id::bool_type, val)
+    {
     }
     template <typename T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
     variant_base(T val)
-        : variant_base(mc::detail::fixed_integer_type<T>(), val) {
+        : variant_base(mc::detail::fixed_integer_type<T>(), val)
+    {
     }
     template <typename T, std::enable_if_t<std::is_floating_point_v<T>, int> = 0>
     variant_base(T val)
-        : variant_base(type_id::double_type, val) {
+        : variant_base(type_id::double_type, val)
+    {
     }
     variant_base(const blob_type& val)
-        : m_type(type_id::blob_type), m_is_fixed(false) {
+        : m_type(type_id::blob_type), m_is_fixed(false)
+    {
         m_blob_ptr =
             mc::allocate_ptr<blob_type>(allocator_type(), val.data.data(), val.data.size());
     }
 
     // 从字典构造 variant_base
     variant_base(const dict& obj)
-        : m_type(type_id::object_type), m_is_fixed(false) {
+        : m_type(type_id::object_type), m_is_fixed(false)
+    {
         new (&m_object) object_type(obj);
     }
 
     // 从 array_type 构造 variant_base
     variant_base(const array_type& arr)
-        : m_type(type_id::array_type), m_is_fixed(false) {
+        : m_type(type_id::array_type), m_is_fixed(false)
+    {
         new (&m_array) array_type(arr);
     }
 
     template <typename T, std::enable_if_t<std::is_base_of_v<variant_extension_base, T>, int> = 0>
     variant_base(mc::shared_ptr<T> ext)
-        : m_type(type_id::extension_type), m_is_fixed(false) {
+        : m_type(type_id::extension_type), m_is_fixed(false)
+    {
         new (&m_extension) extension_ptr_type(mc::static_pointer_cast<variant_extension_base>(ext));
     }
 
@@ -166,7 +180,8 @@ public:
                                   mc::is_variant_constructible_v<T>,
                               int> = 0>
     variant_base(const T& obj)
-        : variant_base() {
+        : variant_base()
+    {
         to_variant(obj, *this);
     }
 
@@ -183,7 +198,8 @@ public:
     /**
      * @brief 析构函数
      */
-    ~variant_base() {
+    ~variant_base()
+    {
         clear();
     }
 
@@ -192,7 +208,8 @@ public:
      */
     class visitor {
     public:
-        virtual ~visitor() {
+        virtual ~visitor()
+        {
         }
 
         virtual void handle() const                                = 0;
@@ -220,7 +237,8 @@ public:
      * @note 如果 visitor 不能处理当前类型，函数会静默返回（不抛出异常）
      */
     template <typename Visitor>
-    auto visit_with(Visitor&& visitor) const {
+    auto visit_with(Visitor&& visitor) const
+    {
         switch (m_type) {
         case type_id::null_type:
             return detail::invoke_visitor<Visitor>(std::forward<Visitor>(visitor), nullptr);
@@ -259,14 +277,16 @@ public:
     /**
      * @brief 获取 variant_base 的类型
      */
-    type_id get_type() const {
+    type_id get_type() const
+    {
         return static_cast<type_id>(m_type);
     }
 
     /**
      * @brief 判断 variant_base 是否为固定类型
      */
-    bool is_fixed_type() const {
+    bool is_fixed_type() const
+    {
         return m_is_fixed;
     }
 
@@ -274,126 +294,144 @@ public:
      * @brief 设置 variant_base 为固定类型，锁定当前类型
      * @param fixed 是否设置为固定类型，默认为 true
      */
-    void set_fixed_type(bool fixed = true) {
+    void set_fixed_type(bool fixed = true)
+    {
         m_is_fixed = fixed;
     }
 
     /**
      * @brief 判断 variant_base 是否为空
      */
-    bool is_null() const {
+    bool is_null() const
+    {
         return get_type() == type_id::null_type;
     }
 
     /**
      * @brief 判断 variant_base 是否为字符串
      */
-    bool is_string() const {
+    bool is_string() const
+    {
         return get_type() == type_id::string_type;
     }
 
     /**
      * @brief 判断 variant_base 是否为布尔值
      */
-    bool is_bool() const {
+    bool is_bool() const
+    {
         return get_type() == type_id::bool_type;
     }
 
     /**
      * @brief 判断 variant_base 是否为有符号8位整数
      */
-    bool is_int8() const {
+    bool is_int8() const
+    {
         return get_type() == type_id::int8_type;
     }
 
     /**
      * @brief 判断 variant_base 是否为无符号8位整数
      */
-    bool is_uint8() const {
+    bool is_uint8() const
+    {
         return get_type() == type_id::uint8_type;
     }
 
     /**
      * @brief 判断 variant_base 是否为有符号16位整数
      */
-    bool is_int16() const {
+    bool is_int16() const
+    {
         return get_type() == type_id::int16_type;
     }
 
     /**
      * @brief 判断 variant_base 是否为无符号16位整数
      */
-    bool is_uint16() const {
+    bool is_uint16() const
+    {
         return get_type() == type_id::uint16_type;
     }
 
     /**
      * @brief 判断 variant_base 是否为有符号32位整数
      */
-    bool is_int32() const {
+    bool is_int32() const
+    {
         return get_type() == type_id::int32_type;
     }
 
     /**
      * @brief 判断 variant_base 是否为无符号32位整数
      */
-    bool is_uint32() const {
+    bool is_uint32() const
+    {
         return get_type() == type_id::uint32_type;
     }
 
     /**
      * @brief 判断 variant_base 是否为有符号64位整数
      */
-    bool is_int64() const {
+    bool is_int64() const
+    {
         return get_type() == type_id::int64_type;
     }
 
     /**
      * @brief 判断 variant_base 是否为无符号64位整数
      */
-    bool is_uint64() const {
+    bool is_uint64() const
+    {
         return get_type() == type_id::uint64_type;
     }
 
     /**
      * @brief 判断 variant_base 是否为双精度浮点数
      */
-    bool is_double() const {
+    bool is_double() const
+    {
         return get_type() == type_id::double_type;
     }
 
     /**
      * @brief 判断 variant_base 是否为对象
      */
-    bool is_object() const {
+    bool is_object() const
+    {
         return get_type() == type_id::object_type;
     }
 
     /**
      * @brief 判断 variant_base 是否为字典（dict），是 is_object 的别名
      */
-    bool is_dict() const {
+    bool is_dict() const
+    {
         return is_object();
     }
 
     /**
      * @brief 判断 variant_base 是否为数组
      */
-    bool is_array() const {
+    bool is_array() const
+    {
         return get_type() == type_id::array_type;
     }
 
     /**
      * @brief 判断 variant_base 是否为二进制数据
      */
-    bool is_blob() const {
+    bool is_blob() const
+    {
         return get_type() == type_id::blob_type;
     }
 
     /**
      * @brief 判断 variant_base 是否为扩展类型
      */
-    bool is_extension() const {
+    bool is_extension() const
+    {
         return get_type() == type_id::extension_type;
     }
 
@@ -420,42 +458,48 @@ public:
     /**
      * @brief 将 variant_base 转换为有符号8位整数
      */
-    int8_t as_int8() const {
+    int8_t as_int8() const
+    {
         return static_cast<int8_t>(as_int64());
     }
 
     /**
      * @brief 将 variant_base 转换为无符号8位整数
      */
-    uint8_t as_uint8() const {
+    uint8_t as_uint8() const
+    {
         return static_cast<uint8_t>(as_uint64());
     }
 
     /**
      * @brief 将 variant_base 转换为有符号16位整数
      */
-    int16_t as_int16() const {
+    int16_t as_int16() const
+    {
         return static_cast<int16_t>(as_int64());
     }
 
     /**
      * @brief 将 variant_base 转换为无符号16位整数
      */
-    uint16_t as_uint16() const {
+    uint16_t as_uint16() const
+    {
         return static_cast<uint16_t>(as_uint64());
     }
 
     /**
      * @brief 将 variant_base 转换为有符号32位整数
      */
-    int32_t as_int32() const {
+    int32_t as_int32() const
+    {
         return static_cast<int32_t>(as_int64());
     }
 
     /**
      * @brief 将 variant_base 转换为无符号32位整数
      */
-    uint32_t as_uint32() const {
+    uint32_t as_uint32() const
+    {
         return static_cast<uint32_t>(as_uint64());
     }
 
@@ -503,7 +547,8 @@ public:
      * @brief 将 variant_base 转换为 mutable_dict（为了向后兼容，实际返回 dict）
      * @note mutable_dict 现在是 dict 的别名
      */
-    dict as_mutable_dict() const {
+    dict as_mutable_dict() const
+    {
         return as_dict();
     }
 
@@ -548,7 +593,8 @@ public:
      * @param default_value 默认值
      * @return 指定键对应的值的引用，或者默认值的引用
      */
-    const variant_base& get(const std::string& key, const variant_base& default_value) const {
+    const variant_base& get(const std::string& key, const variant_base& default_value) const
+    {
         return get(std::string_view(key), default_value);
     }
 
@@ -566,7 +612,8 @@ public:
      * @param default_value 默认值
      * @return 指定键对应的值的引用，或者默认值的引用
      */
-    const variant_base& get(const char* key, const variant_base& default_value) const {
+    const variant_base& get(const char* key, const variant_base& default_value) const
+    {
         return get(std::string_view(key), default_value);
     }
 
@@ -582,7 +629,8 @@ public:
      * @param key 要查找的键
      * @return 如果包含指定键则返回 true，否则返回 false
      */
-    bool contains(const std::string& key) const {
+    bool contains(const std::string& key) const
+    {
         return contains(std::string_view(key));
     }
 
@@ -591,7 +639,8 @@ public:
      * @param key 要查找的键
      * @return 如果包含指定键则返回 true，否则返回 false
      */
-    bool contains(const char* key) const {
+    bool contains(const char* key) const
+    {
         return contains(std::string_view(key));
     }
 
@@ -604,7 +653,8 @@ public:
      * @brief 将 variant_base 转换为指定类型
      */
     template <typename T>
-    T as() const {
+    T as() const
+    {
         using t_type = mc::traits::remove_cvref_t<T>;
         if constexpr (std::is_same_v<t_type, variant_base>) {
             return *this;
@@ -616,7 +666,8 @@ public:
     }
 
     template <typename T>
-    std::optional<T> try_as() const {
+    std::optional<T> try_as() const
+    {
         try {
             return as<T>();
         } catch (const std::exception&) {
@@ -630,7 +681,8 @@ public:
      * @return 转换后的值或默认值
      */
     template <typename T>
-    T as(const T& default_value) const {
+    T as(const T& default_value) const
+    {
         if (auto v = try_as<T>()) {
             return *v;
         }
@@ -641,7 +693,8 @@ public:
      * @brief 将 variant_base 转换为指定类型并存储到引用中
      */
     template <typename T>
-    void as(T& v) const {
+    void as(T& v) const
+    {
         using t_type = mc::traits::remove_cvref_t<T>;
         if constexpr (std::is_same_v<t_type, variant_base>) {
             v = *this;
@@ -656,12 +709,14 @@ public:
     variant_base& operator=(const variant_base& other);
     variant_base& operator=(variant_base&& other);
     // nullptr 赋值优化，行为与 operator=(const char*) 在 nullptr 时一致
-    variant_base& operator=(std::nullptr_t) {
+    variant_base& operator=(std::nullptr_t)
+    {
         return operator=(static_cast<const char*>(nullptr));
     }
     // 字符串赋值优化
     variant_base& operator=(const char* s);
-    variant_base& operator=(const std::string& s) {
+    variant_base& operator=(const std::string& s)
+    {
         return operator=(std::string_view(s));
     }
     variant_base& operator=(std::string_view s);
@@ -670,13 +725,15 @@ public:
 
     // 整数类型赋值优化，确保 0 被识别为整数而不是 nullptr
     template <typename T, std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::decay_t<T>, bool>, int> = 0>
-    variant_base& operator=(T val) {
+    variant_base& operator=(T val)
+    {
         return *this = variant_base(mc::detail::fixed_integer_type<T>(), val);
     }
 
     // 浮点数类型赋值优化
     template <typename T, std::enable_if_t<std::is_floating_point_v<T>, int> = 0>
-    variant_base& operator=(T val) {
+    variant_base& operator=(T val)
+    {
         return *this = variant_base(type_id::double_type, val);
     }
 
@@ -712,7 +769,8 @@ public:
 
     void swap(variant_base& other) noexcept;
 
-    explicit operator bool() const {
+    explicit operator bool() const
+    {
         return as_bool();
     }
 
@@ -749,7 +807,8 @@ public:
      * @param type 类型ID
      * @return 类型名称
      */
-    static const char* get_type_name(type_id type) {
+    static const char* get_type_name(type_id type)
+    {
         return get_type_name_internal(type);
     }
 
@@ -789,62 +848,74 @@ public:
 
     // ======== 算术运算与基本类型 ========
     template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-    variant_base operator+(T other) const {
+    variant_base operator+(T other) const
+    {
         return operator+(detail::numeric_t{other});
     }
 
     template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-    variant_base operator-(T other) const {
+    variant_base operator-(T other) const
+    {
         return operator-(detail::numeric_t{other});
     }
 
     template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-    variant_base operator*(T other) const {
+    variant_base operator*(T other) const
+    {
         return operator*(detail::numeric_t{other});
     }
 
     template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-    variant_base operator/(T other) const {
+    variant_base operator/(T other) const
+    {
         return operator/(detail::numeric_t{other});
     }
 
     template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-    variant_base operator%(T other) const {
+    variant_base operator%(T other) const
+    {
         return operator%(detail::numeric_t{other});
     }
 
     // ======== 位运算与基本类型 ========
     template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-    variant_base operator&(T other) const {
+    variant_base operator&(T other) const
+    {
         return operator&(detail::numeric_t{other});
     }
 
     template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-    variant_base operator|(T other) const {
+    variant_base operator|(T other) const
+    {
         return operator|(detail::numeric_t{other});
     }
 
     template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-    variant_base operator^(T other) const {
+    variant_base operator^(T other) const
+    {
         return operator^(detail::numeric_t{other});
     }
 
     template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-    variant_base operator<<(T other) const {
+    variant_base operator<<(T other) const
+    {
         return operator<<(detail::numeric_t{other});
     }
 
     template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-    variant_base operator>>(T other) const {
+    variant_base operator>>(T other) const
+    {
         return operator>>(detail::numeric_t{other});
     }
 
     // ======== 字符串操作 ========
     variant_base operator+(std::string_view other) const;
-    variant_base operator+(const char* other) const {
+    variant_base operator+(const char* other) const
+    {
         return operator+(std::string_view(other));
     }
-    variant_base operator+(const std::string& other) const {
+    variant_base operator+(const std::string& other) const
+    {
         return operator+(std::string_view(other));
     }
 
@@ -872,63 +943,76 @@ public:
 
     // ======== 复合赋值操作与基本类型 ========
     template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-    variant_base& operator+=(const T& other) {
+    variant_base& operator+=(const T& other)
+    {
         return set_value(*this + other);
     }
 
     template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-    variant_base& operator-=(const T& other) {
+    variant_base& operator-=(const T& other)
+    {
         return set_value(*this - other);
     }
 
     template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-    variant_base& operator*=(const T& other) {
+    variant_base& operator*=(const T& other)
+    {
         return set_value(*this * other);
     }
 
     template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-    variant_base& operator/=(const T& other) {
+    variant_base& operator/=(const T& other)
+    {
         return set_value(*this / other);
     }
 
     template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-    variant_base& operator%=(const T& other) {
+    variant_base& operator%=(const T& other)
+    {
         return set_value(*this % other);
     }
 
     template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-    variant_base& operator&=(const T& other) {
+    variant_base& operator&=(const T& other)
+    {
         return set_value(*this & other);
     }
 
     template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-    variant_base& operator|=(const T& other) {
+    variant_base& operator|=(const T& other)
+    {
         return set_value(*this | other);
     }
 
     template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-    variant_base& operator^=(const T& other) {
+    variant_base& operator^=(const T& other)
+    {
         return set_value(*this ^ other);
     }
 
     template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-    variant_base& operator<<=(const T& other) {
+    variant_base& operator<<=(const T& other)
+    {
         return set_value(*this << other);
     }
 
     template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-    variant_base& operator>>=(const T& other) {
+    variant_base& operator>>=(const T& other)
+    {
         return set_value(*this >> other);
     }
 
     // 字符串的复合赋值
-    variant_base& operator+=(const char* other) {
+    variant_base& operator+=(const char* other)
+    {
         return operator+=(std::string_view(other));
     }
-    variant_base& operator+=(std::string_view other) {
+    variant_base& operator+=(std::string_view other)
+    {
         return set_value(*this + other);
     }
-    variant_base& operator+=(const std::string& other) {
+    variant_base& operator+=(const std::string& other)
+    {
         return operator+=(std::string_view(other));
     }
 
@@ -947,13 +1031,15 @@ public:
 
     bool operator==(const variant_base& other) const;
 
-    bool operator!=(const variant_base& other) const {
+    bool operator!=(const variant_base& other) const
+    {
         return !(*this == other);
     }
 
     bool operator<(const variant_base& other) const;
 
-    bool operator>(const variant_base& other) const {
+    bool operator>(const variant_base& other) const
+    {
         return other < *this;
     }
 
@@ -965,17 +1051,20 @@ public:
      * @brief 添加用于与算术类型的比较
      */
     template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-    bool operator==(const T& other) const {
+    bool operator==(const T& other) const
+    {
         return operator==(detail::numeric_t{other});
     }
     template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-    bool operator!=(const T& other) const {
+    bool operator!=(const T& other) const
+    {
         return !(*this == other);
     }
 
     bool operator<(detail::numeric_t rhs) const;
     template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-    bool operator<(const T& other) const {
+    bool operator<(const T& other) const
+    {
         return *this < detail::make_numeric(other);
     }
 
@@ -994,39 +1083,48 @@ public:
     variant_base operator|(detail::numeric_t rhs) const;
     variant_base operator^(detail::numeric_t rhs) const;
     template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-    bool operator>(const T& other) const {
+    bool operator>(const T& other) const
+    {
         return operator>(detail::numeric_t{other});
     }
     template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-    bool operator<=(const T& other) const {
+    bool operator<=(const T& other) const
+    {
         return operator<=(detail::numeric_t{other});
     }
     template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-    bool operator>=(const T& other) const {
+    bool operator>=(const T& other) const
+    {
         return operator>=(detail::numeric_t{other});
     }
     template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-    friend bool operator==(const T& lhs, const variant_base& rhs) {
+    friend bool operator==(const T& lhs, const variant_base& rhs)
+    {
         return rhs == lhs;
     }
     template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-    friend bool operator!=(const T& lhs, const variant_base& rhs) {
+    friend bool operator!=(const T& lhs, const variant_base& rhs)
+    {
         return !(rhs == lhs);
     }
     template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-    friend bool operator<(const T& lhs, const variant_base& rhs) {
+    friend bool operator<(const T& lhs, const variant_base& rhs)
+    {
         return rhs > lhs;
     }
     template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-    friend bool operator>(const T& lhs, const variant_base& rhs) {
+    friend bool operator>(const T& lhs, const variant_base& rhs)
+    {
         return rhs < lhs;
     }
     template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-    friend bool operator<=(const T& lhs, const variant_base& rhs) {
+    friend bool operator<=(const T& lhs, const variant_base& rhs)
+    {
         return rhs >= lhs;
     }
     template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-    friend bool operator>=(const T& lhs, const variant_base& rhs) {
+    friend bool operator>=(const T& lhs, const variant_base& rhs)
+    {
         return rhs <= lhs;
     }
 
@@ -1034,114 +1132,147 @@ public:
      * @brief 添加用于与 std::string_view 的比较
      */
     bool operator==(std::string_view other) const;
-    bool operator!=(std::string_view other) const {
+    bool operator!=(std::string_view other) const
+    {
         return !(*this == other);
     }
     bool operator<(std::string_view other) const;
     bool operator>(std::string_view other) const;
-    bool operator<=(std::string_view other) const {
+    bool operator<=(std::string_view other) const
+    {
         return !(*this > other);
     }
-    bool operator>=(std::string_view other) const {
+    bool operator>=(std::string_view other) const
+    {
         return !(*this < other);
     }
-    friend bool operator==(std::string_view val, const variant_base& var) {
+    friend bool operator==(std::string_view val, const variant_base& var)
+    {
         return var.operator==(val);
     }
-    friend bool operator!=(std::string_view val, const variant_base& var) {
+    friend bool operator!=(std::string_view val, const variant_base& var)
+    {
         return !(var.operator==(val));
     }
-    friend bool operator<(std::string_view val, const variant_base& var) {
+    friend bool operator<(std::string_view val, const variant_base& var)
+    {
         return var.operator>(val);
     }
-    friend bool operator>(std::string_view val, const variant_base& var) {
+    friend bool operator>(std::string_view val, const variant_base& var)
+    {
         return var.operator<(val);
     }
-    friend bool operator<=(std::string_view val, const variant_base& var) {
+    friend bool operator<=(std::string_view val, const variant_base& var)
+    {
         return var.operator>=(val);
     }
-    friend bool operator>=(std::string_view val, const variant_base& var) {
+    friend bool operator>=(std::string_view val, const variant_base& var)
+    {
         return var.operator<=(val);
     }
 
     /*
      * @brief 添加用于与 std::string 的比较
      */
-    bool operator==(const std::string& other) const {
+    bool operator==(const std::string& other) const
+    {
         return this->operator==(std::string_view(other));
     }
-    bool operator!=(const std::string& other) const {
+    bool operator!=(const std::string& other) const
+    {
         return !(*this == other);
     }
-    bool operator<(const std::string& other) const {
+    bool operator<(const std::string& other) const
+    {
         return this->operator<(std::string_view(other));
     }
-    bool operator>(const std::string& other) const {
+    bool operator>(const std::string& other) const
+    {
         return this->operator>(std::string_view(other));
     }
-    bool operator<=(const std::string& other) const {
+    bool operator<=(const std::string& other) const
+    {
         return !(*this > other);
     }
-    bool operator>=(const std::string& other) const {
+    bool operator>=(const std::string& other) const
+    {
         return !(*this < other);
     }
 
     /*
      * @brief 添加用于与 const char* 的比较
      */
-    bool operator==(const char* other) const {
+    bool operator==(const char* other) const
+    {
         return this->operator==(std::string_view(other));
     }
-    bool operator!=(const char* other) const {
+    bool operator!=(const char* other) const
+    {
         return !(*this == other);
     }
-    bool operator<(const char* other) const {
+    bool operator<(const char* other) const
+    {
         return this->operator<(std::string_view(other));
     }
-    bool operator>(const char* other) const {
+    bool operator>(const char* other) const
+    {
         return this->operator>(std::string_view(other));
     }
-    bool operator<=(const char* other) const {
+    bool operator<=(const char* other) const
+    {
         return !(*this > other);
     }
-    bool operator>=(const char* other) const {
+    bool operator>=(const char* other) const
+    {
         return !(*this < other);
     }
-    friend bool operator==(const char* val, const variant_base& var) {
+    friend bool operator==(const char* val, const variant_base& var)
+    {
         return var.operator==(val);
     }
-    friend bool operator!=(const char* val, const variant_base& var) {
+    friend bool operator!=(const char* val, const variant_base& var)
+    {
         return !(var.operator==(val));
     }
-    friend bool operator<(const char* val, const variant_base& var) {
+    friend bool operator<(const char* val, const variant_base& var)
+    {
         return var.operator>(val);
     }
-    friend bool operator>(const char* val, const variant_base& var) {
+    friend bool operator>(const char* val, const variant_base& var)
+    {
         return var.operator<(val);
     }
-    friend bool operator<=(const char* val, const variant_base& var) {
+    friend bool operator<=(const char* val, const variant_base& var)
+    {
         return var.operator>=(val);
     }
-    friend bool operator>=(const char* val, const variant_base& var) {
+    friend bool operator>=(const char* val, const variant_base& var)
+    {
         return var.operator<=(val);
     }
 
-    friend bool operator==(const std::string& val, const variant_base& var) {
+    friend bool operator==(const std::string& val, const variant_base& var)
+    {
         return var.operator==(val);
     }
-    friend bool operator!=(const std::string& val, const variant_base& var) {
+    friend bool operator!=(const std::string& val, const variant_base& var)
+    {
         return !(var.operator==(val));
     }
-    friend bool operator<(const std::string& val, const variant_base& var) {
+    friend bool operator<(const std::string& val, const variant_base& var)
+    {
         return var.operator>(val);
     }
-    friend bool operator>(const std::string& val, const variant_base& var) {
+    friend bool operator>(const std::string& val, const variant_base& var)
+    {
         return var.operator<(val);
     }
-    friend bool operator<=(const std::string& val, const variant_base& var) {
+    friend bool operator<=(const std::string& val, const variant_base& var)
+    {
         return var.operator>=(val);
     }
-    friend bool operator>=(const std::string& val, const variant_base& var) {
+    friend bool operator>=(const std::string& val, const variant_base& var)
+    {
         return var.operator<=(val);
     }
 
@@ -1149,51 +1280,63 @@ public:
      * @brief 添加用于与 mc::blob_base 的比较
      */
     template <typename OtherAllocator>
-    bool operator==(const blob_base<OtherAllocator>& other) const {
+    bool operator==(const blob_base<OtherAllocator>& other) const
+    {
         return *this == other.as_string_view();
     }
     template <typename OtherAllocator>
-    bool operator!=(const blob_base<OtherAllocator>& other) const {
+    bool operator!=(const blob_base<OtherAllocator>& other) const
+    {
         return !(*this == other);
     }
     template <typename OtherAllocator>
-    bool operator<(const blob_base<OtherAllocator>& other) const {
+    bool operator<(const blob_base<OtherAllocator>& other) const
+    {
         return *this < other.as_string_view();
     }
     template <typename OtherAllocator>
-    bool operator>(const blob_base<OtherAllocator>& other) const {
+    bool operator>(const blob_base<OtherAllocator>& other) const
+    {
         return *this > other.as_string_view();
     }
     template <typename OtherAllocator>
-    bool operator<=(const blob_base<OtherAllocator>& other) const {
+    bool operator<=(const blob_base<OtherAllocator>& other) const
+    {
         return !(*this > other);
     }
     template <typename OtherAllocator>
-    bool operator>=(const blob_base<OtherAllocator>& other) const {
+    bool operator>=(const blob_base<OtherAllocator>& other) const
+    {
         return !(*this < other);
     }
     template <typename OtherAllocator>
-    friend bool operator==(const blob_base<OtherAllocator>& val, const variant_base& var) {
+    friend bool operator==(const blob_base<OtherAllocator>& val, const variant_base& var)
+    {
         return var.operator==(val);
     }
     template <typename OtherAllocator>
-    friend bool operator!=(const blob_base<OtherAllocator>& val, const variant_base& var) {
+    friend bool operator!=(const blob_base<OtherAllocator>& val, const variant_base& var)
+    {
         return !(var.operator==(val));
     }
     template <typename OtherAllocator>
-    friend bool operator<(const blob_base<OtherAllocator>& val, const variant_base& var) {
+    friend bool operator<(const blob_base<OtherAllocator>& val, const variant_base& var)
+    {
         return var.operator>(val);
     }
     template <typename OtherAllocator>
-    friend bool operator>(const blob_base<OtherAllocator>& val, const variant_base& var) {
+    friend bool operator>(const blob_base<OtherAllocator>& val, const variant_base& var)
+    {
         return var.operator<(val);
     }
     template <typename OtherAllocator>
-    friend bool operator<=(const blob_base<OtherAllocator>& val, const variant_base& var) {
+    friend bool operator<=(const blob_base<OtherAllocator>& val, const variant_base& var)
+    {
         return var.operator>=(val);
     }
     template <typename OtherAllocator>
-    friend bool operator>=(const blob_base<OtherAllocator>& val, const variant_base& var) {
+    friend bool operator>=(const blob_base<OtherAllocator>& val, const variant_base& var)
+    {
         return var.operator<=(val);
     }
 
@@ -1201,33 +1344,42 @@ public:
      * @brief 与 mc::variants 的比较运算符
      */
     bool operator==(const variants& other) const;
-    bool operator!=(const variants& other) const {
+    bool operator!=(const variants& other) const
+    {
         return !(*this == other);
     }
     bool operator<(const variants& other) const;
     bool operator>(const variants& other) const;
-    bool operator<=(const variants& other) const {
+    bool operator<=(const variants& other) const
+    {
         return !(*this > other);
     }
-    bool operator>=(const variants& other) const {
+    bool operator>=(const variants& other) const
+    {
         return !(*this < other);
     }
-    friend bool operator==(const variants& val, const variant_base& var) {
+    friend bool operator==(const variants& val, const variant_base& var)
+    {
         return var.operator==(val);
     }
-    friend bool operator!=(const variants& val, const variant_base& var) {
+    friend bool operator!=(const variants& val, const variant_base& var)
+    {
         return !(var.operator==(val));
     }
-    friend bool operator<(const variants& val, const variant_base& var) {
+    friend bool operator<(const variants& val, const variant_base& var)
+    {
         return var.operator>(val);
     }
-    friend bool operator>(const variants& val, const variant_base& var) {
+    friend bool operator>(const variants& val, const variant_base& var)
+    {
         return var.operator<(val);
     }
-    friend bool operator<=(const variants& val, const variant_base& var) {
+    friend bool operator<=(const variants& val, const variant_base& var)
+    {
         return var.operator>=(val);
     }
-    friend bool operator>=(const variants& val, const variant_base& var) {
+    friend bool operator>=(const variants& val, const variant_base& var)
+    {
         return var.operator<=(val);
     }
 
@@ -1236,18 +1388,21 @@ public:
      */
     template <typename T, std::enable_if_t<
                               mc::is_variant_constructible_v<T> || mc::is_variant_v<T>, int> = 0>
-    bool operator==(const std::vector<T>& other) const {
+    bool operator==(const std::vector<T>& other) const
+    {
         if (get_type() != type_id::array_type) {
             return false;
         }
         return std::equal(m_array.begin(), m_array.end(), other.begin(), other.end());
     }
     template <typename T, std::enable_if_t<mc::is_variant_constructible_v<T> || mc::is_variant_v<T>, int> = 0>
-    bool operator!=(const std::vector<T>& other) const {
+    bool operator!=(const std::vector<T>& other) const
+    {
         return !(*this == other);
     }
     template <typename T, std::enable_if_t<mc::is_variant_constructible_v<T> || mc::is_variant_v<T>, int> = 0>
-    bool operator<(const std::vector<T>& other) const {
+    bool operator<(const std::vector<T>& other) const
+    {
         if (is_array()) {
             throw_type_error("array", get_type());
         }
@@ -1255,7 +1410,8 @@ public:
                                             other.begin(), other.end());
     }
     template <typename T, std::enable_if_t<mc::is_variant_constructible_v<T> || mc::is_variant_v<T>, int> = 0>
-    bool operator>(const std::vector<T>& other) const {
+    bool operator>(const std::vector<T>& other) const
+    {
         if (!is_array()) {
             throw_type_error("array", get_type());
         }
@@ -1263,35 +1419,43 @@ public:
                                             m_array.begin(), m_array.end());
     }
     template <typename T, std::enable_if_t<mc::is_variant_constructible_v<T> || mc::is_variant_v<T>, int> = 0>
-    bool operator<=(const std::vector<T>& other) const {
+    bool operator<=(const std::vector<T>& other) const
+    {
         return !(*this > other);
     }
     template <typename T, std::enable_if_t<mc::is_variant_constructible_v<T> || mc::is_variant_v<T>, int> = 0>
-    bool operator>=(const std::vector<T>& other) const {
+    bool operator>=(const std::vector<T>& other) const
+    {
         return !(*this < other);
     }
     template <typename T, std::enable_if_t<mc::is_variant_constructible_v<T> || mc::is_variant_v<T>, int> = 0>
-    friend bool operator==(const std::vector<T>& val, const variant_base& var) {
+    friend bool operator==(const std::vector<T>& val, const variant_base& var)
+    {
         return var.operator==(val);
     }
     template <typename T, std::enable_if_t<mc::is_variant_constructible_v<T> || mc::is_variant_v<T>, int> = 0>
-    friend bool operator!=(const std::vector<T>& val, const variant_base& var) {
+    friend bool operator!=(const std::vector<T>& val, const variant_base& var)
+    {
         return !(var.operator==(val));
     }
     template <typename T, std::enable_if_t<mc::is_variant_constructible_v<T> || mc::is_variant_v<T>, int> = 0>
-    friend bool operator<(const std::vector<T>& val, const variant_base& var) {
+    friend bool operator<(const std::vector<T>& val, const variant_base& var)
+    {
         return var.operator>(val);
     }
     template <typename T, std::enable_if_t<mc::is_variant_constructible_v<T> || mc::is_variant_v<T>, int> = 0>
-    friend bool operator>(const std::vector<T>& val, const variant_base& var) {
+    friend bool operator>(const std::vector<T>& val, const variant_base& var)
+    {
         return var.operator<(val);
     }
     template <typename T, std::enable_if_t<mc::is_variant_constructible_v<T> || mc::is_variant_v<T>, int> = 0>
-    friend bool operator<=(const std::vector<T>& val, const variant_base& var) {
+    friend bool operator<=(const std::vector<T>& val, const variant_base& var)
+    {
         return var.operator>=(val);
     }
     template <typename T, std::enable_if_t<mc::is_variant_constructible_v<T> || mc::is_variant_v<T>, int> = 0>
-    friend bool operator>=(const std::vector<T>& val, const variant_base& var) {
+    friend bool operator>=(const std::vector<T>& val, const variant_base& var)
+    {
         return var.operator<=(val);
     }
 
@@ -1299,60 +1463,72 @@ public:
      * @brief 与 mc::array<T> 的比较运算符
      */
     template <typename T, std::enable_if_t<mc::is_variant_constructible_v<T>, int> = 0>
-    bool operator==(const mc::array<T>& other) const {
+    bool operator==(const mc::array<T>& other) const
+    {
         if (!is_array()) {
             return false;
         }
         return m_array == other;
     }
     template <typename T, std::enable_if_t<mc::is_variant_constructible_v<T>, int> = 0>
-    bool operator!=(const mc::array<T>& other) const {
+    bool operator!=(const mc::array<T>& other) const
+    {
         return !(*this == other);
     }
     template <typename T, std::enable_if_t<mc::is_variant_constructible_v<T>, int> = 0>
-    bool operator<(const mc::array<T>& other) const {
+    bool operator<(const mc::array<T>& other) const
+    {
         if (!is_array()) {
             throw_type_error("array", get_type());
         }
         return m_array < other;
     }
     template <typename T, std::enable_if_t<mc::is_variant_constructible_v<T>, int> = 0>
-    bool operator>(const mc::array<T>& other) const {
+    bool operator>(const mc::array<T>& other) const
+    {
         if (!is_array()) {
             throw_type_error("array", get_type());
         }
         return m_array > other;
     }
     template <typename T, std::enable_if_t<mc::is_variant_constructible_v<T>, int> = 0>
-    bool operator<=(const mc::array<T>& other) const {
+    bool operator<=(const mc::array<T>& other) const
+    {
         return !(*this > other);
     }
     template <typename T, std::enable_if_t<mc::is_variant_constructible_v<T>, int> = 0>
-    bool operator>=(const mc::array<T>& other) const {
+    bool operator>=(const mc::array<T>& other) const
+    {
         return !(*this < other);
     }
     template <typename T, std::enable_if_t<mc::is_variant_constructible_v<T>, int> = 0>
-    friend bool operator==(const mc::array<T>& val, const variant_base& var) {
+    friend bool operator==(const mc::array<T>& val, const variant_base& var)
+    {
         return var.operator==(val);
     }
     template <typename T, std::enable_if_t<mc::is_variant_constructible_v<T>, int> = 0>
-    friend bool operator!=(const mc::array<T>& val, const variant_base& var) {
+    friend bool operator!=(const mc::array<T>& val, const variant_base& var)
+    {
         return !(var.operator==(val));
     }
     template <typename T, std::enable_if_t<mc::is_variant_constructible_v<T>, int> = 0>
-    friend bool operator<(const mc::array<T>& val, const variant_base& var) {
+    friend bool operator<(const mc::array<T>& val, const variant_base& var)
+    {
         return var.operator>(val);
     }
     template <typename T, std::enable_if_t<mc::is_variant_constructible_v<T>, int> = 0>
-    friend bool operator>(const mc::array<T>& val, const variant_base& var) {
+    friend bool operator>(const mc::array<T>& val, const variant_base& var)
+    {
         return var.operator<(val);
     }
     template <typename T, std::enable_if_t<mc::is_variant_constructible_v<T>, int> = 0>
-    friend bool operator<=(const mc::array<T>& val, const variant_base& var) {
+    friend bool operator<=(const mc::array<T>& val, const variant_base& var)
+    {
         return var.operator>=(val);
     }
     template <typename T, std::enable_if_t<mc::is_variant_constructible_v<T>, int> = 0>
-    friend bool operator>=(const mc::array<T>& val, const variant_base& var) {
+    friend bool operator>=(const mc::array<T>& val, const variant_base& var)
+    {
         return var.operator<=(val);
     }
 
@@ -1360,13 +1536,16 @@ public:
      * @brief 添加用于与 mc::dict 的比较，dict 不支持大小比较，只支持相等比较
      */
     bool operator==(const dict& other) const;
-    bool operator!=(const dict& other) const {
+    bool operator!=(const dict& other) const
+    {
         return !(*this == other);
     }
-    friend bool operator==(const dict& val, const variant_base& var) {
+    friend bool operator==(const dict& val, const variant_base& var)
+    {
         return var.operator==(val);
     }
-    friend bool operator!=(const dict& val, const variant_base& var) {
+    friend bool operator!=(const dict& val, const variant_base& var)
+    {
         return !(var.operator==(val));
     }
 
@@ -1375,7 +1554,8 @@ public:
      *
      * @return std::string variant 的字符串表示
      */
-    std::string to_string() const {
+    std::string to_string() const
+    {
         return json::json_encode(*this);
     }
 
@@ -1403,21 +1583,25 @@ protected:
 
 // 浮点数
 template <typename T, std::enable_if_t<std::is_floating_point_v<T>, int> = 0>
-void to_variant(const T& var, variant_base& vo) {
+void to_variant(const T& var, variant_base& vo)
+{
     variant_base(static_cast<double>(var)).swap(vo);
 }
 template <typename T, std::enable_if_t<std::is_floating_point_v<T>, int> = 0>
-void from_variant(const variant_base& var, T& vo) {
+void from_variant(const variant_base& var, T& vo)
+{
     vo = static_cast<T>(var.as_double());
 }
 
 // 整数
 template <typename T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
-void to_variant(const T& var, variant_base& vo) {
+void to_variant(const T& var, variant_base& vo)
+{
     variant_base(detail::fixed_integer_type<T>(), var).swap(vo);
 }
 template <typename T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
-void from_variant(const variant_base& var, T& vo) {
+void from_variant(const variant_base& var, T& vo)
+{
     if constexpr (std::is_signed_v<T>) {
         vo = static_cast<T>(var.as_int64());
     } else if constexpr (std::is_unsigned_v<T>) {
@@ -1427,10 +1611,12 @@ void from_variant(const variant_base& var, T& vo) {
 
 // variant_base
 template <typename T, std::enable_if_t<mc::is_variant_v<T>, int> = 0>
-void to_variant(const T& var, variant_base& vo) {
+void to_variant(const T& var, variant_base& vo)
+{
     vo = var;
 }
-inline void from_variant(const variant_base& var, variant_base& vo) {
+inline void from_variant(const variant_base& var, variant_base& vo)
+{
     vo = var;
 }
 
@@ -1440,14 +1626,17 @@ MC_API void from_variant(const variant_base& var, bool& vo);
 
 // string
 template <typename Traits, typename Alloc>
-void to_variant(const std::basic_string<char, Traits, Alloc>& var, variant_base& vo) {
+void to_variant(const std::basic_string<char, Traits, Alloc>& var, variant_base& vo)
+{
     variant_base(var).swap(vo);
 }
-inline void to_variant(std::string_view var, variant_base& vo) {
+inline void to_variant(std::string_view var, variant_base& vo)
+{
     vo = var;
 }
 template <typename Traits, typename Alloc>
-void from_variant(const variant_base& var, std::basic_string<char, Traits, Alloc>& vo) {
+void from_variant(const variant_base& var, std::basic_string<char, Traits, Alloc>& vo)
+{
     if (var.is_string()) {
         vo = var.get_string();
     } else {
@@ -1465,11 +1654,13 @@ MC_API void from_variant(const variant_base& var, char*& vo);
 
 // blob_base
 template <typename Alloc>
-void to_variant(const blob_base<Alloc>& var, variant_base& vo) {
+void to_variant(const blob_base<Alloc>& var, variant_base& vo)
+{
     variant_base(var).swap(vo);
 }
 template <typename Alloc>
-void from_variant(const variant_base& var, blob_base<Alloc>& vo) {
+void from_variant(const variant_base& var, blob_base<Alloc>& vo)
+{
     vo = var.as_blob();
 }
 
@@ -1484,12 +1675,14 @@ MC_API void from_variant(const variant_base& var, dict& vo);
 // 为继承自 variant_extension 的类型提供 to_variant 转换
 template <typename T,
           std::enable_if_t<std::is_base_of_v<variant_extension_base, T>, int> = 0>
-void to_variant(const T& var, variant_base& vo) {
+void to_variant(const T& var, variant_base& vo)
+{
     variant_base(var.clone()).swap(vo);
 }
 template <typename T,
           std::enable_if_t<std::is_base_of_v<variant_extension_base, T>, int> = 0>
-void from_variant(const variant_base& var, T& vo) {
+void from_variant(const variant_base& var, T& vo)
+{
     if (var.is_extension()) {
         auto ext = mc::dynamic_pointer_cast<T>(var.as_extension());
         if (ext) {
@@ -1503,63 +1696,75 @@ void from_variant(const variant_base& var, T& vo) {
 // ======== 算术运算与基本类型的友元运算符 ========
 
 template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-inline variant_base operator+(T lhs, const variant_base& rhs) {
+inline variant_base operator+(T lhs, const variant_base& rhs)
+{
     return variant_base(lhs) + rhs;
 }
 
 template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-inline variant_base operator-(T lhs, const variant_base& rhs) {
+inline variant_base operator-(T lhs, const variant_base& rhs)
+{
     return variant_base(lhs) - rhs;
 }
 
 template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-inline variant_base operator*(T lhs, const variant_base& rhs) {
+inline variant_base operator*(T lhs, const variant_base& rhs)
+{
     return rhs * lhs;
 }
 
 template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-inline variant_base operator/(T lhs, const variant_base& rhs) {
+inline variant_base operator/(T lhs, const variant_base& rhs)
+{
     return variant_base(lhs) / rhs;
 }
 
 template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-inline variant_base operator%(T lhs, const variant_base& rhs) {
+inline variant_base operator%(T lhs, const variant_base& rhs)
+{
     return variant_base(lhs) % rhs;
 }
 
 // ======== 位运算与基本类型的友元运算符 ========
 
 template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-inline variant_base operator&(T lhs, const variant_base& rhs) {
+inline variant_base operator&(T lhs, const variant_base& rhs)
+{
     return rhs & lhs;
 }
 
 template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-inline variant_base operator|(T lhs, const variant_base& rhs) {
+inline variant_base operator|(T lhs, const variant_base& rhs)
+{
     return rhs | lhs;
 }
 
 template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-inline variant_base operator^(T lhs, const variant_base& rhs) {
+inline variant_base operator^(T lhs, const variant_base& rhs)
+{
     return rhs ^ lhs;
 }
 
 template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-inline variant_base operator<<(T lhs, const variant_base& rhs) {
+inline variant_base operator<<(T lhs, const variant_base& rhs)
+{
     return variant_base(lhs) << rhs;
 }
 
 template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-inline variant_base operator>>(T lhs, const variant_base& rhs) {
+inline variant_base operator>>(T lhs, const variant_base& rhs)
+{
     return variant_base(lhs) >> rhs;
 }
 
 // ======== 字符串操作的友元运算符 ========
 MC_API variant_base operator+(std::string_view lhs, const variant_base& rhs);
-inline variant_base operator+(const char* lhs, const variant_base& rhs) {
+inline variant_base operator+(const char* lhs, const variant_base& rhs)
+{
     return std::string_view(lhs) + rhs;
 }
-inline variant_base operator+(const std::string& lhs, const variant_base& rhs) {
+inline variant_base operator+(const std::string& lhs, const variant_base& rhs)
+{
     return std::string_view(lhs) + rhs;
 }
 
@@ -1571,7 +1776,8 @@ namespace std {
 
 template <>
 struct hash<mc::variant_base> {
-    size_t operator()(const mc::variant_base& v) const {
+    size_t operator()(const mc::variant_base& v) const
+    {
         return v.hash();
     }
 };

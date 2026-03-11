@@ -58,7 +58,9 @@ public:
     };
 
     // 构造函数
-    service_factory() : m_opts(std::make_unique<service_options>()) {
+    service_factory()
+        : m_opts(std::make_unique<service_options>())
+    {
     }
 
     // 虚析构函数
@@ -70,7 +72,8 @@ public:
      * @param type_name 服务类型名称
      */
     template <typename ServiceType>
-    void register_service(const std::string& service_name) {
+    void register_service(const std::string& service_name)
+    {
         m_creators[service_name] = [](std::string&& object_name, mc::dict&& args) {
             auto service = mc::make_shared<ServiceType>(std::forward<std::string>(object_name));
             if (service->init(std::forward<mc::dict>(args))) {
@@ -94,7 +97,8 @@ public:
      * @return 服务实例
      */
     virtual service_base_ptr create_service(const std::string& service_name, std::string object_name,
-                                            mc::dict args) {
+                                            mc::dict args)
+    {
         auto it = m_creators.find(service_name);
         if (it == m_creators.end()) {
             return service_base_ptr();
@@ -108,7 +112,8 @@ public:
      * @param service_name 服务类型名称
      * @return 如果存在返回true，否则返回false
      */
-    bool has_service(const std::string& service_name) const {
+    bool has_service(const std::string& service_name) const
+    {
         return m_creators.find(service_name) != m_creators.end();
     }
 
@@ -116,7 +121,8 @@ public:
      * @brief 获取所有注册的服务类型
      * @return 服务类型名称列表
      */
-    std::vector<std::string> get_service_types() const {
+    std::vector<std::string> get_service_types() const
+    {
         std::vector<std::string> types;
         for (const auto& [type, _] : m_creators) {
             types.push_back(type);
@@ -124,7 +130,8 @@ public:
         return types;
     }
 
-    std::unique_ptr<service_options>& get_service_options() {
+    std::unique_ptr<service_options>& get_service_options()
+    {
         return m_opts;
     }
 

@@ -69,7 +69,8 @@ public:
      * 创建一个空的不可变基数树
      */
     radix_tree(const allocator_type& alloc = allocator_type())
-        : m_root(mc::allocate_shared<node_type>(alloc, std::nullopt)), m_size(0), m_allocator(alloc) {
+        : m_root(mc::allocate_shared<node_type>(alloc, std::nullopt)), m_size(0), m_allocator(alloc)
+    {
     }
 
     /**
@@ -79,7 +80,8 @@ public:
      */
     radix_tree(node_ptr root, size_t size);
 
-    ~radix_tree() {
+    ~radix_tree()
+    {
         m_root.reset();
     }
 
@@ -114,7 +116,8 @@ public:
      * @param key 要查找的键
      * @return 指向找到元素的常量迭代器，如果未找到则返回end()
      */
-    const_iterator find(key_view key) const {
+    const_iterator find(key_view key) const
+    {
         return const_cast<radix_tree*>(this)->find(key);
     }
 
@@ -122,7 +125,8 @@ public:
      * 返回指向第一个元素的迭代器（const版本）
      * @return 常量起始迭代器
      */
-    const_iterator cbegin() const {
+    const_iterator cbegin() const
+    {
         return const_iterator(m_root);
     }
 
@@ -130,7 +134,8 @@ public:
      * 返回指向最后一个元素之后的迭代器（const版本）
      * @return 常量结束迭代器
      */
-    const_iterator cend() const {
+    const_iterator cend() const
+    {
         return const_iterator();
     }
 
@@ -138,7 +143,8 @@ public:
      * 返回指向第一个元素的迭代器（非const版本）
      * @return 起始迭代器
      */
-    iterator begin() {
+    iterator begin()
+    {
         return iterator(m_root);
     }
 
@@ -146,7 +152,8 @@ public:
      * 返回指向最后一个元素之后的迭代器（非const版本）
      * @return 结束迭代器
      */
-    iterator end() {
+    iterator end()
+    {
         return iterator();
     }
 
@@ -154,7 +161,8 @@ public:
      * 返回指向第一个元素的迭代器（const版本）
      * @return 常量起始迭代器
      */
-    const_iterator begin() const {
+    const_iterator begin() const
+    {
         return const_iterator(m_root);
     }
 
@@ -162,7 +170,8 @@ public:
      * 返回指向最后一个元素之后的迭代器（const版本）
      * @return 常量结束迭代器
      */
-    const_iterator end() const {
+    const_iterator end() const
+    {
         return const_iterator();
     }
 
@@ -170,11 +179,13 @@ public:
      * 检查树是否为空
      * @return 如果树为空返回true
      */
-    bool empty() const {
+    bool empty() const
+    {
         return m_size == 0;
     }
 
-    allocator_type get_allocator() const {
+    allocator_type get_allocator() const
+    {
         return m_allocator;
     }
 
@@ -193,7 +204,8 @@ public:
      * @param key 键值
      * @return 指向大于等于key的第一个元素的常量迭代器，如果没有则返回end()
      */
-    const_iterator lower_bound(key_view key) const {
+    const_iterator lower_bound(key_view key) const
+    {
         return const_cast<radix_tree*>(this)->lower_bound(key);
     }
 
@@ -209,7 +221,8 @@ public:
      * @param key 键值
      * @return 指向大于key的第一个元素的常量迭代器，如果没有则返回end()
      */
-    const_iterator upper_bound(key_view key) const {
+    const_iterator upper_bound(key_view key) const
+    {
         return const_cast<radix_tree*>(this)->upper_bound(key);
     }
 

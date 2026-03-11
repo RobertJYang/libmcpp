@@ -14,30 +14,36 @@
 
 namespace mc::detail {
 
-copy_context::~copy_context() {
+copy_context::~copy_context()
+{
     clear();
 }
 
-void copy_context::clear() {
+void copy_context::clear()
+{
     m_copied_objects.clear();
 }
 
-size_t copy_context::size() const {
+size_t copy_context::size() const
+{
     return m_copied_objects.size();
 }
 
-bool copy_context::empty() const {
+bool copy_context::empty() const
+{
     return m_copied_objects.empty();
 }
 
-bool copy_context::has_copied_impl(const void* ptr) const {
+bool copy_context::has_copied_impl(const void* ptr) const
+{
     if (!ptr) {
         return false;
     }
     return m_copied_objects.count(ptr) > 0;
 }
 
-mc::memory::shared_base* copy_context::get_copied_impl(const void* ptr) const {
+mc::memory::shared_base* copy_context::get_copied_impl(const void* ptr) const
+{
     if (!ptr) {
         return nullptr;
     }
@@ -50,7 +56,8 @@ mc::memory::shared_base* copy_context::get_copied_impl(const void* ptr) const {
     return it->second;
 }
 
-void copy_context::record_copied_impl(const void* original_ptr, mc::memory::shared_base* copied_base) {
+void copy_context::record_copied_impl(const void* original_ptr, mc::memory::shared_base* copied_base)
+{
     if (!original_ptr || !copied_base) {
         return;
     }

@@ -42,7 +42,8 @@ MC_REFLECT(test_static_info::test_person, ((m_id, "用户ID"))((m_name, "姓名"
 using namespace test_static_info;
 
 // 测试获取成员名称
-TEST(ReflectStaticInfo, GetMemberName) {
+TEST(ReflectStaticInfo, GetMemberName)
+{
     // 使用命名空间限定
     std::string_view name = mc::reflect::get_property_name<test_person>(&test_person::m_id);
     EXPECT_EQ(name, "用户ID");
@@ -55,7 +56,8 @@ TEST(ReflectStaticInfo, GetMemberName) {
 }
 
 // 测试将成员指针转换为名称，然后使用visit_members获取值
-TEST(ReflectStaticInfo, MemberPtrToValueAccess) {
+TEST(ReflectStaticInfo, MemberPtrToValueAccess)
+{
     test_user user{1, "张三", 95.5};
 
     // 获取m_id成员的指针
@@ -80,7 +82,8 @@ TEST(ReflectStaticInfo, MemberPtrToValueAccess) {
 }
 
 // 测试使用成员指针设置值
-TEST(ReflectStaticInfo, SetValueByMemberPtr) {
+TEST(ReflectStaticInfo, SetValueByMemberPtr)
+{
     test_user user{1, "张三", 95.5};
 
     // 设置成员值的函数
@@ -106,7 +109,8 @@ TEST(ReflectStaticInfo, SetValueByMemberPtr) {
 }
 
 // 测试通过属性名称获取对象属性值
-TEST(ReflectStaticInfo, GetProperty) {
+TEST(ReflectStaticInfo, GetProperty)
+{
     test_user user{10, "王五", 78.5};
 
     // 使用属性原始名称获取值
@@ -127,7 +131,8 @@ TEST(ReflectStaticInfo, GetProperty) {
 }
 
 // 测试通过属性名称设置对象属性值
-TEST(ReflectStaticInfo, SetProperty) {
+TEST(ReflectStaticInfo, SetProperty)
+{
     test_user user{10, "王五", 78.5};
 
     // 设置属性值
@@ -161,7 +166,8 @@ TEST(ReflectStaticInfo, SetProperty) {
 }
 
 // 测试组合使用get_property和set_property
-TEST(ReflectStaticInfo, CombinedPropertyAccess) {
+TEST(ReflectStaticInfo, CombinedPropertyAccess)
+{
     test_user source{100, "源用户", 88.8};
     test_user target{0, "", 0.0};
 

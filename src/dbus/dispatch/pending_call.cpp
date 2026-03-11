@@ -15,19 +15,23 @@
 namespace mc::dbus {
 
 pending_call::pending_call(DBusPendingCall* pending_call, reply_cb reply)
-    : m_pending_call(pending_call), on_reply(std::move(reply)) {
+    : m_pending_call(pending_call), on_reply(std::move(reply))
+{
 }
 
-pending_call::~pending_call() {
+pending_call::~pending_call()
+{
     release();
 }
 
 pending_call::pending_call(pending_call&& other)
-    : m_pending_call(other.m_pending_call), on_reply(std::move(other.on_reply)) {
+    : m_pending_call(other.m_pending_call), on_reply(std::move(other.on_reply))
+{
     other.m_pending_call = nullptr;
 }
 
-pending_call& pending_call::operator=(pending_call&& other) {
+pending_call& pending_call::operator=(pending_call&& other)
+{
     if (this != &other) {
         release();
 
@@ -38,7 +42,8 @@ pending_call& pending_call::operator=(pending_call&& other) {
     return *this;
 }
 
-void pending_call::release() {
+void pending_call::release()
+{
     if (m_pending_call) {
         dbus_pending_call_unref(m_pending_call);
         m_pending_call = nullptr;
@@ -46,7 +51,8 @@ void pending_call::release() {
     }
 }
 
-void pending_call::start() {
+void pending_call::start()
+{
     if (dbus_pending_call_get_completed(m_pending_call)) {
         handle_reply();
     } else {
@@ -54,15 +60,18 @@ void pending_call::start() {
     }
 }
 
-void pending_call::stop() {
+void pending_call::stop()
+{
     dbus_pending_call_set_notify(m_pending_call, nullptr, nullptr, nullptr);
 }
 
-void pending_call::notify(DBusPendingCall*, void* data) {
+void pending_call::notify(DBusPendingCall*, void* data)
+{
     static_cast<pending_call*>(data)->handle_reply();
 }
 
-void pending_call::handle_reply() {
+void pending_call::handle_reply()
+{
     DBusMessage* msg = dbus_pending_call_steal_reply(m_pending_call);
     stop();
 

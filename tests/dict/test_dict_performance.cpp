@@ -27,7 +27,8 @@
 using namespace mc;
 
 // 辅助函数：生成随机字符串
-std::string random_string(size_t length) {
+std::string random_string(size_t length)
+{
     static const char alphanum[] = "0123456789"
                                    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
                                    "abcdefghijklmnopqrstuvwxyz";
@@ -47,7 +48,8 @@ std::string random_string(size_t length) {
 }
 
 // 辅助函数：生成随机键值对
-std::vector<std::pair<std::string, variant>> generate_random_pairs(size_t count) {
+std::vector<std::pair<std::string, variant>> generate_random_pairs(size_t count)
+{
     std::vector<std::pair<std::string, variant>> pairs;
     pairs.reserve(count);
 
@@ -81,7 +83,8 @@ std::vector<std::pair<std::string, variant>> generate_random_pairs(size_t count)
 }
 
 // 测试 dict 和 std::map 的插入性能
-TEST(DictPerformanceTest, DISABLED_InsertionPerformance) {
+TEST(DictPerformanceTest, DISABLED_InsertionPerformance)
+{
     const size_t count = 10000;
     auto         pairs = generate_random_pairs(count);
 
@@ -131,7 +134,8 @@ TEST(DictPerformanceTest, DISABLED_InsertionPerformance) {
 }
 
 // 测试 dict 和 std::map 的查找性能
-TEST(DictPerformanceTest, DISABLED_LookupPerformance) {
+TEST(DictPerformanceTest, DISABLED_LookupPerformance)
+{
     const size_t count = 10000;
     auto         pairs = generate_random_pairs(count);
 
@@ -205,7 +209,8 @@ TEST(DictPerformanceTest, DISABLED_LookupPerformance) {
 }
 
 // 测试 dict 和 std::map 的迭代性能
-TEST(DictPerformanceTest, DISABLED_IterationPerformance) {
+TEST(DictPerformanceTest, DISABLED_IterationPerformance)
+{
     const size_t count = 10000;
     auto         pairs = generate_random_pairs(count);
 
@@ -264,7 +269,8 @@ TEST(DictPerformanceTest, DISABLED_IterationPerformance) {
 }
 
 // 测试 dict 和 std::map 的删除性能
-TEST(DictPerformanceTest, DISABLED_ErasurePerformance) {
+TEST(DictPerformanceTest, DISABLED_ErasurePerformance)
+{
     const size_t count = 10000;
     auto         pairs = generate_random_pairs(count);
 
@@ -330,7 +336,8 @@ TEST(DictPerformanceTest, DISABLED_ErasurePerformance) {
 }
 
 // 测试迭代器遍历与索引遍历的性能差异
-TEST(DictPerformanceTest, DISABLED_IteratorVsIndexPerformance) {
+TEST(DictPerformanceTest, DISABLED_IteratorVsIndexPerformance)
+{
     const size_t count = 10000;
 
     // 创建一个包含大量元素的字典

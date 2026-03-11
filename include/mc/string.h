@@ -39,7 +39,8 @@ namespace mc::string {
 
 namespace detail {
 template <typename T>
-void append_formatted_number(std::string& result, T val, const char* format) {
+void append_formatted_number(std::string& result, T val, const char* format)
+{
     constexpr std::size_t BUFFER_SIZE = 64;
     char                  buffer[BUFFER_SIZE];
     int                   len = std::snprintf(buffer, BUFFER_SIZE, format, val);
@@ -65,24 +66,28 @@ MC_API std::string_view prepare_number_string(
 } // namespace detail
 
 template <typename T>
-auto to_string(std::string& result, T value) -> std::enable_if_t<std::is_integral_v<T> && std::is_signed_v<T>, void> {
+auto to_string(std::string& result, T value) -> std::enable_if_t<std::is_integral_v<T> && std::is_signed_v<T>, void>
+{
     detail::append_formatted_number(result, static_cast<long long>(value), "%lld");
 }
 
 template <typename T>
-auto to_string(T value) -> std::enable_if_t<std::is_integral_v<T> && std::is_signed_v<T>, std::string> {
+auto to_string(T value) -> std::enable_if_t<std::is_integral_v<T> && std::is_signed_v<T>, std::string>
+{
     std::string result;
     to_string(result, value);
     return result;
 }
 
 template <typename T>
-auto to_string(std::string& result, T value) -> std::enable_if_t<std::is_integral_v<T> && std::is_unsigned_v<T>, void> {
+auto to_string(std::string& result, T value) -> std::enable_if_t<std::is_integral_v<T> && std::is_unsigned_v<T>, void>
+{
     detail::append_formatted_number(result, static_cast<unsigned long long>(value), "%llu");
 }
 
 template <typename T>
-auto to_string(T value) -> std::enable_if_t<std::is_integral_v<T> && std::is_unsigned_v<T>, std::string> {
+auto to_string(T value) -> std::enable_if_t<std::is_integral_v<T> && std::is_unsigned_v<T>, std::string>
+{
     std::string result;
     to_string(result, value);
     return result;
@@ -252,7 +257,8 @@ MC_API std::string_view substring(std::string_view s, int start, std::size_t len
  * @param args 要追加的值
  */
 template <typename T>
-void append(std::string& result, T&& value) {
+void append(std::string& result, T&& value)
+{
     if constexpr (std::is_same_v<std::decay_t<T>, std::string> ||
                   std::is_same_v<std::decay_t<T>, std::string_view>) {
         // 对于字符串和字符串视图，直接追加
@@ -274,7 +280,8 @@ void append(std::string& result, T&& value) {
     }
 }
 template <typename T, typename... Args>
-void append(std::string& result, T&& value, Args&&... args) {
+void append(std::string& result, T&& value, Args&&... args)
+{
     append(result, std::forward<T>(value));
     append(result, std::forward<Args>(args)...);
 }
@@ -288,7 +295,8 @@ void append(std::string& result, T&& value, Args&&... args) {
 MC_API std::string join(const std::vector<std::string>& v, std::string_view delim);
 
 template <typename... Args>
-std::string join(std::string_view delim, Args&&... args) {
+std::string join(std::string_view delim, Args&&... args)
+{
     std::string result;
     if constexpr (sizeof...(args) == 0) {
         // 无参数时返回空字符串
@@ -313,7 +321,8 @@ std::string join(std::string_view delim, Args&&... args) {
  * @param v 字符串数组
  * @return 连接后的字符串
  */
-inline std::string concat(const std::vector<std::string>& v) {
+inline std::string concat(const std::vector<std::string>& v)
+{
     std::string result;
     result.reserve(std::accumulate(v.begin(), v.end(), size_t{0},
                                    [](size_t sum, const std::string& s) {
@@ -332,7 +341,8 @@ inline std::string concat(const std::vector<std::string>& v) {
  */
 template <typename T, typename... Args,
           typename = std::enable_if_t<!std::is_same_v<std::decay_t<T>, std::vector<std::string>>>>
-std::string concat(T&& first, Args&&... args) {
+std::string concat(T&& first, Args&&... args)
+{
     std::string result;
     append(result, std::forward<T>(first));
     if constexpr (sizeof...(args) > 0) {
@@ -441,7 +451,8 @@ MC_API bool to_bool(std::string_view s);
  * 不保证以尾0结尾，建议后续用 std::from_chars 替代
  */
 template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-bool try_to_number_unsafe(std::string_view s, T& result, int radix = 0) {
+bool try_to_number_unsafe(std::string_view s, T& result, int radix = 0)
+{
     errno = 0;
     if (s.empty()) {
         return false;
@@ -499,7 +510,8 @@ bool try_to_number_unsafe(std::string_view s, T& result, int radix = 0) {
  * @return 是否转换成功
  */
 template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-bool try_to_number_safe(std::string_view s, T& result, int radix = 0) {
+bool try_to_number_safe(std::string_view s, T& result, int radix = 0)
+{
     char buffer[MC_NUMBER_STRING_BUFFER_SIZE];
     auto str_data = detail::prepare_number_string(s, radix, buffer, sizeof(buffer));
     return try_to_number_unsafe(str_data, result, radix);
@@ -512,7 +524,8 @@ bool try_to_number_safe(std::string_view s, T& result, int radix = 0) {
  * @return 是否转换成功
  */
 template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-bool try_to_number(const char* s, T& result, int radix = 0) {
+bool try_to_number(const char* s, T& result, int radix = 0)
+{
     return try_to_number_safe<T>(std::string_view(s), result, radix);
 }
 
@@ -524,7 +537,8 @@ bool try_to_number(const char* s, T& result, int radix = 0) {
  * @return 是否转换成功
  */
 template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-bool try_to_number(std::string_view s, T& result, int radix = 0) {
+bool try_to_number(std::string_view s, T& result, int radix = 0)
+{
     return try_to_number_safe<T>(s, result, radix);
 }
 
@@ -535,7 +549,8 @@ bool try_to_number(std::string_view s, T& result, int radix = 0) {
  * @return 是否转换成功
  */
 template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-bool try_to_number(const std::string& s, T& result, int radix = 0) {
+bool try_to_number(const std::string& s, T& result, int radix = 0)
+{
     return try_to_number_unsafe<T>(s, result, radix);
 }
 
@@ -546,7 +561,8 @@ bool try_to_number(const std::string& s, T& result, int radix = 0) {
  */
 
 template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-T to_number(std::string_view s, int radix = 0) {
+T to_number(std::string_view s, int radix = 0)
+{
     T result{};
     if (try_to_number<T>(s, result, radix)) {
         return result;
@@ -566,7 +582,8 @@ T to_number(std::string_view s, int radix = 0) {
  * @return 转换结果
  */
 template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-T to_number(const std::string& s, int radix = 0) {
+T to_number(const std::string& s, int radix = 0)
+{
     T result{};
     if (try_to_number<T>(s, result, radix)) {
         return result;
@@ -586,7 +603,8 @@ T to_number(const std::string& s, int radix = 0) {
  * @return 转换结果
  */
 template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-T to_number(const char* s, int radix = 0) {
+T to_number(const char* s, int radix = 0)
+{
     return to_number<T>(std::string_view(s), radix);
 }
 
@@ -597,7 +615,8 @@ T to_number(const char* s, int radix = 0) {
  * @return 转换结果或默认值
  */
 template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-T to_number_with_default(std::string_view s, T default_value, int radix = 0) {
+T to_number_with_default(std::string_view s, T default_value, int radix = 0)
+{
     T result{};
     if (try_to_number<T>(s, result, radix)) {
         return result;
@@ -614,7 +633,8 @@ T to_number_with_default(std::string_view s, T default_value, int radix = 0) {
  * @return 转换结果或默认值
  */
 template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-T to_number_with_default(const std::string& s, T default_value, int radix = 0) {
+T to_number_with_default(const std::string& s, T default_value, int radix = 0)
+{
     T result{};
     if (try_to_number<T>(s, result, radix)) {
         return result;
@@ -631,7 +651,8 @@ T to_number_with_default(const std::string& s, T default_value, int radix = 0) {
  * @return 转换结果或默认值
  */
 template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-T to_number_with_default(const char* s, T default_value, int radix = 0) {
+T to_number_with_default(const char* s, T default_value, int radix = 0)
+{
     return to_number_with_default<T>(std::string_view(s), default_value, radix);
 }
 
@@ -650,7 +671,8 @@ public:
     /**
      * @brief 默认构造函数，构造一个结束迭代器
      */
-    constexpr split_iterator() noexcept {
+    constexpr split_iterator() noexcept
+    {
     }
 
     /**
@@ -659,30 +681,36 @@ public:
      * @param delims 分隔符集合，其中的任意字符都视为分隔符
      */
     constexpr split_iterator(std::string_view str, std::string_view delims = " ") noexcept
-        : m_str(str), m_delims(delims) {
+        : m_str(str), m_delims(delims)
+    {
         find_next();
     }
 
-    constexpr value_type operator*() const noexcept {
+    constexpr value_type operator*() const noexcept
+    {
         return std::string_view(m_str.data() + m_pos, m_end - m_pos);
     }
 
-    constexpr value_type operator->() const noexcept {
+    constexpr value_type operator->() const noexcept
+    {
         return operator*();
     }
 
-    constexpr split_iterator& operator++() noexcept {
+    constexpr split_iterator& operator++() noexcept
+    {
         find_next();
         return *this;
     }
 
-    constexpr split_iterator operator++(int) noexcept {
+    constexpr split_iterator operator++(int) noexcept
+    {
         auto tmp = *this;
         ++(*this);
         return tmp;
     }
 
-    constexpr bool operator==(const split_iterator& other) const noexcept {
+    constexpr bool operator==(const split_iterator& other) const noexcept
+    {
         if (is_end() && other.is_end()) {
             return true;
         } else if (is_end() || other.is_end()) {
@@ -691,15 +719,18 @@ public:
         return m_str.data() == other.m_str.data() && m_pos == other.m_pos;
     }
 
-    constexpr bool operator!=(const split_iterator& other) const noexcept {
+    constexpr bool operator!=(const split_iterator& other) const noexcept
+    {
         return !(*this == other);
     }
 
-    constexpr bool is_end() const noexcept {
+    constexpr bool is_end() const noexcept
+    {
         return m_pos >= m_str.size();
     }
 
-    static constexpr split_iterator end() noexcept {
+    static constexpr split_iterator end() noexcept
+    {
         return split_iterator();
     }
 
@@ -707,7 +738,8 @@ public:
      * @brief 获取当前位置在原字符串中的起始偏移
      * @return 当前片段在原字符串中的起始位置
      */
-    constexpr std::size_t current_pos() const noexcept {
+    constexpr std::size_t current_pos() const noexcept
+    {
         return m_pos;
     }
 
@@ -715,7 +747,8 @@ public:
      * @brief 获取当前位置在原字符串中的结束偏移
      * @return 当前片段在原字符串中的结束位置
      */
-    constexpr std::size_t end_pos() const noexcept {
+    constexpr std::size_t end_pos() const noexcept
+    {
         return m_end;
     }
 
@@ -723,7 +756,8 @@ public:
      * @brief 获取当前位置在原字符串中的剩余部分
      * @return 当前片段在原字符串中的剩余部分，会跳过分隔符
      */
-    constexpr std::string_view tail() const noexcept {
+    constexpr std::string_view tail() const noexcept
+    {
         if (is_end()) {
             return {};
         }
@@ -736,26 +770,30 @@ public:
      * @brief 获取当前位置在原字符串中的前置部分
      * @return 当前片段在原字符串中的前置部分
      */
-    constexpr std::string_view head() const noexcept {
+    constexpr std::string_view head() const noexcept
+    {
         return m_str.substr(0, m_pos);
     }
 
 private:
-    static constexpr std::size_t skip_delims(std::string_view str, std::size_t pos, std::string_view delims) {
+    static constexpr std::size_t skip_delims(std::string_view str, std::size_t pos, std::string_view delims)
+    {
         while (pos < str.size() && delims.find(str[pos]) != std::string_view::npos) {
             ++pos;
         }
         return pos;
     }
 
-    static constexpr std::size_t find_next_delim(std::string_view str, std::size_t pos, std::string_view delims) {
+    static constexpr std::size_t find_next_delim(std::string_view str, std::size_t pos, std::string_view delims)
+    {
         while (pos < str.size() && delims.find(str[pos]) == std::string_view::npos) {
             ++pos;
         }
         return pos;
     }
 
-    constexpr void find_next() noexcept {
+    constexpr void find_next() noexcept
+    {
         m_pos = m_end;
         m_pos = skip_delims(m_str, m_pos, m_delims);
         m_end = find_next_delim(m_str, m_pos, m_delims);

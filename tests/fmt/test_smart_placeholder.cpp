@@ -24,7 +24,8 @@
 using namespace mc::fmt;
 
 // 测试智能占位符的基本功能
-TEST(smart_placeholder_test, basic_smart_placeholder) {
+TEST(smart_placeholder_test, basic_smart_placeholder)
+{
     // 测试自增索引 {}
     auto result1 = sformat("{} {}", "Hello", "World");
     EXPECT_EQ(result1, "Hello World");
@@ -39,7 +40,8 @@ TEST(smart_placeholder_test, basic_smart_placeholder) {
 }
 
 // 测试混合使用不同类型的占位符
-TEST(smart_placeholder_test, mixed_placeholder_types) {
+TEST(smart_placeholder_test, mixed_placeholder_types)
+{
     // 混合自增索引和命名参数
     auto result1 = sformat("{} is {age} years old", "Alice", ("age", 25));
     EXPECT_EQ(result1, "Alice is 25 years old");
@@ -54,7 +56,8 @@ TEST(smart_placeholder_test, mixed_placeholder_types) {
 }
 
 // 测试带格式说明符的智能占位符
-TEST(smart_placeholder_test, format_specifications) {
+TEST(smart_placeholder_test, format_specifications)
+{
     // 自增索引带格式
     auto result1 = sformat("{:.2f} {}", 3.14159, "pi");
     EXPECT_EQ(result1, "3.14 pi");
@@ -69,7 +72,8 @@ TEST(smart_placeholder_test, format_specifications) {
 }
 
 // 测试动态格式参数
-TEST(smart_placeholder_test, dynamic_format_parameters) {
+TEST(smart_placeholder_test, dynamic_format_parameters)
+{
     // 使用命名参数作为动态宽度和精度
     auto result1 = sformat("{value:{width}.{precision}f}",
                            ("value", 3.14159),
@@ -83,7 +87,8 @@ TEST(smart_placeholder_test, dynamic_format_parameters) {
 }
 
 // 测试错误处理
-TEST(smart_placeholder_test, error_handling) {
+TEST(smart_placeholder_test, error_handling)
+{
     // 无效的标识符名称
     EXPECT_FALSE(MC_FORMAT_COMPILE_CHECK("{123abc}", ("123abc", "test")));
     EXPECT_FALSE(MC_FORMAT_COMPILE_CHECK("{-name}", ("name", "test")));
@@ -97,15 +102,17 @@ TEST(smart_placeholder_test, error_handling) {
 }
 
 // 测试空字符串索引
-TEST(smart_placeholder_test, SmartPlaceholderEmptyIndexString) {
+TEST(smart_placeholder_test, SmartPlaceholderEmptyIndexString)
+{
     // 测试 is_numeric_string("") 返回 true 的情况
     // 空字符串应该被视为有效的自增索引
     auto result = sformat("{} {}", "first", "second");
     EXPECT_EQ(result, "first second");
 }
 
-    // 测试边界情况
-TEST(smart_placeholder_test, edge_cases) {
+// 测试边界情况
+TEST(smart_placeholder_test, edge_cases)
+{
     // 单个字符的命名参数
     auto result1 = sformat("{x} {y}", ("x", 10), ("y", 20));
     EXPECT_EQ(result1, "10 20");
@@ -125,7 +132,8 @@ TEST(smart_placeholder_test, edge_cases) {
 }
 
 // 测试嵌套大括号
-TEST(smart_placeholder_test, nested_braces) {
+TEST(smart_placeholder_test, nested_braces)
+{
     // 命名参数中的嵌套大括号格式
     auto result1 = sformat("{value:{width}.{precision}f}",
                            ("value", 123.456),
@@ -139,7 +147,8 @@ TEST(smart_placeholder_test, nested_braces) {
 }
 
 // 测试转义字符
-TEST(smart_placeholder_test, escaped_braces) {
+TEST(smart_placeholder_test, escaped_braces)
+{
     // 转义的大括号与智能占位符混合
     auto result1 = sformat("{{}} {name} {{}}", ("name", "test"));
     EXPECT_EQ(result1, "{} test {}");

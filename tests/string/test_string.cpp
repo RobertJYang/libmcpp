@@ -27,11 +27,13 @@ namespace test {
 
 class StringTest : public ::testing::Test {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         // 在每个测试前执行
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         // 在每个测试后执行
     }
 };
@@ -39,7 +41,8 @@ protected:
 /**
  * @brief 测试忽略大小写比较函数
  */
-TEST_F(StringTest, IEqualsTest) {
+TEST_F(StringTest, IEqualsTest)
+{
     // 测试相同字符串
     ASSERT_TRUE(iequals("test", "test")) << "相同字符串应该相等";
 
@@ -66,7 +69,8 @@ TEST_F(StringTest, IEqualsTest) {
 /**
  * @brief 测试字符串转换函数
  */
-TEST_F(StringTest, StringConversionTest) {
+TEST_F(StringTest, StringConversionTest)
+{
     // 测试转换为小写
     ASSERT_EQ(to_lower("TEST"), "test") << "转换为小写应该正确";
     ASSERT_EQ(to_lower("Test"), "test") << "转换为小写应该正确";
@@ -89,7 +93,8 @@ TEST_F(StringTest, StringConversionTest) {
 /**
  * @brief 测试字符串修剪函数
  */
-TEST_F(StringTest, StringTrimTest) {
+TEST_F(StringTest, StringTrimTest)
+{
     // 测试修剪两端空白
     ASSERT_EQ(trim("  test  "), "test") << "修剪两端空白应该正确";
     ASSERT_EQ(trim("\t\ntest\r\n"), "test") << "修剪两端空白应该正确";
@@ -117,7 +122,8 @@ TEST_F(StringTest, StringTrimTest) {
 /**
  * @brief 测试字符串分割和连接函数
  */
-TEST_F(StringTest, StringSplitJoinTest) {
+TEST_F(StringTest, StringSplitJoinTest)
+{
     // 测试按字符分割
     std::vector<std::string> parts1 = split("a,b,c", ',');
     ASSERT_EQ(parts1.size(), 3) << "分割后应该有3个元素";
@@ -140,7 +146,8 @@ TEST_F(StringTest, StringSplitJoinTest) {
 /**
  * @brief 测试类似Lua的子字符串函数
  */
-TEST_F(StringTest, SubstrLuaStyleTest) {
+TEST_F(StringTest, SubstrLuaStyleTest)
+{
     const std::string test_str = "Hello, World!";
 
     // 测试正常情况下的子字符串提取（正数索引）
@@ -175,7 +182,8 @@ TEST_F(StringTest, SubstrLuaStyleTest) {
 /**
  * @brief 测试以长度为参数的子字符串函数
  */
-TEST_F(StringTest, SubstringTest) {
+TEST_F(StringTest, SubstringTest)
+{
     const std::string test_str = "Hello, World!";
 
     // 测试正常情况下的子字符串提取（正数索引）
@@ -214,7 +222,8 @@ TEST_F(StringTest, SubstringTest) {
 /**
  * @brief 测试字符串前缀和后缀检查函数
  */
-TEST_F(StringTest, StringPrefixSuffixTest) {
+TEST_F(StringTest, StringPrefixSuffixTest)
+{
     // 测试前缀检查
     ASSERT_TRUE(starts_with("test", "te")) << "前缀检查应该正确";
     ASSERT_FALSE(starts_with("test", "es")) << "前缀检查应该正确";
@@ -227,7 +236,8 @@ TEST_F(StringTest, StringPrefixSuffixTest) {
 /**
  * @brief 测试字符串替换函数
  */
-TEST_F(StringTest, StringReplaceTest) {
+TEST_F(StringTest, StringReplaceTest)
+{
     // 测试替换
     ASSERT_EQ(replace_all("test test", "test", "abc"), "abc abc") << "替换应该正确";
 
@@ -240,7 +250,8 @@ TEST_F(StringTest, StringReplaceTest) {
 /**
  * @brief 测试字符串包含函数
  */
-TEST_F(StringTest, StringContainsTest) {
+TEST_F(StringTest, StringContainsTest)
+{
     // 测试包含
     ASSERT_TRUE(contains("test", "es")) << "包含检查应该正确";
     ASSERT_FALSE(contains("test", "abc")) << "包含检查应该正确";
@@ -250,7 +261,8 @@ TEST_F(StringTest, StringContainsTest) {
     ASSERT_FALSE(icontains("TEST", "abc")) << "忽略大小写包含检查应该正确";
 }
 
-TEST_F(StringTest, JoinTest) {
+TEST_F(StringTest, JoinTest)
+{
     ASSERT_EQ(join(",", "a", "b", "c"), "a,b,c");
     ASSERT_EQ(join(",", "a", "b", "c", "d"), "a,b,c,d");
     ASSERT_EQ(join(",", "a", "b", "c", "d", "e"), "a,b,c,d,e");
@@ -260,7 +272,8 @@ TEST_F(StringTest, JoinTest) {
     ASSERT_EQ(join(std::vector<std::string>{"a", "b", "c", "d", "e"}, ","), "a,b,c,d,e");
 }
 
-TEST_F(StringTest, ConcatTest) {
+TEST_F(StringTest, ConcatTest)
+{
     ASSERT_EQ(concat("a", "b", "c"), "abc");
     ASSERT_EQ(concat("a", "b", "c", "d"), "abcd");
     ASSERT_EQ(concat("a", "b", "c", "d", "e"), "abcde");
@@ -270,7 +283,8 @@ TEST_F(StringTest, ConcatTest) {
     ASSERT_EQ(concat(std::vector<std::string>{"a", "b", "c", "d", "e"}), "abcde");
 }
 
-TEST_F(StringTest, SplitIteratorTest) {
+TEST_F(StringTest, SplitIteratorTest)
+{
     // 测试空字符串
     {
         std::string_view str;
@@ -331,7 +345,8 @@ TEST_F(StringTest, SplitIteratorTest) {
     }
 }
 
-TEST(string, split_iterator) {
+TEST(string, split_iterator)
+{
     // 基本分割测试
     {
         std::string                   str = "a.b.c";
@@ -408,7 +423,8 @@ TEST(string, split_iterator) {
 /**
  * @brief 测试字符串转数字的安全性
  */
-TEST_F(StringTest, TestStringToNumberSafety) {
+TEST_F(StringTest, TestStringToNumberSafety)
+{
     // 测试 string_view 的安全性
     {
         // 构造一个较长的字符串，包含合法数字后跟其他字符
@@ -560,7 +576,8 @@ TEST_F(StringTest, TestStringToNumberSafety) {
 /**
  * @brief 测试字符串转数字的默认值功能
  */
-TEST_F(StringTest, TestStringToNumberWithDefault) {
+TEST_F(StringTest, TestStringToNumberWithDefault)
+{
     // 测试正常转换
     ASSERT_EQ(mc::to_number_with_default<int>("42", -1), 42);
     ASSERT_EQ(mc::to_number_with_default<int>(std::string("42"), -1), 42);
@@ -581,7 +598,8 @@ TEST_F(StringTest, TestStringToNumberWithDefault) {
 }
 
 // 测试 prepare_number_string 缓冲区大小不足的情况
-TEST_F(StringTest, PrepareNumberStringBufferTooSmall) {
+TEST_F(StringTest, PrepareNumberStringBufferTooSmall)
+{
     char buffer[1]; // 非常小的缓冲区
     auto result = mc::string::detail::prepare_number_string("123", 10, buffer, 1);
     // 当缓冲区太小时，应该返回空 string_view
@@ -589,14 +607,16 @@ TEST_F(StringTest, PrepareNumberStringBufferTooSmall) {
 }
 
 // 测试 try_to_bool 空字符串情况
-TEST_F(StringTest, TryToBoolEmptyString) {
+TEST_F(StringTest, TryToBoolEmptyString)
+{
     bool result = true;
     EXPECT_TRUE(mc::string::try_to_bool("", result));
     EXPECT_FALSE(result);
 }
 
 // 测试 to_bool 函数
-TEST_F(StringTest, ToBoolTest) {
+TEST_F(StringTest, ToBoolTest)
+{
     // 测试 "true" 返回 true
     EXPECT_TRUE(mc::string::to_bool("true"));
     EXPECT_TRUE(mc::string::to_bool("TRUE"));
@@ -617,7 +637,8 @@ TEST_F(StringTest, ToBoolTest) {
 }
 
 // 测试 iequals 的空指针处理
-TEST_F(StringTest, IEqualsNullPointer) {
+TEST_F(StringTest, IEqualsNullPointer)
+{
     // 测试两个 nullptr 返回 true
     EXPECT_TRUE(mc::string::iequals(nullptr, nullptr));
 
@@ -627,7 +648,8 @@ TEST_F(StringTest, IEqualsNullPointer) {
 }
 
 // 测试空分隔符的 split
-TEST_F(StringTest, SplitEmptyDelimiter) {
+TEST_F(StringTest, SplitEmptyDelimiter)
+{
     auto result = split("abc", "");
     // 当分隔符为空时，应该返回包含整个字符串的向量
     ASSERT_EQ(result.size(), 1);
@@ -635,13 +657,15 @@ TEST_F(StringTest, SplitEmptyDelimiter) {
 }
 
 // 测试空前缀的 starts_with
-TEST_F(StringTest, StartsWithEmptyPrefix) {
+TEST_F(StringTest, StartsWithEmptyPrefix)
+{
     // 当前缀为空时，应该返回 true
     EXPECT_TRUE(starts_with("test", ""));
 }
 
 // 测试 longest_common_prefix 函数
-TEST_F(StringTest, LongestCommonPrefixTest) {
+TEST_F(StringTest, LongestCommonPrefixTest)
+{
     // 测试有公共前缀的情况
     EXPECT_EQ(longest_common_prefix("abc", "ab"), "ab");
 
@@ -654,13 +678,15 @@ TEST_F(StringTest, LongestCommonPrefixTest) {
 }
 
 // 测试空 from 的 replace_all
-TEST_F(StringTest, ReplaceAllEmptyFrom) {
+TEST_F(StringTest, ReplaceAllEmptyFrom)
+{
     // 当 from 为空时，应该返回原字符串的副本
     EXPECT_EQ(replace_all("test", "", "x"), "test");
 }
 
 // 测试空 from 的 replace_all_inplace
-TEST_F(StringTest, ReplaceAllInplaceEmptyFrom) {
+TEST_F(StringTest, ReplaceAllInplaceEmptyFrom)
+{
     std::string s = "test";
     // 当 from 为空时，应该直接返回，不修改字符串
     replace_all_inplace(s, "", "x");
@@ -668,7 +694,8 @@ TEST_F(StringTest, ReplaceAllInplaceEmptyFrom) {
 }
 
 // 测试 icontains 的边界情况
-TEST_F(StringTest, IContainsEdgeCases) {
+TEST_F(StringTest, IContainsEdgeCases)
+{
     // 测试空字符串
     EXPECT_FALSE(icontains("", "test"));
 
@@ -680,7 +707,8 @@ TEST_F(StringTest, IContainsEdgeCases) {
 }
 
 // 测试 icontains 的大字符串处理
-TEST_F(StringTest, IContainsLargeString) {
+TEST_F(StringTest, IContainsLargeString)
+{
     // 创建一个长度超过 1024 的字符串
     std::string large_string(2000, 'a');
     large_string += "TEST";
@@ -692,13 +720,15 @@ TEST_F(StringTest, IContainsLargeString) {
 }
 
 // 测试 substr 的结束位置超出长度
-TEST_F(StringTest, SubstrEndExceedsLength) {
+TEST_F(StringTest, SubstrEndExceedsLength)
+{
     // 当结束位置超出长度时，应该调整到字符串末尾
     EXPECT_EQ(substr("test", 0, 100), "test");
 }
 
 // 测试 fixed_width_append 的右对齐
-TEST_F(StringTest, FixedWidthAppendRightAlign) {
+TEST_F(StringTest, FixedWidthAppendRightAlign)
+{
     std::string result;
     fixed_width_append(result, 10, "test", false); // left_align = false 表示右对齐
     // 右对齐时，应该先添加空格，再添加字符串
@@ -707,7 +737,8 @@ TEST_F(StringTest, FixedWidthAppendRightAlign) {
 }
 
 // 测试无效的双字节 UTF-8 字符
-TEST_F(StringTest, IsValidUtf8InvalidTwoByte) {
+TEST_F(StringTest, IsValidUtf8InvalidTwoByte)
+{
     // 测试不完整的双字节字符（只有 1 个字节）
     std::string invalid1 = "\xC2"; // 只有起始字节，缺少后续字节
     EXPECT_FALSE(is_valid_utf8(invalid1));
@@ -723,7 +754,8 @@ TEST_F(StringTest, IsValidUtf8InvalidTwoByte) {
 }
 
 // 测试无效的三字节 UTF-8 字符
-TEST_F(StringTest, IsValidUtf8InvalidThreeByte) {
+TEST_F(StringTest, IsValidUtf8InvalidThreeByte)
+{
     // 测试不完整的三字节字符（只有 2 个字节）
     std::string invalid1 = "\xE0\xA0"; // 只有前两个字节，缺少第三个字节
     EXPECT_FALSE(is_valid_utf8(invalid1));
@@ -741,7 +773,8 @@ TEST_F(StringTest, IsValidUtf8InvalidThreeByte) {
 }
 
 // 测试四字节 UTF-8 字符
-TEST_F(StringTest, IsValidUtf8FourByte) {
+TEST_F(StringTest, IsValidUtf8FourByte)
+{
     // 测试有效的四字节字符
     std::string valid = "\xF0\x90\x80\x80"; // U+10000
     EXPECT_TRUE(is_valid_utf8(valid));
@@ -766,7 +799,8 @@ TEST_F(StringTest, IsValidUtf8FourByte) {
 }
 
 // 测试无效的 UTF-8 起始字节
-TEST_F(StringTest, IsValidUtf8InvalidStartByte) {
+TEST_F(StringTest, IsValidUtf8InvalidStartByte)
+{
     // 测试包含无效起始字节的字符串
     std::string invalid1 = "\xFF"; // 0xFF 不是有效的 UTF-8 起始字节
     EXPECT_FALSE(is_valid_utf8(invalid1));
@@ -779,14 +813,16 @@ TEST_F(StringTest, IsValidUtf8InvalidStartByte) {
 }
 
 // 测试 to_string(double) 移除末尾小数点
-TEST_F(StringTest, ToStringDoubleRemoveTrailingDot) {
+TEST_F(StringTest, ToStringDoubleRemoveTrailingDot)
+{
     // 当浮点数的小数部分全为 0 时，应该移除末尾的小数点
     std::string result = to_string(123.0);
     EXPECT_EQ(result, "123"); // 不包含小数点
 }
 
 // 测试 to_string(bool) 函数
-TEST_F(StringTest, ToStringBoolTest) {
+TEST_F(StringTest, ToStringBoolTest)
+{
     // 测试 true 返回 "true"
     EXPECT_EQ(to_string(true), "true");
 
@@ -795,7 +831,8 @@ TEST_F(StringTest, ToStringBoolTest) {
 }
 
 // 测试 to_string(std::string&, bool) 函数
-TEST_F(StringTest, ToStringBoolAppendTest) {
+TEST_F(StringTest, ToStringBoolAppendTest)
+{
     std::string result;
 
     // 测试 to_string(result, true) 将 "true" 追加到 result

@@ -26,7 +26,8 @@ namespace lua {
 
 // MDB 查询函数
 
-static int l_get_mdb_object(lua_State* L) {
+static int l_get_mdb_object(lua_State* L)
+{
     try {
         int nargs = lua_gettop(L);
         if (nargs < 2) {
@@ -57,7 +58,8 @@ static int l_get_mdb_object(lua_State* L) {
     }
 }
 
-static int l_get_mdb_sub_paths(lua_State* L) {
+static int l_get_mdb_sub_paths(lua_State* L)
+{
     try {
         int nargs = lua_gettop(L);
         if (nargs < 3) {
@@ -100,7 +102,8 @@ static int l_get_mdb_sub_paths(lua_State* L) {
     }
 }
 
-static int l_is_valid_mdb_path(lua_State* L) {
+static int l_is_valid_mdb_path(lua_State* L)
+{
     try {
         int nargs = lua_gettop(L);
         if (nargs < 2) {
@@ -124,7 +127,8 @@ static int l_is_valid_mdb_path(lua_State* L) {
     }
 }
 
-static int l_get_mdb_path(lua_State* L) {
+static int l_get_mdb_path(lua_State* L)
+{
     try {
         int nargs = lua_gettop(L);
         if (nargs < 3) {
@@ -152,7 +156,8 @@ static int l_get_mdb_path(lua_State* L) {
     }
 }
 
-static int l_get_mdb_interface_owners(lua_State* L) {
+static int l_get_mdb_interface_owners(lua_State* L)
+{
     try {
         const char*      interface_cstr = luaL_checkstring(L, 1);
         std::string_view interface_name(interface_cstr);
@@ -165,7 +170,8 @@ static int l_get_mdb_interface_owners(lua_State* L) {
     }
 }
 
-static int l_get_mdb_service_name(lua_State* L) {
+static int l_get_mdb_service_name(lua_State* L)
+{
     try {
         const char*      sender_cstr = luaL_checkstring(L, 1);
         std::string_view sender(sender_cstr);
@@ -179,7 +185,8 @@ static int l_get_mdb_service_name(lua_State* L) {
     }
 }
 
-static int l_get_mdb_sub_objects(lua_State* L) {
+static int l_get_mdb_sub_objects(lua_State* L)
+{
     try {
         const char*      path_cstr = luaL_checkstring(L, 1);
         std::string_view path(path_cstr);
@@ -206,7 +213,8 @@ static int l_get_mdb_sub_objects(lua_State* L) {
     }
 }
 
-static int l_get_mdb_parent_objects(lua_State* L) {
+static int l_get_mdb_parent_objects(lua_State* L)
+{
     try {
         const char*      path_cstr = luaL_checkstring(L, 1);
         std::string_view path(path_cstr);
@@ -232,7 +240,8 @@ static int l_get_mdb_parent_objects(lua_State* L) {
     }
 }
 
-static int l_get_mdb_service_names(lua_State* L) {
+static int l_get_mdb_service_names(lua_State* L)
+{
     try {
         variants result = shm_tree::get_mdb_service_names();
         mc::lua::variant_to_lua(L, variant(result));
@@ -242,7 +251,8 @@ static int l_get_mdb_service_names(lua_State* L) {
     }
 }
 
-static int l_get_mdb_classes(lua_State* L) {
+static int l_get_mdb_classes(lua_State* L)
+{
     try {
         const char*      service_cstr = luaL_checkstring(L, 1);
         std::string_view service_name(service_cstr);
@@ -255,7 +265,8 @@ static int l_get_mdb_classes(lua_State* L) {
     }
 }
 
-static int l_get_mdb_object_list(lua_State* L) {
+static int l_get_mdb_object_list(lua_State* L)
+{
     try {
         const char*      class_cstr = luaL_checkstring(L, 1);
         std::string_view class_name(class_cstr);
@@ -268,7 +279,8 @@ static int l_get_mdb_object_list(lua_State* L) {
     }
 }
 
-static int l_get_mdb_object_owner(lua_State* L) {
+static int l_get_mdb_object_owner(lua_State* L)
+{
     try {
         const char*      object_cstr = luaL_checkstring(L, 1);
         std::string_view object_name(object_cstr);
@@ -281,7 +293,8 @@ static int l_get_mdb_object_owner(lua_State* L) {
     }
 }
 
-static int l_get_mdb_matched_objects(lua_State* L) {
+static int l_get_mdb_matched_objects(lua_State* L)
+{
     try {
         const char*      service_cstr = luaL_checkstring(L, 1);
         std::string_view service_name(service_cstr);
@@ -301,7 +314,8 @@ static int l_get_mdb_matched_objects(lua_State* L) {
 
 // SHM 属性访问函数
 
-static int l_call_shm_get_property(lua_State* L) {
+static int l_call_shm_get_property(lua_State* L)
+{
     try {
         const char*      service_cstr = luaL_checkstring(L, 1);
         std::string_view service_name(service_cstr);
@@ -325,7 +339,8 @@ static int l_call_shm_get_property(lua_State* L) {
     }
 }
 
-static int l_call_shm_get_all_properties(lua_State* L) {
+static int l_call_shm_get_all_properties(lua_State* L)
+{
     try {
         const char*      service_cstr = luaL_checkstring(L, 1);
         std::string_view service_name(service_cstr);
@@ -347,7 +362,8 @@ static int l_call_shm_get_all_properties(lua_State* L) {
     }
 }
 
-static int l_call_shm_get_properties_by_names(lua_State* L) {
+static int l_call_shm_get_properties_by_names(lua_State* L)
+{
     try {
         const char*      service_cstr = luaL_checkstring(L, 1);
         std::string_view service_name(service_cstr);
@@ -404,7 +420,8 @@ static const luaL_Reg methods[] = {
 
 extern "C" {
 
-__attribute__((visibility("default"))) int luaopen_lshm_tree(lua_State* L) {
+__attribute__((visibility("default"))) int luaopen_lshm_tree(lua_State* L)
+{
     using namespace mc::dbus::lua;
     luaL_checkversion(L);
     luaL_newlib(L, methods);

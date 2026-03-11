@@ -22,11 +22,13 @@ public:
     int         m_id;
     std::string m_name;
 
-    void set_id(int id) {
+    void set_id(int id)
+    {
         m_id = id;
     }
 
-    int get_id() const {
+    int get_id() const
+    {
         return m_id;
     }
 };
@@ -40,11 +42,13 @@ public:
 
     int m_age;
 
-    void set_id(int id) {
+    void set_id(int id)
+    {
         m_id = id;
     }
 
-    int get_id() const {
+    int get_id() const
+    {
         return m_id;
     }
 };
@@ -62,11 +66,13 @@ class test_user : public test_person, public test_company {
 public:
     MC_REFLECTABLE("test_reflect_base_class.test_user");
 
-    void set_score(double score) {
+    void set_score(double score)
+    {
         m_score = score;
     }
 
-    double get_score() const {
+    double get_score() const
+    {
         return m_score;
     }
     double m_score;
@@ -93,7 +99,8 @@ namespace test_reflect_base_class {
 
 class reflect_base_class_test : public mc::test::TestBase {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         user.m_id                 = 1;
         user.test_person::m_name  = "John";
         user.test_company::m_name = "Company";
@@ -103,13 +110,15 @@ protected:
         user.m_score              = 95.5;
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
     }
 
     test_user user;
 };
 
-TEST_F(reflect_base_class_test, TestGetProperties) {
+TEST_F(reflect_base_class_test, TestGetProperties)
+{
     // 获取属性，对于同名属性，会返回反射类型的第一个该名称的属性
     auto name = mc::reflect::get_property(user, "Name");
     EXPECT_EQ(name, "Company");
@@ -142,7 +151,8 @@ TEST_F(reflect_base_class_test, TestGetProperties) {
     EXPECT_EQ(properties, expected);
 }
 
-TEST_F(reflect_base_class_test, TestSetProperties) {
+TEST_F(reflect_base_class_test, TestSetProperties)
+{
     // 获取属性，对于同名属性，会返回反射类型的第一个该名称的属性
     EXPECT_EQ(mc::reflect::get_property(user, "Name"), "Company");
     mc::reflect::set_property(user, "Name", "Company1");
@@ -175,7 +185,8 @@ TEST_F(reflect_base_class_test, TestSetProperties) {
     EXPECT_EQ(properties, expected);
 }
 
-TEST_F(reflect_base_class_test, TestVariant) {
+TEST_F(reflect_base_class_test, TestVariant)
+{
     mc::variant var;
     mc::to_variant(user, var);
     mc::dict expected = {

@@ -21,11 +21,13 @@ using namespace mc::engine;
  */
 class path_test : public ::testing::Test {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         // 设置代码
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         // 清理代码
     }
 };
@@ -33,7 +35,8 @@ protected:
 /**
  * 测试路径构造函数
  */
-TEST_F(path_test, constructor) {
+TEST_F(path_test, constructor)
+{
     // 默认构造函数创建根路径
     path root_path;
     EXPECT_EQ("/", root_path.str());
@@ -50,7 +53,8 @@ TEST_F(path_test, constructor) {
 /**
  * 测试无效路径
  */
-TEST_F(path_test, invalid_path) {
+TEST_F(path_test, invalid_path)
+{
     // 不以'/'开头的路径无效
     EXPECT_THROW(path("org/example"), mc::invalid_arg_exception);
 
@@ -70,7 +74,8 @@ TEST_F(path_test, invalid_path) {
 /**
  * 测试路径比较操作符
  */
-TEST_F(path_test, comparison_operators) {
+TEST_F(path_test, comparison_operators)
+{
     path p1("/org/freedesktop/DBus");
     path p2("/org/freedesktop/DBus");
     path p3("/org/example");
@@ -91,7 +96,8 @@ TEST_F(path_test, comparison_operators) {
 /**
  * 测试路径连接操作
  */
-TEST_F(path_test, path_joining) {
+TEST_F(path_test, path_joining)
+{
     path root("/");
     path p1("/org");
 
@@ -112,7 +118,8 @@ TEST_F(path_test, path_joining) {
 /**
  * 测试父路径和基本名称方法
  */
-TEST_F(path_test, parent_and_basename) {
+TEST_F(path_test, parent_and_basename)
+{
     path p1("/org/freedesktop/DBus");
 
     // 父路径
@@ -133,7 +140,8 @@ TEST_F(path_test, parent_and_basename) {
 /**
  * 测试路径验证方法
  */
-TEST_F(path_test, validation) {
+TEST_F(path_test, validation)
+{
     // 有效路径
     EXPECT_TRUE(path::is_valid("/"));
     EXPECT_TRUE(path::is_valid("/org"));

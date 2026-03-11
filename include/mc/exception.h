@@ -217,19 +217,25 @@ using exception_ptr = std::shared_ptr<exception>;
 // 实现宏：只生成实现，供源文件使用
 #define MC_IMPLEMENT_EXCEPTION_CLASS_BASE(class_name, code_enum_value, default_msg, class_name_str, base_class) \
     class_name::class_name(mc::log::message&& msg)                                                              \
-        : base_class(std::move(msg), code_enum_value, class_name_str, default_msg) {                            \
+        : base_class(std::move(msg), code_enum_value, class_name_str, default_msg)                              \
+    {                                                                                                           \
     }                                                                                                           \
-    class_name::class_name(const class_name& e) : base_class(e) {                                               \
+    class_name::class_name(const class_name& e) : base_class(e)                                                 \
+    {                                                                                                           \
     }                                                                                                           \
-    class_name::class_name(class_name&& e) : base_class(std::move(e)) {                                         \
+    class_name::class_name(class_name&& e) : base_class(std::move(e))                                           \
+    {                                                                                                           \
     }                                                                                                           \
     class_name::class_name(const base_class& e)                                                                 \
-        : base_class(code_enum_value, class_name_str, default_msg) {                                            \
+        : base_class(code_enum_value, class_name_str, default_msg)                                              \
+    {                                                                                                           \
     }                                                                                                           \
-    std::shared_ptr<mc::exception> class_name::dynamic_copy_exception() const {                                 \
+    std::shared_ptr<mc::exception> class_name::dynamic_copy_exception() const                                   \
+    {                                                                                                           \
         return std::make_shared<class_name>(*this);                                                             \
     }                                                                                                           \
-    void class_name::dynamic_rethrow_exception() const {                                                        \
+    void class_name::dynamic_rethrow_exception() const                                                          \
+    {                                                                                                           \
         throw *this;                                                                                            \
     }
 
@@ -351,21 +357,24 @@ public:
     /**
      * @brief 获取结构化参数
      */
-    const mc::dict& args() const noexcept {
+    const mc::dict& args() const noexcept
+    {
         return args_;
     }
 
     /**
      * @brief 检查是否包含JSON序列化的error对象
      */
-    bool has_json_error() const noexcept {
+    bool has_json_error() const noexcept
+    {
         return has_json_error_;
     }
 
     /**
      * @brief 获取JSON序列化的error对象
      */
-    const std::string& get_json_error() const noexcept {
+    const std::string& get_json_error() const noexcept
+    {
         return error_json_;
     }
 
@@ -508,11 +517,13 @@ MC_STD_EXCEPTION_CLASS(MC_DECLARE_EXCEPTION_CLASS)
  * 捕获标准异常并包装为MC异常
  */
 #define MC_CAPTURE_AND_WRAP_EXCEPTION(...)                                   \
-    catch (const std::exception& e) {                                        \
+    catch (const std::exception& e)                                          \
+    {                                                                        \
         throw mc::std_exception_wrapper(MC_LOG_MESSAGE(error, __VA_ARGS__)); \
     }
 #define MC_CAPTURE_AND_WRAP_EXCEPTION_UNSAFE(...)                                   \
-    catch (const std::exception& e) {                                               \
+    catch (const std::exception& e)                                                 \
+    {                                                                               \
         throw mc::std_exception_wrapper(MC_LOG_MESSAGE_UNSAFE(error, __VA_ARGS__)); \
     }
 

@@ -34,7 +34,8 @@ using query::field;
  * @return 字段引用对象，用于构建查询条件
  */
 template <typename ObjectType, typename KeyType>
-static auto field(KeyType ObjectType::* member) {
+static auto field(KeyType ObjectType::*member)
+{
     std::string_view name;
     if constexpr (mc::reflect::is_reflectable<ObjectType>()) {
         name = mc::reflect::get_property_name<ObjectType>(member);

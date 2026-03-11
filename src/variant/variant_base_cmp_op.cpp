@@ -22,7 +22,8 @@ namespace mc {
 
 // ======== 与 variant_base 的复杂比较操作符 ========
 
-bool variant_base::operator<=(const variant_base& other) const {
+bool variant_base::operator<=(const variant_base& other) const
+{
     if (is_double()) {
         if (std::isnan(m_double)) {
             return false;
@@ -35,7 +36,8 @@ bool variant_base::operator<=(const variant_base& other) const {
     return !(*this > other);
 }
 
-bool variant_base::operator>=(const variant_base& other) const {
+bool variant_base::operator>=(const variant_base& other) const
+{
     if (is_double()) {
         if (std::isnan(m_double)) {
             return false;
@@ -50,7 +52,8 @@ bool variant_base::operator>=(const variant_base& other) const {
 
 // ======== 私有辅助函数 ========
 
-bool variant_base::same_type_equal(const variant_base& other) const {
+bool variant_base::same_type_equal(const variant_base& other) const
+{
     switch (m_type) {
     case type_id::null_type:
         return true;
@@ -96,7 +99,8 @@ bool variant_base::same_type_equal(const variant_base& other) const {
     return false;
 }
 
-bool variant_base::other_type_equal(const variant_base& other) const {
+bool variant_base::other_type_equal(const variant_base& other) const
+{
     // 任何一个是数字，优先转换为数字比较
     // 任何一个是double，优先转换为double比较
     if (is_numeric() && (other.is_numeric() || other.is_string() || other.is_blob())) {
@@ -150,7 +154,8 @@ bool variant_base::other_type_equal(const variant_base& other) const {
     return false;
 }
 
-bool variant_base::same_type_less(const variant_base& other) const {
+bool variant_base::same_type_less(const variant_base& other) const
+{
     switch (m_type) {
     case type_id::null_type:
         return false; // null等于null
@@ -179,7 +184,8 @@ bool variant_base::same_type_less(const variant_base& other) const {
     throw_invalid_type_comparison_error(get_type_name(), other.get_type_name(), "<");
 }
 
-bool variant_base::other_type_less(const variant_base& other) const {
+bool variant_base::other_type_less(const variant_base& other) const
+{
     // 任何一个是数字，优先转换为数字比较
     // 任何一个是double，优先转换为double比较
     if (is_numeric() && (other.is_numeric() || other.is_string() || other.is_blob())) {
@@ -245,7 +251,8 @@ bool variant_base::other_type_less(const variant_base& other) const {
 
 // ======== 与 std::string_view 的比较操作符 ========
 
-bool variant_base::operator==(std::string_view other) const {
+bool variant_base::operator==(std::string_view other) const
+{
     if (is_string()) {
         return *m_string_ptr == other;
     } else if (is_blob()) {
@@ -275,7 +282,8 @@ bool variant_base::operator==(std::string_view other) const {
     return false;
 }
 
-bool variant_base::operator<(std::string_view other) const {
+bool variant_base::operator<(std::string_view other) const
+{
     if (is_string()) {
         return *m_string_ptr < other;
     } else if (is_blob()) {
@@ -304,7 +312,8 @@ bool variant_base::operator<(std::string_view other) const {
     throw_invalid_type_comparison_error(get_type_name(get_type()), "string_view", "<");
 }
 
-bool variant_base::operator>(std::string_view other) const {
+bool variant_base::operator>(std::string_view other) const
+{
     if (is_string()) {
         return *m_string_ptr > other;
     } else if (is_blob()) {

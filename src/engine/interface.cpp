@@ -17,26 +17,32 @@ using namespace mc::reflect;
 namespace mc::engine {
 
 namespace detail {
-static property_base* to_property_base(const interface_impl* self, const property_type_info* info) {
+static property_base* to_property_base(const interface_impl* self, const property_type_info* info)
+{
     return MC_MEMBER_PTR(property_base*, self, info->offset());
 }
 } // namespace detail
 
-interface_impl::interface_impl() {
+interface_impl::interface_impl()
+{
 }
 
-interface_impl::~interface_impl() {
+interface_impl::~interface_impl()
+{
 }
 
-abstract_object* interface_impl::get_owner() const {
+abstract_object* interface_impl::get_owner() const
+{
     return m_owner;
 }
 
-void interface_impl::set_owner(abstract_object* owner) {
+void interface_impl::set_owner(abstract_object* owner)
+{
     m_owner = owner;
 }
 
-property_changed_signal& interface_impl::property_changed() {
+property_changed_signal& interface_impl::property_changed()
+{
     if (m_property_changed_signal == nullptr) {
         m_property_changed_signal = std::make_unique<property_changed_signal>();
     }
@@ -44,13 +50,15 @@ property_changed_signal& interface_impl::property_changed() {
     return *m_property_changed_signal;
 }
 
-void interface_impl::notify_property_changed(const mc::variant& value, const property_base& prop) {
+void interface_impl::notify_property_changed(const mc::variant& value, const property_base& prop)
+{
     if (m_property_changed_signal) {
         (*m_property_changed_signal)(value, prop);
     }
 }
 
-bool interface_impl::set_property(std::string_view property_name, const mc::variant& value) {
+bool interface_impl::set_property(std::string_view property_name, const mc::variant& value)
+{
     try {
         const auto* property_info = get_property_info(property_name);
         if (property_info == nullptr) {
@@ -70,25 +78,30 @@ bool interface_impl::set_property(std::string_view property_name, const mc::vari
     return true;
 }
 
-const signal_type_info* interface_impl::get_signal_info(std::string_view signal_name) const {
+const signal_type_info* interface_impl::get_signal_info(std::string_view signal_name) const
+{
     return get_metadata().get_signal_info(signal_name);
 }
 
-const method_type_info* interface_impl::get_method_info(std::string_view method_name) const {
+const method_type_info* interface_impl::get_method_info(std::string_view method_name) const
+{
     return get_metadata().get_method_info(method_name);
 }
 
-const property_type_info* interface_impl::get_property_info(std::string_view property_name) const {
+const property_type_info* interface_impl::get_property_info(std::string_view property_name) const
+{
     return get_metadata().get_property_info(property_name);
 }
 
-const property_type_info* interface_impl::get_property_info(const void* prop_addr) const {
+const property_type_info* interface_impl::get_property_info(const void* prop_addr) const
+{
     std::uintptr_t offset = reinterpret_cast<std::uintptr_t>(prop_addr) -
                             reinterpret_cast<std::uintptr_t>(this);
     return get_metadata().get_property_info(offset);
 }
 
-mc::connection_type interface_impl::connect(std::string_view signal_name, slot_type slot) {
+mc::connection_type interface_impl::connect(std::string_view signal_name, slot_type slot)
+{
     auto* signal_info = get_signal_info(signal_name);
     if (!signal_info) {
         return {};
@@ -97,7 +110,8 @@ mc::connection_type interface_impl::connect(std::string_view signal_name, slot_t
     return signal_info->connect(this, std::move(slot));
 }
 
-mc::variant interface_impl::emit(std::string_view signal_name, const mc::variants& args) {
+mc::variant interface_impl::emit(std::string_view signal_name, const mc::variants& args)
+{
     auto* signal_info = get_signal_info(signal_name);
     if (!signal_info) {
         return {};
@@ -106,7 +120,8 @@ mc::variant interface_impl::emit(std::string_view signal_name, const mc::variant
     return signal_info->emit(this, args);
 }
 
-invoke_result interface_impl::invoke(std::string_view method_name, const mc::variants& args) {
+invoke_result interface_impl::invoke(std::string_view method_name, const mc::variants& args)
+{
     auto* method = get_method_info(method_name);
     if (method == nullptr) {
         return {};
@@ -119,7 +134,8 @@ invoke_result interface_impl::invoke(std::string_view method_name, const mc::var
     return method->invoke(this, args);
 }
 
-async_result interface_impl::async_invoke(std::string_view method_name, const mc::variants& args) {
+async_result interface_impl::async_invoke(std::string_view method_name, const mc::variants& args)
+{
     auto* method = get_method_info(method_name);
     if (method == nullptr) {
         return {};
@@ -132,7 +148,8 @@ async_result interface_impl::async_invoke(std::string_view method_name, const mc
     return method->async_invoke(this, args);
 }
 
-mc::variant interface_impl::get_property(std::string_view property_name, int options) const {
+mc::variant interface_impl::get_property(std::string_view property_name, int options) const
+{
     auto* info = get_property_info(property_name);
     if (info == nullptr) {
         return {};
@@ -145,7 +162,8 @@ mc::variant interface_impl::get_property(std::string_view property_name, int opt
     }
 }
 
-mc::dict interface_impl::get_all_properties(int options) const {
+mc::dict interface_impl::get_all_properties(int options) const
+{
     mc::dict dict;
     get_metadata().visit_properties([&](const property_type_info* property) {
         if (dict.contains(property->name)) {
@@ -162,7 +180,8 @@ mc::dict interface_impl::get_all_properties(int options) const {
     return dict;
 }
 
-void interface_impl::from_variant(const mc::dict& d, interface_impl& obj) {
+void interface_impl::from_variant(const mc::dict& d, interface_impl& obj)
+{
     std::unordered_set<std::string_view> visited;
     obj.get_metadata().visit_properties([&](const property_type_info* property) {
         if (!d.contains(property->name) || visited.find(property->name) != visited.end()) {
@@ -180,7 +199,8 @@ void interface_impl::from_variant(const mc::dict& d, interface_impl& obj) {
     });
 }
 
-void interface_impl::to_variant(const interface_impl& obj, mc::dict& dict, int options) {
+void interface_impl::to_variant(const interface_impl& obj, mc::dict& dict, int options)
+{
     obj.get_metadata().visit_properties([&](const property_type_info* property) {
         if (dict.contains(property->name)) {
             return visit_status::VS_CONTINUE;
@@ -195,7 +215,8 @@ void interface_impl::to_variant(const interface_impl& obj, mc::dict& dict, int o
     });
 }
 
-void interface_impl::init_property_base(const struct_metadata& metadata) {
+void interface_impl::init_property_base(const struct_metadata& metadata)
+{
     auto* self = static_cast<interface_impl*>(this);
     metadata.visit_properties([self](const property_type_info* info) {
         if (info->has_flags(MC_REFLECT_FLAG_PROPERTY_TPL)) {

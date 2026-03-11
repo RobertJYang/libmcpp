@@ -58,18 +58,23 @@ public:
     using ref_ptr_type = typename Node::ref_ptr_type;
 
     // 构造函数实现
-    edge(uint8_t label, ref_ptr_type node) : m_label(label), m_node(std::move(node)) {
+    edge(uint8_t label, ref_ptr_type node)
+        : m_label(label), m_node(std::move(node))
+    {
     }
 
-    ~edge() {
+    ~edge()
+    {
         m_node.reset();
     }
 
-    friend bool operator==(const edge& lhs, const edge& rhs) {
+    friend bool operator==(const edge& lhs, const edge& rhs)
+    {
         return lhs.m_label == rhs.m_label && lhs.m_node == rhs.m_node;
     }
 
-    friend bool operator!=(const edge& lhs, const edge& rhs) {
+    friend bool operator!=(const edge& lhs, const edge& rhs)
+    {
         return !(lhs == rhs);
     }
 
@@ -79,72 +84,88 @@ public:
 
 template <typename Node>
 struct edge_less {
-    bool operator()(const edge<Node>& a, const edge<Node>& b) const {
+    bool operator()(const edge<Node>& a, const edge<Node>& b) const
+    {
         return a.m_label < b.m_label;
     }
 
-    bool operator()(const edge<Node>& a, uint8_t b) const {
+    bool operator()(const edge<Node>& a, uint8_t b) const
+    {
         return a.m_label < b;
     }
 
-    bool operator()(uint8_t a, const edge<Node>& b) const {
+    bool operator()(uint8_t a, const edge<Node>& b) const
+    {
         return a < b.m_label;
     }
 
-    bool operator()(uint8_t a, uint8_t b) const {
+    bool operator()(uint8_t a, uint8_t b) const
+    {
         return a < b;
     }
 
     // 添加对key_view和key_buffer的比较支持
-    bool operator()(const key_view& a, const key_view& b) const {
+    bool operator()(const key_view& a, const key_view& b) const
+    {
         return std::less<std::string_view>()(a, b);
     }
 
-    bool operator()(const key_buffer<>& a, const key_view& b) const {
+    bool operator()(const key_buffer<>& a, const key_view& b) const
+    {
         return (*this)(key_view(a.data(), a.size()), b);
     }
 
-    bool operator()(const key_view& a, const key_buffer<>& b) const {
+    bool operator()(const key_view& a, const key_buffer<>& b) const
+    {
         return (*this)(a, key_view(b.data(), b.size()));
     }
 
-    bool operator()(const key_buffer<>& a, const key_buffer<>& b) const {
+    bool operator()(const key_buffer<>& a, const key_buffer<>& b) const
+    {
         return (*this)(key_view(a.data(), a.size()), key_view(b.data(), b.size()));
     }
 };
 
 template <typename Node>
 struct edge_greater {
-    bool operator()(const edge<Node>& a, const edge<Node>& b) const {
+    bool operator()(const edge<Node>& a, const edge<Node>& b) const
+    {
         return a.m_label > b.m_label;
     }
 
-    bool operator()(const edge<Node>& a, uint8_t b) const {
+    bool operator()(const edge<Node>& a, uint8_t b) const
+    {
         return a.m_label > b;
     }
 
-    bool operator()(uint8_t a, const edge<Node>& b) const {
+    bool operator()(uint8_t a, const edge<Node>& b) const
+    {
         return a > b.m_label;
     }
 
-    bool operator()(uint8_t a, uint8_t b) const {
+    bool operator()(uint8_t a, uint8_t b) const
+    {
         return a > b;
     }
 
     // 添加对key_view和key_buffer的比较支持
-    bool operator()(const key_view& a, const key_view& b) const {
+    bool operator()(const key_view& a, const key_view& b) const
+    {
         return std::greater<std::string_view>()(a, b);
     }
 
-    bool operator()(const key_buffer<>& a, const key_view& b) const {
+    bool operator()(const key_buffer<>& a, const key_view& b) const
+    {
         return (*this)(key_view(a.data(), a.size()), b);
     }
 
-    bool operator()(const key_view& a, const key_buffer<>& b) const {
+    bool operator()(const key_view& a, const key_buffer<>& b) const
+    {
         return (*this)(a, key_view(b.data(), b.size()));
     }
 
-    bool operator()(const key_buffer<>& a, const key_buffer<>& b) const {
+    bool operator()(const key_buffer<>& a, const key_buffer<>& b) const
+    {
         return (*this)(key_view(a.data(), a.size()), key_view(b.data(), b.size()));
     }
 };
@@ -181,57 +202,69 @@ public:
     using compare_type = std::conditional_t<IsLess, edge_less<node>, edge_greater<node>>;
 
     // 默认构造函数
-    node() {
+    node()
+    {
     }
 
     // 基本构造函数
-    explicit node(leaf_type leaf) : m_leaf(leaf) {
+    explicit node(leaf_type leaf)
+        : m_leaf(leaf)
+    {
     }
 
     // 带前缀构造，使用key_view
     node(leaf_type leaf, key_view prefix, edges_type edges = {})
-        : m_leaf(leaf), m_prefix(prefix), m_edges(std::move(edges)), m_version(0) {
+        : m_leaf(leaf), m_prefix(prefix), m_edges(std::move(edges)), m_version(0)
+    {
     }
 
     // 带前缀构造，使用key_type右值引用
     node(leaf_type leaf, key_type prefix, edges_type edges = {})
-        : m_leaf(leaf), m_prefix(std::move(prefix)), m_edges(std::move(edges)), m_version(0) {
+        : m_leaf(leaf), m_prefix(std::move(prefix)), m_edges(std::move(edges)), m_version(0)
+    {
     }
 
     // 带分配器的构造函数
     node(const allocator_type& alloc, leaf_type leaf)
-        : m_leaf(leaf), m_prefix(alloc), m_edges(alloc), m_alloc(alloc) {
+        : m_leaf(leaf), m_prefix(alloc), m_edges(alloc), m_alloc(alloc)
+    {
     }
 
     // 带分配器和前缀的构造函数
     node(const allocator_type& alloc, leaf_type leaf, key_view prefix, edges_type edges = {})
         : m_leaf(leaf), m_prefix(alloc, prefix), m_edges(alloc, std::move(edges)), m_version(0),
-          m_alloc(alloc) {
+          m_alloc(alloc)
+    {
     }
 
     // 带分配器和前缀的构造函数（前缀为右值引用）
     node(const allocator_type& alloc, leaf_type leaf, key_type prefix, edges_type edges = {})
         : m_leaf(leaf), m_prefix(alloc, std::move(prefix)), m_edges(alloc, std::move(edges)),
-          m_version(0), m_alloc(alloc) {
+          m_version(0), m_alloc(alloc)
+    {
     }
 
-    ~node() {
+    ~node()
+    {
         m_edges.clear();
     }
 
     // 判断节点是否为叶子节点
-    bool is_leaf() const {
+    bool is_leaf() const
+    {
         return m_leaf.has_value();
     }
 
     // 添加边
-    void add_edge(const edge_type& e) {
+    void add_edge(const edge_type& e)
+    {
         auto it = std::upper_bound(m_edges.begin(), m_edges.end(), e, compare_type());
         m_edges.insert(it, e);
     }
 
     // 替换边
-    void replace_edge(const edge_type& e) {
+    void replace_edge(const edge_type& e)
+    {
         auto [idx, node_ptr] = get_edge(e.m_label);
         if (idx >= 0) {
             m_edges[idx] = e;
@@ -239,7 +272,8 @@ public:
     }
 
     // 查找边
-    std::pair<int, ref_ptr_type> get_edge(uint8_t label) const {
+    std::pair<int, ref_ptr_type> get_edge(uint8_t label) const
+    {
         auto it = std::lower_bound(m_edges.begin(), m_edges.end(), label, compare_type());
         if (it != m_edges.end() && it->m_label == label) {
             return {static_cast<int>(std::distance(m_edges.begin(), it)), it->m_node};
@@ -248,7 +282,8 @@ public:
     }
 
     // 删除边
-    void del_edge(uint8_t label) {
+    void del_edge(uint8_t label)
+    {
         auto [idx, node_ptr] = get_edge(label);
         if (idx >= 0) {
             m_edges.erase(m_edges.begin() + idx);
@@ -256,7 +291,8 @@ public:
     }
 
     // 查找键
-    leaf_type get(key_view k) const {
+    leaf_type get(key_view k) const
+    {
         auto prefix_len = longest_prefix(m_prefix, k);
         if (prefix_len != m_prefix.size()) {
             return std::nullopt;
@@ -274,12 +310,14 @@ public:
     }
 
     // 遍历树
-    void walk(walk_fn<Config>&& fn) const {
+    void walk(walk_fn<Config>&& fn) const
+    {
         recursive_walk(this, std::forward<walk_fn<Config>>(fn));
     }
 
     // 遍历指定前缀的子树
-    void walk_prefix(key_view prefix, walk_fn<Config>&& fn) const {
+    void walk_prefix(key_view prefix, walk_fn<Config>&& fn) const
+    {
         // 使用longest_prefix函数获取公共前缀长度
         size_t common_len = longest_prefix(m_prefix, prefix);
         size_t prefix_len = m_prefix.size();
@@ -297,18 +335,21 @@ public:
         }
     }
 
-    friend bool operator==(const node& lhs, const node& rhs) {
+    friend bool operator==(const node& lhs, const node& rhs)
+    {
         return lhs.m_leaf == rhs.m_leaf && lhs.m_prefix == rhs.m_prefix &&
                lhs.m_edges == rhs.m_edges;
     }
 
-    friend bool operator!=(const node& lhs, const node& rhs) {
+    friend bool operator!=(const node& lhs, const node& rhs)
+    {
         return !(lhs == rhs);
     }
 
 private:
     // 递归遍历
-    static bool recursive_walk(const node* n, walk_fn<Config>&& fn) {
+    static bool recursive_walk(const node* n, walk_fn<Config>&& fn)
+    {
         if (n->is_leaf()) {
             if (!fn(n->m_prefix, n->m_leaf.value())) {
                 return false;

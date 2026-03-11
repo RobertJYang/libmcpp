@@ -57,7 +57,8 @@ public:
 class MC_API json_config_loader : public config_loader {
 public:
     variant                  load(const std::string& file_path) override;
-    std::vector<std::string> supported_extensions() const override {
+    std::vector<std::string> supported_extensions() const override
+    {
         return {".json"};
     }
 };
@@ -68,7 +69,8 @@ public:
 class MC_API toml_config_loader : public config_loader {
 public:
     variant                  load(const std::string& file_path) override;
-    std::vector<std::string> supported_extensions() const override {
+    std::vector<std::string> supported_extensions() const override
+    {
         return {".toml"};
     }
 };
@@ -110,7 +112,8 @@ public:
      * @return 配置对象
      */
     template <typename T>
-    std::optional<T> get_config(const std::string& name) const {
+    std::optional<T> get_config(const std::string& name) const
+    {
         std::string kind(get_kind<T>());
         auto        it = m_configs.find(kind);
         if (it == m_configs.end()) {
@@ -138,7 +141,8 @@ public:
      * @return 配置对象列表
      */
     template <typename T>
-    std::vector<T> get_configs() const {
+    std::vector<T> get_configs() const
+    {
         std::vector<T> result;
 
         std::string kind(get_kind<T>());
@@ -178,10 +182,10 @@ public:
      */
     unsigned int get_thread_count() const;
 
-
 private:
     template <typename T>
-    static std::string_view get_kind() {
+    static std::string_view get_kind()
+    {
         if constexpr (std::is_same_v<T, config::app_config>) {
             return "Application";
         } else if constexpr (std::is_same_v<T, config::supervisor_config>) {

@@ -56,13 +56,15 @@ using creating_subscriptions_map = std::unordered_map<std::string, std::shared_p
 using creating_cache_map         = std::unordered_map<std::string, std::shared_ptr<std::condition_variable_any>>;
 
 // 跟踪正在创建的订阅（key -> condition_variable）
-std::unordered_map<std::string, std::shared_ptr<std::condition_variable_any>>& get_creating_subscriptions() {
+std::unordered_map<std::string, std::shared_ptr<std::condition_variable_any>>& get_creating_subscriptions()
+{
     static std::unordered_map<std::string, std::shared_ptr<std::condition_variable_any>> s_creating;
     return s_creating;
 }
 
 // 跟踪正在创建的缓存条目（cache_key -> condition_variable）
-std::unordered_map<std::string, std::shared_ptr<std::condition_variable_any>>& get_creating_cache_entries() {
+std::unordered_map<std::string, std::shared_ptr<std::condition_variable_any>>& get_creating_cache_entries()
+{
     static std::unordered_map<std::string, std::shared_ptr<std::condition_variable_any>> s_creating;
     return s_creating;
 }
@@ -84,7 +86,8 @@ void add_to_indices(const std::string& cache_key,
 thread_local std::vector<std::pair<std::string, std::string>> t_pending_cleanup;
 
 // 淘汰回调函数：清理被淘汰条目的资源
-void on_cache_evict(const std::string& cache_key, cache_entry&& entry) {
+void on_cache_evict(const std::string& cache_key, cache_entry&& entry)
+{
     try {
         // 从索引中移除（已在锁内，不需要再加锁）
         remove_from_indices(cache_key, entry.path, entry.interface, entry.service_name);
@@ -101,7 +104,8 @@ void on_cache_evict(const std::string& cache_key, cache_entry&& entry) {
 }
 
 // 处理延迟清理队列
-void process_pending_cleanup() {
+void process_pending_cleanup()
+{
     if (t_pending_cleanup.empty()) {
         return;
     }
@@ -117,30 +121,35 @@ void process_pending_cleanup() {
 }
 
 // 全局数据（单例模式，线程安全初始化）
-mc::algorithm::lru_cache<std::string, cache_entry>& get_path_cache() {
+mc::algorithm::lru_cache<std::string, cache_entry>& get_path_cache()
+{
     static mc::algorithm::lru_cache<std::string, cache_entry> s_cache(400, on_cache_evict);
     return s_cache;
 }
 
-std::unordered_map<std::string, signal_subscription>& get_signal_subscriptions() {
+std::unordered_map<std::string, signal_subscription>& get_signal_subscriptions()
+{
     static std::unordered_map<std::string, signal_subscription> s_subs;
     return s_subs;
 }
 
 // 反向索引
-std::unordered_map<std::string, std::unordered_set<std::string>>& get_subscription_index() {
+std::unordered_map<std::string, std::unordered_set<std::string>>& get_subscription_index()
+{
     static std::unordered_map<std::string, std::unordered_set<std::string>> s_index;
     return s_index;
 }
 
-std::unordered_map<std::string, std::unordered_set<std::string>>& get_service_index() {
+std::unordered_map<std::string, std::unordered_set<std::string>>& get_service_index()
+{
     static std::unordered_map<std::string, std::unordered_set<std::string>> s_index;
     return s_index;
 }
 
 // 将 sd_bus 返回的 variants 转换为单个 variant
 // 约定：0 个返回值 => 空 variant；1 个返回值 => 直接返回该值；多个返回值 => 作为数组返回
-static mc::variant convert_method_result(const mc::variants& arr) {
+static mc::variant convert_method_result(const mc::variants& arr)
+{
     if (arr.empty()) {
         return mc::variant();
     }
@@ -152,14 +161,16 @@ static mc::variant convert_method_result(const mc::variants& arr) {
 
 // 使用 recursive_mutex 允许同一线程重入
 // 原因：D-Bus同步调用期间可能触发信号回调，回调中可能需要访问缓存
-std::recursive_mutex& get_cache_mutex() {
+std::recursive_mutex& get_cache_mutex()
+{
     static std::recursive_mutex s_mutex;
     return s_mutex;
 }
 
 // 保护信号订阅 map 的互斥锁
 // 使用 recursive_mutex 避免信号回调中的死锁
-std::recursive_mutex& get_subscriptions_mutex() {
+std::recursive_mutex& get_subscriptions_mutex()
+{
     static std::recursive_mutex s_mutex;
     return s_mutex;
 }
@@ -171,7 +182,8 @@ struct global_name_owner_subscription {
     std::recursive_mutex mutex; // 使用 recursive_mutex 避免信号回调中的死锁
 };
 
-global_name_owner_subscription& get_global_name_owner_subscription() {
+global_name_owner_subscription& get_global_name_owner_subscription()
+{
     static global_name_owner_subscription s_sub;
     return s_sub;
 }
@@ -179,7 +191,8 @@ global_name_owner_subscription& get_global_name_owner_subscription() {
 // 前向声明
 
 // 构造订阅key
-std::string make_subscription_key(const std::string& path, const std::string& interface) {
+std::string make_subscription_key(const std::string& path, const std::string& interface)
+{
     return path + ":" + interface;
 }
 
@@ -187,7 +200,8 @@ std::string make_subscription_key(const std::string& path, const std::string& in
 std::pair<std::string, std::string> call_get_path(mc::dbus::sd_bus* bus,
                                                   std::string_view  interface,
                                                   std::string_view  filter,
-                                                  bool              ignore_case) {
+                                                  bool              ignore_case)
+{
     auto results = bus->timeout_call(
         MDB_SERVICE_TIMEOUT,
         {MDB_SERVICE_NAME,
@@ -210,7 +224,8 @@ std::pair<std::string, std::string> call_get_path(mc::dbus::sd_bus* bus,
 // 比较属性名（考虑ignore_case）
 bool match_property_name(const std::string& prop_name,
                          const std::string& filter_key,
-                         bool               ignore_case) {
+                         bool               ignore_case)
+{
     if (!ignore_case) {
         return prop_name == filter_key;
     }
@@ -229,7 +244,8 @@ bool match_property_name(const std::string& prop_name,
 // 检查filter中是否有任意属性变更
 bool any_filter_property_changed(const mc::dict& filter_dict,
                                  const mc::dict& changed_props,
-                                 bool            ignore_case) {
+                                 bool            ignore_case)
+{
     if (filter_dict.empty()) {
         return false;
     }
@@ -250,7 +266,8 @@ bool any_filter_property_changed(const mc::dict& filter_dict,
 void add_to_indices(const std::string& cache_key,
                     const std::string& path,
                     const std::string& interface,
-                    const std::string& service_name) {
+                    const std::string& service_name)
+{
     std::string sub_key = make_subscription_key(path, interface);
     get_subscription_index()[sub_key].insert(cache_key);
 
@@ -263,7 +280,8 @@ void add_to_indices(const std::string& cache_key,
 void remove_from_indices(const std::string& cache_key,
                          const std::string& path,
                          const std::string& interface,
-                         const std::string& service_name) {
+                         const std::string& service_name)
+{
     std::string sub_key   = make_subscription_key(path, interface);
     auto&       sub_index = get_subscription_index();
     auto        sub_it    = sub_index.find(sub_key);
@@ -287,7 +305,8 @@ void remove_from_indices(const std::string& cache_key,
 }
 
 // 减少订阅引用计数并在必要时移除
-void decrease_subscription_refcount(const std::string& path, const std::string& interface) {
+void decrease_subscription_refcount(const std::string& path, const std::string& interface)
+{
     std::string sub_key = make_subscription_key(path, interface);
 
     // 需要先获取锁，因为可能同时有多个线程在操作 subs
@@ -334,7 +353,8 @@ void decrease_subscription_refcount(const std::string& path, const std::string& 
 
 // 清理单个缓存条目（需在持有锁的情况下调用）
 // 注意：lru_cache::erase 不会触发 on_cache_evict 回调，需要手动处理清理逻辑
-void cleanup_cache_entry_locked(const std::string& cache_key) {
+void cleanup_cache_entry_locked(const std::string& cache_key)
+{
     auto& cache = get_path_cache();
 
     // 先获取缓存条目，以便清理索引和订阅
@@ -364,7 +384,8 @@ void cleanup_cache_entry_locked(const std::string& cache_key) {
 }
 
 // 清理单个缓存条目并减少订阅引用
-void cleanup_cache_entry(const std::string& cache_key) {
+void cleanup_cache_entry(const std::string& cache_key)
+{
     {
         std::lock_guard<std::recursive_mutex> lock(get_cache_mutex());
         cleanup_cache_entry_locked(cache_key);
@@ -375,7 +396,8 @@ void cleanup_cache_entry(const std::string& cache_key) {
 }
 
 // 处理服务退出信号
-void handle_name_owner_changed(const std::string& name, const std::string& new_owner) {
+void handle_name_owner_changed(const std::string& name, const std::string& new_owner)
+{
     if (!new_owner.empty()) {
         return;
     }
@@ -407,7 +429,8 @@ void handle_name_owner_changed(const std::string& name, const std::string& new_o
 
 // 收集指定接口的所有缓存key
 std::vector<std::string> collect_cache_keys_for_interface(const std::string& path,
-                                                          const std::string& interface) {
+                                                          const std::string& interface)
+{
     std::vector<std::string>              keys_to_remove;
     std::lock_guard<std::recursive_mutex> lock(get_cache_mutex());
     auto&                                 sub_index = get_subscription_index();
@@ -422,7 +445,8 @@ std::vector<std::string> collect_cache_keys_for_interface(const std::string& pat
 }
 
 // 清理指定接口的缓存条目
-bool cleanup_interface_cache_entries(const std::string& path, const std::string& interface) {
+bool cleanup_interface_cache_entries(const std::string& path, const std::string& interface)
+{
     auto keys_to_remove = collect_cache_keys_for_interface(path, interface);
 
     if (keys_to_remove.empty()) {
@@ -442,7 +466,8 @@ bool cleanup_interface_cache_entries(const std::string& path, const std::string&
 }
 
 // 处理接口移除信号
-void handle_interfaces_removed(const std::string& path, const mc::variants& interfaces) {
+void handle_interfaces_removed(const std::string& path, const mc::variants& interfaces)
+{
     bool has_removed = false;
 
     for (const auto& intf_var : interfaces) {
@@ -459,14 +484,16 @@ void handle_interfaces_removed(const std::string& path, const mc::variants& inte
 
 // 检查缓存条目是否需要因属性变更而失效
 bool should_invalidate_cache_entry(const cache_entry& entry,
-                                   const mc::dict&    changed_props) {
+                                   const mc::dict&    changed_props)
+{
     return any_filter_property_changed(entry.filter_dict, changed_props, entry.ignore_case);
 }
 
 // 收集需要失效的缓存条目
 std::vector<std::string> collect_invalidated_cache_keys(const std::string& path,
                                                         const std::string& interface,
-                                                        const mc::dict&    changed_props) {
+                                                        const mc::dict&    changed_props)
+{
     std::vector<std::string>              keys_to_remove;
     std::lock_guard<std::recursive_mutex> lock(get_cache_mutex());
     auto&                                 sub_index = get_subscription_index();
@@ -494,7 +521,8 @@ std::vector<std::string> collect_invalidated_cache_keys(const std::string& path,
 // 处理属性变更信号
 void handle_properties_changed(const std::string& path,
                                const std::string& interface,
-                               const mc::dict&    changed_props) {
+                               const mc::dict&    changed_props)
+{
     auto keys_to_remove = collect_invalidated_cache_keys(path, interface, changed_props);
 
     if (keys_to_remove.empty()) {
@@ -515,7 +543,8 @@ void handle_properties_changed(const std::string& path,
 
 // 创建NameOwnerChanged信号订阅
 // 确保全局 NameOwnerChanged 订阅已创建（单例模式）
-void ensure_global_name_owner_subscription(mc::dbus::sd_bus* bus) {
+void ensure_global_name_owner_subscription(mc::dbus::sd_bus* bus)
+{
     auto&                                 global_sub = get_global_name_owner_subscription();
     std::lock_guard<std::recursive_mutex> lock(global_sub.mutex);
 
@@ -545,7 +574,8 @@ void ensure_global_name_owner_subscription(mc::dbus::sd_bus* bus) {
 
 // 创建InterfacesRemoved信号订阅
 uint64_t create_interfaces_removed_subscription(mc::dbus::sd_bus*  bus,
-                                                const std::string& path) {
+                                                const std::string& path)
+{
     auto rule = mc::dbus::match_rule::new_signal("InterfacesRemoved",
                                                  mc::dbus::DBUS_OBJECT_MANAGER_INTERFACE.data());
     rule.with_path(path);
@@ -571,7 +601,8 @@ uint64_t create_interfaces_removed_subscription(mc::dbus::sd_bus*  bus,
 // 创建PropertiesChanged信号订阅
 uint64_t create_properties_changed_subscription(mc::dbus::sd_bus*  bus,
                                                 const std::string& path,
-                                                const std::string& interface) {
+                                                const std::string& interface)
+{
     auto rule = mc::dbus::match_rule::new_signal("PropertiesChanged",
                                                  mc::dbus::DBUS_PROPERTIES_INTERFACE.data());
     rule.with_path(path);
@@ -597,7 +628,8 @@ uint64_t create_properties_changed_subscription(mc::dbus::sd_bus*  bus,
 bool try_increment_existing_subscription(const std::string&                      sub_key,
                                          std::unique_lock<std::recursive_mutex>& lock,
                                          signal_subscription_map&                subs,
-                                         creating_subscriptions_map&             creating) {
+                                         creating_subscriptions_map&             creating)
+{
     constexpr int MAX_WAIT_ATTEMPTS = 100; // 最大等待次数
     int           wait_count        = 0;
 
@@ -629,7 +661,8 @@ bool try_increment_existing_subscription(const std::string&                     
 // 创建新的信号订阅
 signal_subscription create_new_subscription(mc::dbus::sd_bus*  bus,
                                             const std::string& path,
-                                            const std::string& interface) {
+                                            const std::string& interface)
+{
     signal_subscription sub;
     sub.bus       = bus; // 保存 bus 指针
     sub.ref_count = 1;
@@ -658,7 +691,8 @@ signal_subscription create_new_subscription(mc::dbus::sd_bus*  bus,
 // 设置信号监听（支持订阅合并）
 void setup_signal_watch(mc::dbus::sd_bus*  bus,
                         const std::string& path,
-                        const std::string& interface) {
+                        const std::string& interface)
+{
     ensure_global_name_owner_subscription(bus);
 
     std::string                            sub_key = make_subscription_key(path, interface);
@@ -710,7 +744,8 @@ void setup_signal_watch(mc::dbus::sd_bus*  bus,
 
 // 公有函数实现
 mc::variant get_object(mc::dbus::sd_bus* bus, std::string_view path,
-                       const mc::variants& interfaces) {
+                       const mc::variants& interfaces)
+{
     auto results = bus->timeout_call(
         MDB_SERVICE_TIMEOUT,
         {MDB_SERVICE_NAME,
@@ -723,7 +758,8 @@ mc::variant get_object(mc::dbus::sd_bus* bus, std::string_view path,
 }
 
 mc::variant get_sub_objects(mc::dbus::sd_bus* bus, std::string_view path,
-                            int32_t depth, const mc::variants& interfaces) {
+                            int32_t depth, const mc::variants& interfaces)
+{
     auto results = bus->timeout_call(
         MDB_SERVICE_TIMEOUT,
         {MDB_SERVICE_NAME,
@@ -736,7 +772,8 @@ mc::variant get_sub_objects(mc::dbus::sd_bus* bus, std::string_view path,
 }
 
 mc::variant get_sub_paths(mc::dbus::sd_bus* bus, std::string_view path,
-                          int32_t depth, const mc::variants& interfaces) {
+                          int32_t depth, const mc::variants& interfaces)
+{
     auto results = bus->timeout_call(
         MDB_SERVICE_TIMEOUT,
         {MDB_SERVICE_NAME,
@@ -749,7 +786,8 @@ mc::variant get_sub_paths(mc::dbus::sd_bus* bus, std::string_view path,
 }
 
 mc::variant get_parent_objects(mc::dbus::sd_bus* bus, std::string_view path,
-                               const mc::variants& interfaces) {
+                               const mc::variants& interfaces)
+{
     auto results = bus->timeout_call(
         MDB_SERVICE_TIMEOUT,
         {MDB_SERVICE_NAME,
@@ -761,7 +799,8 @@ mc::variant get_parent_objects(mc::dbus::sd_bus* bus, std::string_view path,
     return convert_method_result(results);
 }
 
-mc::variant get_service_name(mc::dbus::sd_bus* bus, std::string_view sender) {
+mc::variant get_service_name(mc::dbus::sd_bus* bus, std::string_view sender)
+{
     auto results = bus->timeout_call(
         MDB_SERVICE_TIMEOUT,
         {MDB_SERVICE_NAME,
@@ -773,7 +812,8 @@ mc::variant get_service_name(mc::dbus::sd_bus* bus, std::string_view sender) {
     return convert_method_result(results);
 }
 
-mc::variant get_service_names(mc::dbus::sd_bus* bus) {
+mc::variant get_service_names(mc::dbus::sd_bus* bus)
+{
     auto results = bus->timeout_call(
         MDB_SERVICE_TIMEOUT,
         {MDB_SERVICE_NAME,
@@ -791,7 +831,8 @@ static std::pair<std::string, bool> verify_and_setup_subscription(mc::dbus::sd_b
                                                                   std::string_view   interface,
                                                                   std::string_view   filter,
                                                                   bool               ignore_case,
-                                                                  const std::string& path) {
+                                                                  const std::string& path)
+{
     // 先无条件增加新path的订阅引用计数
     setup_signal_watch(bus, path, std::string(interface));
 
@@ -819,7 +860,8 @@ static std::pair<std::string, bool> verify_and_setup_subscription(mc::dbus::sd_b
 bool should_skip_cache_update(const cache_entry& old_entry,
                               std::string_view   path,
                               std::string_view   interface,
-                              bool               ignore_case) {
+                              bool               ignore_case)
+{
     if (old_entry.path != path || old_entry.interface != interface) {
         return false;
     }
@@ -830,7 +872,8 @@ bool should_skip_cache_update(const cache_entry& old_entry,
 void handle_old_cache_entry(const cache_entry& old_entry,
                             const std::string& key_str,
                             std::string_view   path,
-                            std::string_view   interface) {
+                            std::string_view   interface)
+{
     remove_from_indices(key_str, old_entry.path, old_entry.interface, old_entry.service_name);
 
     if (old_entry.path == path && old_entry.interface == interface) {
@@ -845,7 +888,8 @@ cache_entry create_cache_entry(std::string_view   path,
                                std::string_view   interface,
                                const std::string& service_name,
                                std::string_view   filter,
-                               bool               ignore_case) {
+                               bool               ignore_case)
+{
     cache_entry entry;
     entry.path         = std::string(path);
     entry.interface    = std::string(interface);
@@ -873,7 +917,8 @@ static void update_cache_and_indices_locked(std::string_view   cache_key,
                                             std::string_view   interface,
                                             const std::string& service_name,
                                             std::string_view   filter,
-                                            bool               ignore_case) {
+                                            bool               ignore_case)
+{
     auto&       cache = get_path_cache();
     std::string key_str(cache_key);
 
@@ -901,7 +946,8 @@ static void update_cache_and_indices_locked(std::string_view   cache_key,
 // 尝试从缓存获取路径，如果匹配则返回
 std::optional<std::string> try_get_cached_path(const std::string&                                  key_str,
                                                bool                                                ignore_case,
-                                               mc::algorithm::lru_cache<std::string, cache_entry>& cache) {
+                                               mc::algorithm::lru_cache<std::string, cache_entry>& cache)
+{
     auto val = cache.get(key_str);
     if (!val.has_value()) {
         return std::nullopt;
@@ -922,7 +968,8 @@ std::optional<bool> wait_or_start_creation(const std::string&                   
                                            bool                                                ignore_case,
                                            std::unique_lock<std::recursive_mutex>&             lock,
                                            creating_cache_map&                                 creating,
-                                           mc::algorithm::lru_cache<std::string, cache_entry>& cache) {
+                                           mc::algorithm::lru_cache<std::string, cache_entry>& cache)
+{
     constexpr int                       MAX_WAIT_ATTEMPTS = 100;   // 最大等待次数
     constexpr std::chrono::milliseconds WAIT_TIMEOUT(100);         // 每次等待超时时间
     constexpr std::chrono::milliseconds TOTAL_WAIT_TIMEOUT(10000); // 总等待超时时间
@@ -967,7 +1014,8 @@ std::tuple<std::string, std::string, bool> query_and_verify_path(
     mc::dbus::sd_bus* bus,
     std::string_view  interface,
     std::string_view  filter,
-    bool              ignore_case) {
+    bool              ignore_case)
+{
     auto [path, service_name] = call_get_path(bus, interface, filter, ignore_case);
     if (path.empty()) {
         return {path, service_name, false};
@@ -993,7 +1041,8 @@ std::optional<mc::variant> handle_cache_hit_or_wait(const std::string&          
                                                     mc::algorithm::lru_cache<std::string, cache_entry>& cache,
                                                     mc::dbus::sd_bus*                                   bus,
                                                     std::string_view                                    interface,
-                                                    std::string_view                                    filter) {
+                                                    std::string_view                                    filter)
+{
     auto result = wait_or_start_creation(cache_key, cache_key, ignore_case, lock, creating, cache);
     if (!result.has_value()) {
         // 已有缓存，直接返回
@@ -1022,7 +1071,8 @@ mc::variant execute_cache_creation(const std::string&                      cache
                                    std::string_view                        filter,
                                    bool                                    ignore_case,
                                    std::unique_lock<std::recursive_mutex>& lock,
-                                   creating_cache_map&                     creating) {
+                                   creating_cache_map&                     creating)
+{
     ilog("execute_cache_creation: START cache_key=${cache_key}", ("cache_key", cache_key));
 
     // 注册到 creating map
@@ -1085,7 +1135,8 @@ mc::variant execute_cache_creation(const std::string&                      cache
 }
 
 mc::variant get_path(mc::dbus::sd_bus* bus, std::string_view interface,
-                     std::string_view filter, bool ignore_case, bool enable_cache) {
+                     std::string_view filter, bool ignore_case, bool enable_cache)
+{
     if (bus->is_blocking() || !enable_cache) {
         return call_get_path(bus, interface, filter, ignore_case).first;
     }
@@ -1106,7 +1157,8 @@ mc::variant get_path(mc::dbus::sd_bus* bus, std::string_view interface,
     return execute_cache_creation(cache_key, bus, interface, filter, ignore_case, lock, creating);
 }
 
-mc::variant get_interface_owners(mc::dbus::sd_bus* bus, std::string_view interface) {
+mc::variant get_interface_owners(mc::dbus::sd_bus* bus, std::string_view interface)
+{
     auto results = bus->timeout_call(
         MDB_SERVICE_TIMEOUT,
         {MDB_SERVICE_NAME,
@@ -1118,7 +1170,8 @@ mc::variant get_interface_owners(mc::dbus::sd_bus* bus, std::string_view interfa
     return convert_method_result(results);
 }
 
-mc::variant is_valid_path(mc::dbus::sd_bus* bus, std::string_view path, bool ignore_case) {
+mc::variant is_valid_path(mc::dbus::sd_bus* bus, std::string_view path, bool ignore_case)
+{
     auto results = bus->timeout_call(
         MDB_SERVICE_TIMEOUT,
         {MDB_SERVICE_NAME,
@@ -1132,7 +1185,8 @@ mc::variant is_valid_path(mc::dbus::sd_bus* bus, std::string_view path, bool ign
 
 mc::variant get_sub_paths_paging(mc::dbus::sd_bus* bus, std::string_view path,
                                  int32_t depth, const mc::variants& interfaces,
-                                 int32_t skip, int32_t top) {
+                                 int32_t skip, int32_t top)
+{
     auto results = bus->timeout_call(
         MDB_SERVICE_TIMEOUT,
         {MDB_SERVICE_NAME,
@@ -1144,7 +1198,8 @@ mc::variant get_sub_paths_paging(mc::dbus::sd_bus* bus, std::string_view path,
     return convert_method_result(results);
 }
 
-mc::variant get_classes(mc::dbus::sd_bus* bus, std::string_view service) {
+mc::variant get_classes(mc::dbus::sd_bus* bus, std::string_view service)
+{
     auto results = bus->timeout_call(
         MDB_SERVICE_TIMEOUT,
         {MDB_SERVICE_NAME,
@@ -1156,7 +1211,8 @@ mc::variant get_classes(mc::dbus::sd_bus* bus, std::string_view service) {
     return convert_method_result(results);
 }
 
-mc::variant get_object_list(mc::dbus::sd_bus* bus, std::string_view class_name) {
+mc::variant get_object_list(mc::dbus::sd_bus* bus, std::string_view class_name)
+{
     auto results = bus->timeout_call(
         MDB_SERVICE_TIMEOUT,
         {MDB_SERVICE_NAME,
@@ -1168,7 +1224,8 @@ mc::variant get_object_list(mc::dbus::sd_bus* bus, std::string_view class_name) 
     return convert_method_result(results);
 }
 
-mc::variant get_object_owner(mc::dbus::sd_bus* bus, std::string_view object_name) {
+mc::variant get_object_owner(mc::dbus::sd_bus* bus, std::string_view object_name)
+{
     auto results = bus->timeout_call(
         MDB_SERVICE_TIMEOUT,
         {MDB_SERVICE_NAME,
@@ -1181,7 +1238,8 @@ mc::variant get_object_owner(mc::dbus::sd_bus* bus, std::string_view object_name
 }
 
 mc::variant get_matched_objects(mc::dbus::sd_bus* bus, std::string_view object_name,
-                                std::string_view interface_pattern) {
+                                std::string_view interface_pattern)
+{
     auto results = bus->timeout_call(
         MDB_SERVICE_TIMEOUT,
         {MDB_SERVICE_NAME,
@@ -1193,7 +1251,8 @@ mc::variant get_matched_objects(mc::dbus::sd_bus* bus, std::string_view object_n
     return convert_method_result(results);
 }
 
-mc::variant get_traced_object(mc::dbus::sd_bus* bus) {
+mc::variant get_traced_object(mc::dbus::sd_bus* bus)
+{
     auto results = bus->timeout_call(
         MDB_SERVICE_TIMEOUT,
         {MDB_SERVICE_NAME,
@@ -1205,7 +1264,8 @@ mc::variant get_traced_object(mc::dbus::sd_bus* bus) {
     return convert_method_result(results);
 }
 
-void clear_cache() {
+void clear_cache()
+{
     std::vector<std::string> keys_to_remove;
 
     {
@@ -1230,7 +1290,8 @@ void clear_cache() {
     ilog("MDB cache cleared");
 }
 
-void set_max_cache_size(size_t max_size) {
+void set_max_cache_size(size_t max_size)
+{
     {
         std::lock_guard<std::recursive_mutex> lock(get_cache_mutex());
         auto&                                 cache = get_path_cache();
@@ -1244,12 +1305,14 @@ void set_max_cache_size(size_t max_size) {
     ilog("Set max cache size: ${size}", ("size", max_size));
 }
 
-size_t get_max_cache_size() {
+size_t get_max_cache_size()
+{
     std::lock_guard<std::recursive_mutex> lock(get_cache_mutex());
     return get_path_cache().max_size();
 }
 
-size_t get_cache_size() {
+size_t get_cache_size()
+{
     std::lock_guard<std::recursive_mutex> lock(get_cache_mutex());
     return get_path_cache().size();
 }

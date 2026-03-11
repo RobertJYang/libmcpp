@@ -14,7 +14,8 @@
 
 namespace mc::engine {
 
-void detail::interface_observer::notify(const mc::variant& value, const property_base& prop) {
+void detail::interface_observer::notify(const mc::variant& value, const property_base& prop)
+{
     if (!m_interface) {
         return;
     }
@@ -28,7 +29,8 @@ void detail::interface_observer::notify(const mc::variant& value, const property
     object->notify_property_changed(value, prop);
 }
 
-void detail::interface_observer::notify_update_shm(const mc::variant& value, const property_base& prop) {
+void detail::interface_observer::notify_update_shm(const mc::variant& value, const property_base& prop)
+{
     if (!m_interface) {
         return;
     }
@@ -41,7 +43,8 @@ void detail::interface_observer::notify_update_shm(const mc::variant& value, con
 } // namespace mc::engine
 
 namespace mc {
-void from_variant(const mc::variant& var, mc::engine::ref_object*& ptr) {
+void from_variant(const mc::variant& var, mc::engine::ref_object*& ptr)
+{
     if (var.is_extension()) {
         auto ext_ptr = var.as_extension();
         if (ext_ptr) {
@@ -53,4 +56,4 @@ void from_variant(const mc::variant& var, mc::engine::ref_object*& ptr) {
     }
     ptr = nullptr;
 }
-}
+} // namespace mc

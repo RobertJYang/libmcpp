@@ -43,7 +43,8 @@ static bool g_encode_empty_table_as_object = false;
 
 namespace {
 // 辅助函数：获取 Lua table 的数组部分大小
-lua_Integer get_lua_table_length(::lua_State* L, int index) {
+lua_Integer get_lua_table_length(::lua_State* L, int index)
+{
     lua_len(L, index);
     lua_Integer len = lua_tointeger(L, -1);
     lua_pop(L, 1);
@@ -51,7 +52,8 @@ lua_Integer get_lua_table_length(::lua_State* L, int index) {
 }
 
 // 辅助函数：判断 Lua number 是否为整数
-bool is_lua_integer(::lua_State* L, int index) {
+bool is_lua_integer(::lua_State* L, int index)
+{
     if (!lua_isnumber(L, index)) {
         return false;
     }
@@ -62,7 +64,8 @@ bool is_lua_integer(::lua_State* L, int index) {
 }
 
 // 辅助函数：判断 Lua table 是否为数组
-bool is_lua_array(::lua_State* L, int index) {
+bool is_lua_array(::lua_State* L, int index)
+{
     if (!lua_istable(L, index)) {
         return false;
     }
@@ -123,24 +126,28 @@ struct json_value_wrapper {
 
     json_value_wrapper() = default;
     explicit json_value_wrapper(JsonValue&& v)
-        : value(std::move(v)) {
+        : value(std::move(v))
+    {
     }
 };
 
 // 强制检查并获取 json_value userdata
 // 如果类型不匹配，会抛出 Lua 错误（用于必须确保类型的场景，如元方法）
-inline json_value_wrapper* check_json_value(lua_State* L, int index) {
+inline json_value_wrapper* check_json_value(lua_State* L, int index)
+{
     return static_cast<json_value_wrapper*>(luaL_checkudata(L, index, JSON_VALUE_METATABLE));
 }
 
 // 尝试获取 json_value userdata（可选检查）
 // 如果类型不匹配，返回 nullptr（用于可选场景，如 get_json_value_from_lua）
-inline json_value_wrapper* test_json_value(lua_State* L, int index) {
+inline json_value_wrapper* test_json_value(lua_State* L, int index)
+{
     return static_cast<json_value_wrapper*>(luaL_testudata(L, index, JSON_VALUE_METATABLE));
 }
 
 // 创建 json_value userdata 并推入 Lua 栈
-inline int push_json_value(lua_State* L, JsonValue&& value) {
+inline int push_json_value(lua_State* L, JsonValue&& value)
+{
     void* userdata = lua_newuserdata(L, sizeof(json_value_wrapper));
     new (userdata) json_value_wrapper(std::move(value));
 
@@ -153,7 +160,8 @@ inline int push_json_value(lua_State* L, JsonValue&& value) {
 static Json *json_array_new(lua_State* L, int idx);
 static Json *json_object_new(lua_State* L, int idx);
 static Json *json_new(lua_State* L, int index)
-{   Json *json;
+{   
+    Json *json;
     int idx = (index < 0) ? lua_gettop(L) + index + 1 : index;
     int type = lua_type(L, idx);
     switch(type) {
@@ -245,9 +253,9 @@ static Json *json_object_new(lua_State* L, int idx)
     Json *object;
     if (JsonObjectCreate(&object) != JSON_OK) {
         luaL_error(L, "json: cannot create json object");
-    } 
+    }
     lua_pushnil(L);
-    while (lua_next(L, idx) != 0) { 
+    while (lua_next(L, idx) != 0) {
         const char* key_c = luaL_checkstring(L, -2);
         JsonItemAddToObject(key_c, json_new(L, -1), object);
         lua_pop(L, 1);
@@ -255,16 +263,17 @@ static Json *json_object_new(lua_State* L, int idx)
     return object;
 }
 
-
 // 直接从 Lua 值转换为 JsonValue（避免 variant 中间转换，只使用 C++ 接口）
-static JsonValue build_json_from_lua(lua_State* L, int index) {
+static JsonValue build_json_from_lua(lua_State* L, int index)
+{
     int abs_index = (index < 0) ? lua_gettop(L) + index + 1 : index;
     return JsonValue(json_new(L, abs_index));
 }
 
 static void json_object_push(lua_State* L, Json* val);
 static void json_array_push(lua_State* L, Json* val);
-static void json_value_push(lua_State* L, Json* val) {
+static void json_value_push(lua_State* L, Json* val)
+{
     JsonType type = JsonTypeGet(val);
     switch (type) {
         case JSONTYPE_QUOTE: {
@@ -326,7 +335,8 @@ static void json_value_push(lua_State* L, Json* val) {
     }
 }
 
-static void json_object_push(lua_State* L, Json* val) {
+static void json_object_push(lua_State* L, Json* val)
+{
     lua_createtable(L, 0, 0);
     Json *child;
     uint32_t ret = JsonItemFirstChild(val, &child);
@@ -344,7 +354,8 @@ static void json_object_push(lua_State* L, Json* val) {
     }
 }
 
-static void json_array_push(lua_State* L, Json* val) {
+static void json_array_push(lua_State* L, Json* val)
+{
     uint32_t len = 0;
     if (JsonArraySizeGet(val, &len) != JSON_OK) {
         luaL_error(L, "json: cannot get json object size");
@@ -361,13 +372,15 @@ static void json_array_push(lua_State* L, Json* val) {
 }
 
 // 直接从 JsonValue 转换为 Lua table（避免 variant 中间转换，只使用 C++ 接口）
-static void json_value_to_lua(lua_State* L, const JsonValue& value) {
+static void json_value_to_lua(lua_State* L, const JsonValue& value)
+{
     json_value_push(L, value.get_raw());
 }
 
 // 从 Lua 值转换为 JsonValue
 // 如果是 userdata，直接使用；否则从 Lua 直接转换
-inline JsonValue get_json_value_from_lua(lua_State* L, int index) {
+inline JsonValue get_json_value_from_lua(lua_State* L, int index)
+{
     // 先尝试作为 userdata
     json_value_wrapper* wrapper = test_json_value(L, index);
     if (wrapper != nullptr) {
@@ -380,7 +393,8 @@ inline JsonValue get_json_value_from_lua(lua_State* L, int index) {
 }
 
 // 将 Lua 值转换为 JsonValue 并推入栈
-inline int lua_value_to_json_value(lua_State* L, int index) {
+inline int lua_value_to_json_value(lua_State* L, int index)
+{
     json_value_wrapper* wrapper = test_json_value(L, index);
     if (wrapper != nullptr) {
         // 已经是 JsonValue，直接推入
@@ -394,14 +408,16 @@ inline int lua_value_to_json_value(lua_State* L, int index) {
 }
 
 // __gc 元方法
-static int json_value_gc(lua_State* L) {
+static int json_value_gc(lua_State* L)
+{
     auto* wrapper = check_json_value(L, 1);
     wrapper->~json_value_wrapper();
     return 0;
 }
 
 // __index 元方法 - 支持 obj[key] 和 obj.method() 访问
-static int json_value_index(lua_State* L) {
+static int json_value_index(lua_State* L)
+{
     try {
         auto* wrapper = check_json_value(L, 1);
 
@@ -454,7 +470,8 @@ static int json_value_index(lua_State* L) {
 }
 
 // __newindex 元方法 - 支持 obj[key] = value 设置
-static int json_value_newindex(lua_State* L) {
+static int json_value_newindex(lua_State* L)
+{
     try {
         auto* wrapper = check_json_value(L, 1);
 
@@ -500,7 +517,8 @@ static int json_value_newindex(lua_State* L) {
 }
 
 // __len 元方法 - 支持 #obj 获取长度
-static int json_value_len(lua_State* L) {
+static int json_value_len(lua_State* L)
+{
     try {
         auto* wrapper = check_json_value(L, 1);
 
@@ -522,7 +540,8 @@ static int json_value_len(lua_State* L) {
 }
 
 // __pairs 元方法 - 支持 for k, v in pairs(obj) 遍历对象
-static int json_value_pairs_iter(lua_State* L) {
+static int json_value_pairs_iter(lua_State* L)
+{
     try {
         auto* wrapper = check_json_value(L, 1);
 
@@ -584,7 +603,8 @@ static int json_value_pairs_iter(lua_State* L) {
     }
 }
 
-static int json_value_pairs(lua_State* L) {
+static int json_value_pairs(lua_State* L)
+{
     // 返回迭代器函数、状态和初始值
     lua_pushcfunction(L, json_value_pairs_iter);
     lua_pushvalue(L, 1); // state: json object
@@ -593,7 +613,8 @@ static int json_value_pairs(lua_State* L) {
 }
 
 // 注册 json.value metatable
-static void register_json_value_metatable(lua_State* L) {
+static void register_json_value_metatable(lua_State* L)
+{
     // 创建 metatable
     luaL_newmetatable(L, JSON_VALUE_METATABLE);
 
@@ -617,7 +638,8 @@ static void register_json_value_metatable(lua_State* L) {
 }
 
 // 获取 JSON 对象的所有键（按顺序）
-static int l_json_object_get_keys(lua_State* L) {
+static int l_json_object_get_keys(lua_State* L)
+{
     try {
         int nargs = lua_gettop(L);
         if (nargs < 1) {
@@ -648,7 +670,8 @@ static int l_json_object_get_keys(lua_State* L) {
 }
 
 // 判断两个 JSON 对象是否相等
-static int l_json_object_is_equal(lua_State* L) {
+static int l_json_object_is_equal(lua_State* L)
+{
     try {
         int nargs = lua_gettop(L);
         if (nargs < 2) {
@@ -669,7 +692,8 @@ static int l_json_object_is_equal(lua_State* L) {
 // 将 JSON 对象转换为 Lua table
 // 注意：只接受 userdata（json_object）作为参数，如果传入普通的 Lua table 会报错
 // 直接从 JsonValue 转换为 Lua table，避免 variant 中间转换
-static int l_json_object_to_table(lua_State* L) {
+static int l_json_object_to_table(lua_State* L)
+{
     try {
         int nargs = lua_gettop(L);
         if (nargs < 1) {
@@ -690,7 +714,8 @@ static int l_json_object_to_table(lua_State* L) {
 }
 
 // 从 Lua table 创建 JSON 对象（直接从 Lua 转换，避免 variant 中间层）
-static int l_json_object_from_table(lua_State* L) {
+static int l_json_object_from_table(lua_State* L)
+{
     try {
         int nargs = lua_gettop(L);
         if (nargs < 1) {
@@ -706,7 +731,8 @@ static int l_json_object_from_table(lua_State* L) {
 }
 
 // 深拷贝 JsonValue（避免 variant 中间转换，只使用 C++ 接口）
-static JsonValue copy_json_value(const JsonValue& value) {
+static JsonValue copy_json_value(const JsonValue& value)
+{
     if (value.is_null()) {
         return JsonValue::make_null();
     } else if (value.is_bool()) {
@@ -752,7 +778,8 @@ static JsonValue copy_json_value(const JsonValue& value) {
 }
 
 // 复制 JSON 对象（深拷贝）
-static int l_json_object_copy(lua_State* L) {
+static int l_json_object_copy(lua_State* L)
+{
     try {
         int nargs = lua_gettop(L);
         if (nargs < 1) {
@@ -768,7 +795,8 @@ static int l_json_object_copy(lua_State* L) {
 }
 
 // 判断是否为 JSON 对象类型
-static int l_json_object_is_object(lua_State* L) {
+static int l_json_object_is_object(lua_State* L)
+{
     try {
         int nargs = lua_gettop(L);
         if (nargs < 1) {
@@ -785,7 +813,8 @@ static int l_json_object_is_object(lua_State* L) {
 }
 
 // 判断是否为 JSON 数组类型
-static int l_json_object_is_array(lua_State* L) {
+static int l_json_object_is_array(lua_State* L)
+{
     try {
         int nargs = lua_gettop(L);
         if (nargs < 1) {
@@ -802,7 +831,8 @@ static int l_json_object_is_array(lua_State* L) {
 }
 
 // 创建新的 JSON 对象
-static int l_json_object_new_object(lua_State* L) {
+static int l_json_object_new_object(lua_State* L)
+{
     try {
         JsonValue obj = JsonValue::make_object();
         return push_json_value(L, std::move(obj));
@@ -812,7 +842,8 @@ static int l_json_object_new_object(lua_State* L) {
 }
 
 // 创建新的 JSON 数组
-static int l_json_object_new_array(lua_State* L) {
+static int l_json_object_new_array(lua_State* L)
+{
     try {
         JsonValue arr = JsonValue::make_array();
         return push_json_value(L, std::move(arr));
@@ -822,7 +853,8 @@ static int l_json_object_new_array(lua_State* L) {
 }
 
 // 获取底层 Json* 指针（作为 lightuserdata）
-static int l_to_raw(lua_State* L) {
+static int l_to_raw(lua_State* L)
+{
     try {
         int nargs = lua_gettop(L);
         if (nargs < 1) {
@@ -839,7 +871,8 @@ static int l_to_raw(lua_State* L) {
 }
 
 // 从底层 Json* 指针创建 JsonValue
-static int l_new_from_raw(lua_State* L) {
+static int l_new_from_raw(lua_State* L)
+{
     try {
         int nargs = lua_gettop(L);
         if (nargs < 1) {
@@ -864,7 +897,8 @@ static int l_new_from_raw(lua_State* L) {
 
 // Lua 接口：将 Lua 值编码为 JSON 字符串
 // 使用 C++ 接口（JsonValue）进行转换，然后使用 json_encode 进行序列化
-static int lencode(lua_State* L) {
+static int lencode(lua_State* L)
+{
     try {
         int nargs = lua_gettop(L);
         if (nargs < 1) {
@@ -887,7 +921,8 @@ static int lencode(lua_State* L) {
 }
 
 // Lua 接口：将 JSON 字符串解码为 Lua 值
-static int ldecode(lua_State* L) {
+static int ldecode(lua_State* L)
+{
     try {
         size_t      json_len = 0;
         const char* json_str = luaL_checklstring(L, 1, &json_len);
@@ -905,7 +940,8 @@ static int ldecode(lua_State* L) {
 
 // Lua 接口：将 JSON 字符串解码为 JsonValue 对象
 // 接受 JSON 字符串，返回 JsonValue userdata
-static int ljson_object_ordered_decode(lua_State* L) {
+static int ljson_object_ordered_decode(lua_State* L)
+{
     try {
         size_t      json_len = 0;
         const char* json_str = luaL_checklstring(L, 1, &json_len);
@@ -921,7 +957,8 @@ static int ljson_object_ordered_decode(lua_State* L) {
 
 // Lua 接口：将 JsonValue 对象编码为 JSON 字符串
 // 接受 JsonValue userdata，将其编码为 JSON 字符串（紧凑格式）
-static int ljson_object_ordered_encode(lua_State* L) {
+static int ljson_object_ordered_encode(lua_State* L)
+{
     try {
         int nargs = lua_gettop(L);
         if (nargs < 1) {
@@ -945,7 +982,8 @@ static int ljson_object_ordered_encode(lua_State* L) {
 
 // Lua 接口：将 JsonValue 对象编码为格式化的 JSON 字符串
 // 接受 JsonValue userdata，将其编码为格式化的 JSON 字符串（带缩进）
-static int ljson_object_ordered_encode_pretty(lua_State* L) {
+static int ljson_object_ordered_encode_pretty(lua_State* L)
+{
     try {
         int nargs = lua_gettop(L);
         if (nargs < 1) {
@@ -968,7 +1006,8 @@ static int ljson_object_ordered_encode_pretty(lua_State* L) {
 }
 
 // Lua 接口：将 Lua 值编码为 JSON 字符串并写入文件
-static int ldump(lua_State* L) {
+static int ldump(lua_State* L)
+{
     try {
         int nargs = lua_gettop(L);
         if (nargs < 2) {
@@ -1000,7 +1039,8 @@ static int ldump(lua_State* L) {
 }
 
 // Lua 接口：将 Lua 值编码为格式化的 JSON 字符串并写入文件
-static int ldump_pretty(lua_State* L) {
+static int ldump_pretty(lua_State* L)
+{
     try {
         int nargs = lua_gettop(L);
         if (nargs < 2) {
@@ -1033,7 +1073,8 @@ static int ldump_pretty(lua_State* L) {
 
 // Lua 接口：将 JsonValue 对象序列化到文件
 // 接受 JsonValue userdata，将其序列化到文件（紧凑格式）
-static int ljson_object_dump(lua_State* L) {
+static int ljson_object_dump(lua_State* L)
+{
     try {
         int nargs = lua_gettop(L);
         if (nargs < 2) {
@@ -1066,7 +1107,8 @@ static int ljson_object_dump(lua_State* L) {
 
 // Lua 接口：将 JsonValue 对象序列化为格式化的 JSON 输出到文件
 // 接受 JsonValue userdata，将其序列化到文件（格式化输出）
-static int ljson_object_dump_pretty(lua_State* L) {
+static int ljson_object_dump_pretty(lua_State* L)
+{
     try {
         int nargs = lua_gettop(L);
         if (nargs < 2) {
@@ -1099,7 +1141,8 @@ static int ljson_object_dump_pretty(lua_State* L) {
 
 // Lua 接口：设置空 table 编码为 JSON 对象还是数组
 // true: 空 table 编码为 {}，false: 空 table 编码为 []（默认）
-static int lencode_empty_table_as_object(lua_State* L) {
+static int lencode_empty_table_as_object(lua_State* L)
+{
     try {
         int nargs = lua_gettop(L);
         if (nargs < 1) {
@@ -1150,7 +1193,8 @@ static const luaL_Reg methods[] = {
 
 extern "C" {
 
-__attribute__((visibility("default"))) int luaopen_ljson(lua_State* L) {
+__attribute__((visibility("default"))) int luaopen_ljson(lua_State* L)
+{
     using namespace mc::json_wrapper::lua;
 
     // 注册 metatable

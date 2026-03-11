@@ -20,19 +20,23 @@
 // 测试用的日志追加器，将日志消息存储在内存中
 class memory_appender : public mc::log::appender {
 public:
-    bool init(const mc::variant& args) override {
+    bool init(const mc::variant& args) override
+    {
         return true;
     }
 
-    void append(const mc::log::message& msg) override {
+    void append(const mc::log::message& msg) override
+    {
         m_messages.push_back(msg);
     }
 
-    const std::vector<mc::log::message>& get_messages() const {
+    const std::vector<mc::log::message>& get_messages() const
+    {
         return m_messages;
     }
 
-    void clear() {
+    void clear()
+    {
         m_messages.clear();
     }
 
@@ -43,7 +47,8 @@ private:
 // 日志接口测试类
 class LogInterfaceTest : public ::testing::Test {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         m_memory_appender = std::make_shared<memory_appender>();
         m_memory_appender->set_name("memory_appender");
 
@@ -52,12 +57,14 @@ protected:
         m_test_logger.add_appender(m_memory_appender);
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         m_test_logger.clear_appenders();
         m_memory_appender->clear();
     }
 
-    bool message_contains(const mc::log::message& msg, const std::string& text) {
+    bool message_contains(const mc::log::message& msg, const std::string& text)
+    {
         return msg.get_message().find(text) != std::string::npos;
     }
 
@@ -67,7 +74,8 @@ protected:
 
 // ==================== 调试日志（notice、warn 等）====================
 
-TEST_F(LogInterfaceTest, debug_log_trace) {
+TEST_F(LogInterfaceTest, debug_log_trace)
+{
     mc_tlog(m_test_logger, "trace 调试日志");
     ASSERT_FALSE(m_memory_appender->get_messages().empty());
     const auto& msg = m_memory_appender->get_messages().back();
@@ -77,7 +85,8 @@ TEST_F(LogInterfaceTest, debug_log_trace) {
     EXPECT_TRUE(msg.get_limit());
 }
 
-TEST_F(LogInterfaceTest, debug_log_debug) {
+TEST_F(LogInterfaceTest, debug_log_debug)
+{
     mc_dlog(m_test_logger, "debug 调试日志");
     ASSERT_FALSE(m_memory_appender->get_messages().empty());
     const auto& msg = m_memory_appender->get_messages().back();
@@ -86,7 +95,8 @@ TEST_F(LogInterfaceTest, debug_log_debug) {
     EXPECT_TRUE(message_contains(msg, "debug 调试日志"));
 }
 
-TEST_F(LogInterfaceTest, debug_log_info) {
+TEST_F(LogInterfaceTest, debug_log_info)
+{
     mc_ilog(m_test_logger, "info 调试日志");
     ASSERT_FALSE(m_memory_appender->get_messages().empty());
     const auto& msg = m_memory_appender->get_messages().back();
@@ -94,7 +104,8 @@ TEST_F(LogInterfaceTest, debug_log_info) {
     EXPECT_TRUE(message_contains(msg, "info 调试日志"));
 }
 
-TEST_F(LogInterfaceTest, debug_log_notice) {
+TEST_F(LogInterfaceTest, debug_log_notice)
+{
     mc_nlog(m_test_logger, "notice 调试日志");
     ASSERT_FALSE(m_memory_appender->get_messages().empty());
     const auto& msg = m_memory_appender->get_messages().back();
@@ -102,7 +113,8 @@ TEST_F(LogInterfaceTest, debug_log_notice) {
     EXPECT_TRUE(message_contains(msg, "notice 调试日志"));
 }
 
-TEST_F(LogInterfaceTest, debug_log_warn) {
+TEST_F(LogInterfaceTest, debug_log_warn)
+{
     mc_wlog(m_test_logger, "warn 调试日志");
     ASSERT_FALSE(m_memory_appender->get_messages().empty());
     const auto& msg = m_memory_appender->get_messages().back();
@@ -110,7 +122,8 @@ TEST_F(LogInterfaceTest, debug_log_warn) {
     EXPECT_TRUE(message_contains(msg, "warn 调试日志"));
 }
 
-TEST_F(LogInterfaceTest, debug_log_error) {
+TEST_F(LogInterfaceTest, debug_log_error)
+{
     mc_elog(m_test_logger, "error 调试日志");
     ASSERT_FALSE(m_memory_appender->get_messages().empty());
     const auto& msg = m_memory_appender->get_messages().back();
@@ -118,7 +131,8 @@ TEST_F(LogInterfaceTest, debug_log_error) {
     EXPECT_TRUE(message_contains(msg, "error 调试日志"));
 }
 
-TEST_F(LogInterfaceTest, debug_log_fatal) {
+TEST_F(LogInterfaceTest, debug_log_fatal)
+{
     mc_flog(m_test_logger, "fatal 调试日志");
     ASSERT_FALSE(m_memory_appender->get_messages().empty());
     const auto& msg = m_memory_appender->get_messages().back();
@@ -126,7 +140,8 @@ TEST_F(LogInterfaceTest, debug_log_fatal) {
     EXPECT_TRUE(message_contains(msg, "fatal 调试日志"));
 }
 
-TEST_F(LogInterfaceTest, debug_log_structured) {
+TEST_F(LogInterfaceTest, debug_log_structured)
+{
     mc_ilog(m_test_logger, "用户 ${user} 值 ${val}", ("user", "test")("val", 42));
     ASSERT_FALSE(m_memory_appender->get_messages().empty());
     EXPECT_TRUE(message_contains(m_memory_appender->get_messages().back(), "用户 test 值 42"));
@@ -134,7 +149,8 @@ TEST_F(LogInterfaceTest, debug_log_structured) {
 
 // ==================== 不限流调试日志（notice_easy、warn_easy 等）====================
 
-TEST_F(LogInterfaceTest, debug_log_easy_notice) {
+TEST_F(LogInterfaceTest, debug_log_easy_notice)
+{
     mc_nlog_easy(m_test_logger, "notice_easy 不限流");
     ASSERT_FALSE(m_memory_appender->get_messages().empty());
     const auto& msg = m_memory_appender->get_messages().back();
@@ -143,7 +159,8 @@ TEST_F(LogInterfaceTest, debug_log_easy_notice) {
     EXPECT_TRUE(message_contains(msg, "notice_easy 不限流"));
 }
 
-TEST_F(LogInterfaceTest, debug_log_easy_warn) {
+TEST_F(LogInterfaceTest, debug_log_easy_warn)
+{
     mc_wlog_easy(m_test_logger, "warn_easy 不限流");
     ASSERT_FALSE(m_memory_appender->get_messages().empty());
     const auto& msg = m_memory_appender->get_messages().back();
@@ -152,7 +169,8 @@ TEST_F(LogInterfaceTest, debug_log_easy_warn) {
     EXPECT_TRUE(message_contains(msg, "warn_easy 不限流"));
 }
 
-TEST_F(LogInterfaceTest, debug_log_easy_all_levels) {
+TEST_F(LogInterfaceTest, debug_log_easy_all_levels)
+{
     mc_tlog_easy(m_test_logger, "trace_easy");
     mc_dlog_easy(m_test_logger, "debug_easy");
     mc_ilog_easy(m_test_logger, "info_easy");
@@ -177,7 +195,8 @@ TEST_F(LogInterfaceTest, debug_log_easy_all_levels) {
 
 // ==================== 南向硬件流日志（hw_stream）====================
 
-TEST_F(LogInterfaceTest, hw_stream_info) {
+TEST_F(LogInterfaceTest, hw_stream_info)
+{
     mc_hw_stream_info(m_test_logger, "南向硬件流 info");
     ASSERT_FALSE(m_memory_appender->get_messages().empty());
     const auto& msg = m_memory_appender->get_messages().back();
@@ -186,7 +205,8 @@ TEST_F(LogInterfaceTest, hw_stream_info) {
     EXPECT_TRUE(message_contains(msg, "南向硬件流 info"));
 }
 
-TEST_F(LogInterfaceTest, hw_stream_warn) {
+TEST_F(LogInterfaceTest, hw_stream_warn)
+{
     mc_hw_stream_warn(m_test_logger, "南向硬件流 warn");
     ASSERT_FALSE(m_memory_appender->get_messages().empty());
     const auto& msg = m_memory_appender->get_messages().back();
@@ -195,7 +215,8 @@ TEST_F(LogInterfaceTest, hw_stream_warn) {
     EXPECT_TRUE(message_contains(msg, "南向硬件流 warn"));
 }
 
-TEST_F(LogInterfaceTest, hw_stream_notice) {
+TEST_F(LogInterfaceTest, hw_stream_notice)
+{
     mc_hw_stream_notice(m_test_logger, "南向硬件流 notice");
     ASSERT_FALSE(m_memory_appender->get_messages().empty());
     const auto& msg = m_memory_appender->get_messages().back();
@@ -204,7 +225,8 @@ TEST_F(LogInterfaceTest, hw_stream_notice) {
     EXPECT_TRUE(message_contains(msg, "南向硬件流 notice"));
 }
 
-TEST_F(LogInterfaceTest, hw_stream_error) {
+TEST_F(LogInterfaceTest, hw_stream_error)
+{
     mc_hw_stream_error(m_test_logger, "南向硬件流 error");
     ASSERT_FALSE(m_memory_appender->get_messages().empty());
     const auto& msg = m_memory_appender->get_messages().back();
@@ -213,7 +235,8 @@ TEST_F(LogInterfaceTest, hw_stream_error) {
     EXPECT_TRUE(message_contains(msg, "南向硬件流 error"));
 }
 
-TEST_F(LogInterfaceTest, hw_stream_structured) {
+TEST_F(LogInterfaceTest, hw_stream_structured)
+{
     mc_hw_stream_info(m_test_logger, "设备 ${dev} 温度 ${temp}", ("dev", "sensor_1")("temp", 42));
     ASSERT_FALSE(m_memory_appender->get_messages().empty());
     EXPECT_TRUE(message_contains(m_memory_appender->get_messages().back(), "设备 sensor_1 温度 42"));
@@ -221,7 +244,8 @@ TEST_F(LogInterfaceTest, hw_stream_structured) {
 
 // ==================== 应用框架流日志（mc_stream）====================
 
-TEST_F(LogInterfaceTest, mc_stream_info) {
+TEST_F(LogInterfaceTest, mc_stream_info)
+{
     mc_mc_stream_info(m_test_logger, "应用框架流 info");
     ASSERT_FALSE(m_memory_appender->get_messages().empty());
     const auto& msg = m_memory_appender->get_messages().back();
@@ -230,7 +254,8 @@ TEST_F(LogInterfaceTest, mc_stream_info) {
     EXPECT_TRUE(message_contains(msg, "应用框架流 info"));
 }
 
-TEST_F(LogInterfaceTest, mc_stream_warn) {
+TEST_F(LogInterfaceTest, mc_stream_warn)
+{
     mc_mc_stream_warn(m_test_logger, "应用框架流 warn");
     ASSERT_FALSE(m_memory_appender->get_messages().empty());
     const auto& msg = m_memory_appender->get_messages().back();
@@ -239,7 +264,8 @@ TEST_F(LogInterfaceTest, mc_stream_warn) {
     EXPECT_TRUE(message_contains(msg, "应用框架流 warn"));
 }
 
-TEST_F(LogInterfaceTest, mc_stream_notice) {
+TEST_F(LogInterfaceTest, mc_stream_notice)
+{
     mc_mc_stream_notice(m_test_logger, "应用框架流 notice");
     ASSERT_FALSE(m_memory_appender->get_messages().empty());
     const auto& msg = m_memory_appender->get_messages().back();
@@ -248,7 +274,8 @@ TEST_F(LogInterfaceTest, mc_stream_notice) {
     EXPECT_TRUE(message_contains(msg, "应用框架流 notice"));
 }
 
-TEST_F(LogInterfaceTest, mc_stream_error) {
+TEST_F(LogInterfaceTest, mc_stream_error)
+{
     mc_mc_stream_error(m_test_logger, "应用框架流 error");
     ASSERT_FALSE(m_memory_appender->get_messages().empty());
     const auto& msg = m_memory_appender->get_messages().back();
@@ -257,7 +284,8 @@ TEST_F(LogInterfaceTest, mc_stream_error) {
     EXPECT_TRUE(message_contains(msg, "应用框架流 error"));
 }
 
-TEST_F(LogInterfaceTest, mc_stream_structured) {
+TEST_F(LogInterfaceTest, mc_stream_structured)
+{
     mc_mc_stream_info(m_test_logger, "服务 ${svc} 状态 ${status}", ("svc", "task_service")("status", "running"));
     ASSERT_FALSE(m_memory_appender->get_messages().empty());
     EXPECT_TRUE(message_contains(m_memory_appender->get_messages().back(), "服务 task_service 状态 running"));
@@ -265,7 +293,8 @@ TEST_F(LogInterfaceTest, mc_stream_structured) {
 
 // ==================== operation_log ====================
 
-TEST_F(LogInterfaceTest, operation_log_basic) {
+TEST_F(LogInterfaceTest, operation_log_basic)
+{
     mc_operation_log(m_test_logger, "操作日志");
     ASSERT_FALSE(m_memory_appender->get_messages().empty());
     const auto& msg = m_memory_appender->get_messages().back();
@@ -273,7 +302,8 @@ TEST_F(LogInterfaceTest, operation_log_basic) {
     EXPECT_TRUE(message_contains(msg, "操作日志"));
 }
 
-TEST_F(LogInterfaceTest, operation_log_structured) {
+TEST_F(LogInterfaceTest, operation_log_structured)
+{
     mc_operation_log(m_test_logger, "用户 ${user} 执行 ${action}", ("user", "admin")("action", "登录"));
     ASSERT_FALSE(m_memory_appender->get_messages().empty());
     EXPECT_TRUE(message_contains(m_memory_appender->get_messages().back(), "用户 admin 执行 登录"));
@@ -281,7 +311,8 @@ TEST_F(LogInterfaceTest, operation_log_structured) {
 
 // ==================== 流日志 / operation 不受 logger 级别过滤 ====================
 
-TEST_F(LogInterfaceTest, hw_stream_bypass_level_filter) {
+TEST_F(LogInterfaceTest, hw_stream_bypass_level_filter)
+{
     m_test_logger.set_level(mc::log::level::error);
 
     mc_hw_stream_info(m_test_logger, "hw info 应输出");
@@ -290,7 +321,8 @@ TEST_F(LogInterfaceTest, hw_stream_bypass_level_filter) {
     EXPECT_EQ(m_memory_appender->get_messages().back().get_level(), mc::log::level::info);
 }
 
-TEST_F(LogInterfaceTest, mc_stream_bypass_level_filter) {
+TEST_F(LogInterfaceTest, mc_stream_bypass_level_filter)
+{
     m_test_logger.set_level(mc::log::level::error);
 
     mc_mc_stream_info(m_test_logger, "mc info 应输出");
@@ -299,7 +331,8 @@ TEST_F(LogInterfaceTest, mc_stream_bypass_level_filter) {
     EXPECT_EQ(m_memory_appender->get_messages().back().get_level(), mc::log::level::info);
 }
 
-TEST_F(LogInterfaceTest, operation_log_bypass_level_filter) {
+TEST_F(LogInterfaceTest, operation_log_bypass_level_filter)
+{
     m_test_logger.set_level(mc::log::level::off);
 
     mc_operation_log(m_test_logger, "operation 应输出");
@@ -310,7 +343,8 @@ TEST_F(LogInterfaceTest, operation_log_bypass_level_filter) {
 
 // ==================== running_log ====================
 
-TEST_F(LogInterfaceTest, running_log_basic) {
+TEST_F(LogInterfaceTest, running_log_basic)
+{
     mc_running_wlog(m_test_logger, "test running log");
     ASSERT_FALSE(m_memory_appender->get_messages().empty());
     const auto& msg = m_memory_appender->get_messages().back();
@@ -319,7 +353,8 @@ TEST_F(LogInterfaceTest, running_log_basic) {
     EXPECT_TRUE(message_contains(msg, "test running log"));
 }
 
-TEST_F(LogInterfaceTest, running_log_bypass_level_filter) {
+TEST_F(LogInterfaceTest, running_log_bypass_level_filter)
+{
     m_test_logger.set_level(mc::log::level::off);
 
     mc_running_wlog(m_test_logger, "running 应输出");
@@ -330,7 +365,8 @@ TEST_F(LogInterfaceTest, running_log_bypass_level_filter) {
 
 // ==================== maintenance_log ====================
 
-TEST_F(LogInterfaceTest, maintenance_log_basic) {
+TEST_F(LogInterfaceTest, maintenance_log_basic)
+{
     mc_maintenance_elog(m_test_logger, "SVR-0001111", "test maintenance log");
     ASSERT_FALSE(m_memory_appender->get_messages().empty());
     const auto& msg = m_memory_appender->get_messages().back();
@@ -341,7 +377,8 @@ TEST_F(LogInterfaceTest, maintenance_log_basic) {
     EXPECT_TRUE(message_contains(msg, "test maintenance log"));
 }
 
-TEST_F(LogInterfaceTest, maintenance_log_bypass_level_filter) {
+TEST_F(LogInterfaceTest, maintenance_log_bypass_level_filter)
+{
     m_test_logger.set_level(mc::log::level::off);
 
     mc_maintenance_elog(m_test_logger, "", "maintenance 应输出");
@@ -352,7 +389,8 @@ TEST_F(LogInterfaceTest, maintenance_log_bypass_level_filter) {
 
 // ==================== security_log ====================
 
-TEST_F(LogInterfaceTest, security_log_basic) {
+TEST_F(LogInterfaceTest, security_log_basic)
+{
     mc_security_log(m_test_logger, "test security log");
     ASSERT_FALSE(m_memory_appender->get_messages().empty());
     const auto& msg = m_memory_appender->get_messages().back();
@@ -361,7 +399,8 @@ TEST_F(LogInterfaceTest, security_log_basic) {
     EXPECT_TRUE(message_contains(msg, "test security log"));
 }
 
-TEST_F(LogInterfaceTest, security_log_bypass_level_filter) {
+TEST_F(LogInterfaceTest, security_log_bypass_level_filter)
+{
     m_test_logger.set_level(mc::log::level::off);
 
     mc_security_log(m_test_logger, "security 应输出");

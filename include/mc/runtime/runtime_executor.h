@@ -73,12 +73,14 @@ public:
     operator boost::asio::any_io_executor() const;
     operator boost::asio::io_context::executor_type() const;
 
-    runtime_executor& bound_pool(thread_pool* pool) noexcept {
+    runtime_executor& bound_pool(thread_pool* pool) noexcept
+    {
         m_bound_pool = pool;
         return *this;
     }
 
-    thread_pool* get_bound_pool() const noexcept {
+    thread_pool* get_bound_pool() const noexcept
+    {
         return m_bound_pool;
     }
 
@@ -92,17 +94,20 @@ private:
 
 // 模板实现
 template <typename Function, typename Allocator>
-void runtime_executor::post(Function&& f, const Allocator& a) const {
+void runtime_executor::post(Function&& f, const Allocator& a) const
+{
     select_pool().get_executor().post(std::forward<Function>(f), a);
 }
 
 template <typename Function, typename Allocator>
-void runtime_executor::dispatch(Function&& f, const Allocator& a) const {
+void runtime_executor::dispatch(Function&& f, const Allocator& a) const
+{
     select_pool().get_executor().dispatch(std::forward<Function>(f), a);
 }
 
 template <typename Function, typename Allocator>
-void runtime_executor::defer(Function&& f, const Allocator& a) const {
+void runtime_executor::defer(Function&& f, const Allocator& a) const
+{
     select_pool().get_executor().defer(std::forward<Function>(f), a);
 }
 

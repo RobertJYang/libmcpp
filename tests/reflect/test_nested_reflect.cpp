@@ -48,13 +48,17 @@ public:
     std::string m_street;
     int         m_number;
 
-    test_address() : m_city(""), m_street(""), m_number(0) {
+    test_address()
+        : m_city(""), m_street(""), m_number(0)
+    {
     }
     test_address(const std::string& city, const std::string& street, int number)
-        : m_city(city), m_street(street), m_number(number) {
+        : m_city(city), m_street(street), m_number(number)
+    {
     }
 
-    bool operator==(const test_address& other) const {
+    bool operator==(const test_address& other) const
+    {
         return m_city == other.m_city && m_street == other.m_street && m_number == other.m_number;
     }
 };
@@ -68,13 +72,17 @@ public:
     std::string  m_phone;
     test_address m_address; // 嵌套对象
 
-    test_contact() : m_email(""), m_phone("") {
+    test_contact()
+        : m_email(""), m_phone("")
+    {
     }
     test_contact(const std::string& email, const std::string& phone, const test_address& address)
-        : m_email(email), m_phone(phone), m_address(address) {
+        : m_email(email), m_phone(phone), m_address(address)
+    {
     }
 
-    bool operator==(const test_contact& other) const {
+    bool operator==(const test_contact& other) const
+    {
         return m_email == other.m_email && m_phone == other.m_phone && m_address == other.m_address;
     }
 };
@@ -90,16 +98,20 @@ public:
     std::vector<test_permission>        m_permissions; // 枚举数组
     std::map<std::string, test_address> m_addresses;   // 键值对嵌套
 
-    test_user() : m_username(""), m_status(test_status::INACTIVE) {
+    test_user()
+        : m_username(""), m_status(test_status::INACTIVE)
+    {
     }
     test_user(const std::string& username, const test_contact& contact, test_status status,
               const std::vector<test_permission>&        permissions,
               const std::map<std::string, test_address>& addresses)
         : m_username(username), m_contact(contact), m_status(status), m_permissions(permissions),
-          m_addresses(addresses) {
+          m_addresses(addresses)
+    {
     }
 
-    bool operator==(const test_user& other) const {
+    bool operator==(const test_user& other) const
+    {
         return m_username == other.m_username && m_contact == other.m_contact &&
                m_status == other.m_status && m_permissions == other.m_permissions &&
                m_addresses == other.m_addresses;
@@ -125,7 +137,8 @@ MC_REFLECT(test_nested_reflect::test_user,
 using namespace test_nested_reflect;
 
 // 测试嵌套类反射
-TEST(NestedReflectTest, NestedClassReflection) {
+TEST(NestedReflectTest, NestedClassReflection)
+{
     // 创建嵌套对象
     test_address address("北京", "中关村", 123);
     test_contact contact("test@example.com", "12345678901", address);
@@ -170,7 +183,8 @@ TEST(NestedReflectTest, NestedClassReflection) {
 }
 
 // 测试嵌套枚举反射
-TEST(NestedReflectTest, NestedEnumReflection) {
+TEST(NestedReflectTest, NestedEnumReflection)
+{
     // 创建测试对象
     test_address                        address("上海", "南京路", 456);
     test_contact                        contact("admin@example.com", "98765432101", address);
@@ -208,7 +222,8 @@ TEST(NestedReflectTest, NestedEnumReflection) {
 }
 
 // 测试部分更新嵌套对象
-TEST(NestedReflectTest, PartialNestedUpdate) {
+TEST(NestedReflectTest, PartialNestedUpdate)
+{
     // 创建原始对象
     test_address                        address("北京", "中关村", 123);
     test_contact                        contact("test@example.com", "12345678901", address);
@@ -234,7 +249,8 @@ TEST(NestedReflectTest, PartialNestedUpdate) {
 }
 
 // 测试复杂嵌套结构的序列化和反序列化
-TEST(NestedReflectTest, ComplexNestedSerialization) {
+TEST(NestedReflectTest, ComplexNestedSerialization)
+{
     // 创建复杂嵌套对象
     test_address                        home("北京", "中关村", 123);
     test_address                        work("上海", "南京路", 456);
@@ -280,7 +296,8 @@ TEST(NestedReflectTest, ComplexNestedSerialization) {
 }
 
 // 测试嵌套对象的动态修改
-TEST(NestedReflectTest, DynamicNestedModification) {
+TEST(NestedReflectTest, DynamicNestedModification)
+{
     // 创建原始对象
     test_address address("北京", "中关村", 123);
     test_contact contact("test@example.com", "12345678901", address);
@@ -312,7 +329,8 @@ TEST(NestedReflectTest, DynamicNestedModification) {
 }
 
 // 测试嵌套集合的反射
-TEST(NestedReflectTest, NestedCollections) {
+TEST(NestedReflectTest, NestedCollections)
+{
     // 创建带有集合的测试对象
     test_address                        home("北京", "中关村", 123);
     test_address                        work("上海", "南京路", 456);

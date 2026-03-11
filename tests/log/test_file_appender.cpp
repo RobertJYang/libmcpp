@@ -39,7 +39,8 @@ typedef void (*debug_log_func_t)(int, const char*, int, const char*, ...);
 // mock debug_log实现
 // 使用不同的函数名避免与依赖库中的debug_log宏冲突
 // 使用int类型作为第一个参数，因为枚举值在C/C++中可以隐式转换为int
-extern "C" void test_debug_log(int level, const char* file, int line, const char* fmt, ...) {
+extern "C" void test_debug_log(int level, const char* file, int line, const char* fmt, ...)
+{
     static const std::string log_path = std::string(TEST_LOG_DIR) + "/test_file_appender_mock.log";
     std::filesystem::create_directories(TEST_LOG_DIR);
     std::ofstream ofs(log_path, std::ios::app);
@@ -59,11 +60,12 @@ class file_appender_test : public mc::test::TestBase {
 protected:
     static std::shared_ptr<file_appender> m_appender;
     static std::filesystem::path          m_test_log_file;
-    static void SetUpTestSuite() {
+    static void                           SetUpTestSuite()
+    {
         // 在测试用例中，先设置 debug_log_ptr，确保后续 init() 调用时不会执行 dlopen
         // 这样可以避免在测试环境中重复加载动态库或打印错误信息
         file_appender::set_debug_log_ptr(reinterpret_cast<void*>(static_cast<debug_log_func_t>(test_debug_log)));
-        
+
         m_appender      = std::make_shared<file_appender>();
         m_test_log_file = std::string(TEST_LOG_DIR) + "/test_file_appender_mock.log";
         // 初始化日志文件（直接清空文件）
@@ -75,23 +77,25 @@ protected:
         dict["flush_on_write"] = true;
         m_appender->init(dict);
     }
-    static void TearDownTestSuite() {
+    static void TearDownTestSuite()
+    {
         m_appender.reset();
         if (std::filesystem::exists(m_test_log_file)) {
             std::filesystem::remove(m_test_log_file);
         }
     }
-    void SetUp() override {
+    void SetUp() override
+    {
         mc::test::TestBase::SetUp();
         mc::log::default_logger().set_level(mc::log::level::off);
-        
+
         // 确保测试目录存在
         std::filesystem::create_directories(std::string(TEST_LOG_DIR));
-        
+
         // 在每个测试开始时重新初始化日志文件
         std::ofstream ofs(m_test_log_file, std::ios::trunc);
         ofs.close();
-        
+
         // 重新初始化 appender
         mc::dict dict;
         dict["filename"]       = m_test_log_file.string();
@@ -100,10 +104,11 @@ protected:
         m_appender->init(dict);
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         // 刷新并关闭文件
         m_appender->flush();
-        
+
         // 删除测试文件
         if (std::filesystem::exists(m_test_log_file)) {
             std::filesystem::remove(m_test_log_file);
@@ -112,19 +117,22 @@ protected:
     }
 
     // 创建一个测试消息
-    message create_test_message(level lvl, const std::string& msg) {
+    message create_test_message(level lvl, const std::string& msg)
+    {
         mc::log::context ctx("test_file.cpp", "test_function", 123);
         return message(lvl, msg, ctx);
     }
 
     // 创建一个格式化测试消息
-    message create_format_message(level lvl, const std::string& fmt, const mc::dict& args) {
+    message create_format_message(level lvl, const std::string& fmt, const mc::dict& args)
+    {
         mc::log::context ctx("test_file.cpp", "test_function", 123);
         return message(lvl, ctx, fmt, args);
     }
 
     // 检查日志文件是否存在且不为空时，直接用m_test_log_file
-    bool check_log_file_exists_and_not_empty() {
+    bool check_log_file_exists_and_not_empty()
+    {
         if (!std::filesystem::exists(m_test_log_file)) {
             return false;
         }
@@ -137,7 +145,8 @@ protected:
     }
 
     // 检查指定日志文件是否存在且不为空
-    bool check_log_file_exists_and_not_empty(const std::string& filename) {
+    bool check_log_file_exists_and_not_empty(const std::string& filename)
+    {
         if (!std::filesystem::exists(filename)) {
             return false;
         }
@@ -158,19 +167,22 @@ std::shared_ptr<file_appender> file_appender_test::m_appender;
 std::filesystem::path          file_appender_test::m_test_log_file;
 
 // 测试默认构造函数
-TEST_F(file_appender_test, DefaultConstructor) {
+TEST_F(file_appender_test, DefaultConstructor)
+{
     ASSERT_NE(m_appender, nullptr);
 }
 
 // 测试设置和获取文件名
-TEST_F(file_appender_test, SetAndGetFilename) {
+TEST_F(file_appender_test, SetAndGetFilename)
+{
     std::string test_filename = "test_log.txt";
     m_appender->set_filename(test_filename);
     EXPECT_EQ(m_appender->get_filename(), test_filename);
 }
 
 // 测试设置和获取flush_on_write
-TEST_F(file_appender_test, SetAndGetFlushOnWrite) {
+TEST_F(file_appender_test, SetAndGetFlushOnWrite)
+{
     m_appender->set_flush_on_write(true);
     EXPECT_TRUE(m_appender->get_flush_on_write());
 
@@ -179,7 +191,8 @@ TEST_F(file_appender_test, SetAndGetFlushOnWrite) {
 }
 
 // 测试追加函数 - 简单文本消息
-TEST_F(file_appender_test, AppendSimpleTextMessage) {
+TEST_F(file_appender_test, AppendSimpleTextMessage)
+{
     // 设置文件名
     m_appender->set_filename(m_test_log_file.string());
 
@@ -197,7 +210,8 @@ TEST_F(file_appender_test, AppendSimpleTextMessage) {
 }
 
 // 测试追加函数 - 包含格式化占位符的消息
-TEST_F(file_appender_test, AppendMessageWithFormatPlaceholders) {
+TEST_F(file_appender_test, AppendMessageWithFormatPlaceholders)
+{
     // 设置文件名
     m_appender->set_filename(m_test_log_file.string());
 
@@ -215,7 +229,8 @@ TEST_F(file_appender_test, AppendMessageWithFormatPlaceholders) {
 }
 
 // 测试追加函数 - 字典参数格式化消息
-TEST_F(file_appender_test, AppendDictFormattedMessage) {
+TEST_F(file_appender_test, AppendDictFormattedMessage)
+{
     // 设置文件名
     m_appender->set_filename(m_test_log_file.string());
 
@@ -237,7 +252,8 @@ TEST_F(file_appender_test, AppendDictFormattedMessage) {
 }
 
 // 测试追加函数 - 多参数字典格式化消息
-TEST_F(file_appender_test, AppendMultiParamDictFormattedMessage) {
+TEST_F(file_appender_test, AppendMultiParamDictFormattedMessage)
+{
     // 设置文件名
     m_appender->set_filename(m_test_log_file.string());
 
@@ -262,7 +278,8 @@ TEST_F(file_appender_test, AppendMultiParamDictFormattedMessage) {
 }
 
 // 测试不同日志级别的消息追加
-TEST_F(file_appender_test, AppendDifferentLogLevels) {
+TEST_F(file_appender_test, AppendDifferentLogLevels)
+{
     // 设置文件名
     m_appender->set_filename(m_test_log_file.string());
 
@@ -288,7 +305,8 @@ TEST_F(file_appender_test, AppendDifferentLogLevels) {
 }
 
 // 测试多线程并发追加消息
-TEST_F(file_appender_test, AppendMessagesConcurrently) {
+TEST_F(file_appender_test, AppendMessagesConcurrently)
+{
     m_appender->set_filename(m_test_log_file.string());
 
     // 创建多个线程同时写入日志
@@ -316,15 +334,17 @@ TEST_F(file_appender_test, AppendMessagesConcurrently) {
 }
 
 // 测试 init 函数 - 非对象参数
-TEST_F(file_appender_test, InitWithNonObjectArgs) {
-    auto appender = std::make_shared<file_appender>();
+TEST_F(file_appender_test, InitWithNonObjectArgs)
+{
+    auto        appender   = std::make_shared<file_appender>();
     mc::variant non_object = 42; // 非对象类型
     EXPECT_FALSE(appender->init(non_object));
 }
 
 // 测试 init 函数 - 包含 module_name 配置
-TEST_F(file_appender_test, InitWithModuleName) {
-    auto appender = std::make_shared<file_appender>();
+TEST_F(file_appender_test, InitWithModuleName)
+{
+    auto     appender = std::make_shared<file_appender>();
     mc::dict dict;
     dict["filename"]    = m_test_log_file.string();
     dict["module_name"] = "test_module";
@@ -332,7 +352,8 @@ TEST_F(file_appender_test, InitWithModuleName) {
 }
 
 // 测试追加函数 - 空文件名上下文
-TEST_F(file_appender_test, AppendWithEmptyFileContext) {
+TEST_F(file_appender_test, AppendWithEmptyFileContext)
+{
     m_appender->set_filename(m_test_log_file.string());
 
     // 确保 debug_log_ptr 已设置（SetUpTestSuite 中已设置，但这里再次确认）
@@ -344,7 +365,7 @@ TEST_F(file_appender_test, AppendWithEmptyFileContext) {
 
     // 创建空文件名的上下文
     mc::log::context ctx("", "test_function", 123);
-    auto msg = message(level::info, "测试消息", ctx);
+    auto             msg = message(level::info, "测试消息", ctx);
 
     ASSERT_NO_THROW(m_appender->append(msg));
     m_appender->flush();
@@ -355,7 +376,8 @@ TEST_F(file_appender_test, AppendWithEmptyFileContext) {
 }
 
 // 测试追加函数 - trace 和 fatal 级别（覆盖 default case）
-TEST_F(file_appender_test, AppendTraceAndFatalLevels) {
+TEST_F(file_appender_test, AppendTraceAndFatalLevels)
+{
     m_appender->set_filename(m_test_log_file.string());
 
     // 确保 debug_log_ptr 已设置（SetUpTestSuite 中已设置，但这里再次确认）

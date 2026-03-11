@@ -27,19 +27,22 @@ namespace mc::expr {
 
 func_collection::func_collection() = default;
 
-func_collection& func_collection::get_instance() {
+func_collection& func_collection::get_instance()
+{
     static func_collection instance;
     return instance;
 }
 
-void func_collection::add(const std::string_view& position, std::shared_ptr<mc::engine::service> service, mc::dict& functions) {
+void func_collection::add(const std::string_view& position, std::shared_ptr<mc::engine::service> service, mc::dict& functions)
+{
     std::lock_guard lock(m_mutex);
     std::string     position_str(position);
     m_services[position_str] = service;
     m_functions.insert(position, functions);
 }
 
-mc::variant func_collection::get(const std::string_view& position, const std::string_view& func_name) {
+mc::variant func_collection::get(const std::string_view& position, const std::string_view& func_name)
+{
     if (m_functions.find(position) == m_functions.end()) {
         return mc::variant();
     }
@@ -52,7 +55,8 @@ mc::variant func_collection::get(const std::string_view& position, const std::st
     return functions[func_name];
 }
 
-std::shared_ptr<mc::engine::service> func_collection::get_service(const std::string_view& position) {
+std::shared_ptr<mc::engine::service> func_collection::get_service(const std::string_view& position)
+{
     std::lock_guard lock(m_mutex);
     std::string     position_str(position);
     auto            it = m_services.find(position_str);
@@ -62,14 +66,16 @@ std::shared_ptr<mc::engine::service> func_collection::get_service(const std::str
     return it->second;
 }
 
-mc::dict func_collection::get(const std::string_view& position) {
+mc::dict func_collection::get(const std::string_view& position)
+{
     if (m_functions.find(position) == m_functions.end()) {
         return mc::dict();
     }
     return m_functions[position].as<mc::dict>();
 }
 
-mc::dict func_collection::remove(const std::string_view& position) {
+mc::dict func_collection::remove(const std::string_view& position)
+{
     if (m_functions.find(position) == m_functions.end()) {
         return mc::dict();
     }
@@ -83,22 +89,26 @@ mc::dict func_collection::remove(const std::string_view& position) {
     return result;
 }
 
-bool func_collection::contains(const std::string_view& position) {
+bool func_collection::contains(const std::string_view& position)
+{
     return m_functions.find(position) != m_functions.end();
 }
 
-void func_collection::clear() {
+void func_collection::clear()
+{
     std::lock_guard lock(m_mutex);
     m_functions.clear();
     m_services.clear();
 }
 
-size_t func_collection::size() const {
+size_t func_collection::size() const
+{
     std::lock_guard lock(m_mutex);
     return m_functions.size();
 }
 
-bool func_collection::empty() const {
+bool func_collection::empty() const
+{
     std::lock_guard lock(m_mutex);
     return m_functions.empty() && m_services.empty();
 }

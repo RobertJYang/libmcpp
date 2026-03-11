@@ -40,7 +40,8 @@ namespace mdb_utils {
  *         - 如果 results 只有一个元素，直接返回该元素
  *         - 如果 results 有多个元素，返回包含所有元素的数组 variant
  */
-inline mc::variant convert_method_result(const mc::variants& results) {
+inline mc::variant convert_method_result(const mc::variants& results)
+{
     if (results.empty()) {
         return mc::variant();
     } else if (results.size() == 1) {
@@ -123,7 +124,7 @@ public:
 
 private:
     explicit mdb_access(size_t max_cache_size);
-    mutable std::mutex                                                    m_mutex;
+    mutable std::mutex                                                   m_mutex;
     mc::algorithm::lru_cache<std::string, std::shared_ptr<proxy_object>> m_cache;
 };
 

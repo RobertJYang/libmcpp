@@ -18,19 +18,23 @@
 
 namespace mc::engine {
 
-bool ref_object_processor::matches(const std::string& value_str) const {
+bool ref_object_processor::matches(const std::string& value_str) const
+{
     return value_str.substr(0, 2) == "#/" && value_str.find('.') == std::string::npos;
 }
 
-void ref_object_processor::process(property_helper* property, const std::string& value_str) {
+void ref_object_processor::process(property_helper* property, const std::string& value_str)
+{
     process_ref_object_from_variant(property, value_str);
 }
 
-p_type ref_object_processor::get_property_type() const {
+p_type ref_object_processor::get_property_type() const
+{
     return p_type::ref_object;
 }
 
-void ref_object_processor::process_ref_object_from_variant(property_helper* property, const std::string& ref_object_str) {
+void ref_object_processor::process_ref_object_from_variant(property_helper* property, const std::string& ref_object_str)
+{
     auto ref_obj = mc::expr::func_parser::get_instance().parse_ref_object(ref_object_str);
     property->set_property_type(p_type::ref_object);
 
@@ -51,7 +55,8 @@ void ref_object_processor::process_ref_object_from_variant(property_helper* prop
     initialize_ref_object_cache(property, ref_obj.object_name);
 }
 
-void ref_object_processor::initialize_ref_object_cache(property_helper* property, const std::string& object_name) {
+void ref_object_processor::initialize_ref_object_cache(property_helper* property, const std::string& object_name)
+{
     // 分配缓存内存
     auto cache = std::make_unique<mc::variant>();
 

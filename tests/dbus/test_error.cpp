@@ -18,13 +18,15 @@
 using namespace mc::dbus;
 
 // 测试默认构造
-TEST(ErrorTest, DefaultConstructor) {
+TEST(ErrorTest, DefaultConstructor)
+{
     error err;
     EXPECT_FALSE(err.is_set());
 }
 
 // 测试复制构造
-TEST(ErrorTest, CopyConstructor) {
+TEST(ErrorTest, CopyConstructor)
+{
     error err1;
     err1.set_error("org.freedesktop.DBus.Error.Failed", "Test error message");
 
@@ -35,14 +37,16 @@ TEST(ErrorTest, CopyConstructor) {
 }
 
 // 测试复制构造 - 源对象未设置错误
-TEST(ErrorTest, CopyConstructorUnset) {
+TEST(ErrorTest, CopyConstructorUnset)
+{
     error err1; // 未设置错误
     error err2(err1);
     EXPECT_FALSE(err2.is_set());
 }
 
 // 测试复制赋值
-TEST(ErrorTest, CopyAssignment) {
+TEST(ErrorTest, CopyAssignment)
+{
     error err1;
     err1.set_error("org.freedesktop.DBus.Error.Failed", "Test error message");
 
@@ -54,7 +58,8 @@ TEST(ErrorTest, CopyAssignment) {
 }
 
 // 测试复制赋值 - 源对象未设置错误
-TEST(ErrorTest, CopyAssignmentUnset) {
+TEST(ErrorTest, CopyAssignmentUnset)
+{
     error err1; // 未设置错误
     error err2;
     err2.set_error("org.freedesktop.DBus.Error.Failed", "Test error message");
@@ -63,7 +68,8 @@ TEST(ErrorTest, CopyAssignmentUnset) {
 }
 
 // 测试移动赋值
-TEST(ErrorTest, MoveAssignment) {
+TEST(ErrorTest, MoveAssignment)
+{
     error err1;
     err1.set_error("org.freedesktop.DBus.Error.Failed", "Test error message");
 
@@ -79,7 +85,8 @@ TEST(ErrorTest, MoveAssignment) {
 }
 
 // 测试移动构造
-TEST(ErrorTest, MoveConstructor) {
+TEST(ErrorTest, MoveConstructor)
+{
     error err1;
     err1.set_error("org.freedesktop.DBus.Error.Failed", "Test error message");
 
@@ -93,7 +100,8 @@ TEST(ErrorTest, MoveConstructor) {
 }
 
 // 测试 set_error (字符串视图版本)
-TEST(ErrorTest, SetErrorStringView) {
+TEST(ErrorTest, SetErrorStringView)
+{
     error err;
     err.set_error("org.freedesktop.DBus.Error.Failed", "Test error message");
 
@@ -103,7 +111,8 @@ TEST(ErrorTest, SetErrorStringView) {
 }
 
 // 测试 set_error (带格式化参数版本)
-TEST(ErrorTest, SetErrorWithDict) {
+TEST(ErrorTest, SetErrorWithDict)
+{
     error    err;
     mc::dict args;
     args["param"] = "value";
@@ -119,7 +128,8 @@ TEST(ErrorTest, SetErrorWithDict) {
 }
 
 // 测试 set_error (空字典)
-TEST(ErrorTest, SetErrorWithEmptyDict) {
+TEST(ErrorTest, SetErrorWithEmptyDict)
+{
     error    err;
     mc::dict args;
 
@@ -132,7 +142,8 @@ TEST(ErrorTest, SetErrorWithEmptyDict) {
 }
 
 // 测试 set_error_const
-TEST(ErrorTest, SetErrorConst) {
+TEST(ErrorTest, SetErrorConst)
+{
     error       err;
     const char* name    = "org.freedesktop.DBus.Error.Failed";
     const char* message = "Test error message";
@@ -145,7 +156,8 @@ TEST(ErrorTest, SetErrorConst) {
 }
 
 // 测试错误名称常量
-TEST(ErrorTest, ErrorNames) {
+TEST(ErrorTest, ErrorNames)
+{
     EXPECT_EQ(std::string(error_names::failed),
               "org.freedesktop.DBus.Error.Failed");
     EXPECT_EQ(std::string(error_names::no_memory),

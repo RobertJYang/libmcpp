@@ -47,11 +47,13 @@ static constexpr uint8_t table[256] = {
     0xDE, 0xD9, 0xD0, 0xD7, 0xC2, 0xC5, 0xCC, 0xCB,
     0xE6, 0xE1, 0xE8, 0xEF, 0xFA, 0xFD, 0xF4, 0xF3};
 
-CRC8::CRC8() {
+CRC8::CRC8()
+{
     initializeTable();
 }
 
-uint8_t CRC8::calculate(const std::string& bytes) {
+uint8_t CRC8::calculate(const std::string& bytes)
+{
     uint8_t crc8 = 0x00;
     for (char c : bytes) {
         uint8_t byte  = static_cast<uint8_t>(c);
@@ -61,7 +63,8 @@ uint8_t CRC8::calculate(const std::string& bytes) {
     return crc8;
 }
 
-void CRC8::initializeTable() {
+void CRC8::initializeTable()
+{
     // 这里表已经静态初始化，实际不需要此函数
     // 保留此函数是为了兼容可能需要动态生成表的场景
 }

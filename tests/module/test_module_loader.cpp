@@ -21,7 +21,8 @@
 
 namespace {
 
-std::string_view shared_lib_ext() {
+std::string_view shared_lib_ext()
+{
 #if defined(__APPLE__)
     return ".dylib";
 #else
@@ -43,7 +44,8 @@ public:
     };
 
     // 添加模拟库
-    void add_mock_lib(const std::string& path, const std::set<std::string>& symbols) {
+    void add_mock_lib(const std::string& path, const std::set<std::string>& symbols)
+    {
         mock_lib_info info;
         info.path             = path;
         info.exported_symbols = symbols;
@@ -53,18 +55,21 @@ public:
     }
 
     // 清除所有模拟库
-    void clear() {
+    void clear()
+    {
         m_mock_libs.clear();
         m_loaded_libs.clear();
     }
 
     // 获取当前加载的库数量
-    size_t loaded_count() const {
+    size_t loaded_count() const
+    {
         return m_loaded_libs.size();
     }
 
     // 检查指定路径的库是否被加载
-    bool is_loaded(const std::string& path) const {
+    bool is_loaded(const std::string& path) const
+    {
         for (const auto& pair : m_loaded_libs) {
             if (pair.second == path) {
                 return true;
@@ -74,29 +79,35 @@ public:
     }
 
     // 静态方法，用于实现打桩函数
-    static void* mock_load(std::string_view path, bool /*glb*/) {
+    static void* mock_load(std::string_view path, bool /*glb*/)
+    {
         return instance().load_impl(path);
     }
 
-    static void mock_unload(void* handle) {
+    static void mock_unload(void* handle)
+    {
         instance().unload_impl(handle);
     }
 
-    static void* mock_sym(void* handle, std::string_view symbol_name) {
+    static void* mock_sym(void* handle, std::string_view symbol_name)
+    {
         return instance().sym_impl(handle, symbol_name);
     }
 
-    static bool mock_is_readable(std::string_view path) {
+    static bool mock_is_readable(std::string_view path)
+    {
         return instance().is_readable_impl(path);
     }
 
-    static mock_lib_loader& instance() {
+    static mock_lib_loader& instance()
+    {
         static mock_lib_loader inst;
         return inst;
     }
 
 private:
-    void* load_impl(std::string_view path) {
+    void* load_impl(std::string_view path)
+    {
         std::string path_str(path);
         auto        it = m_mock_libs.find(path_str);
         if (it == m_mock_libs.end()) {
@@ -109,11 +120,13 @@ private:
         return handle;
     }
 
-    void unload_impl(void* handle) {
+    void unload_impl(void* handle)
+    {
         m_loaded_libs.erase(handle);
     }
 
-    void* sym_impl(void* handle, std::string_view symbol_name) {
+    void* sym_impl(void* handle, std::string_view symbol_name)
+    {
         auto lib_it = m_loaded_libs.find(handle);
         if (lib_it == m_loaded_libs.end()) {
             return nullptr; // 句柄无效
@@ -140,7 +153,8 @@ private:
         return reinterpret_cast<void*>(0x3000); // 其他符号的模拟指针
     }
 
-    bool is_readable_impl(std::string_view path) {
+    bool is_readable_impl(std::string_view path)
+    {
         std::string path_str(path);
         return m_mock_libs.find(path_str) != m_mock_libs.end();
     }
@@ -154,7 +168,8 @@ private:
  */
 class ModuleLoaderTest : public mc::test::TestBase {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         // 清理模拟库状态
         mock_lib_loader::instance().clear();
 
@@ -165,12 +180,14 @@ protected:
         mock_funcs.is_readable = mock_lib_loader::mock_is_readable;
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         mock_lib_loader::instance().clear();
     }
 
     // 辅助方法：创建一个配置好打桩函数的 loader
-    mc::module::module_loader create_mock_loader() {
+    mc::module::module_loader create_mock_loader()
+    {
         mc::module::module_loader loader;
         loader.set_load_lib_func(mock_funcs);
         return loader;
@@ -183,7 +200,8 @@ protected:
 /**
  * @brief 测试构造函数和默认搜索路径
  */
-TEST_F(ModuleLoaderTest, TestDefaultSearchPaths) {
+TEST_F(ModuleLoaderTest, TestDefaultSearchPaths)
+{
     mc::module::module_loader loader;
 
     const auto& paths = loader.search_paths();
@@ -210,7 +228,8 @@ TEST_F(ModuleLoaderTest, TestDefaultSearchPaths) {
 /**
  * @brief 测试模块加载成功的情况
  */
-TEST_F(ModuleLoaderTest, TestLoadModuleSuccess) {
+TEST_F(ModuleLoaderTest, TestLoadModuleSuccess)
+{
     auto loader = create_mock_loader();
     loader.clear_search_paths();
     loader.add_search_path("./?.so");
@@ -243,7 +262,8 @@ TEST_F(ModuleLoaderTest, TestLoadModuleSuccess) {
 /**
  * @brief 测试模块加载失败的情况 - 库文件不存在
  */
-TEST_F(ModuleLoaderTest, TestLoadModuleLibraryNotFound) {
+TEST_F(ModuleLoaderTest, TestLoadModuleLibraryNotFound)
+{
     auto loader = create_mock_loader();
     loader.clear_search_paths();
     loader.add_search_path("./?.so");
@@ -265,7 +285,8 @@ TEST_F(ModuleLoaderTest, TestLoadModuleLibraryNotFound) {
 /**
  * @brief 测试模块加载失败的情况 - 缺少导出函数
  */
-TEST_F(ModuleLoaderTest, TestLoadModuleMissingExportFunction) {
+TEST_F(ModuleLoaderTest, TestLoadModuleMissingExportFunction)
+{
     auto loader = create_mock_loader();
     loader.clear_search_paths();
     loader.add_search_path("./?.so");
@@ -291,7 +312,8 @@ TEST_F(ModuleLoaderTest, TestLoadModuleMissingExportFunction) {
 /**
  * @brief 测试回调函数返回false的情况
  */
-TEST_F(ModuleLoaderTest, TestLoadModuleCallbackReturnsFalse) {
+TEST_F(ModuleLoaderTest, TestLoadModuleCallbackReturnsFalse)
+{
     auto loader = create_mock_loader();
     loader.clear_search_paths();
     loader.add_search_path("./?.so");
@@ -319,7 +341,8 @@ TEST_F(ModuleLoaderTest, TestLoadModuleCallbackReturnsFalse) {
 /**
  * @brief 测试多种搜索路径模式
  */
-TEST_F(ModuleLoaderTest, TestMultipleSearchPathPatterns) {
+TEST_F(ModuleLoaderTest, TestMultipleSearchPathPatterns)
+{
     auto loader = create_mock_loader();
     loader.clear_search_paths();
 
@@ -352,7 +375,8 @@ TEST_F(ModuleLoaderTest, TestMultipleSearchPathPatterns) {
 /**
  * @brief 测试复杂模块名的处理
  */
-TEST_F(ModuleLoaderTest, TestComplexModuleName) {
+TEST_F(ModuleLoaderTest, TestComplexModuleName)
+{
     auto loader = create_mock_loader();
     loader.clear_search_paths();
     loader.add_search_path("./?.so");
@@ -378,7 +402,8 @@ TEST_F(ModuleLoaderTest, TestComplexModuleName) {
 /**
  * @brief 测试搜索路径生命周期管理（添加、去重、清空再添加）
  */
-TEST_F(ModuleLoaderTest, TestSearchPathLifecycle) {
+TEST_F(ModuleLoaderTest, TestSearchPathLifecycle)
+{
     mc::module::module_loader loader;
 
     // 记录默认路径数量
@@ -406,7 +431,8 @@ TEST_F(ModuleLoaderTest, TestSearchPathLifecycle) {
 /**
  * @brief 测试模块名只有单个组件的情况
  */
-TEST_F(ModuleLoaderTest, TestLoadModuleSingleComponent) {
+TEST_F(ModuleLoaderTest, TestLoadModuleSingleComponent)
+{
     auto loader = create_mock_loader();
     loader.clear_search_paths();
     loader.add_search_path("./?.so");
@@ -430,7 +456,8 @@ TEST_F(ModuleLoaderTest, TestLoadModuleSingleComponent) {
 /**
  * @brief 测试无效路径（不包含 ?）
  */
-TEST_F(ModuleLoaderTest, TestAddLoadPathInvalid) {
+TEST_F(ModuleLoaderTest, TestAddLoadPathInvalid)
+{
     auto loader = create_mock_loader();
     loader.clear_search_paths();
     size_t initial_count = loader.search_paths().size();
@@ -449,7 +476,8 @@ TEST_F(ModuleLoaderTest, TestAddLoadPathInvalid) {
 /**
  * @brief 测试文件不可读的情况
  */
-TEST_F(ModuleLoaderTest, TestLoadPathNotReadable) {
+TEST_F(ModuleLoaderTest, TestLoadPathNotReadable)
+{
     auto loader = create_mock_loader();
     loader.clear_search_paths();
     loader.add_search_path("./?.so");
@@ -474,7 +502,8 @@ TEST_F(ModuleLoaderTest, TestLoadPathNotReadable) {
 /**
  * @brief 测试 dlopen 失败的情况
  */
-TEST_F(ModuleLoaderTest, TestLoadPathDlopenFailed) {
+TEST_F(ModuleLoaderTest, TestLoadPathDlopenFailed)
+{
     auto loader = create_mock_loader();
     loader.clear_search_paths();
     loader.add_search_path("./?.so");
@@ -502,7 +531,8 @@ TEST_F(ModuleLoaderTest, TestLoadPathDlopenFailed) {
 /**
  * @brief 测试缺少 close 函数的情况
  */
-TEST_F(ModuleLoaderTest, TestLoadPathMissingCloseFunc) {
+TEST_F(ModuleLoaderTest, TestLoadPathMissingCloseFunc)
+{
     auto loader = create_mock_loader();
     loader.clear_search_paths();
     loader.add_search_path("./?.so");
@@ -530,7 +560,8 @@ TEST_F(ModuleLoaderTest, TestLoadPathMissingCloseFunc) {
 /**
  * @brief 测试回调函数抛出异常的情况
  */
-TEST_F(ModuleLoaderTest, TestLoadPathCallbackException) {
+TEST_F(ModuleLoaderTest, TestLoadPathCallbackException)
+{
     auto loader = create_mock_loader();
     loader.clear_search_paths();
     loader.add_search_path("./?.so");
@@ -557,7 +588,8 @@ TEST_F(ModuleLoaderTest, TestLoadPathCallbackException) {
 /**
  * @brief 测试重复添加搜索路径
  */
-TEST_F(ModuleLoaderTest, TestAddSearchPathDuplicate) {
+TEST_F(ModuleLoaderTest, TestAddSearchPathDuplicate)
+{
     auto loader = create_mock_loader();
     loader.clear_search_paths();
 
@@ -574,7 +606,8 @@ TEST_F(ModuleLoaderTest, TestAddSearchPathDuplicate) {
 /**
  * @brief 测试混合使用冒号与点号的模块名
  */
-TEST_F(ModuleLoaderTest, TestLoadModuleMixedSeparators) {
+TEST_F(ModuleLoaderTest, TestLoadModuleMixedSeparators)
+{
     auto loader = create_mock_loader();
     loader.clear_search_paths();
     loader.add_search_path("./?.so");
@@ -600,7 +633,8 @@ TEST_F(ModuleLoaderTest, TestLoadModuleMixedSeparators) {
 /**
  * @brief 测试包含多个问号占位符的路径模板
  */
-TEST_F(ModuleLoaderTest, TestLoadModuleTemplateMultiPlaceholders) {
+TEST_F(ModuleLoaderTest, TestLoadModuleTemplateMultiPlaceholders)
+{
     auto loader = create_mock_loader();
     loader.clear_search_paths();
     loader.add_search_path("./?/bin/?.so");
@@ -626,7 +660,8 @@ TEST_F(ModuleLoaderTest, TestLoadModuleTemplateMultiPlaceholders) {
 /**
  * @brief 测试缺少 open_func 的情况
  */
-TEST_F(ModuleLoaderTest, TestLoadPathMissingOpenFunc) {
+TEST_F(ModuleLoaderTest, TestLoadPathMissingOpenFunc)
+{
     auto loader = create_mock_loader();
     loader.clear_search_paths();
     loader.add_search_path("./?.so");
@@ -654,7 +689,8 @@ TEST_F(ModuleLoaderTest, TestLoadPathMissingOpenFunc) {
 /**
  * @brief 测试空模块名的情况
  */
-TEST_F(ModuleLoaderTest, TestLoadModuleEmptyName) {
+TEST_F(ModuleLoaderTest, TestLoadModuleEmptyName)
+{
     auto loader = create_mock_loader();
     loader.clear_search_paths();
     loader.add_search_path("./?.so");

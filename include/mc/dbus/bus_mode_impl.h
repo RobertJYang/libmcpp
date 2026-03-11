@@ -48,21 +48,24 @@ public:
     /**
      * @brief 获取连接对象
      */
-    connection& get_connection() {
+    connection& get_connection()
+    {
         return m_connection;
     }
 
     /**
      * @brief 获取唯一名称
      */
-    std::string_view get_unique_name() const {
+    std::string_view get_unique_name() const
+    {
         return m_unique_name;
     }
 
     /**
      * @brief 获取服务名称
      */
-    std::string_view get_service_name() const {
+    std::string_view get_service_name() const
+    {
         return m_service_name;
     }
 

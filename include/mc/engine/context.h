@@ -29,7 +29,9 @@ namespace detail {
 
 struct dbus_call {
     dbus_call() = default;
-    dbus_call(mc::dbus::message request) : request(std::move(request)) {
+    dbus_call(mc::dbus::message request)
+        : request(std::move(request))
+    {
     }
 
     mc::dbus::message request;
@@ -39,7 +41,8 @@ struct dbus_call {
 struct variants_call {
     variants_call(const mc::variants& a, std::string_view interface_name,
                   std::string_view method_name)
-        : args(&a), interface_name(interface_name), method_name(method_name) {
+        : args(&a), interface_name(interface_name), method_name(method_name)
+    {
     }
 
     const mc::variants* args;
@@ -132,7 +135,8 @@ using context_stack = detail::call_stack<service, context>;
                                                 BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)) std::monostate{}))
 #define MC_REPLY_ERROR(...)                                                                  \
     BOOST_PP_IIF(BOOST_PP_GREATER(BOOST_PP_VARIADIC_SIZE(__VA_ARGS__), 1), MC_REPLY_ERROR_2, \
-                 MC_REPLY_ERROR_1)(__VA_ARGS__)
+                 MC_REPLY_ERROR_1)                                                           \
+    (__VA_ARGS__)
 
 // MC_REPLY_ERROR_AND_THROW: 抛出错误并立即结束当前调用
 //
@@ -150,7 +154,8 @@ using context_stack = detail::call_stack<service, context>;
     mc::engine::context::throw_error(err, mc::dict() __VA_ARGS__)
 #define MC_REPLY_ERROR_AND_THROW(...)                                                                  \
     BOOST_PP_IIF(BOOST_PP_GREATER(BOOST_PP_VARIADIC_SIZE(__VA_ARGS__), 1), MC_REPLY_ERROR_AND_THROW_2, \
-                 MC_REPLY_ERROR_AND_THROW_1)(__VA_ARGS__)
+                 MC_REPLY_ERROR_AND_THROW_1)                                                           \
+    (__VA_ARGS__)
 
 // MC_IGNORE: 忽略当前请求，消息分发机制会继续路由到下一个处理者
 //

@@ -18,7 +18,8 @@
 
 namespace mc::expr {
 
-mc::variant object_method_call_node::evaluate(const context_base& ctx) const {
+mc::variant object_method_call_node::evaluate(const context_base& ctx) const
+{
     if (m_object->get_type() != node_type::variable) {
         MC_THROW(invalid_arg_exception, "表达式求值错误: 无法调用对象的方法 '${obj}.${method}'",
                  ("obj", m_object->to_string())("method", m_method_name));
@@ -39,7 +40,8 @@ mc::variant object_method_call_node::evaluate(const context_base& ctx) const {
     return ctx.invoke(m_method_name, args, var_node.get_name());
 }
 
-std::string object_method_call_node::to_string() const {
+std::string object_method_call_node::to_string() const
+{
     std::string result = m_object->to_string() + "." + m_method_name + "(";
     for (size_t i = 0; i < m_args.size(); ++i) {
         if (i > 0) {
@@ -51,7 +53,8 @@ std::string object_method_call_node::to_string() const {
     return result;
 }
 
-node_ptr make_object_method_call(node_ptr object, const std::string& method_name, node_ptrs args) {
+node_ptr make_object_method_call(node_ptr object, const std::string& method_name, node_ptrs args)
+{
     return std::make_shared<object_method_call_node>(std::move(object), method_name,
                                                      std::move(args));
 }

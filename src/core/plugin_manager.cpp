@@ -20,20 +20,24 @@ namespace mc::core {
 
 plugin_manager::plugin_manager() = default;
 
-plugin_manager::~plugin_manager() {
+plugin_manager::~plugin_manager()
+{
     unload_all_plugins();
 }
 
-void plugin_manager::set_plugin_dir(const std::string& dir) {
+void plugin_manager::set_plugin_dir(const std::string& dir)
+{
     m_plugin_dir = dir;
     dlog("set plugin dir: ${dir}", ("dir", dir));
 }
 
-const std::string& plugin_manager::plugin_dir() const {
+const std::string& plugin_manager::plugin_dir() const
+{
     return m_plugin_dir;
 }
 
-bool plugin_manager::register_plugin(std::shared_ptr<plugin> plugin) {
+bool plugin_manager::register_plugin(std::shared_ptr<plugin> plugin)
+{
     if (!plugin) {
         elog("cannot register null plugin");
         return false;
@@ -53,7 +57,8 @@ bool plugin_manager::register_plugin(std::shared_ptr<plugin> plugin) {
     return true;
 }
 
-plugin* plugin_manager::find_plugin(const std::string& name) const {
+plugin* plugin_manager::find_plugin(const std::string& name) const
+{
     auto it = m_plugins.find(name);
     if (it == m_plugins.end()) {
         return nullptr;
@@ -61,7 +66,8 @@ plugin* plugin_manager::find_plugin(const std::string& name) const {
     return it->second.get();
 }
 
-bool plugin_manager::load_plugin(const std::string& name) {
+bool plugin_manager::load_plugin(const std::string& name)
+{
     if (find_plugin(name)) {
         dlog("plugin '${name}' already loaded", ("name", name));
         return true;
@@ -78,7 +84,8 @@ bool plugin_manager::load_plugin(const std::string& name) {
     return register_plugin(std::move(plugin));
 }
 
-bool plugin_manager::load_plugins(const std::vector<std::string>& plugin_names) {
+bool plugin_manager::load_plugins(const std::vector<std::string>& plugin_names)
+{
     if (m_plugin_dir.empty()) {
         elog("plugin dir not set");
         return false;
@@ -128,7 +135,8 @@ bool plugin_manager::load_plugins(const std::vector<std::string>& plugin_names) 
     }
 }
 
-bool plugin_manager::unload_plugin(const std::string& name) {
+bool plugin_manager::unload_plugin(const std::string& name)
+{
     auto it = m_plugins.find(name);
     if (it == m_plugins.end()) {
         wlog("plugin '${name}' not found, cannot unload", ("name", name));
@@ -145,7 +153,8 @@ bool plugin_manager::unload_plugin(const std::string& name) {
     return true;
 }
 
-void plugin_manager::unload_all_plugins() {
+void plugin_manager::unload_all_plugins()
+{
     dlog("unload all plugins");
     m_plugins.clear();
 
@@ -159,7 +168,8 @@ void plugin_manager::unload_all_plugins() {
     m_plugin_handles.clear();
 }
 
-bool plugin_manager::init_plugins(service_factory& factory) {
+bool plugin_manager::init_plugins(service_factory& factory)
+{
     bool all_success = true;
 
     for (auto& pair : m_plugins) {
@@ -174,7 +184,8 @@ bool plugin_manager::init_plugins(service_factory& factory) {
     return all_success;
 }
 
-std::vector<std::string> plugin_manager::get_loaded_plugins() const {
+std::vector<std::string> plugin_manager::get_loaded_plugins() const
+{
     std::vector<std::string> result;
     result.reserve(m_plugins.size());
 
@@ -186,7 +197,8 @@ std::vector<std::string> plugin_manager::get_loaded_plugins() const {
 }
 
 bool plugin_manager::load_dynamic_library(const std::string& plugin_name, void*& handle,
-                                          std::shared_ptr<plugin>& plugin) {
+                                          std::shared_ptr<plugin>& plugin)
+{
     // 尝试加载动态库
     std::string lib_path = mc::filesystem::join(m_plugin_dir, "lib" + plugin_name + ".so");
 

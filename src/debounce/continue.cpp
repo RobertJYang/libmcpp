@@ -15,8 +15,9 @@
 
 namespace mc::debounce {
 
-Continue::Continue(int count) : m_count(count), m_stable_val(-1), m_unstable_val(-1),
-    m_unstable_val_count(0), is_valid(false)
+Continue::Continue(int count)
+    : m_count(count), m_stable_val(-1), m_unstable_val(-1),
+      m_unstable_val_count(0), is_valid(false)
 {
     if (count <= 0) {
         throw std::runtime_error("count must be greater than 0");
@@ -26,24 +27,24 @@ Continue::Continue(int count) : m_count(count), m_stable_val(-1), m_unstable_val
 std::optional<int> Continue::get_debounce_val(int new_val)
 {
     if (m_stable_val == new_val) {
-        m_unstable_val = m_stable_val;
+        m_unstable_val       = m_stable_val;
         m_unstable_val_count = 0;
     } else {
         if (m_unstable_val == new_val) {
             m_unstable_val_count++;
         } else {
-            m_unstable_val = new_val;
+            m_unstable_val       = new_val;
             m_unstable_val_count = 1;
         }
     }
 
     dlog("m_unstable_val: ${val1}, m_stable_val: ${val2}, m_unstable_val_count: ${val3}",
-        ("val1", m_unstable_val)("val2", m_stable_val)("val3", m_unstable_val_count));
+         ("val1", m_unstable_val)("val2", m_stable_val)("val3", m_unstable_val_count));
 
     if (m_unstable_val_count >= m_count) {
-        m_stable_val = m_unstable_val;
+        m_stable_val         = m_unstable_val;
         m_unstable_val_count = 0;
-        is_valid = true;
+        is_valid             = true;
     }
 
     if (!is_valid) {
@@ -55,11 +56,11 @@ std::optional<int> Continue::get_debounce_val(int new_val)
 
 void Continue::clear_debounce_val()
 {
-   m_count = 0;
-   m_stable_val = -1;
-   m_unstable_val = -1;
-   m_unstable_val_count = 0;
-   is_valid = false;
+    m_count              = 0;
+    m_stable_val         = -1;
+    m_unstable_val       = -1;
+    m_unstable_val_count = 0;
+    is_valid             = false;
 }
 
-}
+} // namespace mc::debounce

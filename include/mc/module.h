@@ -24,7 +24,8 @@ namespace detail {
 
 #define MAX_MODULE_NAME_LENGTH 64
 
-constexpr inline bool is_valid_module_name(std::string_view name) {
+constexpr inline bool is_valid_module_name(std::string_view name)
+{
     if (name.empty() || name.size() > MAX_MODULE_NAME_LENGTH) {
         return false;
     }
@@ -62,7 +63,8 @@ constexpr inline bool is_valid_module_name(std::string_view name) {
 }
 
 // 编译时字符串长度计算
-constexpr size_t str_len(const char* str) {
+constexpr size_t str_len(const char* str)
+{
     size_t len = 0;
     while (str[len] != '\0') {
         ++len;
@@ -71,7 +73,8 @@ constexpr size_t str_len(const char* str) {
 }
 
 // 编译时将下划线替换为点号
-constexpr auto convert_underscore_to_dot(const char* str) {
+constexpr auto convert_underscore_to_dot(const char* str)
+{
     std::array<char, MAX_MODULE_NAME_LENGTH> result{};
     for (size_t i = 0; str[i] != 0; ++i) {
         result[i]     = (str[i] == '_') ? '.' : str[i];
@@ -191,11 +194,13 @@ struct module_namespace {
  */
 #define MC_EXPORT_MODULE(module_name)                                                          \
     extern "C" {                                                                               \
-    MC_API void* mc_open_##module_name() {                                                     \
+    MC_API void* mc_open_##module_name()                                                       \
+    {                                                                                          \
         return mc::reflect::reflection_factory::instance_ptr<module_name##_namespace>().get(); \
     }                                                                                          \
-    MC_API void mc_close_##module_name() {                                                     \
-        /* 空实现：模块的清理由 module_manager 通过引用计数管理 */                             \
+    MC_API void mc_close_##module_name()                                                       \
+    {                                                                                          \
+        /* 空实现：模块的清理由 module_manager 通过引用计数管理 */           \
     }                                                                                          \
     }
 } // namespace mc::module
@@ -207,11 +212,13 @@ namespace module {
  * @brief 加载模块
  */
 inline mc::module::module_ptr
-load_module(std::string_view module_name) {
+load_module(std::string_view module_name)
+{
     return mc::module::module_manager::instance().require(module_name);
 }
 
-inline mc::module::module_manager& get_module_manager() {
+inline mc::module::module_manager& get_module_manager()
+{
     return mc::module::module_manager::instance();
 }
 

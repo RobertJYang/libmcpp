@@ -36,20 +36,24 @@ struct proxy_object_wrapper {
 
     explicit proxy_object_wrapper(proxy_object* obj)
         : obj_ptr(std::shared_ptr<proxy_object>(obj, [](proxy_object*) {
-          })) {
+          }))
+    {
     }
 
     explicit proxy_object_wrapper(std::shared_ptr<proxy_object> obj)
-        : obj_ptr(std::move(obj)) {
+        : obj_ptr(std::move(obj))
+    {
     }
 
-    proxy_object& get() {
+    proxy_object& get()
+    {
         return *obj_ptr;
     }
 };
 
 // 创建 proxy_object userdata 并推入 Lua 栈
-inline int push_proxy_object(lua_State* L, proxy_object* obj) {
+inline int push_proxy_object(lua_State* L, proxy_object* obj)
+{
     void* userdata = lua_newuserdata(L, sizeof(proxy_object_wrapper));
     new (userdata) proxy_object_wrapper(obj);
 
@@ -60,7 +64,8 @@ inline int push_proxy_object(lua_State* L, proxy_object* obj) {
 }
 
 // 创建 proxy_object userdata 并推入 Lua 栈（使用 shared_ptr）
-inline int push_proxy_object(lua_State* L, std::shared_ptr<proxy_object> obj) {
+inline int push_proxy_object(lua_State* L, std::shared_ptr<proxy_object> obj)
+{
     void* userdata = lua_newuserdata(L, sizeof(proxy_object_wrapper));
     new (userdata) proxy_object_wrapper(std::move(obj));
 
@@ -71,7 +76,8 @@ inline int push_proxy_object(lua_State* L, std::shared_ptr<proxy_object> obj) {
 }
 
 // 从 Lua 栈获取 proxy_object
-inline proxy_object_wrapper* check_proxy_object(lua_State* L, int index = 1) {
+inline proxy_object_wrapper* check_proxy_object(lua_State* L, int index = 1)
+{
     return static_cast<proxy_object_wrapper*>(
         luaL_checkudata(L, index, PROXY_OBJECT_METATABLE));
 }

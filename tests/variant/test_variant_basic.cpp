@@ -27,11 +27,13 @@ namespace test {
 
 class VariantBasicTest : public TestBase {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         TestBase::SetUp();
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         TestBase::TearDown();
     }
 };
@@ -39,7 +41,8 @@ protected:
 /**
  * @brief 测试创建空 variant
  */
-TEST_F(VariantBasicTest, NullVariant) {
+TEST_F(VariantBasicTest, NullVariant)
+{
     variant v;
     ASSERT_TRUE(v.is_null()) << "默认构造的 variant 应该是 null";
 
@@ -50,7 +53,8 @@ TEST_F(VariantBasicTest, NullVariant) {
 /**
  * @brief 测试布尔类型 variant
  */
-TEST_F(VariantBasicTest, BooleanValues) {
+TEST_F(VariantBasicTest, BooleanValues)
+{
     variant v_true(true);
     verify_bool_value(v_true, true);
 
@@ -61,7 +65,8 @@ TEST_F(VariantBasicTest, BooleanValues) {
 /**
  * @brief 测试整数类型 variant
  */
-TEST_F(VariantBasicTest, IntegerValues) {
+TEST_F(VariantBasicTest, IntegerValues)
+{
     // 测试 int32_t
     variant v_int(42);
     verify_integer_value(v_int, 42);
@@ -86,7 +91,8 @@ TEST_F(VariantBasicTest, IntegerValues) {
 /**
  * @brief 测试 8 位和 16 位整数类型
  */
-TEST_F(VariantBasicTest, SmallIntegerTypes) {
+TEST_F(VariantBasicTest, SmallIntegerTypes)
+{
     // 测试 int8_t
     variant v_int8(int8_t(-128));
     verify_integer_value(v_int8, int8_t(-128));
@@ -111,7 +117,8 @@ TEST_F(VariantBasicTest, SmallIntegerTypes) {
 /**
  * @brief 测试浮点类型 variant
  */
-TEST_F(VariantBasicTest, FloatingPointValues) {
+TEST_F(VariantBasicTest, FloatingPointValues)
+{
     // 测试 double
     variant v_double(3.14159265359);
     verify_double_value(v_double, 3.14159265359);
@@ -124,7 +131,8 @@ TEST_F(VariantBasicTest, FloatingPointValues) {
 /**
  * @brief 测试字符串类型 variant
  */
-TEST_F(VariantBasicTest, StringValues) {
+TEST_F(VariantBasicTest, StringValues)
+{
     // 从 std::string 构造
     std::string str = "Hello, World!";
     variant     v_str(str);
@@ -139,7 +147,8 @@ TEST_F(VariantBasicTest, StringValues) {
 /**
  * @brief 测试整数类型间的相互转换
  */
-TEST_F(VariantBasicTest, IntegerTypeConversions) {
+TEST_F(VariantBasicTest, IntegerTypeConversions)
+{
     // 从 int32_t 转到其他类型
     variant v(42);
 
@@ -172,7 +181,8 @@ TEST_F(VariantBasicTest, IntegerTypeConversions) {
 /**
  * @brief 测试浮点数和整数之间的转换
  */
-TEST_F(VariantBasicTest, DISABLED_FloatIntegerConversions) {
+TEST_F(VariantBasicTest, DISABLED_FloatIntegerConversions)
+{
     variant v_int(42);
     EXPECT_DOUBLE_EQ(v_int.as_double(), 42.0) << "int 转换到 double 失败";
 }
@@ -180,7 +190,8 @@ TEST_F(VariantBasicTest, DISABLED_FloatIntegerConversions) {
 /**
  * @brief 测试类型不匹配时的异常
  */
-TEST_F(VariantBasicTest, TypeMismatchExceptions) {
+TEST_F(VariantBasicTest, TypeMismatchExceptions)
+{
     variant v_str("string value");
     EXPECT_THROW(v_str.as<int>(), mc::invalid_arg_exception) << "字符串转 int 应抛出异常";
     EXPECT_THROW(v_str.as<double>(), mc::invalid_arg_exception) << "字符串转 double 应抛出异常";
@@ -192,7 +203,8 @@ TEST_F(VariantBasicTest, TypeMismatchExceptions) {
 /**
  * @brief 测试 variant 的赋值操作
  */
-TEST_F(VariantBasicTest, AssignmentOperations) {
+TEST_F(VariantBasicTest, AssignmentOperations)
+{
     variant v;
 
     // 赋值不同类型
@@ -215,7 +227,8 @@ TEST_F(VariantBasicTest, AssignmentOperations) {
 /**
  * @brief 测试 variant 的复制和移动操作
  */
-TEST_F(VariantBasicTest, CopyAndMoveOperations) {
+TEST_F(VariantBasicTest, CopyAndMoveOperations)
+{
     // 复制构造
     variant original(42);
     variant copy(original);
@@ -241,7 +254,8 @@ TEST_F(VariantBasicTest, CopyAndMoveOperations) {
 /**
  * @brief 测试 variant 的清除操作
  */
-TEST_F(VariantBasicTest, ClearOperation) {
+TEST_F(VariantBasicTest, ClearOperation)
+{
     variant v(42);
     ASSERT_FALSE(v.is_null()) << "初始不应该是 null";
 
@@ -252,7 +266,8 @@ TEST_F(VariantBasicTest, ClearOperation) {
 /**
  * @brief 测试带默认值的as方法
  */
-TEST_F(VariantBasicTest, AsWithDefaultValue) {
+TEST_F(VariantBasicTest, AsWithDefaultValue)
+{
     // 测试正常转换情况
     variant v_int(42);
     ASSERT_EQ(v_int.as<int>(100), 42) << "正常转换时应返回实际值而非默认值";
@@ -291,7 +306,8 @@ TEST_F(VariantBasicTest, AsWithDefaultValue) {
 /**
  * @brief 测试所有类型检查函数，确保每个函数都能正确识别和排除类型
  */
-TEST_F(VariantBasicTest, ComprehensiveTypeChecking) {
+TEST_F(VariantBasicTest, ComprehensiveTypeChecking)
+{
     // 测试 null 类型
     variant v_null;
     ASSERT_TRUE(v_null.is_null());
@@ -507,19 +523,20 @@ TEST_F(VariantBasicTest, ComprehensiveTypeChecking) {
 }
 
 // 测试 set_value 覆盖数值类型目标
-TEST_F(VariantBasicTest, SetValueCoversNumericTargets) {
+TEST_F(VariantBasicTest, SetValueCoversNumericTargets)
+{
     // 测试 uint64_type
     variant_base v_uint64(mc::type_id::uint64_type);
     variant_base source_uint64(uint64_t(100));
     v_uint64.set_value(source_uint64);
     EXPECT_EQ(v_uint64.as_uint64(), 100);
-    
+
     // 测试 double_type
     variant_base v_double(mc::type_id::double_type);
     variant_base source_double(3.14);
     v_double.set_value(source_double);
     EXPECT_DOUBLE_EQ(v_double.as_double(), 3.14);
-    
+
     // 测试 bool_type
     variant_base v_bool(mc::type_id::bool_type);
     variant_base source_bool(true);

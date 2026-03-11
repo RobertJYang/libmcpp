@@ -20,27 +20,31 @@
 namespace {
 class parser_test : public ::testing::Test {
 protected:
-    parser_test() {
+    parser_test()
+    {
     }
 
-    void SetUp() override {
+    void SetUp() override
+    {
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
     }
 
-    mc::expr::node_ptr parse_expr(const std::string& expr) {
+    mc::expr::node_ptr parse_expr(const std::string& expr)
+    {
         mc::expr::lexer  lex(expr);
         auto             tokens = lex.scan_tokens();
         mc::expr::parser p(std::move(tokens));
         return p.parse();
     }
-
 };
 } // namespace
 
 // 测试条件表达式解析（只测试能否解析，不测试求值）
-TEST_F(parser_test, conditional_expression) {
+TEST_F(parser_test, conditional_expression)
+{
     // 基本条件表达式
     EXPECT_NO_THROW(parse_expr("1 ? 2 : 3"));
     EXPECT_NO_THROW(parse_expr("a ? b : c"));
@@ -57,7 +61,8 @@ TEST_F(parser_test, conditional_expression) {
 }
 
 // 测试逻辑运算符表达式解析
-TEST_F(parser_test, logical_operators) {
+TEST_F(parser_test, logical_operators)
+{
     // 逻辑或
     EXPECT_NO_THROW(parse_expr("1 || 0"));
     EXPECT_NO_THROW(parse_expr("a || b || c"));
@@ -72,7 +77,8 @@ TEST_F(parser_test, logical_operators) {
 }
 
 // 测试位运算符表达式解析
-TEST_F(parser_test, bit_operators) {
+TEST_F(parser_test, bit_operators)
+{
     // 位或
     EXPECT_NO_THROW(parse_expr("1 | 2"));
     EXPECT_NO_THROW(parse_expr("a | b | c"));
@@ -96,7 +102,8 @@ TEST_F(parser_test, bit_operators) {
 }
 
 // 测试比较和相等性表达式解析
-TEST_F(parser_test, comparison_operators) {
+TEST_F(parser_test, comparison_operators)
+{
     // 相等性
     EXPECT_NO_THROW(parse_expr("1 == 1"));
     EXPECT_NO_THROW(parse_expr("a != b"));
@@ -111,7 +118,8 @@ TEST_F(parser_test, comparison_operators) {
 }
 
 // 测试运算符优先级（通过解析结构验证）
-TEST_F(parser_test, operator_precedence) {
+TEST_F(parser_test, operator_precedence)
+{
     // 算术运算符优先级
     EXPECT_NO_THROW(parse_expr("1 + 2 * 3"));
     EXPECT_NO_THROW(parse_expr("(1 + 2) * 3"));
@@ -127,7 +135,8 @@ TEST_F(parser_test, operator_precedence) {
 }
 
 // 测试一元运算符解析
-TEST_F(parser_test, unary_operators) {
+TEST_F(parser_test, unary_operators)
+{
     // 一元负号
     EXPECT_NO_THROW(parse_expr("-1"));
     EXPECT_NO_THROW(parse_expr("--1"));
@@ -150,7 +159,8 @@ TEST_F(parser_test, unary_operators) {
 }
 
 // 测试括号表达式解析
-TEST_F(parser_test, parenthesized_expression) {
+TEST_F(parser_test, parenthesized_expression)
+{
     EXPECT_NO_THROW(parse_expr("(1)"));
     EXPECT_NO_THROW(parse_expr("(1 + 2)"));
     EXPECT_NO_THROW(parse_expr("((1 + 2))"));
@@ -159,7 +169,8 @@ TEST_F(parser_test, parenthesized_expression) {
 }
 
 // 测试函数调用解析
-TEST_F(parser_test, function_call) {
+TEST_F(parser_test, function_call)
+{
     // 无参函数调用
     EXPECT_NO_THROW(parse_expr("abs()"));
 
@@ -181,7 +192,8 @@ TEST_F(parser_test, function_call) {
 }
 
 // 测试属性访问和方法调用解析
-TEST_F(parser_test, property_and_method_access) {
+TEST_F(parser_test, property_and_method_access)
+{
     // 基本属性访问
     EXPECT_NO_THROW(parse_expr("obj.property"));
     EXPECT_NO_THROW(parse_expr("obj.prop1.prop2"));
@@ -201,7 +213,8 @@ TEST_F(parser_test, property_and_method_access) {
 }
 
 // 测试模板字符串解析
-TEST_F(parser_test, template_string) {
+TEST_F(parser_test, template_string)
+{
     // 基本模板字符串
     EXPECT_NO_THROW(parse_expr("\"Hello, ${name}!\""));
 
@@ -217,7 +230,8 @@ TEST_F(parser_test, template_string) {
 }
 
 // 测试解析错误处理
-TEST_F(parser_test, parse_errors) {
+TEST_F(parser_test, parse_errors)
+{
     // 未闭合的括号
     EXPECT_THROW(parse_expr("(1 + 2"), mc::parse_error_exception);
     // 注意：解析器可能不检查多余的右括号，如果不检查则移除此测试
@@ -245,7 +259,8 @@ TEST_F(parser_test, parse_errors) {
 }
 
 // 测试复杂表达式解析
-TEST_F(parser_test, complex_expressions) {
+TEST_F(parser_test, complex_expressions)
+{
     // 复杂算术表达式
     EXPECT_NO_THROW(parse_expr("x + y * 2 - 5"));
     EXPECT_NO_THROW(parse_expr("(x + y) * (x - y)"));
@@ -264,7 +279,8 @@ TEST_F(parser_test, complex_expressions) {
 }
 
 // 测试边界情况
-TEST_F(parser_test, edge_cases) {
+TEST_F(parser_test, edge_cases)
+{
     // 单个数字
     EXPECT_NO_THROW(parse_expr("42"));
 
@@ -285,11 +301,11 @@ TEST_F(parser_test, edge_cases) {
 }
 
 // 测试 parser 的边界情况
-TEST_F(parser_test, parser_boundary_checks) {
+TEST_F(parser_test, parser_boundary_checks)
+{
     // 测试只有 EOF 的情况（空表达式）
     std::vector<mc::expr::token> eof_only;
     eof_only.emplace_back(mc::expr::token_type::end_of_file, "", mc::variant(), 0);
     mc::expr::parser p(std::move(eof_only));
     EXPECT_THROW(p.parse(), mc::parse_error_exception);
 }
-

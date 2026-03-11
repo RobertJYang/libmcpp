@@ -17,7 +17,8 @@
 #include <mc/variant.h>
 #include <mc/variant/variant_reference.h>
 
-TEST(variants_test, StronglyTypedIntArrayAccess) {
+TEST(variants_test, StronglyTypedIntArrayAccess)
+{
     // 测试 mc::array<int> 的 mc::variant 包装和访问
     mc::array<int> arr = {1, 2, 3, 4, 5};
     mc::variant    v   = arr; // 隐式转换
@@ -44,7 +45,8 @@ TEST(variants_test, StronglyTypedIntArrayAccess) {
     EXPECT_EQ(arr2[2], 3);
 }
 
-TEST(variants_test, StronglyTypedStringArrayAccess) {
+TEST(variants_test, StronglyTypedStringArrayAccess)
+{
     mc::array<std::string> arr = {"hello", "world", "test"};
     mc::variant            v   = arr;
 
@@ -64,7 +66,8 @@ TEST(variants_test, StronglyTypedStringArrayAccess) {
     EXPECT_EQ(arr2[1], "world");
 }
 
-TEST(variants_test, StronglyTypedArraySharedSemantics) {
+TEST(variants_test, StronglyTypedArraySharedSemantics)
+{
     // 验证强类型数组的共享语义
     mc::array<int> arr1 = {10, 20, 30};
     mc::variant    v1   = arr1;
@@ -89,7 +92,8 @@ TEST(variants_test, StronglyTypedArraySharedSemantics) {
     EXPECT_EQ(v1[1].as_int32(), 200);
 }
 
-TEST(variants_test, StronglyTypedArrayInDict) {
+TEST(variants_test, StronglyTypedArrayInDict)
+{
     // 测试在 dict 中使用强类型数组
     mc::array<int>         arr1 = {1, 2, 3};
     mc::array<std::string> arr2 = {"a", "b", "c"};
@@ -110,7 +114,8 @@ TEST(variants_test, StronglyTypedArrayInDict) {
     EXPECT_EQ(obj["numbers"][0].as_int32(), 100);
 }
 
-TEST(variants_test, StronglyTypedArrayMixedWithVariants) {
+TEST(variants_test, StronglyTypedArrayMixedWithVariants)
+{
     // 测试强类型数组与普通 variants 的混合使用
     mc::array<int> int_arr = {1, 2, 3};
     mc::variants   var_arr = {10, 20, 30};
@@ -143,7 +148,8 @@ TEST(variants_test, StronglyTypedArrayMixedWithVariants) {
 
 // ========== 强类型数组类型兼容性测试 ==========
 
-TEST(variants_test, StronglyTypedArrayRejectIncompatibleType) {
+TEST(variants_test, StronglyTypedArrayRejectIncompatibleType)
+{
     // 测试强类型数组拒绝不兼容的类型
     mc::array<int> int_arr = {1, 2, 3};
     mc::variant    v       = int_arr;
@@ -165,7 +171,8 @@ TEST(variants_test, StronglyTypedArrayRejectIncompatibleType) {
     EXPECT_EQ(v[2].as_int32(), 1); // true 被转换为 1
 }
 
-TEST(variants_test, StronglyTypedArrayAcceptCompatibleType) {
+TEST(variants_test, StronglyTypedArrayAcceptCompatibleType)
+{
     // 测试强类型数组接受兼容的类型
     mc::array<int> int_arr = {1, 2, 3};
     mc::variant    v       = int_arr;
@@ -183,7 +190,8 @@ TEST(variants_test, StronglyTypedArrayAcceptCompatibleType) {
     EXPECT_EQ(v[2].as_int32(), 300);
 }
 
-TEST(variants_test, WeaklyTypedArrayAcceptAnyType) {
+TEST(variants_test, WeaklyTypedArrayAcceptAnyType)
+{
     // 测试弱类型数组可以接受任何类型
     mc::variants weak_arr = {1, 2, 3};
     mc::variant  v        = weak_arr;
@@ -203,7 +211,8 @@ TEST(variants_test, WeaklyTypedArrayAcceptAnyType) {
     EXPECT_EQ(v[2].as_bool(), true);
 }
 
-TEST(variants_test, StronglyTypedStringArrayRejectNonString) {
+TEST(variants_test, StronglyTypedStringArrayRejectNonString)
+{
     // 测试强类型字符串数组拒绝非字符串类型
     mc::array<std::string> str_arr = {"hello", "world", "test"};
     mc::variant            v       = str_arr;
@@ -221,7 +230,8 @@ TEST(variants_test, StronglyTypedStringArrayRejectNonString) {
     EXPECT_EQ(v[2].as_string(), "true"); // true 转换为 "true"
 }
 
-TEST(variants_test, StronglyTypedStringArrayAcceptString) {
+TEST(variants_test, StronglyTypedStringArrayAcceptString)
+{
     // 测试强类型字符串数组接受字符串类型
     mc::array<std::string> str_arr = {"hello", "world", "test"};
     mc::variant            v       = str_arr;
@@ -242,7 +252,8 @@ TEST(variants_test, StronglyTypedStringArrayAcceptString) {
 
 // ========== variants 与 mc::array<T> 比较运算符测试 ==========
 
-TEST(variants_test, ComparisonWithArrayInt) {
+TEST(variants_test, ComparisonWithArrayInt)
+{
     // 测试 variants 与 mc::array<int> 的比较
     mc::array<int> arr = {1, 2, 3, 4, 5};
     mc::variants   var_arr{1, 2, 3, 4, 5};
@@ -276,7 +287,8 @@ TEST(variants_test, ComparisonWithArrayInt) {
     EXPECT_FALSE(arr3 >= var_arr);
 }
 
-TEST(variants_test, ComparisonWithArraySharedReference) {
+TEST(variants_test, ComparisonWithArraySharedReference)
+{
     // 测试共享引用时的快速路径
     mc::array<int> arr = {10, 20, 30};
     mc::variants   var_arr(arr); // 从 array 构造
@@ -293,7 +305,8 @@ TEST(variants_test, ComparisonWithArraySharedReference) {
     EXPECT_TRUE(var_arr == arr);
 }
 
-TEST(variants_test, ComparisonWithArrayEmpty) {
+TEST(variants_test, ComparisonWithArrayEmpty)
+{
     // 测试空数组的比较
     mc::array<int> empty_arr;
     mc::variants   empty_var;
@@ -316,7 +329,8 @@ TEST(variants_test, ComparisonWithArrayEmpty) {
 
 // ========== variants 与 std::vector<T> 比较运算符测试 ==========
 
-TEST(variants_test, ComparisonWithVectorInt) {
+TEST(variants_test, ComparisonWithVectorInt)
+{
     // 测试 variants 与 std::vector<int> 的比较
     std::vector<int> vec = {1, 2, 3, 4, 5};
     mc::variants     var_arr{1, 2, 3, 4, 5};
@@ -350,7 +364,8 @@ TEST(variants_test, ComparisonWithVectorInt) {
     EXPECT_FALSE(vec3 >= var_arr);
 }
 
-TEST(variants_test, ComparisonWithVectorString) {
+TEST(variants_test, ComparisonWithVectorString)
+{
     // 测试 variants 与 std::vector<std::string> 的比较
     std::vector<std::string> vec = {"hello", "world", "test"};
     mc::variants             var_arr{"hello", "world", "test"};
@@ -371,7 +386,8 @@ TEST(variants_test, ComparisonWithVectorString) {
     EXPECT_TRUE(vec3 < var_arr);
 }
 
-TEST(variants_test, ComparisonWithVectorEmpty) {
+TEST(variants_test, ComparisonWithVectorEmpty)
+{
     // 测试 variants 与空 vector 的比较
     std::vector<int> empty_vec;
     mc::variants     empty_var;
@@ -391,7 +407,8 @@ TEST(variants_test, ComparisonWithVectorEmpty) {
     EXPECT_FALSE(vec < empty_var);
 }
 
-TEST(variants_test, ComparisonWithVectorLexicographic) {
+TEST(variants_test, ComparisonWithVectorLexicographic)
+{
     // 测试字典序比较
     std::vector<int> vec1 = {1, 2, 3};
     std::vector<int> vec2 = {1, 2, 4};
@@ -422,7 +439,8 @@ TEST(variants_test, ComparisonWithVectorLexicographic) {
     EXPECT_TRUE(vec3 > var_arr2);
 }
 
-TEST(variants_test, variant_reference_initializer_list_constructor) {
+TEST(variants_test, variant_reference_initializer_list_constructor)
+{
     // 创建一个包含 mc::variant 的数组
     mc::array<mc::variant> source_array = {mc::variant(1.5), mc::variant("world"), mc::variant(false)};
 
@@ -447,7 +465,8 @@ TEST(variants_test, variant_reference_initializer_list_constructor) {
 }
 
 // 测试 mc::variants 的 variant_reference 迭代器构造函数
-TEST(variants_test, variant_reference_iterator_range_constructor) {
+TEST(variants_test, variant_reference_iterator_range_constructor)
+{
     // 创建一个包含 mc::variant 的数组
     mc::array<mc::variant> source_array = {mc::variant("test"), mc::variant(3.14), mc::variant(999)};
 
@@ -468,7 +487,8 @@ TEST(variants_test, variant_reference_iterator_range_constructor) {
 
 // ========== variants erase 方法测试 ==========
 
-TEST(variants_test, EraseByIndex) {
+TEST(variants_test, EraseByIndex)
+{
     // 测试通过索引删除元素
     mc::variants arr{1, 2, 3, 4, 5};
 
@@ -494,7 +514,8 @@ TEST(variants_test, EraseByIndex) {
     EXPECT_EQ(arr[1].as_int32(), 4);
 }
 
-TEST(variants_test, EraseByIndexRange) {
+TEST(variants_test, EraseByIndexRange)
+{
     // 测试通过索引范围删除元素
     mc::variants arr{1, 2, 3, 4, 5, 6, 7};
 
@@ -513,7 +534,8 @@ TEST(variants_test, EraseByIndexRange) {
     EXPECT_EQ(arr[1].as_int32(), 7);
 }
 
-TEST(variants_test, EraseByIterator) {
+TEST(variants_test, EraseByIterator)
+{
     // 测试通过迭代器删除元素
     mc::variants arr{10, 20, 30, 40, 50};
 
@@ -532,7 +554,8 @@ TEST(variants_test, EraseByIterator) {
     EXPECT_EQ(result_it - arr.begin(), 2);
 }
 
-TEST(variants_test, EraseByIteratorRange) {
+TEST(variants_test, EraseByIteratorRange)
+{
     // 测试通过迭代器范围删除元素
     mc::variants arr{"a", "b", "c", "d", "e", "f"};
 
@@ -551,7 +574,8 @@ TEST(variants_test, EraseByIteratorRange) {
     EXPECT_EQ(result_it - arr.begin(), 1);
 }
 
-TEST(variants_test, EraseWithStdFind) {
+TEST(variants_test, EraseWithStdFind)
+{
     // 测试与 std::find 算法的兼容性
     mc::variants arr{1, 2, 3, 4, 5, 3, 6};
 
@@ -574,7 +598,8 @@ TEST(variants_test, EraseWithStdFind) {
     EXPECT_EQ((*result_it).as_int32(), 4);
 }
 
-TEST(variants_test, EraseWithStdFindIf) {
+TEST(variants_test, EraseWithStdFindIf)
+{
     // 测试与 std::find_if 算法的兼容性
     mc::variants arr{1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
 
@@ -594,7 +619,8 @@ TEST(variants_test, EraseWithStdFindIf) {
     EXPECT_EQ(arr[2].as_int32(), 4);
 }
 
-TEST(variants_test, EraseEmptyArray) {
+TEST(variants_test, EraseEmptyArray)
+{
     // 测试在空数组上调用 erase 的错误处理
     mc::variants arr;
 
@@ -605,7 +631,8 @@ TEST(variants_test, EraseEmptyArray) {
     EXPECT_THROW(arr.erase(arr.begin(), arr.end()), mc::runtime_exception);
 }
 
-TEST(variants_test, EraseOutOfBounds) {
+TEST(variants_test, EraseOutOfBounds)
+{
     // 测试越界访问的错误处理
     mc::variants arr{1, 2, 3};
 
@@ -615,7 +642,8 @@ TEST(variants_test, EraseOutOfBounds) {
     EXPECT_THROW(arr.erase(1, 5), mc::out_of_range_exception);
 }
 
-TEST(variants_test, CapacityManagement) {
+TEST(variants_test, CapacityManagement)
+{
     mc::variants arr;
 
     // 测试空数组的容量
@@ -638,7 +666,8 @@ TEST(variants_test, CapacityManagement) {
     EXPECT_GE(arr.capacity(), arr.size()); // 容量应该大于等于大小
 }
 
-TEST(variants_test, ElementAccess) {
+TEST(variants_test, ElementAccess)
+{
     mc::variants arr = {10, 20, 30, 40, 50};
 
     // 测试 front 和 back
@@ -660,7 +689,8 @@ TEST(variants_test, ElementAccess) {
     EXPECT_THROW(empty_arr.back(), mc::runtime_exception);
 }
 
-TEST(variants_test, AssignMethod) {
+TEST(variants_test, AssignMethod)
+{
     mc::variants arr;
 
     // 测试 assign(count, value)
@@ -687,7 +717,8 @@ TEST(variants_test, AssignMethod) {
     }
 }
 
-TEST(variants_test, SwapMethod) {
+TEST(variants_test, SwapMethod)
+{
     mc::variants arr1 = {1, 2, 3};
     mc::variants arr2 = {"a", "b", "c", "d"};
 
@@ -720,7 +751,8 @@ TEST(variants_test, SwapMethod) {
     EXPECT_EQ(empty_arr[0], "a");
 }
 
-TEST(variants_test, ReverseIterators) {
+TEST(variants_test, ReverseIterators)
+{
     mc::variants arr = {1, 2, 3, 4, 5};
 
     // 测试反向迭代器
@@ -754,13 +786,13 @@ TEST(variants_test, ReverseIterators) {
 }
 
 // 测试 mc::variants 的 std::sort 基本排序功能
-TEST(variants_test, std_sort_basic) {
+TEST(variants_test, std_sort_basic)
+{
     mc::variants arr{5, 2, 8, 1, 9, 3};
 
     // 使用 std::sort 排序
     std::sort(arr.begin(), arr.end());
 
-    
     // 验证排序结果
     EXPECT_EQ(arr.size(), 6);
     EXPECT_EQ(arr[0], 1);
@@ -772,7 +804,8 @@ TEST(variants_test, std_sort_basic) {
 }
 
 // 测试 mc::variants 的字符串排序
-TEST(variants_test, std_sort_string) {
+TEST(variants_test, std_sort_string)
+{
     mc::variants arr{"banana", "apple", "cherry", "date"};
 
     std::sort(arr.begin(), arr.end());
@@ -785,7 +818,8 @@ TEST(variants_test, std_sort_string) {
 }
 
 // 测试 mc::variants 的自定义比较器排序（降序）
-TEST(variants_test, std_sort_custom_comparator) {
+TEST(variants_test, std_sort_custom_comparator)
+{
     mc::variants arr{5, 2, 8, 1, 9, 3};
 
     // 使用 std::greater 进行降序排序
@@ -801,7 +835,8 @@ TEST(variants_test, std_sort_custom_comparator) {
 }
 
 // 测试 mc::variants 的 lambda 比较器排序
-TEST(variants_test, std_sort_lambda_comparator) {
+TEST(variants_test, std_sort_lambda_comparator)
+{
     mc::variants arr{"apple", "banana", "cherry", "date"};
 
     // 按字符串长度排序
@@ -817,7 +852,8 @@ TEST(variants_test, std_sort_lambda_comparator) {
 }
 
 // 测试 mc::variants 的稳定排序
-TEST(variants_test, std_stable_sort) {
+TEST(variants_test, std_stable_sort)
+{
     // 创建包含相同值的数组来测试稳定性
     mc::variants arr;
     arr.push_back(mc::variant(1));
@@ -838,7 +874,8 @@ TEST(variants_test, std_stable_sort) {
 }
 
 // 测试 mc::variants 的部分排序
-TEST(variants_test, std_partial_sort) {
+TEST(variants_test, std_partial_sort)
+{
     mc::variants arr{9, 5, 2, 8, 1, 7, 3, 6, 4};
 
     // 只排序前 4 个最小的元素
@@ -854,7 +891,8 @@ TEST(variants_test, std_partial_sort) {
 }
 
 // 测试 mc::variants 的 nth_element
-TEST(variants_test, std_nth_element) {
+TEST(variants_test, std_nth_element)
+{
     mc::variants arr{9, 5, 2, 8, 1, 7, 3, 6, 4};
 
     // 找到第 4 小的元素（索引 3）
@@ -874,7 +912,8 @@ TEST(variants_test, std_nth_element) {
 }
 
 // 测试空 mc::variants 的排序
-TEST(variants_test, std_sort_empty_array) {
+TEST(variants_test, std_sort_empty_array)
+{
     mc::variants arr;
 
     // 空数组排序应该不会崩溃
@@ -885,7 +924,8 @@ TEST(variants_test, std_sort_empty_array) {
 }
 
 // 测试单元素 mc::variants 的排序
-TEST(variants_test, std_sort_single_element) {
+TEST(variants_test, std_sort_single_element)
+{
     mc::variants arr{42};
 
     std::sort(arr.begin(), arr.end());
@@ -895,7 +935,8 @@ TEST(variants_test, std_sort_single_element) {
 }
 
 // 测试 mc::variants 共享语义下的排序
-TEST(variants_test, std_sort_shared_semantics) {
+TEST(variants_test, std_sort_shared_semantics)
+{
     mc::variants arr1{5, 2, 8, 1, 9, 3};
     mc::variants arr2 = arr1; // 共享数据
 

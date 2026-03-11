@@ -89,15 +89,19 @@ template <typename Allocator = std::allocator<char>>
 struct blob_base {
     std::vector<char, Allocator> data;
 
-    blob_base(const Allocator& alloc = Allocator()) : data(alloc) {
+    blob_base(const Allocator& alloc = Allocator())
+        : data(alloc)
+    {
     }
 
     blob_base(const char* data, size_t size, const Allocator& alloc = Allocator())
-        : data(data, data + size, alloc) {
+        : data(data, data + size, alloc)
+    {
     }
 
     blob_base(std::initializer_list<char> list, const Allocator& alloc = Allocator())
-        : data(list, alloc) {
+        : data(list, alloc)
+    {
     }
 
     /**
@@ -105,7 +109,8 @@ struct blob_base {
      * @param other 要比较的 blob_base 对象
      * @return 如果两个对象相等则返回 true，否则返回 false
      */
-    bool operator==(const blob_base& other) const {
+    bool operator==(const blob_base& other) const
+    {
         return data == other.data;
     }
 
@@ -114,33 +119,39 @@ struct blob_base {
      * @param other 要比较的 blob_base 对象
      * @return 如果两个对象不相等则返回 true，否则返回 false
      */
-    bool operator!=(const blob_base& other) const {
+    bool operator!=(const blob_base& other) const
+    {
         return !(*this == other);
     }
 
-    bool operator<(const blob_base& other) const {
+    bool operator<(const blob_base& other) const
+    {
         auto lhs = std::string_view(data.data(), data.size());
         auto rhs = std::string_view(other.data.data(), other.data.size());
         return lhs < rhs;
     }
 
-    bool operator>(const blob_base& other) const {
+    bool operator>(const blob_base& other) const
+    {
         auto lhs = std::string_view(data.data(), data.size());
         auto rhs = std::string_view(other.data.data(), other.data.size());
         return lhs > rhs;
     }
 
-    void operator+=(const blob_base& other) {
+    void operator+=(const blob_base& other)
+    {
         data.reserve(data.size() + other.data.size());
         data.insert(data.end(), other.data.begin(), other.data.end());
     }
 
-    void operator+=(std::string_view other) {
+    void operator+=(std::string_view other)
+    {
         data.reserve(data.size() + other.size());
         data.insert(data.end(), other.begin(), other.end());
     }
 
-    std::string_view as_string_view() const {
+    std::string_view as_string_view() const
+    {
         return std::string_view(data.data(), data.size());
     }
 };
@@ -172,7 +183,7 @@ struct variant_config {
 
 /**
  * @brief 数据类型枚举
- * 
+ *
  * 底层类型指定为 uint8_t，确保：
  * 1. 枚举类型大小仅为1字节，节省内存
  * 2. 可以使用5位位域存储（5位可表示0-31，足够容纳当前17个枚举值）
@@ -219,7 +230,8 @@ namespace detail {
 
 // 普通整数类型转 variant_base 的整数类型
 template <typename T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
-static type_id fixed_integer_type() {
+static type_id fixed_integer_type()
+{
     if constexpr (std::is_signed_v<T>) {
         if constexpr (sizeof(T) == 1) {
             return type_id::int8_type;
@@ -242,7 +254,8 @@ static type_id fixed_integer_type() {
 }
 
 template <typename T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
-static auto fixed_integer(T val) {
+static auto fixed_integer(T val)
+{
     if constexpr (std::is_signed_v<T>) {
         if constexpr (sizeof(T) == 1) {
             return static_cast<int8_t>(val);
@@ -275,7 +288,8 @@ using numeric_value_t = std::variant<
     float, double>;
 
 template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-numeric_value_t make_numeric_value(T val) {
+numeric_value_t make_numeric_value(T val)
+{
     if constexpr (std::is_same_v<T, bool>) {
         return numeric_value_t(val);
     } else if constexpr (std::is_integral_v<T>) {
@@ -291,22 +305,28 @@ struct numeric_t {
 
     // explicit构造函数，防止隐式转换
     template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-    explicit numeric_t(T value) : data(make_numeric_value(value)) {
+    explicit numeric_t(T value)
+        : data(make_numeric_value(value))
+    {
     }
 
-    explicit numeric_t(numeric_value_t value) : data(std::move(value)) {
+    explicit numeric_t(numeric_value_t value)
+        : data(std::move(value))
+    {
     }
 
     numeric_value_t data;
 };
 
 template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-numeric_t make_numeric(T val) {
+numeric_t make_numeric(T val)
+{
     return numeric_t(make_numeric_value(val));
 }
 
 template <typename T>
-T get_numeric(const numeric_t& val) {
+T get_numeric(const numeric_t& val)
+{
     return std::visit([](auto&& v) -> T {
         return static_cast<T>(v);
     }, val.data);
@@ -357,11 +377,13 @@ struct is_variant_constructible {
 template <typename T>
 inline constexpr bool is_variant_constructible_v = detail::is_variant_constructible<T>::value;
 
-inline std::ostream& operator<<(std::ostream& os, const type_id& type) {
+inline std::ostream& operator<<(std::ostream& os, const type_id& type)
+{
     return os << static_cast<int>(type);
 }
 template <typename Allocator>
-inline std::ostream& operator<<(std::ostream& os, const blob_base<Allocator>& blob) {
+inline std::ostream& operator<<(std::ostream& os, const blob_base<Allocator>& blob)
+{
     return os << "blob[" << blob.data.size() << "]";
 }
 } // namespace mc

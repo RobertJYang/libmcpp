@@ -21,14 +21,17 @@
 namespace mc::futures {
 
 any_future::any_future(state_base_ptr state)
-    : m_state(std::move(state)) {
+    : m_state(std::move(state))
+{
 }
 
-bool any_future::valid() const noexcept {
+bool any_future::valid() const noexcept
+{
     return m_state != nullptr;
 }
 
-bool any_future::is_ready() const {
+bool any_future::is_ready() const
+{
     if (!m_state) {
         return false;
     }
@@ -36,7 +39,8 @@ bool any_future::is_ready() const {
     return m_state->is_ready();
 }
 
-bool any_future::is_cancelled() const {
+bool any_future::is_cancelled() const
+{
     if (!m_state) {
         return false;
     }
@@ -44,7 +48,8 @@ bool any_future::is_cancelled() const {
     return m_state->is_cancelled();
 }
 
-void any_future::wait() const {
+void any_future::wait() const
+{
     if (!m_state) {
         return;
     }
@@ -55,7 +60,8 @@ void any_future::wait() const {
     });
 }
 
-void any_future::cancel() {
+void any_future::cancel()
+{
     if (!m_state) {
         return;
     }
@@ -63,13 +69,15 @@ void any_future::cancel() {
     m_state->cancel();
 }
 
-void any_future::on_cancel(callback_type callback) {
+void any_future::on_cancel(callback_type callback)
+{
     if (m_state) {
         m_state->add_cancel_callback(std::move(callback));
     }
 }
 
-static void on_cancel_impl(state_base_ptr& state, state_base_ptr other_state) {
+static void on_cancel_impl(state_base_ptr& state, state_base_ptr other_state)
+{
     if (!state || !other_state) {
         return;
     }
@@ -87,19 +95,23 @@ static void on_cancel_impl(state_base_ptr& state, state_base_ptr other_state) {
     });
 }
 
-void any_future::on_cancel(any_promise& other_promise) {
+void any_future::on_cancel(any_promise& other_promise)
+{
     on_cancel_impl(m_state, other_promise.get_state());
 }
 
-void any_future::on_cancel(any_future& other_future) {
+void any_future::on_cancel(any_future& other_future)
+{
     on_cancel_impl(m_state, other_future.get_state());
 }
 
-const state_base_ptr& any_future::get_state() const noexcept {
+const state_base_ptr& any_future::get_state() const noexcept
+{
     return m_state;
 }
 
-bool any_future::is_rejected() const {
+bool any_future::is_rejected() const
+{
     if (!m_state) {
         return false;
     }
@@ -107,7 +119,8 @@ bool any_future::is_rejected() const {
     return m_state->is_rejected();
 }
 
-std::exception_ptr any_future::get_exception() const noexcept {
+std::exception_ptr any_future::get_exception() const noexcept
+{
     if (!m_state) {
         return nullptr;
     }
@@ -115,7 +128,8 @@ std::exception_ptr any_future::get_exception() const noexcept {
     return m_state->get_exception();
 }
 
-void any_future::add_continuation(callback_type continuation, launch policy, std::optional<mc::any_executor> executor) {
+void any_future::add_continuation(callback_type continuation, launch policy, std::optional<mc::any_executor> executor)
+{
     if (!m_state) {
         return;
     }
@@ -142,7 +156,8 @@ void any_future::add_continuation(callback_type continuation, launch policy, std
     }
 }
 
-void any_future::finally(any_promise& promise, callback_type cleanup, launch policy, std::optional<mc::any_executor> executor) {
+void any_future::finally(any_promise& promise, callback_type cleanup, launch policy, std::optional<mc::any_executor> executor)
+{
     if (!m_state) {
         promise.set_exception(make_invalid_future_exception());
         return;
@@ -157,7 +172,8 @@ void any_future::finally(any_promise& promise, callback_type cleanup, launch pol
     }, policy, executor);
 }
 
-void any_future::tap_error(std::function<void(const mc::exception&)> inspector, launch policy) {
+void any_future::tap_error(std::function<void(const mc::exception&)> inspector, launch policy)
+{
     if (!m_state) {
         return;
     }
@@ -179,7 +195,8 @@ void any_future::tap_error(std::function<void(const mc::exception&)> inspector, 
     }, policy, mc::any_executor(mc::runtime::immediate_executor()));
 }
 
-future_status any_future::wait_for_impl(std::chrono::steady_clock::duration duration) const {
+future_status any_future::wait_for_impl(std::chrono::steady_clock::duration duration) const
+{
     if (!m_state) {
         return future_status::invalid;
     }
@@ -198,7 +215,8 @@ future_status any_future::wait_for_impl(std::chrono::steady_clock::duration dura
     return future_status::timeout;
 }
 
-future_status any_future::wait_until_impl(std::chrono::steady_clock::time_point timeout_time) const {
+future_status any_future::wait_until_impl(std::chrono::steady_clock::time_point timeout_time) const
+{
     if (!m_state) {
         return future_status::invalid;
     }
@@ -217,7 +235,8 @@ future_status any_future::wait_until_impl(std::chrono::steady_clock::time_point 
     return future_status::timeout;
 }
 
-void any_future::timeout(any_future& src_future, duration_type duration, callback_type callback) {
+void any_future::timeout(any_future& src_future, duration_type duration, callback_type callback)
+{
     if (!m_state) {
         return;
     }
@@ -227,7 +246,8 @@ void any_future::timeout(any_future& src_future, duration_type duration, callbac
 
         timer_data(any_executor executor, duration_type duration)
             : timer(executor, duration),
-              completed(false) {
+              completed(false)
+        {
         }
 
         timer_type        timer;
@@ -265,7 +285,8 @@ void any_future::timeout(any_future& src_future, duration_type duration, callbac
     });
 }
 
-any_future any_future::delay(duration_type duration, executor_type executor) {
+any_future any_future::delay(duration_type duration, executor_type executor)
+{
     any_promise promise = mc::make_promise<void>(executor);
     auto        future  = promise.get_future();
 

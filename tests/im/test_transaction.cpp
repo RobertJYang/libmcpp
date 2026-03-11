@@ -27,7 +27,8 @@ protected:
     using ref_ptr_type = typename node_type::ref_ptr_type;
     using tree_type    = typename txn_type::tree_type;
 
-    void SetUp() override {
+    void SetUp() override
+    {
         // 创建一些测试用的叶子值
         for (int i = 0; i < 5; i++) {
             leaves.push_back(reinterpret_cast<void*>(static_cast<intptr_t>(i + 1)));
@@ -37,14 +38,16 @@ protected:
         txn = std::make_unique<txn_type>();
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         // 清理测试资源
         txn.reset();
         leaves.clear();
     }
 
     // 辅助方法：将指针值转换为整数，方便测试
-    intptr_t ptr_to_int(void* ptr) {
+    intptr_t ptr_to_int(void* ptr)
+    {
         return reinterpret_cast<intptr_t>(ptr);
     }
 
@@ -53,7 +56,8 @@ protected:
 };
 
 // 测试基本事务操作
-TEST_F(TransactionTest, BasicOperations) {
+TEST_F(TransactionTest, BasicOperations)
+{
     // 验证初始状态
     EXPECT_EQ(0, txn->root().size());
 
@@ -80,7 +84,8 @@ TEST_F(TransactionTest, BasicOperations) {
 }
 
 // 测试插入和获取操作
-TEST_F(TransactionTest, InsertAndGet) {
+TEST_F(TransactionTest, InsertAndGet)
+{
     // 插入多个键值对
     txn->insert("a", leaves[0]);
     txn->insert("ab", leaves[1]);
@@ -113,7 +118,8 @@ TEST_F(TransactionTest, InsertAndGet) {
 }
 
 // 测试节点分裂场景
-TEST_F(TransactionTest, NodeSplit) {
+TEST_F(TransactionTest, NodeSplit)
+{
     // 首先插入一个键值对
     txn->insert("romane", leaves[0]);
 
@@ -179,7 +185,8 @@ TEST_F(TransactionTest, NodeSplit) {
 }
 
 // 测试删除操作
-TEST_F(TransactionTest, DeleteKey) {
+TEST_F(TransactionTest, DeleteKey)
+{
     // 插入数据
     txn->insert("a", leaves[0]);
     txn->insert("ab", leaves[1]);
@@ -215,7 +222,8 @@ TEST_F(TransactionTest, DeleteKey) {
 }
 
 // 测试删除操作触发的特殊情况
-TEST_F(TransactionTest, DeleteSpecialCases) {
+TEST_F(TransactionTest, DeleteSpecialCases)
+{
     // 插入数据构造特定的树结构
     txn->insert("abc", leaves[0]);
     txn->insert("abcd", leaves[1]);
@@ -261,7 +269,8 @@ TEST_F(TransactionTest, DeleteSpecialCases) {
 }
 
 // 测试返回{nullptr, nullptr}的情况
-TEST_F(TransactionTest, NullPtrReturnCases) {
+TEST_F(TransactionTest, NullPtrReturnCases)
+{
     // 在空树上尝试获取不存在的键
     auto val1 = txn->get("nonexistent");
     EXPECT_FALSE(val1.has_value());
@@ -290,7 +299,8 @@ TEST_F(TransactionTest, NullPtrReturnCases) {
 }
 
 // 测试复杂的树结构删除导致的多级节点合并
-TEST_F(TransactionTest, ComplexMergeAfterDelete) {
+TEST_F(TransactionTest, ComplexMergeAfterDelete)
+{
     // 构建一个有多级分支的树
     txn->insert("a", leaves[0]);
     txn->insert("ab", leaves[1]);
@@ -334,7 +344,8 @@ TEST_F(TransactionTest, ComplexMergeAfterDelete) {
 }
 
 // 测试特定的nullptr返回情况（针对第442行）
-TEST_F(TransactionTest, SpecificNullptrReturn) {
+TEST_F(TransactionTest, SpecificNullptrReturn)
+{
     // 构造一个树，包含特定键值对
     txn->insert("romane", leaves[0]);
     txn->insert("romanus", leaves[1]);
@@ -361,7 +372,8 @@ TEST_F(TransactionTest, SpecificNullptrReturn) {
 }
 
 // 测试特定的节点合并场景（针对第473行的merge_child调用）
-TEST_F(TransactionTest, SpecificMergeChildCall) {
+TEST_F(TransactionTest, SpecificMergeChildCall)
+{
     // 构造一个特定的树结构，其中包含类似这样的结构：
     // root -> "te" -> "st" (值为leaves[0])
     //              -> "am" (值为leaves[1])
@@ -413,7 +425,8 @@ TEST_F(TransactionTest, SpecificMergeChildCall) {
 }
 
 // 测试事务回滚
-TEST_F(TransactionTest, Rollback) {
+TEST_F(TransactionTest, Rollback)
+{
     // 插入数据
     txn->insert("a", leaves[0]);
 
@@ -443,7 +456,8 @@ TEST_F(TransactionTest, Rollback) {
 }
 
 // 测试完全回滚
-TEST_F(TransactionTest, CompleteRollback) {
+TEST_F(TransactionTest, CompleteRollback)
+{
     // 插入数据
     txn->insert("a", leaves[0]);
     txn->insert("b", leaves[1]);
@@ -462,7 +476,8 @@ TEST_F(TransactionTest, CompleteRollback) {
 }
 
 // 测试共享前缀
-TEST_F(TransactionTest, SharedPrefix) {
+TEST_F(TransactionTest, SharedPrefix)
+{
     // 插入具有共享前缀的键
     txn->insert("test1", leaves[0]);
     txn->insert("test2", leaves[1]);
@@ -497,7 +512,8 @@ TEST_F(TransactionTest, SharedPrefix) {
 }
 
 // 测试事务锁定和解锁
-TEST_F(TransactionTest, LockAndUnlock) {
+TEST_F(TransactionTest, LockAndUnlock)
+{
     // 锁定数据库
     txn->lock_db();
 
@@ -514,7 +530,8 @@ TEST_F(TransactionTest, LockAndUnlock) {
 }
 
 // 测试空事务
-TEST_F(TransactionTest, EmptyTransaction) {
+TEST_F(TransactionTest, EmptyTransaction)
+{
     // 不进行任何操作，直接提交空事务
     tree_type tree = txn->commit();
 
@@ -523,7 +540,8 @@ TEST_F(TransactionTest, EmptyTransaction) {
 }
 
 // 测试事务的清空操作
-TEST_F(TransactionTest, ClearTransaction) {
+TEST_F(TransactionTest, ClearTransaction)
+{
     // 插入数据
     txn->insert("a", leaves[0]);
     txn->insert("b", leaves[1]);
@@ -549,7 +567,8 @@ TEST_F(TransactionTest, ClearTransaction) {
 }
 
 // 测试多个保存点
-TEST_F(TransactionTest, MultipleSavePoints) {
+TEST_F(TransactionTest, MultipleSavePoints)
+{
     int save_point_id = txn->save_point();
 
     // 插入初始数据
@@ -603,7 +622,8 @@ TEST_F(TransactionTest, MultipleSavePoints) {
 }
 
 // 测试保存点 commit() 方法
-TEST_F(TransactionTest, TransactionSavePointCommit) {
+TEST_F(TransactionTest, TransactionSavePointCommit)
+{
     // 插入数据
     txn->insert("a", leaves[0]);
     txn->insert("b", leaves[1]);
@@ -633,7 +653,8 @@ TEST_F(TransactionTest, TransactionSavePointCommit) {
 }
 
 // 测试回滚到指定保存点
-TEST_F(TransactionTest, TransactionRollbackToSavePoint) {
+TEST_F(TransactionTest, TransactionRollbackToSavePoint)
+{
     // 插入初始数据
     txn->insert("a", leaves[0]);
 
@@ -682,7 +703,8 @@ TEST_F(TransactionTest, TransactionRollbackToSavePoint) {
 }
 
 // 测试删除后插入导致节点合并
-TEST_F(TransactionTest, TransactionInsertAfterDeleteCausesMerge) {
+TEST_F(TransactionTest, TransactionInsertAfterDeleteCausesMerge)
+{
     // 插入 "abc" 和 "abd"
     txn->insert("abc", leaves[0]);
     txn->insert("abd", leaves[1]);
@@ -718,7 +740,8 @@ TEST_F(TransactionTest, TransactionInsertAfterDeleteCausesMerge) {
 }
 
 // 测试更新后删除导致节点合并
-TEST_F(TransactionTest, TransactionUpdateCausesMerge) {
+TEST_F(TransactionTest, TransactionUpdateCausesMerge)
+{
     // 插入 "abc" 和 "abd"
     txn->insert("abc", leaves[0]);
     txn->insert("abd", leaves[1]);

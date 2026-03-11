@@ -55,11 +55,13 @@ private:
         mutable std::optional<variant_type>    cached_value; // 缓存获取的值
 
         extension_accessor(mc::shared_ptr<variant_extension_base> ext, std::size_t idx)
-            : extension(std::move(ext)), key(idx) {
+            : extension(std::move(ext)), key(idx)
+        {
         }
 
         extension_accessor(mc::shared_ptr<variant_extension_base> ext, std::string k)
-            : extension(std::move(ext)), key(std::move(k)) {
+            : extension(std::move(ext)), key(std::move(k))
+        {
         }
     };
 
@@ -70,7 +72,8 @@ private:
         mutable std::optional<variant_type> cached_value; // 缓存获取的值
 
         variants_accessor(variants cont, std::size_t idx)
-            : container(std::move(cont)), index(idx) {
+            : container(std::move(cont)), index(idx)
+        {
         }
     };
 
@@ -79,7 +82,8 @@ private:
         variant_type value;
 
         value_holder(variant_type&& val)
-            : value(std::move(val)) {
+            : value(std::move(val))
+        {
         }
     };
 
@@ -139,7 +143,8 @@ public:
     variant_reference& operator=(const variant_type& value);
 
     // nullptr 赋值优化，行为与 variant_base::operator=(std::nullptr_t) 一致
-    variant_reference& operator=(std::nullptr_t) {
+    variant_reference& operator=(std::nullptr_t)
+    {
         get() = nullptr;
         return *this;
     }
@@ -185,7 +190,8 @@ public:
      * @brief 代理 variant 的 as 方法
      */
     template <typename T>
-    T as() const {
+    T as() const
+    {
         return get().template as<T>();
     }
 
@@ -468,354 +474,426 @@ public:
 // 赋值操作符实现
 
 template <typename T, typename>
-inline variant_reference& variant_reference::operator=(const T& value) {
+inline variant_reference& variant_reference::operator=(const T& value)
+{
     return *this = variant_type(value);
 }
 
 // 算术操作符实现
 
-inline typename variant_reference::variant_type variant_reference::operator+(const variant_reference& other) const {
+inline typename variant_reference::variant_type variant_reference::operator+(const variant_reference& other) const
+{
     return get() + other.get();
 }
 
-inline typename variant_reference::variant_type variant_reference::operator-(const variant_reference& other) const {
+inline typename variant_reference::variant_type variant_reference::operator-(const variant_reference& other) const
+{
     return get() - other.get();
 }
 
-inline typename variant_reference::variant_type variant_reference::operator*(const variant_reference& other) const {
+inline typename variant_reference::variant_type variant_reference::operator*(const variant_reference& other) const
+{
     return get() * other.get();
 }
 
-inline typename variant_reference::variant_type variant_reference::operator/(const variant_reference& other) const {
+inline typename variant_reference::variant_type variant_reference::operator/(const variant_reference& other) const
+{
     return get() / other.get();
 }
 
-inline typename variant_reference::variant_type variant_reference::operator%(const variant_reference& other) const {
+inline typename variant_reference::variant_type variant_reference::operator%(const variant_reference& other) const
+{
     return get() % other.get();
 }
 
-inline typename variant_reference::variant_type variant_reference::operator+(const variant_base& other) const {
+inline typename variant_reference::variant_type variant_reference::operator+(const variant_base& other) const
+{
     return get() + other;
 }
 
-inline typename variant_reference::variant_type variant_reference::operator-(const variant_base& other) const {
+inline typename variant_reference::variant_type variant_reference::operator-(const variant_base& other) const
+{
     return get() - other;
 }
 
-inline typename variant_reference::variant_type variant_reference::operator*(const variant_base& other) const {
+inline typename variant_reference::variant_type variant_reference::operator*(const variant_base& other) const
+{
     return get() * other;
 }
 
-inline typename variant_reference::variant_type variant_reference::operator/(const variant_base& other) const {
+inline typename variant_reference::variant_type variant_reference::operator/(const variant_base& other) const
+{
     return get() / other;
 }
 
-inline typename variant_reference::variant_type variant_reference::operator%(const variant_base& other) const {
+inline typename variant_reference::variant_type variant_reference::operator%(const variant_base& other) const
+{
     return get() % other;
 }
 
 template <typename T, typename>
-inline typename variant_reference::variant_type variant_reference::operator+(T other) const {
+inline typename variant_reference::variant_type variant_reference::operator+(T other) const
+{
     return get() + other;
 }
 
 template <typename T, typename>
-inline typename variant_reference::variant_type variant_reference::operator-(T other) const {
+inline typename variant_reference::variant_type variant_reference::operator-(T other) const
+{
     return get() - other;
 }
 
 template <typename T, typename>
-inline typename variant_reference::variant_type variant_reference::operator*(T other) const {
+inline typename variant_reference::variant_type variant_reference::operator*(T other) const
+{
     return get() * other;
 }
 
 template <typename T, typename>
-inline typename variant_reference::variant_type variant_reference::operator/(T other) const {
+inline typename variant_reference::variant_type variant_reference::operator/(T other) const
+{
     return get() / other;
 }
 
 template <typename T, typename>
-inline typename variant_reference::variant_type variant_reference::operator%(T other) const {
+inline typename variant_reference::variant_type variant_reference::operator%(T other) const
+{
     return get() % other;
 }
 
-inline typename variant_reference::variant_type variant_reference::operator+(std::string_view other) const {
+inline typename variant_reference::variant_type variant_reference::operator+(std::string_view other) const
+{
     return get() + other;
 }
 
-inline typename variant_reference::variant_type variant_reference::operator+(const char* other) const {
+inline typename variant_reference::variant_type variant_reference::operator+(const char* other) const
+{
     return get() + std::string_view(other);
 }
 
-inline typename variant_reference::variant_type variant_reference::operator+(const std::string& other) const {
+inline typename variant_reference::variant_type variant_reference::operator+(const std::string& other) const
+{
     return get() + std::string_view(other);
 }
 
 // 位操作符实现
 
-inline typename variant_reference::variant_type variant_reference::operator&(const variant_reference& other) const {
+inline typename variant_reference::variant_type variant_reference::operator&(const variant_reference& other) const
+{
     return get() & other.get();
 }
 
-inline typename variant_reference::variant_type variant_reference::operator|(const variant_reference& other) const {
+inline typename variant_reference::variant_type variant_reference::operator|(const variant_reference& other) const
+{
     return get() | other.get();
 }
 
-inline typename variant_reference::variant_type variant_reference::operator^(const variant_reference& other) const {
+inline typename variant_reference::variant_type variant_reference::operator^(const variant_reference& other) const
+{
     return get() ^ other.get();
 }
 
-inline typename variant_reference::variant_type variant_reference::operator<<(const variant_reference& other) const {
+inline typename variant_reference::variant_type variant_reference::operator<<(const variant_reference& other) const
+{
     return get() << other.get();
 }
 
-inline typename variant_reference::variant_type variant_reference::operator>>(const variant_reference& other) const {
+inline typename variant_reference::variant_type variant_reference::operator>>(const variant_reference& other) const
+{
     return get() >> other.get();
 }
 
-inline typename variant_reference::variant_type variant_reference::operator&(const variant_base& other) const {
+inline typename variant_reference::variant_type variant_reference::operator&(const variant_base& other) const
+{
     return get() & other;
 }
 
-inline typename variant_reference::variant_type variant_reference::operator|(const variant_base& other) const {
+inline typename variant_reference::variant_type variant_reference::operator|(const variant_base& other) const
+{
     return get() | other;
 }
 
-inline typename variant_reference::variant_type variant_reference::operator^(const variant_base& other) const {
+inline typename variant_reference::variant_type variant_reference::operator^(const variant_base& other) const
+{
     return get() ^ other;
 }
 
-inline typename variant_reference::variant_type variant_reference::operator~() const {
+inline typename variant_reference::variant_type variant_reference::operator~() const
+{
     return ~get();
 }
 
-inline typename variant_reference::variant_type variant_reference::operator<<(const variant_base& other) const {
+inline typename variant_reference::variant_type variant_reference::operator<<(const variant_base& other) const
+{
     return get() << other;
 }
 
-inline typename variant_reference::variant_type variant_reference::operator>>(const variant_base& other) const {
+inline typename variant_reference::variant_type variant_reference::operator>>(const variant_base& other) const
+{
     return get() >> other;
 }
 
 template <typename T, typename>
-inline typename variant_reference::variant_type variant_reference::operator&(T other) const {
+inline typename variant_reference::variant_type variant_reference::operator&(T other) const
+{
     return get() & other;
 }
 
 template <typename T, typename>
-inline typename variant_reference::variant_type variant_reference::operator|(T other) const {
+inline typename variant_reference::variant_type variant_reference::operator|(T other) const
+{
     return get() | other;
 }
 
 template <typename T, typename>
-inline typename variant_reference::variant_type variant_reference::operator^(T other) const {
+inline typename variant_reference::variant_type variant_reference::operator^(T other) const
+{
     return get() ^ other;
 }
 
 template <typename T, typename>
-inline typename variant_reference::variant_type variant_reference::operator<<(T other) const {
+inline typename variant_reference::variant_type variant_reference::operator<<(T other) const
+{
     return get() << other;
 }
 
 template <typename T, typename>
-inline typename variant_reference::variant_type variant_reference::operator>>(T other) const {
+inline typename variant_reference::variant_type variant_reference::operator>>(T other) const
+{
     return get() >> other;
 }
 
 // 复合赋值操作符实现
 
-inline variant_reference& variant_reference::operator+=(const variant_reference& other) {
+inline variant_reference& variant_reference::operator+=(const variant_reference& other)
+{
     *this = get() + other.get();
     return *this;
 }
 
-inline variant_reference& variant_reference::operator-=(const variant_reference& other) {
+inline variant_reference& variant_reference::operator-=(const variant_reference& other)
+{
     *this = get() - other.get();
     return *this;
 }
 
-inline variant_reference& variant_reference::operator*=(const variant_reference& other) {
+inline variant_reference& variant_reference::operator*=(const variant_reference& other)
+{
     *this = get() * other.get();
     return *this;
 }
 
-inline variant_reference& variant_reference::operator/=(const variant_reference& other) {
+inline variant_reference& variant_reference::operator/=(const variant_reference& other)
+{
     *this = get() / other.get();
     return *this;
 }
 
-inline variant_reference& variant_reference::operator%=(const variant_reference& other) {
+inline variant_reference& variant_reference::operator%=(const variant_reference& other)
+{
     *this = get() % other.get();
     return *this;
 }
 
-inline variant_reference& variant_reference::operator&=(const variant_reference& other) {
+inline variant_reference& variant_reference::operator&=(const variant_reference& other)
+{
     *this = get() & other.get();
     return *this;
 }
 
-inline variant_reference& variant_reference::operator|=(const variant_reference& other) {
+inline variant_reference& variant_reference::operator|=(const variant_reference& other)
+{
     *this = get() | other.get();
     return *this;
 }
 
-inline variant_reference& variant_reference::operator^=(const variant_reference& other) {
+inline variant_reference& variant_reference::operator^=(const variant_reference& other)
+{
     *this = get() ^ other.get();
     return *this;
 }
 
-inline variant_reference& variant_reference::operator<<=(const variant_reference& other) {
+inline variant_reference& variant_reference::operator<<=(const variant_reference& other)
+{
     *this = get() << other.get();
     return *this;
 }
 
-inline variant_reference& variant_reference::operator>>=(const variant_reference& other) {
+inline variant_reference& variant_reference::operator>>=(const variant_reference& other)
+{
     *this = get() >> other.get();
     return *this;
 }
 
-inline variant_reference& variant_reference::operator+=(const variant_base& other) {
+inline variant_reference& variant_reference::operator+=(const variant_base& other)
+{
     *this = get() + other;
     return *this;
 }
 
-inline variant_reference& variant_reference::operator-=(const variant_base& other) {
+inline variant_reference& variant_reference::operator-=(const variant_base& other)
+{
     *this = get() - other;
     return *this;
 }
 
-inline variant_reference& variant_reference::operator*=(const variant_base& other) {
+inline variant_reference& variant_reference::operator*=(const variant_base& other)
+{
     *this = get() * other;
     return *this;
 }
 
-inline variant_reference& variant_reference::operator/=(const variant_base& other) {
+inline variant_reference& variant_reference::operator/=(const variant_base& other)
+{
     *this = get() / other;
     return *this;
 }
 
-inline variant_reference& variant_reference::operator%=(const variant_base& other) {
+inline variant_reference& variant_reference::operator%=(const variant_base& other)
+{
     *this = get() % other;
     return *this;
 }
 
-inline variant_reference& variant_reference::operator&=(const variant_base& other) {
+inline variant_reference& variant_reference::operator&=(const variant_base& other)
+{
     *this = get() & other;
     return *this;
 }
 
-inline variant_reference& variant_reference::operator|=(const variant_base& other) {
+inline variant_reference& variant_reference::operator|=(const variant_base& other)
+{
     *this = get() | other;
     return *this;
 }
 
-inline variant_reference& variant_reference::operator^=(const variant_base& other) {
+inline variant_reference& variant_reference::operator^=(const variant_base& other)
+{
     *this = get() ^ other;
     return *this;
 }
 
-inline variant_reference& variant_reference::operator<<=(const variant_base& other) {
+inline variant_reference& variant_reference::operator<<=(const variant_base& other)
+{
     *this = get() << other;
     return *this;
 }
 
-inline variant_reference& variant_reference::operator>>=(const variant_base& other) {
+inline variant_reference& variant_reference::operator>>=(const variant_base& other)
+{
     *this = get() >> other;
     return *this;
 }
 
 template <typename T, typename>
-inline variant_reference& variant_reference::operator+=(const T& other) {
+inline variant_reference& variant_reference::operator+=(const T& other)
+{
     *this = get() + other;
     return *this;
 }
 
 template <typename T, typename>
-inline variant_reference& variant_reference::operator-=(const T& other) {
+inline variant_reference& variant_reference::operator-=(const T& other)
+{
     *this = get() - other;
     return *this;
 }
 
 template <typename T, typename>
-inline variant_reference& variant_reference::operator*=(const T& other) {
+inline variant_reference& variant_reference::operator*=(const T& other)
+{
     *this = get() * other;
     return *this;
 }
 
 template <typename T, typename>
-inline variant_reference& variant_reference::operator/=(const T& other) {
+inline variant_reference& variant_reference::operator/=(const T& other)
+{
     *this = get() / other;
     return *this;
 }
 
 template <typename T, typename>
-inline variant_reference& variant_reference::operator%=(const T& other) {
+inline variant_reference& variant_reference::operator%=(const T& other)
+{
     *this = get() % other;
     return *this;
 }
 
 template <typename T, typename>
-inline variant_reference& variant_reference::operator&=(const T& other) {
+inline variant_reference& variant_reference::operator&=(const T& other)
+{
     *this = get() & other;
     return *this;
 }
 
 template <typename T, typename>
-inline variant_reference& variant_reference::operator|=(const T& other) {
+inline variant_reference& variant_reference::operator|=(const T& other)
+{
     *this = get() | other;
     return *this;
 }
 
 template <typename T, typename>
-inline variant_reference& variant_reference::operator^=(const T& other) {
+inline variant_reference& variant_reference::operator^=(const T& other)
+{
     *this = get() ^ other;
     return *this;
 }
 
 template <typename T, typename>
-inline variant_reference& variant_reference::operator<<=(const T& other) {
+inline variant_reference& variant_reference::operator<<=(const T& other)
+{
     *this = get() << other;
     return *this;
 }
 
 template <typename T, typename>
-inline variant_reference& variant_reference::operator>>=(const T& other) {
+inline variant_reference& variant_reference::operator>>=(const T& other)
+{
     *this = get() >> other;
     return *this;
 }
 
-inline variant_reference& variant_reference::operator+=(std::string_view other) {
+inline variant_reference& variant_reference::operator+=(std::string_view other)
+{
     *this = get() + other;
     return *this;
 }
 
-inline variant_reference& variant_reference::operator+=(const char* other) {
+inline variant_reference& variant_reference::operator+=(const char* other)
+{
     return operator+=(std::string_view(other));
 }
 
-inline variant_reference& variant_reference::operator+=(const std::string& other) {
+inline variant_reference& variant_reference::operator+=(const std::string& other)
+{
     return operator+=(std::string_view(other));
 }
 
 // 自增自减操作符实现
 
-inline variant_reference& variant_reference::operator++() {
+inline variant_reference& variant_reference::operator++()
+{
     *this = get() + 1;
     return *this;
 }
 
-inline variant_reference& variant_reference::operator--() {
+inline variant_reference& variant_reference::operator--()
+{
     *this = get() - 1;
     return *this;
 }
 
-inline typename variant_reference::variant_type variant_reference::operator++(int) {
+inline typename variant_reference::variant_type variant_reference::operator++(int)
+{
     auto old_value = get();
     *this          = old_value + 1;
     return old_value;
 }
 
-inline typename variant_reference::variant_type variant_reference::operator--(int) {
+inline typename variant_reference::variant_type variant_reference::operator--(int)
+{
     auto old_value = get();
     *this          = old_value - 1;
     return old_value;
@@ -823,656 +901,815 @@ inline typename variant_reference::variant_type variant_reference::operator--(in
 
 // 一元操作符实现
 
-inline typename variant_reference::variant_type variant_reference::operator-() const {
+inline typename variant_reference::variant_type variant_reference::operator-() const
+{
     return -get();
 }
 
-inline typename variant_reference::variant_type variant_reference::operator!() const {
+inline typename variant_reference::variant_type variant_reference::operator!() const
+{
     return !get();
 }
 
-inline variant_reference::operator bool() const {
+inline variant_reference::operator bool() const
+{
     return static_cast<bool>(get());
 }
 
 // 简单的类型检查函数
 
-inline bool variant_reference::is_null() const {
+inline bool variant_reference::is_null() const
+{
     return get().is_null();
 }
 
-inline bool variant_reference::is_string() const {
+inline bool variant_reference::is_string() const
+{
     return get().is_string();
 }
 
-inline bool variant_reference::is_bool() const {
+inline bool variant_reference::is_bool() const
+{
     return get().is_bool();
 }
 
-inline bool variant_reference::is_int8() const {
+inline bool variant_reference::is_int8() const
+{
     return get().is_int8();
 }
 
-inline bool variant_reference::is_uint8() const {
+inline bool variant_reference::is_uint8() const
+{
     return get().is_uint8();
 }
 
-inline bool variant_reference::is_int16() const {
+inline bool variant_reference::is_int16() const
+{
     return get().is_int16();
 }
 
-inline bool variant_reference::is_uint16() const {
+inline bool variant_reference::is_uint16() const
+{
     return get().is_uint16();
 }
 
-inline bool variant_reference::is_int32() const {
+inline bool variant_reference::is_int32() const
+{
     return get().is_int32();
 }
 
-inline bool variant_reference::is_uint32() const {
+inline bool variant_reference::is_uint32() const
+{
     return get().is_uint32();
 }
 
-inline bool variant_reference::is_int64() const {
+inline bool variant_reference::is_int64() const
+{
     return get().is_int64();
 }
 
-inline bool variant_reference::is_uint64() const {
+inline bool variant_reference::is_uint64() const
+{
     return get().is_uint64();
 }
 
-inline bool variant_reference::is_double() const {
+inline bool variant_reference::is_double() const
+{
     return get().is_double();
 }
 
-inline bool variant_reference::is_object() const {
+inline bool variant_reference::is_object() const
+{
     return get().is_object();
 }
 
-inline bool variant_reference::is_dict() const {
+inline bool variant_reference::is_dict() const
+{
     return get().is_dict();
 }
 
-inline bool variant_reference::is_array() const {
+inline bool variant_reference::is_array() const
+{
     return get().is_array();
 }
 
-inline bool variant_reference::is_blob() const {
+inline bool variant_reference::is_blob() const
+{
     return get().is_blob();
 }
 
-inline bool variant_reference::is_extension() const {
+inline bool variant_reference::is_extension() const
+{
     return get().is_extension();
 }
 
-inline bool variant_reference::is_numeric() const {
+inline bool variant_reference::is_numeric() const
+{
     return get().is_numeric();
 }
 
-inline bool variant_reference::is_integer() const {
+inline bool variant_reference::is_integer() const
+{
     return get().is_integer();
 }
 
-inline bool variant_reference::is_signed_integer() const {
+inline bool variant_reference::is_signed_integer() const
+{
     return get().is_signed_integer();
 }
 
-inline bool variant_reference::is_unsigned_integer() const {
+inline bool variant_reference::is_unsigned_integer() const
+{
     return get().is_unsigned_integer();
 }
 
 // 简单的类型转换函数
 
-inline int8_t variant_reference::as_int8() const {
+inline int8_t variant_reference::as_int8() const
+{
     return get().as_int8();
 }
 
-inline uint8_t variant_reference::as_uint8() const {
+inline uint8_t variant_reference::as_uint8() const
+{
     return get().as_uint8();
 }
 
-inline int16_t variant_reference::as_int16() const {
+inline int16_t variant_reference::as_int16() const
+{
     return get().as_int16();
 }
 
-inline uint16_t variant_reference::as_uint16() const {
+inline uint16_t variant_reference::as_uint16() const
+{
     return get().as_uint16();
 }
 
-inline int32_t variant_reference::as_int32() const {
+inline int32_t variant_reference::as_int32() const
+{
     return get().as_int32();
 }
 
-inline uint32_t variant_reference::as_uint32() const {
+inline uint32_t variant_reference::as_uint32() const
+{
     return get().as_uint32();
 }
 
-inline int64_t variant_reference::as_int64() const {
+inline int64_t variant_reference::as_int64() const
+{
     return get().as_int64();
 }
 
-inline uint64_t variant_reference::as_uint64() const {
+inline uint64_t variant_reference::as_uint64() const
+{
     return get().as_uint64();
 }
 
-inline bool variant_reference::as_bool(bool strict) const {
+inline bool variant_reference::as_bool(bool strict) const
+{
     return get().as_bool(strict);
 }
 
-inline double variant_reference::as_double() const {
+inline double variant_reference::as_double() const
+{
     return get().as_double();
 }
 
-inline std::string variant_reference::as_string() const {
+inline std::string variant_reference::as_string() const
+{
     return get().as_string();
 }
 
-inline typename variant_reference::variant_type::array_type variant_reference::as_array() const {
+inline typename variant_reference::variant_type::array_type variant_reference::as_array() const
+{
     return get().as_array();
 }
 
-inline mc::dict variant_reference::as_dict() const {
+inline mc::dict variant_reference::as_dict() const
+{
     return get().as_dict();
 }
 
-inline mc::dict variant_reference::as_mutable_dict() const {
+inline mc::dict variant_reference::as_mutable_dict() const
+{
     return get().as_mutable_dict();
 }
 
-inline mc::dict variant_reference::as_object() const {
+inline mc::dict variant_reference::as_object() const
+{
     return get().as_object();
 }
 
-inline blob variant_reference::as_blob() const {
+inline blob variant_reference::as_blob() const
+{
     return get().as_blob();
 }
 
-inline typename variant_reference::variant_type::extension_ptr_type variant_reference::as_extension() const {
+inline typename variant_reference::variant_type::extension_ptr_type variant_reference::as_extension() const
+{
     return get().as_extension();
 }
 
 // 简单的访问函数
 
-inline const std::string& variant_reference::get_string() const {
+inline const std::string& variant_reference::get_string() const
+{
     return get().get_string();
 }
 
-inline const typename variant_reference::variant_type::blob_type& variant_reference::get_blob() const {
+inline const typename variant_reference::variant_type::blob_type& variant_reference::get_blob() const
+{
     return get().get_blob();
 }
 
-inline const typename variant_reference::variant_type::array_type& variant_reference::get_array() const {
+inline const typename variant_reference::variant_type::array_type& variant_reference::get_array() const
+{
     return get().get_array();
 }
 
-inline const mc::dict& variant_reference::get_object() const {
+inline const mc::dict& variant_reference::get_object() const
+{
     return get().get_object();
 }
 
-inline const char* variant_reference::get_type_name() const {
+inline const char* variant_reference::get_type_name() const
+{
     return get().get_type_name();
 }
 
-inline type_id variant_reference::get_type() const {
+inline type_id variant_reference::get_type() const
+{
     return get().get_type();
 }
 
-inline bool variant_reference::contains(std::string_view key) const {
+inline bool variant_reference::contains(std::string_view key) const
+{
     return get().contains(key);
 }
 
-inline std::size_t variant_reference::size() const {
+inline std::size_t variant_reference::size() const
+{
     return get().size();
 }
 
-inline size_t variant_reference::hash() const {
+inline size_t variant_reference::hash() const
+{
     return get().hash();
 }
 
-inline typename variant_reference::variant_type variant_reference::deep_copy(mc::detail::copy_context* ctx) const {
+inline typename variant_reference::variant_type variant_reference::deep_copy(mc::detail::copy_context* ctx) const
+{
     return get().deep_copy(ctx);
 }
 
-inline void variant_reference::clear() {
+inline void variant_reference::clear()
+{
     get().clear();
 }
 
 // 简单的比较操作符
 
-inline bool variant_reference::operator==(const variant_reference& other) const {
+inline bool variant_reference::operator==(const variant_reference& other) const
+{
     return get() == other.get();
 }
 
-inline bool variant_reference::operator!=(const variant_reference& other) const {
+inline bool variant_reference::operator!=(const variant_reference& other) const
+{
     return get() != other.get();
 }
 
-inline bool variant_reference::operator<(const variant_reference& other) const {
+inline bool variant_reference::operator<(const variant_reference& other) const
+{
     return get() < other.get();
 }
 
-inline bool variant_reference::operator>(const variant_reference& other) const {
+inline bool variant_reference::operator>(const variant_reference& other) const
+{
     return get() > other.get();
 }
 
-inline bool variant_reference::operator<=(const variant_reference& other) const {
+inline bool variant_reference::operator<=(const variant_reference& other) const
+{
     return get() <= other.get();
 }
 
-inline bool variant_reference::operator>=(const variant_reference& other) const {
+inline bool variant_reference::operator>=(const variant_reference& other) const
+{
     return get() >= other.get();
 }
 
-inline bool variant_reference::operator==(const variant_base& other) const {
+inline bool variant_reference::operator==(const variant_base& other) const
+{
     return get() == other;
 }
 
-inline bool variant_reference::operator!=(const variant_base& other) const {
+inline bool variant_reference::operator!=(const variant_base& other) const
+{
     return get() != other;
 }
 
-inline bool variant_reference::operator<(const variant_base& other) const {
+inline bool variant_reference::operator<(const variant_base& other) const
+{
     return get() < other;
 }
 
-inline bool variant_reference::operator>(const variant_base& other) const {
+inline bool variant_reference::operator>(const variant_base& other) const
+{
     return get() > other;
 }
 
-inline bool variant_reference::operator<=(const variant_base& other) const {
+inline bool variant_reference::operator<=(const variant_base& other) const
+{
     return get() <= other;
 }
 
-inline bool variant_reference::operator>=(const variant_base& other) const {
+inline bool variant_reference::operator>=(const variant_base& other) const
+{
     return get() >= other;
 }
 
 template <typename T, typename>
-inline bool variant_reference::operator==(const T& other) const {
+inline bool variant_reference::operator==(const T& other) const
+{
     return get() == other;
 }
 
 template <typename T, typename>
-inline bool variant_reference::operator!=(const T& other) const {
+inline bool variant_reference::operator!=(const T& other) const
+{
     return get() != other;
 }
 
 template <typename T, typename>
-inline bool variant_reference::operator<(const T& other) const {
+inline bool variant_reference::operator<(const T& other) const
+{
     return get() < other;
 }
 
 template <typename T, typename>
-inline bool variant_reference::operator>(const T& other) const {
+inline bool variant_reference::operator>(const T& other) const
+{
     return get() > other;
 }
 
 template <typename T, typename>
-inline bool variant_reference::operator<=(const T& other) const {
+inline bool variant_reference::operator<=(const T& other) const
+{
     return get() <= other;
 }
 
 template <typename T, typename>
-inline bool variant_reference::operator>=(const T& other) const {
+inline bool variant_reference::operator>=(const T& other) const
+{
     return get() >= other;
 }
 
-inline bool variant_reference::operator==(std::string_view other) const {
+inline bool variant_reference::operator==(std::string_view other) const
+{
     return get() == other;
 }
 
-inline bool variant_reference::operator!=(std::string_view other) const {
+inline bool variant_reference::operator!=(std::string_view other) const
+{
     return get() != other;
 }
 
-inline bool variant_reference::operator<(std::string_view other) const {
+inline bool variant_reference::operator<(std::string_view other) const
+{
     return get() < other;
 }
 
-inline bool variant_reference::operator>(std::string_view other) const {
+inline bool variant_reference::operator>(std::string_view other) const
+{
     return get() > other;
 }
 
-inline bool variant_reference::operator<=(std::string_view other) const {
+inline bool variant_reference::operator<=(std::string_view other) const
+{
     return get() <= other;
 }
 
-inline bool variant_reference::operator>=(std::string_view other) const {
+inline bool variant_reference::operator>=(std::string_view other) const
+{
     return get() >= other;
 }
 
-inline bool variant_reference::operator==(const char* other) const {
+inline bool variant_reference::operator==(const char* other) const
+{
     return get() == other;
 }
 
-inline bool variant_reference::operator!=(const char* other) const {
+inline bool variant_reference::operator!=(const char* other) const
+{
     return get() != other;
 }
 
-inline bool variant_reference::operator<(const char* other) const {
+inline bool variant_reference::operator<(const char* other) const
+{
     return get() < other;
 }
 
-inline bool variant_reference::operator>(const char* other) const {
+inline bool variant_reference::operator>(const char* other) const
+{
     return get() > other;
 }
 
-inline bool variant_reference::operator<=(const char* other) const {
+inline bool variant_reference::operator<=(const char* other) const
+{
     return get() <= other;
 }
 
-inline bool variant_reference::operator>=(const char* other) const {
+inline bool variant_reference::operator>=(const char* other) const
+{
     return get() >= other;
 }
 
-inline bool variant_reference::operator==(const std::string& other) const {
+inline bool variant_reference::operator==(const std::string& other) const
+{
     return get() == other;
 }
 
-inline bool variant_reference::operator!=(const std::string& other) const {
+inline bool variant_reference::operator!=(const std::string& other) const
+{
     return get() != other;
 }
 
-inline bool variant_reference::operator<(const std::string& other) const {
+inline bool variant_reference::operator<(const std::string& other) const
+{
     return get() < other;
 }
 
-inline bool variant_reference::operator>(const std::string& other) const {
+inline bool variant_reference::operator>(const std::string& other) const
+{
     return get() > other;
 }
 
-inline bool variant_reference::operator<=(const std::string& other) const {
+inline bool variant_reference::operator<=(const std::string& other) const
+{
     return get() <= other;
 }
 
-inline bool variant_reference::operator>=(const std::string& other) const {
+inline bool variant_reference::operator>=(const std::string& other) const
+{
     return get() >= other;
 }
 
-inline bool variant_reference::operator==(const mc::dict& other) const {
+inline bool variant_reference::operator==(const mc::dict& other) const
+{
     return get() == other;
 }
 
-inline bool variant_reference::operator!=(const mc::dict& other) const {
+inline bool variant_reference::operator!=(const mc::dict& other) const
+{
     return get() != other;
 }
 
-inline bool variant_reference::operator==(const blob& other) const {
+inline bool variant_reference::operator==(const blob& other) const
+{
     return get() == other;
 }
-inline bool variant_reference::operator!=(const blob& other) const {
+inline bool variant_reference::operator!=(const blob& other) const
+{
     return get() != other;
 }
-inline bool variant_reference::operator<(const blob& other) const {
+inline bool variant_reference::operator<(const blob& other) const
+{
     return get() < other;
 }
-inline bool variant_reference::operator>(const blob& other) const {
+inline bool variant_reference::operator>(const blob& other) const
+{
     return get() > other;
 }
-inline bool variant_reference::operator<=(const blob& other) const {
+inline bool variant_reference::operator<=(const blob& other) const
+{
     return get() <= other;
 }
-inline bool variant_reference::operator>=(const blob& other) const {
+inline bool variant_reference::operator>=(const blob& other) const
+{
     return get() >= other;
 }
 
-inline bool variant_reference::operator==(const std::vector<variant_base>& other) const {
+inline bool variant_reference::operator==(const std::vector<variant_base>& other) const
+{
     return get() == other;
 }
 
-inline bool variant_reference::operator!=(const std::vector<variant_base>& other) const {
+inline bool variant_reference::operator!=(const std::vector<variant_base>& other) const
+{
     return get() != other;
 }
 
-inline bool variant_reference::operator<(const std::vector<variant_base>& other) const {
+inline bool variant_reference::operator<(const std::vector<variant_base>& other) const
+{
     return get() < other;
 }
 
-inline bool variant_reference::operator>(const std::vector<variant_base>& other) const {
+inline bool variant_reference::operator>(const std::vector<variant_base>& other) const
+{
     return get() > other;
 }
 
-inline bool variant_reference::operator<=(const std::vector<variant_base>& other) const {
+inline bool variant_reference::operator<=(const std::vector<variant_base>& other) const
+{
     return get() <= other;
 }
 
-inline bool variant_reference::operator>=(const std::vector<variant_base>& other) const {
+inline bool variant_reference::operator>=(const std::vector<variant_base>& other) const
+{
     return get() >= other;
 }
 
-inline void to_variant(const variant_reference& ref, variant_base& vo) {
+inline void to_variant(const variant_reference& ref, variant_base& vo)
+{
     vo = ref.get();
 }
 
-inline void to_variant(variant_reference& ref, variant_base& vo) {
+inline void to_variant(variant_reference& ref, variant_base& vo)
+{
     vo = ref.get();
 }
 
 template <typename T>
-inline void from_variant(const variant_reference& ref, T& value) {
+inline void from_variant(const variant_reference& ref, T& value)
+{
     from_variant(ref.get(), value);
 }
 
 template <typename T>
-inline void from_variant(variant_reference& ref, T& value) {
+inline void from_variant(variant_reference& ref, T& value)
+{
     from_variant(ref.get(), value);
 }
 
 // 算术操作符：基础类型 op variant_reference
 template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-inline variant_base operator+(T lhs, const variant_reference& rhs) {
+inline variant_base operator+(T lhs, const variant_reference& rhs)
+{
     return lhs + rhs.get();
 }
 
 template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-inline variant_base operator-(T lhs, const variant_reference& rhs) {
+inline variant_base operator-(T lhs, const variant_reference& rhs)
+{
     return lhs - rhs.get();
 }
 
 template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-inline variant_base operator*(T lhs, const variant_reference& rhs) {
+inline variant_base operator*(T lhs, const variant_reference& rhs)
+{
     return lhs * rhs.get();
 }
 
 template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-inline variant_base operator/(T lhs, const variant_reference& rhs) {
+inline variant_base operator/(T lhs, const variant_reference& rhs)
+{
     return lhs / rhs.get();
 }
 
 template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-inline variant_base operator%(T lhs, const variant_reference& rhs) {
+inline variant_base operator%(T lhs, const variant_reference& rhs)
+{
     return lhs % rhs.get();
 }
 
 // 算术操作符：variant_base op variant_reference
 
-inline variant_base operator+(const variant_base& lhs, const variant_reference& rhs) {
+inline variant_base operator+(const variant_base& lhs, const variant_reference& rhs)
+{
     return lhs + rhs.get();
 }
 
-inline variant_base operator-(const variant_base& lhs, const variant_reference& rhs) {
+inline variant_base operator-(const variant_base& lhs, const variant_reference& rhs)
+{
     return lhs - rhs.get();
 }
 
-inline variant_base operator*(const variant_base& lhs, const variant_reference& rhs) {
+inline variant_base operator*(const variant_base& lhs, const variant_reference& rhs)
+{
     return lhs * rhs.get();
 }
 
-inline variant_base operator/(const variant_base& lhs, const variant_reference& rhs) {
+inline variant_base operator/(const variant_base& lhs, const variant_reference& rhs)
+{
     return lhs / rhs.get();
 }
 
-inline variant_base operator%(const variant_base& lhs, const variant_reference& rhs) {
+inline variant_base operator%(const variant_base& lhs, const variant_reference& rhs)
+{
     return lhs % rhs.get();
 }
 
 // 位操作符：基础类型 op variant_reference
 template <typename T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
-inline variant_base operator&(T lhs, const variant_reference& rhs) {
+inline variant_base operator&(T lhs, const variant_reference& rhs)
+{
     return lhs & rhs.get();
 }
 
 template <typename T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
-inline variant_base operator|(T lhs, const variant_reference& rhs) {
+inline variant_base operator|(T lhs, const variant_reference& rhs)
+{
     return lhs | rhs.get();
 }
 
 template <typename T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
-inline variant_base operator^(T lhs, const variant_reference& rhs) {
+inline variant_base operator^(T lhs, const variant_reference& rhs)
+{
     return lhs ^ rhs.get();
 }
 
 template <typename T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
-inline variant_base operator<<(T lhs, const variant_reference& rhs) {
+inline variant_base operator<<(T lhs, const variant_reference& rhs)
+{
     return lhs << rhs.get();
 }
 
 template <typename T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
-inline variant_base operator>>(T lhs, const variant_reference& rhs) {
+inline variant_base operator>>(T lhs, const variant_reference& rhs)
+{
     return lhs >> rhs.get();
 }
 
 // 位操作符：variant_base op variant_reference
 
-inline variant_base operator&(const variant_base& lhs, const variant_reference& rhs) {
+inline variant_base operator&(const variant_base& lhs, const variant_reference& rhs)
+{
     return lhs & rhs.get();
 }
 
-inline variant_base operator|(const variant_base& lhs, const variant_reference& rhs) {
+inline variant_base operator|(const variant_base& lhs, const variant_reference& rhs)
+{
     return lhs | rhs.get();
 }
 
-inline variant_base operator^(const variant_base& lhs, const variant_reference& rhs) {
+inline variant_base operator^(const variant_base& lhs, const variant_reference& rhs)
+{
     return lhs ^ rhs.get();
 }
 
-inline variant_base operator<<(const variant_base& lhs, const variant_reference& rhs) {
+inline variant_base operator<<(const variant_base& lhs, const variant_reference& rhs)
+{
     return lhs << rhs.get();
 }
 
-inline variant_base operator>>(const variant_base& lhs, const variant_reference& rhs) {
+inline variant_base operator>>(const variant_base& lhs, const variant_reference& rhs)
+{
     return lhs >> rhs.get();
 }
 
 // 比较操作符：基础类型 op variant_reference
 // 使用 SFINAE 排除 T 为 variant_reference 的情况，避免与成员函数版本产生歧义
 template <typename T, typename = std::enable_if_t<!is_variant_reference_v<std::decay_t<T>>>>
-inline bool operator==(const T& lhs, const variant_reference& rhs) {
+inline bool operator==(const T& lhs, const variant_reference& rhs)
+{
     return lhs == rhs.get();
 }
 
 template <typename T, typename = std::enable_if_t<!is_variant_reference_v<std::decay_t<T>>>>
-inline bool operator!=(const T& lhs, const variant_reference& rhs) {
+inline bool operator!=(const T& lhs, const variant_reference& rhs)
+{
     return lhs != rhs.get();
 }
 
 template <typename T, typename = std::enable_if_t<!is_variant_reference_v<std::decay_t<T>>>>
-inline bool operator<(const T& lhs, const variant_reference& rhs) {
+inline bool operator<(const T& lhs, const variant_reference& rhs)
+{
     return lhs < rhs.get();
 }
 
 template <typename T, typename = std::enable_if_t<!is_variant_reference_v<std::decay_t<T>>>>
-inline bool operator>(const T& lhs, const variant_reference& rhs) {
+inline bool operator>(const T& lhs, const variant_reference& rhs)
+{
     return lhs > rhs.get();
 }
 
 template <typename T, typename = std::enable_if_t<!is_variant_reference_v<std::decay_t<T>>>>
-inline bool operator<=(const T& lhs, const variant_reference& rhs) {
+inline bool operator<=(const T& lhs, const variant_reference& rhs)
+{
     return lhs <= rhs.get();
 }
 
 template <typename T, typename = std::enable_if_t<!is_variant_reference_v<std::decay_t<T>>>>
-inline bool operator>=(const T& lhs, const variant_reference& rhs) {
+inline bool operator>=(const T& lhs, const variant_reference& rhs)
+{
     return lhs >= rhs.get();
 }
 
 // 比较操作符：variant_base op variant_reference
-inline bool operator==(const variant_base& lhs, const variant_reference& rhs) {
+inline bool operator==(const variant_base& lhs, const variant_reference& rhs)
+{
     return lhs == rhs.get();
 }
 
-inline bool operator!=(const variant_base& lhs, const variant_reference& rhs) {
+inline bool operator!=(const variant_base& lhs, const variant_reference& rhs)
+{
     return lhs != rhs.get();
 }
 
-inline bool operator<(const variant_base& lhs, const variant_reference& rhs) {
+inline bool operator<(const variant_base& lhs, const variant_reference& rhs)
+{
     return lhs < rhs.get();
 }
 
-inline bool operator>(const variant_base& lhs, const variant_reference& rhs) {
+inline bool operator>(const variant_base& lhs, const variant_reference& rhs)
+{
     return lhs > rhs.get();
 }
 
-inline bool operator<=(const variant_base& lhs, const variant_reference& rhs) {
+inline bool operator<=(const variant_base& lhs, const variant_reference& rhs)
+{
     return lhs <= rhs.get();
 }
 
-inline bool operator>=(const variant_base& lhs, const variant_reference& rhs) {
+inline bool operator>=(const variant_base& lhs, const variant_reference& rhs)
+{
     return lhs >= rhs.get();
 }
 
 // 字符串拼接：string_view op variant_reference
-inline variant_base operator+(std::string_view lhs, const variant_reference& rhs) {
+inline variant_base operator+(std::string_view lhs, const variant_reference& rhs)
+{
     return lhs + rhs.get();
 }
-inline variant_base operator+(const char* lhs, const variant_reference& rhs) {
+inline variant_base operator+(const char* lhs, const variant_reference& rhs)
+{
     return lhs + rhs.get();
 }
-inline variant_base operator+(const std::string& lhs, const variant_reference& rhs) {
+inline variant_base operator+(const std::string& lhs, const variant_reference& rhs)
+{
     return lhs + rhs.get();
 }
-inline bool operator==(std::string_view lhs, const variant_reference& rhs) {
+inline bool operator==(std::string_view lhs, const variant_reference& rhs)
+{
     return lhs == rhs.get();
 }
-inline bool operator==(const char* lhs, const variant_reference& rhs) {
+inline bool operator==(const char* lhs, const variant_reference& rhs)
+{
     return lhs == rhs.get();
 }
-inline bool operator==(const std::string& lhs, const variant_reference& rhs) {
+inline bool operator==(const std::string& lhs, const variant_reference& rhs)
+{
     return lhs == rhs.get();
 }
-inline bool operator!=(std::string_view lhs, const variant_reference& rhs) {
+inline bool operator!=(std::string_view lhs, const variant_reference& rhs)
+{
     return lhs != rhs.get();
 }
-inline bool operator!=(const char* lhs, const variant_reference& rhs) {
+inline bool operator!=(const char* lhs, const variant_reference& rhs)
+{
     return lhs != rhs.get();
 }
-inline bool operator!=(const std::string& lhs, const variant_reference& rhs) {
+inline bool operator!=(const std::string& lhs, const variant_reference& rhs)
+{
     return lhs != rhs.get();
 }
-inline bool operator<(std::string_view lhs, const variant_reference& rhs) {
+inline bool operator<(std::string_view lhs, const variant_reference& rhs)
+{
     return lhs < rhs.get();
 }
-inline bool operator<(const char* lhs, const variant_reference& rhs) {
+inline bool operator<(const char* lhs, const variant_reference& rhs)
+{
     return lhs < rhs.get();
 }
-inline bool operator<(const std::string& lhs, const variant_reference& rhs) {
+inline bool operator<(const std::string& lhs, const variant_reference& rhs)
+{
     return lhs < rhs.get();
 }
-inline bool operator>(std::string_view lhs, const variant_reference& rhs) {
+inline bool operator>(std::string_view lhs, const variant_reference& rhs)
+{
     return lhs > rhs.get();
 }
-inline bool operator>(const char* lhs, const variant_reference& rhs) {
+inline bool operator>(const char* lhs, const variant_reference& rhs)
+{
     return lhs > rhs.get();
 }
-inline bool operator>(const std::string& lhs, const variant_reference& rhs) {
+inline bool operator>(const std::string& lhs, const variant_reference& rhs)
+{
     return lhs > rhs.get();
 }
-inline bool operator<=(std::string_view lhs, const variant_reference& rhs) {
+inline bool operator<=(std::string_view lhs, const variant_reference& rhs)
+{
     return lhs <= rhs.get();
 }
-inline bool operator<=(const char* lhs, const variant_reference& rhs) {
+inline bool operator<=(const char* lhs, const variant_reference& rhs)
+{
     return lhs <= rhs.get();
 }
-inline bool operator<=(const std::string& lhs, const variant_reference& rhs) {
+inline bool operator<=(const std::string& lhs, const variant_reference& rhs)
+{
     return lhs <= rhs.get();
 }
-inline bool operator>=(std::string_view lhs, const variant_reference& rhs) {
+inline bool operator>=(std::string_view lhs, const variant_reference& rhs)
+{
     return lhs >= rhs.get();
 }
-inline bool operator>=(const char* lhs, const variant_reference& rhs) {
+inline bool operator>=(const char* lhs, const variant_reference& rhs)
+{
     return lhs >= rhs.get();
 }
-inline bool operator>=(const std::string& lhs, const variant_reference& rhs) {
+inline bool operator>=(const std::string& lhs, const variant_reference& rhs)
+{
     return lhs >= rhs.get();
 }
 

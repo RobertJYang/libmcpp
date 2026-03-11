@@ -49,12 +49,14 @@ public:
     table_op_resource(uint32_t table_id, uint32_t object_id, table_type& table, int32_t sp,
                       table_op_type op_type)
         : m_table_id(table_id), m_object_id(object_id), m_table(table), m_savepoint_id(sp),
-          m_op_type(op_type) {
+          m_op_type(op_type)
+    {
     }
 
     virtual ~table_op_resource() = default;
 
-    table_op_type get_op_type() const {
+    table_op_type get_op_type() const
+    {
         return m_op_type;
     }
 
@@ -62,14 +64,16 @@ public:
      * 获取表ID
      * @return 表ID
      */
-    uint32_t get_table_id() const {
+    uint32_t get_table_id() const
+    {
         return m_table_id;
     }
 
     // 获取资源ID
     // 资源ID = 表ID << 32 | 对象ID，目前这样做是足够了，每个表最多支持
     // std::numeric_limits<uint32_t>::max() 个对象
-    uint64_t resource_id() const override {
+    uint64_t resource_id() const override
+    {
         return (uint64_t(m_table_id) << 32) | m_object_id;
     }
 
@@ -77,7 +81,8 @@ public:
      * 提交操作
      * @return 成功返回true，失败返回false
      */
-    bool commit() override {
+    bool commit() override
+    {
         m_table.commit();
         return true;
     }
@@ -86,12 +91,14 @@ public:
      * 回滚操作
      * @return 成功返回true，失败返回false
      */
-    bool rollback() override {
+    bool rollback() override
+    {
         m_table.rollback_to(m_savepoint_id);
         return true;
     }
 
-    bool merge(const db_resource& other) override {
+    bool merge(const db_resource& other) override
+    {
         if (!this->m_is_valid) {
             return false;
         }
@@ -130,17 +137,20 @@ public:
      * @param obj_ptr 添加的对象指针
      */
     table_add_resource(uint32_t table_id, table_type& table, object_ptr_type obj_ptr, int32_t sp)
-        : base_type(table_id, obj_ptr->get_object_id(), table, sp, table_op_type::add) {
+        : base_type(table_id, obj_ptr->get_object_id(), table, sp, table_op_type::add)
+    {
         this->m_new_obj_ptr = std::move(obj_ptr);
     }
 
-    bool commit() override {
+    bool commit() override
+    {
         base_type::commit();
         this->m_table.on_object_added(*this->m_new_obj_ptr);
         return true;
     }
 
-    bool do_merge(const base_type& other) override {
+    bool do_merge(const base_type& other) override
+    {
         if (!this->m_is_valid) {
             return false;
         }
@@ -180,18 +190,21 @@ public:
      */
     table_update_resource(uint32_t table_id, table_type& table, const object_ptr_type& old_obj_ptr,
                           object_ptr_type new_obj_ptr, int32_t sp)
-        : base_type(table_id, new_obj_ptr->get_object_id(), table, sp, table_op_type::update) {
+        : base_type(table_id, new_obj_ptr->get_object_id(), table, sp, table_op_type::update)
+    {
         this->m_old_obj_ptr = std::move(old_obj_ptr);
         this->m_new_obj_ptr = std::move(new_obj_ptr);
     }
 
-    bool commit() override {
+    bool commit() override
+    {
         base_type::commit();
         this->m_table.on_object_updated(*this->m_old_obj_ptr, *this->m_new_obj_ptr);
         return true;
     }
 
-    bool do_merge(const base_type& other) override {
+    bool do_merge(const base_type& other) override
+    {
         if (!this->m_is_valid) {
             return false;
         }
@@ -229,17 +242,20 @@ public:
      * @param obj_ptr 删除的对象指针
      */
     table_remove_resource(uint32_t table_id, table_type& table, object_ptr_type obj_ptr, int32_t sp)
-        : base_type(table_id, obj_ptr->get_object_id(), table, sp, table_op_type::remove) {
+        : base_type(table_id, obj_ptr->get_object_id(), table, sp, table_op_type::remove)
+    {
         this->m_old_obj_ptr = std::move(obj_ptr);
     }
 
-    bool commit() override {
+    bool commit() override
+    {
         base_type::commit();
         this->m_table.on_object_removed(*this->m_old_obj_ptr);
         return true;
     }
 
-    bool do_merge(const base_type& other) override {
+    bool do_merge(const base_type& other) override
+    {
         if (!this->m_is_valid) {
             return false;
         }

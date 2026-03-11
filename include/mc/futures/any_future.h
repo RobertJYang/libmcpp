@@ -63,12 +63,14 @@ public:
     void wait() const;
 
     template <typename Duration>
-    future_status wait_for(Duration duration) const {
+    future_status wait_for(Duration duration) const
+    {
         return wait_for_impl(duration);
     }
 
     template <typename TimePoint>
-    future_status wait_until(TimePoint timeout_time) const {
+    future_status wait_until(TimePoint timeout_time) const
+    {
         return wait_until_impl(timeout_time);
     }
 
@@ -78,7 +80,8 @@ public:
     std::exception_ptr    get_exception() const noexcept;
 
     template <typename T>
-    auto get() const {
+    auto get() const
+    {
         if (!m_state) {
             MC_THROW(invalid_future_exception, "Future 无效");
         }
@@ -86,7 +89,8 @@ public:
         return static_cast<const State<T>*>(m_state.get())->get_value();
     }
 
-    any_executor get_executor() const {
+    any_executor get_executor() const
+    {
         return m_state ? m_state->get_executor() : any_executor();
     }
 

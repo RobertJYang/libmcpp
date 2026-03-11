@@ -32,16 +32,19 @@ namespace mc {
 error::error() = default;
 
 error::error(const error_info& info)
-    : mc::enable_shared_from_this<error>(), error_info(info) {
+    : mc::enable_shared_from_this<error>(), error_info(info)
+{
 }
 
 error::error(std::string_view name, std::string_view format, error_level level)
-    : mc::enable_shared_from_this<error>(), error_info(name, format, level) {
+    : mc::enable_shared_from_this<error>(), error_info(name, format, level)
+{
 }
 
 error::error(const error& other)
     : mc::enable_shared_from_this<error>(other),
-      error_info(other.name, other.format, other.level) {
+      error_info(other.name, other.format, other.level)
+{
     this->args = other.args;
     // 不复制缓存，让新对象懒加载
 
@@ -50,7 +53,8 @@ error::error(const error& other)
     }
 }
 
-error_ptr error::from_exception(std::exception_ptr e) {
+error_ptr error::from_exception(std::exception_ptr e)
+{
     try {
         std::rethrow_exception(e);
     } catch (mc::error_exception& e) {
@@ -64,7 +68,8 @@ error_ptr error::from_exception(std::exception_ptr e) {
     }
 }
 
-error_ptr error::from_exception(const mc::exception& e) {
+error_ptr error::from_exception(const mc::exception& e)
+{
     auto err = mc::make_shared<error>();
 
     err->set_name(e.name());
@@ -79,7 +84,8 @@ error_ptr error::from_exception(const mc::exception& e) {
     return err;
 }
 
-error_ptr error::from_exception(const mc::error_exception& e) {
+error_ptr error::from_exception(const mc::error_exception& e)
+{
     auto err = mc::make_shared<error>();
 
     err->set_name(e.name());
@@ -88,24 +94,27 @@ error_ptr error::from_exception(const mc::error_exception& e) {
     return err;
 }
 
-error_ptr error::from_exception(const std::exception& e) {
+error_ptr error::from_exception(const std::exception& e)
+{
     return from_exception(mc::std_exception_wrapper::from_current_exception(e));
 }
 
-void error::to_exception(mc::exception& e) const {
+void error::to_exception(mc::exception& e) const
+{
     e.set_name(this->name);
     e.append_log(this->to_log_message());
 }
 
-error& error::operator=(const error& other) {
+error& error::operator=(const error& other)
+{
     if (this != &other) {
         mc::enable_shared_from_this<error>::operator=(other);
 
-        this->name             = other.name;
-        this->format           = other.format;
-        this->level            = other.level;
-        this->args             = other.args;
-        this->registry_prefix  = other.registry_prefix;
+        this->name            = other.name;
+        this->format          = other.format;
+        this->level           = other.level;
+        this->args            = other.args;
+        this->registry_prefix = other.registry_prefix;
         this->m_cached_message.reset(); // 清除缓存
 
         if (other.prev_error) {
@@ -116,23 +125,28 @@ error& error::operator=(const error& other) {
     return *this;
 }
 
-std::string_view error::get_name() const {
+std::string_view error::get_name() const
+{
     return this->name;
 }
 
-std::string_view error::get_format() const {
+std::string_view error::get_format() const
+{
     return this->format;
 }
 
-const mc::dict& error::get_args() const {
+const mc::dict& error::get_args() const
+{
     return args;
 }
 
-const mc::dict& error::get_args_with_index() const {
+const mc::dict& error::get_args_with_index() const
+{
     return m_args_with_index;
 }
 
-std::string error::get_message() const {
+std::string error::get_message() const
+{
     // 懒加载：如果缓存中有格式化消息，直接返回
     if (m_cached_message.has_value()) {
         return m_cached_message.value();
@@ -166,35 +180,43 @@ std::string error::get_message() const {
     return formatted;
 }
 
-error_level error::get_level() const {
+error_level error::get_level() const
+{
     return this->level;
 }
 
-void error::set_level(error_level level) {
+void error::set_level(error_level level)
+{
     this->level = level;
 }
 
-void error::set_name(std::string_view name) {
+void error::set_name(std::string_view name)
+{
     this->name = name;
 }
 
-void error::set_format(std::string_view format) {
+void error::set_format(std::string_view format)
+{
     this->format = format;
 }
 
-const std::string& error::get_registry_prefix() const {
+const std::string& error::get_registry_prefix() const
+{
     return this->registry_prefix;
 }
 
-void error::set_registry_prefix(std::string_view prefix) {
+void error::set_registry_prefix(std::string_view prefix)
+{
     this->registry_prefix = prefix;
 }
 
-void error::set_prev_error(error_ptr other) {
+void error::set_prev_error(error_ptr other)
+{
     this->prev_error = std::move(other);
 }
 
-void error::reset() {
+void error::reset()
+{
     this->name   = {};
     this->format = {};
     this->args.clear();
@@ -202,14 +224,16 @@ void error::reset() {
     this->m_cached_message.reset();
 }
 
-error& error::set_args(const mc::dict& args) {
+error& error::set_args(const mc::dict& args)
+{
     this->args = args;
     // 清除缓存，因为参数已更改
     m_cached_message.reset();
     return *this;
 }
 
-std::string error::to_string() const {
+std::string error::to_string() const
+{
     std::ostringstream oss;
 
     // 输出错误名称和消息
@@ -224,14 +248,16 @@ std::string error::to_string() const {
     return oss.str();
 }
 
-std::string error::to_string_format_inplace() const {
+std::string error::to_string_format_inplace() const
+{
     mc::dict error_data;
     error_data["name"]   = this->name;
     error_data["format"] = get_message();
     return error_data.to_string();
 }
 
-bool error::is_set() const {
+bool error::is_set() const
+{
     if (!this->name.empty()) {
         return true;
     }
@@ -243,7 +269,8 @@ bool error::is_set() const {
     return false;
 }
 
-bool error::has_error(std::string_view name) const {
+bool error::has_error(std::string_view name) const
+{
     if (this->name == name) {
         return true;
     }
@@ -255,15 +282,18 @@ bool error::has_error(std::string_view name) const {
     return false;
 }
 
-bool error::operator==(const error& other) const {
+bool error::operator==(const error& other) const
+{
     return this->name == other.name && this->format == other.format && this->args == other.args;
 }
 
-bool error::operator!=(const error& other) const {
+bool error::operator!=(const error& other) const
+{
     return !(*this == other);
 }
 
-mc::log::message error::to_log_message() const {
+mc::log::message error::to_log_message() const
+{
     return mc::log::message(
         this->level,
         mc::log::context("", std::string(this->name), 0),
@@ -271,16 +301,19 @@ mc::log::message error::to_log_message() const {
         this->args);
 }
 
-error_with_owner::error_with_owner() {
+error_with_owner::error_with_owner()
+{
 }
 
 error_with_owner::error_with_owner(std::string name, std::string format)
-    : m_name_owner(std::move(name)), m_format_owner(std::move(format)) {
+    : m_name_owner(std::move(name)), m_format_owner(std::move(format))
+{
     this->name   = m_name_owner;
     this->format = m_format_owner;
 }
 
-bool get_error_format_args(std::string_view format, mc::dict& arg_names) {
+bool get_error_format_args(std::string_view format, mc::dict& arg_names)
+{
     return mc::fmt::get_format_args(format, arg_names);
 }
 
@@ -291,7 +324,8 @@ bool get_error_format_args(std::string_view format, mc::dict& arg_names) {
 /**
  * @brief 查找参数位置索引(string版本)
  */
-int error::get_param_index(std::string_view param_name, std::string_view param_value) {
+int error::get_param_index(std::string_view param_name, std::string_view param_value)
+{
     if (param_name == param_value) {
         return 0;
     }
@@ -301,7 +335,8 @@ int error::get_param_index(std::string_view param_name, std::string_view param_v
 /**
  * @brief 查找参数位置索引(dict版本)
  */
-int error::get_param_index(std::string_view param_name, const mc::dict& param_struct) {
+int error::get_param_index(std::string_view param_name, const mc::dict& param_struct)
+{
     if (param_name.empty()) {
         return -1;
     }
@@ -324,7 +359,8 @@ int error::get_param_index(std::string_view param_name, const mc::dict& param_st
 /**
  * @brief 参数名映射为位置索引(string版本)
  */
-void error::post_process(const std::string& param_struct) {
+void error::post_process(const std::string& param_struct)
+{
     post_process_impl([&param_struct](std::string_view param_name) {
         return get_param_index(param_name, param_struct);
     });
@@ -333,7 +369,8 @@ void error::post_process(const std::string& param_struct) {
 /**
  * @brief 参数名映射为位置索引(dict版本)
  */
-void error::post_process(const mc::dict& param_struct) {
+void error::post_process(const mc::dict& param_struct)
+{
     post_process_impl([&param_struct](std::string_view param_name) {
         return get_param_index(param_name, param_struct);
     });
@@ -343,7 +380,8 @@ void error::post_process(const mc::dict& param_struct) {
  * @brief post_process 通用实现 (模板函数)
  */
 template <typename IndexLookupFunc>
-void error::post_process_impl(IndexLookupFunc&& index_lookup) {
+void error::post_process_impl(IndexLookupFunc&& index_lookup)
+{
     if (args.empty()) {
         return;
     }
@@ -353,7 +391,7 @@ void error::post_process_impl(IndexLookupFunc&& index_lookup) {
 
     mc::dict new_args;
     mc::dict args_with_index;
-    int      index          = 0;
+    int      index = 0;
 
     // 遍历 args 的值
     for (const auto& entry : args) {
@@ -404,7 +442,8 @@ void error::post_process_impl(IndexLookupFunc&& index_lookup) {
 /**
  * @brief 序列化为 JSON
  */
-std::string error::encode(const mc::json::json_encode_options& options) const {
+std::string error::encode(const mc::json::json_encode_options& options) const
+{
     mc::dict result;
 
     // 序列化 name, message, args, format
@@ -435,7 +474,8 @@ std::string error::encode(const mc::json::json_encode_options& options) const {
  * @brief 从 JSON 反序列化(静态方法)
  */
 mc::shared_ptr<error> error::decode(std::string_view                     json,
-                                    const mc::json::json_decode_options& options) {
+                                    const mc::json::json_decode_options& options)
+{
     // 解析 JSON 字符串
     mc::variant var = mc::json::json_decode(json, options);
 
@@ -491,7 +531,8 @@ mc::shared_ptr<error> error::decode(std::string_view                     json,
 /**
  * @brief 获取并保存调用栈
  */
-void error::traceback() {
+void error::traceback()
+{
     std::ostringstream oss;
 
     // 使用 execinfo.h 获取调用栈
@@ -524,7 +565,8 @@ void error::traceback() {
 /**
  * @brief 抛出异常
  */
-[[noreturn]] void error::raise() const {
+[[noreturn]] void error::raise() const
+{
     // 将 error 对象序列化为 JSON 字符串
     std::string error_json = encode();
     throw mc::error_exception(this->name.data(), error_json, mc::error_engine_exception_code);

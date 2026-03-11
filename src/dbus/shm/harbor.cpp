@@ -33,7 +33,8 @@ static std::mutex                                             g_msg_queues_mutex
 static std::atomic<uint64_t>                                  g_next_match_id{1};
 
 shm::object_tree* create_shm_tree(std::string_view harbor_name, std::string_view service_name,
-                                  std::string_view unique_name) {
+                                  std::string_view unique_name)
+{
     MC_ASSERT(!harbor_name.empty(), "harbor name is empty");
     MC_ASSERT(!service_name.empty(), "service name is empty");
     MC_ASSERT(!unique_name.empty(), "unique name is empty");
@@ -67,13 +68,16 @@ shm::object_tree* create_shm_tree(std::string_view harbor_name, std::string_view
 }
 
 message_queue::message_queue(shm::message_queue_t& msg_queue)
-    : m_msg_queue(msg_queue) {
+    : m_msg_queue(msg_queue)
+{
 }
 
-message_queue::~message_queue() {
+message_queue::~message_queue()
+{
 }
 
-static bool is_dbus_message(const std::string_view& data) {
+static bool is_dbus_message(const std::string_view& data)
+{
     if (data.empty()) {
         return false;
     }
@@ -82,7 +86,8 @@ static bool is_dbus_message(const std::string_view& data) {
 }
 
 void message_queue::dispatch(int timeout_ms, int max_read_count,
-                             std::function<void(message_data&)> handler) {
+                             std::function<void(message_data&)> handler)
+{
     if (!m_mutex.try_lock_for(std::chrono::milliseconds(100))) {
         return;
     }
@@ -118,32 +123,38 @@ void message_queue::dispatch(int timeout_ms, int max_read_count,
 }
 
 harbor::harbor()
-    : m_is_running(false), m_mq(nullptr) {
+    : m_is_running(false), m_mq(nullptr)
+{
 }
 
-harbor::~harbor() {
+harbor::~harbor()
+{
     stop();
 }
 
-void harbor::set_harbor_name(std::string_view name) {
+void harbor::set_harbor_name(std::string_view name)
+{
     std::lock_guard<std::mutex> lock(m_mutex);
     m_harbor_name = std::string(name);
 }
 
-void harbor::set_harbor_name_if_empty(std::string_view name) {
+void harbor::set_harbor_name_if_empty(std::string_view name)
+{
     std::lock_guard<std::mutex> lock(m_mutex);
     if (m_harbor_name.empty()) {
         m_harbor_name = std::string(name);
     }
 }
 
-harbor& harbor::get_instance() {
+harbor& harbor::get_instance()
+{
     return mc::singleton<harbor>::instance_with_creator([]() {
         return new harbor();
     });
 }
 
-void harbor::init_message_queue() {
+void harbor::init_message_queue()
+{
     auto& ins             = shm::shared_memory::get_instance();
     auto& harbor_tree_map = ins.get_object_tree_map(m_harbor_name);
     auto  harbor_it       = harbor_tree_map.find(m_harbor_name);
@@ -160,7 +171,8 @@ void harbor::init_message_queue() {
 }
 
 void harbor::register_method_handler(std::string_view service_name, std::string_view unique_name,
-                                     method_handler_t handler) {
+                                     method_handler_t handler)
+{
     std::lock_guard<std::mutex> lock(m_method_handlers_mutex);
     auto                        it = m_method_handlers.emplace(unique_name, handler);
     if (!it.second) {
@@ -168,11 +180,13 @@ void harbor::register_method_handler(std::string_view service_name, std::string_
     }
 }
 
-std::string_view harbor::get_harbor_name() const {
+std::string_view harbor::get_harbor_name() const
+{
     return m_harbor_name;
 }
 
-static uint32_t set_serial(local_msg* msg) {
+static uint32_t set_serial(local_msg* msg)
+{
     uint32_t serial = msg->get_serial();
     if (serial != 0) {
         return serial;
@@ -185,7 +199,8 @@ static uint32_t set_serial(local_msg* msg) {
     return g_reply_msg_serial;
 }
 
-static shm::object_tree* find_harbor_tree(std::string_view service_name) {
+static shm::object_tree* find_harbor_tree(std::string_view service_name)
+{
     auto&            ins      = shm::shared_memory::get_instance();
     auto&            tree_map = ins.get_object_tree_map(service_name);
     auto             it       = tree_map.find(service_name);
@@ -206,11 +221,13 @@ static shm::object_tree* find_harbor_tree(std::string_view service_name) {
     return &*harbor_it->second;
 }
 
-static bool is_online(shm::object_tree* harbor_tree) {
+static bool is_online(shm::object_tree* harbor_tree)
+{
     return !harbor_tree->unique_name().empty();
 }
 
-shm::message_queue_t* harbor::get_destination_msg_queue(std::string_view destination) {
+shm::message_queue_t* harbor::get_destination_msg_queue(std::string_view destination)
+{
     MC_ASSERT(!destination.empty(), "destination is empty");
     std::string_view harbor_name;
     if (is_unique_name(destination)) {
@@ -250,13 +267,15 @@ shm::message_queue_t* harbor::get_destination_msg_queue(std::string_view destina
     return it->second;
 }
 
-void harbor::dbus_reply(local_msg* msg) {
+void harbor::dbus_reply(local_msg* msg)
+{
     auto dbus_msg = msg->new_dbus_msg();
     dbus_msg.set_member("shm_reply");
     m_connection.send(std::move(dbus_msg));
 }
 
-void harbor::invoke_method(local_msg* msg) {
+void harbor::invoke_method(local_msg* msg)
+{
     auto destination = msg->destination();
     if (!is_unique_name(destination)) {
         destination = get_unique_name(destination);
@@ -309,7 +328,8 @@ void harbor::invoke_method(local_msg* msg) {
     }
 }
 
-void harbor::process_message(message_data& msg_data) {
+void harbor::process_message(message_data& msg_data)
+{
     if (msg_data.size < 0) {
         process_dbus_message(reinterpret_cast<DBusMessage*>(msg_data.ptr));
     } else {
@@ -320,7 +340,8 @@ void harbor::process_message(message_data& msg_data) {
     }
 }
 
-void harbor::process_dbus_message(DBusMessage* msg) {
+void harbor::process_dbus_message(DBusMessage* msg)
+{
     int msg_type = dbus_message_get_type(msg);
     if (msg_type == DBUS_MESSAGE_TYPE_SIGNAL) {
         // 异步处理 signal 消息，避免阻塞 harbor 线程
@@ -340,7 +361,8 @@ void harbor::process_dbus_message(DBusMessage* msg) {
     dbus_message_unref(msg);
 }
 
-void harbor::process_local_message(const variants& unpacked) {
+void harbor::process_local_message(const variants& unpacked)
+{
     if (unpacked.size() < 2 || !unpacked[0].is_integer() || !unpacked[1].is_string()) {
         // 格式错误的消息无法解析msg_type和destination
         return;
@@ -376,7 +398,8 @@ void harbor::process_local_message(const variants& unpacked) {
     reply_shm_msg(msg->destination(), msg->get_reply_serial(), *msg);
 }
 
-void harbor::start() {
+void harbor::start()
+{
     if (m_harbor_name.empty()) {
         MC_THROW(mc::exception, "harbor name is empty");
     }
@@ -419,16 +442,17 @@ void harbor::start() {
     }
 }
 
-void harbor::stop() {
+void harbor::stop()
+{
     std::lock_guard<std::mutex> lock(m_mutex);
-    
+
     if (!m_is_running && m_workers.empty() && !m_connection.is_connected()) {
         // 已经停止，直接返回
         return;
     }
-    
+
     m_is_running = false;
-    
+
     // 等待所有worker线程结束（优先于disconnect，避免线程还在使用连接时就断开）
     for (auto& worker : m_workers) {
         if (worker && worker->joinable()) {
@@ -436,7 +460,7 @@ void harbor::stop() {
         }
     }
     m_workers.clear();
-    
+
     // 尝试disconnect，但如果底层资源已失效则跳过
     // 使用get_is_connected()检查底层dbus连接是否真的有效
     bool should_disconnect = false;
@@ -446,11 +470,11 @@ void harbor::stop() {
         // 如果检查本身就失败，说明底层资源可能已失效
         should_disconnect = false;
     }
-    
+
     if (should_disconnect) {
         m_connection.disconnect();
     }
-    
+
     // 清空mq指针
     if (m_mq) {
         delete m_mq;
@@ -458,12 +482,14 @@ void harbor::stop() {
     }
 }
 
-void harbor::register_unique_name(std::string unique_name, std::string service_name) {
+void harbor::register_unique_name(std::string unique_name, std::string service_name)
+{
     std::lock_guard lock(m_unique_name_map_mutex);
     m_unique_name_map.emplace(service_name, unique_name);
 }
 
-std::string harbor::get_unique_name(std::string_view service_name) {
+std::string harbor::get_unique_name(std::string_view service_name)
+{
     std::lock_guard lock(m_unique_name_map_mutex);
     auto            it = m_unique_name_map.find(std::string(service_name));
     if (it == m_unique_name_map.end()) {
@@ -474,7 +500,8 @@ std::string harbor::get_unique_name(std::string_view service_name) {
 }
 
 bool harbor::send_shm_msg(std::string_view source_name, uint32_t serial,
-                          mc::dbus::shm_msg_promise promise) {
+                          mc::dbus::shm_msg_promise promise)
+{
     if (!mc::dbus::is_unique_name(source_name)) {
         source_name = get_unique_name(source_name);
     }
@@ -482,21 +509,24 @@ bool harbor::send_shm_msg(std::string_view source_name, uint32_t serial,
 }
 
 bool harbor::reply_shm_msg(std::string_view destination_name, uint32_t serial,
-                           mc::dbus::local_msg& msg) {
+                           mc::dbus::local_msg& msg)
+{
     if (!mc::dbus::is_unique_name(destination_name)) {
         destination_name = get_unique_name(destination_name);
     }
     return m_shm_pending_msgs.reply(destination_name, serial, msg);
 }
 
-void harbor::remove_shm_msg(std::string_view source_name, uint32_t serial) {
+void harbor::remove_shm_msg(std::string_view source_name, uint32_t serial)
+{
     if (!mc::dbus::is_unique_name(source_name)) {
         source_name = get_unique_name(source_name);
     }
     m_shm_pending_msgs.remove(source_name, serial);
 }
 
-void harbor::unregister_service(std::string service_name) {
+void harbor::unregister_service(std::string service_name)
+{
     std::lock_guard lock(m_unique_name_map_mutex);
     auto            it = m_unique_name_map.find(std::string(service_name));
     if (it != m_unique_name_map.end()) {
@@ -511,12 +541,14 @@ void harbor::unregister_service(std::string service_name) {
 #endif
 }
 
-void harbor::add_rule(mc::dbus::match_rule& rule, mc::dbus::match_cb_t&& cb, uint64_t id) {
+void harbor::add_rule(mc::dbus::match_rule& rule, mc::dbus::match_cb_t&& cb, uint64_t id)
+{
     auto& match = m_connection.get_match();
     match.add_rule(rule, std::forward<match_cb_t>(cb), id);
 }
 
-void harbor::remove_rule(uint64_t id) {
+void harbor::remove_rule(uint64_t id)
+{
     auto& match = m_connection.get_match();
     match.remove_rule(id);
 }
@@ -541,7 +573,8 @@ static std::once_flag rule_flag;
 
 mc::dbus::match_rule existed_rules[4] = {rule_prop_ch, rule_intf_add, rule_intf_rmv, rule_name_owner_changed};
 
-bool need_merge(const mc::dbus::match_rule& rule, const mc::dbus::match_rule& existed_rule) {
+bool need_merge(const mc::dbus::match_rule& rule, const mc::dbus::match_rule& existed_rule)
+{
     if (rule.member() != existed_rule.member()) {
         return false;
     }
@@ -552,7 +585,8 @@ bool need_merge(const mc::dbus::match_rule& rule, const mc::dbus::match_rule& ex
     return path == root_path || path.find(root_path_namespace) != std::string_view::npos;
 }
 
-std::string replace_fuzzy_match(const std::string_view& path, int pos) {
+std::string replace_fuzzy_match(const std::string_view& path, int pos)
+{
     std::string result = std::string(path.substr(0, pos));
 
     std::regex pattern1(R"(:[^/]*/)");
@@ -563,7 +597,8 @@ std::string replace_fuzzy_match(const std::string_view& path, int pos) {
     return result;
 }
 
-uint64_t harbor::add_match(mc::dbus::match_rule& rule, mc::dbus::match_cb_t&& cb) {
+uint64_t harbor::add_match(mc::dbus::match_rule& rule, mc::dbus::match_cb_t&& cb)
+{
     // 分配id，跳过0（0通常表示无效id）
     uint64_t id = g_next_match_id.fetch_add(1);
     if (id == 0) {
@@ -606,7 +641,8 @@ uint64_t harbor::add_match(mc::dbus::match_rule& rule, mc::dbus::match_cb_t&& cb
     return id;
 }
 
-void harbor::remove_match(uint64_t id) {
+void harbor::remove_match(uint64_t id)
+{
     auto rule_str = m_match_map[id];
     --m_match_count[rule_str];
     if (m_match_count[rule_str] == 0) {

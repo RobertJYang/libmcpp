@@ -20,11 +20,13 @@ namespace test {
 uint32_t my_task_object::m_next_task_id{1};
 
 my_task_object::my_task_object(mc::core::object* parent)
-    : mc::engine::object<my_task_object>(parent) {
+    : mc::engine::object<my_task_object>(parent)
+{
 }
 
 mc::shared_ptr<my_task_object> my_task_object::create_task(mc::core::object* parent,
-                                                           mc::milliseconds  timeout) {
+                                                           mc::milliseconds  timeout)
+{
     auto task = mc::make_shared<my_task_object>(parent);
 
     auto id = m_next_task_id++;
@@ -40,10 +42,12 @@ mc::shared_ptr<my_task_object> my_task_object::create_task(mc::core::object* par
 }
 
 my_tasks_object::my_tasks_object(mc::core::object* parent)
-    : mc::engine::object<my_tasks_object>(parent) {
+    : mc::engine::object<my_tasks_object>(parent)
+{
 }
 
-std::string_view my_tasks_object::create_task(const std::string& name) {
+std::string_view my_tasks_object::create_task(const std::string& name)
+{
     auto task = my_task_object::create_task(this, mc::milliseconds(1000));
     m_tasks.push_back(task);
     if (auto service = this->get_service()) {
@@ -52,7 +56,8 @@ std::string_view my_tasks_object::create_task(const std::string& name) {
     return task->m_task.m_name.value();
 }
 
-std::vector<std::string_view> my_tasks_object::get_tasks() {
+std::vector<std::string_view> my_tasks_object::get_tasks()
+{
     std::vector<std::string_view> tasks;
     for (auto& task : m_tasks) {
         tasks.push_back(task->m_task.m_name.value());

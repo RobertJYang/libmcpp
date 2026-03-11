@@ -91,16 +91,20 @@ private:
 
     class waiter_cleanup {
     public:
-        waiter_cleanup(condition_variable* cv, WaiterNode* node) noexcept : m_cv(cv), m_node(node) {
+        waiter_cleanup(condition_variable* cv, WaiterNode* node) noexcept
+            : m_cv(cv), m_node(node)
+        {
         }
         waiter_cleanup(const waiter_cleanup&)            = delete;
         waiter_cleanup& operator=(const waiter_cleanup&) = delete;
 
-        ~waiter_cleanup() noexcept {
+        ~waiter_cleanup() noexcept
+        {
             remove();
         }
 
-        void remove() noexcept {
+        void remove() noexcept
+        {
             if (!m_active) {
                 return;
             }
@@ -125,7 +129,8 @@ private:
 };
 
 template <typename Lock>
-void condition_variable::wait(Lock& lock) {
+void condition_variable::wait(Lock& lock)
+{
     if (auto* shard = thread_pool::get_current_shard()) {
         wait_on_worker(lock, shard);
     } else {
@@ -134,7 +139,8 @@ void condition_variable::wait(Lock& lock) {
 }
 
 template <typename Lock, typename Predicate>
-void condition_variable::wait(Lock& lock, Predicate pred) {
+void condition_variable::wait(Lock& lock, Predicate pred)
+{
     while (!pred()) {
         wait(lock);
     }
@@ -143,7 +149,8 @@ void condition_variable::wait(Lock& lock, Predicate pred) {
 template <typename Lock, typename Rep, typename Period>
 std::cv_status condition_variable::wait_for(
     Lock&                                     lock,
-    const std::chrono::duration<Rep, Period>& rel_time) {
+    const std::chrono::duration<Rep, Period>& rel_time)
+{
     return wait_until(lock, std::chrono::steady_clock::now() + rel_time);
 }
 
@@ -151,14 +158,16 @@ template <typename Lock, typename Rep, typename Period, typename Predicate>
 bool condition_variable::wait_for(
     Lock&                                     lock,
     const std::chrono::duration<Rep, Period>& rel_time,
-    Predicate                                 pred) {
+    Predicate                                 pred)
+{
     return wait_until(lock, std::chrono::steady_clock::now() + rel_time, std::move(pred));
 }
 
 template <typename Lock, typename Clock, typename Duration>
 std::cv_status condition_variable::wait_until(
     Lock&                                           lock,
-    const std::chrono::time_point<Clock, Duration>& abs_time) {
+    const std::chrono::time_point<Clock, Duration>& abs_time)
+{
     if (auto* shard = thread_pool::get_current_shard()) {
         return wait_until_on_worker(lock, shard, abs_time);
     } else {
@@ -170,7 +179,8 @@ template <typename Lock, typename Clock, typename Duration, typename Predicate>
 bool condition_variable::wait_until(
     Lock&                                           lock,
     const std::chrono::time_point<Clock, Duration>& abs_time,
-    Predicate                                       pred) {
+    Predicate                                       pred)
+{
     while (!pred()) {
         if (wait_until(lock, abs_time) == std::cv_status::timeout) {
             return pred();
@@ -182,7 +192,8 @@ bool condition_variable::wait_until(
 template <typename Lock, typename Clock, typename Duration>
 std::cv_status condition_variable::wait_until_on_worker(Lock&                                           lock,
                                                         thread_pool::shard_t*                           shard,
-                                                        const std::chrono::time_point<Clock, Duration>& abs_time) {
+                                                        const std::chrono::time_point<Clock, Duration>& abs_time)
+{
     WaiterNode node{shard, false};
     add_waiter(&node);
     waiter_cleanup cleanup(this, &node);
@@ -232,7 +243,8 @@ std::cv_status condition_variable::wait_until_on_worker(Lock&                   
 }
 
 template <typename Lock>
-void condition_variable::wait_on_worker(Lock& lock, thread_pool::shard_t* shard) {
+void condition_variable::wait_on_worker(Lock& lock, thread_pool::shard_t* shard)
+{
     WaiterNode node{shard, false};
     add_waiter(&node);
     waiter_cleanup cleanup(this, &node);

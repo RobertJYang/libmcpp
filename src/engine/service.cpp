@@ -41,7 +41,8 @@ struct service_interface : public mc::engine::interface<service_interface> {
 struct service_object : public mc::engine::object<service_object> {
     MC_OBJECT(service_object, "ServiceObject", "/bmc/kepler/maca", (service_interface))
 
-    void init(service* s) {
+    void init(service* s)
+    {
         m_interface.m_service_path = path_pattern;
         m_interface.m_service_path += "/";
         m_interface.m_service_path += s->name();
@@ -51,11 +52,13 @@ struct service_object : public mc::engine::object<service_object> {
         set_name(s->name());
     }
 
-    const std::string& get_name() const {
+    const std::string& get_name() const
+    {
         return m_interface.m_service_name;
     }
 
-    void set_name(std::string_view name) {
+    void set_name(std::string_view name)
+    {
         m_interface.m_service_name = name;
     }
 
@@ -65,7 +68,8 @@ struct service_object : public mc::engine::object<service_object> {
 struct root_object : public mc::engine::object<root_object> {
     MC_OBJECT(root_object, "RootObject", "/")
 
-    root_object() {
+    root_object()
+    {
         set_object_name("root");
         set_object_path("/");
     }
@@ -123,10 +127,12 @@ using service_table =
 
 namespace mc::engine {
 
-service_impl::service_impl() {
+service_impl::service_impl()
+{
 }
 
-bool service_impl::init(service* s) {
+bool service_impl::init(service* s)
+{
     m_service        = s;
     m_service_object = mc::make_shared<service_object>();
     m_service_object->init(s);
@@ -135,7 +141,8 @@ bool service_impl::init(service* s) {
     return true;
 }
 
-bool service_impl::start() {
+bool service_impl::start()
+{
     std::lock_guard lock(m_mutex);
 
     auto connection = mc::dbus::connection::open_session_bus(mc::get_io_context());
@@ -181,7 +188,8 @@ bool service_impl::start() {
     return true;
 }
 
-void service_impl::stop() {
+void service_impl::stop()
+{
     std::lock_guard lock(m_mutex);
 
     m_connection.disconnect();
@@ -202,7 +210,8 @@ void service_impl::stop() {
     harbor.unregister_service(m_service->name());
 }
 
-void service_impl::register_object(abstract_object& obj) {
+void service_impl::register_object(abstract_object& obj)
+{
     auto shared_obj = obj.shared_from_this();
     if (!shared_obj) {
         flog("Object is not managed by shared_ptr: ${path}", ("path", obj.get_object_path()));
@@ -229,7 +238,8 @@ void service_impl::register_object(abstract_object& obj) {
     });
 }
 
-abstract_object* service_impl::find_owner(abstract_object& obj, std::string_view path) {
+abstract_object* service_impl::find_owner(abstract_object& obj, std::string_view path)
+{
     if (path.empty() || path[0] != '/') {
         return nullptr;
     }
@@ -277,7 +287,8 @@ abstract_object* service_impl::find_owner(abstract_object& obj, std::string_view
     return &obj;
 }
 
-void service_impl::unregister_object(std::string_view path) {
+void service_impl::unregister_object(std::string_view path)
+{
     m_connection.unregister_path(path);
 
     auto it = m_object_table->find<by_path>(path);
@@ -303,7 +314,8 @@ void service_impl::unregister_object(std::string_view path) {
     mc::dbus::emit_interfaces_removed(m_connection, obj);
 }
 
-static mc::variant convert_method_result(const mc::variants& arr) {
+static mc::variant convert_method_result(const mc::variants& arr)
+{
     if (arr.empty()) {
         return mc::variant();
     }
@@ -313,7 +325,8 @@ static mc::variant convert_method_result(const mc::variants& arr) {
     return arr;
 }
 
-static void parse_context_arg(context& ctx, const variants& args) {
+static void parse_context_arg(context& ctx, const variants& args)
+{
     if (args.empty() || !args[0].is_dict()) {
         return;
     }
@@ -328,7 +341,8 @@ static void parse_context_arg(context& ctx, const variants& args) {
 }
 
 static const method_type_info* find_method_info(context& ctx, abstract_object& object, std::string_view interface_name,
-                                                std::string_view method_name) {
+                                                std::string_view method_name)
+{
     // 嵌套调用场景，可能出现上下文方法信息被覆盖，导致获取到的方法签名有误，所以优先从对象元数据中获取方法信息
     const auto& metadata = object.get_metadata();
     auto        info     = metadata.get_method_info(method_name, interface_name);
@@ -339,7 +353,8 @@ static const method_type_info* find_method_info(context& ctx, abstract_object& o
 }
 
 invoke_method_result service_impl::invoke_method(std::string_view path, std::string_view interface,
-                                                 std::string_view method, const variants& args) {
+                                                 std::string_view method, const variants& args)
+{
     auto& idx = m_object_table->get<by_path>();
     auto  it  = idx.find(std::string(path));
     if (it == idx.end()) {
@@ -360,7 +375,8 @@ invoke_method_result service_impl::invoke_method(std::string_view path, std::str
 std::optional<mc::variant> service_impl::shm_timeout_call(mc::milliseconds timeout, std::string_view service_name,
                                                           std::string_view path, std::string_view interface,
                                                           std::string_view method, std::string_view signature,
-                                                          const variants& args) {
+                                                          const variants& args)
+{
     mc::dbus::method_call_params params{service_name, path, interface, method, signature, args};
     auto                         result = m_shm_tree->timeout_call(timeout, params);
     if (result != std::nullopt) {
@@ -371,7 +387,8 @@ std::optional<mc::variant> service_impl::shm_timeout_call(mc::milliseconds timeo
 
 mc::variant service_impl::timeout_call(mc::milliseconds timeout, std::string_view service_name, std::string_view path,
                                        std::string_view interface, std::string_view method, std::string_view signature,
-                                       const variants& args) {
+                                       const variants& args)
+{
     if (service_name == m_service->name()) {
         // 自己服务的方法直接调用
         return invoke_method(path, interface, method, args).second;
@@ -397,11 +414,13 @@ mc::variant service_impl::timeout_call(mc::milliseconds timeout, std::string_vie
     MC_THROW(mc::exception, "dbus call failed, error name: ${error_name}", ("error_name", reply.get_error_name()));
 }
 
-DBusHandlerResult service_impl::on_filter_message(mc::dbus::message& msg) {
+DBusHandlerResult service_impl::on_filter_message(mc::dbus::message& msg)
+{
     return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 }
 
-DBusHandlerResult service_impl::on_path_message(mc::dbus::message& msg, abstract_object& obj) {
+DBusHandlerResult service_impl::on_path_message(mc::dbus::message& msg, abstract_object& obj)
+{
     if (msg.is_method_call()) {
         return on_method_call(obj, msg);
     }
@@ -409,7 +428,8 @@ DBusHandlerResult service_impl::on_path_message(mc::dbus::message& msg, abstract
     return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 }
 
-DBusHandlerResult service_impl::on_method_call(abstract_object& object, mc::dbus::message& msg) {
+DBusHandlerResult service_impl::on_method_call(abstract_object& object, mc::dbus::message& msg)
+{
     context ctx(*m_service, object);
     ctx.set_call_info(detail::dbus_call{msg});
     auto& info = std::get<detail::dbus_call>(ctx.get_call_info());
@@ -487,7 +507,8 @@ DBusHandlerResult service_impl::on_method_call(abstract_object& object, mc::dbus
     return DBUS_HANDLER_RESULT_HANDLED;
 }
 
-uint64_t service_impl::add_match(mc::dbus::match_rule& rule, mc::dbus::match_cb_t&& cb) {
+uint64_t service_impl::add_match(mc::dbus::match_rule& rule, mc::dbus::match_cb_t&& cb)
+{
     uint64_t id = m_shm_tree->add_match(rule, std::forward<mc::dbus::match_cb_t>(cb));
     // harbor和服务都会调用add_rule，所以需要克隆一个rule，否则服务调用rule->set_slot会导致harbor的slot被析构
     auto cloned_rule = rule.clone();
@@ -495,20 +516,24 @@ uint64_t service_impl::add_match(mc::dbus::match_rule& rule, mc::dbus::match_cb_
     return id;
 }
 
-void service_impl::remove_match(uint64_t id) {
+void service_impl::remove_match(uint64_t id)
+{
     m_shm_tree->remove_match(id);
     m_connection.remove_rule(id);
 }
 
 service::service(std::string_view name)
-    : mc::core::service_base(std::string(name)) {
+    : mc::core::service_base(std::string(name))
+{
     m_impl = std::make_unique<service_impl>();
 }
 
-service::~service() {
+service::~service()
+{
 }
 
-bool service::init(dict args) {
+bool service::init(dict args)
+{
     MC_UNUSED(args);
 
     if (!dbus::validator::is_valid_bus_name(this->name())) {
@@ -532,7 +557,8 @@ bool service::init(dict args) {
     return true;
 }
 
-bool service::start() {
+bool service::start()
+{
     try {
         return m_impl->start();
     } catch (const std::exception& e) {
@@ -541,40 +567,50 @@ bool service::start() {
     }
 }
 
-bool service::stop() {
+bool service::stop()
+{
     m_impl->stop();
     return true;
 }
 
-void service::cleanup() {
+void service::cleanup()
+{
 }
 
-bool service::is_healthy() const {
+bool service::is_healthy() const
+{
     return true;
 }
 
-void service::on_dump(std::map<std::string, std::string> context, std::string filepath) {
+void service::on_dump(std::map<std::string, std::string> context, std::string filepath)
+{
 }
 
-void service::on_detach_debug_console(std::map<std::string, std::string> context) {
+void service::on_detach_debug_console(std::map<std::string, std::string> context)
+{
 }
 
-int32_t service::on_reboot_prepare(std::map<std::string, std::string> context) {
+int32_t service::on_reboot_prepare(std::map<std::string, std::string> context)
+{
     return 0;
 }
 
-int32_t service::on_reboot_process(std::map<std::string, std::string> context) {
+int32_t service::on_reboot_process(std::map<std::string, std::string> context)
+{
     return 0;
 }
 
-int32_t service::on_reboot_action(std::map<std::string, std::string> context) {
+int32_t service::on_reboot_action(std::map<std::string, std::string> context)
+{
     return 0;
 }
 
-void service::on_reboot_cancel(std::map<std::string, std::string> context) {
+void service::on_reboot_cancel(std::map<std::string, std::string> context)
+{
 }
 
-void service::register_object(abstract_object& obj) {
+void service::register_object(abstract_object& obj)
+{
     // 如果对象没有ID则生成一个，避免构造对象路径时使用了对象ID
     if (!obj.has_valid_id()) {
         obj.set_object_id(m_impl->m_object_table->generate_id());
@@ -603,18 +639,21 @@ void service::register_object(abstract_object& obj) {
     m_impl->register_object(obj);
 }
 
-void service::unregister_object(std::string_view path) {
+void service::unregister_object(std::string_view path)
+{
     m_impl->unregister_object(path);
 }
 
-service_object_table& service::get_object_table() const {
+service_object_table& service::get_object_table() const
+{
     return *m_impl->m_object_table;
 }
 
 // 解析对象路径
 // 将路径求解放在 service 中的目的是，后续看是否需要将 service 和 engine 的属性
 // 注册到路径表达式引擎，目前只允许路径表达式使用对象本身的属性以及表达式引擎的内建函数库
-std::string service::resolve_object_path(std::string_view path_pattern, const abstract_object& obj) {
+std::string service::resolve_object_path(std::string_view path_pattern, const abstract_object& obj)
+{
     std::string path;
     auto&       resolver = mc::engine::engine::get_path_resolver();
     if (!resolver || !resolver(path_pattern, obj, path)) {
@@ -643,26 +682,31 @@ std::string service::resolve_object_path(std::string_view path_pattern, const ab
 
 mc::variant service::timeout_call(mc::milliseconds timeout, std::string_view service_name, std::string_view path,
                                   std::string_view interface, std::string_view method, std::string_view signature,
-                                  const mc::variants& args) {
+                                  const mc::variants& args)
+{
     return m_impl->timeout_call(timeout, service_name, path, interface, method, signature, args);
 }
 
 std::optional<mc::variant> service::shm_timeout_call(mc::milliseconds timeout, std::string_view service_name,
                                                      std::string_view path, std::string_view interface,
                                                      std::string_view method, std::string_view signature,
-                                                     const mc::variants& args) {
+                                                     const mc::variants& args)
+{
     return m_impl->shm_timeout_call(timeout, service_name, path, interface, method, signature, args);
 }
 
-mc::dbus::connection service::get_connection() const {
+mc::dbus::connection service::get_connection() const
+{
     return m_impl->m_connection;
 }
 
-uint64_t service::add_match(mc::dbus::match_rule& rule, mc::dbus::match_cb_t&& cb) {
+uint64_t service::add_match(mc::dbus::match_rule& rule, mc::dbus::match_cb_t&& cb)
+{
     return m_impl->add_match(rule, std::forward<mc::dbus::match_cb_t>(cb));
 }
 
-void service::remove_match(uint64_t id) {
+void service::remove_match(uint64_t id)
+{
     m_impl->remove_match(id);
 }
 

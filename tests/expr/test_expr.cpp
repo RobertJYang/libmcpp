@@ -23,13 +23,16 @@
 namespace {
 class expr_test : public ::testing::Test {
 protected:
-    expr_test() {
+    expr_test()
+    {
     }
 
-    void SetUp() override {
+    void SetUp() override
+    {
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
     }
 
     mc::expr::engine engine;
@@ -37,7 +40,8 @@ protected:
 
 } // namespace
 
-TEST_F(expr_test, BasicArithmetic) {
+TEST_F(expr_test, BasicArithmetic)
+{
     auto& ctx = engine.get_global_context();
 
     // 整数算术运算
@@ -59,7 +63,8 @@ TEST_F(expr_test, BasicArithmetic) {
     EXPECT_EQ(engine.evaluate("1 + 2 * 3.5", ctx), 8.0);
 }
 
-TEST_F(expr_test, Comparison) {
+TEST_F(expr_test, Comparison)
+{
     mc::expr::context ctx;
 
     // 比较运算
@@ -81,7 +86,8 @@ TEST_F(expr_test, Comparison) {
     EXPECT_FALSE(engine.evaluate("1 > 2 || 3 < 2", ctx));
 }
 
-TEST_F(expr_test, StringOperations) {
+TEST_F(expr_test, StringOperations)
+{
     auto& ctx = engine.get_global_context();
 
     // 字符串连接
@@ -95,7 +101,8 @@ TEST_F(expr_test, StringOperations) {
     EXPECT_TRUE(engine.evaluate("'abc' != 'def'", ctx));
 }
 
-TEST_F(expr_test, Variables) {
+TEST_F(expr_test, Variables)
+{
     auto& ctx = engine.get_global_context();
 
     // 设置变量
@@ -118,7 +125,8 @@ TEST_F(expr_test, Variables) {
     EXPECT_EQ(engine.evaluate("pi", ctx), 3.14159);
 }
 
-TEST_F(expr_test, Functions) {
+TEST_F(expr_test, Functions)
+{
     auto ctx = engine.make_context();
 
     // 测试内置函数
@@ -171,7 +179,8 @@ TEST_F(expr_test, Functions) {
     EXPECT_THROW(engine.evaluate("square('not a number')", ctx), mc::invalid_arg_exception);
 }
 
-TEST_F(expr_test, Errors) {
+TEST_F(expr_test, Errors)
+{
     auto ctx = engine.make_context();
 
     // 语法错误
@@ -198,7 +207,8 @@ TEST_F(expr_test, Errors) {
     EXPECT_NO_THROW(engine.evaluate("abs(1, 2)", ctx));
 }
 
-TEST_F(expr_test, BitOperations) {
+TEST_F(expr_test, BitOperations)
+{
     auto& ctx = engine.get_global_context();
 
     // 测试位与操作(&)
@@ -250,7 +260,8 @@ TEST_F(expr_test, BitOperations) {
     EXPECT_THROW(engine.evaluate("'abc' | 1", ctx), mc::invalid_op_exception);
 }
 
-TEST_F(expr_test, TemplateStrings) {
+TEST_F(expr_test, TemplateStrings)
+{
     auto& ctx = engine.get_global_context();
 
     // 设置变量
@@ -307,7 +318,8 @@ TEST_F(expr_test, TemplateStrings) {
 }
 
 // 测试一元运算符的更多场景
-TEST_F(expr_test, UnaryOperators) {
+TEST_F(expr_test, UnaryOperators)
+{
     auto& ctx = engine.get_global_context();
 
     // 一元负号与浮点数
@@ -326,13 +338,14 @@ TEST_F(expr_test, UnaryOperators) {
 }
 
 // 测试运算符结合性
-TEST_F(expr_test, operator_associativity) {
+TEST_F(expr_test, operator_associativity)
+{
     auto& ctx = engine.get_global_context();
 
     // 左结合运算符
     EXPECT_EQ(engine.evaluate("10 - 3 - 2", ctx), 5);
     EXPECT_EQ(engine.evaluate("10.0 / 2.0 / 2.0", ctx), 2.5);
-    EXPECT_EQ(engine.evaluate("10 / 2 / 2", ctx), 2);  // 整数除法
+    EXPECT_EQ(engine.evaluate("10 / 2 / 2", ctx), 2); // 整数除法
     EXPECT_EQ(engine.evaluate("10 % 3 % 2", ctx), 1);
 
     // 右结合运算符（条件表达式）
@@ -341,7 +354,8 @@ TEST_F(expr_test, operator_associativity) {
 }
 
 // 测试浮点数精度
-TEST_F(expr_test, floating_point_precision) {
+TEST_F(expr_test, floating_point_precision)
+{
     auto& ctx = engine.get_global_context();
 
     // 浮点数运算
@@ -354,7 +368,8 @@ TEST_F(expr_test, floating_point_precision) {
 }
 
 // 测试字符串转义
-TEST_F(expr_test, string_escaping) {
+TEST_F(expr_test, string_escaping)
+{
     auto& ctx = engine.get_global_context();
 
     // 单引号字符串中的转义（只支持转义引号）
@@ -370,7 +385,8 @@ TEST_F(expr_test, string_escaping) {
 }
 
 // 测试大数处理
-TEST_F(expr_test, large_numbers) {
+TEST_F(expr_test, large_numbers)
+{
     auto& ctx = engine.get_global_context();
 
     // 大整数（int64_t 的最大值）
@@ -385,7 +401,8 @@ TEST_F(expr_test, large_numbers) {
 }
 
 // 测试边界值
-TEST_F(expr_test, boundary_values) {
+TEST_F(expr_test, boundary_values)
+{
     auto& ctx = engine.get_global_context();
 
     // 零值
@@ -404,7 +421,8 @@ TEST_F(expr_test, boundary_values) {
 }
 
 // 测试类型转换
-TEST_F(expr_test, type_conversion) {
+TEST_F(expr_test, type_conversion)
+{
     auto& ctx = engine.get_global_context();
 
     // 整数转浮点数
@@ -421,7 +439,8 @@ TEST_F(expr_test, type_conversion) {
 }
 
 // 测试复杂嵌套表达式
-TEST_F(expr_test, complex_nested_expressions) {
+TEST_F(expr_test, complex_nested_expressions)
+{
     auto ctx = engine.make_context();
     ctx.register_variable("a", 1);
     ctx.register_variable("b", 2);
@@ -438,7 +457,8 @@ TEST_F(expr_test, complex_nested_expressions) {
 }
 
 // 测试更多错误场景（补充 Errors 测试中未覆盖的场景）
-TEST_F(expr_test, more_error_scenarios) {
+TEST_F(expr_test, more_error_scenarios)
+{
     auto ctx = engine.make_context();
 
     // 无效的函数调用（逗号错误）
@@ -451,7 +471,8 @@ TEST_F(expr_test, more_error_scenarios) {
 }
 
 // 测试条件表达式求值（补充 Comparison 测试中缺少的条件表达式测试）
-TEST_F(expr_test, conditional_expression) {
+TEST_F(expr_test, conditional_expression)
+{
     auto& ctx = engine.get_global_context();
 
     // 基本条件表达式
@@ -468,7 +489,8 @@ TEST_F(expr_test, conditional_expression) {
 }
 
 // 覆盖数学模块中未执行的函数
-TEST_F(expr_test, math_module_advanced_functions) {
+TEST_F(expr_test, math_module_advanced_functions)
+{
     auto ctx = engine.make_context();
 
     EXPECT_DOUBLE_EQ(engine.evaluate("round(1.4)", ctx).as_double(), 1.0);
@@ -481,7 +503,8 @@ TEST_F(expr_test, math_module_advanced_functions) {
 }
 
 // 覆盖数学模块中的异常分支
-TEST_F(expr_test, math_module_invalid_inputs) {
+TEST_F(expr_test, math_module_invalid_inputs)
+{
     auto ctx = engine.make_context();
     EXPECT_THROW(engine.evaluate("log(0)", ctx), mc::invalid_arg_exception);
     EXPECT_THROW(engine.evaluate("sqrt(-1)", ctx), mc::invalid_arg_exception);
@@ -489,7 +512,8 @@ TEST_F(expr_test, math_module_invalid_inputs) {
 }
 
 // 测试 engine::evaluate 保持自定义函数抛出的异常
-TEST_F(expr_test, HandleUnknownException) {
+TEST_F(expr_test, HandleUnknownException)
+{
     auto ctx = engine.make_context();
 
     // 注册一个函数，在执行时抛出 std::logic_error
@@ -504,7 +528,8 @@ TEST_F(expr_test, HandleUnknownException) {
 }
 
 // 测试 builtin::register_symbol(std::string name, mc::variant value)
-TEST_F(expr_test, BuiltinRegisterVariable) {
+TEST_F(expr_test, BuiltinRegisterVariable)
+{
     auto& builtin = mc::expr::builtin::get_instance();
     auto& ctx     = engine.get_global_context();
 

@@ -138,7 +138,8 @@ public:
      * @brief 获取 bus_mode_impl 指针
      * @return bus_mode_impl 指针
      */
-    bus_mode_impl* get_bus_mode_impl() {
+    bus_mode_impl* get_bus_mode_impl()
+    {
         return m_bus.get();
     }
 
@@ -146,7 +147,8 @@ public:
      * @brief 检查是否为阻塞模式
      * @return 如果是阻塞模式返回 true，否则返回 false
      */
-    bool is_blocking() const {
+    bool is_blocking() const
+    {
         return m_is_blocking;
     }
 

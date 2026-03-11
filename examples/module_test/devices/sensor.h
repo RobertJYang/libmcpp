@@ -31,21 +31,24 @@ public:
     /**
      * @brief 设置传感器名称
      */
-    void set_name(const std::string& name) {
+    void set_name(const std::string& name)
+    {
         m_name = name;
     }
 
     /**
      * @brief 获取传感器名称
      */
-    const std::string& get_name() const {
+    const std::string& get_name() const
+    {
         return m_name;
     }
 
     /**
      * @brief 初始化传感器 - 脚本可调用
      */
-    bool initialize() {
+    bool initialize()
+    {
         m_status = sensor_status::ACTIVE;
         return true;
     }
@@ -53,7 +56,8 @@ public:
     /**
      * @brief 读取传感器数据 - 脚本可调用
      */
-    double read() {
+    double read()
+    {
         // 模拟读取数据
         m_value = 25.0 + (rand() % 100) / 10.0;
         return m_value;
@@ -62,21 +66,24 @@ public:
     /**
      * @brief 获取最后读取的值 - 脚本可调用
      */
-    double get_value() const {
+    double get_value() const
+    {
         return m_value;
     }
 
     /**
      * @brief 获取传感器状态 - 脚本可调用
      */
-    sensor_status get_status() const {
+    sensor_status get_status() const
+    {
         return m_status;
     }
 
     /**
      * @brief 传感器自检 - 脚本可调用
      */
-    bool self_test() const {
+    bool self_test() const
+    {
         return m_status == sensor_status::ACTIVE;
     }
 

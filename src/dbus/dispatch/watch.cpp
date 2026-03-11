@@ -20,11 +20,13 @@ namespace mc::dbus {
 constexpr auto wait_read  = boost::asio::posix::stream_descriptor::wait_read;
 constexpr auto wait_write = boost::asio::posix::stream_descriptor::wait_write;
 
-watch::~watch() {
+watch::~watch()
+{
     stop();
 }
 
-void watch::start(connection_weak_ptr conn) {
+void watch::start(connection_weak_ptr conn)
+{
     if (!dbus_watch_get_enabled(m_watch)) {
         return;
     }
@@ -39,12 +41,14 @@ void watch::start(connection_weak_ptr conn) {
     }
 }
 
-void watch::stop() {
+void watch::stop()
+{
     m_watch = nullptr;
     m_socket.close();
 }
 
-void watch::watch_readable(connection_weak_ptr conn, mc::shared_ptr<watch> self) {
+void watch::watch_readable(connection_weak_ptr conn, mc::shared_ptr<watch> self)
+{
     m_socket.async_wait(wait_read, [s = std::move(self), c = std::move(conn)](const auto& ec) {
         if (ec) {
             if (ec == boost::asio::error::operation_aborted) {
@@ -72,7 +76,8 @@ void watch::watch_readable(connection_weak_ptr conn, mc::shared_ptr<watch> self)
     });
 }
 
-void watch::watch_writable(connection_weak_ptr conn, mc::shared_ptr<watch> self) {
+void watch::watch_writable(connection_weak_ptr conn, mc::shared_ptr<watch> self)
+{
     m_socket.async_wait(wait_write, [s = std::move(self), c = std::move(conn)](const auto& ec) {
         if (ec) {
             if (ec == boost::asio::error::operation_aborted) {
@@ -100,7 +105,8 @@ void watch::watch_writable(connection_weak_ptr conn, mc::shared_ptr<watch> self)
     });
 }
 
-bool watch::handle_watch_ready(connection_ptr& conn, uint32_t flags) {
+bool watch::handle_watch_ready(connection_ptr& conn, uint32_t flags)
+{
     dbus_watch_handle(m_watch, flags);
 
     boost::asio::post(conn->m_executor, [conn]() {

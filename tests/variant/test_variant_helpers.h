@@ -30,7 +30,8 @@ namespace test {
  * @brief 验证 variant 是否为指定的整数类型并有正确的值
  */
 template <typename T>
-inline void verify_integer_value(const variant& v, const T& expected_value) {
+inline void verify_integer_value(const variant& v, const T& expected_value)
+{
     ASSERT_FALSE(v.is_null()) << "variant 不应该为 null";
     ASSERT_TRUE(v.is_numeric()) << "variant 应该是数值类型";
     ASSERT_TRUE(v.is_integer()) << "variant 应该是整数类型";
@@ -50,7 +51,8 @@ inline void verify_integer_value(const variant& v, const T& expected_value) {
  * @brief 验证操作是否抛出指定异常，并保持原值和类型不变
  */
 template <typename Operation, typename Variant>
-void verify_assignment_exception(Operation&& op, const Variant& original) {
+void verify_assignment_exception(Operation&& op, const Variant& original)
+{
     const auto prev_val = original;
 
     try {
@@ -60,7 +62,8 @@ void verify_assignment_exception(Operation&& op, const Variant& original) {
     }
 }
 
-inline void verify_double_value(const variant& v, double expected_value) {
+inline void verify_double_value(const variant& v, double expected_value)
+{
     ASSERT_FALSE(v.is_null()) << "variant 不应该为 null";
     ASSERT_TRUE(v.is_numeric()) << "variant 应该是数值类型";
     ASSERT_FALSE(v.is_integer()) << "variant 不应该是整数类型";
@@ -71,7 +74,8 @@ inline void verify_double_value(const variant& v, double expected_value) {
 /**
  * @brief 验证 variant 是否为布尔类型并有正确的值
  */
-inline void verify_bool_value(const variant& v, bool expected_value) {
+inline void verify_bool_value(const variant& v, bool expected_value)
+{
     ASSERT_FALSE(v.is_null()) << "variant 不应该为 null";
     ASSERT_TRUE(v.is_bool()) << "variant 应该是 bool 类型";
     ASSERT_EQ(v.as_bool(), expected_value) << "布尔值不匹配";
@@ -80,7 +84,8 @@ inline void verify_bool_value(const variant& v, bool expected_value) {
 /**
  * @brief 验证 variant 是否为字符串类型并有正确的值
  */
-inline void verify_string_value(const variant& v, const std::string& expected_value) {
+inline void verify_string_value(const variant& v, const std::string& expected_value)
+{
     ASSERT_FALSE(v.is_null()) << "variant 不应该为 null";
     ASSERT_TRUE(v.is_string()) << "variant 应该是 string 类型";
     ASSERT_EQ(v.as_string(), expected_value) << "字符串值不匹配";

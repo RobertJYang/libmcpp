@@ -20,22 +20,26 @@ namespace {
 
 class FuncCollectionFixture : public ::testing::Test {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         func_collection::get_instance().clear();
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         func_collection::get_instance().clear();
     }
 };
 
-func make_simple_func(const std::string& expression) {
+func make_simple_func(const std::string& expression)
+{
     mc::dict args = {
         {"param", mc::variant(42)}};
     return func(expression, args);
 }
 
-TEST_F(FuncCollectionFixture, AddGetContainsAndSize) {
+TEST_F(FuncCollectionFixture, AddGetContainsAndSize)
+{
     mc::dict functions;
     functions.insert("$Func_Sample", mc::variant(make_simple_func("param")));
 
@@ -53,7 +57,8 @@ TEST_F(FuncCollectionFixture, AddGetContainsAndSize) {
     EXPECT_TRUE(missing.is_null());
 }
 
-TEST_F(FuncCollectionFixture, RemoveClearsFunctionsAndServices) {
+TEST_F(FuncCollectionFixture, RemoveClearsFunctionsAndServices)
+{
     mc::dict functions;
     functions.insert("$Func_Remove", mc::variant(make_simple_func("param")));
     func_collection::get_instance().add("pos-remove", nullptr, functions);
@@ -70,7 +75,8 @@ TEST_F(FuncCollectionFixture, RemoveClearsFunctionsAndServices) {
     EXPECT_TRUE(remove_missing.empty());
 }
 
-TEST_F(FuncCollectionFixture, GetDictionaryByPositionReturnsCopy) {
+TEST_F(FuncCollectionFixture, GetDictionaryByPositionReturnsCopy)
+{
     auto empty_dict = func_collection::get_instance().get("unknown");
     EXPECT_TRUE(empty_dict.empty());
 
@@ -83,7 +89,8 @@ TEST_F(FuncCollectionFixture, GetDictionaryByPositionReturnsCopy) {
     EXPECT_FALSE(stored_dict["$Func_Get"].is_null());
 }
 
-TEST_F(FuncCollectionFixture, EmptyReflectsInternalState) {
+TEST_F(FuncCollectionFixture, EmptyReflectsInternalState)
+{
     EXPECT_TRUE(func_collection::get_instance().empty());
 
     mc::dict functions;
@@ -98,4 +105,3 @@ TEST_F(FuncCollectionFixture, EmptyReflectsInternalState) {
 }
 
 } // namespace
-

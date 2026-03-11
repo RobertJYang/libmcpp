@@ -42,7 +42,8 @@ const std::map<std::string_view, method_mapping_t> DEVMON_CHIP_METHODS = {
 };
 
 // 创建对应模式的实现
-static std::unique_ptr<bus_mode_impl> create_bus_impl(bool is_blocking) {
+static std::unique_ptr<bus_mode_impl> create_bus_impl(bool is_blocking)
+{
     if (is_blocking) {
         return std::make_unique<blocking_bus_impl>();
     }
@@ -50,7 +51,8 @@ static std::unique_ptr<bus_mode_impl> create_bus_impl(bool is_blocking) {
 }
 
 sd_bus::sd_bus(bool start_now, bool is_blocking)
-    : m_is_blocking(is_blocking), m_bus(create_bus_impl(is_blocking)) {
+    : m_is_blocking(is_blocking), m_bus(create_bus_impl(is_blocking))
+{
     // 创建连接并初始化到 bus_impl
     auto conn = connection::open_session_bus(mc::get_io_context());
     m_bus->init_connection(std::move(conn));
@@ -62,7 +64,8 @@ sd_bus::sd_bus(bool start_now, bool is_blocking)
 }
 
 sd_bus::sd_bus(connection conn, bool is_blocking)
-    : m_is_blocking(is_blocking), m_bus(create_bus_impl(is_blocking)) {
+    : m_is_blocking(is_blocking), m_bus(create_bus_impl(is_blocking))
+{
     // 使用提供的连接初始化到 bus_impl
     m_bus->init_connection(std::move(conn));
     m_unique_name = std::string(m_bus->get_unique_name());
@@ -75,10 +78,12 @@ sd_bus::sd_bus(sd_bus&& other) noexcept
       m_enable_local_request(other.m_enable_local_request),
       m_bus(std::move(other.m_bus)),
       m_unique_name(std::move(other.m_unique_name)),
-      m_service_name(std::move(other.m_service_name)) {
+      m_service_name(std::move(other.m_service_name))
+{
 }
 
-sd_bus& sd_bus::operator=(sd_bus&& other) noexcept {
+sd_bus& sd_bus::operator=(sd_bus&& other) noexcept
+{
     if (this != &other) {
         m_is_blocking          = other.m_is_blocking;
         m_enable_local_request = other.m_enable_local_request;
@@ -89,13 +94,15 @@ sd_bus& sd_bus::operator=(sd_bus&& other) noexcept {
     return *this;
 }
 
-variants sd_bus::dbus_call(mc::milliseconds timeout, const method_call_params& params) {
+variants sd_bus::dbus_call(mc::milliseconds timeout, const method_call_params& params)
+{
     return m_bus->timeout_call(timeout.count(), std::string(params.service_name), std::string(params.path),
                                std::string(params.interface), std::string(params.method),
                                std::string(params.signature), variants(params.args));
 }
 
-std::optional<variants> sd_bus::shm_timeout_call(mc::milliseconds timeout, const method_call_params& params) {
+std::optional<variants> sd_bus::shm_timeout_call(mc::milliseconds timeout, const method_call_params& params)
+{
     auto result = shm_tree::timeout_call_with_sender(timeout, m_unique_name, params);
     if (result != std::nullopt) {
         return result.value();
@@ -103,7 +110,8 @@ std::optional<variants> sd_bus::shm_timeout_call(mc::milliseconds timeout, const
     return std::nullopt;
 }
 
-variants sd_bus::timeout_call_impl(mc::milliseconds timeout, const method_call_params& params) {
+variants sd_bus::timeout_call_impl(mc::milliseconds timeout, const method_call_params& params)
+{
     if (m_is_blocking || m_service_name.empty()) {
         return dbus_call(timeout, params);
     }
@@ -114,11 +122,13 @@ variants sd_bus::timeout_call_impl(mc::milliseconds timeout, const method_call_p
     return dbus_call(timeout, params);
 }
 
-void sd_bus::set_enable_local_request(bool enable) {
+void sd_bus::set_enable_local_request(bool enable)
+{
     m_enable_local_request = enable;
 }
 
-static variants remove_context_arg(const variants& args) {
+static variants remove_context_arg(const variants& args)
+{
     if (args.empty()) {
         return args;
     }
@@ -131,7 +141,8 @@ static variants remove_context_arg(const variants& args) {
     return args_without_context;
 }
 
-std::optional<variants> sd_bus::reroute_call(mc::milliseconds timeout, const method_call_params& params) {
+std::optional<variants> sd_bus::reroute_call(mc::milliseconds timeout, const method_call_params& params)
+{
     if (params.service_name != DEVMON_SERVICE) {
         return std::nullopt;
     }
@@ -151,13 +162,15 @@ std::optional<variants> sd_bus::reroute_call(mc::milliseconds timeout, const met
     return timeout_call_impl(timeout, target_params);
 }
 
-void sd_bus::request_name(std::string_view service_name, uint32_t flags) {
+void sd_bus::request_name(std::string_view service_name, uint32_t flags)
+{
     m_service_name = std::string(service_name);
     // 委托给 m_bus 处理请求名称和模式特定的逻辑
     m_bus->request_name(m_service_name, flags);
 }
 
-static variants add_requestor_to_context(const variants& args, std::string_view service_name) {
+static variants add_requestor_to_context(const variants& args, std::string_view service_name)
+{
     if (service_name.empty() || args.empty() || !args[0].is_dict()) {
         return args;
     }
@@ -171,7 +184,8 @@ static variants add_requestor_to_context(const variants& args, std::string_view 
     return modified_args;
 }
 
-static std::string get_caller_from_context(const variants& args) {
+static std::string get_caller_from_context(const variants& args)
+{
     if (args.empty() || !args[0].is_dict()) {
         return "unknown";
     }
@@ -185,7 +199,8 @@ static std::string get_caller_from_context(const variants& args) {
     return "unknown";
 }
 
-variants sd_bus::timeout_call(mc::milliseconds timeout, const method_call_params& params) {
+variants sd_bus::timeout_call(mc::milliseconds timeout, const method_call_params& params)
+{
     method_call_params modified_params{
         .service_name = params.service_name,
         .path         = params.path,
@@ -217,15 +232,18 @@ variants sd_bus::timeout_call(mc::milliseconds timeout, const method_call_params
     return result.value();
 }
 
-variants sd_bus::call(const method_call_params& params) {
+variants sd_bus::call(const method_call_params& params)
+{
     return timeout_call(DEFAULT_DBUS_CALL_TIMEOUT, params);
 }
 
-sd_bus::pcall_result sd_bus::pcall(const method_call_params& params) {
+sd_bus::pcall_result sd_bus::pcall(const method_call_params& params)
+{
     return timeout_pcall(DEFAULT_DBUS_CALL_TIMEOUT, params);
 }
 
-sd_bus::pcall_result sd_bus::timeout_pcall(mc::milliseconds timeout, const method_call_params& params) {
+sd_bus::pcall_result sd_bus::timeout_pcall(mc::milliseconds timeout, const method_call_params& params)
+{
     try {
         auto result = timeout_call(timeout, params);
         return {std::nullopt, std::move(result)};
@@ -234,19 +252,23 @@ sd_bus::pcall_result sd_bus::timeout_pcall(mc::milliseconds timeout, const metho
     }
 }
 
-connection& sd_bus::get_connection() {
+connection& sd_bus::get_connection()
+{
     return m_bus->get_connection();
 }
 
-uint64_t sd_bus::add_match(match_rule& rule, match_cb_t&& cb) {
+uint64_t sd_bus::add_match(match_rule& rule, match_cb_t&& cb)
+{
     return m_bus->add_match(rule, std::forward<match_cb_t>(cb));
 }
 
-void sd_bus::remove_match(uint64_t id) {
+void sd_bus::remove_match(uint64_t id)
+{
     m_bus->remove_match(id);
 }
 
-void sd_bus::register_object(mc::shared_ptr<dynamic_object> object) {
+void sd_bus::register_object(mc::shared_ptr<dynamic_object> object)
+{
     std::string path(object->get_object_path());
     if (m_objects.find(path) != m_objects.end()) {
         return;
@@ -279,7 +301,8 @@ void sd_bus::register_object(mc::shared_ptr<dynamic_object> object) {
 #endif
 }
 
-void sd_bus::unregister_object(std::string_view path) {
+void sd_bus::unregister_object(std::string_view path)
+{
     m_bus->get_connection().unregister_path(path);
     m_objects.erase(std::string(path));
 }

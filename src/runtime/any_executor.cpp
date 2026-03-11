@@ -17,22 +17,27 @@
 namespace mc::runtime {
 
 any_executor::any_executor()
-    : m_executor(immediate_executor()) {
+    : m_executor(immediate_executor())
+{
 }
 
 any_executor::any_executor(thread_pool::executor_type executor)
-    : m_executor(std::move(executor)) {
+    : m_executor(std::move(executor))
+{
 }
 
 any_executor::any_executor(runtime_strand executor)
-    : m_executor(std::move(executor)) {
+    : m_executor(std::move(executor))
+{
 }
 
 any_executor::any_executor(runtime::executor executor)
-    : m_executor(std::move(executor)) {
+    : m_executor(std::move(executor))
+{
 }
 
-bool any_executor::valid() const noexcept {
+bool any_executor::valid() const noexcept
+{
     return std::visit([](const auto& exec) -> bool {
         using T = std::decay_t<decltype(exec)>;
         if constexpr (std::is_same_v<T, runtime::executor>) {
@@ -43,7 +48,8 @@ bool any_executor::valid() const noexcept {
     }, m_executor);
 }
 
-bool any_executor::operator==(const any_executor& other) const noexcept {
+bool any_executor::operator==(const any_executor& other) const noexcept
+{
     // 如果类型不同，则不相等
     if (m_executor.index() != other.m_executor.index()) {
         return false;
@@ -56,23 +62,27 @@ bool any_executor::operator==(const any_executor& other) const noexcept {
     }, m_executor);
 }
 
-bool any_executor::operator!=(const any_executor& other) const noexcept {
+bool any_executor::operator!=(const any_executor& other) const noexcept
+{
     return !(*this == other);
 }
 
-void any_executor::on_work_started() const noexcept {
+void any_executor::on_work_started() const noexcept
+{
     std::visit([&](const auto& exec) {
         exec.on_work_started();
     }, m_executor);
 }
 
-void any_executor::on_work_finished() const noexcept {
+void any_executor::on_work_finished() const noexcept
+{
     std::visit([&](const auto& exec) {
         exec.on_work_finished();
     }, m_executor);
 }
 
-execution_context& any_executor::context() const {
+execution_context& any_executor::context() const
+{
     return std::visit([&](const auto& exec) -> execution_context& {
         return exec.context();
     }, m_executor);
@@ -91,7 +101,8 @@ template <typename T>
 inline constexpr bool has_running_in_this_thread_v = has_running_in_this_thread<T>::value;
 } // namespace detail
 
-bool any_executor::running_in_this_thread() const noexcept {
+bool any_executor::running_in_this_thread() const noexcept
+{
     return std::visit([](const auto& exec) -> bool {
         using T = std::decay_t<decltype(exec)>;
         if constexpr (detail::has_running_in_this_thread_v<T>) {
@@ -102,7 +113,8 @@ bool any_executor::running_in_this_thread() const noexcept {
     }, m_executor);
 }
 
-any_executor& any_executor::bound_pool(thread_pool* pool) noexcept {
+any_executor& any_executor::bound_pool(thread_pool* pool) noexcept
+{
     std::visit([&](auto& exec) {
         using T = std::decay_t<decltype(exec)>;
         if constexpr (detail::has_bound_pool_v<T>) {
@@ -112,7 +124,8 @@ any_executor& any_executor::bound_pool(thread_pool* pool) noexcept {
     return *this;
 }
 
-thread_pool* any_executor::get_bound_pool() const noexcept {
+thread_pool* any_executor::get_bound_pool() const noexcept
+{
     return std::visit([](const auto& exec) -> thread_pool* {
         using T = std::decay_t<decltype(exec)>;
         if constexpr (detail::has_bound_pool_v<T>) {
@@ -122,7 +135,8 @@ thread_pool* any_executor::get_bound_pool() const noexcept {
     }, m_executor);
 }
 
-any_executor::operator boost::asio::any_io_executor() const {
+any_executor::operator boost::asio::any_io_executor() const
+{
     return std::visit([](const auto& exec) -> boost::asio::any_io_executor {
         using T = std::decay_t<decltype(exec)>;
         if constexpr (detail::can_convert_to_any_io_executor_v<T>) {
@@ -133,7 +147,8 @@ any_executor::operator boost::asio::any_io_executor() const {
     }, m_executor);
 }
 
-any_executor::operator boost::asio::io_context::executor_type() const {
+any_executor::operator boost::asio::io_context::executor_type() const
+{
     return std::visit([](const auto& exec) -> boost::asio::io_context::executor_type {
         using T = std::decay_t<decltype(exec)>;
         if constexpr (detail::can_convert_to_io_executor_v<T>) {

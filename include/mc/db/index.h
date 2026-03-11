@@ -74,32 +74,38 @@ public:
                    uint8_t                   index_id  = 0,
                    table_base*               table     = nullptr)
         : m_extractor(extractor), m_txn(std::make_unique<txn_type>(alloc)),
-          m_index_id(index_id), m_table(table) {
+          m_index_id(index_id), m_table(table)
+    {
         m_key.init(key_count, is_unique);
         m_key1.init(key_count, is_unique);
     }
 
-    void set_table(table_base* table) {
+    void set_table(table_base* table)
+    {
         m_table = table;
     }
 
-    table_base* get_table() const override {
+    table_base* get_table() const override
+    {
         return m_table;
     }
 
-    iterator_type find(const object_type& obj) {
+    iterator_type find(const object_type& obj)
+    {
         make_object_key(m_key, obj);
         return find_by_key_internal(m_key);
     }
 
     template <typename... KeyType>
-    iterator_type find(const KeyType&... keys) {
+    iterator_type find(const KeyType&... keys)
+    {
         make_keys(m_key, keys...);
         return find_by_key_internal(m_key);
     }
 
     template <typename... KeyType>
-    std::pair<iterator_type, iterator_type> equal_range(const KeyType&... keys) {
+    std::pair<iterator_type, iterator_type> equal_range(const KeyType&... keys)
+    {
         make_keys(m_key, keys...);
 
         auto key_view = m_key.key();
@@ -118,7 +124,8 @@ public:
      * @return 迭代器
      */
     template <typename... KeyType>
-    iterator_type lower_bound(const KeyType&... keys) {
+    iterator_type lower_bound(const KeyType&... keys)
+    {
         make_keys(m_key, keys...);
 
         auto first = find_by_key_internal(m_key, true);
@@ -129,12 +136,14 @@ public:
         return first;
     }
 
-    bool add(const object_type& obj) {
+    bool add(const object_type& obj)
+    {
         auto obj_ptr = mc::make_shared<object_type>(obj);
         return add(obj_ptr);
     }
 
-    bool add(object_ptr_type obj_ptr) {
+    bool add(object_ptr_type obj_ptr)
+    {
         make_object_key(m_key, *obj_ptr);
 
         auto key_view     = m_key.key();
@@ -150,12 +159,14 @@ public:
         return true;
     }
 
-    bool update(const object_type& old_obj, const object_type& new_obj) {
+    bool update(const object_type& old_obj, const object_type& new_obj)
+    {
         auto obj_ptr = mc::make_shared<object_type>(new_obj);
         return update(old_obj, obj_ptr);
     }
 
-    bool update(const object_type& old_obj, object_ptr_type new_obj_ptr) {
+    bool update(const object_type& old_obj, object_ptr_type new_obj_ptr)
+    {
         make_object_key(m_key, old_obj);
         make_object_key(m_key1, *new_obj_ptr);
 
@@ -189,7 +200,8 @@ public:
         return true;
     }
 
-    auto remove(const object_type& obj) {
+    auto remove(const object_type& obj)
+    {
         make_object_key(m_key, obj);
 
         auto key_view = m_key.key();
@@ -199,7 +211,8 @@ public:
     }
 
     template <typename... KeyTypes>
-    auto remove(const KeyTypes&... keys) {
+    auto remove(const KeyTypes&... keys)
+    {
         make_keys(m_key, keys...);
 
         auto key_view = m_key.key();
@@ -211,7 +224,8 @@ public:
     /**
      * 清空索引
      */
-    void clear() {
+    void clear()
+    {
         m_txn  = std::make_unique<txn_type>(alloc_type());
         m_tree = m_txn->root();
     }
@@ -220,7 +234,8 @@ public:
      * 获取索引的起始迭代器
      * @return 起始迭代器
      */
-    iterator_type begin() {
+    iterator_type begin()
+    {
         return make_iterator(m_txn->root().begin(), m_key);
     }
 
@@ -228,7 +243,8 @@ public:
      * 获取索引的起始迭代器（常量版本）
      * @return 起始迭代器
      */
-    iterator_type begin() const {
+    iterator_type begin() const
+    {
         return iterator_type(m_txn->root().begin(), m_key.key().length(), m_key.key_num());
     }
 
@@ -236,14 +252,16 @@ public:
      * 获取索引的结束迭代器
      * @return 结束迭代器
      */
-    iterator_type end() {
+    iterator_type end()
+    {
         return iterator_type();
     }
 
     /**
      * 提交当前事务
      */
-    void commit() {
+    void commit()
+    {
         m_txn->commit();
         m_tree = m_txn->root();
     }
@@ -251,32 +269,39 @@ public:
     /**
      * 回滚当前事务
      */
-    void rollback() {
+    void rollback()
+    {
         m_txn->rollback();
         m_tree = m_txn->root();
     }
 
-    int32_t last_savepoint_id() const {
+    int32_t last_savepoint_id() const
+    {
         return m_txn->current_save_point();
     }
 
-    int32_t alloc_save_point() {
+    int32_t alloc_save_point()
+    {
         return m_txn->save_point();
     }
 
-    void rollback_to(int32_t savepoint_id) {
+    void rollback_to(int32_t savepoint_id)
+    {
         m_txn->rollback(savepoint_id);
     }
 
-    void lock_db() {
+    void lock_db()
+    {
         m_txn->lock_db();
     }
 
-    void unlock_db() {
+    void unlock_db()
+    {
         m_txn->unlock_db();
     }
 
-    object_ptr_type raw_find(const mc::variant& value) override {
+    object_ptr_type raw_find(const mc::variant& value) override
+    {
         make_keys(m_key, value);
 
         auto& root     = m_txn->root();
@@ -299,7 +324,8 @@ public:
         return it->second;
     }
 
-    raw_iterator raw_lower_bound(const mc::variant& value) override {
+    raw_iterator raw_lower_bound(const mc::variant& value) override
+    {
         make_keys(m_key, value);
 
         auto& root     = m_txn->root();
@@ -309,7 +335,8 @@ public:
         return it;
     }
 
-    raw_iterator raw_upper_bound(const mc::variant& value) override {
+    raw_iterator raw_upper_bound(const mc::variant& value) override
+    {
         make_keys(m_key, value);
 
         auto& root     = m_txn->root();
@@ -334,19 +361,23 @@ public:
         return it;
     }
 
-    raw_iterator raw_begin() const override {
+    raw_iterator raw_begin() const override
+    {
         return m_txn->root().begin();
     }
 
-    bool empty() const {
+    bool empty() const
+    {
         return m_txn->root().empty();
     }
 
-    size_t size() const {
+    size_t size() const
+    {
         return m_txn->root().size();
     }
 
-    std::string index_name() const {
+    std::string index_name() const
+    {
         if constexpr (is_field_tag_v<Tag>) {
             return mc::string::join(Tag::get_field_names(), ",");
         } else {
@@ -359,29 +390,34 @@ public:
         }
     }
 
-    std::string_view table_name() const {
+    std::string_view table_name() const
+    {
         return m_table ? m_table->get_table_name() : "anonymous_table";
     }
 
-    mc::variant get_key_values(const object_type& obj) {
+    mc::variant get_key_values(const object_type& obj)
+    {
         return m_extractor(obj);
     }
 
 private:
-    void make_object_key(mdb_key& key, const object_type& obj) {
+    void make_object_key(mdb_key& key, const object_type& obj)
+    {
         make_key_internal<is_unique>(key, obj.get_object_id(), [&](mdb_key& key) {
             m_extractor.extract_key(key, obj);
         });
     }
 
     template <typename... KeyTypes>
-    void make_keys(mdb_key& key, const KeyTypes&... keys) {
+    void make_keys(mdb_key& key, const KeyTypes&... keys)
+    {
         make_key_internal<is_unique>(key, 0, [&](mdb_key& key) {
             m_extractor.append_key(key, keys...);
         });
     }
 
-    void make_keys(mdb_key& key, const mc::variant& value) {
+    void make_keys(mdb_key& key, const mc::variant& value)
+    {
         make_key_internal<is_unique>(key, 0, [&](mdb_key& key) {
             m_extractor.append_variant(key, value);
         });
@@ -393,7 +429,8 @@ private:
      * @param obj 源对象
      */
     template <bool KeyIsUnique = false, typename F>
-    void make_key_internal(mdb_key& key, object_id_type id, F&& extract_key) {
+    void make_key_internal(mdb_key& key, object_id_type id, F&& extract_key)
+    {
         key.reset();
 
         // 如果是唯一索引，直接使用提取器提取键
@@ -418,7 +455,8 @@ private:
         }
     }
 
-    iterator_type make_iterator(raw_iterator it, const mdb_key& key) {
+    iterator_type make_iterator(raw_iterator it, const mdb_key& key)
+    {
         return iterator_type(it, key.key().length(), key.key_num());
     }
 
@@ -427,7 +465,8 @@ private:
      * @param key 键
      * @return 迭代器
      */
-    iterator_type find_by_key_internal(const mdb_key& key, bool is_lower_bound = false) {
+    iterator_type find_by_key_internal(const mdb_key& key, bool is_lower_bound = false)
+    {
         auto& root     = m_txn->root();
         auto  key_view = key.key();
         auto  it       = root.lower_bound(key_view);
@@ -466,7 +505,8 @@ private:
 template <typename ObjectType, bool IsUnique, typename KeyExtractor, typename Tag = void,
           typename Alloc = std::allocator<ObjectType>>
 static auto make_index(const KeyExtractor& extractor = KeyExtractor(),
-                       const Alloc&        alloc     = Alloc()) {
+                       const Alloc&        alloc     = Alloc())
+{
     return std::make_unique<index<ObjectType, KeyExtractor, IsUnique, Tag, Alloc>>(extractor,
                                                                                    alloc);
 }

@@ -69,10 +69,12 @@ public:
     basic_small_mutex() = default;
 
     basic_small_mutex(const basic_small_mutex& other)
-        : m_lock_word{other.m_lock_word.load()} {
+        : m_lock_word{other.m_lock_word.load()}
+    {
     }
 
-    basic_small_mutex& operator=(const basic_small_mutex& other) {
+    basic_small_mutex& operator=(const basic_small_mutex& other)
+    {
         if (this != &other) {
             m_lock_word.store(other.m_lock_word.load());
         }
@@ -80,11 +82,13 @@ public:
     }
 
     basic_small_mutex(basic_small_mutex&& other) noexcept
-        : m_lock_word{other.m_lock_word.load()} {
+        : m_lock_word{other.m_lock_word.load()}
+    {
         other.m_lock_word.store(0);
     }
 
-    basic_small_mutex& operator=(basic_small_mutex&& other) noexcept {
+    basic_small_mutex& operator=(basic_small_mutex&& other) noexcept
+    {
         if (this != &other) {
             m_lock_word.store(other.m_lock_word.load());
             other.m_lock_word.store(0);
@@ -95,7 +99,8 @@ public:
     /**
      * @brief 原子地加载存储在锁未使用位中的数据
      */
-    uint32_t load_data(std::memory_order order = std::memory_order_seq_cst) const noexcept {
+    uint32_t load_data(std::memory_order order = std::memory_order_seq_cst) const noexcept
+    {
         return decode_data(m_lock_word.load(order));
     }
 
@@ -104,7 +109,8 @@ public:
      *
      * 由于 2 位被锁使用，提供的值的最低 2 位将被忽略。
      */
-    void store_data(uint32_t value, std::memory_order order = std::memory_order_seq_cst) noexcept {
+    void store_data(uint32_t value, std::memory_order order = std::memory_order_seq_cst) noexcept
+    {
         uint32_t old_word = m_lock_word.load(std::memory_order_acquire);
         while (true) {
             uint32_t new_word = (old_word & LOCK_MASK) | encode_data(value);
@@ -118,7 +124,8 @@ public:
     /**
      * @brief 获取锁
      */
-    void lock() noexcept {
+    void lock() noexcept
+    {
         uint32_t old_word;
         if (try_lock_impl(old_word)) {
             return;
@@ -134,7 +141,8 @@ public:
      *
      * @return 如果成功获取锁返回 true，否则返回 false
      */
-    bool try_lock() noexcept {
+    bool try_lock() noexcept
+    {
         uint32_t old_word;
         return try_lock_impl(old_word);
     }
@@ -147,7 +155,8 @@ public:
      * @return 如果在超时前获取锁返回 true，否则返回 false
      */
     template <typename Duration>
-    bool try_lock_for(const Duration& timeout) noexcept {
+    bool try_lock_for(const Duration& timeout) noexcept
+    {
         uint32_t old_word;
         if (try_lock_impl(old_word)) {
             return true;
@@ -161,7 +170,8 @@ public:
     /**
      * @brief 释放锁
      */
-    void unlock() noexcept {
+    void unlock() noexcept
+    {
         uint32_t new_word;
         uint32_t old_word = m_lock_word.load(std::memory_order_acquire);
         do {
@@ -180,7 +190,8 @@ public:
     /**
      * @brief 检查锁当前是否被持有
      */
-    bool is_locked() const noexcept {
+    bool is_locked() const noexcept
+    {
         return (m_lock_word.load(std::memory_order_relaxed) & LOCK_BIT) != 0;
     }
 
@@ -189,11 +200,13 @@ public:
      *
      * 注意：直接操作返回的原子变量需要确保正确处理锁状态位
      */
-    std::atomic<uint32_t>& get_atomic_word() noexcept {
+    std::atomic<uint32_t>& get_atomic_word() noexcept
+    {
         return m_lock_word;
     }
 
-    const std::atomic<uint32_t>& get_atomic_word() const noexcept {
+    const std::atomic<uint32_t>& get_atomic_word() const noexcept
+    {
         return m_lock_word;
     }
 
@@ -201,18 +214,21 @@ private:
     /**
      * @brief 从 word 中解码用户数据
      */
-    static constexpr uint32_t decode_data(uint32_t lock_word) noexcept {
+    static constexpr uint32_t decode_data(uint32_t lock_word) noexcept
+    {
         return lock_word >> DATA_SHIFT;
     }
 
     /**
      * @brief 将用户数据编码到 word 中
      */
-    static constexpr uint32_t encode_data(uint32_t data) noexcept {
+    static constexpr uint32_t encode_data(uint32_t data) noexcept
+    {
         return (data << DATA_SHIFT) & DATA_MASK;
     }
 
-    bool try_lock_impl(uint32_t& old_word) noexcept {
+    bool try_lock_impl(uint32_t& old_word) noexcept
+    {
         old_word = m_lock_word.load(std::memory_order_acquire);
         if (old_word & LOCK_BIT) {
             return false;
@@ -227,7 +243,8 @@ private:
      * @brief 抢占锁实现
      */
     template <typename Context>
-    bool acquire_lock(Context& ctx, uint32_t old_word) noexcept {
+    bool acquire_lock(Context& ctx, uint32_t old_word) noexcept
+    {
         while (!ctx.should_timeout()) {
             // 设置等待位
             if ((old_word & WAIT_BIT) == 0 &&

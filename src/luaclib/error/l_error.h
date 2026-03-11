@@ -34,10 +34,12 @@ struct error_wrapper {
 
     error_wrapper() = default;
     explicit error_wrapper(mc::error_ptr e)
-        : err(e) {
+        : err(e)
+    {
     }
     explicit error_wrapper(mc::error* e)
-        : err(e) {
+        : err(e)
+    {
     }
 };
 
@@ -55,14 +57,16 @@ constexpr const char* ERROR_CONVERTER_METATABLE = "mc.error_converter";
 /**
  * @brief 检查并获取 error userdata
  */
-inline error_wrapper* check_error(lua_State* L, int index = 1) {
+inline error_wrapper* check_error(lua_State* L, int index = 1)
+{
     return static_cast<error_wrapper*>(luaL_checkudata(L, index, ERROR_METATABLE));
 }
 
 /**
  * @brief 创建 error userdata 并推入 Lua 栈
  */
-inline int push_error(lua_State* L, const mc::error_ptr& err) {
+inline int push_error(lua_State* L, const mc::error_ptr& err)
+{
     void* userdata = lua_newuserdata(L, sizeof(error_wrapper));
     new (userdata) error_wrapper(err);
 
@@ -75,7 +79,8 @@ inline int push_error(lua_State* L, const mc::error_ptr& err) {
 /**
  * @brief 创建 error userdata 并推入 Lua 栈（移动语义）
  */
-inline int push_error(lua_State* L, mc::error_ptr&& err) {
+inline int push_error(lua_State* L, mc::error_ptr&& err)
+{
     void* userdata = lua_newuserdata(L, sizeof(error_wrapper));
     new (userdata) error_wrapper(std::move(err));
 

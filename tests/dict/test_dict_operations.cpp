@@ -23,7 +23,8 @@
 using namespace mc;
 
 // 测试 dict 的基本访问操作
-TEST(DictOperationsTest, DictBasicAccess) {
+TEST(DictOperationsTest, DictBasicAccess)
+{
     dict d({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
     // 测试 operator[] - 非 const 版本可以自动创建键（类似 std::map）
@@ -69,7 +70,8 @@ TEST(DictOperationsTest, DictBasicAccess) {
 }
 
 // 测试 dict 的迭代器操作
-TEST(DictOperationsTest, DictIterators) {
+TEST(DictOperationsTest, DictIterators)
+{
     dict d({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
     // 测试迭代器遍历
@@ -112,7 +114,8 @@ TEST(DictOperationsTest, DictIterators) {
 }
 
 // 测试 dict 的 find 方法
-TEST(DictOperationsTest, DictFind) {
+TEST(DictOperationsTest, DictFind)
+{
     dict d({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
     // 测试 find 方法 (std::string 版本)
@@ -139,7 +142,8 @@ TEST(DictOperationsTest, DictFind) {
 }
 
 // 测试 dict 的 keys 和 values 方法
-TEST(DictOperationsTest, DictKeysAndValues) {
+TEST(DictOperationsTest, DictKeysAndValues)
+{
     dict d({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
     // 测试 keys 方法
@@ -158,7 +162,8 @@ TEST(DictOperationsTest, DictKeysAndValues) {
 }
 
 // 测试 dict 的比较操作
-TEST(DictOperationsTest, DictComparison) {
+TEST(DictOperationsTest, DictComparison)
+{
     dict d1({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
     dict d2({{"key1", 123}, {"key2", "value"}, {"key3", true}});
@@ -183,7 +188,8 @@ TEST(DictOperationsTest, DictComparison) {
 }
 
 // 测试 dict 的基本修改操作
-TEST(DictOperationsTest, MutableDictBasicModification) {
+TEST(DictOperationsTest, MutableDictBasicModification)
+{
     dict md({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
     // 测试 operator[] 修改现有键值对
@@ -241,7 +247,8 @@ TEST(DictOperationsTest, MutableDictBasicModification) {
 }
 
 // 测试 dict 的 erase 和 clear 方法
-TEST(DictOperationsTest, MutableDictEraseAndClear) {
+TEST(DictOperationsTest, MutableDictEraseAndClear)
+{
     dict md({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
     // 测试 erase 方法
@@ -260,7 +267,8 @@ TEST(DictOperationsTest, MutableDictEraseAndClear) {
 }
 
 // 测试 dict 的迭代器操作
-TEST(DictOperationsTest, MutableDictIterators) {
+TEST(DictOperationsTest, MutableDictIterators)
+{
     dict md({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
     // 测试迭代器遍历并修改值
@@ -294,7 +302,8 @@ TEST(DictOperationsTest, MutableDictIterators) {
 }
 
 // 测试 dict 的 at 方法
-TEST(DictOperationsTest, MutableDictAt) {
+TEST(DictOperationsTest, MutableDictAt)
+{
     dict md({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
     // 测试 at 方法读取
@@ -315,7 +324,8 @@ TEST(DictOperationsTest, MutableDictAt) {
 }
 
 // 测试 dict 和 dict 之间的数据共享
-TEST(DictOperationsTest, DataSharing) {
+TEST(DictOperationsTest, DataSharing)
+{
     dict d({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
     dict md1({{"key1", 123}, {"key2", "value"}, {"key3", true}});
@@ -352,7 +362,8 @@ TEST(DictOperationsTest, DataSharing) {
 }
 
 // 测试 dict 的浅拷贝 copy() 方法
-TEST(DictOperationsTest, ShallowCopy) {
+TEST(DictOperationsTest, ShallowCopy)
+{
     // 测试基本的浅拷贝 - 字典数据结构本身不共享
     {
         dict d1({{"key1", 123}, {"key2", "value"}, {"key3", true}});
@@ -493,7 +504,8 @@ TEST(DictOperationsTest, ShallowCopy) {
 }
 
 // 测试 dict 的深拷贝 deep_copy() 方法
-TEST(DictOperationsTest, DeepCopy) {
+TEST(DictOperationsTest, DeepCopy)
+{
     // 测试基本的深拷贝 - 字典数据结构和值都不共享
     {
         dict d1({{"key1", 123}, {"key2", "value"}, {"key3", true}});
@@ -667,7 +679,8 @@ TEST(DictOperationsTest, DeepCopy) {
 }
 
 // 测试 dict 深拷贝的循环引用处理
-TEST(DictOperationsTest, DeepCopyCycleHandling) {
+TEST(DictOperationsTest, DeepCopyCycleHandling)
+{
     // 测试自引用 - 深拷贝应该保持引用关系
     {
         dict d1({{"key1", 123}});
@@ -850,7 +863,8 @@ TEST(DictOperationsTest, DeepCopyCycleHandling) {
 }
 
 // 测试 dict 的 find 方法
-TEST(DictOperationsTest, MutableDictFind) {
+TEST(DictOperationsTest, MutableDictFind)
+{
     dict md({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
     // 测试 find 方法 (std::string 版本)
@@ -900,7 +914,8 @@ TEST(DictOperationsTest, MutableDictFind) {
 }
 
 // 测试 dict 的 insert 方法
-TEST(DictOperationsTest, MutableDictInsert) {
+TEST(DictOperationsTest, MutableDictInsert)
+{
     // 测试基本的insert方法
     {
         dict md;
@@ -1035,7 +1050,8 @@ TEST(DictOperationsTest, MutableDictInsert) {
 }
 
 // 测试 dict 的 insert 方法与其他操作的交互
-TEST(DictOperationsTest, MutableDictInsertInteraction) {
+TEST(DictOperationsTest, MutableDictInsertInteraction)
+{
     // 测试insert与operator[]的交互
     {
         dict md;
@@ -1135,28 +1151,32 @@ TEST(DictOperationsTest, MutableDictInsertInteraction) {
 // 测试 find_entry(nullptr) 异常 - 通过 find() 间接测试
 // 注意：find_entry 是 protected 方法，无法直接调用
 // 我们通过公共接口 find() 来间接测试 find_entry 的 nullptr 处理
-TEST(DictOperationsTest, DictFindEntryWithNullPointerKey) {
+TEST(DictOperationsTest, DictFindEntryWithNullPointerKey)
+{
     dict d({{"key1", 123}});
     // find() 方法内部会调用 find_entry，如果 find_entry 对 nullptr 抛出异常，这里也会抛出
     EXPECT_THROW(d.find(nullptr), std::invalid_argument);
 }
 
 // 测试 operator[](nullptr) 异常
-TEST(DictOperationsTest, DictOperatorBracketWithNullPointerKey) {
+TEST(DictOperationsTest, DictOperatorBracketWithNullPointerKey)
+{
     const dict d({{"key1", 123}});
     EXPECT_THROW(d[nullptr], std::invalid_argument);
 }
 
 // 测试 operator[](const variant&) 键不存在异常
-TEST(DictOperationsTest, DictOperatorBracketWithVariantKeyNotFound) {
+TEST(DictOperationsTest, DictOperatorBracketWithVariantKeyNotFound)
+{
     const dict d({{"key1", 123}});
-    variant non_existent_key("key2");
+    variant    non_existent_key("key2");
     EXPECT_THROW(d[non_existent_key], std::out_of_range);
 }
 
 // 测试 get(const std::string&, const variant&)
-TEST(DictOperationsTest, DictGetWithStringKey) {
-    dict d({{"key1", 123}, {"key2", "value"}});
+TEST(DictOperationsTest, DictGetWithStringKey)
+{
+    dict    d({{"key1", 123}, {"key2", "value"}});
     variant default_val(456);
     EXPECT_EQ(d.get(std::string("key1"), default_val).as<int>(), 123);
     EXPECT_EQ(d.get(std::string("key2"), default_val).as<std::string>(), "value");
@@ -1164,15 +1184,17 @@ TEST(DictOperationsTest, DictGetWithStringKey) {
 }
 
 // 测试 get(nullptr, default_value) 异常
-TEST(DictOperationsTest, DictGetWithNullPointerKey) {
-    dict d({{"key1", 123}});
+TEST(DictOperationsTest, DictGetWithNullPointerKey)
+{
+    dict    d({{"key1", 123}});
     variant default_val(456);
     EXPECT_THROW(d.get(nullptr, default_val), std::invalid_argument);
 }
 
 // 测试 get(const variant&, const variant&)
-TEST(DictOperationsTest, DictGetWithVariantKey) {
-    dict d({{"key1", 123}, {"key2", "value"}});
+TEST(DictOperationsTest, DictGetWithVariantKey)
+{
+    dict    d({{"key1", 123}, {"key2", "value"}});
     variant key1("key1");
     variant key2("key2");
     variant key3("key3");
@@ -1184,37 +1206,42 @@ TEST(DictOperationsTest, DictGetWithVariantKey) {
 }
 
 // 测试空字典的 at_index 异常
-TEST(DictOperationsTest, DictAtIndexOutOfRangeWithEmptyDict) {
+TEST(DictOperationsTest, DictAtIndexOutOfRangeWithEmptyDict)
+{
     dict d;
     EXPECT_THROW(d.at_index(0), std::out_of_range);
     EXPECT_THROW(d.at_index(1), std::out_of_range);
 }
 
 // 测试 at(const std::string&)
-TEST(DictOperationsTest, DictAtWithStringKey) {
+TEST(DictOperationsTest, DictAtWithStringKey)
+{
     const dict d({{"key1", 123}, {"key2", "value"}});
     EXPECT_EQ(d.at(std::string("key1")).as<int>(), 123);
     EXPECT_EQ(d.at(std::string("key2")).as<std::string>(), "value");
 }
 
 // 测试 at 键不存在异常
-TEST(DictOperationsTest, DictAtWithNonExistentKey) {
+TEST(DictOperationsTest, DictAtWithNonExistentKey)
+{
     const dict d({{"key1", 123}});
     EXPECT_THROW(d.at("key2"), std::out_of_range);
 }
 
 // 测试 at(nullptr) 异常
-TEST(DictOperationsTest, DictAtWithNullPointerKey) {
+TEST(DictOperationsTest, DictAtWithNullPointerKey)
+{
     const dict d({{"key1", 123}});
     EXPECT_THROW(d.at(nullptr), std::invalid_argument);
 }
 
 // 测试 at(const variant&)
-TEST(DictOperationsTest, DictAtWithVariantKey) {
+TEST(DictOperationsTest, DictAtWithVariantKey)
+{
     const dict d({{"key1", 123}, {"key2", "value"}});
-    variant key1("key1");
-    variant key2("key2");
-    variant key3("key3");
+    variant    key1("key1");
+    variant    key2("key2");
+    variant    key3("key3");
 
     EXPECT_EQ(d.at(key1).as<int>(), 123);
     EXPECT_EQ(d.at(key2).as<std::string>(), "value");
@@ -1222,14 +1249,16 @@ TEST(DictOperationsTest, DictAtWithVariantKey) {
 }
 
 // 测试 find_index(nullptr) 异常
-TEST(DictOperationsTest, DictFindIndexWithNullPointerKey) {
+TEST(DictOperationsTest, DictFindIndexWithNullPointerKey)
+{
     dict d({{"key1", 123}});
     EXPECT_THROW(d.find_index(nullptr), std::invalid_argument);
 }
 
 // 测试 find_index(const variant&)
-TEST(DictOperationsTest, DictFindIndexWithVariantKey) {
-    dict d({{"key1", 123}, {"key2", "value"}});
+TEST(DictOperationsTest, DictFindIndexWithVariantKey)
+{
+    dict    d({{"key1", 123}, {"key2", "value"}});
     variant key1("key1");
     variant key2("key2");
     variant key3("key3");
@@ -1244,27 +1273,29 @@ TEST(DictOperationsTest, DictFindIndexWithVariantKey) {
 }
 
 // 测试 contains(nullptr) 异常
-TEST(DictOperationsTest, DictContainsWithNullPointerKey) {
+TEST(DictOperationsTest, DictContainsWithNullPointerKey)
+{
     dict d({{"key1", 123}});
     EXPECT_THROW(d.contains(nullptr), std::invalid_argument);
 }
 
 // 测试 hash() 方法
-TEST(DictOperationsTest, DictHash) {
+TEST(DictOperationsTest, DictHash)
+{
     dict d1({{"key1", 123}, {"key2", "value"}});
     dict d2({{"key1", 123}, {"key2", "value"}});
     dict d3({{"key1", 456}, {"key2", "value"}});
     dict empty_dict;
 
-    size_t hash1 = d1.hash();
-    size_t hash2 = d2.hash();
-    size_t hash3 = d3.hash();
+    size_t hash1      = d1.hash();
+    size_t hash2      = d2.hash();
+    size_t hash3      = d3.hash();
     size_t hash_empty = empty_dict.hash();
 
-    EXPECT_NE(hash1, 0);  // 非空字典的hash应该非零
+    EXPECT_NE(hash1, 0); // 非空字典的hash应该非零
     EXPECT_NE(hash2, 0);
     EXPECT_NE(hash3, 0);
-    EXPECT_EQ(hash_empty, 0);  // 空字典的hash应该为0
+    EXPECT_EQ(hash_empty, 0); // 空字典的hash应该为0
     EXPECT_EQ(hash1, hash2);  // 相同内容的字典应该有相同的hash
     EXPECT_NE(hash1, hash3);  // 不同内容的字典应该有不同的hash
 }
@@ -1272,7 +1303,8 @@ TEST(DictOperationsTest, DictHash) {
 // 测试非 const find_entry(nullptr) 异常 - 通过 find() 间接测试
 // 注意：find_entry 是 protected 方法，无法直接调用
 // 我们通过公共接口 find() 来间接测试 find_entry 的 nullptr 处理
-TEST(DictOperationsTest, MutableDictFindEntryWithNullPointerKey) {
+TEST(DictOperationsTest, MutableDictFindEntryWithNullPointerKey)
+{
     dict md;
     md["key1"] = 123;
     // find() 方法内部会调用 find_entry，如果 find_entry 对 nullptr 抛出异常，这里也会抛出
@@ -1280,21 +1312,24 @@ TEST(DictOperationsTest, MutableDictFindEntryWithNullPointerKey) {
 }
 
 // 测试非 const operator[](nullptr) 异常
-TEST(DictOperationsTest, MutableDictOperatorBracketWithNullPointerKey) {
+TEST(DictOperationsTest, MutableDictOperatorBracketWithNullPointerKey)
+{
     dict md;
     md["key1"] = 123;
     EXPECT_THROW(md[nullptr] = 456, std::invalid_argument);
 }
 
 // 测试非 const operator[](null variant) 异常
-TEST(DictOperationsTest, MutableDictOperatorBracketWithNullVariantKey) {
-    dict md;
-    variant null_key;  // null variant
+TEST(DictOperationsTest, MutableDictOperatorBracketWithNullVariantKey)
+{
+    dict    md;
+    variant null_key; // null variant
     EXPECT_THROW(md[null_key] = 123, std::invalid_argument);
 }
 
 // 测试 erase(const variant&)
-TEST(DictOperationsTest, MutableDictEraseWithVariantKey) {
+TEST(DictOperationsTest, MutableDictEraseWithVariantKey)
+{
     dict md;
     md["key1"] = 123;
     md["key2"] = "value";
@@ -1312,12 +1347,13 @@ TEST(DictOperationsTest, MutableDictEraseWithVariantKey) {
     EXPECT_EQ(md.size(), 1);
     EXPECT_FALSE(md.contains("key2"));
 
-    EXPECT_FALSE(md.erase(key4));  // 不存在的键
+    EXPECT_FALSE(md.erase(key4)); // 不存在的键
     EXPECT_EQ(md.size(), 1);
 }
 
 // 测试非 const at(const std::string&)
-TEST(DictOperationsTest, MutableDictAtWithStringKey) {
+TEST(DictOperationsTest, MutableDictAtWithStringKey)
+{
     dict md;
     md["key1"] = 123;
     md["key2"] = "value";
@@ -1330,14 +1366,16 @@ TEST(DictOperationsTest, MutableDictAtWithStringKey) {
 }
 
 // 测试非 const at(nullptr) 异常
-TEST(DictOperationsTest, MutableDictAtWithNullPointerKey) {
+TEST(DictOperationsTest, MutableDictAtWithNullPointerKey)
+{
     dict md;
     md["key1"] = 123;
     EXPECT_THROW(md.at(nullptr) = 456, std::invalid_argument);
 }
 
 // 测试非 const at(const variant&)
-TEST(DictOperationsTest, MutableDictAtWithVariantKey) {
+TEST(DictOperationsTest, MutableDictAtWithVariantKey)
+{
     dict md;
     md["key1"] = 123;
     md["key2"] = "value";
@@ -1356,7 +1394,8 @@ TEST(DictOperationsTest, MutableDictAtWithVariantKey) {
 }
 
 // 测试 insert 带 hint 参数
-TEST(DictOperationsTest, MutableDictInsertWithHint) {
+TEST(DictOperationsTest, MutableDictInsertWithHint)
+{
     dict md;
     md["key1"] = 100;
     md["key2"] = 200;

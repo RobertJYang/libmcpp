@@ -43,9 +43,10 @@ constexpr std::string_view MDB_SERVICE_PATH      = "/bmc/kepler/MdbService";
 constexpr std::string_view MDB_SERVICE_INTERFACE = "bmc.kepler.Mdb";
 } // namespace
 
-mdb_access& mdb_access::instance(size_t max_cache_size) {
-    static mdb_access* inst = nullptr;
-    static std::once_flag  once_flag;
+mdb_access& mdb_access::instance(size_t max_cache_size)
+{
+    static mdb_access*    inst = nullptr;
+    static std::once_flag once_flag;
 
     std::call_once(once_flag, [max_cache_size]() {
         inst = new mdb_access(max_cache_size);
@@ -55,12 +56,14 @@ mdb_access& mdb_access::instance(size_t max_cache_size) {
 }
 
 mdb_access::mdb_access(size_t max_cache_size)
-    : m_cache(max_cache_size) {
+    : m_cache(max_cache_size)
+{
 }
 
-std::shared_ptr<proxy_object> mdb_access::get_object_by_short_call(mc::dbus::sd_bus* bus,
+std::shared_ptr<proxy_object> mdb_access::get_object_by_short_call(mc::dbus::sd_bus*  bus,
                                                                    const std::string& path,
-                                                                   const std::string& interface) {
+                                                                   const std::string& interface)
+{
     mc::variants interfaces = {mc::variant(interface)};
     mc::variant  rsp        = mc::mdb::service::get_object(bus, path, interfaces);
     auto         it         = rsp.get_object().begin();
@@ -80,8 +83,9 @@ std::shared_ptr<proxy_object> mdb_access::get_object_by_short_call(mc::dbus::sd_
 }
 
 std::shared_ptr<proxy_object> mdb_access::get_object(std::shared_ptr<mc::dbus::sd_bus> bus,
-                                                       const std::string&                path,
-                                                       const std::string&                interface) {
+                                                     const std::string&                path,
+                                                     const std::string&                interface)
+{
     std::string cache_key = path + interface;
 
     {
@@ -127,7 +131,8 @@ std::shared_ptr<proxy_object> mdb_access::get_object_with_service(
     std::shared_ptr<mc::dbus::sd_bus> bus,
     const std::string&                service,
     const std::string&                path,
-    const std::string&                interface) {
+    const std::string&                interface)
+{
     // 对 service 名称进行判空检查
     if (service.empty()) {
         MC_THROW(mc::invalid_arg_exception, "service name cannot be empty");
@@ -169,7 +174,8 @@ std::map<std::string, std::shared_ptr<proxy_object>> mdb_access::get_sub_objects
     std::shared_ptr<mc::dbus::sd_bus> bus,
     const std::string&                path,
     const std::string&                interface,
-    int32_t                           depth) {
+    int32_t                           depth)
+{
     // 在 move bus 之前保存 connection 和 is_blocking 信息
     mc::dbus::connection conn        = bus->get_connection();
     bool                 is_blocking = bus->is_blocking();
@@ -185,7 +191,7 @@ std::map<std::string, std::shared_ptr<proxy_object>> mdb_access::get_sub_objects
         path_list = &rsp.get_array();
     } else if (rsp.is_object()) {
         // 返回的是包含 SubPaths 字段的对象
-        const mc::dict& result_dict = rsp.get_object();
+        const mc::dict& result_dict  = rsp.get_object();
         auto            sub_paths_it = result_dict.find("SubPaths");
         if (sub_paths_it == result_dict.end()) {
             MC_THROW(mc::system_exception, "SubPaths field not found in result");
@@ -225,17 +231,20 @@ std::map<std::string, std::shared_ptr<proxy_object>> mdb_access::get_sub_objects
     return result_map;
 }
 
-void mdb_access::clear_cache() {
+void mdb_access::clear_cache()
+{
     std::lock_guard<std::mutex> lock(m_mutex);
     m_cache.clear();
 }
 
-void mdb_access::set_max_cache_size(size_t max_size) {
+void mdb_access::set_max_cache_size(size_t max_size)
+{
     std::lock_guard<std::mutex> lock(m_mutex);
     m_cache.set_max_size(max_size);
 }
 
-size_t mdb_access::cache_size() const {
+size_t mdb_access::cache_size() const
+{
     std::lock_guard<std::mutex> lock(m_mutex);
     return m_cache.size();
 }

@@ -75,7 +75,8 @@ struct token {
     std::size_t position;
 
     token(token_type t, std::string lex, mc::variant lit = {}, std::size_t pos = 0)
-        : type(t), lexeme(std::move(lex)), literal(std::move(lit)), position(pos) {
+        : type(t), lexeme(std::move(lex)), literal(std::move(lit)), position(pos)
+    {
     }
 };
 

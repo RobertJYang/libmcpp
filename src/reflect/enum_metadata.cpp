@@ -16,7 +16,8 @@
 
 namespace mc::reflect {
 
-static bool is_continuous_enum(const enum_member_info* values, size_t count) {
+static bool is_continuous_enum(const enum_member_info* values, size_t count)
+{
     if (count == 0) {
         return true;
     }
@@ -56,7 +57,8 @@ struct enum_metadata::impl {
     mc::mutex_box<data_t, mc::shared_mutex> data;
 };
 
-void enum_metadata::impl::init_value_to_name_map(const data_t& data) const {
+void enum_metadata::impl::init_value_to_name_map(const data_t& data) const
+{
     if (data.value_to_name) {
         return;
     }
@@ -67,7 +69,8 @@ void enum_metadata::impl::init_value_to_name_map(const data_t& data) const {
     }
 }
 
-void enum_metadata::impl::init_name_to_value_map(const data_t& data) const {
+void enum_metadata::impl::init_name_to_value_map(const data_t& data) const
+{
     if (data.name_to_value) {
         return;
     }
@@ -78,7 +81,8 @@ void enum_metadata::impl::init_name_to_value_map(const data_t& data) const {
     }
 }
 
-std::optional<std::string_view> enum_metadata::impl::get_name_from_cache(const data_t& data, enum_value_type value) const {
+std::optional<std::string_view> enum_metadata::impl::get_name_from_cache(const data_t& data, enum_value_type value) const
+{
     auto it = data.value_to_name->find(value);
     if (it == data.value_to_name->end()) {
         return std::nullopt;
@@ -87,7 +91,8 @@ std::optional<std::string_view> enum_metadata::impl::get_name_from_cache(const d
     return it->second;
 }
 
-std::optional<enum_value_type> enum_metadata::impl::get_value_from_cache(const data_t& data, std::string_view name) const {
+std::optional<enum_value_type> enum_metadata::impl::get_value_from_cache(const data_t& data, std::string_view name) const
+{
     auto it = data.name_to_value->find(name);
     if (it == data.name_to_value->end()) {
         return std::nullopt;
@@ -96,7 +101,8 @@ std::optional<enum_value_type> enum_metadata::impl::get_value_from_cache(const d
     return it->second;
 }
 
-std::optional<std::string_view> enum_metadata::impl::get_name(enum_value_type value) const {
+std::optional<std::string_view> enum_metadata::impl::get_name(enum_value_type value) const
+{
     if (count == 0) {
         return std::nullopt;
     }
@@ -128,7 +134,8 @@ std::optional<std::string_view> enum_metadata::impl::get_name(enum_value_type va
     });
 }
 
-std::optional<enum_value_type> enum_metadata::impl::get_value(std::string_view enum_name) const {
+std::optional<enum_value_type> enum_metadata::impl::get_value(std::string_view enum_name) const
+{
     // 由于采用了延迟初始化方案，所以需要加锁等待。
     // 其实一个简单的原子指针操作就可以了，因为枚举缓存一旦构建就不会再变化，但目前还是加个读锁是考虑到动态模块中
     // 实现的枚举，在动态模块卸载时枚举元数据也会跟着销毁，加读锁可以保证析构函数会等待所有正在访问的线程返回才销毁。
@@ -151,21 +158,24 @@ std::optional<enum_value_type> enum_metadata::impl::get_value(std::string_view e
 }
 
 enum_metadata::enum_metadata(std::string_view name, enum_values values)
-    : m_impl(std::make_unique<impl>()) {
+    : m_impl(std::make_unique<impl>())
+{
     m_impl->name          = name;
     m_impl->values        = values.members;
     m_impl->count         = values.count;
     m_impl->is_continuous = is_continuous_enum(values.members, values.count);
 }
 
-enum_metadata::~enum_metadata() {
+enum_metadata::~enum_metadata()
+{
     m_impl->data.with_lock([](auto& data) {
         data.name_to_value.reset();
         data.value_to_name.reset();
     });
 }
 
-enum_value_type enum_metadata::get_value(std::string_view name) const {
+enum_value_type enum_metadata::get_value(std::string_view name) const
+{
     auto value = m_impl->get_value(name);
     if (!value) {
         throw_enum_value_not_found(m_impl->name, name);
@@ -174,7 +184,8 @@ enum_value_type enum_metadata::get_value(std::string_view name) const {
     return *value;
 }
 
-enum_value_type enum_metadata::get_value_from_variant(const mc::variant& var) const {
+enum_value_type enum_metadata::get_value_from_variant(const mc::variant& var) const
+{
     auto value = try_get_value_from_variant(var);
     if (!value) {
         throw_enum_value_not_found(m_impl->name, var.to_string());
@@ -183,7 +194,8 @@ enum_value_type enum_metadata::get_value_from_variant(const mc::variant& var) co
     return *value;
 }
 
-std::string_view enum_metadata::get_name(enum_value_type value) const {
+std::string_view enum_metadata::get_name(enum_value_type value) const
+{
     auto name = m_impl->get_name(value);
     if (!name) {
         throw_enum_value_not_found(m_impl->name, value);
@@ -192,11 +204,13 @@ std::string_view enum_metadata::get_name(enum_value_type value) const {
     return *name;
 }
 
-std::optional<enum_value_type> enum_metadata::try_get_value(std::string_view name) const {
+std::optional<enum_value_type> enum_metadata::try_get_value(std::string_view name) const
+{
     return m_impl->get_value(name);
 }
 
-std::optional<enum_value_type> enum_metadata::try_get_value_from_variant(const mc::variant& var) const {
+std::optional<enum_value_type> enum_metadata::try_get_value_from_variant(const mc::variant& var) const
+{
     if (var.is_integer()) {
         auto enum_value = static_cast<enum_value_type>(var.as_uint64());
         if (has_value(enum_value)) {
@@ -218,19 +232,23 @@ std::optional<enum_value_type> enum_metadata::try_get_value_from_variant(const m
     return std::nullopt;
 }
 
-std::optional<std::string_view> enum_metadata::try_get_name(enum_value_type value) const {
+std::optional<std::string_view> enum_metadata::try_get_name(enum_value_type value) const
+{
     return m_impl->get_name(value);
 }
 
-bool enum_metadata::has_value(std::string_view name) const {
+bool enum_metadata::has_value(std::string_view name) const
+{
     return m_impl->get_value(name).has_value();
 }
 
-bool enum_metadata::has_value(enum_value_type value) const {
+bool enum_metadata::has_value(enum_value_type value) const
+{
     return m_impl->get_name(value).has_value();
 }
 
-std::vector<std::string_view> enum_metadata::get_names() const {
+std::vector<std::string_view> enum_metadata::get_names() const
+{
     std::vector<std::string_view> names;
     names.reserve(m_impl->count);
     for (size_t i = 0; i < m_impl->count; ++i) {
@@ -240,7 +258,8 @@ std::vector<std::string_view> enum_metadata::get_names() const {
     return names;
 }
 
-enum_values enum_metadata::get_values() const {
+enum_values enum_metadata::get_values() const
+{
     return enum_values{m_impl->values, m_impl->count};
 }
 

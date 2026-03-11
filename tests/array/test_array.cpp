@@ -19,14 +19,16 @@
 #include <string>
 
 // 测试默认构造
-TEST(array_test, default_constructor) {
+TEST(array_test, default_constructor)
+{
     mc::array<int> arr;
     EXPECT_TRUE(arr.empty());
     EXPECT_EQ(arr.size(), 0);
 }
 
 // 测试指定大小构造
-TEST(array_test, size_constructor) {
+TEST(array_test, size_constructor)
+{
     mc::array<int> arr(5);
     EXPECT_EQ(arr.size(), 5);
     EXPECT_FALSE(arr.empty());
@@ -36,7 +38,8 @@ TEST(array_test, size_constructor) {
 }
 
 // 测试指定大小和值构造
-TEST(array_test, size_value_constructor) {
+TEST(array_test, size_value_constructor)
+{
     mc::array<int> arr(5, 42);
     EXPECT_EQ(arr.size(), 5);
     for (size_t i = 0; i < arr.size(); ++i) {
@@ -45,7 +48,8 @@ TEST(array_test, size_value_constructor) {
 }
 
 // 测试初始化列表构造
-TEST(array_test, initializer_list_constructor) {
+TEST(array_test, initializer_list_constructor)
+{
     mc::array<int> arr = {1, 2, 3, 4, 5};
     EXPECT_EQ(arr.size(), 5);
     EXPECT_EQ(arr[0], 1);
@@ -56,7 +60,8 @@ TEST(array_test, initializer_list_constructor) {
 }
 
 // 测试迭代器范围构造
-TEST(array_test, iterator_constructor) {
+TEST(array_test, iterator_constructor)
+{
     std::vector<int> vec = {10, 20, 30};
     mc::array<int>   arr(vec.begin(), vec.end());
     EXPECT_EQ(arr.size(), 3);
@@ -66,7 +71,8 @@ TEST(array_test, iterator_constructor) {
 }
 
 // 测试从 std::vector 构造
-TEST(array_test, vector_constructor) {
+TEST(array_test, vector_constructor)
+{
     std::vector<int> vec = {7, 8, 9};
     mc::array<int>   arr(vec);
     EXPECT_EQ(arr.size(), 3);
@@ -76,7 +82,8 @@ TEST(array_test, vector_constructor) {
 }
 
 // 测试拷贝构造（引用语义）
-TEST(array_test, copy_constructor_shared_semantics) {
+TEST(array_test, copy_constructor_shared_semantics)
+{
     mc::array<int> arr1 = {1, 2, 3};
     mc::array<int> arr2 = arr1;
 
@@ -94,7 +101,8 @@ TEST(array_test, copy_constructor_shared_semantics) {
 }
 
 // 测试移动构造
-TEST(array_test, move_constructor) {
+TEST(array_test, move_constructor)
+{
     mc::array<int> arr1 = {1, 2, 3};
     mc::array<int> arr2 = std::move(arr1);
 
@@ -105,7 +113,8 @@ TEST(array_test, move_constructor) {
 }
 
 // 测试赋值运算符（引用语义）
-TEST(array_test, copy_assignment_shared_semantics) {
+TEST(array_test, copy_assignment_shared_semantics)
+{
     mc::array<int> arr1 = {1, 2, 3};
     mc::array<int> arr2;
     arr2 = arr1;
@@ -116,7 +125,8 @@ TEST(array_test, copy_assignment_shared_semantics) {
 }
 
 // 测试元素访问
-TEST(array_test, element_access) {
+TEST(array_test, element_access)
+{
     mc::array<int> arr = {10, 20, 30, 40, 50};
 
     // operator[]
@@ -134,7 +144,8 @@ TEST(array_test, element_access) {
 }
 
 // 测试 const 元素访问
-TEST(array_test, const_element_access) {
+TEST(array_test, const_element_access)
+{
     const mc::array<int> arr = {1, 2, 3};
 
     EXPECT_EQ(arr[0], 1);
@@ -144,7 +155,8 @@ TEST(array_test, const_element_access) {
 }
 
 // 测试迭代器
-TEST(array_test, iterators) {
+TEST(array_test, iterators)
+{
     mc::array<int> arr = {1, 2, 3, 4, 5};
 
     // 正向迭代器
@@ -170,7 +182,8 @@ TEST(array_test, iterators) {
 }
 
 // 测试容量
-TEST(array_test, capacity) {
+TEST(array_test, capacity)
+{
     mc::array<int> arr;
 
     EXPECT_TRUE(arr.empty());
@@ -186,7 +199,8 @@ TEST(array_test, capacity) {
 }
 
 // 测试 push_back
-TEST(array_test, push_back) {
+TEST(array_test, push_back)
+{
     mc::array<int> arr;
 
     arr.push_back(1);
@@ -205,7 +219,8 @@ TEST(array_test, push_back) {
 }
 
 // 测试 emplace_back
-TEST(array_test, emplace_back) {
+TEST(array_test, emplace_back)
+{
     mc::array<std::string> arr;
 
     arr.emplace_back("hello");
@@ -217,7 +232,8 @@ TEST(array_test, emplace_back) {
 }
 
 // 测试 pop_back
-TEST(array_test, pop_back) {
+TEST(array_test, pop_back)
+{
     mc::array<int> arr = {1, 2, 3, 4, 5};
 
     arr.pop_back();
@@ -230,7 +246,8 @@ TEST(array_test, pop_back) {
 }
 
 // 测试 insert
-TEST(array_test, insert) {
+TEST(array_test, insert)
+{
     mc::array<int> arr = {1, 2, 5};
 
     // 插入单个元素
@@ -254,7 +271,8 @@ TEST(array_test, insert) {
 }
 
 // 测试 emplace
-TEST(array_test, emplace) {
+TEST(array_test, emplace)
+{
     mc::array<std::string> arr = {"a", "c"};
 
     auto it = arr.emplace(arr.begin() + 1, 3, 'b'); // 插入 "bbb"
@@ -266,7 +284,8 @@ TEST(array_test, emplace) {
 }
 
 // 测试 erase
-TEST(array_test, erase) {
+TEST(array_test, erase)
+{
     mc::array<int> arr = {1, 2, 3, 4, 5};
 
     // 删除单个元素
@@ -283,7 +302,8 @@ TEST(array_test, erase) {
 }
 
 // 测试 resize
-TEST(array_test, resize) {
+TEST(array_test, resize)
+{
     mc::array<int> arr = {1, 2, 3};
 
     // 扩大
@@ -304,7 +324,8 @@ TEST(array_test, resize) {
 }
 
 // 测试 clear
-TEST(array_test, clear) {
+TEST(array_test, clear)
+{
     mc::array<int> arr = {1, 2, 3, 4, 5};
 
     arr.clear();
@@ -313,7 +334,8 @@ TEST(array_test, clear) {
 }
 
 // 测试 swap
-TEST(array_test, swap) {
+TEST(array_test, swap)
+{
     mc::array<int> arr1 = {1, 2, 3};
     mc::array<int> arr2 = {4, 5, 6, 7};
 
@@ -327,7 +349,8 @@ TEST(array_test, swap) {
 }
 
 // 测试比较运算符
-TEST(array_test, comparison_operators) {
+TEST(array_test, comparison_operators)
+{
     mc::array<int> arr1 = {1, 2, 3};
     mc::array<int> arr2 = {1, 2, 3};
     mc::array<int> arr3 = {1, 2, 4};
@@ -360,7 +383,8 @@ TEST(array_test, comparison_operators) {
 }
 
 // 测试深拷贝（基本类型）
-TEST(array_test, deep_copy_basic_type) {
+TEST(array_test, deep_copy_basic_type)
+{
     mc::array<int> arr1 = {1, 2, 3};
     mc::array<int> arr2 = arr1.deep_copy();
 
@@ -371,7 +395,8 @@ TEST(array_test, deep_copy_basic_type) {
 }
 
 // 测试深拷贝（支持 deep_copy 的类型）
-TEST(array_test, deep_copy_with_variant) {
+TEST(array_test, deep_copy_with_variant)
+{
     mc::array<mc::variant> arr1;
     arr1.push_back(mc::variant(mc::variants{1, 2, 3}));
     arr1.push_back(mc::variant(42));
@@ -386,7 +411,8 @@ TEST(array_test, deep_copy_with_variant) {
 }
 
 // 测试 copy（浅拷贝）
-TEST(array_test, copy_shallow) {
+TEST(array_test, copy_shallow)
+{
     mc::array<mc::variant> arr1;
     arr1.push_back(mc::variant(mc::variants{1, 2, 3}));
     arr1.push_back(mc::variant(42));
@@ -403,7 +429,8 @@ TEST(array_test, copy_shallow) {
 }
 
 // 测试 as_mut
-TEST(array_test, as_mut) {
+TEST(array_test, as_mut)
+{
     mc::array<int> arr     = {1, 2, 3};
     auto&          mut_arr = arr.as_mut();
 
@@ -418,7 +445,8 @@ TEST(array_test, as_mut) {
 }
 
 // 测试 to_vector
-TEST(array_test, to_vector) {
+TEST(array_test, to_vector)
+{
     mc::array<int>   arr = {1, 2, 3, 4, 5};
     std::vector<int> vec = arr.to_vector();
 
@@ -432,7 +460,8 @@ TEST(array_test, to_vector) {
 }
 
 // 测试使用 mc::variant
-TEST(array_test, with_variant) {
+TEST(array_test, with_variant)
+{
     mc::array<mc::variant> arr;
 
     arr.push_back(mc::variant(42));
@@ -448,7 +477,8 @@ TEST(array_test, with_variant) {
 }
 
 // 测试与 mc::variants 的兼容性
-TEST(array_test, compatibility_with_variants) {
+TEST(array_test, compatibility_with_variants)
+{
     // mc::array<mc::variant> 应该可以替代 mc::variants
     mc::array<mc::variant> arr = {
         mc::variant(1),
@@ -463,7 +493,8 @@ TEST(array_test, compatibility_with_variants) {
 }
 
 // 测试字符串类型
-TEST(array_test, with_string) {
+TEST(array_test, with_string)
+{
     mc::array<std::string> arr = {"hello", "world", "test"};
 
     EXPECT_EQ(arr.size(), 3);
@@ -480,18 +511,24 @@ TEST(array_test, with_string) {
 struct custom_type {
     int value;
 
-    custom_type() : value(0) {
+    custom_type()
+        : value(0)
+    {
     }
 
-    explicit custom_type(int v) : value(v) {
+    explicit custom_type(int v)
+        : value(v)
+    {
     }
 
-    bool operator==(const custom_type& other) const {
+    bool operator==(const custom_type& other) const
+    {
         return value == other.value;
     }
 };
 
-TEST(array_test, with_custom_type) {
+TEST(array_test, with_custom_type)
+{
     mc::array<custom_type> arr;
 
     arr.emplace_back(10);
@@ -505,7 +542,8 @@ TEST(array_test, with_custom_type) {
 }
 
 // 测试空数组的边界情况
-TEST(array_test, empty_array_edge_cases) {
+TEST(array_test, empty_array_edge_cases)
+{
     mc::array<int> arr;
 
     EXPECT_TRUE(arr.empty());
@@ -518,7 +556,8 @@ TEST(array_test, empty_array_edge_cases) {
 }
 
 // 测试数据共享
-TEST(array_test, data_sharing) {
+TEST(array_test, data_sharing)
+{
     mc::array<int> arr1 = {1, 2, 3};
     mc::array<int> arr2 = arr1;
     mc::array<int> arr3 = arr1;
@@ -538,7 +577,8 @@ TEST(array_test, data_sharing) {
 }
 
 // 测试嵌套数组
-TEST(array_test, nested_array) {
+TEST(array_test, nested_array)
+{
     mc::array<mc::array<int>> nested;
 
     nested.push_back(mc::array<int>{1, 2, 3});
@@ -553,7 +593,8 @@ TEST(array_test, nested_array) {
 }
 
 // 测试与 std::vector 的比较运算符
-TEST(array_test, comparison_with_vector) {
+TEST(array_test, comparison_with_vector)
+{
     mc::array<int>   arr  = {1, 2, 3, 4, 5};
     std::vector<int> vec1 = {1, 2, 3, 4, 5};
     std::vector<int> vec2 = {1, 2, 3, 4, 6};
@@ -597,7 +638,8 @@ TEST(array_test, comparison_with_vector) {
 }
 
 // 测试空 array 与空 vector 的比较
-TEST(array_test, empty_comparison_with_vector) {
+TEST(array_test, empty_comparison_with_vector)
+{
     mc::array<int>   arr;
     std::vector<int> vec;
 
@@ -608,7 +650,8 @@ TEST(array_test, empty_comparison_with_vector) {
 }
 
 // 测试与 std::vector<mc::variant> 的兼容性
-TEST(array_test, compatibility_with_std_vector_variant) {
+TEST(array_test, compatibility_with_std_vector_variant)
+{
     mc::array<mc::variant>   arr = {mc::variant(1), mc::variant(2), mc::variant(3)};
     std::vector<mc::variant> vec = {mc::variant(1), mc::variant(2), mc::variant(3)};
 
@@ -622,7 +665,8 @@ TEST(array_test, compatibility_with_std_vector_variant) {
 }
 
 // 测试 mc::array 的 variant_reference 特殊构造函数
-TEST(array_test, variant_reference_initializer_list_constructor) {
+TEST(array_test, variant_reference_initializer_list_constructor)
+{
     // 创建一个包含 variant 的数组
     mc::array<mc::variant> source_array = {mc::variant(42), mc::variant("hello"), mc::variant(true)};
 
@@ -648,7 +692,8 @@ TEST(array_test, variant_reference_initializer_list_constructor) {
 }
 
 // 测试 mc::array 的 variant_reference 迭代器构造函数
-TEST(array_test, variant_reference_iterator_range_constructor) {
+TEST(array_test, variant_reference_iterator_range_constructor)
+{
     // 创建一个包含 variant 的数组
     mc::array<mc::variant> source_array = {mc::variant(100), mc::variant(200), mc::variant(300)};
 
@@ -669,7 +714,8 @@ TEST(array_test, variant_reference_iterator_range_constructor) {
 }
 
 // 测试链式访问后的构造函数
-TEST(array_test, variant_reference_chained_access_constructor) {
+TEST(array_test, variant_reference_chained_access_constructor)
+{
     // 创建一个嵌套的 variant 结构
     mc::dict nested_dict;
     nested_dict["value"] = mc::variant(42);
@@ -689,7 +735,8 @@ TEST(array_test, variant_reference_chained_access_constructor) {
 }
 
 // 测试类型安全性：确保不会创建 variant_reference 类型的数组
-TEST(array_test, variant_reference_type_safety_check) {
+TEST(array_test, variant_reference_type_safety_check)
+{
     mc::array<mc::variant> source_array = {mc::variant(123)};
     auto                   ref          = source_array[0];
 
@@ -702,7 +749,8 @@ TEST(array_test, variant_reference_type_safety_check) {
                   "Array element should be variant, not variant_reference");
 }
 
-TEST(array_test, assign_count_value) {
+TEST(array_test, assign_count_value)
+{
     mc::array<int> arr;
 
     // 测试 assign(count, value)
@@ -725,7 +773,8 @@ TEST(array_test, assign_count_value) {
     EXPECT_EQ(arr.size(), 0);
 }
 
-TEST(array_test, assign_iterator_range) {
+TEST(array_test, assign_iterator_range)
+{
     mc::array<int> arr;
 
     // 准备源数据
@@ -751,7 +800,8 @@ TEST(array_test, assign_iterator_range) {
     EXPECT_EQ(arr.size(), 0);
 }
 
-TEST(array_test, assign_initializer_list) {
+TEST(array_test, assign_initializer_list)
+{
     mc::array<std::string> arr;
 
     // 测试 assign(initializer_list)
@@ -773,7 +823,8 @@ TEST(array_test, assign_initializer_list) {
     EXPECT_EQ(arr.size(), 0);
 }
 
-TEST(array_test, assign_shared_semantics) {
+TEST(array_test, assign_shared_semantics)
+{
     mc::array<int> arr1 = {1, 2, 3};
     mc::array<int> arr2 = arr1; // 共享数据
 
@@ -792,7 +843,8 @@ TEST(array_test, assign_shared_semantics) {
 
 // ========== 排序算法兼容性测试 ==========
 
-TEST(array_test, std_sort_basic) {
+TEST(array_test, std_sort_basic)
+{
     // 测试基本的 std::sort 排序
     mc::array<int> arr = {5, 2, 8, 1, 9, 3};
 
@@ -807,7 +859,8 @@ TEST(array_test, std_sort_basic) {
     EXPECT_EQ(arr[5], 9);
 }
 
-TEST(array_test, std_sort_string) {
+TEST(array_test, std_sort_string)
+{
     // 测试字符串排序
     mc::array<std::string> arr = {"zebra", "apple", "banana", "cherry"};
 
@@ -820,7 +873,8 @@ TEST(array_test, std_sort_string) {
     EXPECT_EQ(arr[3], "zebra");
 }
 
-TEST(array_test, std_sort_custom_comparator) {
+TEST(array_test, std_sort_custom_comparator)
+{
     // 测试自定义比较函数的排序
     mc::array<int> arr = {5, 2, 8, 1, 9, 3};
 
@@ -836,7 +890,8 @@ TEST(array_test, std_sort_custom_comparator) {
     EXPECT_EQ(arr[5], 1);
 }
 
-TEST(array_test, std_sort_lambda_comparator) {
+TEST(array_test, std_sort_lambda_comparator)
+{
     // 测试 lambda 比较函数的排序
     mc::array<std::string> arr = {"apple", "pie", "a", "banana"};
 
@@ -852,22 +907,29 @@ TEST(array_test, std_sort_lambda_comparator) {
     EXPECT_EQ(arr[3], "banana"); // 长度 6
 }
 
-TEST(array_test, std_stable_sort) {
+TEST(array_test, std_stable_sort)
+{
     // 测试稳定排序
     struct item {
         int value;
         int order;
 
-        item() : value(0), order(0) {
+        item()
+            : value(0), order(0)
+        {
         }
-        item(int v, int o) : value(v), order(o) {
+        item(int v, int o)
+            : value(v), order(o)
+        {
         }
 
-        bool operator<(const item& other) const {
+        bool operator<(const item& other) const
+        {
             return value < other.value;
         }
 
-        bool operator==(const item& other) const {
+        bool operator==(const item& other) const
+        {
             return value == other.value && order == other.order;
         }
     };
@@ -895,7 +957,8 @@ TEST(array_test, std_stable_sort) {
     EXPECT_EQ(arr[4].order, 5);
 }
 
-TEST(array_test, std_partial_sort) {
+TEST(array_test, std_partial_sort)
+{
     // 测试部分排序
     mc::array<int> arr = {9, 8, 7, 6, 5, 4, 3, 2, 1, 0};
 
@@ -913,7 +976,8 @@ TEST(array_test, std_partial_sort) {
     }
 }
 
-TEST(array_test, std_nth_element) {
+TEST(array_test, std_nth_element)
+{
     // 测试 nth_element 算法
     mc::array<int> arr = {9, 8, 7, 6, 5, 4, 3, 2, 1, 0};
 
@@ -932,7 +996,8 @@ TEST(array_test, std_nth_element) {
     }
 }
 
-TEST(array_test, std_sort_empty_array) {
+TEST(array_test, std_sort_empty_array)
+{
     // 测试空数组的排序
     mc::array<int> arr;
 
@@ -943,7 +1008,8 @@ TEST(array_test, std_sort_empty_array) {
     EXPECT_EQ(arr.size(), 0);
 }
 
-TEST(array_test, std_sort_single_element) {
+TEST(array_test, std_sort_single_element)
+{
     // 测试单元素数组的排序
     mc::array<int> arr = {42};
 
@@ -953,7 +1019,8 @@ TEST(array_test, std_sort_single_element) {
     EXPECT_EQ(arr[0], 42);
 }
 
-TEST(array_test, std_sort_shared_semantics) {
+TEST(array_test, std_sort_shared_semantics)
+{
     // 测试共享语义下的排序
     mc::array<int> arr1 = {5, 2, 8, 1, 9, 3};
     mc::array<int> arr2 = arr1; // 共享数据

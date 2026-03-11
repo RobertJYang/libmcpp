@@ -75,11 +75,13 @@ public:
                   "参数类型必须可转换为 mc::variant");
 
     simple_function(std::string name, function_type func)
-        : m_name(std::move(name)), m_func(std::move(func)) {
+        : m_name(std::move(name)), m_func(std::move(func))
+    {
     }
 
     template <size_t... I>
-    variant call_with_exact_args(const variants& args, std::index_sequence<I...>) const {
+    variant call_with_exact_args(const variants& args, std::index_sequence<I...>) const
+    {
         if constexpr (std::is_void_v<RetType>) {
             m_func(mc::detail::convert_arg<mc::traits::remove_cvref_t<Args>>(m_name.data(),
                                                                              args[I])...);
@@ -90,7 +92,8 @@ public:
         }
     }
 
-    mc::variant call(const mc::variants& args) const override {
+    mc::variant call(const mc::variants& args) const override
+    {
         constexpr size_t arg_count = sizeof...(Args);
 
         if constexpr (std::is_same_v<args_type, std::tuple<mc::variants>>) {
@@ -108,11 +111,13 @@ public:
         }
     }
 
-    const std::string& get_name() const override {
+    const std::string& get_name() const override
+    {
         return m_name;
     }
 
-    int get_arg_count() const override {
+    int get_arg_count() const override
+    {
         return static_cast<int>(sizeof...(Args));
     }
 
@@ -122,7 +127,8 @@ private:
 };
 
 template <typename Func>
-auto make_simple_function(std::string name, Func&& func) {
+auto make_simple_function(std::string name, Func&& func)
+{
     using func_traits          = mc::traits::function_traits<Func>;
     using func_args            = typename func_traits::args_type;
     using return_type          = typename func_traits::return_type;

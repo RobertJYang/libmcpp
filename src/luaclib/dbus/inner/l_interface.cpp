@@ -47,32 +47,33 @@ static const std::unordered_set<char> VALID_TYPE_CODES = {
  * @param signature The signature string to validate
  * @return true if the signature is valid, false otherwise
  */
-bool validate_dbus_signature(const std::string_view signature) {
+bool validate_dbus_signature(const std::string_view signature)
+{
     if (signature.empty()) {
         return true; // Empty signature is valid (no arguments)
     }
-    
+
     size_t pos = 0;
     while (pos < signature.length()) {
         char type_code = signature[pos];
-        
+
         // Check if the type code is valid
         if (VALID_TYPE_CODES.find(type_code) == VALID_TYPE_CODES.end()) {
             return false;
         }
-        
+
         switch (type_code) {
             case 'a': // Array
                 // After 'a' must come a type
                 pos++;
                 continue;
-                
+
             case '(': // Struct start
                 {
                     // Find matching ')' while handling nested structures
                     int depth = 1;
                     pos++; // Move past '('
-                    
+
                     while (pos < signature.length() && depth > 0) {
                         char c = signature[pos];
                         if (c == '(') {
@@ -82,48 +83,49 @@ bool validate_dbus_signature(const std::string_view signature) {
                         } else if (VALID_TYPE_CODES.find(c) == VALID_TYPE_CODES.end()) {
                             return false; // Invalid character inside struct
                         }
-                        
+
                         if (depth > 0) {
                             pos++;
                         }
                     }
-                    
+
                     if (depth != 0) {
                         return false; // Unmatched parenthesis
                     }
                 }
                 break;
-                
+
             case '{': // Dict entry start
                 // Must be followed by two types (key and value) and a '}'
                 pos++;
                 if (pos >= signature.length() || VALID_TYPE_CODES.find(signature[pos]) == VALID_TYPE_CODES.end()) {
                     return false; // Invalid key type
                 }
-                
+
                 pos++;
                 if (pos >= signature.length() || VALID_TYPE_CODES.find(signature[pos]) == VALID_TYPE_CODES.end()) {
                     return false; // Invalid value type
                 }
-                
+
                 pos++;
                 if (pos >= signature.length() || signature[pos] != '}') {
                     return false; // Missing closing brace
                 }
                 break;
-                
+
             default:
                 // Simple type, just move to next character
                 break;
         }
-        
+
         pos++;
     }
-    
+
     return true;
 }
 
-static int l_set_property(lua_State* L) {
+static int l_set_property(lua_State* L)
+{
     l_interface* interface     = reinterpret_cast<l_interface*>(luaL_checkudata(L, 1, INTERFACE_METATABLE));
     const char*  name          = luaL_checkstring(L, 2);
     try {
@@ -134,7 +136,8 @@ static int l_set_property(lua_State* L) {
     return 0;
 }
 
-static int l_get_property(lua_State* L) {
+static int l_get_property(lua_State* L)
+{
     l_interface* interface = reinterpret_cast<l_interface*>(luaL_checkudata(L, 1, INTERFACE_METATABLE));
     const char*  name      = luaL_checkstring(L, 2);
     try {
@@ -144,7 +147,8 @@ static int l_get_property(lua_State* L) {
     }
 }
 
-static int l_add_property(lua_State* L) {
+static int l_add_property(lua_State* L)
+{
     l_interface* interface = reinterpret_cast<l_interface*>(luaL_checkudata(L, 1, INTERFACE_METATABLE));
     const char*  name      = luaL_checkstring(L, 2);
     LDBusError error;
@@ -164,7 +168,8 @@ static int l_add_property(lua_State* L) {
     return 0;
 }
 
-static int l_add_method(lua_State* L) {
+static int l_add_method(lua_State* L)
+{
     l_interface* interface = reinterpret_cast<l_interface*>(luaL_checkudata(L, 1, INTERFACE_METATABLE));
     const char*  name      = luaL_checkstring(L, 2);
     LDBusError error;
@@ -188,7 +193,8 @@ static int l_add_method(lua_State* L) {
     return 0;
 }
 
-static int l_add_signal(lua_State* L) {
+static int l_add_signal(lua_State* L)
+{
     l_interface* interface = reinterpret_cast<l_interface*>(luaL_checkudata(L, 1, INTERFACE_METATABLE));
     const char*  name      = luaL_checkstring(L, 2);
     LDBusError error;
@@ -205,7 +211,8 @@ static int l_add_signal(lua_State* L) {
     return 0;
 }
 
-int new_interface_class(lua_State* L) {
+int new_interface_class(lua_State* L)
+{
     const char* name = luaL_checkstring(L, 1);
     LDBusError error;
     if (!dbus_validate_interface(name, &error)) {
@@ -218,13 +225,15 @@ int new_interface_class(lua_State* L) {
     return 1;
 }
 
-static int l_gc_func(lua_State* L) {
+static int l_gc_func(lua_State* L)
+{
     l_interface* interface = reinterpret_cast<l_interface*>(luaL_checkudata(L, 1, INTERFACE_METATABLE));
     interface->~l_interface();
     return 0;
 }
 
-static int get_name(lua_State* L) {
+static int get_name(lua_State* L)
+{
     l_interface* interface = reinterpret_cast<l_interface*>(luaL_checkudata(L, 1, INTERFACE_METATABLE));
     lua_pushstring(L, interface->impl->get_name().data());
     return 1;
@@ -232,15 +241,16 @@ static int get_name(lua_State* L) {
 
 // 注册 in 模块的方法表
 static const luaL_Reg dbus_interface_methods[] = {{"set_property", l_set_property},
-                                          {"get_property", l_get_property},
-                                          {"add_property", l_add_property},
-                                          {"add_method", l_add_method},
-                                          {"add_signal", l_add_signal},
-                                          {"get_name", get_name},
-                                          {nullptr, nullptr}};
+                                                  {"get_property", l_get_property},
+                                                  {"add_property", l_add_property},
+                                                  {"add_method", l_add_method},
+                                                  {"add_signal", l_add_signal},
+                                                  {"get_name", get_name},
+                                                  {nullptr, nullptr}};
 
 // 注册 object 模块的 metatable
-void register_interface_metatable(lua_State* L) {
+void register_interface_metatable(lua_State* L)
+{
     luaL_newmetatable(L, INTERFACE_METATABLE);
     luaL_setfuncs(L, dbus_interface_methods, 0);
     lua_pushvalue(L, -1);

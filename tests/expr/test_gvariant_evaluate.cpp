@@ -17,19 +17,23 @@
 namespace {
 class gvariant_evaluate_test : public ::testing::Test {
 protected:
-    gvariant_evaluate_test() {
+    gvariant_evaluate_test()
+    {
     }
 
-    void SetUp() override {
+    void SetUp() override
+    {
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
     }
 
     mc::expr::engine engine;
 };
 
-TEST_F(gvariant_evaluate_test, BasicTypes) {
+TEST_F(gvariant_evaluate_test, BasicTypes)
+{
     auto& ctx = engine.get_global_context();
 
     // 测试整数表达式
@@ -76,7 +80,8 @@ TEST_F(gvariant_evaluate_test, BasicTypes) {
     g_variant_unref(result);
 }
 
-TEST_F(gvariant_evaluate_test, ArithmeticOperations) {
+TEST_F(gvariant_evaluate_test, ArithmeticOperations)
+{
     auto& ctx = engine.get_global_context();
 
     // 测试加法
@@ -108,7 +113,8 @@ TEST_F(gvariant_evaluate_test, ArithmeticOperations) {
     g_variant_unref(result);
 }
 
-TEST_F(gvariant_evaluate_test, BooleanOperations) {
+TEST_F(gvariant_evaluate_test, BooleanOperations)
+{
     auto& ctx = engine.get_global_context();
 
     // 测试布尔表达式

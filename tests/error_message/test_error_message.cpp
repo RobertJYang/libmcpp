@@ -16,9 +16,9 @@
 #include <mc/error_message_converter.h>
 #include <mc/error_message_parser.h>
 
-#include <mc/dict.h>
 #include <filesystem>
 #include <fstream>
+#include <mc/dict.h>
 
 namespace {
 
@@ -87,18 +87,21 @@ constexpr std::string_view test_custom_json = R"({
 
 class ErrorMessageTest : public ::testing::Test {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         // 加载测试用的错误定义
         mc::error_message_converter::get_instance().load_registries_from_string(
             test_base_json, test_custom_json);
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
     }
 };
 
 // 测试解析 base.json
-TEST_F(ErrorMessageTest, ParseBaseRegistry) {
+TEST_F(ErrorMessageTest, ParseBaseRegistry)
+{
     auto registry = mc::error_message_parser::parse_from_string(test_base_json);
 
     EXPECT_EQ(registry.registry_prefix, "Base");
@@ -110,7 +113,8 @@ TEST_F(ErrorMessageTest, ParseBaseRegistry) {
 }
 
 // 测试解析 custom.json
-TEST_F(ErrorMessageTest, ParseCustomRegistry) {
+TEST_F(ErrorMessageTest, ParseCustomRegistry)
+{
     auto registry = mc::error_message_parser::parse_from_string(test_custom_json);
 
     EXPECT_EQ(registry.registry_prefix, "openUBMC");
@@ -120,7 +124,8 @@ TEST_F(ErrorMessageTest, ParseCustomRegistry) {
 }
 
 // 测试查找消息定义
-TEST_F(ErrorMessageTest, FindMessageDefinition) {
+TEST_F(ErrorMessageTest, FindMessageDefinition)
+{
     auto& converter = mc::error_message_converter::get_instance();
 
     // 查找 base 中的消息
@@ -141,14 +146,15 @@ TEST_F(ErrorMessageTest, FindMessageDefinition) {
 }
 
 // 测试格式化消息
-TEST_F(ErrorMessageTest, FormatMessage) {
+TEST_F(ErrorMessageTest, FormatMessage)
+{
     // 测试无参数消息
     std::string msg1 = mc::error_message_parser::format_message("Successfully Completed Request", {});
     EXPECT_EQ(msg1, "Successfully Completed Request");
 
-// 测试单参数消息
+    // 测试单参数消息
     mc::dict args;
-    args[0] = "TestProperty";
+    args[0]          = "TestProperty";
     std::string msg2 = mc::error_message_parser::format_message(
         "The property %1 was duplicated in the request.", args);
     EXPECT_EQ(msg2, "The property TestProperty was duplicated in the request.");
@@ -161,7 +167,8 @@ TEST_F(ErrorMessageTest, FormatMessage) {
 }
 
 // 测试转换错误为标准消息格式（base 消息）
-TEST_F(ErrorMessageTest, ConvertBaseError) {
+TEST_F(ErrorMessageTest, ConvertBaseError)
+{
     mc::error err("Success", "Successfully Completed Request");
 
     auto std_msg = mc::error_message_converter::get_instance().convert(err);
@@ -176,7 +183,8 @@ TEST_F(ErrorMessageTest, ConvertBaseError) {
 }
 
 // 测试转换错误为标准消息格式（custom 消息）
-TEST_F(ErrorMessageTest, ConvertCustomError) {
+TEST_F(ErrorMessageTest, ConvertCustomError)
+{
     mc::error err("PropertyValueOutOfRange", "The value '%1' for the property %2 is not in the supported range.");
     err.append_arg(0, "100");
     err.append_arg(1, "Threshold");
@@ -193,7 +201,8 @@ TEST_F(ErrorMessageTest, ConvertCustomError) {
 }
 
 // 测试转换未定义的错误为 InternalError
-TEST_F(ErrorMessageTest, ConvertUndefinedError) {
+TEST_F(ErrorMessageTest, ConvertUndefinedError)
+{
     mc::error err("UndefinedError", "This is an undefined error: ${detail}");
     err.append_arg("detail", "something went wrong");
 
@@ -207,7 +216,8 @@ TEST_F(ErrorMessageTest, ConvertUndefinedError) {
 }
 
 // 测试转换为 dict 格式
-TEST_F(ErrorMessageTest, ConvertToDict) {
+TEST_F(ErrorMessageTest, ConvertToDict)
+{
     mc::error err("PropertyDuplicate", "The property %1 was duplicated in the request.");
     err.append_arg(0, "TestProperty");
 
@@ -224,17 +234,18 @@ TEST_F(ErrorMessageTest, ConvertToDict) {
 }
 
 // 测试标准错误消息的 to_dict 方法
-TEST_F(ErrorMessageTest, StandardMessageToDict) {
+TEST_F(ErrorMessageTest, StandardMessageToDict)
+{
     mc::standard_error_message std_msg;
-    std_msg.message_id        = "Base.1.0.0.Test";
-    std_msg.message_name       = "Test";
-    std_msg.message            = "Test message";
-    std_msg.severity           = "OK";
-    std_msg.registry_prefix    = "Base";
-    std_msg.registry_version   = "1.0.0";
-    std_msg.http_status_code   = 200;
-    std_msg.resolution         = "Test resolution";
-    std_msg.message_args       = {{0, "value1"}, {1, "value2"}};
+    std_msg.message_id       = "Base.1.0.0.Test";
+    std_msg.message_name     = "Test";
+    std_msg.message          = "Test message";
+    std_msg.severity         = "OK";
+    std_msg.registry_prefix  = "Base";
+    std_msg.registry_version = "1.0.0";
+    std_msg.http_status_code = 200;
+    std_msg.resolution       = "Test resolution";
+    std_msg.message_args     = {{0, "value1"}, {1, "value2"}};
 
     mc::dict dict = std_msg.to_dict();
 
@@ -246,7 +257,8 @@ TEST_F(ErrorMessageTest, StandardMessageToDict) {
 }
 
 // 测试辅助函数 to_standard_message
-TEST_F(ErrorMessageTest, ToStandardMessageHelper) {
+TEST_F(ErrorMessageTest, ToStandardMessageHelper)
+{
     mc::error err("Success", "Successfully Completed Request");
 
     mc::standard_error_message std_msg = mc::to_standard_message(err);
@@ -256,7 +268,8 @@ TEST_F(ErrorMessageTest, ToStandardMessageHelper) {
 }
 
 // 测试辅助函数 to_standard_message_dict
-TEST_F(ErrorMessageTest, ToStandardMessageDictHelper) {
+TEST_F(ErrorMessageTest, ToStandardMessageDictHelper)
+{
     mc::error err("Success", "Successfully Completed Request");
 
     mc::dict dict = mc::to_standard_message_dict(err);
@@ -266,7 +279,8 @@ TEST_F(ErrorMessageTest, ToStandardMessageDictHelper) {
 }
 
 // 测试错误定义的所有字段
-TEST_F(ErrorMessageTest, ErrorDefinitionFields) {
+TEST_F(ErrorMessageTest, ErrorDefinitionFields)
+{
     auto registry = mc::error_message_parser::parse_from_string(test_base_json);
 
     auto& success_def = registry.messages.at("Success");
@@ -291,37 +305,39 @@ TEST_F(ErrorMessageTest, ErrorDefinitionFields) {
 // ============================================================================
 
 // T015: 测试参数数量验证（不匹配时记录警告）
-TEST_F(ErrorMessageTest, ParameterCountValidation) {
+TEST_F(ErrorMessageTest, ParameterCountValidation)
+{
     // 测试参数数量不匹配的情况（应该记录警告但不阻止格式化）
     std::string template_msg = "The value %1 for the property %2 is of a different type";
 
     // 提供少于模板需要的参数
-    mc::dict args1 = {{0, "abc"}};
+    mc::dict    args1   = {{0, "abc"}};
     std::string result1 = mc::error_message_parser::format_message(template_msg, args1);
     // 应该成功格式化，但缺少的参数不会被替换
     EXPECT_TRUE(result1.find("abc") != std::string::npos);
-    EXPECT_TRUE(result1.find("%2") != std::string::npos);  // %2 仍然存在
+    EXPECT_TRUE(result1.find("%2") != std::string::npos); // %2 仍然存在
 
     // 提供多余参数（多余的参数被忽略）
-    mc::dict args2 = {{0, "abc"}, {1, "port"}, {2, "extra"}};
+    mc::dict    args2   = {{0, "abc"}, {1, "port"}, {2, "extra"}};
     std::string result2 = mc::error_message_parser::format_message(template_msg, args2);
     EXPECT_EQ(result2, "The value abc for the property port is of a different type");
 
     // 提供正确数量的参数
-    mc::dict args3 = {{0, "abc"}, {1, "port"}};
+    mc::dict    args3   = {{0, "abc"}, {1, "port"}};
     std::string result3 = mc::error_message_parser::format_message(template_msg, args3);
     EXPECT_EQ(result3, "The value abc for the property port is of a different type");
 }
 
 // T016: 测试参数类型转换
-TEST_F(ErrorMessageTest, ParameterTypeConversion) {
+TEST_F(ErrorMessageTest, ParameterTypeConversion)
+{
     std::string template_msg = "Test: %1, %2, %3, %4";
 
     mc::dict args;
-    args[0] = std::string("string_value");  // string
-    args[1] = int64_t(42);                   // int64
-    args[2] = 3.14;                          // double
-    args[3] = true;                          // bool
+    args[0] = std::string("string_value"); // string
+    args[1] = int64_t(42);                 // int64
+    args[2] = 3.14;                        // double
+    args[3] = true;                        // bool
 
     std::string result = mc::error_message_parser::format_message(template_msg, args);
 
@@ -332,24 +348,26 @@ TEST_F(ErrorMessageTest, ParameterTypeConversion) {
 }
 
 // T016.1: 测试无符号整数类型转换
-TEST_F(ErrorMessageTest, UnsignedIntegerTypeConversion) {
+TEST_F(ErrorMessageTest, UnsignedIntegerTypeConversion)
+{
     std::string template_msg = "Value: %1";
 
     mc::dict args;
-    args[0] = uint64_t(18446744073709551615ULL);  // max uint64
+    args[0] = uint64_t(18446744073709551615ULL); // max uint64
 
     std::string result = mc::error_message_parser::format_message(template_msg, args);
     EXPECT_TRUE(result.find("18446744073709551615") != std::string::npos ||
-                result.find("18446744073709551616") != std::string::npos);  // 可能的精度差异
+                result.find("18446744073709551616") != std::string::npos); // 可能的精度差异
 }
 
 // T017: 测试消息格式化性能（应该 < 1ms）
-TEST_F(ErrorMessageTest, MessageFormattingPerformance) {
+TEST_F(ErrorMessageTest, MessageFormattingPerformance)
+{
     std::string template_msg = "The value %1 for the property %2 is of a different type";
-    mc::dict args = {{0, "test_value"}, {1, "test_property"}};
+    mc::dict    args         = {{0, "test_value"}, {1, "test_property"}};
 
     // 多次格式化测试性能
-    auto start = std::chrono::high_resolution_clock::now();
+    auto      start      = std::chrono::high_resolution_clock::now();
     const int iterations = 1000;
 
     for (int i = 0; i < iterations; ++i) {
@@ -360,7 +378,7 @@ TEST_F(ErrorMessageTest, MessageFormattingPerformance) {
         }
     }
 
-    auto end = std::chrono::high_resolution_clock::now();
+    auto end      = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 
     double avg_time_us = static_cast<double>(duration.count()) / iterations;
@@ -370,13 +388,14 @@ TEST_F(ErrorMessageTest, MessageFormattingPerformance) {
 }
 
 // T018: 测试注册表加载性能（应该 < 100ms）
-TEST_F(ErrorMessageTest, RegistryLoadingPerformance) {
+TEST_F(ErrorMessageTest, RegistryLoadingPerformance)
+{
     auto start = std::chrono::high_resolution_clock::now();
 
     mc::error_message_converter::get_instance().load_registries_from_string(
         test_base_json, test_custom_json);
 
-    auto end = std::chrono::high_resolution_clock::now();
+    auto end      = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
 
     // 加载时间应该 < 100ms
@@ -384,7 +403,8 @@ TEST_F(ErrorMessageTest, RegistryLoadingPerformance) {
 }
 
 // T019: 测试 custom.json 覆盖 base.json 中的相同错误名
-TEST_F(ErrorMessageTest, CustomRegistryOverride) {
+TEST_F(ErrorMessageTest, CustomRegistryOverride)
+{
     // 创建两个注册表，其中 custom 包含与 base 同名的错误
     constexpr std::string_view base_json = R"({
         "Description": "Base registry",
@@ -440,16 +460,17 @@ TEST_F(ErrorMessageTest, CustomRegistryOverride) {
 }
 
 // T020: 测试边缘情况 - 缺失错误定义文件
-TEST_F(ErrorMessageTest, MissingErrorDefinitionFiles) {
+TEST_F(ErrorMessageTest, MissingErrorDefinitionFiles)
+{
     // 尝试从不存在的文件加载
     EXPECT_THROW(
         mc::error_message_parser::parse_from_file("/nonexistent/path/to/base.json"),
-        mc::exception
-    );
+        mc::exception);
 }
 
 // T021: 测试边缘情况 - 格式错误的 JSON
-TEST_F(ErrorMessageTest, MalformedJson) {
+TEST_F(ErrorMessageTest, MalformedJson)
+{
     constexpr std::string_view malformed_json = R"({
         "Description": "Malformed registry",
         "RegistryPrefix": "Base",
@@ -461,12 +482,11 @@ TEST_F(ErrorMessageTest, MalformedJson) {
                 "Severity": "OK"
             }
         }
-    })";  // JSON 结构不完整
+    })"; // JSON 结构不完整
 
     EXPECT_THROW(
         mc::error_message_parser::parse_from_string(malformed_json),
-        mc::exception
-    );
+        mc::exception);
 
     // 测试无效的 JSON 语法
     constexpr std::string_view invalid_json = R"({
@@ -484,19 +504,18 @@ TEST_F(ErrorMessageTest, MalformedJson) {
 
     EXPECT_THROW(
         mc::error_message_parser::parse_from_string(invalid_json),
-        mc::exception
-    );
+        mc::exception);
 }
 
 // T022: 测试边缘情况 - 无效占位符语法
-TEST_F(ErrorMessageTest, InvalidPlaceholderSyntax) {
+TEST_F(ErrorMessageTest, InvalidPlaceholderSyntax)
+{
     // 测试各种无效的占位符格式
     std::string template_msg = "Test %1 %2 %invalid % % %9 %10 %11";
 
     mc::dict args = {
         {0, "value1"},
-        {1, "value2"}
-    };
+        {1, "value2"}};
 
     std::string result = mc::error_message_parser::format_message(template_msg, args);
 
@@ -512,7 +531,8 @@ TEST_F(ErrorMessageTest, InvalidPlaceholderSyntax) {
 }
 
 // T023.1: 测试消息缓存功能（验证缓存机制工作）
-TEST_F(ErrorMessageTest, MessageCaching) {
+TEST_F(ErrorMessageTest, MessageCaching)
+{
     mc::error err("Success", "Successfully Completed Request");
 
     // 首次调用 get_message() 应该格式化消息
@@ -526,7 +546,8 @@ TEST_F(ErrorMessageTest, MessageCaching) {
 }
 
 // T023.2: 测试修改参数后缓存失效
-TEST_F(ErrorMessageTest, CacheInvalidation) {
+TEST_F(ErrorMessageTest, CacheInvalidation)
+{
     mc::error err("TestError", "Test: %1");
 
     err.append_arg(0, "value1");

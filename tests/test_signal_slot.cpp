@@ -15,7 +15,8 @@
 // 不使用using namespace mc;，避免命名冲突
 
 // 测试基本的信号槽连接和触发
-TEST(SignalSlotTest, BasicConnection) {
+TEST(SignalSlotTest, BasicConnection)
+{
     mc::signal<void(int)> sig;
     int                   value = 0;
 
@@ -34,7 +35,8 @@ TEST(SignalSlotTest, BasicConnection) {
 }
 
 // 测试多个槽连接到同一个信号
-TEST(SignalSlotTest, MultipleSlots) {
+TEST(SignalSlotTest, MultipleSlots)
+{
     mc::signal<void(int)> sig;
     int                   value1 = 0;
     int                   value2 = 0;
@@ -54,7 +56,8 @@ TEST(SignalSlotTest, MultipleSlots) {
 }
 
 // 测试断开连接
-TEST(SignalSlotTest, Disconnect) {
+TEST(SignalSlotTest, Disconnect)
+{
     mc::signal<void(int)> sig;
     int                   value = 0;
 
@@ -76,7 +79,8 @@ TEST(SignalSlotTest, Disconnect) {
 }
 
 // 测试断开所有连接
-TEST(SignalSlotTest, DisconnectAll) {
+TEST(SignalSlotTest, DisconnectAll)
+{
     mc::signal<void(int)> sig;
     int                   value1 = 0;
     int                   value2 = 0;
@@ -104,7 +108,8 @@ TEST(SignalSlotTest, DisconnectAll) {
 }
 
 // 测试连接管理器
-TEST(SignalSlotTest, ConnectionManager) {
+TEST(SignalSlotTest, ConnectionManager)
+{
     mc::signal<void(int)> sig;
     int                   value = 0;
 
@@ -131,7 +136,8 @@ TEST(SignalSlotTest, ConnectionManager) {
 }
 
 // 测试多参数信号
-TEST(SignalSlotTest, MultipleParameters) {
+TEST(SignalSlotTest, MultipleParameters)
+{
     mc::signal<void(int, std::string)> sig;
     int                                value = 0;
     std::string                        text;
@@ -149,7 +155,8 @@ TEST(SignalSlotTest, MultipleParameters) {
 }
 
 // 测试空信号
-TEST(SignalSlotTest, EmptySignal) {
+TEST(SignalSlotTest, EmptySignal)
+{
     mc::signal<void(int)> sig;
 
     // 检查信号是否为空

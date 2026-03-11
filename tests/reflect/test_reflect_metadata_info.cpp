@@ -30,33 +30,40 @@ public:
     std::string m_name;
     double      m_score;
 
-    int get_id() const {
+    int get_id() const
+    {
         return m_id;
     }
 
-    void set_id(int id) {
+    void set_id(int id)
+    {
         m_id = id;
     }
 
-    int get_readonly_value() const {
+    int get_readonly_value() const
+    {
         return m_id * 2;
     }
 
     // 静态方法
-    static int static_add(int a, int b) {
+    static int static_add(int a, int b)
+    {
         return a + b;
     }
 
-    static std::string static_format(const std::string& prefix, int value) {
+    static std::string static_format(const std::string& prefix, int value)
+    {
         return prefix + std::to_string(value);
     }
 
     // 非静态方法
-    int add(int a, int b) {
+    int add(int a, int b)
+    {
         return a + b + m_id;
     }
 
-    std::string format(const std::string& prefix) {
+    std::string format(const std::string& prefix)
+    {
         return prefix + std::to_string(m_id);
     }
 };
@@ -64,13 +71,13 @@ public:
 
 MC_REFLECT(test_metadata_info::test_class,
            (m_id)(m_name)(m_score)(MC_COMPUTED_PROPERTY("id", get_id, set_id))(
-               MC_COMPUTED_PROPERTY("readonly_value", get_readonly_value))(static_add)(
-               static_format)(add)(format))
+               MC_COMPUTED_PROPERTY("readonly_value", get_readonly_value))(static_add)(static_format)(add)(format))
 
 using namespace test_metadata_info;
 
 // 测试 property_info::typeinfo() 和 type_name()
-TEST(ReflectMetadataInfoTest, PropertyInfoTypeInfo) {
+TEST(ReflectMetadataInfoTest, PropertyInfoTypeInfo)
+{
     test_class obj;
     obj.m_id    = 10;
     obj.m_name  = "test";
@@ -101,7 +108,8 @@ TEST(ReflectMetadataInfoTest, PropertyInfoTypeInfo) {
 }
 
 // 测试 computed_property_info::offset(), typeinfo(), type_name(), get_signature()
-TEST(ReflectMetadataInfoTest, ComputedPropertyInfoMethods) {
+TEST(ReflectMetadataInfoTest, ComputedPropertyInfoMethods)
+{
     test_class obj;
     obj.m_id = 20;
 
@@ -134,7 +142,8 @@ TEST(ReflectMetadataInfoTest, ComputedPropertyInfoMethods) {
 }
 
 // 测试 computed_property_info::clone()
-TEST(ReflectMetadataInfoTest, ComputedPropertyInfoClone) {
+TEST(ReflectMetadataInfoTest, ComputedPropertyInfoClone)
+{
     test_class obj;
     obj.m_id = 30;
 
@@ -157,7 +166,8 @@ TEST(ReflectMetadataInfoTest, ComputedPropertyInfoClone) {
 }
 
 // 测试 method_info::is_static(), typeinfo(), type_name(), arg_count()
-TEST(ReflectMetadataInfoTest, MethodInfoMethods) {
+TEST(ReflectMetadataInfoTest, MethodInfoMethods)
+{
     // 测试静态方法
     auto* static_add_method = mc::reflect::get_method_info<test_class>("static_add");
     ASSERT_NE(static_add_method, nullptr);
@@ -198,14 +208,14 @@ TEST(ReflectMetadataInfoTest, MethodInfoMethods) {
 
     // 测试静态方法调用
     {
-        mc::variants args = {mc::variant(5), mc::variant(7)};
+        mc::variants args   = {mc::variant(5), mc::variant(7)};
         mc::variant  result = static_add_method->invoke(args);
         EXPECT_EQ(result, 12);
     }
 
     // 测试静态方法异步调用
     {
-        mc::variants args = {mc::variant(3), mc::variant(4)};
+        mc::variants args         = {mc::variant(3), mc::variant(4)};
         auto         async_result = static_add_method->async_invoke(args);
         mc::variant  result       = async_result.get();
         EXPECT_EQ(result, 7);
@@ -219,14 +229,15 @@ TEST(ReflectMetadataInfoTest, MethodInfoMethods) {
     EXPECT_EQ(static_format_method->arg_count(), 2U);
 
     {
-        mc::variants args = {mc::variant("prefix_"), mc::variant(100)};
+        mc::variants args   = {mc::variant("prefix_"), mc::variant(100)};
         mc::variant  result = static_format_method->invoke(args);
         EXPECT_EQ(result.as<std::string>(), "prefix_100");
     }
 }
 
 // 测试 from_variant 中数组长度不足的情况
-TEST(ReflectMetadataInfoTest, FromVariantArrayInsufficientLength) {
+TEST(ReflectMetadataInfoTest, FromVariantArrayInsufficientLength)
+{
     test_class obj;
     obj.m_id    = 50;
     obj.m_name  = "original";
@@ -247,7 +258,8 @@ TEST(ReflectMetadataInfoTest, FromVariantArrayInsufficientLength) {
 }
 
 // 测试 is_valid_type_name 中单独的 `:` 不合法分支
-TEST(ReflectMetadataInfoTest, IsValidTypeNameInvalidColon) {
+TEST(ReflectMetadataInfoTest, IsValidTypeNameInvalidColon)
+{
     // 测试单独的 `:` 字符（不是 `::`）
     EXPECT_FALSE(mc::reflect::is_valid_type_name("test:name"));
     EXPECT_FALSE(mc::reflect::is_valid_type_name("test:"));
@@ -265,7 +277,8 @@ TEST(ReflectMetadataInfoTest, IsValidTypeNameInvalidColon) {
 }
 
 // 测试 property_info::clone()
-TEST(ReflectMetadataInfoTest, PropertyInfoClone) {
+TEST(ReflectMetadataInfoTest, PropertyInfoClone)
+{
     test_class obj;
     obj.m_id = 70;
 
@@ -286,4 +299,3 @@ TEST(ReflectMetadataInfoTest, PropertyInfoClone) {
     // 清理 - 使用 operator delete，因为 member_info_base 没有虚析构函数
     operator delete(const_cast<mc::reflect::member_info_base*>(cloned_prop));
 }
-

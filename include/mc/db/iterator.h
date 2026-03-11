@@ -54,7 +54,8 @@ public:
     explicit iterator(raw_iterator it = raw_iterator(), size_t prefix_len = 0,
                       size_t key_field_count = 0)
         : m_iterator(it), m_prefix_len(prefix_len), m_key_field_count(key_field_count),
-          m_is_end(it == raw_iterator()) {
+          m_is_end(it == raw_iterator())
+    {
         if (!do_next()) {
             m_is_end = true;
         }
@@ -63,7 +64,8 @@ public:
     // 标准迭代器接口
 
     // 前置递增
-    iterator& operator++() {
+    iterator& operator++()
+    {
         if (m_is_end) {
             return *this;
         }
@@ -77,14 +79,16 @@ public:
     }
 
     // 后置递增
-    iterator operator++(int) {
+    iterator operator++(int)
+    {
         iterator tmp = *this;
         ++(*this);
         return tmp;
     }
 
     // 解引用
-    reference operator*() const {
+    reference operator*() const
+    {
         if (m_is_end) {
             throw std::out_of_range("迭代器指向末尾");
         }
@@ -92,7 +96,8 @@ public:
     }
 
     // 成员访问
-    pointer operator->() const {
+    pointer operator->() const
+    {
         if (m_is_end) {
             throw std::out_of_range("迭代器指向末尾");
         }
@@ -100,7 +105,8 @@ public:
     }
 
     // 相等比较
-    bool operator==(const iterator& other) const {
+    bool operator==(const iterator& other) const
+    {
         if (m_is_end && other.m_is_end) {
             return true;
         }
@@ -113,7 +119,8 @@ public:
     }
 
     // 不等比较
-    bool operator!=(const iterator& other) const {
+    bool operator!=(const iterator& other) const
+    {
         return !(*this == other);
     }
 
@@ -121,7 +128,8 @@ public:
      * 检查是否已到达末尾
      * @return 如果到达末尾则返回true
      */
-    bool is_end() const {
+    bool is_end() const
+    {
         return m_is_end;
     }
 
@@ -129,7 +137,8 @@ public:
      * 获取当前对象
      * @return 当前对象
      */
-    reference get() const {
+    reference get() const
+    {
         return *m_iterator->second;
     }
 
@@ -137,7 +146,8 @@ public:
      * 获取键视图
      * @return 键视图
      */
-    std::string_view key() const {
+    std::string_view key() const
+    {
         if (m_is_end) {
             return {};
         }
@@ -145,7 +155,8 @@ public:
     }
 
     // 跳到下一个前缀的位置，用于equal_range场景只给定部分key时使用
-    iterator to_next_prefix(std::string_view key_view) {
+    iterator to_next_prefix(std::string_view key_view)
+    {
         if (m_is_end) {
             return *this;
         }
@@ -155,7 +166,8 @@ public:
         return iterator(next_it, m_prefix_len, m_key_field_count);
     }
 
-    const raw_iterator& get_raw_iterator() const {
+    const raw_iterator& get_raw_iterator() const
+    {
         return m_iterator;
     }
 
@@ -165,7 +177,8 @@ private:
      * 实现与Go版doNext类似的逻辑
      * @return 下一个对象指针，如果没有则返回nullptr
      */
-    bool do_next() {
+    bool do_next()
+    {
         if (m_iterator == raw_iterator()) {
             return false;
         }
@@ -208,7 +221,8 @@ private:
     }
 
     template <bool IsCompound>
-    bool check_compound_key(std::string_view key, int n) {
+    bool check_compound_key(std::string_view key, int n)
+    {
         if constexpr (!IsCompound) {
             return false;
         }
@@ -231,7 +245,8 @@ private:
     }
 
     template <bool IsCompound>
-    bool check_unique_key(std::string_view& key, size_t& n) {
+    bool check_unique_key(std::string_view& key, size_t& n)
+    {
         if constexpr (!IsCompound) {
             // 非组合键必须精确匹配长度
             if (m_prefix_len + sizeof(object_id_type) != n) {
@@ -250,7 +265,8 @@ private:
         return true;
     }
 
-    bool check_id(const void* p_id) const {
+    bool check_id(const void* p_id) const
+    {
         object_id_type id = *static_cast<const object_id_type*>(p_id);
         if constexpr (!is_sort_great) {
             id = ~id; // 索引从大到小排列时，id需要转换回来

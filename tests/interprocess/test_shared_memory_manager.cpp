@@ -20,23 +20,27 @@ using namespace mc::interprocess;
 
 class shared_memory_manager_test : public mc::test::TestBase {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         TestBase::SetUp();
         shared_memory_manager::remove_shared_memory(get_test_shm_name());
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         TestBase::TearDown();
         shared_memory_manager::remove_shared_memory(get_test_shm_name());
     }
 
-    std::string get_test_shm_name() const {
+    std::string get_test_shm_name() const
+    {
         return "test_shm_" + std::to_string(getpid());
     }
 };
 
 // 测试创建共享内存管理器
-TEST_F(shared_memory_manager_test, create_manager) {
+TEST_F(shared_memory_manager_test, create_manager)
+{
     std::string test_name = get_test_shm_name();
     size_t      size      = 64 * 1024;
 
@@ -48,7 +52,8 @@ TEST_F(shared_memory_manager_test, create_manager) {
 }
 
 // 测试获取共享内存
-TEST_F(shared_memory_manager_test, get_shared_memory) {
+TEST_F(shared_memory_manager_test, get_shared_memory)
+{
     std::string test_name = get_test_shm_name();
     size_t      size      = 64 * 1024;
 
@@ -62,7 +67,8 @@ TEST_F(shared_memory_manager_test, get_shared_memory) {
 }
 
 // 测试 REMOVE_ON_EXIT 选项
-TEST_F(shared_memory_manager_test, remove_on_exit) {
+TEST_F(shared_memory_manager_test, remove_on_exit)
+{
     std::string test_name = get_test_shm_name();
     size_t      size      = 64 * 1024;
 
@@ -80,7 +86,8 @@ TEST_F(shared_memory_manager_test, remove_on_exit) {
 }
 
 // 测试手动清理
-TEST_F(shared_memory_manager_test, manual_cleanup) {
+TEST_F(shared_memory_manager_test, manual_cleanup)
+{
     std::string test_name = get_test_shm_name();
     size_t      size      = 64 * 1024;
 
@@ -97,7 +104,8 @@ TEST_F(shared_memory_manager_test, manual_cleanup) {
 }
 
 // 测试设置自动清理选项
-TEST_F(shared_memory_manager_test, set_remove_on_exit) {
+TEST_F(shared_memory_manager_test, set_remove_on_exit)
+{
     std::string test_name = get_test_shm_name();
     size_t      size      = 64 * 1024;
 
@@ -108,7 +116,8 @@ TEST_F(shared_memory_manager_test, set_remove_on_exit) {
 }
 
 // 测试静态 remove_shared_memory 方法
-TEST_F(shared_memory_manager_test, static_remove) {
+TEST_F(shared_memory_manager_test, static_remove)
+{
     std::string test_name = get_test_shm_name();
     size_t      size      = 64 * 1024;
 
@@ -129,7 +138,8 @@ TEST_F(shared_memory_manager_test, static_remove) {
 }
 
 // 测试格式化名称
-TEST_F(shared_memory_manager_test, format_name) {
+TEST_F(shared_memory_manager_test, format_name)
+{
     // 测试不带前缀的名称
     std::string name1      = "test_name";
     std::string formatted1 = shared_memory_manager::format_shm_name(name1);
@@ -142,7 +152,8 @@ TEST_F(shared_memory_manager_test, format_name) {
 }
 
 // 测试默认大小
-TEST_F(shared_memory_manager_test, default_size) {
+TEST_F(shared_memory_manager_test, default_size)
+{
     std::string test_name = get_test_shm_name();
 
     shared_memory_manager manager(test_name, 0,
@@ -153,7 +164,8 @@ TEST_F(shared_memory_manager_test, default_size) {
 }
 
 // 测试 REMOVE_IF_EXISTS 选项在共享内存存在时删除并输出日志
-TEST_F(shared_memory_manager_test, RemoveIfExistsWithExistingShm) {
+TEST_F(shared_memory_manager_test, RemoveIfExistsWithExistingShm)
+{
     std::string test_name = get_test_shm_name();
     size_t      size      = 64 * 1024;
 
@@ -170,8 +182,8 @@ TEST_F(shared_memory_manager_test, RemoveIfExistsWithExistingShm) {
     // 使用 REMOVE_IF_EXISTS 选项创建管理器
     // 这应该会删除已存在的共享内存并输出日志
     shared_memory_manager manager2(test_name, size,
-                                    shared_memory_manager::REMOVE_ON_EXIT |
-                                        shared_memory_manager::REMOVE_IF_EXISTS);
+                                   shared_memory_manager::REMOVE_ON_EXIT |
+                                       shared_memory_manager::REMOVE_IF_EXISTS);
     auto                  shm2 = manager2.get_shared_memory();
     ASSERT_NE(shm2, nullptr);
     EXPECT_TRUE(shm2->is_valid());
@@ -181,7 +193,8 @@ TEST_F(shared_memory_manager_test, RemoveIfExistsWithExistingShm) {
 }
 
 // 测试 remove_shared_memory() 传入空名称
-TEST_F(shared_memory_manager_test, RemoveSharedMemoryEmptyName) {
+TEST_F(shared_memory_manager_test, RemoveSharedMemoryEmptyName)
+{
     // 传入空字符串，应该返回 false
     bool result = shared_memory_manager::remove_shared_memory("");
     EXPECT_FALSE(result);

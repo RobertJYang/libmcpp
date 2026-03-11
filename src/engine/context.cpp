@@ -16,33 +16,42 @@
 
 namespace mc::engine {
 
-context::context(service& s, abstract_object& object) : m_service(s), m_object(object) {
+context::context(service& s, abstract_object& object)
+    : m_service(s), m_object(object)
+{
 }
 
-context::~context() {
+context::~context()
+{
 }
 
-mc::error_ptr context::get_error() {
+mc::error_ptr context::get_error()
+{
     return m_error;
 }
 
-bool context::is_error() const {
+bool context::is_error() const
+{
     return m_error && m_error->is_set();
 }
 
-void context::report_error(std::string_view error_name, mc::dict args) {
+void context::report_error(std::string_view error_name, mc::dict args)
+{
     m_error = error_engine::get_instance().report_error(error_name, std::move(args));
 }
 
-void context::report_error(const error_info& error, mc::dict args) {
+void context::report_error(const error_info& error, mc::dict args)
+{
     m_error = error_engine::get_instance().report_error(error, std::move(args));
 }
 
-void context::set_arg(std::string_view key, mc::variant value) {
+void context::set_arg(std::string_view key, mc::variant value)
+{
     m_args[key] = std::move(value);
 }
 
-mc::variant context::get_arg(std::string_view key) const {
+mc::variant context::get_arg(std::string_view key) const
+{
     if (m_args.find(key) == m_args.end()) {
         return mc::variant();
     }
@@ -50,35 +59,43 @@ mc::variant context::get_arg(std::string_view key) const {
     return m_args[key];
 }
 
-const mc::dict& context::get_args() const {
+const mc::dict& context::get_args() const
+{
     return m_args;
 }
 
-mc::dict& context::get_args() {
+mc::dict& context::get_args()
+{
     return m_args;
 }
 
-void context::set_args(mc::dict args) {
+void context::set_args(mc::dict args)
+{
     m_args = std::move(args);
 }
 
-service& context::get_service() const {
+service& context::get_service() const
+{
     return m_service;
 }
 
-abstract_object& context::get_object() const {
+abstract_object& context::get_object() const
+{
     return m_object;
 }
 
-detail::call_info& context::get_call_info() {
+detail::call_info& context::get_call_info()
+{
     return m_call_info;
 }
 
-void context::set_call_info(detail::call_info call_info) {
+void context::set_call_info(detail::call_info call_info)
+{
     m_call_info = std::move(call_info);
 }
 
-std::string_view context::get_path() const {
+std::string_view context::get_path() const
+{
     if (std::holds_alternative<detail::dbus_call>(m_call_info)) {
         return std::get<detail::dbus_call>(m_call_info).request.get_path();
     } else if (std::holds_alternative<detail::variants_call>(m_call_info)) {
@@ -88,7 +105,8 @@ std::string_view context::get_path() const {
     return {};
 }
 
-std::string_view context::get_method_name() const {
+std::string_view context::get_method_name() const
+{
     if (std::holds_alternative<detail::dbus_call>(m_call_info)) {
         return std::get<detail::dbus_call>(m_call_info).request.get_member();
     } else if (std::holds_alternative<detail::variants_call>(m_call_info)) {
@@ -98,7 +116,8 @@ std::string_view context::get_method_name() const {
     return {};
 }
 
-std::string_view context::get_interface_name() const {
+std::string_view context::get_interface_name() const
+{
     if (std::holds_alternative<detail::dbus_call>(m_call_info)) {
         return std::get<detail::dbus_call>(m_call_info).request.get_interface();
     } else if (std::holds_alternative<detail::variants_call>(m_call_info)) {
@@ -108,7 +127,8 @@ std::string_view context::get_interface_name() const {
     return {};
 }
 
-std::string_view context::get_sender() const {
+std::string_view context::get_sender() const
+{
     if (std::holds_alternative<detail::dbus_call>(m_call_info)) {
         return std::get<detail::dbus_call>(m_call_info).request.get_sender();
     } else if (std::holds_alternative<detail::variants_call>(m_call_info)) {
@@ -118,21 +138,24 @@ std::string_view context::get_sender() const {
     return {};
 }
 
-void context::throw_error(std::string_view error_name, mc::dict args) {
+void context::throw_error(std::string_view error_name, mc::dict args)
+{
     auto& ctx = get_current_context();
     ctx.report_error(error_name, std::move(args));
     MC_THROW(mc::method_call_exception, "call method ${method} at ${path} failed: ${error}",
              ("method", ctx.get_method_name())("path", ctx.get_path())("error", error_name));
 }
 
-void context::throw_error(const error_info& error, mc::dict args) {
+void context::throw_error(const error_info& error, mc::dict args)
+{
     auto& ctx = get_current_context();
     ctx.report_error(error, std::move(args));
     MC_THROW(mc::method_call_exception, "call method ${method} at ${path} failed: ${error}",
              ("method", ctx.get_method_name())("path", ctx.get_path())("error", error.name));
 }
 
-context& context::get_current_context() {
+context& context::get_current_context()
+{
     auto* ctx = context_stack::top_value();
     if (!ctx) {
         MC_THROW(mc::method_call_exception,
@@ -142,27 +165,33 @@ context& context::get_current_context() {
     return *ctx;
 }
 
-context* context::get_current_context_ptr() {
+context* context::get_current_context_ptr()
+{
     return context_stack::top_value();
 }
 
-const method_type_info* context::get_method() const {
+const method_type_info* context::get_method() const
+{
     return m_method;
 }
 
-void context::set_method(const method_type_info* method) {
+void context::set_method(const method_type_info* method)
+{
     m_method = method;
 }
 
-void context::ignore() {
+void context::ignore()
+{
     m_status = handler_status::ignored;
 }
 
-void context::accept() {
+void context::accept()
+{
     m_status = handler_status::accepted;
 }
 
-handler_status context::get_status() const {
+handler_status context::get_status() const
+{
     return m_status;
 }
 

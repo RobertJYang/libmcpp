@@ -14,38 +14,44 @@
 namespace mc::engine {
 
 path_iterator::path_iterator(std::string_view path)
-    : m_path(path), m_start(0), m_end(0), m_is_initialized(false) {
+    : m_path(path), m_start(0), m_end(0), m_is_initialized(false)
+{
     // 去除尾部斜杠
     if (!m_path.empty() && m_path.back() == IMMUTABLE_PATH_SEP) {
         m_path = m_path.substr(0, m_path.length() - 1);
     }
 }
 
-void path_iterator::reset() {
+void path_iterator::reset()
+{
     m_start          = 0;
     m_end            = 0;
     m_is_initialized = false;
 }
 
-bool path_iterator::is_empty_or_root_path() const {
+bool path_iterator::is_empty_or_root_path() const
+{
     return m_path.empty() || m_path == "/";
 }
 
-size_t path_iterator::skip_separators_forward(size_t pos) const {
+size_t path_iterator::skip_separators_forward(size_t pos) const
+{
     while (pos < m_path.length() && m_path[pos] == IMMUTABLE_PATH_SEP) {
         pos++;
     }
     return pos;
 }
 
-size_t path_iterator::skip_separators_backward(size_t pos) const {
+size_t path_iterator::skip_separators_backward(size_t pos) const
+{
     while (pos > 0 && m_path[pos - 1] == IMMUTABLE_PATH_SEP) {
         pos--;
     }
     return pos;
 }
 
-size_t path_iterator::find_segment_end(size_t start_pos) const {
+size_t path_iterator::find_segment_end(size_t start_pos) const
+{
     size_t end = start_pos;
     while (end < m_path.length() && m_path[end] != IMMUTABLE_PATH_SEP) {
         end++;
@@ -53,7 +59,8 @@ size_t path_iterator::find_segment_end(size_t start_pos) const {
     return end;
 }
 
-size_t path_iterator::find_prev_segment_start(size_t pos) const {
+size_t path_iterator::find_prev_segment_start(size_t pos) const
+{
     // 找到前一个分隔符的位置
     while (pos > 0 && m_path[pos - 1] != IMMUTABLE_PATH_SEP) {
         pos--;
@@ -61,7 +68,8 @@ size_t path_iterator::find_prev_segment_start(size_t pos) const {
     return pos;
 }
 
-bool path_iterator::find_next_segment(size_t& start, size_t& end) const {
+bool path_iterator::find_next_segment(size_t& start, size_t& end) const
+{
     // 空路径或根路径没有段
     if (is_empty_or_root_path()) {
         return false;
@@ -84,7 +92,8 @@ bool path_iterator::find_next_segment(size_t& start, size_t& end) const {
     return true;
 }
 
-bool path_iterator::find_prev_segment(size_t& start, size_t& end) const {
+bool path_iterator::find_prev_segment(size_t& start, size_t& end) const
+{
     // 无法向前移动的情况
     if (is_empty_or_root_path() || m_start == 0) {
         return false;
@@ -108,7 +117,8 @@ bool path_iterator::find_prev_segment(size_t& start, size_t& end) const {
     return true;
 }
 
-bool path_iterator::to_next() {
+bool path_iterator::to_next()
+{
     // 第一次调用 to_next()
     if (!m_is_initialized) {
         bool has_segment = find_next_segment(m_start, m_end);
@@ -128,7 +138,8 @@ bool path_iterator::to_next() {
     return true;
 }
 
-bool path_iterator::to_prev() {
+bool path_iterator::to_prev()
+{
     // 还没有初始化或已在第一个段
     if (!m_is_initialized) {
         m_start          = m_path.length();
@@ -149,14 +160,16 @@ bool path_iterator::to_prev() {
     return true;
 }
 
-std::string_view path_iterator::current() const {
+std::string_view path_iterator::current() const
+{
     if (!m_is_initialized || m_start >= m_path.length()) {
         return {};
     }
     return m_path.substr(m_start, m_end - m_start);
 }
 
-std::string_view path_iterator::parent_path() const {
+std::string_view path_iterator::parent_path() const
+{
     if (!m_is_initialized || m_start == 0) {
         return {};
     }

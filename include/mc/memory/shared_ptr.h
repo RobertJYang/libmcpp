@@ -33,22 +33,30 @@ public:
     using pointer_type = PointerType;
 
     // 默认构造函数
-    constexpr shared_ptr() noexcept : m_ptr(nullptr) {
+    constexpr shared_ptr() noexcept
+        : m_ptr(nullptr)
+    {
     }
 
     // nullptr 构造函数
-    constexpr shared_ptr(std::nullptr_t) noexcept : m_ptr(nullptr) {
+    constexpr shared_ptr(std::nullptr_t) noexcept
+        : m_ptr(nullptr)
+    {
     }
 
     // 接受裸指针的构造函数
-    explicit shared_ptr(pointer_type ptr) noexcept : m_ptr(ptr) {
+    explicit shared_ptr(pointer_type ptr) noexcept
+        : m_ptr(ptr)
+    {
         if (m_ptr) {
             m_ptr->add_ref();
         }
     }
 
     // 拷贝构造函数
-    shared_ptr(const shared_ptr& other) noexcept : m_ptr(other.m_ptr) {
+    shared_ptr(const shared_ptr& other) noexcept
+        : m_ptr(other.m_ptr)
+    {
         if (m_ptr) {
             m_ptr->add_ref();
         }
@@ -57,7 +65,8 @@ public:
     // 类型转换拷贝构造函数
     template <typename U, typename UP>
     shared_ptr(const shared_ptr<U, UP>& other) noexcept
-        : m_ptr(other.get()) {
+        : m_ptr(other.get())
+    {
         static_assert(std::is_convertible_v<U*, T*>, "U* must be convertible to T*");
         if (m_ptr) {
             m_ptr->add_ref();
@@ -65,32 +74,38 @@ public:
     }
 
     // 移动构造函数
-    shared_ptr(shared_ptr&& other) noexcept : m_ptr(other.m_ptr) {
+    shared_ptr(shared_ptr&& other) noexcept
+        : m_ptr(other.m_ptr)
+    {
         other.m_ptr = nullptr;
     }
 
     // 类型转换移动构造函数
     template <typename U, typename UP>
     shared_ptr(shared_ptr<U, UP>&& other) noexcept
-        : m_ptr(other.detach()) {
+        : m_ptr(other.detach())
+    {
         static_assert(std::is_convertible_v<U*, T*>, "U* must be convertible to T*");
     }
 
     // 拷贝赋值运算符
-    shared_ptr& operator=(const shared_ptr& other) noexcept {
+    shared_ptr& operator=(const shared_ptr& other) noexcept
+    {
         shared_ptr(other).swap(*this);
         return *this;
     }
 
     // 移动赋值运算符
-    shared_ptr& operator=(shared_ptr&& other) noexcept {
+    shared_ptr& operator=(shared_ptr&& other) noexcept
+    {
         shared_ptr(std::move(other)).swap(*this);
         return *this;
     }
 
     // 类型转换拷贝赋值运算符
     template <typename U, typename UP>
-    shared_ptr& operator=(const shared_ptr<U, UP>& other) noexcept {
+    shared_ptr& operator=(const shared_ptr<U, UP>& other) noexcept
+    {
         static_assert(std::is_convertible_v<U*, T*>, "U* must be convertible to T*");
         shared_ptr(other).swap(*this);
         return *this;
@@ -98,26 +113,30 @@ public:
 
     // 类型转换移动赋值运算符
     template <typename U, typename UP>
-    shared_ptr& operator=(shared_ptr<U, UP>&& other) noexcept {
+    shared_ptr& operator=(shared_ptr<U, UP>&& other) noexcept
+    {
         static_assert(std::is_convertible_v<U*, T*>, "U* must be convertible to T*");
         shared_ptr(std::move(other)).swap(*this);
         return *this;
     }
 
     // 析构函数
-    ~shared_ptr() noexcept {
+    ~shared_ptr() noexcept
+    {
         release_noexcept(m_ptr);
     }
 
     // 重置指针
-    void reset() {
+    void reset()
+    {
         auto* old_ptr = m_ptr;
         m_ptr         = nullptr;
         release(old_ptr);
     }
 
     // 重置为新指针
-    void reset(pointer_type ptr) {
+    void reset(pointer_type ptr)
+    {
         auto* old_ptr = m_ptr;
         m_ptr         = nullptr;
 
@@ -129,47 +148,56 @@ public:
 
     // 重置为新指针
     template <typename U>
-    void reset(U* ptr) {
+    void reset(U* ptr)
+    {
         static_assert(std::is_convertible_v<U*, T*>, "U* must be convertible to T*");
         reset(static_cast<pointer_type>(ptr));
     }
 
     // 交换两个指针
-    void swap(shared_ptr& other) noexcept {
+    void swap(shared_ptr& other) noexcept
+    {
         std::swap(m_ptr, other.m_ptr);
     }
 
     // 获取原始指针
-    pointer_type get() const noexcept {
+    pointer_type get() const noexcept
+    {
         return m_ptr;
     }
 
     // 解引用运算符
-    T& operator*() const noexcept {
+    T& operator*() const noexcept
+    {
         return *m_ptr;
     }
 
     // 箭头运算符
-    pointer_type operator->() const noexcept {
+    pointer_type operator->() const noexcept
+    {
         return m_ptr;
     }
 
     // 布尔转换运算符
-    operator bool() const noexcept {
+    operator bool() const noexcept
+    {
         return m_ptr != nullptr;
     }
 
     // 获取引用计数
-    size_t use_count() const noexcept {
+    size_t use_count() const noexcept
+    {
         return m_ptr ? m_ptr->ref_count() : 0;
     }
 
     // 检查是否唯一引用
-    bool unique() const noexcept {
+    bool unique() const noexcept
+    {
         return use_count() == 1;
     }
 
-    pointer_type detach() noexcept {
+    pointer_type detach() noexcept
+    {
         pointer_type ptr = m_ptr;
         m_ptr            = nullptr;
         return ptr;
@@ -177,14 +205,16 @@ public:
 
     // 静态类型转换
     template <typename U, typename UP = U*>
-    auto static_pointer_cast() const noexcept {
+    auto static_pointer_cast() const noexcept
+    {
         using UDeleter = typename Deleter::template rebind<U>;
         return shared_ptr<U, UDeleter, UP>(static_cast<UP>(m_ptr));
     }
 
     // 动态类型转换
     template <typename U, typename UP = U*>
-    auto dynamic_pointer_cast() const noexcept {
+    auto dynamic_pointer_cast() const noexcept
+    {
         using UDeleter = typename Deleter::template rebind<U>;
         if (auto* ptr = dynamic_cast<UP>(m_ptr)) {
             return shared_ptr<U, UDeleter, UP>(ptr);
@@ -194,60 +224,71 @@ public:
 
     // 常量类型转换
     template <typename U, typename UP = U*>
-    auto const_pointer_cast() const noexcept {
+    auto const_pointer_cast() const noexcept
+    {
         using UDeleter = typename Deleter::template rebind<U>;
         return shared_ptr<U, UDeleter, UP>(const_cast<UP>(m_ptr));
     }
 
     // 重新解释类型转换
     template <typename U, typename UP = U*>
-    auto reinterpret_pointer_cast() const noexcept {
+    auto reinterpret_pointer_cast() const noexcept
+    {
         using UDeleter = typename Deleter::template rebind<U>;
         return shared_ptr<U, UDeleter, UP>(reinterpret_cast<UP>(m_ptr));
     }
 
     // 相等运算符
     template <typename U, typename UDeleter, typename UPointerType>
-    bool operator==(const shared_ptr<U, UDeleter, UPointerType>& rhs) const noexcept {
+    bool operator==(const shared_ptr<U, UDeleter, UPointerType>& rhs) const noexcept
+    {
         return this->get() == rhs.get();
     }
 
-    bool operator==(std::nullptr_t) const noexcept {
+    bool operator==(std::nullptr_t) const noexcept
+    {
         return this->get() == nullptr;
     }
 
-    bool operator==(T* rhs) const noexcept {
+    bool operator==(T* rhs) const noexcept
+    {
         return this->get() == rhs;
     }
 
     // 不等运算符
     template <typename U, typename UDeleter, typename UPointerType>
-    bool operator!=(const shared_ptr<U, UDeleter, UPointerType>& rhs) const noexcept {
+    bool operator!=(const shared_ptr<U, UDeleter, UPointerType>& rhs) const noexcept
+    {
         return this->get() != rhs.get();
     }
 
-    bool operator!=(std::nullptr_t) const noexcept {
+    bool operator!=(std::nullptr_t) const noexcept
+    {
         return this->get() != nullptr;
     }
 
-    bool operator!=(T* rhs) const noexcept {
+    bool operator!=(T* rhs) const noexcept
+    {
         return this->get() != rhs;
     }
 
     // 小于运算符，用于排序容器
     template <typename U, typename UDeleter, typename UPointerType>
-    bool operator<(const shared_ptr<U, UDeleter, UPointerType>& rhs) const noexcept {
+    bool operator<(const shared_ptr<U, UDeleter, UPointerType>& rhs) const noexcept
+    {
         return this->get() < rhs.get();
     }
 
-    bool operator<(T* rhs) const noexcept {
+    bool operator<(T* rhs) const noexcept
+    {
         return this->get() < rhs;
     }
 
 private:
     pointer_type m_ptr;
 
-    static void release(pointer_type ptr) {
+    static void release(pointer_type ptr)
+    {
         if (!ptr) {
             return;
         }
@@ -264,7 +305,8 @@ private:
         }
     }
 
-    static void release_noexcept(pointer_type ptr) noexcept {
+    static void release_noexcept(pointer_type ptr) noexcept
+    {
         try {
             release(ptr);
         } catch (...) {
@@ -273,7 +315,9 @@ private:
 
     // 内部构造函数，用于已经增加引用计数的情况
     struct already_referenced_tag {};
-    explicit shared_ptr(pointer_type ptr, already_referenced_tag) noexcept : m_ptr(ptr) {
+    explicit shared_ptr(pointer_type ptr, already_referenced_tag) noexcept
+        : m_ptr(ptr)
+    {
         // 不增加引用计数，因为调用者已经增加了
     }
 
@@ -287,7 +331,8 @@ private:
 };
 
 template <typename T, typename Alloc = std::allocator<T>, typename... Args>
-shared_ptr<T> allocate_shared(const Alloc& alloc, Args&&... args) {
+shared_ptr<T> allocate_shared(const Alloc& alloc, Args&&... args)
+{
     return shared_ptr<T>(allocate_ptr<T, Alloc>(alloc, std::forward<Args>(args)...));
 }
 
@@ -300,7 +345,8 @@ shared_ptr<T> allocate_shared(const Alloc& alloc, Args&&... args) {
  * @return 指向新创建对象的shared_ptr
  */
 template <typename T, typename... Args>
-shared_ptr<T> make_shared(Args&&... args) {
+shared_ptr<T> make_shared(Args&&... args)
+{
     return shared_ptr<T>(allocate_ptr<T>(std::allocator<T>(), std::forward<Args>(args)...));
 }
 
@@ -310,7 +356,8 @@ shared_ptr<T> make_shared(Args&&... args) {
  * 静态类型转换 shared_ptr
  */
 template <typename T, typename U, typename UDeleter, typename UPointerType>
-auto static_pointer_cast(const shared_ptr<U, UDeleter, UPointerType>& r) noexcept {
+auto static_pointer_cast(const shared_ptr<U, UDeleter, UPointerType>& r) noexcept
+{
     return r.template static_pointer_cast<T>();
 }
 
@@ -318,7 +365,8 @@ auto static_pointer_cast(const shared_ptr<U, UDeleter, UPointerType>& r) noexcep
  * 动态类型转换 shared_ptr
  */
 template <typename T, typename U, typename UDeleter, typename UPointerType>
-auto dynamic_pointer_cast(const shared_ptr<U, UDeleter, UPointerType>& r) noexcept {
+auto dynamic_pointer_cast(const shared_ptr<U, UDeleter, UPointerType>& r) noexcept
+{
     return r.template dynamic_pointer_cast<T>();
 }
 
@@ -326,7 +374,8 @@ auto dynamic_pointer_cast(const shared_ptr<U, UDeleter, UPointerType>& r) noexce
  * 常量类型转换 shared_ptr
  */
 template <typename T, typename U, typename UDeleter, typename UPointerType>
-auto const_pointer_cast(const shared_ptr<U, UDeleter, UPointerType>& r) noexcept {
+auto const_pointer_cast(const shared_ptr<U, UDeleter, UPointerType>& r) noexcept
+{
     return r.template const_pointer_cast<T>();
 }
 
@@ -334,7 +383,8 @@ auto const_pointer_cast(const shared_ptr<U, UDeleter, UPointerType>& r) noexcept
  * 重新解释类型转换 shared_ptr
  */
 template <typename T, typename U, typename UDeleter, typename UPointerType>
-auto reinterpret_pointer_cast(const shared_ptr<U, UDeleter, UPointerType>& r) noexcept {
+auto reinterpret_pointer_cast(const shared_ptr<U, UDeleter, UPointerType>& r) noexcept
+{
     return r.template reinterpret_pointer_cast<T>();
 }
 
@@ -343,27 +393,32 @@ auto reinterpret_pointer_cast(const shared_ptr<U, UDeleter, UPointerType>& r) no
 // 全局比较运算符重载，支持与 std::nullptr_t 的比较
 namespace mc::memory {
 template <typename T, typename Deleter, typename PointerType>
-bool operator==(std::nullptr_t, const shared_ptr<T, Deleter, PointerType>& rhs) noexcept {
+bool operator==(std::nullptr_t, const shared_ptr<T, Deleter, PointerType>& rhs) noexcept
+{
     return nullptr == rhs.get();
 }
 
 template <typename T, typename Deleter, typename PointerType>
-bool operator!=(std::nullptr_t, const shared_ptr<T, Deleter, PointerType>& rhs) noexcept {
+bool operator!=(std::nullptr_t, const shared_ptr<T, Deleter, PointerType>& rhs) noexcept
+{
     return nullptr != rhs.get();
 }
 
 template <typename T, typename Deleter, typename PointerType>
-bool operator==(T* lhs, const shared_ptr<T, Deleter, PointerType>& rhs) noexcept {
+bool operator==(T* lhs, const shared_ptr<T, Deleter, PointerType>& rhs) noexcept
+{
     return lhs == rhs.get();
 }
 
 template <typename T, typename Deleter, typename PointerType>
-bool operator!=(T* lhs, const shared_ptr<T, Deleter, PointerType>& rhs) noexcept {
+bool operator!=(T* lhs, const shared_ptr<T, Deleter, PointerType>& rhs) noexcept
+{
     return lhs != rhs.get();
 }
 
 template <typename T, typename Deleter, typename PointerType>
-bool operator<(T* lhs, const shared_ptr<T, Deleter, PointerType>& rhs) noexcept {
+bool operator<(T* lhs, const shared_ptr<T, Deleter, PointerType>& rhs) noexcept
+{
     return lhs < rhs.get();
 }
 } // namespace mc::memory
@@ -372,7 +427,8 @@ bool operator<(T* lhs, const shared_ptr<T, Deleter, PointerType>& rhs) noexcept 
 namespace std {
 template <typename T, typename Deleter, typename PointerType>
 struct hash<mc::memory::shared_ptr<T, Deleter, PointerType>> {
-    size_t operator()(const mc::memory::shared_ptr<T, Deleter, PointerType>& p) const noexcept {
+    size_t operator()(const mc::memory::shared_ptr<T, Deleter, PointerType>& p) const noexcept
+    {
         return hash<PointerType>{}(p.get());
     }
 };

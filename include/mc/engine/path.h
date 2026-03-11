@@ -109,17 +109,21 @@ public:
      * @param p 要比较的路径字符串
      * @return 如果路径相等返回true
      */
-    bool operator==(std::string_view p) const {
+    bool operator==(std::string_view p) const
+    {
         return m_path == p;
     }
-    bool operator!=(std::string_view p) const {
+    bool operator!=(std::string_view p) const
+    {
         return m_path != p;
     }
 
-    friend bool operator==(std::string_view s, const path& p) {
+    friend bool operator==(std::string_view s, const path& p)
+    {
         return p.m_path == s;
     }
-    friend bool operator!=(std::string_view s, const path& p) {
+    friend bool operator!=(std::string_view s, const path& p)
+    {
         return p.m_path != s;
     }
 
@@ -171,11 +175,13 @@ MC_API std::ostream& operator<<(std::ostream& os, const path& p);
 
 } // namespace engine
 
-inline void to_variant(const engine::path& p, variant& v) {
+inline void to_variant(const engine::path& p, variant& v)
+{
     v = p.str();
 }
 
-inline void from_variant(const variant& v, engine::path& p) {
+inline void from_variant(const variant& v, engine::path& p)
+{
     p = engine::path(v.as_string());
 }
 
@@ -187,7 +193,8 @@ namespace detail {
 // 对 path 的特化
 template <>
 struct signature_helper<mc::engine::path> {
-    static void apply(std::string& sig) {
+    static void apply(std::string& sig)
+    {
         sig += mc::reflect::type_to_char(mc::reflect::type_code::object_path_type);
     }
 };

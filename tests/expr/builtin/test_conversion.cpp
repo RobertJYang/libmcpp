@@ -22,13 +22,15 @@ class conversion_builtin_test : public ::testing::Test {
 protected:
     conversion_builtin_test() = default;
 
-    void SetUp() override {
+    void SetUp() override
+    {
         auto& builtin = mc::expr::builtin::get_instance();
         auto& ctx     = builtin.get_context();
         m_context     = engine.make_context(&ctx);
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
     }
 
     mc::expr::engine  engine;
@@ -37,7 +39,8 @@ protected:
 } // namespace
 
 // 测试 to_string 函数
-TEST_F(conversion_builtin_test, ToStringFunction) {
+TEST_F(conversion_builtin_test, ToStringFunction)
+{
     // 测试整数
     EXPECT_EQ(engine.evaluate("to_string(42)", m_context), "42");
 
@@ -62,7 +65,8 @@ TEST_F(conversion_builtin_test, ToStringFunction) {
 }
 
 // 测试 to_bool 函数
-TEST_F(conversion_builtin_test, ToBoolFunction) {
+TEST_F(conversion_builtin_test, ToBoolFunction)
+{
     // 测试数值
     EXPECT_TRUE(engine.evaluate("to_bool(1)", m_context));
     EXPECT_TRUE(engine.evaluate("to_bool(42)", m_context));
@@ -111,7 +115,8 @@ TEST_F(conversion_builtin_test, ToBoolFunction) {
 }
 
 // 测试 to_int 函数
-TEST_F(conversion_builtin_test, ToIntFunction) {
+TEST_F(conversion_builtin_test, ToIntFunction)
+{
     // 测试整数
     EXPECT_EQ(engine.evaluate("to_integer(42)", m_context), 42);
 
@@ -141,7 +146,8 @@ TEST_F(conversion_builtin_test, ToIntFunction) {
 }
 
 // 测试 to_double 函数
-TEST_F(conversion_builtin_test, ToDoubleFunction) {
+TEST_F(conversion_builtin_test, ToDoubleFunction)
+{
     // 测试整数
     EXPECT_EQ(engine.evaluate("to_double(42)", m_context), 42.0);
 
@@ -171,7 +177,8 @@ TEST_F(conversion_builtin_test, ToDoubleFunction) {
 }
 
 // 测试 to_char 函数
-TEST_F(conversion_builtin_test, ToCharFunction) {
+TEST_F(conversion_builtin_test, ToCharFunction)
+{
     // 测试正常 ASCII 字符
     EXPECT_EQ(engine.evaluate("to_char(65)", m_context), "A");
     EXPECT_EQ(engine.evaluate("to_char(97)", m_context), "a");

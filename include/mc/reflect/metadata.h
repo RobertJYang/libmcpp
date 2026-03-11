@@ -76,7 +76,8 @@ class reflection;
  * 生成其他编译期常量，可以直接使用 mc::reflect::static_metadata<T>::members 而不是这里返回的引用。
  */
 template <typename T>
-const auto& get_static_members() {
+const auto& get_static_members()
+{
     return mc::reflect::static_metadata<T>::members;
 }
 
@@ -87,7 +88,8 @@ const auto& get_static_members() {
  * 可以使用 mc::traits::tuple_for_each 遍历这个 tuple。
  */
 template <typename T, typename Tag>
-auto get_static_members_by_tag() {
+auto get_static_members_by_tag()
+{
     return mc::reflect::detail::filter_members_by_tag<T, Tag>(get_static_members<T>());
 }
 
@@ -98,7 +100,8 @@ auto get_static_members_by_tag() {
  * 可以使用 mc::traits::tuple_for_each 遍历这个 tuple。
  */
 template <typename T>
-auto get_static_properties() {
+auto get_static_properties()
+{
     return get_static_members_by_tag<T, mc::reflect::property_tag>();
 }
 
@@ -109,7 +112,8 @@ auto get_static_properties() {
  * 可以使用 mc::traits::tuple_for_each 遍历这个 tuple。
  */
 template <typename T>
-auto get_static_methods() {
+auto get_static_methods()
+{
     return get_static_members_by_tag<T, mc::reflect::method_tag>();
 }
 
@@ -120,7 +124,8 @@ auto get_static_methods() {
  * 可以使用 mc::traits::tuple_for_each 遍历这个 tuple。
  */
 template <typename T>
-auto get_static_base_classes() {
+auto get_static_base_classes()
+{
     return get_static_members_by_tag<T, mc::reflect::base_class_tag>();
 }
 
@@ -142,7 +147,9 @@ struct member_node : boost::intrusive::slist_base_hook<> {
     const T* member{nullptr};
 
     member_node() = default;
-    member_node(const T* member) : member(member) {
+    member_node(const T* member)
+        : member(member)
+    {
     }
 };
 
@@ -158,7 +165,8 @@ public:
 
     template <typename T, typename Members>
     struct_metadata(std::string_view name, const Members& members, const T* o)
-        : struct_metadata(name, mc::reflect::reflector<T>::get_type_id()) {
+        : struct_metadata(name, mc::reflect::reflector<T>::get_type_id())
+    {
         add_members(members, o);
     }
 
@@ -191,7 +199,8 @@ public:
 
 private:
     template <typename T, typename Members>
-    void add_members(const Members& members, const T*) {
+    void add_members(const Members& members, const T*)
+    {
         // 先添加子类成员再添加基类成员，子类成员会覆盖基类同名成员
         mc::traits::tuple_for_each(members, [&](auto& member) {
             if (member.type() >= static_cast<int>(member_info_type::custom_start)) {
@@ -231,11 +240,13 @@ struct enum_values {
 
     template <size_t N>
     enum_values(const std::array<enum_member_info, N>& values)
-        : members(&values[0]), count(N) {
+        : members(&values[0]), count(N)
+    {
     }
 
     enum_values(const enum_member_info* values, size_t count)
-        : members(values), count(count) {
+        : members(values), count(count)
+    {
     }
 
     const enum_member_info* members{nullptr};

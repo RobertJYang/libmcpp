@@ -19,7 +19,8 @@ namespace mc::expr {
 struct conversion_funcs {
     MC_REFLECTABLE("mc.expr.builtin.conversion");
 
-    static int64_t to_integer(const mc::variant& arg) {
+    static int64_t to_integer(const mc::variant& arg)
+    {
         try {
             return arg.as_int64();
         } catch (const std::exception&) {
@@ -27,7 +28,8 @@ struct conversion_funcs {
         }
     }
 
-    static double to_double(const mc::variant& arg) {
+    static double to_double(const mc::variant& arg)
+    {
         try {
             return arg.as_double();
         } catch (const std::exception&) {
@@ -35,11 +37,13 @@ struct conversion_funcs {
         }
     }
 
-    static std::string to_string(const mc::variant& arg) {
+    static std::string to_string(const mc::variant& arg)
+    {
         return arg.as_string();
     }
 
-    static bool to_bool(const mc::variant& arg) {
+    static bool to_bool(const mc::variant& arg)
+    {
         try {
             return arg.as_bool(true);
         } catch (const std::exception&) {
@@ -47,7 +51,8 @@ struct conversion_funcs {
         }
     }
 
-    static std::string to_char(const mc::variant& arg) {
+    static std::string to_char(const mc::variant& arg)
+    {
         try {
             int32_t value = arg.as_int32();
             if (value < 0 || value > 255) {

@@ -32,7 +32,8 @@ class encoder {
 public:
     explicit encoder(
         const json_encode_options& options = json_encode_options::default_encode_options)
-        : m_stream(), m_options(options), m_current_depth(0) {
+        : m_stream(), m_options(options), m_current_depth(0)
+    {
         // 规范化选项值
         m_options.normalize();
 
@@ -45,31 +46,36 @@ public:
     }
 
     // 编码入口函数
-    std::string encode(const variant& value) {
+    std::string encode(const variant& value)
+    {
         encode_value(value);
         return m_stream.str();
     }
 
     // 检查嵌套深度
-    void check_depth() {
+    void check_depth()
+    {
         if (m_current_depth >= m_options.max_depth) {
             MC_THROW(mc::parse_error_exception, "JSON nesting depth exceeds limit");
         }
     }
 
     // 进入新的嵌套层级
-    void enter_scope() {
+    void enter_scope()
+    {
         ++m_current_depth;
         check_depth();
     }
 
     // 离开嵌套层级
-    void leave_scope() {
+    void leave_scope()
+    {
         --m_current_depth;
     }
 
     // 添加缩进
-    void add_indent() {
+    void add_indent()
+    {
         if (m_options.pretty_print) {
             m_stream << '\n'
                      << std::string(m_current_depth * m_options.indent_size, ' ');
@@ -77,14 +83,16 @@ public:
     }
 
     // 添加分隔符
-    void add_separator() {
+    void add_separator()
+    {
         if (m_options.pretty_print) {
             m_stream << ' ';
         }
     }
 
     // 编码字符串
-    void encode_string(std::string_view str) {
+    void encode_string(std::string_view str)
+    {
         m_stream << '"';
         for (unsigned char c : str) {
             switch (c) {
@@ -126,7 +134,8 @@ public:
     }
 
     // 编码数字
-    void encode_number(double num) {
+    void encode_number(double num)
+    {
         if (std::isfinite(num)) {
             if (m_options.float_precision >= 0) {
                 // 使用 fixed 和 setprecision 控制小数位数
@@ -141,7 +150,8 @@ public:
     }
 
     // 编码数组
-    void encode_array(const variants& arr) {
+    void encode_array(const variants& arr)
+    {
         enter_scope();
         m_stream << '[';
         bool first = true;
@@ -164,7 +174,8 @@ public:
     }
 
     // 编码对象
-    void encode_object(const dict& obj) {
+    void encode_object(const dict& obj)
+    {
         enter_scope();
         m_stream << '{';
 
@@ -204,7 +215,8 @@ public:
     }
 
     // 编码任意值
-    void encode_value(const variant& value) {
+    void encode_value(const variant& value)
+    {
         value.visit_with([this](auto&& v) {
             using T = std::decay_t<decltype(v)>;
             if constexpr (std::is_same_v<T, std::nullptr_t>) {
@@ -232,7 +244,8 @@ public:
         });
     }
 
-    std::string get_result() const {
+    std::string get_result() const
+    {
         return m_stream.str();
     }
 
@@ -247,7 +260,8 @@ class decoder {
 public:
     explicit decoder(std::string_view json, const json_decode_options& options =
                                                 json_decode_options::default_decode_options)
-        : m_input(json), m_pos(0), m_options(options), m_current_depth(0) {
+        : m_input(json), m_pos(0), m_options(options), m_current_depth(0)
+    {
         m_options.normalize();
 
         // 检查输入JSON字符串的总长度
@@ -257,7 +271,8 @@ public:
     }
 
     // 解码入口函数
-    variant decode() {
+    variant decode()
+    {
         skip_whitespace();
         variant result = parse_value();
         skip_whitespace();
@@ -268,49 +283,57 @@ public:
     }
 
     // 跳过空白字符
-    void skip_whitespace() {
+    void skip_whitespace()
+    {
         while (m_pos < m_input.length() && std::isspace(m_input[m_pos])) {
             ++m_pos;
         }
     }
 
     // 检查是否到达输入末尾
-    bool is_eof() const {
+    bool is_eof() const
+    {
         return m_pos >= m_input.length();
     }
 
     // 获取当前字符
-    char current() const {
+    char current() const
+    {
         return is_eof() ? '\0' : m_input[m_pos];
     }
 
     // 移动到下一个字符
-    void advance() {
+    void advance()
+    {
         if (!is_eof()) {
             ++m_pos;
         }
     }
 
     // 检查嵌套深度
-    void check_depth() {
+    void check_depth()
+    {
         if (m_current_depth >= m_options.max_depth) {
             MC_THROW(mc::parse_error_exception, "JSON nesting depth exceeds limit");
         }
     }
 
     // 进入新的嵌套层级
-    void enter_scope() {
+    void enter_scope()
+    {
         ++m_current_depth;
         check_depth();
     }
 
     // 离开嵌套层级
-    void leave_scope() {
+    void leave_scope()
+    {
         --m_current_depth;
     }
 
     // 解析值
-    variant parse_value() {
+    variant parse_value()
+    {
         skip_whitespace();
         char c = current();
         switch (c) {
@@ -335,7 +358,8 @@ public:
     }
 
     // 解析null
-    variant parse_null() {
+    variant parse_null()
+    {
         if (m_input.substr(m_pos, 4) == "null") {
             m_pos += 4;
             return variant();
@@ -344,7 +368,8 @@ public:
     }
 
     // 解析true
-    variant parse_true() {
+    variant parse_true()
+    {
         if (m_input.substr(m_pos, 4) == "true") {
             m_pos += 4;
             return variant(true);
@@ -353,7 +378,8 @@ public:
     }
 
     // 解析false
-    variant parse_false() {
+    variant parse_false()
+    {
         if (m_input.substr(m_pos, 5) == "false") {
             m_pos += 5;
             return variant(false);
@@ -362,7 +388,8 @@ public:
     }
 
     // 解析字符串
-    void handle_unicode_escape(std::string& result) {
+    void handle_unicode_escape(std::string& result)
+    {
         if (m_pos + 4 >= m_input.length()) {
             MC_THROW(mc::parse_error_exception, "Invalid Unicode escape sequence");
         }
@@ -394,14 +421,16 @@ public:
         }
     }
 
-    void handle_normal_char(char c, std::string& result) {
+    void handle_normal_char(char c, std::string& result)
+    {
         if (static_cast<unsigned char>(c) < 0x20) {
             MC_THROW(mc::parse_error_exception, "String contains invalid character");
         }
         result += c;
     }
 
-    void handle_escape_sequence(std::string& result) {
+    void handle_escape_sequence(std::string& result)
+    {
         if (is_eof()) {
             MC_THROW(mc::parse_error_exception, "String not properly terminated");
         }
@@ -439,7 +468,8 @@ public:
         }
     }
 
-    variant parse_string() {
+    variant parse_string()
+    {
         advance(); // 跳过开始的双引号
         std::string result;
         while (!is_eof()) {
@@ -463,7 +493,8 @@ public:
     }
 
     // 解析数字
-    variant parse_number() {
+    variant parse_number()
+    {
         size_t start       = m_pos;
         bool   is_float    = false;
         bool   is_negative = false;
@@ -529,7 +560,8 @@ public:
     }
 
     // 解析数组
-    variant parse_array() {
+    variant parse_array()
+    {
         enter_scope(); // 进入数组作用域
         advance();     // 跳过开始的方括号
         variants result;
@@ -564,7 +596,8 @@ public:
     }
 
     // 解析对象
-    variant parse_object() {
+    variant parse_object()
+    {
         enter_scope(); // 进入对象作用域
         advance();     // 跳过开始的大括号
         mc::dict result;
@@ -621,7 +654,8 @@ private:
 };
 
 // 实现json_encode函数
-std::string json_encode(const variant& value, const json_encode_options& options) {
+std::string json_encode(const variant& value, const json_encode_options& options)
+{
     try {
 #if ENABLE_CONAN_COMPILE
         // 只使用 options 中的 pretty_print 字段
@@ -639,7 +673,8 @@ std::string json_encode(const variant& value, const json_encode_options& options
     }
 }
 
-std::string json_encode(const dict& obj, const json_encode_options& options) {
+std::string json_encode(const dict& obj, const json_encode_options& options)
+{
     try {
 #if ENABLE_CONAN_COMPILE
         // 只使用 options 中的 pretty_print 字段
@@ -656,7 +691,8 @@ std::string json_encode(const dict& obj, const json_encode_options& options) {
     }
 }
 
-std::string json_encode(const std::vector<variant>& arr, const json_encode_options& options) {
+std::string json_encode(const std::vector<variant>& arr, const json_encode_options& options)
+{
     try {
 #if ENABLE_CONAN_COMPILE
         // 只使用 options 中的 pretty_print 字段
@@ -674,7 +710,8 @@ std::string json_encode(const std::vector<variant>& arr, const json_encode_optio
 }
 
 // 实现json_decode函数
-mc::variant json_decode(std::string_view json, const json_decode_options& options) {
+mc::variant json_decode(std::string_view json, const json_decode_options& options)
+{
     try {
 #if ENABLE_CONAN_COMPILE
         (void)options; // json_wrapper 实现忽略 options 参数

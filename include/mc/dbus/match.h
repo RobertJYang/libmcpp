@@ -45,11 +45,13 @@ static uint16_t           g_lock_service_id           = 0;
 class shm_lock {
 public:
     shm_lock()
-        : m_shm(shm::shared_memory::get_instance()), m_locked(false) {
+        : m_shm(shm::shared_memory::get_instance()), m_locked(false)
+    {
         lock();
     }
 
-    ~shm_lock() {
+    ~shm_lock()
+    {
         try {
             unlock();
         } catch (...) {
@@ -57,14 +59,16 @@ public:
         }
     }
 
-    void lock() {
+    void lock()
+    {
         if (!m_locked) {
             m_shm.lock();
             m_locked = true;
         }
     }
 
-    void unlock() {
+    void unlock()
+    {
         if (m_locked) {
             m_locked = false;
             m_shm.unlock();
@@ -79,14 +83,16 @@ private:
 class Lock {
 public:
     Lock(uint64_t object_id)
-        : m_object_id(object_id), m_lock_mgr(shmlock::ShmLockManager::get_instance()), m_locked(false) {
+        : m_object_id(object_id), m_lock_mgr(shmlock::ShmLockManager::get_instance()), m_locked(false)
+    {
         if (g_lock_service_id == 0) {
             g_lock_service_id = shmlock::ShmLockManager::allocate_service_id();
         }
         lock();
     }
 
-    ~Lock() {
+    ~Lock()
+    {
         try {
             unlock();
         } catch (...) {
@@ -94,14 +100,16 @@ public:
         }
     }
 
-    void lock() {
+    void lock()
+    {
         if (!m_locked) {
             m_lock_handle = m_lock_mgr.acquire_write_lock(m_object_id, g_lock_service_id, SHM_LOCK_TIMEOUT_DEFAULT_MS);
             m_locked      = true;
         }
     }
 
-    void unlock() {
+    void unlock()
+    {
         if (m_locked) {
             m_locked = false;
             m_lock_handle.release();
@@ -118,14 +126,16 @@ private:
 class SharedLock {
 public:
     SharedLock(uint64_t object_id)
-        : m_object_id(object_id), m_lock_mgr(shmlock::ShmLockManager::get_instance()), m_locked(false) {
+        : m_object_id(object_id), m_lock_mgr(shmlock::ShmLockManager::get_instance()), m_locked(false)
+    {
         if (g_lock_service_id == 0) {
             g_lock_service_id = shmlock::ShmLockManager::allocate_service_id();
         }
         lock();
     }
 
-    ~SharedLock() {
+    ~SharedLock()
+    {
         try {
             unlock();
         } catch (...) {
@@ -133,14 +143,16 @@ public:
         }
     }
 
-    void lock() {
+    void lock()
+    {
         if (!m_locked) {
             m_lock_handle = m_lock_mgr.acquire_read_lock(m_object_id, g_lock_service_id, SHM_LOCK_TIMEOUT_DEFAULT_MS);
             m_locked      = true;
         }
     }
 
-    void unlock() {
+    void unlock()
+    {
         if (m_locked) {
             m_locked = false;
             m_lock_handle.release();
@@ -155,7 +167,8 @@ private:
 };
 
 template <typename Fn, typename... Args>
-auto shm_global_lock_exec(Fn&& callback, Args&&... args) {
+auto shm_global_lock_exec(Fn&& callback, Args&&... args)
+{
     Lock lock(GLOBAL_OBJECT_ID);
     if constexpr (std::is_void_v<std::invoke_result_t<Fn, Args...>>) {
         std::invoke(std::forward<Fn>(callback), std::forward<Args>(args)...);
@@ -168,7 +181,8 @@ auto shm_global_lock_exec(Fn&& callback, Args&&... args) {
 }
 
 template <typename Fn, typename... Args>
-auto shm_global_lock_shared_exec(Fn&& callback, Args&&... args) {
+auto shm_global_lock_shared_exec(Fn&& callback, Args&&... args)
+{
     SharedLock lock(GLOBAL_OBJECT_ID);
     if constexpr (std::is_void_v<std::invoke_result_t<Fn, Args...>>) {
         std::invoke(std::forward<Fn>(callback), std::forward<Args>(args)...);
@@ -181,7 +195,8 @@ auto shm_global_lock_shared_exec(Fn&& callback, Args&&... args) {
 }
 
 template <typename Fn, typename... Args>
-auto shm_object_lock_exec(uint64_t object_id, Fn&& callback, Args&&... args) {
+auto shm_object_lock_exec(uint64_t object_id, Fn&& callback, Args&&... args)
+{
     Lock lock(object_id);
     if constexpr (std::is_void_v<std::invoke_result_t<Fn, Args...>>) {
         std::invoke(std::forward<Fn>(callback), std::forward<Args>(args)...);
@@ -194,7 +209,8 @@ auto shm_object_lock_exec(uint64_t object_id, Fn&& callback, Args&&... args) {
 }
 
 template <typename Fn, typename... Args>
-auto shm_object_lock_shared_exec(uint64_t object_id, Fn&& callback, Args&&... args) {
+auto shm_object_lock_shared_exec(uint64_t object_id, Fn&& callback, Args&&... args)
+{
     SharedLock lock(object_id);
     if constexpr (std::is_void_v<std::invoke_result_t<Fn, Args...>>) {
         std::invoke(std::forward<Fn>(callback), std::forward<Args>(args)...);
@@ -285,36 +301,36 @@ public:
      */
     std::string as_string() const;
 
- 	/**
- 	 * @brief 查询匹配成员
- 	 * @return 目标成员名称
- 	 */
- 	std::string_view member() const;
+    /**
+     * @brief 查询匹配成员
+     * @return 目标成员名称
+     */
+    std::string_view member() const;
 
- 	/**
- 	 * @brief 查询匹配路径
- 	 * @return 目标路径名称
- 	 */
- 	std::string_view path() const;
+    /**
+     * @brief 查询匹配路径
+     * @return 目标路径名称
+     */
+    std::string_view path() const;
 
- 	/**
- 	 * @brief 查询匹配路径命名空间
- 	 * @return 目标路径命名空间名称
- 	 */
- 	std::string_view path_namespace() const;
+    /**
+     * @brief 查询匹配路径命名空间
+     * @return 目标路径命名空间名称
+     */
+    std::string_view path_namespace() const;
 
- 	/**
- 	 * @brief 判断是不是路径命名空间
- 	 * @return 是不是路径命名空间
- 	 */
- 	bool is_path_namespace() const;
+    /**
+     * @brief 判断是不是路径命名空间
+     * @return 是不是路径命名空间
+     */
+    bool is_path_namespace() const;
 
- 	/**
- 	 * @brief 判断和另一个规则是否相同
- 	 * @param other [in] 另一个规则
- 	 * @return 和另一个规则是否相同
- 	 */
- 	bool operator==(const match_rule& other) const;
+    /**
+     * @brief 判断和另一个规则是否相同
+     * @param other [in] 另一个规则
+     * @return 和另一个规则是否相同
+     */
+    bool operator==(const match_rule& other) const;
 
     /**
      * @brief 获取底层规则指针

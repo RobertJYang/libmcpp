@@ -22,7 +22,9 @@ public:
     MC_INTERFACE("org.test.TestInterface")
 
     TestInterface() = default;
-    TestInterface(int32_t value) : m_value(value) {
+    TestInterface(int32_t value)
+        : m_value(value)
+    {
     }
 
     // 属性
@@ -33,7 +35,8 @@ public:
     std::vector<std::string> m_logs;
 
     // 基本操作方法
-    int32_t add(int32_t a) {
+    int32_t add(int32_t a)
+    {
         if (!m_enabled) {
             return m_value;
         }
@@ -45,7 +48,8 @@ public:
         return m_value;
     }
 
-    int32_t subtract(int32_t a) {
+    int32_t subtract(int32_t a)
+    {
         if (!m_enabled) {
             return m_value;
         }
@@ -57,18 +61,21 @@ public:
         return m_value;
     }
 
-    void set_name(const std::string& name) {
+    void set_name(const std::string& name)
+    {
         if (m_name != name) {
             m_name = name;
             name_changed(m_name);
         }
     }
 
-    std::string get_name() const {
+    std::string get_name() const
+    {
         return m_name;
     }
 
-    void reset() {
+    void reset()
+    {
         int32_t old_value = m_value;
         m_value           = 0;
         m_name            = "default";
@@ -78,7 +85,8 @@ public:
         status_changed(m_status);
     }
 
-    void set_enabled(bool enabled) {
+    void set_enabled(bool enabled)
+    {
         if (m_enabled != enabled) {
             m_enabled = enabled;
             m_status  = enabled ? "enabled" : "disabled";
@@ -88,12 +96,14 @@ public:
     }
 
     // 日志相关方法
-    void log(const std::string& message) {
+    void log(const std::string& message)
+    {
         m_logs.push_back(message);
         log_added(message);
     }
 
-    void clear_logs() {
+    void clear_logs()
+    {
         m_logs.clear();
         log_cleared();
     }
@@ -124,18 +134,23 @@ protected:
     TestInterface                   obj;
     mc::engine::abstract_interface* iface;
 
-    interface_test() : obj(10) {
+    interface_test()
+        : obj(10)
+    {
     }
 
-    void SetUp() override {
+    void SetUp() override
+    {
         iface = &obj;
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
     }
 };
 
-TEST_F(interface_test, test_interface) {
+TEST_F(interface_test, test_interface)
+{
     TestInterface value1(0);
     TestInterface value2(100);
 
@@ -155,7 +170,8 @@ TEST_F(interface_test, test_interface) {
 }
 
 // 测试方法调用
-TEST_F(interface_test, test_method_invoke) {
+TEST_F(interface_test, test_method_invoke)
+{
     TestInterface                   value(10);
     mc::engine::abstract_interface* iface = &value;
 
@@ -182,7 +198,8 @@ TEST_F(interface_test, test_method_invoke) {
 }
 
 // 测试属性读写
-TEST_F(interface_test, test_property) {
+TEST_F(interface_test, test_property)
+{
     TestInterface                   value(42);
     mc::engine::abstract_interface* iface = &value;
 
@@ -208,7 +225,8 @@ TEST_F(interface_test, test_property) {
 }
 
 // 测试信号连接和触发
-TEST_F(interface_test, test_signal_connection) {
+TEST_F(interface_test, test_signal_connection)
+{
     TestInterface                   value(0);
     mc::engine::abstract_interface* iface = &value;
 
@@ -237,7 +255,8 @@ TEST_F(interface_test, test_signal_connection) {
 }
 
 // 测试多个信号
-TEST_F(interface_test, test_multiple_signals) {
+TEST_F(interface_test, test_multiple_signals)
+{
     TestInterface                   value(10);
     mc::engine::abstract_interface* iface = &value;
 
@@ -292,7 +311,8 @@ TEST_F(interface_test, test_multiple_signals) {
 }
 
 // 测试信号发射
-TEST_F(interface_test, test_emit_signal) {
+TEST_F(interface_test, test_emit_signal)
+{
     TestInterface                   value(0);
     mc::engine::abstract_interface* iface = &value;
 
@@ -317,7 +337,8 @@ TEST_F(interface_test, test_emit_signal) {
 }
 
 // 测试有无返回值的信号
-TEST_F(interface_test, test_signals_with_and_without_return) {
+TEST_F(interface_test, test_signals_with_and_without_return)
+{
     TestInterface                   value(0);
     mc::engine::abstract_interface* iface = &value;
 
@@ -348,7 +369,8 @@ TEST_F(interface_test, test_signals_with_and_without_return) {
 }
 
 // 测试信号连接成链
-TEST_F(interface_test, test_signal_chain) {
+TEST_F(interface_test, test_signal_chain)
+{
     TestInterface value1(0);
     TestInterface value2(0);
     TestInterface value3(0);
@@ -382,7 +404,8 @@ TEST_F(interface_test, test_signal_chain) {
 }
 
 // 测试参数异常情况
-TEST_F(interface_test, test_invalid_arguments) {
+TEST_F(interface_test, test_invalid_arguments)
+{
     TestInterface                   value(10);
     mc::engine::abstract_interface* iface = &value;
 
@@ -398,7 +421,8 @@ TEST_F(interface_test, test_invalid_arguments) {
 }
 
 // 测试多个插槽连接到同一信号
-TEST_F(interface_test, test_multiple_slots) {
+TEST_F(interface_test, test_multiple_slots)
+{
     TestInterface                   value(0);
     mc::engine::abstract_interface* iface = &value;
 
@@ -425,7 +449,8 @@ TEST_F(interface_test, test_multiple_slots) {
 }
 
 // 测试连接管理
-TEST_F(interface_test, test_connection_management) {
+TEST_F(interface_test, test_connection_management)
+{
     TestInterface                   value(0);
     mc::engine::abstract_interface* iface = &value;
 
@@ -460,7 +485,8 @@ TEST_F(interface_test, test_connection_management) {
 }
 
 // 测试接口类型层次结构
-TEST_F(interface_test, test_interface_hierarchy) {
+TEST_F(interface_test, test_interface_hierarchy)
+{
     TestInterface value(42);
 
     // 测试对象类型
@@ -474,7 +500,8 @@ TEST_F(interface_test, test_interface_hierarchy) {
 }
 
 // 测试空信号的行为
-TEST_F(interface_test, test_empty_signal) {
+TEST_F(interface_test, test_empty_signal)
+{
     TestInterface                   value(0);
     mc::engine::abstract_interface* iface = &value;
 
@@ -495,7 +522,8 @@ TEST_F(interface_test, test_empty_signal) {
 }
 
 // 复杂场景测试
-TEST_F(interface_test, test_complex_scenario) {
+TEST_F(interface_test, test_complex_scenario)
+{
     TestInterface counter(10);
     TestInterface logger;
 

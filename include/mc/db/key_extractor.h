@@ -46,7 +46,7 @@ struct key_extractor_traits;
  * @tparam KeyType 键类型
  * @tparam Member 成员变量指针
  */
-template <typename ObjectType, typename KeyType, KeyType ObjectType::* Member>
+template <typename ObjectType, typename KeyType, KeyType ObjectType::*Member>
 class member_key {
 public:
     using object_type                     = ObjectType;
@@ -59,7 +59,8 @@ public:
      * @param obj 对象
      * @return 键值
      */
-    key_type operator()(const object_type& obj) const {
+    key_type operator()(const object_type& obj) const
+    {
         return obj.*Member;
     }
 
@@ -68,7 +69,8 @@ public:
      * @param key 键缓冲区
      * @param obj 对象
      */
-    void extract_key(mdb_key& key, const object_type& obj) const {
+    void extract_key(mdb_key& key, const object_type& obj) const
+    {
         key.append_value(obj.*Member);
     }
 
@@ -78,11 +80,13 @@ public:
      * @param value 键值
      */
     template <typename T>
-    void append_key(mdb_key& key, const T& value) const {
+    void append_key(mdb_key& key, const T& value) const
+    {
         key.append_value(static_cast<key_type>(value));
     }
 
-    void append_variant(mdb_key& key, const mc::variant& value) const {
+    void append_variant(mdb_key& key, const mc::variant& value) const
+    {
         using non_ref_type   = typename std::remove_reference<key_type>::type;
         using non_const_type = typename std::remove_const<non_ref_type>::type;
         non_const_type temp;
@@ -94,7 +98,8 @@ public:
      * 获取字段名称
      * @return 字段名称列表
      */
-    static std::vector<std::string> get_field_names() {
+    static std::vector<std::string> get_field_names()
+    {
         if constexpr (mc::reflect::is_reflectable<ObjectType>()) {
             return {std::string(mc::reflect::get_property_name<ObjectType>(Member))};
         } else {
@@ -122,7 +127,8 @@ public:
      * @param obj 对象
      * @return 键值
      */
-    key_type operator()(const object_type& obj) const {
+    key_type operator()(const object_type& obj) const
+    {
         return (obj.*MemberFn)();
     }
 
@@ -131,7 +137,8 @@ public:
      * @param key 键缓冲区
      * @param obj 对象
      */
-    void extract_key(mdb_key& key, const object_type& obj) const {
+    void extract_key(mdb_key& key, const object_type& obj) const
+    {
         key.append_value((obj.*MemberFn)());
     }
 
@@ -141,11 +148,13 @@ public:
      * @param value 键值
      */
     template <typename T>
-    void append_key(mdb_key& key, const T& value) const {
+    void append_key(mdb_key& key, const T& value) const
+    {
         key.append_value(static_cast<key_type>(value));
     }
 
-    void append_variant(mdb_key& key, const mc::variant& value) const {
+    void append_variant(mdb_key& key, const mc::variant& value) const
+    {
         using non_ref_type   = typename std::remove_reference<key_type>::type;
         using non_const_type = typename std::remove_const<non_ref_type>::type;
         non_const_type temp;
@@ -157,7 +166,8 @@ public:
      * 获取字段名称列表
      * @return 字段名称列表
      */
-    static std::vector<std::string> get_field_names() {
+    static std::vector<std::string> get_field_names()
+    {
         if constexpr (mc::reflect::is_reflectable<ObjectType>()) {
             auto* method = mc::reflect::get_method_info<ObjectType>(MemberFn);
             return method ? std::vector<std::string>{std::string(method->name)} : std::vector<std::string>{};
@@ -185,7 +195,9 @@ public:
      * 构造函数
      * @param f 函数对象
      */
-    explicit functor_key(const Functor& f = Functor()) : m_functor(f) {
+    explicit functor_key(const Functor& f = Functor())
+        : m_functor(f)
+    {
     }
 
     /**
@@ -193,7 +205,8 @@ public:
      * @param obj 对象
      * @return 键值
      */
-    key_type operator()(const object_type& obj) const {
+    key_type operator()(const object_type& obj) const
+    {
         return m_functor(obj);
     }
 
@@ -202,7 +215,8 @@ public:
      * @param key 键缓冲区
      * @param obj 对象
      */
-    void extract_key(mdb_key& key, const object_type& obj) const {
+    void extract_key(mdb_key& key, const object_type& obj) const
+    {
         key.append_value(m_functor(obj));
     }
 
@@ -212,11 +226,13 @@ public:
      * @param value 键值
      */
     template <typename T>
-    void append_key(mdb_key& key, const T& value) const {
+    void append_key(mdb_key& key, const T& value) const
+    {
         key.append_value(static_cast<key_type>(value));
     }
 
-    void append_variant(mdb_key& key, const mc::variant& value) const {
+    void append_variant(mdb_key& key, const mc::variant& value) const
+    {
         using non_ref_type   = typename std::remove_reference<key_type>::type;
         using non_const_type = typename std::remove_const<non_ref_type>::type;
         non_const_type temp;
@@ -228,7 +244,8 @@ public:
      * 获取字段名称列表
      * @return 字段名称列表
      */
-    static std::vector<std::string> get_field_names() {
+    static std::vector<std::string> get_field_names()
+    {
         return {};
     }
 
@@ -258,10 +275,13 @@ public:
      * 构造函数
      * @param extractors 键提取器实例
      */
-    composite_key(Extractors... extractors) : m_extractors(std::move(extractors)...) {
+    composite_key(Extractors... extractors)
+        : m_extractors(std::move(extractors)...)
+    {
     }
 
-    key_type operator()(const object_type& obj) const {
+    key_type operator()(const object_type& obj) const
+    {
         return mc::traits::tuple_map(m_extractors, [&](auto& extractor) {
             return std::make_tuple(extractor(obj));
         });
@@ -273,7 +293,8 @@ public:
      * @param obj 对象
      */
     void
-    extract_key(mdb_key& key, const object_type& obj) const {
+    extract_key(mdb_key& key, const object_type& obj) const
+    {
         extract_key_impl(key, obj, std::index_sequence_for<Extractors...>());
     }
 
@@ -283,12 +304,14 @@ public:
      * @param keys 键值列表
      */
     template <typename... KeyTypes>
-    void append_key(mdb_key& key, const KeyTypes&... keys) const {
+    void append_key(mdb_key& key, const KeyTypes&... keys) const
+    {
         static_assert(sizeof...(KeyTypes) <= sizeof...(Extractors), "键的数量不能超过提取器数量");
         append_key_impl<0>(key, std::forward_as_tuple(keys...));
     }
 
-    void append_variant(mdb_key& key, const mc::variant& value) const {
+    void append_variant(mdb_key& key, const mc::variant& value) const
+    {
         if (value.is_array()) {
             // 如果是数组，则将数组中的每个元素添加到键缓冲区
             append_variant_impl<0>(key, value);
@@ -302,7 +325,8 @@ public:
      * 获取字段名称列表
      * @return 字段名称列表
      */
-    static std::vector<std::string> get_field_names() {
+    static std::vector<std::string> get_field_names()
+    {
         std::vector<std::string> names;
         get_field_names_impl(names, std::index_sequence_for<Extractors...>());
         return names;
@@ -317,7 +341,8 @@ private:
      * @param keys 键值元组
      */
     template <size_t I, typename Tuple>
-    void append_key_impl(mdb_key& key, const Tuple& keys) const {
+    void append_key_impl(mdb_key& key, const Tuple& keys) const
+    {
         if constexpr (I < std::tuple_size_v<Tuple> && I < sizeof...(Extractors)) {
             std::get<I>(m_extractors).append_key(key, std::get<I>(keys));
             append_key_impl<I + 1>(key, keys);
@@ -325,7 +350,8 @@ private:
     }
 
     template <size_t I>
-    void append_variant_impl(mdb_key& key, const mc::variant& value) const {
+    void append_variant_impl(mdb_key& key, const mc::variant& value) const
+    {
         if constexpr (I < sizeof...(Extractors)) {
             if (I < value.size()) {
                 std::get<I>(m_extractors).append_variant(key, value[I]);
@@ -342,7 +368,8 @@ private:
      */
     template <size_t... Indices>
     void extract_key_impl(mdb_key& key, const object_type& obj,
-                          std::index_sequence<Indices...>) const {
+                          std::index_sequence<Indices...>) const
+    {
         (std::get<Indices>(m_extractors).extract_key(key, obj), ...);
     }
 
@@ -353,7 +380,8 @@ private:
      */
     template <size_t... I>
     static void get_field_names_impl(std::vector<std::string>& names,
-                                     std::index_sequence<I...>) {
+                                     std::index_sequence<I...>)
+    {
         (append_field_names<I>(names), ...);
     }
 
@@ -362,7 +390,8 @@ private:
      * @param names 字段名称列表
      */
     template <size_t I>
-    static void append_field_names(std::vector<std::string>& names) {
+    static void append_field_names(std::vector<std::string>& names)
+    {
         using extractor_type = std::tuple_element_t<I, std::tuple<Extractors...>>;
         auto extractor_names = extractor_type::get_field_names();
         if (extractor_names.empty()) {
@@ -380,7 +409,7 @@ private:
 /**
  * 键提取器特性萃取类，成员变量版本
  */
-template <typename ObjectType, typename KeyType, KeyType ObjectType::* Member>
+template <typename ObjectType, typename KeyType, KeyType ObjectType::*Member>
 struct key_extractor_traits<member_key<ObjectType, KeyType, Member>> {
     using object_type    = ObjectType;
     using key_type       = KeyType;
@@ -445,7 +474,8 @@ public:
      * @param obj 对象
      * @return 键值
      */
-    key_type operator()(const object_type& obj) const {
+    key_type operator()(const object_type& obj) const
+    {
         return obj.get_object_id();
     }
 
@@ -454,7 +484,8 @@ public:
      * @param key 键缓冲区
      * @param obj 对象
      */
-    void extract_key(mdb_key& key, const object_type& obj) const {
+    void extract_key(mdb_key& key, const object_type& obj) const
+    {
         key.append_value(obj.get_object_id());
     }
 
@@ -464,11 +495,13 @@ public:
      * @param value 键值
      */
     template <typename T>
-    void append_key(mdb_key& key, const T& value) const {
+    void append_key(mdb_key& key, const T& value) const
+    {
         key.append_value(static_cast<key_type>(value));
     }
 
-    void append_variant(mdb_key& key, const mc::variant& value) const {
+    void append_variant(mdb_key& key, const mc::variant& value) const
+    {
         using non_ref_type   = typename std::remove_reference<key_type>::type;
         using non_const_type = typename std::remove_const<non_ref_type>::type;
         non_const_type temp;
@@ -480,7 +513,8 @@ public:
      * 获取字段名称
      * @return 字段名称
      */
-    static std::vector<std::string> get_field_names() {
+    static std::vector<std::string> get_field_names()
+    {
         return {"object_id"};
     }
 };
@@ -505,8 +539,9 @@ struct key_extractor_traits<object_id_key<ObjectType>> {
  * @tparam Member 成员变量指针
  * @return 键提取器
  */
-template <typename ObjectType, typename KeyType, KeyType ObjectType::* Member>
-auto make_key() {
+template <typename ObjectType, typename KeyType, KeyType ObjectType::*Member>
+auto make_key()
+{
     return detail::member_key<ObjectType, KeyType, Member>();
 }
 
@@ -518,7 +553,8 @@ auto make_key() {
  * @return 键提取器
  */
 template <typename ObjectType, typename KeyType, KeyType (ObjectType::*MemberFn)() const>
-auto make_key() {
+auto make_key()
+{
     return detail::member_function_key<ObjectType, KeyType, MemberFn>();
 }
 
@@ -530,7 +566,8 @@ auto make_key() {
  * @return 键提取器
  */
 template <typename ObjectType, typename Functor>
-auto make_key(const Functor& f = Functor()) {
+auto make_key(const Functor& f = Functor())
+{
     using key_type = typename detail::lambda_return_type<ObjectType, Functor>::type;
     return detail::functor_key<ObjectType, key_type, Functor>(f);
 }
@@ -544,7 +581,8 @@ auto make_key(const Functor& f = Functor()) {
  * @return 复合键提取器
  */
 template <typename FirstExtractor, typename... Extractors>
-auto make_key(const FirstExtractor& first, const Extractors&... extractors) {
+auto make_key(const FirstExtractor& first, const Extractors&... extractors)
+{
     return detail::composite_key<FirstExtractor, Extractors...>(first, extractors...);
 }
 

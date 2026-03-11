@@ -30,20 +30,24 @@ struct error_wrapper {
 
     error_wrapper() = default;
     explicit error_wrapper(const mc::dbus::error& e)
-        : err(e) {
+        : err(e)
+    {
     }
     explicit error_wrapper(mc::dbus::error&& e)
-        : err(std::move(e)) {
+        : err(std::move(e))
+    {
     }
 };
 
 // 检查并获取 error userdata
-inline error_wrapper* check_error(lua_State* L, int index = 1) {
+inline error_wrapper* check_error(lua_State* L, int index = 1)
+{
     return static_cast<error_wrapper*>(luaL_checkudata(L, index, ERROR_METATABLE));
 }
 
 // 创建 error userdata 并推入 Lua 栈
-inline int push_error(lua_State* L, const mc::dbus::error& err) {
+inline int push_error(lua_State* L, const mc::dbus::error& err)
+{
     void* userdata = lua_newuserdata(L, sizeof(error_wrapper));
     new (userdata) error_wrapper(err);
 
@@ -54,7 +58,8 @@ inline int push_error(lua_State* L, const mc::dbus::error& err) {
 }
 
 // 创建 error userdata (移动语义) 并推入 Lua 栈
-inline int push_error(lua_State* L, mc::dbus::error&& err) {
+inline int push_error(lua_State* L, mc::dbus::error&& err)
+{
     void* userdata = lua_newuserdata(L, sizeof(error_wrapper));
     new (userdata) error_wrapper(std::move(err));
 
@@ -66,7 +71,8 @@ inline int push_error(lua_State* L, mc::dbus::error&& err) {
 
 // err:is_set()
 // 检查错误是否已设置
-inline int error_is_set(lua_State* L) {
+inline int error_is_set(lua_State* L)
+{
     auto wrapper = check_error(L);
     lua_pushboolean(L, wrapper->err.is_set());
     return 1;
@@ -74,7 +80,8 @@ inline int error_is_set(lua_State* L) {
 
 // __tostring 元方法
 // 格式化为 "name : message"
-inline int error_tostring(lua_State* L) {
+inline int error_tostring(lua_State* L)
+{
     auto wrapper = check_error(L);
     if (!wrapper->err.is_set()) {
         lua_pushstring(L, "no error");
@@ -90,7 +97,8 @@ inline int error_tostring(lua_State* L) {
 
 // err:ensure_ok()
 // 如果错误已设置，则抛出 lua_error
-inline int error_ensure_ok(lua_State* L) {
+inline int error_ensure_ok(lua_State* L)
+{
     auto wrapper = check_error(L);
     if (wrapper->err.is_set()) {
         // 复用 error_tostring 获取格式化的错误信息
@@ -102,14 +110,16 @@ inline int error_ensure_ok(lua_State* L) {
 }
 
 // __gc 元方法
-inline int error_gc(lua_State* L) {
+inline int error_gc(lua_State* L)
+{
     auto wrapper = check_error(L);
     wrapper->~error_wrapper();
     return 0;
 }
 
 // __index 元方法
-inline int error_index(lua_State* L) {
+inline int error_index(lua_State* L)
+{
     // 从方法表中查找
     luaL_getmetatable(L, ERROR_METATABLE);
     lua_pushvalue(L, 2); // key
@@ -149,7 +159,8 @@ inline int error_index(lua_State* L) {
 }
 
 // 注册 error metatable
-inline void register_error_metatable(lua_State* L) {
+inline void register_error_metatable(lua_State* L)
+{
     // 创建 metatable
     luaL_newmetatable(L, ERROR_METATABLE);
 

@@ -15,14 +15,15 @@
 #include <iostream>
 #include <limits>
 
+#include <mc/exception.h>
 #include <mc/fmt/format.h>
 #include <mc/fmt/format_context.h>
 #include <mc/fmt/format_dict.h>
-#include <mc/exception.h>
 
 using namespace mc::fmt;
 
-TEST(format_dict_test, named_format_use_dict) {
+TEST(format_dict_test, named_format_use_dict)
+{
     mc::dict args = {
         {"first", "first"},
         {"second", "second"}};
@@ -36,14 +37,16 @@ TEST(format_dict_test, named_format_use_dict) {
               "   1.235"); // 动态参数支持从字典读取
 }
 
-static bool contains(std::string_view str, std::string_view substr) {
+static bool contains(std::string_view str, std::string_view substr)
+{
     return str.find(substr) != std::string_view::npos;
 }
 
 /**
  * @brief 测试字符串格式化函数
  */
-TEST(format_dict_test, FormatWithDictTest) {
+TEST(format_dict_test, FormatWithDictTest)
+{
     // 测试使用dict进行格式化
     mc::dict args{{"host", "example.com"},
                   {"port", 8080},
@@ -102,7 +105,8 @@ TEST(format_dict_test, FormatWithDictTest) {
     ASSERT_EQ(result, "1-2.5-文本") << "多参数调用应该正确格式化";
 }
 
-TEST(format_dict_test, FormatIcaseTest) {
+TEST(format_dict_test, FormatIcaseTest)
+{
     mc::dict args{{"host", "example.com"},
                   {"port", 8080},
                   {"protocol", "https"},
@@ -126,7 +130,8 @@ TEST(format_dict_test, FormatIcaseTest) {
 }
 
 // 测试动态宽度和精度参数（包含大小写不敏感匹配）
-TEST(format_dict_test, DynamicWidthAndPrecisionFromDict) {
+TEST(format_dict_test, DynamicWidthAndPrecisionFromDict)
+{
     mc::dict args{{"value", 3.14159},
                   {"WIDTH", 10},
                   {"precision", 4}};
@@ -136,7 +141,8 @@ TEST(format_dict_test, DynamicWidthAndPrecisionFromDict) {
 }
 
 // 测试动态参数类型错误时的处理行为
-TEST(format_dict_test, DynamicParameterTypeError) {
+TEST(format_dict_test, DynamicParameterTypeError)
+{
     mc::dict args{{"value", 1.23}, {"width", "not_number"}};
 
     // 当前实现会保留转换失败的动态参数文本，并把占位符中的内容直接拼接。
@@ -144,8 +150,9 @@ TEST(format_dict_test, DynamicParameterTypeError) {
 }
 
 // 验证 format_dict_icase 追加重载覆盖率，并确保大小写忽略逻辑生效
-TEST(format_dict_test, AppendIcaseOverload) {
-    mc::dict args{{"path", "/tmp/FILE"}};
+TEST(format_dict_test, AppendIcaseOverload)
+{
+    mc::dict    args{{"path", "/tmp/FILE"}};
     std::string buffer = "prefix:";
     mc::format_dict_icase(buffer, "${PATH}", args);
     EXPECT_EQ(buffer, "prefix:/tmp/FILE");
@@ -154,13 +161,15 @@ TEST(format_dict_test, AppendIcaseOverload) {
 }
 
 // dict 中的动态宽度参数由浮点数提供，覆盖 try_as<int>() 分支
-TEST(format_dict_test, DynamicWidthFromFloatingEntry) {
+TEST(format_dict_test, DynamicWidthFromFloatingEntry)
+{
     mc::dict args{{"value", 3.14159}, {"width", 6.0}, {"precision", 2}};
     EXPECT_EQ(mc::format_dict("${value:{width}.{precision}f}", args), "  3.14");
 }
 
 // 直接验证 runtime_arg_store 在 dict 模式下的大小写匹配与缺失参数分支
-TEST(format_dict_test, RuntimeStoreFallbacks) {
+TEST(format_dict_test, RuntimeStoreFallbacks)
+{
     mc::dict args;
     args.insert(mc::variant(42), "answer");
 
@@ -172,13 +181,14 @@ TEST(format_dict_test, RuntimeStoreFallbacks) {
     ASSERT_NE(matched, nullptr);
     EXPECT_EQ(matched->as_string(), "answer");
 
-    int    dynamic_value  = 0;
-    size_t invalid_index  = std::numeric_limits<size_t>::max();
+    int    dynamic_value = 0;
+    size_t invalid_index = std::numeric_limits<size_t>::max();
     EXPECT_FALSE(store.resolve_dynamic_param(invalid_index, "missing", dynamic_value));
 }
 
 // 测试 dict 的 key 非字符串时的 fallback
-TEST(format_dict_test, DictNonStringKeyFallback) {
+TEST(format_dict_test, DictNonStringKeyFallback)
+{
     // 构造一个 dict，键为 int64_t
     mc::dict dict;
     dict.insert(mc::variant(static_cast<int64_t>(123)), "value1");

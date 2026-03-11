@@ -19,11 +19,13 @@ static detail::runtime_arg_store s_empty_args;
 
 namespace detail {
 
-void runtime_arg_store::set_dict_args(const mc::dict* args) {
+void runtime_arg_store::set_dict_args(const mc::dict* args)
+{
     named_args = args;
 }
 
-bool runtime_arg_store::get_arg(size_t index, format_arg& arg) const {
+bool runtime_arg_store::get_arg(size_t index, format_arg& arg) const
+{
     if (auto* v = get_variant(index); v != nullptr) {
         arg = format_arg(*v);
         return true;
@@ -32,11 +34,13 @@ bool runtime_arg_store::get_arg(size_t index, format_arg& arg) const {
     return arg_store<format_arg>::get_arg(index, arg);
 }
 
-bool runtime_arg_store::get_positional(size_t index, format_arg& arg) const {
+bool runtime_arg_store::get_positional(size_t index, format_arg& arg) const
+{
     return runtime_arg_store::get_arg(index, arg);
 }
 
-bool runtime_arg_store::get_named(std::string_view name, format_arg& arg, size_t& index) const {
+bool runtime_arg_store::get_named(std::string_view name, format_arg& arg, size_t& index) const
+{
     if (named_args != nullptr) {
         if (auto* v = get_variant(name); v != nullptr) {
             arg = format_arg(*v);
@@ -46,7 +50,8 @@ bool runtime_arg_store::get_named(std::string_view name, format_arg& arg, size_t
     return arg_store<format_arg>::get_named(name, arg, index);
 }
 
-bool runtime_arg_store::resolve_dynamic_param(size_t index, std::string_view name, int& out) {
+bool runtime_arg_store::resolve_dynamic_param(size_t index, std::string_view name, int& out)
+{
     if (named_args == nullptr) {
         return arg_store<format_arg>::resolve_dynamic_param(index, name, out);
     }
@@ -69,7 +74,8 @@ bool runtime_arg_store::resolve_dynamic_param(size_t index, std::string_view nam
     return false;
 }
 
-const mc::variant* runtime_arg_store::get_variant(size_t index) const {
+const mc::variant* runtime_arg_store::get_variant(size_t index) const
+{
     if (named_args == nullptr || index > named_args->size()) {
         return nullptr;
     }
@@ -82,7 +88,8 @@ const mc::variant* runtime_arg_store::get_variant(size_t index) const {
     return nullptr;
 }
 
-static bool iequals(const mc::variant& key, std::string_view name) {
+static bool iequals(const mc::variant& key, std::string_view name)
+{
     if (key.is_string()) {
         return mc::string::iequals(key.get_string(), name);
     }
@@ -90,7 +97,8 @@ static bool iequals(const mc::variant& key, std::string_view name) {
     return mc::string::iequals(key.as_string(), name);
 }
 
-const mc::variant* runtime_arg_store::get_variant(std::string_view name) const {
+const mc::variant* runtime_arg_store::get_variant(std::string_view name) const
+{
     if (named_args == nullptr) {
         return nullptr;
     }
@@ -115,18 +123,22 @@ const mc::variant* runtime_arg_store::get_variant(std::string_view name) const {
 } // namespace detail
 
 format_context::format_context(std::string& out, detail::runtime_arg_store& args)
-    : m_out(out), m_args(args) {
+    : m_out(out), m_args(args)
+{
 }
 
 format_context::format_context(std::string& out)
-    : m_out(out), m_args(s_empty_args) {
+    : m_out(out), m_args(s_empty_args)
+{
 }
 
-std::string& format_context::out() {
+std::string& format_context::out()
+{
     return m_out;
 }
 
-bool format_context::get_arg(size_t index, detail::format_arg& arg) const {
+bool format_context::get_arg(size_t index, detail::format_arg& arg) const
+{
     if (m_args.get_positional(index, arg)) {
         return true;
     }
@@ -134,7 +146,8 @@ bool format_context::get_arg(size_t index, detail::format_arg& arg) const {
     return false;
 }
 
-bool format_context::get_named_arg(std::string_view name, detail::format_arg& arg, size_t& index) const {
+bool format_context::get_named_arg(std::string_view name, detail::format_arg& arg, size_t& index) const
+{
     if (m_args.get_named(name, arg, index)) {
         return true;
     }
@@ -142,27 +155,33 @@ bool format_context::get_named_arg(std::string_view name, detail::format_arg& ar
     return false;
 }
 
-void format_context::set_used(size_t index) {
+void format_context::set_used(size_t index)
+{
     m_args.set_used(index);
 }
 
-bool format_context::resolve_dynamic_param(size_t index, std::string_view name, int& out) {
+bool format_context::resolve_dynamic_param(size_t index, std::string_view name, int& out)
+{
     return m_args.resolve_dynamic_param(index, name, out);
 }
 
-void format_context::format_arg(const detail::format_arg& arg, detail::format_spec& spec) {
+void format_context::format_arg(const detail::format_arg& arg, detail::format_spec& spec)
+{
     detail::format_parser::format_arg(*this, arg, spec);
 }
 
-void format_context::append(char c) {
+void format_context::append(char c)
+{
     m_out.push_back(c);
 }
 
-void format_context::append(std::string_view s) {
+void format_context::append(std::string_view s)
+{
     m_out.append(s);
 }
 
-bool format_context::process_result(const detail::parser_result& result) {
+bool format_context::process_result(const detail::parser_result& result)
+{
     if (!result.has_error()) {
         return true;
     }
@@ -172,7 +191,8 @@ bool format_context::process_result(const detail::parser_result& result) {
     return true;
 }
 
-void format_context::raise_error(const detail::parser_result& result) {
+void format_context::raise_error(const detail::parser_result& result)
+{
     if (!result.has_error()) {
         return;
     }

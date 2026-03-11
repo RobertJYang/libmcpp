@@ -36,22 +36,26 @@ public:
         : m_value(value),
           m_allow_reference(allow_reference),
           m_items({mc::variant(value)}),
-          m_attrs({{"value", mc::variant(value)}}) {
+          m_attrs({{"value", mc::variant(value)}})
+    {
     }
 
     simple_extension(const simple_extension&)            = default;
     simple_extension& operator=(const simple_extension&) = default;
 
-    mc::shared_ptr<mc::variant_extension_base> copy() const override {
+    mc::shared_ptr<mc::variant_extension_base> copy() const override
+    {
         return mc::make_shared<simple_extension>(*this);
     }
 
     mc::shared_ptr<mc::variant_extension_base>
-    deep_copy(mc::detail::copy_context* /*ctx*/) const override {
+    deep_copy(mc::detail::copy_context* /*ctx*/) const override
+    {
         return copy();
     }
 
-    bool equals(const mc::variant_extension_base& other) const override {
+    bool equals(const mc::variant_extension_base& other) const override
+    {
         auto* ptr = dynamic_cast<const simple_extension*>(&other);
         if (ptr == nullptr) {
             return false;
@@ -59,25 +63,29 @@ public:
         return current_value() == ptr->current_value() && m_allow_reference == ptr->m_allow_reference;
     }
 
-    bool supports_reference_access() const override {
+    bool supports_reference_access() const override
+    {
         return m_allow_reference;
     }
 
-    mc::variant* get_ptr(std::size_t index) override {
+    mc::variant* get_ptr(std::size_t index) override
+    {
         if (!m_allow_reference || index >= m_items.size()) {
             return nullptr;
         }
         return &m_items[index];
     }
 
-    const mc::variant* get_ptr(std::size_t index) const override {
+    const mc::variant* get_ptr(std::size_t index) const override
+    {
         if (!m_allow_reference || index >= m_items.size()) {
             return nullptr;
         }
         return &m_items[index];
     }
 
-    mc::variant* get_ptr(std::string_view key) override {
+    mc::variant* get_ptr(std::string_view key) override
+    {
         if (!m_allow_reference) {
             return nullptr;
         }
@@ -95,7 +103,8 @@ public:
         return nullptr;
     }
 
-    const mc::variant* get_ptr(std::string_view key) const override {
+    const mc::variant* get_ptr(std::string_view key) const override
+    {
         if (!m_allow_reference) {
             return nullptr;
         }
@@ -110,11 +119,13 @@ public:
         return nullptr;
     }
 
-    mc::variant get(std::size_t index) const override {
+    mc::variant get(std::size_t index) const override
+    {
         return m_items.at(index);
     }
 
-    void set(std::size_t index, const mc::variant& value) override {
+    void set(std::size_t index, const mc::variant& value) override
+    {
         if (index >= m_items.size()) {
             return;
         }
@@ -124,7 +135,8 @@ public:
         }
     }
 
-    mc::variant get(std::string_view key) const override {
+    mc::variant get(std::string_view key) const override
+    {
         if (key == "value") {
             return current_variant();
         }
@@ -136,7 +148,8 @@ public:
         return {};
     }
 
-    void set(std::string_view key, const mc::variant& value) override {
+    void set(std::string_view key, const mc::variant& value) override
+    {
         if (key == "value") {
             update_cached_value(value);
             return;
@@ -150,27 +163,33 @@ public:
         m_attrs.emplace_back(std::string(key), value);
     }
 
-    int64_t as_int64() const override {
+    int64_t as_int64() const override
+    {
         return current_value();
     }
 
-    uint64_t as_uint64() const override {
+    uint64_t as_uint64() const override
+    {
         return static_cast<uint64_t>(current_value());
     }
 
-    double as_double() const override {
+    double as_double() const override
+    {
         return static_cast<double>(current_value());
     }
 
-    bool as_bool() const override {
+    bool as_bool() const override
+    {
         return current_value() != 0;
     }
 
-    std::string as_string() const override {
+    std::string as_string() const override
+    {
         return std::to_string(current_value());
     }
 
-    size_t hash() const override {
+    size_t hash() const override
+    {
         return static_cast<size_t>(current_value()) ^ 0x9e3779b97f4a7c15ULL;
     }
 
@@ -180,7 +199,8 @@ private:
     std::vector<mc::variant>                         m_items;
     std::vector<std::pair<std::string, mc::variant>> m_attrs;
 
-    void update_cached_value(const mc::variant& value) {
+    void update_cached_value(const mc::variant& value)
+    {
         m_value = value.as_int64();
         ensure_primary_value();
         if (!m_items.empty()) {
@@ -198,7 +218,8 @@ private:
         }
     }
 
-    void ensure_primary_value() {
+    void ensure_primary_value()
+    {
         if (m_items.empty()) {
             m_items.emplace_back(mc::variant(m_value));
         }
@@ -214,7 +235,8 @@ private:
         }
     }
 
-    int64_t current_value() const {
+    int64_t current_value() const
+    {
         if (!m_items.empty()) {
             return m_items[0].as_int64();
         }
@@ -226,7 +248,8 @@ private:
         return m_value;
     }
 
-    mc::variant current_variant() const {
+    mc::variant current_variant() const
+    {
         if (!m_items.empty()) {
             return m_items[0];
         }
@@ -241,41 +264,54 @@ private:
 
 class type_record_visitor : public mc::variant_base::visitor {
 public:
-    explicit type_record_visitor() : m_last_type("none") {
+    explicit type_record_visitor()
+        : m_last_type("none")
+    {
     }
 
-    void handle() const override {
+    void handle() const override
+    {
         m_last_type = "null";
     }
-    void handle(const int64_t&) const override {
+    void handle(const int64_t&) const override
+    {
         m_last_type = "int64";
     }
-    void handle(const uint64_t&) const override {
+    void handle(const uint64_t&) const override
+    {
         m_last_type = "uint64";
     }
-    void handle(const double&) const override {
+    void handle(const double&) const override
+    {
         m_last_type = "double";
     }
-    void handle(const bool&) const override {
+    void handle(const bool&) const override
+    {
         m_last_type = "bool";
     }
-    void handle(const std::string&) const override {
+    void handle(const std::string&) const override
+    {
         m_last_type = "string";
     }
-    void handle(const mc::variant_base::object_type&) const override {
+    void handle(const mc::variant_base::object_type&) const override
+    {
         m_last_type = "object";
     }
-    void handle(const mc::variant_base::array_type&) const override {
+    void handle(const mc::variant_base::array_type&) const override
+    {
         m_last_type = "array";
     }
-    void handle(const mc::variant_base::blob_type&) const override {
+    void handle(const mc::variant_base::blob_type&) const override
+    {
         m_last_type = "blob";
     }
-    void handle(const mc::variant_extension_base&) const override {
+    void handle(const mc::variant_extension_base&) const override
+    {
         m_last_type = "extension";
     }
 
-    std::string get_last_type() const {
+    std::string get_last_type() const
+    {
         return m_last_type;
     }
 
@@ -287,7 +323,8 @@ private:
 namespace mc {
 namespace test {
 
-TEST(VariantBaseTest, ObjectAccessAndContains) {
+TEST(VariantBaseTest, ObjectAccessAndContains)
+{
     dict         object_data{{"foo", 10}, {"bar", 20}};
     variant_base object_value(object_data);
     EXPECT_EQ(object_value.size(), 2U);
@@ -310,7 +347,8 @@ TEST(VariantBaseTest, ObjectAccessAndContains) {
     EXPECT_TRUE(object_value.is_null());
 }
 
-TEST(VariantBaseTest, DictEqualityAndAccessorHelpers) {
+TEST(VariantBaseTest, DictEqualityAndAccessorHelpers)
+{
     dict         object_data{{"alpha", 1}, {"beta", 2}};
     variant_base object_value(object_data);
     mc::dict     copied = object_value.as_dict();
@@ -324,7 +362,8 @@ TEST(VariantBaseTest, DictEqualityAndAccessorHelpers) {
     EXPECT_THROW(static_cast<void>(non_object.as_dict()), mc::exception);
 }
 
-TEST(VariantBaseTest, SizeAndGetters) {
+TEST(VariantBaseTest, SizeAndGetters)
+{
     variant_base string_value("abc");
     EXPECT_EQ(string_value.size(), 3U);
     EXPECT_EQ(string_value.get_string(), "abc");
@@ -350,7 +389,8 @@ TEST(VariantBaseTest, SizeAndGetters) {
     EXPECT_THROW(static_cast<void>(non_string.get_string()), mc::exception);
 }
 
-TEST(VariantBaseTest, ExtensionIndexAccess) {
+TEST(VariantBaseTest, ExtensionIndexAccess)
+{
     auto         extension_ptr = mc::make_shared<simple_extension>(5, true);
     variant_base extension_value(extension_ptr);
 
@@ -388,7 +428,8 @@ TEST(VariantBaseTest, ExtensionIndexAccess) {
     EXPECT_EQ(no_ref_idx_ref.get().as_int64(), 200);
 }
 
-TEST(VariantBaseTest, ExtensionNullHandling) {
+TEST(VariantBaseTest, ExtensionNullHandling)
+{
     variant_base empty_ext(type_id::extension_type);
     EXPECT_THROW(static_cast<void>(empty_ext["missing"]), mc::exception);
 
@@ -396,7 +437,8 @@ TEST(VariantBaseTest, ExtensionNullHandling) {
     EXPECT_THROW(static_cast<void>(const_ext["missing"]), mc::exception);
 }
 
-TEST(VariantBaseTest, SetValueForDifferentTypes) {
+TEST(VariantBaseTest, SetValueForDifferentTypes)
+{
     variant_base string_holder("hello");
     variant_base other_string("world");
     string_holder.set_value(other_string);
@@ -487,7 +529,8 @@ TEST(VariantBaseTest, SetValueForDifferentTypes) {
     EXPECT_EQ(same_type_right.as_int64(), 1);
 }
 
-TEST(VariantBaseTest, VisitorDispatch) {
+TEST(VariantBaseTest, VisitorDispatch)
+{
     type_record_visitor visitor;
 
     variant_base null_value;
@@ -519,7 +562,8 @@ TEST(VariantBaseTest, VisitorDispatch) {
     EXPECT_EQ(empty_visitor.get_last_type(), "none");
 }
 
-TEST(VariantBaseTest, OperatorIndexOnArray) {
+TEST(VariantBaseTest, OperatorIndexOnArray)
+{
     variants     array_data{variant(1), variant(2)};
     variant_base array_value(array_data);
 
@@ -536,7 +580,8 @@ TEST(VariantBaseTest, OperatorIndexOnArray) {
     EXPECT_THROW(static_cast<void>(const_array[5]), mc::exception);
 }
 
-TEST(VariantBaseTest, CopyDeepCopyAndHash) {
+TEST(VariantBaseTest, CopyDeepCopyAndHash)
+{
     variant_base move_source("move-me");
     variant_base move_target(std::move(move_source));
     EXPECT_TRUE(move_target.is_string());
@@ -559,7 +604,8 @@ TEST(VariantBaseTest, CopyDeepCopyAndHash) {
     EXPECT_NE(int_value.hash(), bool_value.hash());
 }
 
-TEST(VariantBaseTest, SwapAndTypeName) {
+TEST(VariantBaseTest, SwapAndTypeName)
+{
     variant_base v1(1);
     variant_base v2("text");
     v1.swap(v2);
@@ -572,7 +618,8 @@ TEST(VariantBaseTest, SwapAndTypeName) {
     EXPECT_STREQ(extension_value.get_type_name(), extension_ptr->get_type_name().data());
 }
 
-TEST(VariantBaseTest, AsArrayAndExtension) {
+TEST(VariantBaseTest, AsArrayAndExtension)
+{
     variants     array_data{variant(1)};
     variant_base array_value(array_data);
     EXPECT_NO_THROW(array_value.as_array());
@@ -599,7 +646,8 @@ TEST(VariantBaseTest, AsArrayAndExtension) {
     EXPECT_TRUE(ss.str().empty());
 }
 
-TEST(VariantBaseTest, VariantsComparisonOperators) {
+TEST(VariantBaseTest, VariantsComparisonOperators)
+{
     variants     array_data{variant(1)};
     variant_base array_value(array_data);
 
@@ -616,7 +664,8 @@ TEST(VariantBaseTest, VariantsComparisonOperators) {
     }(), mc::exception);
 }
 
-TEST(VariantBaseTest, NumericOperatorsWithDetailNumeric) {
+TEST(VariantBaseTest, NumericOperatorsWithDetailNumeric)
+{
     mc::detail::numeric_t rhs(5);
     variant_base          int_value(10);
 
@@ -651,7 +700,8 @@ TEST(VariantBaseTest, NumericOperatorsWithDetailNumeric) {
     EXPECT_EQ((negative >> mc::detail::numeric_t(64)).as_int64(), -1);
 }
 
-TEST(VariantBaseTest, NumericComparisonsWithDetailNumeric) {
+TEST(VariantBaseTest, NumericComparisonsWithDetailNumeric)
+{
     mc::detail::numeric_t rhs(3);
     variant_base          int_value(4);
 
@@ -675,7 +725,8 @@ TEST(VariantBaseTest, NumericComparisonsWithDetailNumeric) {
     EXPECT_TRUE(string_value == mc::detail::numeric_t(5));
 }
 
-TEST(VariantBaseTest, ToVariantAndFromVariantHelpers) {
+TEST(VariantBaseTest, ToVariantAndFromVariantHelpers)
+{
     variant_base value_holder;
     dict         object_data{{"alpha", 1}};
     to_variant(object_data, value_holder);
@@ -694,7 +745,8 @@ TEST(VariantBaseTest, ToVariantAndFromVariantHelpers) {
     EXPECT_EQ(restored_array.size(), 2U);
 }
 
-TEST(VariantBaseTest, VisitWithHelper) {
+TEST(VariantBaseTest, VisitWithHelper)
+{
     variant_base string_value("visit");
     auto         result = string_value.visit_with([](const std::string& v) -> std::string {
         return v + "_suffix";
@@ -703,7 +755,8 @@ TEST(VariantBaseTest, VisitWithHelper) {
 }
 
 // 测试对非 object/extension 类型使用 operator[] 抛出异常
-TEST(VariantBaseTest, IndexNonObjectThrows) {
+TEST(VariantBaseTest, IndexNonObjectThrows)
+{
     variant_base v_int(42); // int64 类型
 
     // 对非 object/extension 类型使用 operator[] 应该抛出异常
@@ -711,7 +764,8 @@ TEST(VariantBaseTest, IndexNonObjectThrows) {
 }
 
 // 测试使用非法 type_id 构造 variant_base
-TEST(VariantBaseTest, ConstructWithInvalidTypeThrows) {
+TEST(VariantBaseTest, ConstructWithInvalidTypeThrows)
+{
     // type_id 是枚举类型，最大值为 max_type
     // 尝试使用超出范围的值（需要强制转换）
     auto         invalid_type = static_cast<mc::type_id>(static_cast<uint8_t>(mc::type_id::max_type) + 1);

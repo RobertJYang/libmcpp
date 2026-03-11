@@ -14,7 +14,8 @@
 namespace mc::reflect {
 static std::string global_name = "global";
 
-static std::string normalize_type_name(std::string_view type_name) {
+static std::string normalize_type_name(std::string_view type_name)
+{
     std::vector<std::string> parts;
     for (auto it = split_iterator(type_name, delims); !it.is_end(); ++it) {
         parts.push_back(std::string(*it));
@@ -28,7 +29,8 @@ using used_factory_ids_map = std::unordered_map<std::string_view, factory_id_typ
 static mc::mutex_box<used_factory_ids_map, std::mutex> s_used_factory_ids;
 constexpr size_t                                       s_max_used_factory_ids = 100000;
 
-static factory_id_type make_factory_id(std::string_view factory_name) {
+static factory_id_type make_factory_id(std::string_view factory_name)
+{
     return s_used_factory_ids.with_lock([factory_name](auto& map) {
         auto it = map.find(factory_name);
         if (it != map.end()) {
@@ -47,7 +49,8 @@ static factory_id_type make_factory_id(std::string_view factory_name) {
 
 reflection_factory::impl::impl(
     std::string_view factory_name, std::string_view namespace_type_name, bool is_global)
-    : m_factory_name(normalize_type_name(factory_name)), m_namespace_type_name(namespace_type_name) {
+    : m_factory_name(normalize_type_name(factory_name)), m_namespace_type_name(namespace_type_name)
+{
     auto& data         = m_data.unsafe_get_data();
     data.m_root_module = std::make_unique<module_node>();
     if (!is_global) {
@@ -55,7 +58,8 @@ reflection_factory::impl::impl(
     }
 }
 
-reflection_factory::impl::~impl() {
+reflection_factory::impl::~impl()
+{
     m_data.with_lock_ptr([&](auto lock_ptr) {
         auto& data = *lock_ptr;
         data.m_type_infos_by_id.clear();
@@ -73,7 +77,8 @@ reflection_factory::impl::~impl() {
 }
 
 reflection_metadata_ptr reflection_factory::impl::get_metadata_by_id(
-    type_id_type global_id, const data_t& data) {
+    type_id_type global_id, const data_t& data)
+{
     auto [factory_id, type_id] = decode_type_id(global_id);
     if (factory_id == data.m_factory_id) {
         // 类型在本模块中
@@ -90,7 +95,8 @@ reflection_metadata_ptr reflection_factory::impl::get_metadata_by_id(
 }
 
 reflection_metadata_ptr reflection_factory::impl::get_local_metadata_by_id(
-    local_type_id_type type_id, const data_t& data) {
+    local_type_id_type type_id, const data_t& data)
+{
     auto it = data.m_type_infos_by_id.find(type_id);
     if (it == data.m_type_infos_by_id.end()) {
         // 类型不存在
@@ -107,7 +113,8 @@ reflection_metadata_ptr reflection_factory::impl::get_local_metadata_by_id(
 }
 
 reflection_metadata_ptr reflection_factory::impl::get_metadata_by_name(
-    std::string_view type_name, const data_t& data) {
+    std::string_view type_name, const data_t& data)
+{
     // 如果类型在本模块中
     auto ptr = get_local_metadata_by_name(type_name, data);
     if (ptr) {
@@ -120,7 +127,8 @@ reflection_metadata_ptr reflection_factory::impl::get_metadata_by_name(
 }
 
 reflection_metadata_ptr reflection_factory::impl::get_local_metadata_by_name(
-    std::string_view type_name, const data_t& data) {
+    std::string_view type_name, const data_t& data)
+{
     auto it = data.m_type_infos.find(type_name);
     if (it == data.m_type_infos.end()) {
         return nullptr;
@@ -137,7 +145,8 @@ reflection_metadata_ptr reflection_factory::impl::get_local_metadata_by_name(
 }
 
 factory_ptr reflection_factory::impl::get_factory_by_name(
-    std::string_view module_name, const data_t& data) {
+    std::string_view module_name, const data_t& data)
+{
     // 快速路径：找到立即返回
     auto it = data.m_factories.find(module_name);
     if (it != data.m_factories.end()) {
@@ -150,7 +159,8 @@ factory_ptr reflection_factory::impl::get_factory_by_name(
 }
 
 factory_ptr reflection_factory::impl::get_factory_by_id(
-    factory_id_type factory_id, const data_t& data) {
+    factory_id_type factory_id, const data_t& data)
+{
     auto it = data.m_factories_by_id.find(factory_id);
     if (it == data.m_factories_by_id.end()) {
         return nullptr;
@@ -160,7 +170,8 @@ factory_ptr reflection_factory::impl::get_factory_by_id(
 }
 
 void reflection_factory::impl::collect_factory_names(
-    std::string_view path, std::vector<std::string>& names, const data_t& data) const {
+    std::string_view path, std::vector<std::string>& names, const data_t& data) const
+{
     for (auto& [_, factory_info] : data.m_factories) {
         auto factory = factory_info->factory.lock();
         if (!factory) {
@@ -175,7 +186,8 @@ void reflection_factory::impl::collect_factory_names(
 }
 
 type_id_type reflection_factory::impl::register_type(
-    std::string_view type_name, type_id_type type_id, metadata_creator&& creator) {
+    std::string_view type_name, type_id_type type_id, metadata_creator&& creator)
+{
     return m_data.with_lock([&](auto& data) {
         // 构造规范化的类型名
         // 注意：规范化后的类型名的字符串视图被作为 key 存储在 map 中，
@@ -203,7 +215,8 @@ type_id_type reflection_factory::impl::register_type(
     });
 }
 
-type_id_type reflection_factory::impl::unregister_type(std::string_view type_name) {
+type_id_type reflection_factory::impl::unregister_type(std::string_view type_name)
+{
     return m_data.with_lock([&](auto& data) {
         std::string name = normalize_type_name(type_name);
 
@@ -226,7 +239,8 @@ type_id_type reflection_factory::impl::unregister_type(std::string_view type_nam
 }
 
 std::pair<factory_id_type, factory_ptr> reflection_factory::impl::register_factory(
-    std::string_view module_name, factory_id_type factory_id, factory_ptr factory) {
+    std::string_view module_name, factory_id_type factory_id, factory_ptr factory)
+{
     return m_data.with_lock([&](auto& data) -> std::pair<factory_id_type, factory_ptr> {
         auto it = data.m_factories.find(module_name);
         if (it != data.m_factories.end()) {
@@ -256,7 +270,8 @@ std::pair<factory_id_type, factory_ptr> reflection_factory::impl::register_facto
     });
 }
 
-factory_id_type reflection_factory::impl::unregister_factory(std::string_view factory_name) {
+factory_id_type reflection_factory::impl::unregister_factory(std::string_view factory_name)
+{
     return m_data.with_lock([&](auto& data) {
         auto it = data.m_factories.find(factory_name);
         if (it == data.m_factories.end()) {
@@ -276,12 +291,14 @@ factory_id_type reflection_factory::impl::unregister_factory(std::string_view fa
 }
 
 void reflection_factory::impl::get_registered_types(
-    const data_t& data, std::vector<std::string>& types) const {
+    const data_t& data, std::vector<std::string>& types) const
+{
     std::string path(m_factory_name);
     data.m_root_module->collect_module_types(path, types);
 }
 
-const module_node* reflection_factory::impl::find_module_node(std::string_view path, const data_t& data) const {
+const module_node* reflection_factory::impl::find_module_node(std::string_view path, const data_t& data) const
+{
     if (path.empty()) {
         return data.m_root_module.get();
     }
@@ -291,16 +308,19 @@ const module_node* reflection_factory::impl::find_module_node(std::string_view p
 }
 
 void reflection_factory::impl::collect_module_paths(
-    std::vector<std::string>& paths, const data_t& data) const {
+    std::vector<std::string>& paths, const data_t& data) const
+{
     std::string path(m_factory_name);
     data.m_root_module->collect_module_paths(path, paths);
 }
 
-const std::string& reflection_factory::impl::get_pretty_name() const {
+const std::string& reflection_factory::impl::get_pretty_name() const
+{
     return m_factory_name.empty() ? global_name : m_factory_name;
 }
 
-const std::string& reflection_factory::impl::get_namespace_type_name() const {
+const std::string& reflection_factory::impl::get_namespace_type_name() const
+{
     return m_namespace_type_name;
 }
 

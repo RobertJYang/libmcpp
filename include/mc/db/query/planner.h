@@ -81,7 +81,8 @@ public:
      * @param metadata 表元数据
      */
     explicit query_planner(const table_index_metadata<ObjectType>& metadata)
-        : m_metadata(metadata) {
+        : m_metadata(metadata)
+    {
     }
 
     /**
@@ -90,7 +91,8 @@ public:
      * @param reflection_ptr 表元数据共享指针
      */
     explicit query_planner(const std::shared_ptr<table_index_metadata<ObjectType>>& reflection_ptr)
-        : m_metadata(*reflection_ptr) {
+        : m_metadata(*reflection_ptr)
+    {
     }
 
     /**
@@ -99,7 +101,8 @@ public:
      * @param builder 查询构建器
      * @return 查询计划
      */
-    query_plan plan_for_query(const query_builder& builder) const {
+    query_plan plan_for_query(const query_builder& builder) const
+    {
         query_plan plan;
 
         // 如果没有条件，则返回全表扫描计划
@@ -120,7 +123,8 @@ public:
      * @param cond 查询条件
      * @return 查询计划
      */
-    query_plan generate_plan(const condition& cond) const {
+    query_plan generate_plan(const condition& cond) const
+    {
         // 创建默认的全表扫描计划
         query_plan plan;
 
@@ -135,7 +139,8 @@ private:
      * @param condition 条件
      * @return 查询计划
      */
-    query_plan find_matching_index(const condition& condition) const {
+    query_plan find_matching_index(const condition& condition) const
+    {
         query_plan plan;
 
         // 处理逻辑条件
@@ -183,7 +188,8 @@ private:
      * @param cond 字段条件
      * @return 查询计划
      */
-    query_plan plan_for_field_condition(const condition& cond) const {
+    query_plan plan_for_field_condition(const condition& cond) const
+    {
         query_plan       plan;
         compare_op       op    = cond.get_op();
         std::string_view field = cond.get_field();
@@ -271,7 +277,8 @@ private:
      * @param conditions 条件列表
      * @return 查询计划
      */
-    query_plan find_best_index_for_and(const std::vector<condition>& conditions) const {
+    query_plan find_best_index_for_and(const std::vector<condition>& conditions) const
+    {
         query_plan best_plan;
         bool       has_valid_plan = false;
 
@@ -303,7 +310,8 @@ private:
      * @param conditions 条件列表
      * @return 查询计划
      */
-    query_plan plan_for_or_condition(const std::vector<condition>& conditions) const {
+    query_plan plan_for_or_condition(const std::vector<condition>& conditions) const
+    {
         query_plan plan;
 
         // 收集所有等值条件的相同字段
@@ -355,7 +363,8 @@ private:
      * @return 是否找到公共字段
      */
     bool find_common_field_for_or(const std::vector<condition>& conditions,
-                                  std::string_view&             out_field) const {
+                                  std::string_view&             out_field) const
+    {
         if (conditions.empty()) {
             return false;
         }
@@ -384,7 +393,8 @@ private:
      * @param b 计划B
      * @return 是否A优于B
      */
-    bool is_better_plan(const query_plan& a, const query_plan& b) const {
+    bool is_better_plan(const query_plan& a, const query_plan& b) const
+    {
         // 优先级：精确匹配 > 范围查询 > 全表扫描
         if (a.plan_type == query_plan_type::index_exact_match &&
             b.plan_type != query_plan_type::index_exact_match) {

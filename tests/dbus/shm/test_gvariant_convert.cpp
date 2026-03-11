@@ -13,13 +13,14 @@
 #include <glib-2.0/glib.h>
 #include <gtest/gtest.h>
 #include <mc/dbus/shm/gvariant_convert.h>
-#include <mc/exception.h>
 #include <mc/dict.h>
+#include <mc/exception.h>
 #include <mc/variant.h>
 
 using namespace mc;
 
-TEST(GvariantConvertTest, ArrayOfVariantsToGVariant) {
+TEST(GvariantConvertTest, ArrayOfVariantsToGVariant)
+{
     variants msg_arr;
     msg_arr.push_back(1);
     GVariant* gvariant = dbus::gvariant_convert::to_gvariant(msg_arr, "av");
@@ -43,7 +44,8 @@ TEST(GvariantConvertTest, ArrayOfVariantsToGVariant) {
     ASSERT_EQ(array[0].as_uint32(), 1);
 }
 
-TEST(GvariantConvertTest, ArrayToGVariant) {
+TEST(GvariantConvertTest, ArrayToGVariant)
+{
     variants msg_arr;
     auto     msg1 = variants({1, "str1", "str2", 3.3});
     auto     msg2 = variants();
@@ -87,7 +89,8 @@ TEST(GvariantConvertTest, ArrayToGVariant) {
     ASSERT_EQ(msg3_dict["b"].as_int32(), 2);
 }
 
-TEST(GvariantConvertTest, ArrayToGVariantWithoutSignature) {
+TEST(GvariantConvertTest, ArrayToGVariantWithoutSignature)
+{
     variants msg_arr;
     auto     msg1 = variants({1, "str1", "str2", 3.3});
     auto     msg2 = variants();
@@ -136,7 +139,8 @@ TEST(GvariantConvertTest, ArrayToGVariantWithoutSignature) {
     ASSERT_EQ(msg4_unpacked.size(), 0);
 }
 
-TEST(GvariantConvertTest, BasicTypesToGVariant) {
+TEST(GvariantConvertTest, BasicTypesToGVariant)
+{
     // 测试布尔值
     GVariant* gvariant = dbus::gvariant_convert::to_gvariant(variant(true), "b");
     ASSERT_NE(gvariant, nullptr);
@@ -193,7 +197,8 @@ TEST(GvariantConvertTest, BasicTypesToGVariant) {
     g_variant_unref(gvariant);
 }
 
-TEST(GvariantConvertTest, DictToGVariant) {
+TEST(GvariantConvertTest, DictToGVariant)
+{
     // 测试包含基本类型的字典
     dict basic_dict;
     basic_dict["int1"] = 1;
@@ -249,7 +254,8 @@ TEST(GvariantConvertTest, DictToGVariant) {
     g_variant_unref(gvariant);
 }
 
-TEST(GvariantConvertTest, SigUnitLengthAndErrors) {
+TEST(GvariantConvertTest, SigUnitLengthAndErrors)
+{
     using mc::dbus::sig_unit;
 
     EXPECT_EQ(sig_unit::get_sig_len("a{si}", true, 0, 0), 5);
@@ -259,8 +265,9 @@ TEST(GvariantConvertTest, SigUnitLengthAndErrors) {
     EXPECT_THROW(sig_unit::get_sig_len("()", true, 0, 0), mc::invalid_arg_exception);
 }
 
-TEST(GvariantConvertTest, GvariantAutoFreeCopyMove) {
-    GVariant* raw_hello = g_variant_new_string("hello");
+TEST(GvariantConvertTest, GvariantAutoFreeCopyMove)
+{
+    GVariant*                    raw_hello = g_variant_new_string("hello");
     mc::dbus::gvariant_auto_free original(raw_hello, false);
 
     {
@@ -286,7 +293,8 @@ TEST(GvariantConvertTest, GvariantAutoFreeCopyMove) {
 }
 
 // 测试 sig_unit::sub_types_is_valid() 无效情况
-TEST(GvariantConvertTest, SigUnitSubTypesInvalid) {
+TEST(GvariantConvertTest, SigUnitSubTypesInvalid)
+{
     using mc::dbus::sig_unit;
     sig_unit sig;
     sig.sub_types = nullptr;

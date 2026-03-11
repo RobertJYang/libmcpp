@@ -33,7 +33,8 @@ constexpr bool is_interface_v = is_interface<T>::value;
 
 struct filter_interface {
     template <typename ElementType>
-    static constexpr bool is_interface() {
+    static constexpr bool is_interface()
+    {
         if constexpr (mc::reflect::has_tag_v<mc::reflect::property_tag, ElementType> ||
                       mc::reflect::has_tag_v<mc::reflect::base_class_tag, ElementType>) {
             return is_interface_v<typename ElementType::member_type>;
@@ -46,7 +47,8 @@ struct filter_interface {
 
 // InterfaceTypes： std::tuple<Interface1*, Interface2, ...>
 template <typename MemberType, typename DeclaredInterfaces>
-constexpr bool is_interface_declared(const DeclaredInterfaces& interfaces) {
+constexpr bool is_interface_declared(const DeclaredInterfaces& interfaces)
+{
     bool is_declared = false;
     mc::traits::tuple_for_each(interfaces, [&](auto interface) {
         using declared_type = std::remove_pointer_t<decltype(interface)>;
@@ -61,7 +63,8 @@ constexpr bool is_interface_declared(const DeclaredInterfaces& interfaces) {
 // 检查对象实现的 interface 成员是否都声明了
 template <typename DeclaredInterfaces, typename Members>
 constexpr bool check_members_is_declared(const DeclaredInterfaces& declared_interfaces,
-                                         const Members&            members) {
+                                         const Members&            members)
+{
     bool all_valid = true;
     mc::traits::tuple_for_each(members, [&](auto& element) {
         using element_type = mc::traits::remove_cvref_t<decltype(element)>;
@@ -81,7 +84,8 @@ constexpr bool check_members_is_declared(const DeclaredInterfaces& declared_inte
 
 // 检查声明的所有 interfaces 都是满足要求的接口类型
 template <typename DeclaredInterfaces>
-constexpr bool check_declared_interfaces(const DeclaredInterfaces& declared_interfaces) {
+constexpr bool check_declared_interfaces(const DeclaredInterfaces& declared_interfaces)
+{
     bool all_valid = true;
     mc::traits::tuple_for_each(declared_interfaces, [&](auto& interface) {
         using interface_type =
@@ -95,7 +99,8 @@ constexpr bool check_declared_interfaces(const DeclaredInterfaces& declared_inte
 }
 
 template <typename InterfaceType, typename Members>
-constexpr int get_members_count(const Members& members) {
+constexpr int get_members_count(const Members& members)
+{
     int count = 0;
     mc::traits::tuple_for_each(members, [&](auto& element) {
         using element_type = mc::traits::remove_cvref_t<decltype(element)>;
@@ -115,7 +120,8 @@ constexpr int get_members_count(const Members& members) {
 // 检查对象声明的 interface 成员是否都实现了，并且仅且实现了一次
 template <typename DeclaredInterfaces, typename Members>
 constexpr bool check_interface_implement(const DeclaredInterfaces& declared_interfaces,
-                                         const Members&            members) {
+                                         const Members&            members)
+{
     bool all_valid = true;
     mc::traits::tuple_for_each(declared_interfaces, [&](auto& interface) {
         using interface_type =
@@ -130,7 +136,8 @@ constexpr bool check_interface_implement(const DeclaredInterfaces& declared_inte
 }
 
 template <typename DeclaredInterfaces, typename Members>
-constexpr bool check_members(const DeclaredInterfaces& declared_interfaces, const Members& members) {
+constexpr bool check_members(const DeclaredInterfaces& declared_interfaces, const Members& members)
+{
     if (!check_declared_interfaces(declared_interfaces)) {
         return false;
     }
@@ -149,7 +156,8 @@ constexpr bool check_members(const DeclaredInterfaces& declared_interfaces, cons
 MC_API bool path_starts_with(std::string_view path, std::string_view prefix);
 
 template <typename DeclaredInterfaces>
-constexpr auto make_interface_metadatas() {
+constexpr auto make_interface_metadatas()
+{
     std::array<const metadata_list*, std::tuple_size_v<DeclaredInterfaces>> arr{};
 
     size_t index = 0;
@@ -161,7 +169,8 @@ constexpr auto make_interface_metadatas() {
 }
 
 template <typename Member, typename DeclaredInterfaces>
-constexpr int get_interface_index() {
+constexpr int get_interface_index()
+{
     int index = -1;
     int count = 0;
     mc::traits::tuple_element_for_each<DeclaredInterfaces>([&](auto type) {

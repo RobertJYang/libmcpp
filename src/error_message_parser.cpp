@@ -20,12 +20,13 @@
 
 namespace mc {
 
-error_message_registry error_message_parser::parse_from_string(std::string_view json_content) {
+error_message_registry error_message_parser::parse_from_string(std::string_view json_content)
+{
     error_message_registry registry;
 
     try {
         // 使用 mc::json 解析
-        mc::variant var = mc::json::json_decode(json_content);
+        mc::variant var  = mc::json::json_decode(json_content);
         mc::dict    root = var.as<mc::dict>();
 
         // 解析基本字段
@@ -47,11 +48,11 @@ error_message_registry error_message_parser::parse_from_string(std::string_view 
 
             // 使用迭代器遍历 dict
             for (auto it = messages.begin(); it != messages.end(); ++it) {
-                std::string  key    = (*it).key.as<std::string>();
-                mc::variant value  = (*it).value;
+                std::string key   = (*it).key.as<std::string>();
+                mc::variant value = (*it).value;
 
                 error_message_definition def;
-                mc::dict             msg_dict = value.as<mc::dict>();
+                mc::dict                 msg_dict = value.as<mc::dict>();
 
                 // 解析各个字段
                 if (msg_dict.contains("Description")) {
@@ -117,7 +118,8 @@ error_message_registry error_message_parser::parse_from_string(std::string_view 
     return registry;
 }
 
-error_message_registry error_message_parser::parse_from_file(std::string_view file_path) {
+error_message_registry error_message_parser::parse_from_file(std::string_view file_path)
+{
     ilog("Start to load error message definition file: ${path}", ("path", file_path));
 
     auto content_opt = mc::filesystem::read_file(file_path);
@@ -131,8 +133,8 @@ error_message_registry error_message_parser::parse_from_file(std::string_view fi
 
 std::optional<error_message_definition> error_message_parser::find_message(
     const error_message_registry& registry,
-    std::string_view              message_name) {
-
+    std::string_view              message_name)
+{
     auto it = registry.messages.find(std::string(message_name));
     if (it == registry.messages.end()) {
         return std::nullopt;
@@ -142,7 +144,8 @@ std::optional<error_message_definition> error_message_parser::find_message(
 }
 
 std::string error_message_parser::format_message(std::string_view template_msg,
-                                                  const mc::dict&  args) {
+                                                 const mc::dict&  args)
+{
     std::string result = std::string(template_msg);
 
     // 统计模板中的占位符数量
@@ -173,41 +176,41 @@ std::string error_message_parser::format_message(std::string_view template_msg,
     // 参数使用数字 key：0 对应 %1，1 对应 %2，依此类推
     for (int i = 1; i <= 10; ++i) {
         std::string placeholder = "%" + std::to_string(i);
-        int key_index = i - 1;  // %1 -> key 0, %2 -> key 1, etc.
+        int         key_index   = i - 1; // %1 -> key 0, %2 -> key 1, etc.
 
         if (result.find(placeholder) != std::string::npos) {
             if (args.contains(key_index)) {
                 // 类型转换：尝试获取字符串值
-                std::string value;
+                std::string        value;
                 const mc::variant& arg_value = args[key_index];
 
                 // 根据类型进行转换
                 switch (arg_value.get_type()) {
-                    case mc::type_id::string_type:
-                        value = arg_value.as<std::string>();
-                        break;
-                    case mc::type_id::int8_type:
-                    case mc::type_id::int16_type:
-                    case mc::type_id::int32_type:
-                    case mc::type_id::int64_type:
-                        value = std::to_string(arg_value.as<int64_t>());
-                        break;
-                    case mc::type_id::uint8_type:
-                    case mc::type_id::uint16_type:
-                    case mc::type_id::uint32_type:
-                    case mc::type_id::uint64_type:
-                        value = std::to_string(arg_value.as<uint64_t>());
-                        break;
-                    case mc::type_id::double_type:
-                        value = std::to_string(arg_value.as<double>());
-                        break;
-                    case mc::type_id::bool_type:
-                        value = arg_value.as<bool>() ? "true" : "false";
-                        break;
-                    default:
-                        // 其他类型转换为字符串
-                        value = mc::to_string(arg_value);
-                        break;
+                case mc::type_id::string_type:
+                    value = arg_value.as<std::string>();
+                    break;
+                case mc::type_id::int8_type:
+                case mc::type_id::int16_type:
+                case mc::type_id::int32_type:
+                case mc::type_id::int64_type:
+                    value = std::to_string(arg_value.as<int64_t>());
+                    break;
+                case mc::type_id::uint8_type:
+                case mc::type_id::uint16_type:
+                case mc::type_id::uint32_type:
+                case mc::type_id::uint64_type:
+                    value = std::to_string(arg_value.as<uint64_t>());
+                    break;
+                case mc::type_id::double_type:
+                    value = std::to_string(arg_value.as<double>());
+                    break;
+                case mc::type_id::bool_type:
+                    value = arg_value.as<bool>() ? "true" : "false";
+                    break;
+                default:
+                    // 其他类型转换为字符串
+                    value = mc::to_string(arg_value);
+                    break;
                 }
 
                 // 手动替换字符串
@@ -228,7 +231,8 @@ std::string error_message_parser::format_message(std::string_view template_msg,
 }
 
 std::string error_message_parser::format_message(const error_message_definition& def,
-                                                  const mc::dict&                  args) {
+                                                 const mc::dict&                 args)
+{
     return format_message(def.message, args);
 }
 

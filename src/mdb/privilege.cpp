@@ -18,7 +18,8 @@
 
 namespace mc::mdb::privilege {
 
-std::string get_privilege_str(const std::vector<uint32_t>& privileges) {
+std::string get_privilege_str(const std::vector<uint32_t>& privileges)
+{
     uint32_t result = 0;
 
     // 对数组内的元素做按位或
@@ -30,7 +31,8 @@ std::string get_privilege_str(const std::vector<uint32_t>& privileges) {
     return mc::string::to_string(result);
 }
 
-void validate(uint32_t expected_privilege) {
+void validate(uint32_t expected_privilege)
+{
     // 获取上下文
     mc::engine::context* ctx_ptr = nullptr;
     try {

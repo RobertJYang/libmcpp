@@ -24,23 +24,27 @@ namespace {
 
 class FunctionCallFixture : public ::testing::Test {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         func_collection::get_instance().clear();
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         func_collection::get_instance().clear();
     }
 };
 
-mc::variant make_function_call_variant(const std::string& name, const mc::dict& params) {
+mc::variant make_function_call_variant(const std::string& name, const mc::dict& params)
+{
     mc::dict call_desc;
     call_desc.insert("func", mc::variant(name));
     call_desc.insert("params", mc::variant(params));
     return mc::variant(call_desc);
 }
 
-TEST(FunctionCallTest, BasicUsage) {
+TEST(FunctionCallTest, BasicUsage)
+{
     func_collection::get_instance().clear();
     mc::dict functions;
 
@@ -66,7 +70,8 @@ TEST(FunctionCallTest, BasicUsage) {
 }
 
 // 测试 get_relate_properties 方法
-TEST(FunctionCallTest, GetRelatePropertiesBasic) {
+TEST(FunctionCallTest, GetRelatePropertiesBasic)
+{
     func_collection::get_instance().clear();
     mc::dict functions;
 
@@ -97,7 +102,8 @@ TEST(FunctionCallTest, GetRelatePropertiesBasic) {
 }
 
 // 测试带接口的 relate_properties 处理
-TEST(FunctionCallTest, GetRelatePropertiesWithInterface) {
+TEST(FunctionCallTest, GetRelatePropertiesWithInterface)
+{
     func_collection::get_instance().clear();
     mc::dict functions;
 
@@ -149,7 +155,8 @@ TEST(FunctionCallTest, GetRelatePropertiesWithInterface) {
 }
 
 // 测试混合新旧语法的函数参数
-TEST(FunctionCallTest, GetRelatePropertiesMixedSyntax) {
+TEST(FunctionCallTest, GetRelatePropertiesMixedSyntax)
+{
     func_collection::get_instance().clear();
     mc::dict functions;
 
@@ -191,7 +198,8 @@ TEST(FunctionCallTest, GetRelatePropertiesMixedSyntax) {
 }
 
 // 测试 is_relate_property 函数对新语法的支持
-TEST(FunctionCallTest, IsRelatePropertyWithInterface) {
+TEST(FunctionCallTest, IsRelatePropertyWithInterface)
+{
     // 测试带接口的 relate_property 格式
     mc::dict interface_prop;
     interface_prop["type"]          = "ref";
@@ -221,7 +229,8 @@ TEST(FunctionCallTest, IsRelatePropertyWithInterface) {
 }
 
 // 测试嵌套函数调用中的 relate_properties
-TEST(FunctionCallTest, GetRelatePropertiesNested) {
+TEST(FunctionCallTest, GetRelatePropertiesNested)
+{
     // 清理之前测试的状态
     func_collection::get_instance().clear();
 
@@ -264,7 +273,8 @@ TEST(FunctionCallTest, GetRelatePropertiesNested) {
 }
 
 // 测试混合参数的 get_relate_properties
-TEST(FunctionCallTest, GetRelatePropertiesMixed) {
+TEST(FunctionCallTest, GetRelatePropertiesMixed)
+{
     func_collection::get_instance().clear();
     mc::dict functions;
 
@@ -306,7 +316,8 @@ TEST(FunctionCallTest, GetRelatePropertiesMixed) {
 }
 
 // 测试空结果的 get_relate_properties
-TEST(FunctionCallTest, GetRelatePropertiesEmpty) {
+TEST(FunctionCallTest, GetRelatePropertiesEmpty)
+{
     func_collection::get_instance().clear();
     mc::dict functions;
 
@@ -329,7 +340,8 @@ TEST(FunctionCallTest, GetRelatePropertiesEmpty) {
 }
 
 // 测试 is_relate_property 函数的各种情况
-TEST(FunctionCallTest, IsRelatePropertyFunction) {
+TEST(FunctionCallTest, IsRelatePropertyFunction)
+{
     // 测试正确的 relate_property 格式（大小为5，包含必要字段）
     mc::dict valid_prop;
     valid_prop["type"]          = "ref";
@@ -384,7 +396,8 @@ TEST(FunctionCallTest, IsRelatePropertyFunction) {
 }
 
 // 测试 is_function_call 函数的各种情况
-TEST(FunctionCallTest, IsFunctionCallFunction) {
+TEST(FunctionCallTest, IsFunctionCallFunction)
+{
     // 测试正确的函数调用格式
     mc::dict valid_call;
     valid_call["func"]   = "test_function";
@@ -420,7 +433,8 @@ TEST(FunctionCallTest, IsFunctionCallFunction) {
 }
 
 // 测试复杂的嵌套场景
-TEST(FunctionCallTest, ComplexNestedScenario) {
+TEST(FunctionCallTest, ComplexNestedScenario)
+{
     func_collection::get_instance().clear();
     mc::dict functions;
 
@@ -473,7 +487,8 @@ TEST(FunctionCallTest, ComplexNestedScenario) {
 }
 
 // 测试错误处理和边界情况
-TEST(FunctionCallTest, ErrorHandlingAndEdgeCases) {
+TEST(FunctionCallTest, ErrorHandlingAndEdgeCases)
+{
     func_collection::get_instance().clear();
     mc::dict functions;
 
@@ -509,19 +524,22 @@ TEST(FunctionCallTest, ErrorHandlingAndEdgeCases) {
     EXPECT_TRUE(invalid_result.empty());
 }
 
-TEST(FunctionCallValidationTest, ValidateResultThrowsWhenEmptyResult) {
+TEST(FunctionCallValidationTest, ValidateResultThrowsWhenEmptyResult)
+{
     mc::dict default_args = {{"value", mc::variant(1)}};
     func     invalid_func("", default_args);
     EXPECT_THROW(invalid_func.validate_result(), mc::parse_error_exception);
 }
 
-TEST(FunctionCallValidationTest, ValidateArgsThrowsWhenNoArguments) {
+TEST(FunctionCallValidationTest, ValidateArgsThrowsWhenNoArguments)
+{
     mc::dict empty_args;
     func     invalid_func("42", empty_args);
     EXPECT_THROW(invalid_func.validate_args(), mc::parse_error_exception);
 }
 
-TEST_F(FunctionCallFixture, NestedFunctionParameterTriggersHandleFunctionCall) {
+TEST_F(FunctionCallFixture, NestedFunctionParameterTriggersHandleFunctionCall)
+{
     mc::dict inner_args = {
         {"value", mc::variant("default")}};
     func inner_func("'inner:' + value", inner_args);
@@ -543,7 +561,8 @@ TEST_F(FunctionCallFixture, NestedFunctionParameterTriggersHandleFunctionCall) {
     EXPECT_EQ(result.as_string(), "outer:inner:42");
 }
 
-TEST_F(FunctionCallFixture, MissingNestedFunctionFallsBackSilently) {
+TEST_F(FunctionCallFixture, MissingNestedFunctionFallsBackSilently)
+{
     mc::dict outer_args = {
         {"missing_nested", mc::variant(0)}};
     func outer_func("'static'", outer_args);
@@ -557,7 +576,8 @@ TEST_F(FunctionCallFixture, MissingNestedFunctionFallsBackSilently) {
 }
 
 // 测试 to_variant(const func_call& fc, mc::variant& v) 函数
-TEST_F(FunctionCallFixture, FuncCallToVariant) {
+TEST_F(FunctionCallFixture, FuncCallToVariant)
+{
     func_call fc;
     fc.func = "test_function";
     fc.params.insert("param1", mc::variant(42));
@@ -579,7 +599,8 @@ TEST_F(FunctionCallFixture, FuncCallToVariant) {
 }
 
 // 测试 from_variant(const mc::variant& v, func_call& fc) 函数
-TEST_F(FunctionCallFixture, FuncCallFromVariant) {
+TEST_F(FunctionCallFixture, FuncCallFromVariant)
+{
     // 创建一个包含 func_call 信息的 variant
     mc::dict call_dict;
     call_dict.insert("func", mc::variant("test_function"));

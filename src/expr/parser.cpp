@@ -16,10 +16,13 @@
 
 namespace mc::expr {
 
-parser::parser(std::vector<token> tokens) : m_tokens(std::move(tokens)), m_current(0) {
+parser::parser(std::vector<token> tokens)
+    : m_tokens(std::move(tokens)), m_current(0)
+{
 }
 
-bool parser::match(std::initializer_list<token_type> types) {
+bool parser::match(std::initializer_list<token_type> types)
+{
     for (auto type : types) {
         if (check(type)) {
             advance();
@@ -29,44 +32,51 @@ bool parser::match(std::initializer_list<token_type> types) {
     return false;
 }
 
-bool parser::check(token_type type) const {
+bool parser::check(token_type type) const
+{
     if (is_at_end()) {
         return false;
     }
     return peek().type == type;
 }
 
-const token& parser::advance() {
+const token& parser::advance()
+{
     if (!is_at_end()) {
         m_current++;
     }
     return previous();
 }
 
-const token& parser::peek() const {
+const token& parser::peek() const
+{
     if (m_current >= m_tokens.size()) {
         MC_THROW(parse_error_exception, "表达式解析错误: 解析器索引越界");
     }
     return m_tokens[m_current];
 }
 
-const token& parser::previous() const {
+const token& parser::previous() const
+{
     if (m_current <= 0 || m_current > m_tokens.size()) {
         MC_THROW(parse_error_exception, "表达式解析错误: 解析器索引越界");
     }
     return m_tokens[m_current - 1];
 }
 
-bool parser::is_at_end() const {
+bool parser::is_at_end() const
+{
     return peek().type == token_type::end_of_file;
 }
 
-node_ptr parser::expression() {
+node_ptr parser::expression()
+{
     return conditional();
 }
 
 // 解析条件表达式 (? :)
-node_ptr parser::conditional() {
+node_ptr parser::conditional()
+{
     auto expr = logical_or();
 
     // 如果遇到问号，则解析为条件表达式
@@ -90,7 +100,8 @@ node_ptr parser::conditional() {
 }
 
 // 解析逻辑或表达式
-node_ptr parser::logical_or() {
+node_ptr parser::logical_or()
+{
     auto expr = logical_and();
 
     while (match({token_type::logical_or})) {
@@ -102,7 +113,8 @@ node_ptr parser::logical_or() {
 }
 
 // 解析逻辑与表达式
-node_ptr parser::logical_and() {
+node_ptr parser::logical_and()
+{
     auto expr = bit_or();
 
     while (match({token_type::logical_and})) {
@@ -114,7 +126,8 @@ node_ptr parser::logical_and() {
 }
 
 // 解析位或表达式
-node_ptr parser::bit_or() {
+node_ptr parser::bit_or()
+{
     auto expr = bit_xor();
 
     while (match({token_type::bit_or})) {
@@ -126,7 +139,8 @@ node_ptr parser::bit_or() {
 }
 
 // 解析位异或表达式
-node_ptr parser::bit_xor() {
+node_ptr parser::bit_xor()
+{
     auto expr = bit_and();
 
     while (match({token_type::bit_xor})) {
@@ -138,7 +152,8 @@ node_ptr parser::bit_xor() {
 }
 
 // 解析位与表达式
-node_ptr parser::bit_and() {
+node_ptr parser::bit_and()
+{
     auto expr = shift();
 
     while (match({token_type::bit_and})) {
@@ -150,7 +165,8 @@ node_ptr parser::bit_and() {
 }
 
 // 解析位移表达式
-node_ptr parser::shift() {
+node_ptr parser::shift()
+{
     auto expr = equality();
 
     while (match({token_type::lshift, token_type::rshift})) {
@@ -164,7 +180,8 @@ node_ptr parser::shift() {
 }
 
 // 解析相等性表达式
-node_ptr parser::equality() {
+node_ptr parser::equality()
+{
     auto expr = comparison();
 
     while (match({token_type::equals, token_type::not_equals})) {
@@ -178,7 +195,8 @@ node_ptr parser::equality() {
 }
 
 // 解析比较表达式
-node_ptr parser::comparison() {
+node_ptr parser::comparison()
+{
     auto expr = term();
 
     while (match({token_type::less, token_type::less_equals, token_type::greater,
@@ -226,7 +244,8 @@ node_ptr parser::comparison() {
 //    -   b
 //    |
 //    a
-node_ptr parser::term() {
+node_ptr parser::term()
+{
     // 1. 声明并初始化变量
     auto expr = factor(); // auto是C++的类型推导关键字，编译器会自动推导expr的类型
 
@@ -247,7 +266,8 @@ node_ptr parser::term() {
 }
 
 // 解析因子表达式（乘法、除法和求模），优先级高于加减
-node_ptr parser::factor() {
+node_ptr parser::factor()
+{
     // 1. 首先解析一元表达式
     auto expr = unary();
 
@@ -280,7 +300,8 @@ node_ptr parser::factor() {
 
 // 解析一元表达式，优先级最高，一元运算符包括：-、!、~
 // 例如：-a * b 会先解析 -a，再解析 * b
-node_ptr parser::unary() {
+node_ptr parser::unary()
+{
     // 1. 检查是否是一元运算符
     if (match({token_type::minus, token_type::logical_not, token_type::bit_not})) {
         // 2. 根据运算符类型确定操作类型
@@ -309,7 +330,8 @@ node_ptr parser::unary() {
 }
 
 // 解析标识符（变量、函数调用或属性访问）
-node_ptr parser::parse_identifier() {
+node_ptr parser::parse_identifier()
+{
     // 1. 获取标识符的名称
     std::string identifier = previous().lexeme;
 
@@ -332,7 +354,8 @@ node_ptr parser::parse_identifier() {
 // 支持以下语法：
 // 1. 属性访问：obj.name, user.address.city
 // 2. 方法调用：obj.getValue(), user.getAddress().getCity()
-node_ptr parser::parse_property_access(node_ptr object) {
+node_ptr parser::parse_property_access(node_ptr object)
+{
     node_ptr expr = object;
 
     // 处理链式访问：obj.prop1.prop2.method()
@@ -362,7 +385,8 @@ node_ptr parser::parse_property_access(node_ptr object) {
 // 解析对象方法调用
 // 语法：obj.method(arg1, arg2, ...)
 // 示例：user.getName(), list.add(1, 2)
-node_ptr parser::parse_method_call(node_ptr object, const std::string& method_name) {
+node_ptr parser::parse_method_call(node_ptr object, const std::string& method_name)
+{
     // 1. 匹配左括号 '('
     match({token_type::left_paren});
 
@@ -388,7 +412,8 @@ node_ptr parser::parse_method_call(node_ptr object, const std::string& method_na
 // 解析模板字符串
 // 语法：`text ${expr1} text ${expr2} text`
 // 示例：`Hello ${name}! Your age is ${age + 1}`
-node_ptr parser::parse_template_string() {
+node_ptr parser::parse_template_string()
+{
     // 1. 存储模板字符串的文本部分和表达式部分
     std::vector<std::string> text_parts;  // 存储普通文本
     node_ptrs                expressions; // 存储表达式节点
@@ -430,7 +455,8 @@ node_ptr parser::parse_template_string() {
 }
 
 // 解析基本表达式
-node_ptr parser::primary() {
+node_ptr parser::primary()
+{
     // 1. 解析数字字面值
     if (match({token_type::number})) {
         return make_literal(previous().literal); // 如：123, 3.14
@@ -467,7 +493,8 @@ node_ptr parser::primary() {
 }
 
 // 解析函数调用
-node_ptr parser::function_call() {
+node_ptr parser::function_call()
+{
     std::string function_name = previous().lexeme;
 
     // 匹配左括号
@@ -493,7 +520,8 @@ node_ptr parser::function_call() {
 }
 
 // 语法分析入口函数
-node_ptr parser::parse() {
+node_ptr parser::parse()
+{
     try {
         return expression();
     } catch (const parse_error_exception&) {

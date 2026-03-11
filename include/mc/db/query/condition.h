@@ -57,14 +57,16 @@ namespace string_ops {
 /**
  * 检查字符串是否包含子串
  */
-inline bool contains(std::string_view str, std::string_view sub) {
+inline bool contains(std::string_view str, std::string_view sub)
+{
     return str.find(sub) != std::string_view::npos;
 }
 
 /**
  * 简单的类SQL LIKE操作 (仅支持%通配符)
  */
-inline bool like(std::string_view str, std::string_view pattern) {
+inline bool like(std::string_view str, std::string_view pattern)
+{
     // 简单实现，仅支持前缀匹配、后缀匹配和包含匹配
     if (pattern.empty()) {
         return str.empty();
@@ -101,7 +103,9 @@ public:
     /**
      * 默认构造函数
      */
-    condition() : m_op(compare_op::eq), m_is_logical(false) {
+    condition()
+        : m_op(compare_op::eq), m_is_logical(false)
+    {
     }
 
     /**
@@ -111,7 +115,8 @@ public:
      * @param value 比较值
      */
     condition(compare_op op, std::string field, const mc::variant& value)
-        : m_op(op), m_field(std::move(field)), m_value(value), m_is_logical(false) {
+        : m_op(op), m_field(std::move(field)), m_value(value), m_is_logical(false)
+    {
     }
 
     /**
@@ -120,14 +125,16 @@ public:
      * @param conditions 子条件
      */
     condition(logical_op op, std::vector<condition> conditions)
-        : m_logical_op(op), m_conditions(std::move(conditions)), m_is_logical(true) {
+        : m_logical_op(op), m_conditions(std::move(conditions)), m_is_logical(true)
+    {
     }
 
     /**
      * 判断对象是否匹配条件
      */
     template <typename T>
-    bool matches(const T& obj) const {
+    bool matches(const T& obj) const
+    {
         if (is_logical()) {
             return eval_logical(obj);
         } else {
@@ -138,49 +145,56 @@ public:
     /**
      * 获取比较操作符
      */
-    compare_op get_op() const {
+    compare_op get_op() const
+    {
         return m_op;
     }
 
     /**
      * 获取字段名
      */
-    std::string_view get_field() const {
+    std::string_view get_field() const
+    {
         return m_field;
     }
 
     /**
      * 获取比较值
      */
-    const mc::variant& get_value() const {
+    const mc::variant& get_value() const
+    {
         return m_value;
     }
 
     /**
      * 是否是逻辑条件
      */
-    bool is_logical() const {
+    bool is_logical() const
+    {
         return m_is_logical;
     }
 
     /**
      * 获取逻辑操作符
      */
-    logical_op get_logical_op() const {
+    logical_op get_logical_op() const
+    {
         return m_logical_op;
     }
 
     /**
      * 获取子条件列表
      */
-    const std::vector<condition>& get_conditions() const {
+    const std::vector<condition>& get_conditions() const
+    {
         return m_conditions;
     }
 
     /**
      * 生成描述字符串（用于调试）
      */
-    std::string to_string() const {
+    std::string to_string() const
+    {
         if (m_is_logical) {
             std::string result;
             switch (m_logical_op) {
@@ -258,7 +272,8 @@ private:
      * @return 是否匹配
      */
     template <typename T>
-    bool eval_logical(const T& obj) const {
+    bool eval_logical(const T& obj) const
+    {
         if (m_conditions.empty()) {
             return true; // 空条件集合默认匹配
         }
@@ -298,7 +313,8 @@ private:
      * 评估对象
      */
     template <typename T>
-    bool eval_object(const T& obj) const {
+    bool eval_object(const T& obj) const
+    {
         auto property_info = mc::reflect::get_property_info<T>(m_field);
         if (property_info != nullptr) {
             auto field_value = property_info->get_value(obj);
@@ -325,7 +341,8 @@ private:
      * 比较两个值
      */
     bool compare_values(const mc::variant& field_value, const mc::variant& value,
-                        compare_op op) const {
+                        compare_op op) const
+    {
         switch (op) {
         case compare_op::eq:
             return field_value == value;
@@ -383,49 +400,56 @@ namespace conditions {
 /**
  * 创建等值条件
  */
-inline condition eq(std::string field, mc::variant value) {
+inline condition eq(std::string field, mc::variant value)
+{
     return condition(compare_op::eq, std::move(field), std::move(value));
 }
 
 /**
  * 创建不等条件
  */
-inline condition ne(std::string field, mc::variant value) {
+inline condition ne(std::string field, mc::variant value)
+{
     return condition(compare_op::ne, std::move(field), std::move(value));
 }
 
 /**
  * 创建大于条件
  */
-inline condition gt(std::string field, mc::variant value) {
+inline condition gt(std::string field, mc::variant value)
+{
     return condition(compare_op::gt, std::move(field), std::move(value));
 }
 
 /**
  * 创建大于等于条件
  */
-inline condition ge(std::string field, mc::variant value) {
+inline condition ge(std::string field, mc::variant value)
+{
     return condition(compare_op::ge, std::move(field), std::move(value));
 }
 
 /**
  * 创建小于条件
  */
-inline condition lt(std::string field, mc::variant value) {
+inline condition lt(std::string field, mc::variant value)
+{
     return condition(compare_op::lt, std::move(field), std::move(value));
 }
 
 /**
  * 创建小于等于条件
  */
-inline condition le(std::string field, mc::variant value) {
+inline condition le(std::string field, mc::variant value)
+{
     return condition(compare_op::le, std::move(field), std::move(value));
 }
 
 /**
  * 创建LIKE条件
  */
-inline condition like(std::string field, std::string pattern) {
+inline condition like(std::string field, std::string pattern)
+{
     return condition(compare_op::like, std::move(field), mc::variant(std::move(pattern)));
 }
 
@@ -433,7 +457,8 @@ inline condition like(std::string field, std::string pattern) {
  * 创建IN条件
  */
 template <typename T>
-inline condition in(std::string field, std::vector<T> values) {
+inline condition in(std::string field, std::vector<T> values)
+{
     mc::variants variants;
     for (const auto& value : values) {
         variants.push_back(mc::variant(value));
@@ -445,7 +470,8 @@ inline condition in(std::string field, std::vector<T> values) {
  * 创建BETWEEN条件
  */
 template <typename T>
-inline condition between(std::string field, T lower, T upper) {
+inline condition between(std::string field, T lower, T upper)
+{
     mc::variants range = {mc::variant(lower), mc::variant(upper)};
     return condition(compare_op::between, std::move(field), mc::variant(range));
 }
@@ -453,21 +479,24 @@ inline condition between(std::string field, T lower, T upper) {
 /**
  * 创建AND条件
  */
-inline condition and_cond(std::vector<condition> conditions) {
+inline condition and_cond(std::vector<condition> conditions)
+{
     return condition(logical_op::AND, std::move(conditions));
 }
 
 /**
  * 创建OR条件
  */
-inline condition or_cond(std::vector<condition> conditions) {
+inline condition or_cond(std::vector<condition> conditions)
+{
     return condition(logical_op::OR, std::move(conditions));
 }
 
 /**
  * 创建NOT条件
  */
-inline condition not_cond(condition cond) {
+inline condition not_cond(condition cond)
+{
     return condition(logical_op::NOT, std::vector<condition>{std::move(cond)});
 }
 

@@ -24,7 +24,8 @@
 #include <thread>
 #include <vector>
 
-extern "C" MC_API void set_log_module_name(const char*) {
+extern "C" MC_API void set_log_module_name(const char*)
+{
 }
 
 // 定义一个测试模块
@@ -38,10 +39,12 @@ public:
 
     test_class() = default;
 
-    void set_value(int v) {
+    void set_value(int v)
+    {
         m_value = v;
     }
-    int get_value() const {
+    int get_value() const
+    {
         return m_value;
     }
 
@@ -66,24 +69,28 @@ namespace {
  */
 class ModuleManagerTest : public mc::test::TestBase {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         mc::log::default_logger().set_level(mc::log::level::error);
         mc::module::module_manager::reset_for_test();
         mc::reflect::reflection_factory::reset_global();
         MC_REGISTER_BUILTIN_MODULE(mc_test_module);
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         MC_UNREGISTER_BUILTIN_MODULE(mc_test_module);
     }
 
-    static void SetUpTestSuite() {
+    static void SetUpTestSuite()
+    {
         // 销毁全局反射工厂，避免其他测试污染当前测试
         mc::reflect::reflection_factory::reset_global();
         mc::test::TestBase::TearDownTestSuite();
     }
 
-    static void TearDownTestSuite() {
+    static void TearDownTestSuite()
+    {
         // 注销类型，避免污染其他测试
         mc::reflect::reflector<mc::test_module::test_class>::unregister_type();
 
@@ -102,7 +109,8 @@ protected:
 class scoped_env_var {
 public:
     scoped_env_var(const char* name, const char* value)
-        : m_name(name) {
+        : m_name(name)
+    {
         const char* original = std::getenv(name);
         if (original != nullptr) {
             m_old_value  = original;
@@ -111,7 +119,8 @@ public:
         setenv(m_name.c_str(), value, 1);
     }
 
-    ~scoped_env_var() {
+    ~scoped_env_var()
+    {
         if (m_has_backup) {
             setenv(m_name.c_str(), m_old_value.c_str(), 1);
         } else {
@@ -125,7 +134,8 @@ private:
     bool        m_has_backup{false};
 };
 
-std::string_view shared_lib_ext() {
+std::string_view shared_lib_ext()
+{
 #if defined(__APPLE__)
     return ".dylib";
 #else
@@ -133,21 +143,25 @@ std::string_view shared_lib_ext() {
 #endif
 }
 
-mc::filesystem::path dynamic_module_source_path(const mc::filesystem::path& build_root) {
+mc::filesystem::path dynamic_module_source_path(const mc::filesystem::path& build_root)
+{
     return build_root / "tests" / (std::string("libmc_test_dynamic_module") + std::string(shared_lib_ext()));
 }
 
-mc::filesystem::path dynamic_module_target_path(const mc::filesystem::path& build_root) {
+mc::filesystem::path dynamic_module_target_path(const mc::filesystem::path& build_root)
+{
     auto modules_dir = build_root / "modules" / "mc" / "test";
     return modules_dir / (std::string("dynamic") + std::string(shared_lib_ext()));
 }
 
-std::string dynamic_module_search_path() {
+std::string dynamic_module_search_path()
+{
     auto build_root = mc::test::get_build_root();
     return build_root / (std::string("modules/?") + std::string(shared_lib_ext()));
 }
 
-void copy_dynamic_module_if_needed(const mc::filesystem::path& build_root) {
+void copy_dynamic_module_if_needed(const mc::filesystem::path& build_root)
+{
     auto target = dynamic_module_target_path(build_root);
     mc::filesystem::create_directories(target.parent_path());
 
@@ -161,7 +175,8 @@ void copy_dynamic_module_if_needed(const mc::filesystem::path& build_root) {
 /**
  * @brief 测试模块卸载功能
  */
-TEST_F(ModuleManagerTest, TestModuleUnload) {
+TEST_F(ModuleManagerTest, TestModuleUnload)
+{
     auto& manager = mc::get_module_manager();
 
     // 加载模块
@@ -182,7 +197,8 @@ TEST_F(ModuleManagerTest, TestModuleUnload) {
 /**
  * @brief 测试卸载不存在的模块
  */
-TEST_F(ModuleManagerTest, TestUnloadNonExistentModule) {
+TEST_F(ModuleManagerTest, TestUnloadNonExistentModule)
+{
     auto& manager = mc::get_module_manager();
 
     // 卸载不存在的模块不应该崩溃
@@ -193,7 +209,8 @@ TEST_F(ModuleManagerTest, TestUnloadNonExistentModule) {
 /**
  * @brief 测试多次加载同一模块（应返回缓存）
  */
-TEST_F(ModuleManagerTest, TestMultipleLoadSameModule) {
+TEST_F(ModuleManagerTest, TestMultipleLoadSameModule)
+{
     auto& manager = mc::get_module_manager();
 
     auto module1 = manager.require("mc.test.module");
@@ -209,7 +226,8 @@ TEST_F(ModuleManagerTest, TestMultipleLoadSameModule) {
 /**
  * @brief 测试加载不存在的模块
  */
-TEST_F(ModuleManagerTest, TestLoadNonExistentModule) {
+TEST_F(ModuleManagerTest, TestLoadNonExistentModule)
+{
     auto& manager = mc::get_module_manager();
 
     auto module = manager.require("nonexistent.module");
@@ -220,7 +238,8 @@ TEST_F(ModuleManagerTest, TestLoadNonExistentModule) {
 /**
  * @brief 测试模块管理器的单例模式
  */
-TEST_F(ModuleManagerTest, TestModuleManagerSingleton) {
+TEST_F(ModuleManagerTest, TestModuleManagerSingleton)
+{
     auto& manager1 = mc::get_module_manager();
     auto& manager2 = mc::get_module_manager();
 
@@ -231,7 +250,8 @@ TEST_F(ModuleManagerTest, TestModuleManagerSingleton) {
 /**
  * @brief 测试 add_search_path 功能
  */
-TEST_F(ModuleManagerTest, TestAddSearchPath) {
+TEST_F(ModuleManagerTest, TestAddSearchPath)
+{
     auto& manager = mc::get_module_manager();
 
     // 添加搜索路径
@@ -245,7 +265,8 @@ TEST_F(ModuleManagerTest, TestAddSearchPath) {
 /**
  * @brief 测试 loaded_modules 列表
  */
-TEST_F(ModuleManagerTest, TestLoadedModulesList) {
+TEST_F(ModuleManagerTest, TestLoadedModulesList)
+{
     auto& manager = mc::get_module_manager();
 
     // 初始状态应该没有加载的模块（或只有之前测试加载的）
@@ -274,7 +295,8 @@ TEST_F(ModuleManagerTest, TestLoadedModulesList) {
 /**
  * @brief 测试模块版本信息
  */
-TEST_F(ModuleManagerTest, TestModuleVersion) {
+TEST_F(ModuleManagerTest, TestModuleVersion)
+{
     auto module = mc::load_module("mc.test.module");
     ASSERT_TRUE(module != nullptr);
 
@@ -285,7 +307,8 @@ TEST_F(ModuleManagerTest, TestModuleVersion) {
 /**
  * @brief 测试模块工厂为空的情况
  */
-TEST_F(ModuleManagerTest, TestModuleFactoryNull) {
+TEST_F(ModuleManagerTest, TestModuleFactoryNull)
+{
     // 这个测试主要验证当 factory 为 nullptr 时的处理
     // 由于我们的测试模块有有效的 factory，这个场景很难直接测试
     // 但我们可以验证 get_factory() 不会返回 nullptr
@@ -299,7 +322,8 @@ TEST_F(ModuleManagerTest, TestModuleFactoryNull) {
 /**
  * @brief 测试通过 factory_id 卸载模块
  */
-TEST_F(ModuleManagerTest, TestUnloadByFactoryId) {
+TEST_F(ModuleManagerTest, TestUnloadByFactoryId)
+{
     auto& manager = mc::get_module_manager();
 
     // 加载模块
@@ -319,7 +343,8 @@ TEST_F(ModuleManagerTest, TestUnloadByFactoryId) {
 /**
  * @brief 测试多次卸载同一模块
  */
-TEST_F(ModuleManagerTest, TestMultipleUnloadSameModule) {
+TEST_F(ModuleManagerTest, TestMultipleUnloadSameModule)
+{
     auto& manager = mc::get_module_manager();
 
     // 加载模块
@@ -339,7 +364,8 @@ TEST_F(ModuleManagerTest, TestMultipleUnloadSameModule) {
 /**
  * @brief 测试模块名称边界情况
  */
-TEST_F(ModuleManagerTest, TestModuleNameEdgeCases) {
+TEST_F(ModuleManagerTest, TestModuleNameEdgeCases)
+{
     auto& manager = mc::get_module_manager();
 
     // 测试空模块名
@@ -358,7 +384,8 @@ TEST_F(ModuleManagerTest, TestModuleNameEdgeCases) {
 /**
  * @brief 测试模块加载功能
  */
-TEST_F(ModuleManagerTest, TestModuleLoad) {
+TEST_F(ModuleManagerTest, TestModuleLoad)
+{
     auto module = mc::load_module("mc.test.module");
     ASSERT_TRUE(module != nullptr);
 
@@ -369,7 +396,8 @@ TEST_F(ModuleManagerTest, TestModuleLoad) {
 /**
  * @brief 测试模块管理器功能
  */
-TEST_F(ModuleManagerTest, TestModuleManagerBasic) {
+TEST_F(ModuleManagerTest, TestModuleManagerBasic)
+{
     auto& manager = mc::get_module_manager();
 
     // 测试模块加载状态查询
@@ -394,7 +422,8 @@ TEST_F(ModuleManagerTest, TestModuleManagerBasic) {
 /**
  * @brief 测试反射功能
  */
-TEST_F(ModuleManagerTest, TestReflection) {
+TEST_F(ModuleManagerTest, TestReflection)
+{
     // 通过模块管理器加载模块，并获取其工厂
     auto module = mc::load_module("mc.test.module");
     ASSERT_TRUE(module != nullptr);
@@ -442,7 +471,8 @@ TEST_F(ModuleManagerTest, TestReflection) {
 /**
  * @brief 测试便利函数
  */
-TEST_F(ModuleManagerTest, TestUtilityFunctions) {
+TEST_F(ModuleManagerTest, TestUtilityFunctions)
+{
     // 测试便利加载函数
     auto module1 = mc::load_module("mc.test.module");
     auto module2 = mc::get_module_manager().require("mc.test.module");
@@ -458,7 +488,8 @@ TEST_F(ModuleManagerTest, TestUtilityFunctions) {
 /**
  * @brief 测试注销内置模块
  */
-TEST_F(ModuleManagerTest, TestUnRegisterBuiltinModule) {
+TEST_F(ModuleManagerTest, TestUnRegisterBuiltinModule)
+{
     auto& manager = mc::get_module_manager();
 
     bool is_loaded = manager.is_loaded("mc.test.module");
@@ -478,7 +509,8 @@ TEST_F(ModuleManagerTest, TestUnRegisterBuiltinModule) {
 /**
  * @brief 并发 require 同一模块应返回同一实例
  */
-TEST_F(ModuleManagerTest, TestConcurrentRequireSameModule) {
+TEST_F(ModuleManagerTest, TestConcurrentRequireSameModule)
+{
     auto&     manager      = mc::get_module_manager();
     const int thread_count = 8;
 
@@ -524,7 +556,8 @@ TEST_F(ModuleManagerTest, TestConcurrentRequireSameModule) {
 /**
  * @brief 并发执行 require/unload 场景不应崩溃
  */
-TEST_F(ModuleManagerTest, TestConcurrentRequireAndUnload) {
+TEST_F(ModuleManagerTest, TestConcurrentRequireAndUnload)
+{
     auto&             manager = mc::get_module_manager();
     std::atomic<bool> stop{false};
     std::atomic<int>  iterations{0};
@@ -595,7 +628,8 @@ TEST_F(ModuleManagerTest, TestConcurrentRequireAndUnload) {
     manager.unload("mc.test.module");
 }
 
-TEST_F(ModuleManagerTest, TestDynamicModuleOpenFailure) {
+TEST_F(ModuleManagerTest, TestDynamicModuleOpenFailure)
+{
     auto build_root = mc::test::get_build_root();
     auto source     = dynamic_module_source_path(build_root);
     ASSERT_TRUE(mc::filesystem::exists(source)) << "动态模块源文件不存在: " << source;
@@ -610,7 +644,8 @@ TEST_F(ModuleManagerTest, TestDynamicModuleOpenFailure) {
     EXPECT_TRUE(module == nullptr);
 }
 
-TEST_F(ModuleManagerTest, TestDynamicModuleCloseThrows) {
+TEST_F(ModuleManagerTest, TestDynamicModuleCloseThrows)
+{
     auto build_root = mc::test::get_build_root();
     auto source     = dynamic_module_source_path(build_root);
     ASSERT_TRUE(mc::filesystem::exists(source));
@@ -633,7 +668,8 @@ TEST_F(ModuleManagerTest, TestDynamicModuleCloseThrows) {
 }
 
 // 测试动态模块卸载时的 dlog 日志
-TEST_F(ModuleManagerTest, ModuleManagerDynamicUnloadLogs) {
+TEST_F(ModuleManagerTest, ModuleManagerDynamicUnloadLogs)
+{
     auto build_root = mc::test::get_build_root();
     auto source     = dynamic_module_source_path(build_root);
     ASSERT_TRUE(mc::filesystem::exists(source)) << "动态模块源文件不存在: " << source;
@@ -662,7 +698,8 @@ TEST_F(ModuleManagerTest, ModuleManagerDynamicUnloadLogs) {
 }
 
 // 测试释放所有引用后卸载，命中 need_unload 分支
-TEST_F(ModuleManagerTest, ModuleManagerReleaseHandleOnUnload) {
+TEST_F(ModuleManagerTest, ModuleManagerReleaseHandleOnUnload)
+{
     auto build_root = mc::test::get_build_root();
     auto source     = dynamic_module_source_path(build_root);
     ASSERT_TRUE(mc::filesystem::exists(source));
@@ -692,7 +729,8 @@ TEST_F(ModuleManagerTest, ModuleManagerReleaseHandleOnUnload) {
 }
 
 // 测试 reset_for_test() 覆盖 clear() 中 handle 回收
-TEST_F(ModuleManagerTest, ModuleManagerResetClearsHandles) {
+TEST_F(ModuleManagerTest, ModuleManagerResetClearsHandles)
+{
     auto build_root = mc::test::get_build_root();
     auto source     = dynamic_module_source_path(build_root);
     ASSERT_TRUE(mc::filesystem::exists(source));
@@ -719,7 +757,8 @@ TEST_F(ModuleManagerTest, ModuleManagerResetClearsHandles) {
 }
 
 // 测试 handle 复用场景
-TEST_F(ModuleManagerTest, ModuleManagerReuseLibraryHandle) {
+TEST_F(ModuleManagerTest, ModuleManagerReuseLibraryHandle)
+{
     auto build_root = mc::test::get_build_root();
     auto source     = dynamic_module_source_path(build_root);
     ASSERT_TRUE(mc::filesystem::exists(source));

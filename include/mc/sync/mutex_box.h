@@ -234,19 +234,25 @@ public:
      * @brief 构造函数
      */
     explicit locked_ptr(BoxType* parent)
-        : m_lock(!parent ? lock_type{} : do_lock(parent->m_mutex)) {
+        : m_lock(!parent ? lock_type{} : do_lock(parent->m_mutex))
+    {
     }
 
-    explicit locked_ptr(lock_type lock) noexcept : m_lock(std::move(lock)) {
+    explicit locked_ptr(lock_type lock) noexcept
+        : m_lock(std::move(lock))
+    {
     }
 
     locked_ptr(const locked_ptr&)            = delete;
     locked_ptr& operator=(const locked_ptr&) = delete;
 
-    locked_ptr(locked_ptr&& rhs) noexcept : m_lock(std::move(rhs.m_lock)) {
+    locked_ptr(locked_ptr&& rhs) noexcept
+        : m_lock(std::move(rhs.m_lock))
+    {
     }
 
-    locked_ptr& operator=(locked_ptr&& rhs) noexcept {
+    locked_ptr& operator=(locked_ptr&& rhs) noexcept
+    {
         if (this != &rhs) {
             m_lock = std::move(rhs.m_lock);
         }
@@ -256,7 +262,8 @@ public:
     /**
      * @brief 析构函数
      */
-    ~locked_ptr() {
+    ~locked_ptr()
+    {
         // 升级锁需要特殊的解锁方式
         if constexpr (LockType == detail::lock_type::upgrade ||
                       LockType == detail::lock_type::try_upgrade) {
@@ -275,53 +282,61 @@ public:
     /**
      * @brief 解引用操作符
      */
-    data_type* operator->() const {
+    data_type* operator->() const
+    {
         return &get_box().m_data;
     }
 
-    data_type& operator*() const {
+    data_type& operator*() const
+    {
         return get_box().m_data;
     }
 
     /**
      * @brief 获取底层锁对象
      */
-    const lock_type& as_lock() const noexcept {
+    const lock_type& as_lock() const noexcept
+    {
         return m_lock;
     }
 
     /**
      * @brief 检查锁是否为空
      */
-    bool is_null() const {
+    bool is_null() const
+    {
         return !m_lock;
     }
 
     /**
      * @brief 转换为bool（检查是否持有锁）
      */
-    explicit operator bool() const {
+    explicit operator bool() const
+    {
         return static_cast<bool>(m_lock);
     }
 
     /**
      * @brief 释放锁（类似std::unique_lock::unlock）
      */
-    void unlock() noexcept {
+    void unlock() noexcept
+    {
         m_lock = {};
     }
 
     /**
      * @brief 创建临时解锁器（作用域解锁）
      */
-    scoped_unlocker<box_type, LockType> scoped_unlock() {
+    scoped_unlocker<box_type, LockType> scoped_unlock()
+    {
         return scoped_unlocker<box_type, LockType>(this);
     }
 
     /**
      * @brief 获取所属的 box 对象
      */
-    box_type& get_box() const {
+    box_type& get_box() const
+    {
         return *box_type::to_box_ptr(m_lock.mutex());
     }
 
@@ -333,7 +348,8 @@ public:
     template <detail::lock_type L = LockType>
     std::enable_if_t<L == detail::lock_type::upgrade,
                      locked_ptr<BoxType, detail::lock_type::unique>>
-    upgrade_to_wlock() && {
+    upgrade_to_wlock() &&
+    {
         if (m_lock && m_lock.owns_lock()) {
             auto* mutex_ptr = m_lock.mutex();
             if (mutex_ptr) {
@@ -354,7 +370,8 @@ public:
     template <detail::lock_type L = LockType>
     std::enable_if_t<L == detail::lock_type::upgrade,
                      std::optional<locked_ptr<BoxType, detail::lock_type::unique>>>
-    try_upgrade_to_wlock() && {
+    try_upgrade_to_wlock() &&
+    {
         if (m_lock && m_lock.owns_lock()) {
             auto* mutex_ptr = m_lock.mutex();
             if (mutex_ptr && mutex_ptr->try_unlock_upgrade_and_lock()) {
@@ -372,7 +389,8 @@ public:
     template <typename Duration, detail::lock_type L = LockType>
     std::enable_if_t<L == detail::lock_type::upgrade,
                      std::optional<locked_ptr<BoxType, detail::lock_type::unique>>>
-    try_upgrade_to_wlock_for(const Duration& timeout) && {
+    try_upgrade_to_wlock_for(const Duration& timeout) &&
+    {
         if (m_lock && m_lock.owns_lock()) {
             auto* mutex_ptr = m_lock.mutex();
             if (mutex_ptr) {
@@ -393,7 +411,8 @@ public:
     template <detail::lock_type L = LockType>
     std::enable_if_t<L == detail::lock_type::upgrade,
                      locked_ptr<BoxType, detail::lock_type::shared>>
-    downgrade_to_rlock() && {
+    downgrade_to_rlock() &&
+    {
         if (m_lock) {
             m_lock.mutex()->unlock_upgrade_and_lock_shared();
             auto new_lock = std::shared_lock<mutex_type>(*m_lock.mutex(), std::adopt_lock);
@@ -409,7 +428,8 @@ public:
     template <detail::lock_type L = LockType>
     std::enable_if_t<L == detail::lock_type::unique,
                      locked_ptr<BoxType, detail::lock_type::shared>>
-    downgrade_to_rlock() && {
+    downgrade_to_rlock() &&
+    {
         if (m_lock) {
             m_lock.mutex()->unlock_and_lock_shared();
             auto new_lock = std::shared_lock<mutex_type>(*m_lock.mutex(), std::adopt_lock);
@@ -425,7 +445,8 @@ public:
     template <detail::lock_type L = LockType>
     std::enable_if_t<L == detail::lock_type::unique,
                      locked_ptr<BoxType, detail::lock_type::upgrade>>
-    downgrade_to_ulock() && {
+    downgrade_to_ulock() &&
+    {
         if (m_lock) {
             m_lock.mutex()->unlock_and_lock_upgrade();
             auto new_lock = std::unique_lock<mutex_type>(*m_lock.mutex(), std::adopt_lock);
@@ -439,7 +460,8 @@ private:
     friend class scoped_unlocker<box_type, LockType>;
 
     template <typename MT>
-    static lock_type do_lock(MT& mutex) {
+    static lock_type do_lock(MT& mutex)
+    {
         if constexpr (LockType == detail::lock_type::try_unique) {
             return lock_type{mutex, std::try_to_lock};
         } else if constexpr (LockType == detail::lock_type::try_shared) {
@@ -459,11 +481,13 @@ private:
         }
     }
 
-    void release_lock() noexcept {
+    void release_lock() noexcept
+    {
         m_lock = {};
     }
 
-    void reacquire_lock(box_type& box) {
+    void reacquire_lock(box_type& box)
+    {
         m_lock = do_lock(box.m_mutex);
     }
 
@@ -477,7 +501,8 @@ template <class BoxType, detail::lock_type LockType>
 class scoped_unlocker {
 public:
     explicit scoped_unlocker(locked_ptr<BoxType, LockType>* p) noexcept
-        : m_locked_ptr(p), m_box(p ? &p->get_box() : nullptr) {
+        : m_locked_ptr(p), m_box(p ? &p->get_box() : nullptr)
+    {
         if (m_locked_ptr) {
             m_locked_ptr->release_lock();
         }
@@ -488,7 +513,8 @@ public:
     scoped_unlocker(scoped_unlocker&& rhs) noexcept            = default;
     scoped_unlocker& operator=(scoped_unlocker&& rhs) noexcept = default;
 
-    ~scoped_unlocker() {
+    ~scoped_unlocker()
+    {
         if (m_locked_ptr && m_box) {
             m_locked_ptr->reacquire_lock(*m_box);
         }
@@ -556,27 +582,32 @@ public:
      * @brief 拷贝构造函数（仅当T可拷贝构造时启用）
      */
     /* implicit */ mutex_box(box_param_type rhs) /* may throw */
-        : mutex_box(rhs.copy()) {
+        : mutex_box(rhs.copy())
+    {
     }
 
     /**
      * @brief 移动构造函数
      */
     mutex_box(mutex_box&& rhs) noexcept(has_move_ctor)
-        : mutex_box(std::move(rhs.m_data)) {
+        : mutex_box(std::move(rhs.m_data))
+    {
     }
 
     /**
      * @brief 从数据拷贝构造
      */
-    explicit mutex_box(const T& rhs) noexcept(has_copy_ctor) : m_data(rhs) {
+    explicit mutex_box(const T& rhs) noexcept(has_copy_ctor)
+        : m_data(rhs)
+    {
     }
 
     /**
      * @brief 从数据移动构造
      */
     explicit mutex_box(T&& rhs) noexcept(has_move_ctor)
-        : m_data(std::move(rhs)) {
+        : m_data(std::move(rhs))
+    {
     }
 
     /**
@@ -584,7 +615,8 @@ public:
      */
     template <typename... Args>
     explicit constexpr mutex_box(std::in_place_t, Args&&... args)
-        : m_data(std::forward<Args>(args)...) {
+        : m_data(std::forward<Args>(args)...)
+    {
     }
 
     /**
@@ -598,27 +630,31 @@ public:
                     std::move(data_args),
                     std::move(mutex_args),
                     std::make_index_sequence<sizeof...(DataArgs)>{},
-                    std::make_index_sequence<sizeof...(MutexArgs)>{}} {
+                    std::make_index_sequence<sizeof...(MutexArgs)>{}}
+    {
     }
 
     /**
      * @brief 拷贝赋值运算符
      */
-    mutex_box& operator=(box_param_type rhs) {
+    mutex_box& operator=(box_param_type rhs)
+    {
         return *this = rhs.copy();
     }
 
     /**
      * @brief 移动赋值运算符
      */
-    mutex_box& operator=(mutex_box&& rhs) {
+    mutex_box& operator=(mutex_box&& rhs)
+    {
         return *this = std::move(rhs.m_data);
     }
 
     /**
      * @brief 从数据赋值
      */
-    mutex_box& operator=(data_param_type rhs) {
+    mutex_box& operator=(data_param_type rhs)
+    {
         if (&m_data != &rhs) {
             auto guard = this->lock();
             m_data     = rhs;
@@ -629,7 +665,8 @@ public:
     /**
      * @brief 从数据移动赋值
      */
-    mutex_box& operator=(data_rvalue_type rhs) {
+    mutex_box& operator=(data_rvalue_type rhs)
+    {
         if (&m_data != &rhs) {
             auto guard = this->lock();
             m_data     = std::move(rhs);
@@ -642,12 +679,14 @@ public:
      */
     template <typename M                                 = Mutex,
               std::enable_if_t<detail::has_lock<M>, int> = 0>
-    auto wlock() {
+    auto wlock()
+    {
         return w_locked_ptr(this);
     }
     template <typename M                                 = Mutex,
               std::enable_if_t<detail::has_lock<M>, int> = 0>
-    auto wlock() const {
+    auto wlock() const
+    {
         return const_w_locked_ptr(this);
     }
 
@@ -656,12 +695,14 @@ public:
      */
     template <typename M                                 = Mutex,
               std::enable_if_t<detail::has_lock<M>, int> = 0>
-    auto try_wlock() {
+    auto try_wlock()
+    {
         return try_w_locked_ptr{this};
     }
     template <typename M                                 = Mutex,
               std::enable_if_t<detail::has_lock<M>, int> = 0>
-    auto try_wlock() const {
+    auto try_wlock() const
+    {
         return const_try_w_locked_ptr{this};
     }
 
@@ -670,12 +711,14 @@ public:
      */
     template <typename M                                 = Mutex,
               std::enable_if_t<detail::has_lock<M>, int> = 0>
-    auto lock() {
+    auto lock()
+    {
         return wlock<M>();
     }
     template <typename M                                 = Mutex,
               std::enable_if_t<detail::has_lock<M>, int> = 0>
-    auto lock() const {
+    auto lock() const
+    {
         return wlock<M>();
     }
 
@@ -684,12 +727,14 @@ public:
      */
     template <typename M                                 = Mutex,
               std::enable_if_t<detail::has_lock<M>, int> = 0>
-    auto try_lock() {
+    auto try_lock()
+    {
         return try_wlock<M>();
     }
     template <typename M                                 = Mutex,
               std::enable_if_t<detail::has_lock<M>, int> = 0>
-    auto try_lock() const {
+    auto try_lock() const
+    {
         return try_wlock<M>();
     }
 
@@ -698,12 +743,14 @@ public:
      */
     template <class Function, typename M = Mutex,
               std::enable_if_t<detail::has_lock<M>, int> = 0>
-    auto with_wlock(Function&& function) {
+    auto with_wlock(Function&& function)
+    {
         return function(*wlock<M>());
     }
     template <class Function, typename M = Mutex,
               std::enable_if_t<detail::has_lock<M>, int> = 0>
-    auto with_wlock(Function&& function) const {
+    auto with_wlock(Function&& function) const
+    {
         return function(*wlock<M>());
     }
 
@@ -712,12 +759,14 @@ public:
      */
     template <class Function, typename M = Mutex,
               std::enable_if_t<detail::has_lock<M>, int> = 0>
-    auto with_wlock_ptr(Function&& function) {
+    auto with_wlock_ptr(Function&& function)
+    {
         return function(wlock<M>());
     }
     template <class Function, typename M = Mutex,
               std::enable_if_t<detail::has_lock<M>, int> = 0>
-    auto with_wlock_ptr(Function&& function) const {
+    auto with_wlock_ptr(Function&& function) const
+    {
         return function(wlock<M>());
     }
 
@@ -726,12 +775,14 @@ public:
      */
     template <class Function, typename M = Mutex,
               std::enable_if_t<detail::has_lock<M>, int> = 0>
-    auto with_lock(Function&& function) {
+    auto with_lock(Function&& function)
+    {
         return function(*lock<M>());
     }
     template <class Function, typename M = Mutex,
               std::enable_if_t<detail::has_lock<M>, int> = 0>
-    auto with_lock(Function&& function) const {
+    auto with_lock(Function&& function) const
+    {
         return function(*lock<M>());
     }
 
@@ -740,12 +791,14 @@ public:
      */
     template <class Function, typename M = Mutex,
               std::enable_if_t<detail::has_lock<M>, int> = 0>
-    auto with_lock_ptr(Function&& function) {
+    auto with_lock_ptr(Function&& function)
+    {
         return function(lock<M>());
     }
     template <class Function, typename M = Mutex,
               std::enable_if_t<detail::has_lock<M>, int> = 0>
-    auto with_lock_ptr(Function&& function) const {
+    auto with_lock_ptr(Function&& function) const
+    {
         return function(lock<M>());
     }
 
@@ -754,13 +807,15 @@ public:
      */
     template <typename M                                   = Mutex,
               std::enable_if_t<detail::has_shared<M>, int> = 0>
-    auto rlock() {
+    auto rlock()
+    {
         return r_locked_ptr(this);
     }
 
     template <typename M                                   = Mutex,
               std::enable_if_t<detail::has_shared<M>, int> = 0>
-    auto rlock() const {
+    auto rlock() const
+    {
         return const_r_locked_ptr(this);
     }
 
@@ -769,13 +824,15 @@ public:
      */
     template <typename M                                   = Mutex,
               std::enable_if_t<detail::has_shared<M>, int> = 0>
-    auto try_rlock() {
+    auto try_rlock()
+    {
         return try_r_locked_ptr(this);
     }
 
     template <typename M                                   = Mutex,
               std::enable_if_t<detail::has_shared<M>, int> = 0>
-    auto try_rlock() const {
+    auto try_rlock() const
+    {
         return const_try_r_locked_ptr(this);
     }
 
@@ -784,7 +841,8 @@ public:
      */
     template <typename Duration, typename M = Mutex,
               std::enable_if_t<detail::has_shared<M> && detail::has_try_lock_shared_for<M>, int> = 0>
-    auto try_rlock_for(const Duration& timeout) {
+    auto try_rlock_for(const Duration& timeout)
+    {
         using duration_type = std::chrono::steady_clock::duration;
 
         std::shared_lock<M> lock(m_mutex, std::defer_lock);
@@ -796,7 +854,8 @@ public:
 
     template <typename Duration, typename M = Mutex,
               std::enable_if_t<detail::has_shared<M> && detail::has_try_lock_shared_for<M>, int> = 0>
-    auto try_rlock_for(const Duration& timeout) const {
+    auto try_rlock_for(const Duration& timeout) const
+    {
         using duration_type = std::chrono::steady_clock::duration;
 
         std::shared_lock<M> lock(m_mutex, std::defer_lock);
@@ -811,7 +870,8 @@ public:
      */
     template <typename Duration, typename M = Mutex,
               std::enable_if_t<detail::has_lock<M> && detail::has_try_lock_for<M>, int> = 0>
-    auto try_wlock_for(const Duration& timeout) {
+    auto try_wlock_for(const Duration& timeout)
+    {
         using duration_type = std::chrono::steady_clock::duration;
 
         std::unique_lock<M> lock(m_mutex, std::defer_lock);
@@ -823,7 +883,8 @@ public:
 
     template <typename Duration, typename M = Mutex,
               std::enable_if_t<detail::has_lock<M> && detail::has_try_lock_for<M>, int> = 0>
-    auto try_wlock_for(const Duration& timeout) const {
+    auto try_wlock_for(const Duration& timeout) const
+    {
         using duration_type = std::chrono::steady_clock::duration;
 
         std::unique_lock<M> lock(m_mutex, std::defer_lock);
@@ -838,13 +899,15 @@ public:
      */
     template <typename Duration, typename M = Mutex,
               std::enable_if_t<detail::has_lock<M> && detail::has_try_lock_for<M>, int> = 0>
-    auto try_lock_for(const Duration& timeout) {
+    auto try_lock_for(const Duration& timeout)
+    {
         return try_wlock_for<Duration, M>(timeout);
     }
 
     template <typename Duration, typename M = Mutex,
               std::enable_if_t<detail::has_lock<M> && detail::has_try_lock_for<M>, int> = 0>
-    auto try_lock_for(const Duration& timeout) const {
+    auto try_lock_for(const Duration& timeout) const
+    {
         return try_wlock_for<Duration, M>(timeout);
     }
 
@@ -853,7 +916,8 @@ public:
      */
     template <class Function, typename M = Mutex,
               std::enable_if_t<detail::has_shared<M>, int> = 0>
-    auto with_rlock(Function&& function) const {
+    auto with_rlock(Function&& function) const
+    {
         return function(*rlock<M>());
     }
 
@@ -862,13 +926,15 @@ public:
      */
     template <class Function, typename M = Mutex,
               std::enable_if_t<detail::has_shared<M>, int> = 0>
-    auto with_rlock_ptr(Function&& function) {
+    auto with_rlock_ptr(Function&& function)
+    {
         return function(rlock<M>());
     }
 
     template <class Function, typename M = Mutex,
               std::enable_if_t<detail::has_shared<M>, int> = 0>
-    auto with_rlock_ptr(Function&& function) const {
+    auto with_rlock_ptr(Function&& function) const
+    {
         return function(rlock<M>());
     }
 
@@ -880,13 +946,15 @@ public:
      */
     template <typename M                                    = Mutex,
               std::enable_if_t<detail::has_upgrade<M>, int> = 0>
-    auto ulock() {
+    auto ulock()
+    {
         return u_locked_ptr(this);
     }
 
     template <typename M                                    = Mutex,
               std::enable_if_t<detail::has_upgrade<M>, int> = 0>
-    auto ulock() const {
+    auto ulock() const
+    {
         return const_u_locked_ptr(this);
     }
 
@@ -895,13 +963,15 @@ public:
      */
     template <typename M                                    = Mutex,
               std::enable_if_t<detail::has_upgrade<M>, int> = 0>
-    auto try_ulock() {
+    auto try_ulock()
+    {
         return try_u_locked_ptr(this);
     }
 
     template <typename M                                    = Mutex,
               std::enable_if_t<detail::has_upgrade<M>, int> = 0>
-    auto try_ulock() const {
+    auto try_ulock() const
+    {
         return const_try_u_locked_ptr(this);
     }
 
@@ -910,7 +980,8 @@ public:
      */
     template <typename Duration, typename M = Mutex,
               std::enable_if_t<detail::has_upgrade<M> && detail::has_try_lock_upgrade_for<M>, int> = 0>
-    auto try_ulock_for(const Duration& timeout) {
+    auto try_ulock_for(const Duration& timeout)
+    {
         using duration_type = std::chrono::steady_clock::duration;
 
         std::unique_lock<M> lock(m_mutex, std::defer_lock);
@@ -924,7 +995,8 @@ public:
 
     template <typename Duration, typename M = Mutex,
               std::enable_if_t<detail::has_upgrade<M> && detail::has_try_lock_upgrade_for<M>, int> = 0>
-    auto try_ulock_for(const Duration& timeout) const {
+    auto try_ulock_for(const Duration& timeout) const
+    {
         using duration_type = std::chrono::steady_clock::duration;
 
         std::unique_lock<M> lock(m_mutex, std::defer_lock);
@@ -941,13 +1013,15 @@ public:
      */
     template <class Function, typename M = Mutex,
               std::enable_if_t<detail::has_upgrade<M>, int> = 0>
-    auto with_ulock(Function&& function) {
+    auto with_ulock(Function&& function)
+    {
         return function(*ulock<M>());
     }
 
     template <class Function, typename M = Mutex,
               std::enable_if_t<detail::has_upgrade<M>, int> = 0>
-    auto with_ulock(Function&& function) const {
+    auto with_ulock(Function&& function) const
+    {
         return function(*ulock<M>());
     }
 
@@ -956,20 +1030,23 @@ public:
      */
     template <class Function, typename M = Mutex,
               std::enable_if_t<detail::has_upgrade<M>, int> = 0>
-    auto with_ulock_ptr(Function&& function) {
+    auto with_ulock_ptr(Function&& function)
+    {
         return function(ulock<M>());
     }
 
     template <class Function, typename M = Mutex,
               std::enable_if_t<detail::has_upgrade<M>, int> = 0>
-    auto with_ulock_ptr(Function&& function) const {
+    auto with_ulock_ptr(Function&& function) const
+    {
         return function(ulock<M>());
     }
 
     /**
      * @brief 交换数据
      */
-    void swap(mutex_box& rhs) {
+    void swap(mutex_box& rhs)
+    {
         if (this == &rhs) {
             return;
         }
@@ -985,7 +1062,8 @@ public:
     /**
      * @brief 与外部数据交换
      */
-    void swap(T& rhs) {
+    void swap(T& rhs)
+    {
         auto guard = this->lock();
         std::swap(m_data, rhs);
     }
@@ -993,7 +1071,8 @@ public:
     /**
      * @brief 交换并返回原值
      */
-    T exchange(T&& rhs) {
+    T exchange(T&& rhs)
+    {
         swap(rhs);
         return std::move(rhs);
     }
@@ -1001,7 +1080,8 @@ public:
     /**
      * @brief 拷贝数据到目标
      */
-    void copy(T& target) const {
+    void copy(T& target) const
+    {
         if constexpr (detail::has_shared<Mutex>) {
             auto guard = this->rlock();
             target     = m_data;
@@ -1014,7 +1094,8 @@ public:
     /**
      * @brief 返回数据的拷贝
      */
-    T copy() const {
+    T copy() const
+    {
         if constexpr (detail::has_shared<Mutex>) {
             auto guard = this->rlock();
             return m_data;
@@ -1029,17 +1110,20 @@ public:
      *
      * 仅在确保线程安全的情况下使用
      */
-    T& unsafe_get_data() {
+    T& unsafe_get_data()
+    {
         return m_data;
     }
-    const T& unsafe_get_data() const {
+    const T& unsafe_get_data() const
+    {
         return m_data;
     }
 
     /**
      * @brief 不安全地直接访问互斥锁
      */
-    Mutex& unsafe_get_mutex() const {
+    Mutex& unsafe_get_mutex() const
+    {
         return m_mutex;
     }
 
@@ -1055,7 +1139,8 @@ private:
               std::index_sequence<IndicesOne...>,
               std::index_sequence<IndicesTwo...>)
         : m_data{std::get<IndicesOne>(std::move(data_args))...},
-          m_mutex{std::get<IndicesTwo>(std::move(mutex_args))...} {
+          m_mutex{std::get<IndicesTwo>(std::move(mutex_args))...}
+    {
     }
 
     // 模拟成员布局用于标准布局的 offsetof 计算
@@ -1070,7 +1155,8 @@ private:
     T             m_data{};
     mutable Mutex m_mutex;
 
-    static mutex_box* to_box_ptr(void* mutex) {
+    static mutex_box* to_box_ptr(void* mutex)
+    {
         static_assert(
             sizeof(simul_t) == sizeof(mutex_box) && alignof(simul_t) == alignof(mutex_box), "mismatch");
         auto       off = offsetof(simul_t, m_mutex);
@@ -1094,7 +1180,8 @@ private:
  * *locked2 = 200;
  */
 template <typename Box1, typename Box2>
-auto lock_pair(Box1& box1, Box2& box2) {
+auto lock_pair(Box1& box1, Box2& box2)
+{
     using mutex1_type = typename Box1::mutex_type;
     using mutex2_type = typename Box2::mutex_type;
 
@@ -1123,7 +1210,8 @@ auto lock_pair(Box1& box1, Box2& box2) {
  * *locked3 = 300;
  */
 template <typename... Boxes>
-auto lock(Boxes&... boxes) {
+auto lock(Boxes&... boxes)
+{
     static_assert(sizeof...(Boxes) > 0, "至少需要一个 mutex_box");
 
     auto locks = std::make_tuple(

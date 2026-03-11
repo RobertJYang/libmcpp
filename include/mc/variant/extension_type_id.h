@@ -53,17 +53,20 @@ enum class extension_type_trait : uint32_t {
     comparable     = 1 << 5, // 支持比较运算
 };
 
-constexpr extension_type_trait operator|(extension_type_trait a, extension_type_trait b) {
+constexpr extension_type_trait operator|(extension_type_trait a, extension_type_trait b)
+{
     return static_cast<extension_type_trait>(
         static_cast<uint32_t>(a) | static_cast<uint32_t>(b));
 }
 
-constexpr extension_type_trait operator&(extension_type_trait a, extension_type_trait b) {
+constexpr extension_type_trait operator&(extension_type_trait a, extension_type_trait b)
+{
     return static_cast<extension_type_trait>(
         static_cast<uint32_t>(a) & static_cast<uint32_t>(b));
 }
 
-constexpr bool has_trait(extension_type_trait traits, extension_type_trait trait) {
+constexpr bool has_trait(extension_type_trait traits, extension_type_trait trait)
+{
     return (static_cast<uint32_t>(traits) & static_cast<uint32_t>(trait)) != 0;
 }
 
@@ -76,31 +79,39 @@ struct extension_type_info {
     extension_type_trait traits; // 类型特征
 
     constexpr extension_type_info()
-        : id(0), name("unknown"), traits(extension_type_trait::none) {
+        : id(0), name("unknown"), traits(extension_type_trait::none)
+    {
     }
 
     constexpr extension_type_info(extension_type_id_t id_, std::string_view name_,
                                   extension_type_trait traits_ = extension_type_trait::none)
-        : id(id_), name(name_), traits(traits_) {
+        : id(id_), name(name_), traits(traits_)
+    {
     }
 
     // 查询类型特征
-    constexpr bool is_iterable() const {
+    constexpr bool is_iterable() const
+    {
         return has_trait(traits, extension_type_trait::iterable);
     }
-    constexpr bool is_indexable() const {
+    constexpr bool is_indexable() const
+    {
         return has_trait(traits, extension_type_trait::indexable);
     }
-    constexpr bool is_key_value() const {
+    constexpr bool is_key_value() const
+    {
         return has_trait(traits, extension_type_trait::key_value);
     }
-    constexpr bool is_ref_accessible() const {
+    constexpr bool is_ref_accessible() const
+    {
         return has_trait(traits, extension_type_trait::ref_accessible);
     }
-    constexpr bool is_arithmetic() const {
+    constexpr bool is_arithmetic() const
+    {
         return has_trait(traits, extension_type_trait::arithmetic);
     }
-    constexpr bool is_comparable() const {
+    constexpr bool is_comparable() const
+    {
         return has_trait(traits, extension_type_trait::comparable);
     }
 };
@@ -122,7 +133,8 @@ constexpr extension_type_id_t user_defined_start = 1000;
 class extension_type_registry {
 public:
     // 获取下一个可用的用户类型ID
-    static extension_type_id_t next_user_type_id() {
+    static extension_type_id_t next_user_type_id()
+    {
         static extension_type_id_t next_id = extension_type_ids::user_defined_start;
         return next_id++;
     }
@@ -135,7 +147,8 @@ public:
  */
 template <typename T>
 struct extension_type_id_generator {
-    static extension_type_id_t get() {
+    static extension_type_id_t get()
+    {
         static const extension_type_id_t id = extension_type_registry::next_user_type_id();
         return id;
     }
@@ -149,7 +162,8 @@ struct extension_type_id_generator {
  */
 template <typename T>
 struct extension_type_info_traits {
-    static extension_type_info get() {
+    static extension_type_info get()
+    {
         return extension_type_info(
             extension_type_id_generator<T>::get(),
             mc::pretty_name<T>(),

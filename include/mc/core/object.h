@@ -163,7 +163,8 @@ public:
      * 如果对象已经有父对象，则会先从原父对象的子对象列表中移除
      */
     template <typename Object, std::enable_if_t<std::is_base_of_v<object, Object>, int> = 0>
-    void set_parent(const mc::shared_ptr<Object>& parent) {
+    void set_parent(const mc::shared_ptr<Object>& parent)
+    {
         set_parent(parent.get());
     }
 
@@ -189,7 +190,8 @@ public:
      */
     template <typename RetType, typename... Args, typename SlotType>
     connection_id_type connect(mc::signal<RetType(Args...)>& sig, SlotType&& slot,
-                               connection_type type = connection_type::Auto) {
+                               connection_type type = connection_type::Auto)
+    {
         return connect(INVALID_CONNECTION_ID, sig, std::forward<SlotType>(slot), type);
     }
 
@@ -202,7 +204,8 @@ public:
      */
     template <typename RetType, typename... Args, typename SlotType>
     connection_id_type connect(connection_id_type id, mc::signal<RetType(Args...)>& sig,
-                               SlotType&& slot, connection_type type = connection_type::Auto) {
+                               SlotType&& slot, connection_type type = connection_type::Auto)
+    {
         mc::connection_type conn;
 
         if (type == connection_type::Auto) {
@@ -240,7 +243,8 @@ public:
      */
 
     template <typename SignalType>
-    void disconnect(SignalType& sig) const {
+    void disconnect(SignalType& sig) const
+    {
         disconnect_all(&sig);
     }
 
@@ -251,7 +255,8 @@ public:
      * @return 根据完成令牌类型返回相应的结果
      */
     template <typename CompletionToken, typename Allocator = std::allocator<void>>
-    auto post(CompletionToken&& token, Allocator alloc = Allocator()) const {
+    auto post(CompletionToken&& token, Allocator alloc = Allocator()) const
+    {
         return get_executor().post(std::forward<CompletionToken>(token), alloc);
     }
 
@@ -262,7 +267,8 @@ public:
      * @return 根据完成令牌类型返回相应的结果
      */
     template <typename CompletionToken, typename Allocator = std::allocator<void>>
-    auto defer(CompletionToken&& token, Allocator alloc = Allocator()) const {
+    auto defer(CompletionToken&& token, Allocator alloc = Allocator()) const
+    {
         return get_executor().defer(std::forward<CompletionToken>(token), alloc);
     }
 
@@ -273,7 +279,8 @@ public:
      * @return 根据完成令牌类型返回相应的结果
      */
     template <typename CompletionToken, typename Allocator = std::allocator<void>>
-    auto dispatch(CompletionToken&& token, Allocator alloc = Allocator()) const {
+    auto dispatch(CompletionToken&& token, Allocator alloc = Allocator()) const
+    {
         return get_executor().dispatch(std::forward<CompletionToken>(token), alloc);
     }
 
@@ -284,7 +291,8 @@ public:
      * @return 绑定到执行器的处理器
      */
     template <typename Handler>
-    auto bind_executor(Handler&& handler) const {
+    auto bind_executor(Handler&& handler) const
+    {
         return boost::asio::bind_executor(get_executor(), std::forward<Handler>(handler));
     }
 

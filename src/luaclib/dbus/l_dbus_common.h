@@ -43,7 +43,8 @@ struct io_context_wrapper {
     bool                            should_delete;
 
     io_context_wrapper(std::shared_ptr<mc::io_context> c, bool del = true)
-        : ctx(std::move(c)), should_delete(del) {
+        : ctx(std::move(c)), should_delete(del)
+    {
     }
 };
 
@@ -55,7 +56,8 @@ struct dbus_wrapper {
 
     // 拥有模式构造函数：创建并拥有 bus_impl
     dbus_wrapper(mc::dbus::connection conn, std::shared_ptr<mc::io_context> ctx, bool is_blocking)
-        : io_ctx(std::move(ctx)), owns_bus_impl(true) {
+        : io_ctx(std::move(ctx)), owns_bus_impl(true)
+    {
         // 根据模式创建对应的 bus_mode_impl
         if (is_blocking) {
             bus_impl = std::make_unique<mc::dbus::blocking_bus_impl>();
@@ -68,11 +70,13 @@ struct dbus_wrapper {
 
     // 借用模式构造函数：借用现有的 bus_impl（不拥有所有权）
     dbus_wrapper(mc::dbus::bus_mode_impl* borrowed_impl, std::shared_ptr<mc::io_context> ctx)
-        : io_ctx(std::move(ctx)), owns_bus_impl(false) {
+        : io_ctx(std::move(ctx)), owns_bus_impl(false)
+    {
         bus_impl.reset(borrowed_impl); // 设置指针但不拥有所有权
     }
 
-    ~dbus_wrapper() {
+    ~dbus_wrapper()
+    {
         if (!owns_bus_impl && bus_impl) {
             // 借用模式：释放指针但不删除对象
             bus_impl.release();
@@ -83,7 +87,8 @@ struct dbus_wrapper {
 
 // 辅助函数：从 Lua 栈获取 io_context
 inline std::shared_ptr<mc::io_context> get_io_context(lua_State* L, int index,
-                                                      const char* metatable_name) {
+                                                      const char* metatable_name)
+{
     if (lua_isuserdata(L, index)) {
         auto* wrapper = static_cast<io_context_wrapper*>(luaL_checkudata(L, index, metatable_name));
         return wrapper->ctx;
@@ -94,7 +99,8 @@ inline std::shared_ptr<mc::io_context> get_io_context(lua_State* L, int index,
 // 通用方法实现
 
 // shutdown 方法（静态）
-inline int dbus_shutdown(lua_State* L) {
+inline int dbus_shutdown(lua_State* L)
+{
     try {
         ::dbus_shutdown();
         lua_pushboolean(L, true);
@@ -105,7 +111,8 @@ inline int dbus_shutdown(lua_State* L) {
 }
 
 // start 方法
-inline int dbus_start(lua_State* L) {
+inline int dbus_start(lua_State* L)
+{
     try {
         auto* wrapper = reinterpret_cast<dbus_wrapper*>(lua_touserdata(L, 1));
         bool  result  = wrapper->bus_impl->start();
@@ -118,7 +125,8 @@ inline int dbus_start(lua_State* L) {
 
 // request_name 方法
 // 返回两个参数：(success: bool, error: string|nil)
-inline int dbus_request_name(lua_State* L) {
+inline int dbus_request_name(lua_State* L)
+{
     try {
         auto*       wrapper = reinterpret_cast<dbus_wrapper*>(lua_touserdata(L, 1));
         const char* name    = luaL_checkstring(L, 2);
@@ -138,7 +146,8 @@ inline int dbus_request_name(lua_State* L) {
 }
 
 // close 方法
-inline int dbus_close(lua_State* L) {
+inline int dbus_close(lua_State* L)
+{
     try {
         auto* wrapper = reinterpret_cast<dbus_wrapper*>(lua_touserdata(L, 1));
         wrapper->bus_impl->disconnect();
@@ -150,7 +159,8 @@ inline int dbus_close(lua_State* L) {
 }
 
 // flush 方法
-inline int dbus_flush(lua_State* L) {
+inline int dbus_flush(lua_State* L)
+{
     try {
         auto* wrapper = reinterpret_cast<dbus_wrapper*>(lua_touserdata(L, 1));
         wrapper->bus_impl->flush();
@@ -162,7 +172,8 @@ inline int dbus_flush(lua_State* L) {
 }
 
 // dispatch 方法
-inline int dbus_dispatch(lua_State* L) {
+inline int dbus_dispatch(lua_State* L)
+{
     try {
         auto* wrapper = reinterpret_cast<dbus_wrapper*>(lua_touserdata(L, 1));
         wrapper->bus_impl->dispatch();
@@ -174,7 +185,8 @@ inline int dbus_dispatch(lua_State* L) {
 }
 
 // __index 元方法（处理 conn 属性）
-inline int dbus_index(lua_State* L) {
+inline int dbus_index(lua_State* L)
+{
     // 检查是否是方法调用
     lua_getmetatable(L, 1);
     lua_pushvalue(L, 2); // 复制 key
@@ -223,14 +235,16 @@ inline int dbus_index(lua_State* L) {
 }
 
 // __gc 元方法
-inline int dbus_gc(lua_State* L) {
+inline int dbus_gc(lua_State* L)
+{
     auto* wrapper = reinterpret_cast<dbus_wrapper*>(lua_touserdata(L, 1));
     wrapper->~dbus_wrapper();
     return 0;
 }
 
 // 通用的 dbus.xxx.new(arg) 实现
-inline int dbus_new_impl(lua_State* L, const char* metatable_name, const char* io_name, bool is_blocking) {
+inline int dbus_new_impl(lua_State* L, const char* metatable_name, const char* io_name, bool is_blocking)
+{
     try {
         // 创建 io_context
         auto io_ctx = std::make_shared<mc::io_context>(1, io_name);
@@ -278,7 +292,8 @@ inline int dbus_open_user_impl(lua_State*                                 L,
                                std::shared_ptr<mc::io_context>&           static_io_ctx,
                                const char*                                metatable_name,
                                bool                                       is_blocking,
-                               std::function<void(mc::dbus::connection&)> post_connect = nullptr) {
+                               std::function<void(mc::dbus::connection&)> post_connect = nullptr)
+{
     try {
         // 使用 connection 静态方法创建连接
         auto conn = mc::dbus::connection::open_session_bus(*static_io_ctx);
@@ -307,7 +322,8 @@ inline void register_metatable_impl(lua_State*      L,
                                     const char*     metatable_name,
                                     const luaL_Reg* methods,
                                     lua_CFunction   index_func,
-                                    lua_CFunction   gc_func) {
+                                    lua_CFunction   gc_func)
+{
     // 创建 metatable
     luaL_newmetatable(L, metatable_name);
 
@@ -326,7 +342,8 @@ inline void register_metatable_impl(lua_State*      L,
 }
 
 // 辅助函数，从lua调用栈中解析一个新的消息
-inline mc::dbus::message get_new_message(lua_State* L, int index, int arg_count) {
+inline mc::dbus::message get_new_message(lua_State* L, int index, int arg_count)
+{
     const char* path   = luaL_checkstring(L, index);
     const char* iface  = luaL_checkstring(L, index + 1);
     const char* member = luaL_checkstring(L, index + 2);
@@ -342,7 +359,8 @@ inline mc::dbus::message get_new_message(lua_State* L, int index, int arg_count)
 }
 
 // 辅助函数，初始化harbor
-inline void set_harbor(const char* harbor_name) {
+inline void set_harbor(const char* harbor_name)
+{
     std::string_view harbor_name_view{harbor_name};
     auto&            harbor = mc::dbus::harbor::get_instance();
     harbor.set_harbor_name_if_empty(harbor_name_view);
@@ -355,10 +373,12 @@ struct lua_match_callback {
     int        callback_ref;
 
     lua_match_callback(lua_State* l, int ref)
-        : L(l), callback_ref(ref) {
+        : L(l), callback_ref(ref)
+    {
     }
 
-    ~lua_match_callback() {
+    ~lua_match_callback()
+    {
         if (L && callback_ref != LUA_REFNIL) {
             luaL_unref(L, LUA_REGISTRYINDEX, callback_ref);
         }
@@ -368,10 +388,12 @@ struct lua_match_callback {
     lua_match_callback(const lua_match_callback&)            = delete;
     lua_match_callback& operator=(const lua_match_callback&) = delete;
     lua_match_callback(lua_match_callback&& other) noexcept
-        : L(other.L), callback_ref(other.callback_ref) {
+        : L(other.L), callback_ref(other.callback_ref)
+    {
         other.callback_ref = LUA_REFNIL;
     }
-    lua_match_callback& operator=(lua_match_callback&& other) noexcept {
+    lua_match_callback& operator=(lua_match_callback&& other) noexcept
+    {
         if (this != &other) {
             if (L && callback_ref != LUA_REFNIL) {
                 luaL_unref(L, LUA_REGISTRYINDEX, callback_ref);
@@ -383,7 +405,8 @@ struct lua_match_callback {
         return *this;
     }
 
-    void operator()(mc::dbus::message& msg) {
+    void operator()(mc::dbus::message& msg)
+    {
         if (!L || callback_ref == LUA_REFNIL) {
             return;
         }
@@ -405,7 +428,8 @@ struct lua_match_callback {
 inline std::unordered_map<std::string, mc::dbus::shm_tree*> shm_tree_map;
 inline std::mutex                                           shm_tree_map_mutex;
 
-inline void set_shm_tree(const char* harbor_name, const char* service_name, const char* unique_name) {
+inline void set_shm_tree(const char* harbor_name, const char* service_name, const char* unique_name)
+{
     set_harbor(harbor_name);
     auto& harbor = mc::dbus::harbor::get_instance();
     harbor.register_unique_name(unique_name, service_name);
@@ -416,7 +440,8 @@ inline void set_shm_tree(const char* harbor_name, const char* service_name, cons
 }
 
 // 获取一个shm_tree对象
-inline mc::dbus::shm_tree* get_shm_tree(const char* unique_name, const char* harbor_name, const char* service_name) {
+inline mc::dbus::shm_tree* get_shm_tree(const char* unique_name, const char* harbor_name, const char* service_name)
+{
     // 第一次检查：不加锁快速检查
     std::string service_name_str(service_name);
     auto        it = shm_tree_map.find(service_name_str);
@@ -440,7 +465,8 @@ inline mc::dbus::shm_tree* get_shm_tree(const char* unique_name, const char* har
 }
 
 // 从shm发送消息
-inline int notify_signal(lua_State* L) {
+inline int notify_signal(lua_State* L)
+{
     int n = lua_gettop(L);
     if (n < 4) {
         return luaL_error(L, "Too few args for send shm message");
@@ -458,7 +484,8 @@ inline int notify_signal(lua_State* L) {
 }
 
 // 辅助函数，从lua调用栈中解析一个新的订阅规则
-inline mc::dbus::match_rule get_new_rule(lua_State* L, int index, int arg_count) {
+inline mc::dbus::match_rule get_new_rule(lua_State* L, int index, int arg_count)
+{
     const char* member    = luaL_checkstring(L, index);
     const char* interface = luaL_checkstring(L, index + 1);
     auto        new_rule  = mc::dbus::match_rule::new_signal(member, interface);
@@ -506,7 +533,8 @@ inline mc::dbus::match_rule get_new_rule(lua_State* L, int index, int arg_count)
 //   3. match id
 //   4. harbor_name
 //   5. 之后: get_new_rule 的参数 (member, interface, ...)
-inline int add_match(lua_State* L) {
+inline int add_match(lua_State* L)
+{
     int n = lua_gettop(L);
     // wrapper + callback id + harbor_name + member + interface
     if (n < 5) {

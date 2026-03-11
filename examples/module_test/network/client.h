@@ -31,7 +31,8 @@ public:
     /**
      * @brief 连接到服务器
      */
-    bool connect(const std::string& host, int port) {
+    bool connect(const std::string& host, int port)
+    {
         m_host   = host;
         m_port   = port;
         m_status = connection_status::CONNECTING;
@@ -49,7 +50,8 @@ public:
     /**
      * @brief 断开连接
      */
-    void disconnect() {
+    void disconnect()
+    {
         m_status = connection_status::DISCONNECTED;
         m_host.clear();
         m_port = 0;
@@ -58,7 +60,8 @@ public:
     /**
      * @brief 发送数据
      */
-    bool send_data(const std::string& data) {
+    bool send_data(const std::string& data)
+    {
         if (m_status != connection_status::CONNECTED) {
             return false;
         }
@@ -69,7 +72,8 @@ public:
     /**
      * @brief 接收数据
      */
-    std::string receive_data() {
+    std::string receive_data()
+    {
         if (m_status != connection_status::CONNECTED) {
             return "";
         }
@@ -80,35 +84,40 @@ public:
     /**
      * @brief 获取连接状态
      */
-    connection_status get_status() const {
+    connection_status get_status() const
+    {
         return m_status;
     }
 
     /**
      * @brief 获取主机地址
      */
-    const std::string& get_host() const {
+    const std::string& get_host() const
+    {
         return m_host;
     }
 
     /**
      * @brief 获取端口
      */
-    int get_port() const {
+    int get_port() const
+    {
         return m_port;
     }
 
     /**
      * @brief 设置协议类型
      */
-    void set_protocol(protocol_type type) {
+    void set_protocol(protocol_type type)
+    {
         m_protocol = type;
     }
 
     /**
      * @brief 获取协议类型
      */
-    protocol_type get_protocol() const {
+    protocol_type get_protocol() const
+    {
         return m_protocol;
     }
 

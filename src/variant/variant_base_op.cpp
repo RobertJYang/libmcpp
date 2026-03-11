@@ -22,7 +22,8 @@ namespace mc {
 
 // ======== 比较操作符 ========
 
-bool variant_base::operator<(const variant_base& other) const {
+bool variant_base::operator<(const variant_base& other) const
+{
     if (m_type == other.m_type) {
         return same_type_less(other);
     } else {
@@ -30,7 +31,8 @@ bool variant_base::operator<(const variant_base& other) const {
     }
 }
 
-bool variant_base::operator==(const variant_base& other) const {
+bool variant_base::operator==(const variant_base& other) const
+{
     if (m_type == other.m_type) {
         return same_type_equal(other);
     } else {
@@ -40,7 +42,8 @@ bool variant_base::operator==(const variant_base& other) const {
 
 // ======== 算术运算操作符 ========
 
-variant_base variant_base::operator+(const variant_base& other) const {
+variant_base variant_base::operator+(const variant_base& other) const
+{
     // 任意一个是字符串，使用字符串拼接
     if (is_string()) {
         if (other.is_string()) {
@@ -106,7 +109,8 @@ variant_base variant_base::operator+(const variant_base& other) const {
     }
 }
 
-variant_base variant_base::operator-(const variant_base& other) const {
+variant_base variant_base::operator-(const variant_base& other) const
+{
     try {
         if (is_double() || other.is_double()) {
             return {as_double() - other.as_double()};
@@ -127,7 +131,8 @@ variant_base variant_base::operator-(const variant_base& other) const {
     }
 }
 
-variant_base variant_base::operator*(const variant_base& other) const {
+variant_base variant_base::operator*(const variant_base& other) const
+{
     try {
         if (is_double() || other.is_double()) {
             return {as_double() * other.as_double()};
@@ -144,7 +149,8 @@ variant_base variant_base::operator*(const variant_base& other) const {
 }
 
 template <typename T, typename Variant1, typename Variant2>
-Variant1 variant_divide(const Variant1& self, const Variant2& other) {
+Variant1 variant_divide(const Variant1& self, const Variant2& other)
+{
     auto s_value = self.template try_as<T>();
     if (!s_value) {
         throw_invalid_type_operation_error(self.get_type_name(), other.get_type_name(), "/");
@@ -162,7 +168,8 @@ Variant1 variant_divide(const Variant1& self, const Variant2& other) {
     return {*s_value / *o_value};
 }
 
-variant_base variant_base::operator/(const variant_base& other) const {
+variant_base variant_base::operator/(const variant_base& other) const
+{
     if (is_double() || other.is_double() || is_bool()) {
         return variant_divide<double>(*this, other);
     }
@@ -175,7 +182,8 @@ variant_base variant_base::operator/(const variant_base& other) const {
 }
 
 template <typename T, typename Variant1, typename Variant2>
-Variant1 variant_mod(const Variant1& self, const Variant2& other) {
+Variant1 variant_mod(const Variant1& self, const Variant2& other)
+{
     auto s_value = self.template try_as<T>();
     if (!s_value) {
         throw_invalid_type_operation_error(self.get_type_name(), other.get_type_name(), "%");
@@ -197,7 +205,8 @@ Variant1 variant_mod(const Variant1& self, const Variant2& other) {
     }
 }
 
-variant_base variant_base::operator%(const variant_base& other) const {
+variant_base variant_base::operator%(const variant_base& other) const
+{
     if (is_double() || other.is_double()) {
         return variant_mod<double>(*this, other);
     }
@@ -211,7 +220,8 @@ variant_base variant_base::operator%(const variant_base& other) const {
 
 // ======== 位运算操作符 ========
 
-variant_base variant_base::operator&(const variant_base& other) const {
+variant_base variant_base::operator&(const variant_base& other) const
+{
     try {
         if (is_unsigned_integer() && other.is_unsigned_integer()) {
             return {as_uint64() & other.as_uint64()};
@@ -223,7 +233,8 @@ variant_base variant_base::operator&(const variant_base& other) const {
     }
 }
 
-variant_base variant_base::operator|(const variant_base& other) const {
+variant_base variant_base::operator|(const variant_base& other) const
+{
     try {
         if (is_unsigned_integer() && other.is_unsigned_integer()) {
             return {as_uint64() | other.as_uint64()};
@@ -235,7 +246,8 @@ variant_base variant_base::operator|(const variant_base& other) const {
     }
 }
 
-variant_base variant_base::operator^(const variant_base& other) const {
+variant_base variant_base::operator^(const variant_base& other) const
+{
     try {
         if (is_unsigned_integer() && other.is_unsigned_integer()) {
             return {as_uint64() ^ other.as_uint64()};
@@ -248,7 +260,8 @@ variant_base variant_base::operator^(const variant_base& other) const {
 }
 
 variant_base
-variant_base::operator<<(const variant_base& other) const {
+variant_base::operator<<(const variant_base& other) const
+{
     try {
         uint64_t shift_amount = other.as_uint64();
         if (shift_amount >= sizeof(uint64_t) * 8) {
@@ -264,7 +277,8 @@ variant_base::operator<<(const variant_base& other) const {
 }
 
 variant_base
-variant_base::operator>>(const variant_base& other) const {
+variant_base::operator>>(const variant_base& other) const
+{
     try {
         uint64_t shift_amount = other.as_uint64();
         if (shift_amount >= sizeof(uint64_t) * 8) {
@@ -284,7 +298,8 @@ variant_base::operator>>(const variant_base& other) const {
 
 // ======== 复合赋值操作符 ========
 
-variant_base& variant_base::operator+=(const variant_base& other) {
+variant_base& variant_base::operator+=(const variant_base& other)
+{
     if (is_string()) {
         if (other.is_string()) {
             m_string_ptr->append(*other.m_string_ptr);
@@ -330,52 +345,62 @@ variant_base& variant_base::operator+=(const variant_base& other) {
     return *this;
 }
 
-variant_base& variant_base::operator-=(const variant_base& other) {
+variant_base& variant_base::operator-=(const variant_base& other)
+{
     set_value(*this - other);
     return *this;
 }
 
-variant_base& variant_base::operator*=(const variant_base& other) {
+variant_base& variant_base::operator*=(const variant_base& other)
+{
     set_value(*this * other);
     return *this;
 }
 
-variant_base& variant_base::operator/=(const variant_base& other) {
+variant_base& variant_base::operator/=(const variant_base& other)
+{
     set_value(*this / other);
     return *this;
 }
 
-variant_base& variant_base::operator%=(const variant_base& other) {
+variant_base& variant_base::operator%=(const variant_base& other)
+{
     set_value(*this % other);
     return *this;
 }
 
-variant_base& variant_base::operator&=(const variant_base& other) {
+variant_base& variant_base::operator&=(const variant_base& other)
+{
     set_value(*this & other);
     return *this;
 }
 
-variant_base& variant_base::operator|=(const variant_base& other) {
+variant_base& variant_base::operator|=(const variant_base& other)
+{
     set_value(*this | other);
     return *this;
 }
 
-variant_base& variant_base::operator^=(const variant_base& other) {
+variant_base& variant_base::operator^=(const variant_base& other)
+{
     set_value(*this ^ other);
     return *this;
 }
 
-variant_base& variant_base::operator<<=(const variant_base& other) {
+variant_base& variant_base::operator<<=(const variant_base& other)
+{
     set_value(*this << other);
     return *this;
 }
 
-variant_base& variant_base::operator>>=(const variant_base& other) {
+variant_base& variant_base::operator>>=(const variant_base& other)
+{
     set_value(*this >> other);
     return *this;
 }
 
-variant_base variant_base::operator+(std::string_view other) const {
+variant_base variant_base::operator+(std::string_view other) const
+{
     if (is_string()) {
         std::string tmp;
         tmp.reserve(size() + other.size());
@@ -394,7 +419,8 @@ variant_base variant_base::operator+(std::string_view other) const {
     }
 }
 
-MC_API variant_base operator+(std::string_view lhs, const variant_base& rhs) {
+MC_API variant_base operator+(std::string_view lhs, const variant_base& rhs)
+{
     std::string tmp;
     if (rhs.is_string()) {
         tmp.reserve(lhs.size() + rhs.get_string().size());
@@ -415,7 +441,8 @@ MC_API variant_base operator+(std::string_view lhs, const variant_base& rhs) {
 
 // ======== 一元操作符 ========
 
-variant_base variant_base::operator~() const {
+variant_base variant_base::operator~() const
+{
     try {
         if (is_unsigned_integer()) {
             return {~as_uint64()};
@@ -427,7 +454,8 @@ variant_base variant_base::operator~() const {
     }
 }
 
-variant_base variant_base::operator-() const {
+variant_base variant_base::operator-() const
+{
     try {
         if (is_double()) {
             return {-m_double};
@@ -446,13 +474,15 @@ variant_base variant_base::operator-() const {
     }
 }
 
-variant_base variant_base::operator!() const {
+variant_base variant_base::operator!() const
+{
     return {!as_bool()};
 }
 
 // ======== 递增/递减操作符 ========
 
-variant_base& variant_base::operator++() {
+variant_base& variant_base::operator++()
+{
     if (is_double()) {
         m_double += 1.0;
     } else if (is_unsigned_integer()) {
@@ -467,7 +497,8 @@ variant_base& variant_base::operator++() {
     return *this;
 }
 
-variant_base& variant_base::operator--() {
+variant_base& variant_base::operator--()
+{
     if (is_double()) {
         m_double -= 1.0;
     } else if (is_unsigned_integer()) {
@@ -482,13 +513,15 @@ variant_base& variant_base::operator--() {
     return *this;
 }
 
-variant_base variant_base::operator++(int) {
+variant_base variant_base::operator++(int)
+{
     variant_base temp(*this);
     ++(*this);
     return temp;
 }
 
-variant_base variant_base::operator--(int) {
+variant_base variant_base::operator--(int)
+{
     variant_base temp(*this);
     --(*this);
     return temp;

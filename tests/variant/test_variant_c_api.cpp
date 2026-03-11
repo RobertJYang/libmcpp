@@ -24,7 +24,8 @@ namespace {
 
 class variant_c_api_test : public ::testing::Test {
 protected:
-    void TearDown() override {
+    void TearDown() override
+    {
         if (m_context != nullptr) {
             mc_context_delete(m_context);
         }
@@ -36,17 +37,19 @@ protected:
         }
     }
 
-    void register_variant(mc_variant_t* value) {
+    void register_variant(mc_variant_t* value)
+    {
         ASSERT_NE(value, nullptr);
         m_variants.push_back(value);
     }
 
-    mc_engine_t*              m_engine{nullptr};
-    mc_context_t*             m_context{nullptr};
+    mc_engine_t*               m_engine{nullptr};
+    mc_context_t*              m_context{nullptr};
     std::vector<mc_variant_t*> m_variants;
 };
 
-TEST_F(variant_c_api_test, basic_creation_and_cleanup) {
+TEST_F(variant_c_api_test, basic_creation_and_cleanup)
+{
     auto* i64 = mc_variant_from_int64(123);
     auto* dbl = mc_variant_from_double(3.14);
     auto* bl  = mc_variant_from_bool(true);
@@ -81,7 +84,8 @@ TEST_F(variant_c_api_test, basic_creation_and_cleanup) {
     mc_variant_delete(str);
 }
 
-TEST_F(variant_c_api_test, context_and_evaluate_expression) {
+TEST_F(variant_c_api_test, context_and_evaluate_expression)
+{
     m_engine = mc_engine_new();
     ASSERT_NE(m_engine, nullptr);
 
@@ -117,11 +121,10 @@ TEST_F(variant_c_api_test, context_and_evaluate_expression) {
 }
 
 // 测试 mc_variant_from_string 的 null 检查路径
-TEST_F(variant_c_api_test, VariantFromStringNull) {
+TEST_F(variant_c_api_test, VariantFromStringNull)
+{
     auto* variant = mc_variant_from_string(nullptr);
     EXPECT_EQ(variant, nullptr);
 }
 
 } // namespace
-
-

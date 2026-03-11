@@ -17,7 +17,8 @@
 
 namespace mc::expr {
 
-mc::variant conditional_node::evaluate(const context_base& ctx) const {
+mc::variant conditional_node::evaluate(const context_base& ctx) const
+{
     mc::variant condition_val = m_condition->evaluate(ctx);
     if (condition_val.as_bool()) {
         return m_true_branch->evaluate(ctx);
@@ -26,12 +27,14 @@ mc::variant conditional_node::evaluate(const context_base& ctx) const {
     }
 }
 
-std::string conditional_node::to_string() const {
+std::string conditional_node::to_string() const
+{
     return "(" + m_condition->to_string() + " ? " + m_true_branch->to_string() + " : " +
            m_false_branch->to_string() + ")";
 }
 
-node_ptr make_conditional(node_ptr condition, node_ptr true_branch, node_ptr false_branch) {
+node_ptr make_conditional(node_ptr condition, node_ptr true_branch, node_ptr false_branch)
+{
     return std::make_shared<conditional_node>(std::move(condition), std::move(true_branch),
                                               std::move(false_branch));
 }

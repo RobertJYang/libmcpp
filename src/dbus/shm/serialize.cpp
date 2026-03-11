@@ -17,15 +17,18 @@
 
 namespace mc::dbus::serialize {
 
-inline static uint8_t pack_value(data_type t, uint8_t value) {
+inline static uint8_t pack_value(data_type t, uint8_t value)
+{
     return static_cast<uint8_t>(t) | (value << 3);
 }
 
 write_buffer::write_buffer()
-    : m_head(new data_block()), m_current(m_head), m_len(0), m_offset(0) {
+    : m_head(new data_block()), m_current(m_head), m_len(0), m_offset(0)
+{
 }
 
-write_buffer::~write_buffer() {
+write_buffer::~write_buffer()
+{
     data_block* node = m_head;
     while (node) {
         data_block* next = node->next;
@@ -34,7 +37,8 @@ write_buffer::~write_buffer() {
     }
 }
 
-void write_buffer::write_arg(const variant& arg, int depth) {
+void write_buffer::write_arg(const variant& arg, int depth)
+{
     MC_ASSERT(depth <= MAX_DEPTH, "depth exceeds limit");
     if (arg.is_null()) {
         write_nil();
@@ -64,7 +68,8 @@ void write_buffer::write_arg(const variant& arg, int depth) {
              ("type_id", arg.get_type()));
 }
 
-void write_buffer::write_arg_with_signature(signature_iterator it, const variant& arg, int depth) {
+void write_buffer::write_arg_with_signature(signature_iterator it, const variant& arg, int depth)
+{
     ensure_message_depth(depth);
     if (arg.is_null()) {
         write_nil();
@@ -104,7 +109,8 @@ void write_buffer::write_arg_with_signature(signature_iterator it, const variant
     }
 }
 
-void write_buffer::write_array_or_dict(signature_iterator it, const variant& arg, int depth) {
+void write_buffer::write_array_or_dict(signature_iterator it, const variant& arg, int depth)
+{
     ensure_message_depth(depth);
     if (it.current_type_code() == type_code::dict_entry_start) {
         if (arg.is_array() && arg.get_array().empty()) {
@@ -121,7 +127,7 @@ void write_buffer::write_array_or_dict(signature_iterator it, const variant& arg
     }
     if (it.current_type_code() == type_code::byte_type) {
         // ay类型当作字符串处理，与lua框架保持兼容
-        auto data = arg.as<std::vector<uint8_t>>();
+        auto        data = arg.as<std::vector<uint8_t>>();
         std::string str(data.begin(), data.end());
         write_string(str);
         return;
@@ -129,7 +135,8 @@ void write_buffer::write_array_or_dict(signature_iterator it, const variant& arg
     write_array(it, arg.as_array(), depth + 1);
 }
 
-void write_buffer::write_inner(const uint8_t* input, size_t size) {
+void write_buffer::write_inner(const uint8_t* input, size_t size)
+{
     if (m_offset == BLOCK_SIZE) {
         m_current->next = new data_block();
         m_current       = m_current->next;
@@ -154,23 +161,27 @@ void write_buffer::write_inner(const uint8_t* input, size_t size) {
     }
 }
 
-void write_buffer::write_nil() {
+void write_buffer::write_nil()
+{
     uint8_t n = static_cast<uint8_t>(data_type::nil);
     write_inner(&n, 1);
 }
 
-void write_buffer::write_boolean(bool value) {
+void write_buffer::write_boolean(bool value)
+{
     uint8_t n = pack_value(data_type::boolean, value ? 1 : 0);
     write_inner(&n, 1);
 }
 
-void write_buffer::write_double(double value) {
+void write_buffer::write_double(double value)
+{
     uint8_t n = pack_value(data_type::number, COOKIE_NUMBER_REAL);
     write_inner(&n, 1);
     write_inner(reinterpret_cast<const uint8_t*>(&value), sizeof(value));
 }
 
-void write_buffer::write_integer(int64_t value) {
+void write_buffer::write_integer(int64_t value)
+{
     auto type = data_type::number;
     if (value == 0) {
         uint8_t n = pack_value(type, COOKIE_NUMBER_ZERO);
@@ -202,7 +213,8 @@ void write_buffer::write_integer(int64_t value) {
     }
 }
 
-void write_buffer::write_number(const variant& arg) {
+void write_buffer::write_number(const variant& arg)
+{
     if (arg.is_double()) {
         write_double(arg.as_double());
         return;
@@ -216,7 +228,8 @@ void write_buffer::write_number(const variant& arg) {
     }
 }
 
-void write_buffer::write_string(std::string_view value) {
+void write_buffer::write_string(std::string_view value)
+{
     const char* str = value.data();
     size_t      len = value.size();
     if (len < MAX_COOKIE) {
@@ -242,7 +255,8 @@ void write_buffer::write_string(std::string_view value) {
     }
 }
 
-void write_buffer::write_array(const variants& arg, int depth) {
+void write_buffer::write_array(const variants& arg, int depth)
+{
     size_t array_size = arg.size();
     if (array_size >= MAX_COOKIE - 1) {
         uint8_t n = pack_value(data_type::table, MAX_COOKIE - 1);
@@ -258,7 +272,8 @@ void write_buffer::write_array(const variants& arg, int depth) {
     write_nil();
 }
 
-void write_buffer::write_array(signature_iterator it, const variants& arg, int depth) {
+void write_buffer::write_array(signature_iterator it, const variants& arg, int depth)
+{
     ensure_message_depth(depth);
     ensure_container_max_length(arg);
     size_t array_size = arg.size();
@@ -276,7 +291,8 @@ void write_buffer::write_array(signature_iterator it, const variants& arg, int d
     write_nil();
 }
 
-void write_buffer::write_variant_elements(signature_iterator it, const variants& args, int depth) {
+void write_buffer::write_variant_elements(signature_iterator it, const variants& args, int depth)
+{
     ensure_message_depth(depth);
     ensure_container_max_length(args);
     size_t array_size = args.size();
@@ -299,7 +315,8 @@ void write_buffer::write_variant_elements(signature_iterator it, const variants&
     write_nil();
 }
 
-void write_buffer::write_dict(const dict& arg, int depth) {
+void write_buffer::write_dict(const dict& arg, int depth)
+{
     uint8_t n = pack_value(data_type::table, 0);
     write_inner(&n, 1);
     for (const auto& item : arg) {
@@ -309,7 +326,8 @@ void write_buffer::write_dict(const dict& arg, int depth) {
     write_nil();
 }
 
-void write_buffer::write_dict(signature_iterator it, const dict& arg, int depth) {
+void write_buffer::write_dict(signature_iterator it, const dict& arg, int depth)
+{
     ensure_message_depth(depth);
     ensure_container_max_length(arg);
     uint8_t n = pack_value(data_type::table, 0);
@@ -323,7 +341,8 @@ void write_buffer::write_dict(signature_iterator it, const dict& arg, int depth)
     write_nil();
 }
 
-void write_buffer::write_gvariant(const variant& arg) {
+void write_buffer::write_gvariant(const variant& arg)
+{
     if (arg.is_null()) {
         write_nil();
         return;
@@ -341,7 +360,8 @@ void write_buffer::write_gvariant(const variant& arg) {
     write_inner(reinterpret_cast<const uint8_t*>(data), size);
 }
 
-std::string write_buffer::to_string() const {
+std::string write_buffer::to_string() const
+{
     uint8_t*    buffer         = static_cast<uint8_t*>(malloc(m_len));
     uint8_t*    ptr            = buffer;
     size_t      remaining_size = m_len;
@@ -362,10 +382,12 @@ std::string write_buffer::to_string() const {
 }
 
 read_buffer::read_buffer(std::string_view msg)
-    : m_buf(msg), m_offset(0) {
+    : m_buf(msg), m_offset(0)
+{
 }
 
-const char* read_buffer::read(size_t size) {
+const char* read_buffer::read(size_t size)
+{
     if (size > m_buf.size() - m_offset) {
         return nullptr;
     }
@@ -374,7 +396,8 @@ const char* read_buffer::read(size_t size) {
     return ptr;
 }
 
-int64_t read_buffer::read_integer(uint8_t cookie) {
+int64_t read_buffer::read_integer(uint8_t cookie)
+{
     switch (cookie) {
     case COOKIE_NUMBER_ZERO:
         return 0;
@@ -412,7 +435,8 @@ int64_t read_buffer::read_integer(uint8_t cookie) {
     return 0;
 }
 
-double read_buffer::read_double() {
+double read_buffer::read_double()
+{
     double n;
     auto   pn = read(sizeof(n));
     MC_ASSERT(pn != nullptr, ERROR_INVALID_FORMAT);
@@ -420,7 +444,8 @@ double read_buffer::read_double() {
     return n;
 }
 
-void* read_buffer::read_pointer() {
+void* read_buffer::read_pointer()
+{
     void* userdata = 0;
     auto  v        = read(sizeof(userdata));
     MC_ASSERT(v != nullptr, ERROR_INVALID_FORMAT);
@@ -428,13 +453,15 @@ void* read_buffer::read_pointer() {
     return userdata;
 }
 
-std::string read_buffer::read_string(size_t len) {
+std::string read_buffer::read_string(size_t len)
+{
     const char* str = read(len);
     MC_ASSERT(str != nullptr, ERROR_INVALID_FORMAT);
     return std::string(str, len);
 }
 
-variant read_buffer::read_inner() {
+variant read_buffer::read_inner()
+{
     uint8_t type;
     auto    t = reinterpret_cast<const uint8_t*>(read(sizeof(type)));
     MC_ASSERT(t != nullptr, ERROR_INVALID_FORMAT);
@@ -442,7 +469,8 @@ variant read_buffer::read_inner() {
     return read_value(type & TYPE_MASK, type >> VALUE_SHIFT);
 }
 
-variant read_buffer::read_value(uint8_t type, uint8_t cookie) {
+variant read_buffer::read_value(uint8_t type, uint8_t cookie)
+{
     if (type >= static_cast<uint8_t>(data_type::tail)) {
         MC_THROW(mc::invalid_arg_exception, "unsupported type: ${type}", ("type", type));
     }
@@ -489,7 +517,8 @@ variant read_buffer::read_value(uint8_t type, uint8_t cookie) {
     MC_THROW(mc::invalid_arg_exception, "unsupported type: ${type}", ("type", type));
 }
 
-variant read_buffer::read_gvariant(size_t len) {
+variant read_buffer::read_gvariant(size_t len)
+{
     const char* t = read(len + 1);
     MC_ASSERT(t != nullptr, ERROR_INVALID_FORMAT);
     int         size   = *reinterpret_cast<const int*>(read(sizeof(int)));
@@ -513,7 +542,8 @@ variant read_buffer::read_gvariant(size_t len) {
     return gvariant_convert::to_mc_variant(gvar.ptr);
 }
 
-variant read_buffer::read_table(int64_t array_size) {
+variant read_buffer::read_table(int64_t array_size)
+{
     if (array_size == MAX_COOKIE - 1) {
         uint8_t type;
         auto    t = reinterpret_cast<const uint8_t*>(read(sizeof(type)));
@@ -551,7 +581,8 @@ variant read_buffer::read_table(int64_t array_size) {
     return d;
 }
 
-std::string pack(const variants& args) {
+std::string pack(const variants& args)
+{
     write_buffer wb;
     for (const auto& arg : args) {
         wb.write_arg(arg, 0);
@@ -559,7 +590,8 @@ std::string pack(const variants& args) {
     return wb.to_string();
 }
 
-variants unpack(std::string_view msg) {
+variants unpack(std::string_view msg)
+{
     variants    v;
     read_buffer rb(msg);
     while (true) {
@@ -574,7 +606,8 @@ variants unpack(std::string_view msg) {
     return v;
 }
 
-std::string serialize(const variants& args) {
+std::string serialize(const variants& args)
+{
     std::string data = pack(args);
     // 长度头存储含头部自身的总字节数，小端序写入
     uint32_t    sz = static_cast<uint32_t>(4 + data.size());
@@ -587,12 +620,13 @@ std::string serialize(const variants& args) {
     return result;
 }
 
-variants deserialize(std::string_view msg) {
+variants deserialize(std::string_view msg)
+{
     // 跳过前4字节的长度头，直接处理序列化数据
     if (msg.size() < 4) {
         MC_THROW(mc::invalid_arg_exception, "invalid message format: size too small");
     }
-    
+
     // 跳过长度头，处理实际的序列化数据
     std::string_view data = msg.substr(4);
     return unpack(data);

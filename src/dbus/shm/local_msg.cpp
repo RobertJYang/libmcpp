@@ -32,7 +32,8 @@ static constexpr size_t TIMESTAMP_INDEX    = 12;
 
 template <typename T>
 static T get_variants_item(const variants& v, size_t index, type_id expected_type,
-                           const T& default_value) {
+                           const T& default_value)
+{
     if (v.size() <= index) {
         return default_value;
     }
@@ -42,7 +43,8 @@ static T get_variants_item(const variants& v, size_t index, type_id expected_typ
     return v[index].as<T>(default_value);
 }
 
-static uint32_t get_uint32_item(const variants& v, size_t index, uint32_t default_value) {
+static uint32_t get_uint32_item(const variants& v, size_t index, uint32_t default_value)
+{
     if (v.size() <= index) {
         return default_value;
     }
@@ -52,7 +54,8 @@ static uint32_t get_uint32_item(const variants& v, size_t index, uint32_t defaul
     return default_value;
 }
 
-static size_t get_signature_item_count(std::string_view signature) {
+static size_t get_signature_item_count(std::string_view signature)
+{
     size_t count = 0;
     for (signature_iterator it(signature); !it.at_end(); it.next()) {
         count++;
@@ -64,10 +67,12 @@ local_msg::local_msg(std::string_view service_name, std::string_view path,
                      std::string_view interface, std::string_view member)
     : m_local_call(false), m_type(DBUS_MESSAGE_TYPE_METHOD_CALL), m_serial(0), m_reply_serial(0),
       m_service_name(service_name), m_path(path), m_interface(interface), m_member(member),
-      m_error_name("NA") {
+      m_error_name("NA")
+{
 }
 
-local_msg::local_msg(const variants& v) {
+local_msg::local_msg(const variants& v)
+{
     m_type = get_uint32_item(v, TYPE_INDEX, DBUS_MESSAGE_TYPE_METHOD_CALL);
     m_service_name =
         get_variants_item<std::string>(v, SERVICE_NAME_INDEX, type_id::string_type, "");
@@ -94,17 +99,20 @@ local_msg::local_msg(const variants& v) {
     m_timestamp    = get_variants_item<std::string>(v, TIMESTAMP_INDEX, type_id::string_type, "");
 }
 
-std::tuple<std::string, std::string> local_msg::get_error() const {
+std::tuple<std::string, std::string> local_msg::get_error() const
+{
     return std::make_tuple(std::string(m_error_name), get_error_message());
 }
 
-void local_msg::method_return() {
+void local_msg::method_return()
+{
     m_type         = DBUS_MESSAGE_TYPE_METHOD_RETURN;
     m_reply_serial = m_serial;
     m_service_name = m_sender;
 }
 
-void local_msg::error(std::string_view error_name, std::string_view message) {
+void local_msg::error(std::string_view error_name, std::string_view message)
+{
     m_type         = DBUS_MESSAGE_TYPE_ERROR;
     m_reply_serial = m_serial;
     m_service_name = m_sender;
@@ -114,31 +122,38 @@ void local_msg::error(std::string_view error_name, std::string_view message) {
     m_args.push_back(message);
 }
 
-void local_msg::set_member(std::string_view member) {
+void local_msg::set_member(std::string_view member)
+{
     m_member = member;
 }
 
-uint32_t local_msg::msg_type() const {
+uint32_t local_msg::msg_type() const
+{
     return m_type;
 }
 
-std::string_view local_msg::path() const {
+std::string_view local_msg::path() const
+{
     return m_path;
 }
 
-std::string_view local_msg::interface() const {
+std::string_view local_msg::interface() const
+{
     return m_interface;
 }
 
-std::string_view local_msg::member() const {
+std::string_view local_msg::member() const
+{
     return m_member;
 }
 
-std::string_view local_msg::signature() const {
+std::string_view local_msg::signature() const
+{
     return m_signature;
 }
 
-void local_msg::append_args(std::string_view signature, const variants& args) {
+void local_msg::append_args(std::string_view signature, const variants& args)
+{
     m_signature  = signature;
     m_args       = variants();
     size_t index = 0;
@@ -150,7 +165,8 @@ void local_msg::append_args(std::string_view signature, const variants& args) {
 }
 
 template <typename T>
-static auto parse_variant_basic(const variant& v) {
+static auto parse_variant_basic(const variant& v)
+{
     if constexpr (std::is_arithmetic_v<T>) {
         return v.as<T>();
     } else if constexpr (std::is_same_v<T, std::string_view> || std::is_same_v<T, std::string> ||
@@ -166,7 +182,8 @@ static auto parse_variant_basic(const variant& v) {
     }
 }
 
-static dict parse_variant_dict(signature_iterator it, const dict& v, size_t depth) {
+static dict parse_variant_dict(signature_iterator it, const dict& v, size_t depth)
+{
     ensure_message_depth(depth);
     ensure_container_max_length(v);
     dict output;
@@ -180,7 +197,8 @@ static dict parse_variant_dict(signature_iterator it, const dict& v, size_t dept
     return output;
 }
 
-static variants parse_variant_array(signature_iterator it, const variants& v, size_t depth) {
+static variants parse_variant_array(signature_iterator it, const variants& v, size_t depth)
+{
     ensure_message_depth(depth);
     ensure_container_max_length(v);
     variants output;
@@ -190,7 +208,8 @@ static variants parse_variant_array(signature_iterator it, const variants& v, si
     return output;
 }
 
-static variant parse_variant_array_or_dict(signature_iterator it, const variant& v, size_t depth) {
+static variant parse_variant_array_or_dict(signature_iterator it, const variant& v, size_t depth)
+{
     ensure_message_depth(depth);
     if (it.current_type_code() == type_code::dict_entry_start) {
         if (v.is_array() && v.as_array().empty()) {
@@ -208,7 +227,8 @@ static variant parse_variant_array_or_dict(signature_iterator it, const variant&
     return parse_variant_array(it, v.get_array(), depth + 1);
 }
 
-variants local_msg::parse_variant_elements(signature_iterator it, const variants& v, size_t depth) {
+variants local_msg::parse_variant_elements(signature_iterator it, const variants& v, size_t depth)
+{
     ensure_message_depth(depth);
     ensure_container_max_length(v);
     variants output;
@@ -223,7 +243,8 @@ variants local_msg::parse_variant_elements(signature_iterator it, const variants
     return output;
 }
 
-variant local_msg::parse_variant(signature_iterator it, const variant& v, size_t depth) {
+variant local_msg::parse_variant(signature_iterator it, const variant& v, size_t depth)
+{
     ensure_message_depth(depth);
     switch (it.current_type_code()) {
     case type_code::byte_type:
@@ -265,7 +286,8 @@ variant local_msg::parse_variant(signature_iterator it, const variant& v, size_t
     }
 }
 
-void local_msg::append_return_args(std::string_view signature, const variant& arg) {
+void local_msg::append_return_args(std::string_view signature, const variant& arg)
+{
     // 仅针对 bmc.kepler.ObjectGroup 接口的 GetBinaryObjects 方法，展开 struct 返回值
     if (m_interface == "bmc.kepler.ObjectGroup" && m_member == "GetBinaryObjects") {
         signature_iterator top_it(signature);
@@ -297,43 +319,53 @@ void local_msg::append_return_args(std::string_view signature, const variant& ar
     m_args = parse_variant_elements(signature_iterator(signature), arg.as_array(), 0);
 }
 
-const variants& local_msg::read() const {
+const variants& local_msg::read() const
+{
     return m_args;
 }
 
-void local_msg::set_sender(std::string_view sender) {
+void local_msg::set_sender(std::string_view sender)
+{
     m_sender = sender;
 }
 
-std::string_view local_msg::sender() const {
+std::string_view local_msg::sender() const
+{
     return m_sender;
 }
 
-void local_msg::set_serial(uint32_t serial) {
+void local_msg::set_serial(uint32_t serial)
+{
     m_serial = serial;
 }
 
-uint32_t local_msg::get_serial() const {
+uint32_t local_msg::get_serial() const
+{
     return m_serial;
 }
 
-uint32_t local_msg::get_reply_serial() const {
+uint32_t local_msg::get_reply_serial() const
+{
     return m_reply_serial;
 }
 
-std::string_view local_msg::destination() const {
+std::string_view local_msg::destination() const
+{
     return m_service_name;
 }
 
-void local_msg::set_local_call(bool v) {
+void local_msg::set_local_call(bool v)
+{
     m_local_call = v;
 }
 
-bool local_msg::is_local_call() const {
+bool local_msg::is_local_call() const
+{
     return m_local_call;
 }
 
-message local_msg::new_dbus_msg() const {
+message local_msg::new_dbus_msg() const
+{
     message msg = message::new_method_call(m_service_name, m_path, m_interface, m_member);
     msg.set_sender(m_sender);
     msg.set_serial(m_reply_serial);
@@ -355,7 +387,8 @@ message local_msg::new_dbus_msg() const {
     MC_THROW(mc::invalid_arg_exception, "invalid message type");
 }
 
-std::string local_msg::pack() const {
+std::string local_msg::pack() const
+{
     mc::dbus::serialize::write_buffer wb;
     wb.write_arg(m_type);
     wb.write_arg(m_service_name);
@@ -373,24 +406,27 @@ std::string local_msg::pack() const {
     return wb.to_string();
 }
 
-static int64_t get_monotonic_time_ms() {
+static int64_t get_monotonic_time_ms()
+{
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
 }
 
-void local_msg::set_timestamp() {
+void local_msg::set_timestamp()
+{
     std::string time_str = std::string(sizeof(int64_t) + 2, 0);
-    int64_t time_ms = get_monotonic_time_ms();
-    time_str[0] = '#';
+    int64_t     time_ms  = get_monotonic_time_ms();
+    time_str[0]          = '#';
     for (size_t i = 0; i < sizeof(int64_t); i++) {
         time_str[i + 1] = (time_ms >> (i * 8)) & 0xFF;
     }
     time_str[sizeof(int64_t) + 1] = '#';
-    m_timestamp = std::move(time_str);
+    m_timestamp                   = std::move(time_str);
 }
 
-int64_t local_msg::duration_ms_from_timestamp() const {
+int64_t local_msg::duration_ms_from_timestamp() const
+{
     if (m_timestamp.empty() || m_timestamp.size() != sizeof(int64_t) + 2 || m_timestamp[0] != '#' || m_timestamp[sizeof(int64_t) + 1] != '#') {
         return -1;
     }
@@ -401,7 +437,8 @@ int64_t local_msg::duration_ms_from_timestamp() const {
     return get_monotonic_time_ms() - time_ms;
 }
 
-std::string local_msg::get_error_message() const {
+std::string local_msg::get_error_message() const
+{
     if (m_args.empty()) {
         return "";
     }
@@ -409,7 +446,8 @@ std::string local_msg::get_error_message() const {
 }
 
 bool shm_pending_msgs::send(std::string_view source_unique_name, uint32_t serial,
-                            shm_msg_promise promise) {
+                            shm_msg_promise promise)
+{
     std::lock_guard lock(m_mutex);
     auto&           serial_map = m_pending_msgs[std::string(source_unique_name)];
     if (serial_map.find(serial) != serial_map.end()) {
@@ -421,7 +459,8 @@ bool shm_pending_msgs::send(std::string_view source_unique_name, uint32_t serial
 }
 
 bool shm_pending_msgs::reply(std::string_view destination_unique_name, uint32_t serial,
-                             local_msg& msg) {
+                             local_msg& msg)
+{
     std::lock_guard lock(m_mutex);
     auto&           serial_map = m_pending_msgs[std::string(destination_unique_name)];
     auto            it         = serial_map.find(serial);
@@ -434,7 +473,8 @@ bool shm_pending_msgs::reply(std::string_view destination_unique_name, uint32_t 
     return true;
 }
 
-void shm_pending_msgs::remove(std::string_view unique_name, uint32_t serial) {
+void shm_pending_msgs::remove(std::string_view unique_name, uint32_t serial)
+{
     std::lock_guard lock(m_mutex);
     auto            it = m_pending_msgs.find(std::string(unique_name));
     if (it == m_pending_msgs.end()) {
@@ -446,7 +486,8 @@ void shm_pending_msgs::remove(std::string_view unique_name, uint32_t serial) {
     }
 }
 
-void shm_pending_msgs::clear(std::string_view unique_name) {
+void shm_pending_msgs::clear(std::string_view unique_name)
+{
     std::lock_guard lock(m_mutex);
     auto            it = m_pending_msgs.find(std::string(unique_name));
     if (it != m_pending_msgs.end()) {

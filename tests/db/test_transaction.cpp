@@ -34,17 +34,22 @@ class user : public mdb::object_base {
 public:
     user() = default;
 
-    user(std::string name, int age) : m_name(std::move(name)), m_age(age) {
+    user(std::string name, int age)
+        : m_name(std::move(name)), m_age(age)
+    {
     }
 
-    ~user() override {
+    ~user() override
+    {
     }
 
-    const std::string& name() const {
+    const std::string& name() const
+    {
         return m_name;
     }
 
-    int get_age() const {
+    int get_age() const
+    {
         return m_age;
     }
 
@@ -63,7 +68,8 @@ using user_table = mdb::table<
 // 事务测试类
 class transaction_test : public mc::test::TestBase {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         mc::singleton<mdb::transaction, mdb::default_transaction_tag>::reset_for_test();
 
         // 创建测试数据
@@ -73,7 +79,8 @@ protected:
         u4 = user("赵六", 35);
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         mc::singleton<mdb::transaction, mdb::default_transaction_tag>::reset_for_test();
     }
 
@@ -82,7 +89,8 @@ protected:
 };
 
 // 测试基本事务添加操作
-TEST_F(transaction_test, transaction_add) {
+TEST_F(transaction_test, transaction_add)
+{
     // 获取事务
     auto& txn = mdb::transaction::get_instance();
 
@@ -109,7 +117,8 @@ TEST_F(transaction_test, transaction_add) {
 }
 
 // 测试事务回滚功能
-TEST_F(transaction_test, transaction_rollback) {
+TEST_F(transaction_test, transaction_rollback)
+{
     // 获取事务
     auto& txn = mdb::transaction::get_instance();
 
@@ -138,7 +147,8 @@ TEST_F(transaction_test, transaction_rollback) {
 }
 
 // 测试事务保存点
-TEST_F(transaction_test, savepoint) {
+TEST_F(transaction_test, savepoint)
+{
     // 获取事务
     auto& txn = mdb::transaction::get_instance();
 
@@ -210,7 +220,8 @@ TEST_F(transaction_test, savepoint) {
 }
 
 // 测试更新和删除操作
-TEST_F(transaction_test, transaction_update_remove) {
+TEST_F(transaction_test, transaction_update_remove)
+{
     // 添加初始用户（不使用事务）
     auto u1_ptr = users.add(u1);
     auto u2_ptr = users.add(u2);
@@ -251,7 +262,8 @@ TEST_F(transaction_test, transaction_update_remove) {
 }
 
 // 测试资源合并功能
-TEST_F(transaction_test, transaction_merge) {
+TEST_F(transaction_test, transaction_merge)
+{
     auto& txn = mdb::transaction::get_instance();
 
     // 添加用户到表中，使用事务
@@ -343,7 +355,8 @@ TEST_F(transaction_test, transaction_merge) {
 }
 
 // 测试资源合并功能 - 详细测试不同场景
-TEST_F(transaction_test, transaction_merge_detailed) {
+TEST_F(transaction_test, transaction_merge_detailed)
+{
     auto& txn = mdb::transaction::get_instance();
 
     // 构造资源ID的辅助函数
@@ -614,7 +627,8 @@ TEST_F(transaction_test, transaction_merge_detailed) {
 }
 
 // 测试 savepoint::commit() / resource_id()
-TEST_F(transaction_test, SavepointCommitIsNoop) {
+TEST_F(transaction_test, SavepointCommitIsNoop)
+{
     auto& txn = mdb::transaction::get_instance();
 
     // 分配保存点
@@ -628,22 +642,26 @@ TEST_F(transaction_test, SavepointCommitIsNoop) {
 }
 
 // 测试 transaction::~transaction() 中 rollback() 路径
-TEST_F(transaction_test, TransactionDestructorRollsBackResources) {
+TEST_F(transaction_test, TransactionDestructorRollsBackResources)
+{
     // 创建一个 mock resource，记录 rollback 被调用
     class mock_resource : public mdb::db_resource {
     public:
         bool rollback_called = false;
 
-        bool commit() override {
+        bool commit() override
+        {
             return true;
         }
 
-        bool rollback() override {
+        bool rollback() override
+        {
             rollback_called = true;
             return true;
         }
 
-        uint64_t resource_id() const override {
+        uint64_t resource_id() const override
+        {
             return 1; // 返回非零 ID
         }
     };
@@ -667,21 +685,25 @@ TEST_F(transaction_test, TransactionDestructorRollsBackResources) {
 }
 
 // 测试 add_resource 忽略 resource_id==0
-TEST_F(transaction_test, AddResourceIgnoresZeroId) {
+TEST_F(transaction_test, AddResourceIgnoresZeroId)
+{
     auto& txn = mdb::transaction::get_instance();
 
     // 创建一个返回 0 的 mock resource
     class zero_id_resource : public mdb::db_resource {
     public:
-        bool commit() override {
+        bool commit() override
+        {
             return true;
         }
 
-        bool rollback() override {
+        bool rollback() override
+        {
             return true;
         }
 
-        uint64_t resource_id() const override {
+        uint64_t resource_id() const override
+        {
             return 0; // 返回 0
         }
     };
@@ -697,29 +719,36 @@ TEST_F(transaction_test, AddResourceIgnoresZeroId) {
 }
 
 // 测试 merge_back 中的各种分支（通过 add_resource 和 rollback_to 间接测试）
-TEST_F(transaction_test, MergeBackVariousBranches) {
+TEST_F(transaction_test, MergeBackVariousBranches)
+{
     auto& txn = mdb::transaction::get_instance();
 
     // 创建一个自定义 resource，用于测试 merge_back
     class test_resource : public mdb::db_resource {
     public:
-        test_resource(uint64_t id, int32_t sp_id) : m_id(id), m_sp_id(sp_id) {
+        test_resource(uint64_t id, int32_t sp_id)
+            : m_id(id), m_sp_id(sp_id)
+        {
             m_savepoint_id = sp_id;
         }
 
-        bool commit() override {
+        bool commit() override
+        {
             return true;
         }
 
-        bool rollback() override {
+        bool rollback() override
+        {
             return true;
         }
 
-        uint64_t resource_id() const override {
+        uint64_t resource_id() const override
+        {
             return m_id;
         }
 
-        bool merge(const mdb::db_resource& other) override {
+        bool merge(const mdb::db_resource& other) override
+        {
             // 允许合并相同资源ID的资源
             return resource_id() == other.resource_id();
         }

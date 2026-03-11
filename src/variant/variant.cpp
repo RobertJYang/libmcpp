@@ -29,19 +29,23 @@ namespace mc {
 // variant_extension_base 的实现
 variant_extension_base::~variant_extension_base() = default;
 
-mc::variant variant_extension_base::get(std::size_t index) const {
+mc::variant variant_extension_base::get(std::size_t index) const
+{
     throw_not_supported_error("扩展类型索引访问");
 }
 
-void variant_extension_base::set(std::size_t index, const mc::variant& value) {
+void variant_extension_base::set(std::size_t index, const mc::variant& value)
+{
     throw_not_supported_error("扩展类型索引访问");
 }
 
-mc::variant variant_extension_base::get(std::string_view key) const {
+mc::variant variant_extension_base::get(std::string_view key) const
+{
     throw_not_supported_error("扩展类型键访问");
 }
 
-void variant_extension_base::set(std::string_view key, const mc::variant& value) {
+void variant_extension_base::set(std::string_view key, const mc::variant& value)
+{
     throw_not_supported_error("扩展类型键访问");
 }
 
@@ -55,7 +59,8 @@ namespace detail {
  * @param actual_type 实际的参数类型
  */
 void throw_method_arg_not_match(std::string_view method_name, std::string_view expect_type,
-                                std::string_view actual_type) {
+                                std::string_view actual_type)
+{
     MC_THROW(mc::invalid_arg_exception,
              "调用方法 ${method_name} 参数不匹配，需要 ${expect_type} 类型，实际提供 "
              "${actual_type} 类型",
@@ -65,7 +70,8 @@ void throw_method_arg_not_match(std::string_view method_name, std::string_view e
 } // namespace detail
 
 // 获取类型名称
-const char* get_type_name_internal(type_id type) {
+const char* get_type_name_internal(type_id type)
+{
     static const char* type_names[] = {
         "null",     // null_type
         "int8",     // int8_type
@@ -93,7 +99,8 @@ const char* get_type_name_internal(type_id type) {
     return "unknown";
 }
 
-void throw_type_error(const char* expected_type, type_id actual_type) {
+void throw_type_error(const char* expected_type, type_id actual_type)
+{
     if (actual_type < type_id::max_type) {
         MC_THROW(mc::invalid_arg_exception, "类型错误：期望${type}，实际为${actual_type}",
                  ("type", expected_type)("actual_type", get_type_name_internal(actual_type)));
@@ -103,57 +110,69 @@ void throw_type_error(const char* expected_type, type_id actual_type) {
     }
 }
 
-void throw_unknow_type_error(type_id actual_type) {
+void throw_unknow_type_error(type_id actual_type)
+{
     MC_THROW(mc::invalid_arg_exception, "未知类型：${type}",
              ("type", static_cast<int>(actual_type)));
 }
 
-void throw_invalid_type_comparison_error(const char* type1, const char* type2, const char* op) {
+void throw_invalid_type_comparison_error(const char* type1, const char* type2, const char* op)
+{
     MC_THROW(mc::invalid_op_exception, "不支持的类型比较操作: ${type1} ${op} ${type2}",
              ("type1", type1)("op", op)("type2", type2));
 }
 
-void throw_invalid_type_operation_error(const char* type1, const char* type2, const char* op) {
+void throw_invalid_type_operation_error(const char* type1, const char* type2, const char* op)
+{
     MC_THROW(mc::invalid_op_exception, "无效的类型操作: ${type1} ${op} ${type2}",
              ("type1", type1)("op", op)("type2", type2));
 }
 
-void throw_divide_by_zero_exception(const char* msg) {
+void throw_divide_by_zero_exception(const char* msg)
+{
     MC_THROW(mc::divide_by_zero_exception, "${msg}", ("msg", msg));
 }
 
 // 通用异常封装函数实现
-void throw_out_of_range_error(const char* msg) {
+void throw_out_of_range_error(const char* msg)
+{
     MC_THROW(mc::out_of_range_exception, "${msg}", ("msg", msg));
 }
 
-void throw_out_of_range_error(size_t index, size_t size) {
+void throw_out_of_range_error(size_t index, size_t size)
+{
     MC_THROW(mc::out_of_range_exception, "索引越界: 索引${index}超出范围[0, ${size})",
              ("index", index)("size", size));
 }
 
-void throw_bad_cast_error(const char* msg) {
+void throw_bad_cast_error(const char* msg)
+{
     MC_THROW(mc::bad_cast_exception, "${msg}", ("msg", msg));
 }
 
-void throw_runtime_error(const char* msg) {
+void throw_runtime_error(const char* msg)
+{
     MC_THROW(mc::runtime_exception, "${msg}", ("msg", msg));
 }
 
-void throw_not_supported_error(const char* operation) {
+void throw_not_supported_error(const char* operation)
+{
     MC_THROW(mc::invalid_op_exception, "不支持的操作: ${operation}", ("operation", operation));
 }
 
-void throw_extension_null_error() {
+void throw_extension_null_error()
+{
     MC_THROW(mc::runtime_exception, "扩展对象为空");
 }
 
-void throw_container_overflow_error(const char* container_type) {
+void throw_container_overflow_error(const char* container_type)
+{
     MC_THROW(mc::overflow_exception, "容器${type}元素过多", ("type", container_type));
 }
 
 // 计算字符串的哈希值
-size_t calculate_str_hash(std::string_view data) {
+size_t calculate_str_hash(std::string_view data)
+{
     if (data.empty()) {
         return 0;
     }

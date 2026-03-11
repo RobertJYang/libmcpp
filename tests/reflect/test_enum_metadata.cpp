@@ -12,9 +12,9 @@
 
 #include <gtest/gtest.h>
 
+#include <array>
 #include <mc/reflect/metadata.h>
 #include <mc/variant.h>
-#include <array>
 #include <string>
 #include <vector>
 
@@ -31,12 +31,14 @@ constexpr std::array members{
     mc::reflect::enum_member_info{"blue", color::blue},
 };
 
-mc::reflect::enum_metadata make_color_metadata() {
+mc::reflect::enum_metadata make_color_metadata()
+{
     return mc::reflect::enum_metadata("color", mc::reflect::enum_values(members));
 }
 } // namespace
 
-TEST(enum_metadata_test, value_lookup_and_names) {
+TEST(enum_metadata_test, value_lookup_and_names)
+{
     auto meta  = make_color_metadata();
     auto names = meta.get_names();
     ASSERT_EQ(names.size(), 3U);
@@ -56,7 +58,8 @@ TEST(enum_metadata_test, value_lookup_and_names) {
     EXPECT_FALSE(maybe_none.has_value());
 }
 
-TEST(enum_metadata_test, to_string_and_variant_helpers) {
+TEST(enum_metadata_test, to_string_and_variant_helpers)
+{
     auto meta = make_color_metadata();
 
     auto as_string = meta.get_name(static_cast<uint32_t>(color::green));
@@ -73,7 +76,8 @@ TEST(enum_metadata_test, to_string_and_variant_helpers) {
     EXPECT_FALSE(maybe_value.has_value());
 }
 
-TEST(enum_metadata_test, get_values_snapshot) {
+TEST(enum_metadata_test, get_values_snapshot)
+{
     auto meta   = make_color_metadata();
     auto values = meta.get_values();
 

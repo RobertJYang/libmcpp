@@ -53,7 +53,8 @@ public:
     template <typename T>
     static int wait(const std::atomic<T>* addr, T& expected,
                     std::chrono::nanoseconds timeout   = std::chrono::nanoseconds::max(),
-                    uint32_t                 wait_mask = FUTEX_BITSET_MATCH_ANY) noexcept {
+                    uint32_t                 wait_mask = FUTEX_BITSET_MATCH_ANY) noexcept
+    {
 #ifdef __linux__
         if constexpr (sizeof(T) == 4) {
             if (reinterpret_cast<uintptr_t>(addr) % 4 == 0) {
@@ -75,7 +76,8 @@ public:
      * @return 实际唤醒的线程数量
      */
     template <typename T>
-    static int wake(const std::atomic<T>* addr, int count = 1, uint32_t wake_mask = FUTEX_BITSET_MATCH_ANY) noexcept {
+    static int wake(const std::atomic<T>* addr, int count = 1, uint32_t wake_mask = FUTEX_BITSET_MATCH_ANY) noexcept
+    {
 #ifdef __linux__
         if constexpr (sizeof(T) == 4) {
             if (reinterpret_cast<uintptr_t>(addr) % 4 == 0) { // 4 字节对齐
@@ -100,7 +102,8 @@ private:
 
 #ifdef __linux__
 inline int futex::wait_linux(const std::atomic<uint32_t>* addr, uint32_t& expected,
-                             std::chrono::nanoseconds timeout, uint32_t wait_mask) noexcept {
+                             std::chrono::nanoseconds timeout, uint32_t wait_mask) noexcept
+{
     struct timespec  ts;
     struct timespec* timeout_ptr = nullptr;
 
@@ -134,7 +137,8 @@ inline int futex::wait_linux(const std::atomic<uint32_t>* addr, uint32_t& expect
     return rv;
 }
 
-inline int futex::wake_linux(const std::atomic<uint32_t>* addr, int count, uint32_t wake_mask) noexcept {
+inline int futex::wake_linux(const std::atomic<uint32_t>* addr, int count, uint32_t wake_mask) noexcept
+{
     return syscall(SYS_futex, addr, FUTEX_WAKE_BITSET_PRIVATE,
                    count, nullptr, nullptr, wake_mask);
 }
@@ -143,7 +147,8 @@ inline int futex::wake_linux(const std::atomic<uint32_t>* addr, int count, uint3
 
 template <typename T>
 int futex::wait_fallback(const std::atomic<T>* addr, T& expected,
-                         std::chrono::nanoseconds timeout) noexcept {
+                         std::chrono::nanoseconds timeout) noexcept
+{
     auto start_time = std::chrono::steady_clock::now();
     while (true) {
         auto current = addr->load(std::memory_order_acquire);

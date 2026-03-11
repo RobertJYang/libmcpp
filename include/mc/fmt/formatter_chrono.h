@@ -83,13 +83,15 @@ struct chrono_format_spec {
 
     constexpr chrono_format_spec() = default;
     constexpr chrono_format_spec(chrono_spec_type t, char c)
-        : type(t), original_char(c) {
+        : type(t), original_char(c)
+    {
     }
 };
 
 // 获取时间单位字符串
 template <typename Period>
-constexpr const char* get_unit_str() {
+constexpr const char* get_unit_str()
+{
     if constexpr (std::is_same_v<Period, std::atto>) {
         return "as";
     } else if constexpr (std::is_same_v<Period, std::femto>) {
@@ -139,80 +141,101 @@ constexpr const char* get_unit_str() {
 template <typename Derived>
 struct chrono_format_handler {
     // 文本处理
-    constexpr void on_text(std::string_view text) {
+    constexpr void on_text(std::string_view text)
+    {
         static_cast<Derived*>(this)->on_text(text);
     }
 
     // 时间字段处理
-    constexpr void on_year(numeric_system ns, pad_type pad) {
+    constexpr void on_year(numeric_system ns, pad_type pad)
+    {
         static_cast<Derived*>(this)->on_year(ns, pad);
     }
-    constexpr void on_short_year(numeric_system ns) {
+    constexpr void on_short_year(numeric_system ns)
+    {
         static_cast<Derived*>(this)->on_short_year(ns);
     }
-    constexpr void on_month(numeric_system ns, pad_type pad) {
+    constexpr void on_month(numeric_system ns, pad_type pad)
+    {
         static_cast<Derived*>(this)->on_month(ns, pad);
     }
-    constexpr void on_day(numeric_system ns, pad_type pad) {
+    constexpr void on_day(numeric_system ns, pad_type pad)
+    {
         static_cast<Derived*>(this)->on_day(ns, pad);
     }
-    constexpr void on_hour_24(numeric_system ns, pad_type pad) {
+    constexpr void on_hour_24(numeric_system ns, pad_type pad)
+    {
         static_cast<Derived*>(this)->on_hour_24(ns, pad);
     }
-    constexpr void on_hour_12(numeric_system ns, pad_type pad) {
+    constexpr void on_hour_12(numeric_system ns, pad_type pad)
+    {
         static_cast<Derived*>(this)->on_hour_12(ns, pad);
     }
-    constexpr void on_minute(numeric_system ns, pad_type pad) {
+    constexpr void on_minute(numeric_system ns, pad_type pad)
+    {
         static_cast<Derived*>(this)->on_minute(ns, pad);
     }
-    constexpr void on_second(numeric_system ns, pad_type pad) {
+    constexpr void on_second(numeric_system ns, pad_type pad)
+    {
         static_cast<Derived*>(this)->on_second(ns, pad);
     }
 
     // 组合格式处理
-    constexpr void on_datetime(numeric_system ns) {
+    constexpr void on_datetime(numeric_system ns)
+    {
         static_cast<Derived*>(this)->on_datetime(ns);
     }
-    constexpr void on_iso_date() {
+    constexpr void on_iso_date()
+    {
         static_cast<Derived*>(this)->on_iso_date();
     }
-    constexpr void on_iso_time() {
+    constexpr void on_iso_time()
+    {
         static_cast<Derived*>(this)->on_iso_time();
     }
-    constexpr void on_12_hour_time() {
+    constexpr void on_12_hour_time()
+    {
         static_cast<Derived*>(this)->on_12_hour_time();
     }
-    constexpr void on_24_hour_time() {
+    constexpr void on_24_hour_time()
+    {
         static_cast<Derived*>(this)->on_24_hour_time();
     }
 
     // duration 专用
-    constexpr void on_duration_value() {
+    constexpr void on_duration_value()
+    {
         static_cast<Derived*>(this)->on_duration_value();
     }
-    constexpr void on_duration_unit() {
+    constexpr void on_duration_unit()
+    {
         static_cast<Derived*>(this)->on_duration_unit();
     }
 
     // 其他
-    constexpr void on_am_pm() {
+    constexpr void on_am_pm()
+    {
         static_cast<Derived*>(this)->on_am_pm();
     }
 
-    constexpr void on_timezone_offset(numeric_system ns) {
+    constexpr void on_timezone_offset(numeric_system ns)
+    {
         static_cast<Derived*>(this)->on_timezone_offset(ns);
     }
 
-    constexpr void on_timezone_name(numeric_system ns) {
+    constexpr void on_timezone_name(numeric_system ns)
+    {
         static_cast<Derived*>(this)->on_timezone_name(ns);
     }
 
     // 错误处理
-    constexpr void on_invalid_spec() {
+    constexpr void on_invalid_spec()
+    {
         static_cast<Derived*>(this)->on_invalid_spec();
     }
 
-    constexpr void on_incomplete_spec() {
+    constexpr void on_incomplete_spec()
+    {
         static_cast<Derived*>(this)->on_incomplete_spec();
     }
 };
@@ -225,65 +248,81 @@ struct chrono_format_checker : chrono_format_handler<chrono_format_checker<IsCom
     bool has_invalid_spec       = false;
 
     constexpr chrono_format_checker(bool is_duration = false, bool has_precision = false)
-        : has_precision_integral(has_precision), is_duration_formatter(is_duration) {
+        : has_precision_integral(has_precision), is_duration_formatter(is_duration)
+    {
     }
 
-    constexpr void on_text(std::string_view) {
+    constexpr void on_text(std::string_view)
+    {
     }
 
-    constexpr void on_year(numeric_system, pad_type) {
+    constexpr void on_year(numeric_system, pad_type)
+    {
         if (is_duration_formatter) {
             MC_COMPILE_TIME_ERROR("Duration 不支持年份格式说明符 (%Y, %y)");
             has_invalid_spec = true;
         }
     }
-    constexpr void on_short_year(numeric_system) {
+    constexpr void on_short_year(numeric_system)
+    {
         if (is_duration_formatter) {
             MC_COMPILE_TIME_ERROR("Duration 不支持年份格式说明符 (%y)");
             has_invalid_spec = true;
         }
     }
-    constexpr void on_month(numeric_system, pad_type) {
+    constexpr void on_month(numeric_system, pad_type)
+    {
         if (is_duration_formatter) {
             MC_COMPILE_TIME_ERROR("Duration 不支持月份格式说明符 (%m, %B, %b)");
             has_invalid_spec = true;
         }
     }
-    constexpr void on_day(numeric_system, pad_type) {
+    constexpr void on_day(numeric_system, pad_type)
+    {
         if (is_duration_formatter) {
             MC_COMPILE_TIME_ERROR("Duration 不支持日期格式说明符 (%d, %e)");
             has_invalid_spec = true;
         }
     }
-    constexpr void on_hour_24(numeric_system, pad_type) {
+    constexpr void on_hour_24(numeric_system, pad_type)
+    {
     }
-    constexpr void on_hour_12(numeric_system, pad_type) {
+    constexpr void on_hour_12(numeric_system, pad_type)
+    {
     }
-    constexpr void on_minute(numeric_system, pad_type) {
+    constexpr void on_minute(numeric_system, pad_type)
+    {
     }
-    constexpr void on_second(numeric_system, pad_type) {
+    constexpr void on_second(numeric_system, pad_type)
+    {
     }
 
-    constexpr void on_datetime(numeric_system) {
+    constexpr void on_datetime(numeric_system)
+    {
         if (is_duration_formatter) {
             MC_COMPILE_TIME_ERROR("Duration 不支持日期时间格式说明符 (%c)");
             has_invalid_spec = true;
         }
     }
-    constexpr void on_iso_date() {
+    constexpr void on_iso_date()
+    {
         if (is_duration_formatter) {
             MC_COMPILE_TIME_ERROR("Duration 不支持ISO日期格式说明符 (%F)");
             has_invalid_spec = true;
         }
     }
-    constexpr void on_iso_time() {
+    constexpr void on_iso_time()
+    {
     }
-    constexpr void on_12_hour_time() {
+    constexpr void on_12_hour_time()
+    {
     }
-    constexpr void on_24_hour_time() {
+    constexpr void on_24_hour_time()
+    {
     }
 
-    constexpr void on_duration_value() {
+    constexpr void on_duration_value()
+    {
         if (!is_duration_formatter) {
             // time_point 不支持 duration 值格式
             MC_COMPILE_TIME_ERROR("Time_point 不支持 Duration 值格式说明符 (%Q)");
@@ -293,7 +332,8 @@ struct chrono_format_checker : chrono_format_handler<chrono_format_checker<IsCom
             has_invalid_spec = true;
         }
     }
-    constexpr void on_duration_unit() {
+    constexpr void on_duration_unit()
+    {
         if (!is_duration_formatter) {
             // time_point 不支持 duration 单位格式
             MC_COMPILE_TIME_ERROR("Time_point 不支持 Duration 单位格式说明符 (%q)");
@@ -301,16 +341,19 @@ struct chrono_format_checker : chrono_format_handler<chrono_format_checker<IsCom
         }
     }
 
-    constexpr void on_am_pm() {
+    constexpr void on_am_pm()
+    {
     }
-    constexpr void on_timezone_offset(numeric_system) {
+    constexpr void on_timezone_offset(numeric_system)
+    {
         if (is_duration_formatter) {
             MC_COMPILE_TIME_ERROR("Duration 不支持时区偏移格式说明符 (%z)");
             has_invalid_spec = true;
         }
     }
 
-    constexpr void on_timezone_name(numeric_system) {
+    constexpr void on_timezone_name(numeric_system)
+    {
         if (is_duration_formatter) {
             MC_COMPILE_TIME_ERROR("Duration 不支持时区名称格式说明符 (%Z)");
             has_invalid_spec = true;
@@ -318,25 +361,29 @@ struct chrono_format_checker : chrono_format_handler<chrono_format_checker<IsCom
     }
 
     // 处理无效的格式说明符
-    constexpr void on_invalid_spec() {
+    constexpr void on_invalid_spec()
+    {
         MC_COMPILE_TIME_ERROR("无效的 Chrono 格式说明符");
         has_invalid_spec = true;
     }
 
     // 处理不完整的格式说明符（% 后面没有字符）
-    constexpr void on_incomplete_spec() {
+    constexpr void on_incomplete_spec()
+    {
         MC_COMPILE_TIME_ERROR("不完整的 Chrono 格式说明符：% 后面没有字符");
         has_invalid_spec = true;
     }
 
-    constexpr bool is_valid() const {
+    constexpr bool is_valid() const
+    {
         return !has_invalid_spec;
     }
 };
 
 // 解析 chrono 格式字符串
 template <typename Handler>
-constexpr std::string_view parse_chrono_format(std::string_view fmt, Handler&& handler) {
+constexpr std::string_view parse_chrono_format(std::string_view fmt, Handler&& handler)
+{
     auto it         = fmt.begin();
     auto end        = fmt.end();
     auto text_begin = it;
@@ -507,7 +554,8 @@ template <typename Rep, typename Period>
 struct formatter<std::chrono::duration<Rep, Period>> {
 private:
     struct custom_spec {
-        constexpr custom_spec() {
+        constexpr custom_spec()
+        {
         }
 
         std::string_view format_str;
@@ -517,7 +565,8 @@ private:
 
 public:
     template <bool IsCompileTime = false>
-    constexpr bool parse(std::string_view fmt_str, format_spec& spec) {
+    constexpr bool parse(std::string_view fmt_str, format_spec& spec)
+    {
         custom_spec custom;
         if (fmt_str.empty()) {
             return true;
@@ -578,7 +627,8 @@ template <typename Clock, typename Duration>
 struct formatter<std::chrono::time_point<Clock, Duration>> {
 private:
     struct custom_spec {
-        constexpr custom_spec() {
+        constexpr custom_spec()
+        {
         }
 
         std::string_view format_str;
@@ -586,7 +636,8 @@ private:
 
 public:
     template <bool IsCompileTime = false>
-    constexpr bool parse(std::string_view fmt_str, format_spec& spec) {
+    constexpr bool parse(std::string_view fmt_str, format_spec& spec)
+    {
         custom_spec custom;
         if (fmt_str.empty()) {
             return true;

@@ -31,7 +31,9 @@ namespace {
 
 class scoped_env {
 public:
-    scoped_env(const char* key, const char* value) : m_key(key) {
+    scoped_env(const char* key, const char* value)
+        : m_key(key)
+    {
         const char* current = std::getenv(key);
         if (current != nullptr) {
             m_original.emplace(current);
@@ -44,7 +46,8 @@ public:
         tzset();
     }
 
-    ~scoped_env() {
+    ~scoped_env()
+    {
         if (m_original.has_value()) {
             setenv(m_key.c_str(), m_original->c_str(), 1);
         } else {
@@ -61,7 +64,8 @@ private:
 } // namespace
 
 // 测试毫秒类
-TEST(TimeTest, MillisecondsTest) {
+TEST(TimeTest, MillisecondsTest)
+{
     // 基本构造和值测试
     milliseconds ms(1000);
     EXPECT_EQ(ms.count(), 1000);
@@ -111,7 +115,8 @@ TEST(TimeTest, MillisecondsTest) {
 }
 
 // 测试时间点类
-TEST(TimeTest, TimePointTest) {
+TEST(TimeTest, TimePointTest)
+{
     // 构造函数测试
     time_point tp1(milliseconds(1000));
     EXPECT_EQ(tp1.time_since_epoch().count(), 1000);
@@ -153,7 +158,8 @@ TEST(TimeTest, TimePointTest) {
 }
 
 // 测试精确到秒的时间点类
-TEST(TimeTest, TimePointSecTest) {
+TEST(TimeTest, TimePointSecTest)
+{
     // 构造函数测试
     time_point_sec tps1(1000);
     EXPECT_EQ(tps1.sec_since_epoch(), 1000);
@@ -205,7 +211,8 @@ TEST(TimeTest, TimePointSecTest) {
 }
 
 // 测试ISO字符串转换
-TEST(TimeTest, IsoStringTest) {
+TEST(TimeTest, IsoStringTest)
+{
     // 时间点与字符串转换 (注意：这个值是1970年开始往后的特定时间戳)
     time_point  tp1(milliseconds(1577836800000)); // 2020-01-01T00:00:00
     std::string iso_str = std::string(tp1);
@@ -233,7 +240,8 @@ TEST(TimeTest, IsoStringTest) {
 }
 
 // 测试variant转换
-TEST(TimeTest, VariantConversionTest) {
+TEST(TimeTest, VariantConversionTest)
+{
     // 毫秒转variant
     milliseconds ms(1000);
     variant      v1;
@@ -269,7 +277,8 @@ TEST(TimeTest, VariantConversionTest) {
 }
 
 // 测试实际系统时间操作
-TEST(TimeTest, SystemTimeTest) {
+TEST(TimeTest, SystemTimeTest)
+{
     // 获取当前时间
     time_point start = time_point::now();
 
@@ -293,12 +302,14 @@ TEST(TimeTest, SystemTimeTest) {
     EXPECT_LT(std::abs(time_diff.count()), 2); // 允许最多1毫秒的误差
 }
 
-TEST(TimeTest, FromIsoStringEmptyAndInvalid) {
+TEST(TimeTest, FromIsoStringEmptyAndInvalid)
+{
     EXPECT_THROW(time_point::from_iso_string(""), mc::exception);
     EXPECT_THROW(time_point::from_iso_string("invalid-format"), mc::exception);
 }
 
-TEST(TimeTest, FromIsoStringStdExceptionPath) {
+TEST(TimeTest, FromIsoStringStdExceptionPath)
+{
     try {
         time_point::from_iso_string("9999999999-01-01T00:00:00");
         FAIL() << "期望抛出异常";
@@ -307,19 +318,22 @@ TEST(TimeTest, FromIsoStringStdExceptionPath) {
     }
 }
 
-TEST(TimeTest, TimePointNegativeToStringThrows) {
+TEST(TimeTest, TimePointNegativeToStringThrows)
+{
     time_point negative(milliseconds(-100));
     EXPECT_THROW([&negative]() {
         return static_cast<std::string>(negative);
     }(), mc::bad_cast_exception);
 }
 
-TEST(TimeTest, PortableTimegmWithExistingTimezone) {
+TEST(TimeTest, PortableTimegmWithExistingTimezone)
+{
     scoped_env env("TZ", "UTC");
     EXPECT_NO_THROW(time_point::from_iso_string("2024-01-01T00:00:00"));
 }
 
-TEST(TimeTest, PortableTimegmWithoutTimezone) {
+TEST(TimeTest, PortableTimegmWithoutTimezone)
+{
     scoped_env env("TZ", nullptr);
     EXPECT_NO_THROW(time_point::from_iso_string("2024-02-01T00:00:00"));
 }

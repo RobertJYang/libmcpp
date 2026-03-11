@@ -20,7 +20,8 @@
 using mc::reflect::signature;
 using mc::reflect::signature_iterator;
 
-TEST(signature_test, construct_and_to_string) {
+TEST(signature_test, construct_and_to_string)
+{
     signature sig("(isd)");
     EXPECT_EQ(sig.str(), "(isd)");
 
@@ -29,7 +30,8 @@ TEST(signature_test, construct_and_to_string) {
     EXPECT_FALSE(sig2.is_empty());
 }
 
-TEST(signature_test, invalid_signature_handling) {
+TEST(signature_test, invalid_signature_handling)
+{
     signature invalid("(");
     EXPECT_FALSE(invalid.is_valid());
     EXPECT_THROW(signature::validate("("), mc::invalid_arg_exception);
@@ -42,7 +44,8 @@ TEST(signature_test, invalid_signature_handling) {
     EXPECT_THROW(signature_iterator("(i"), mc::invalid_arg_exception);
 }
 
-TEST(signature_test, get_complete_types_and_iteration) {
+TEST(signature_test, get_complete_types_and_iteration)
+{
     signature sig("a{si}");
     auto      types = sig.get_complete_types();
     ASSERT_EQ(types.size(), 1U);
@@ -60,7 +63,8 @@ TEST(signature_test, get_complete_types_and_iteration) {
     EXPECT_EQ(val_it.current_type_char(), 'i');
 }
 
-TEST(signature_test, static_checks) {
+TEST(signature_test, static_checks)
+{
     EXPECT_TRUE(signature::is_basic_type('s'));
     EXPECT_FALSE(signature::is_basic_type('('));
     EXPECT_TRUE(signature::is_container_type('a'));
@@ -74,27 +78,31 @@ TEST(signature_test, static_checks) {
     EXPECT_FALSE(signature::is_valid("(i"));
 }
 
-TEST(signature_test, first_type_empty_string) {
+TEST(signature_test, first_type_empty_string)
+{
     std::string empty_sig;
     char        first = mc::reflect::first_type(empty_sig);
     EXPECT_EQ(first, '\0');
 }
 
-TEST(signature_test, assign_string_view) {
-    signature sig("(is)");
+TEST(signature_test, assign_string_view)
+{
+    signature        sig("(is)");
     std::string_view sv("(isd)");
     sig = sv;
     EXPECT_EQ(sig.str(), "(isd)");
 }
 
-TEST(signature_test, assign_string) {
-    signature sig("(is)");
+TEST(signature_test, assign_string)
+{
+    signature   sig("(is)");
     std::string str("(isb)");
     sig = str;
     EXPECT_EQ(sig.str(), "(isb)");
 }
 
-TEST(signature_test, from_variant) {
+TEST(signature_test, from_variant)
+{
     mc::variant var("(isb)");
     signature   sig;
     mc::from_variant(var, sig);

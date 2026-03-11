@@ -19,7 +19,8 @@
 using namespace mc::algorithm;
 
 // 测试基本的 put 和 get 操作
-TEST(lru_cache_test, basic_put_and_get) {
+TEST(lru_cache_test, basic_put_and_get)
+{
     lru_cache<int, std::string> cache(3);
 
     cache.put(1, "one");
@@ -41,7 +42,8 @@ TEST(lru_cache_test, basic_put_and_get) {
 }
 
 // 测试 LRU 淘汰机制
-TEST(lru_cache_test, lru_eviction) {
+TEST(lru_cache_test, lru_eviction)
+{
     lru_cache<int, std::string> cache(3);
 
     cache.put(1, "one");
@@ -61,7 +63,8 @@ TEST(lru_cache_test, lru_eviction) {
 }
 
 // 测试访问更新顺序
-TEST(lru_cache_test, access_updates_order) {
+TEST(lru_cache_test, access_updates_order)
+{
     lru_cache<int, std::string> cache(3);
 
     cache.put(1, "one");
@@ -81,7 +84,8 @@ TEST(lru_cache_test, access_updates_order) {
 }
 
 // 测试更新已存在的键
-TEST(lru_cache_test, update_existing_key) {
+TEST(lru_cache_test, update_existing_key)
+{
     lru_cache<int, std::string> cache(3);
 
     cache.put(1, "one");
@@ -105,7 +109,8 @@ TEST(lru_cache_test, update_existing_key) {
 }
 
 // 测试清空缓存
-TEST(lru_cache_test, clear_cache) {
+TEST(lru_cache_test, clear_cache)
+{
     lru_cache<int, std::string> cache(3);
 
     cache.put(1, "one");
@@ -122,7 +127,8 @@ TEST(lru_cache_test, clear_cache) {
 }
 
 // 测试 erase 操作
-TEST(lru_cache_test, erase_key) {
+TEST(lru_cache_test, erase_key)
+{
     lru_cache<int, std::string> cache(3);
 
     cache.put(1, "one");
@@ -138,7 +144,8 @@ TEST(lru_cache_test, erase_key) {
 }
 
 // 测试 contains 操作
-TEST(lru_cache_test, contains_key) {
+TEST(lru_cache_test, contains_key)
+{
     lru_cache<int, std::string> cache(3);
 
     cache.put(1, "one");
@@ -150,7 +157,8 @@ TEST(lru_cache_test, contains_key) {
 }
 
 // 测试设置最大容量
-TEST(lru_cache_test, set_max_size) {
+TEST(lru_cache_test, set_max_size)
+{
     lru_cache<int, std::string> cache(5);
 
     cache.put(1, "one");
@@ -173,7 +181,8 @@ TEST(lru_cache_test, set_max_size) {
 }
 
 // 测试不限制容量（max_size = 0）
-TEST(lru_cache_test, unlimited_size) {
+TEST(lru_cache_test, unlimited_size)
+{
     lru_cache<int, std::string> cache(0); // 不限制
 
     for (int i = 0; i < 1000; i++) {
@@ -189,7 +198,8 @@ TEST(lru_cache_test, unlimited_size) {
 }
 
 // 测试淘汰回调函数
-TEST(lru_cache_test, eviction_callback) {
+TEST(lru_cache_test, eviction_callback)
+{
     std::vector<int> evicted_keys;
 
     auto callback = [&evicted_keys](const int& key, std::string&& value) {
@@ -218,7 +228,8 @@ TEST(lru_cache_test, eviction_callback) {
 }
 
 // 测试 for_each 遍历
-TEST(lru_cache_test, for_each_iteration) {
+TEST(lru_cache_test, for_each_iteration)
+{
     lru_cache<int, std::string> cache(5);
 
     cache.put(1, "one");
@@ -238,7 +249,8 @@ TEST(lru_cache_test, for_each_iteration) {
 }
 
 // 测试使用字符串作为键
-TEST(lru_cache_test, string_key) {
+TEST(lru_cache_test, string_key)
+{
     lru_cache<std::string, int> cache(3);
 
     cache.put("one", 1);
@@ -256,7 +268,8 @@ TEST(lru_cache_test, string_key) {
 }
 
 // 测试复杂对象作为值
-TEST(lru_cache_test, complex_value_type) {
+TEST(lru_cache_test, complex_value_type)
+{
     struct data {
         std::string      name;
         int              value;
@@ -276,7 +289,8 @@ TEST(lru_cache_test, complex_value_type) {
 }
 
 // 测试空缓存行为
-TEST(lru_cache_test, empty_cache) {
+TEST(lru_cache_test, empty_cache)
+{
     lru_cache<int, std::string> cache(3);
 
     EXPECT_TRUE(cache.empty());
@@ -287,7 +301,8 @@ TEST(lru_cache_test, empty_cache) {
 }
 
 // 测试修改 get 返回的引用
-TEST(lru_cache_test, modify_via_get_reference) {
+TEST(lru_cache_test, modify_via_get_reference)
+{
     lru_cache<int, std::string> cache(3);
 
     cache.put(1, "one");

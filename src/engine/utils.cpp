@@ -14,7 +14,8 @@
 
 namespace mc::engine::detail {
 
-bool path_starts_with(std::string_view path, std::string_view prefix) {
+bool path_starts_with(std::string_view path, std::string_view prefix)
+{
     if (!mc::string::starts_with(path, prefix)) {
         return false;
     }

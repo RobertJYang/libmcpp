@@ -33,7 +33,8 @@ static const char* LOGGER_METATABLE = "mc.log.logger";
 
 namespace {
 // 从 Lua 调用栈中提取 file/line/function，填充日志上下文
-context get_lua_call_context(lua_State* L, int stack_level) {
+context get_lua_call_context(lua_State* L, int stack_level)
+{
     lua_Debug ar;
     if (lua_getstack(L, stack_level, &ar) == 0) {
         return context("", "", 0);
@@ -55,7 +56,8 @@ context get_lua_call_context(lua_State* L, int stack_level) {
 } // namespace
 
 // 注册日志级别常量到当前 table（此时栈顶应为目标 table）
-static void register_log_levels(lua_State* L) {
+static void register_log_levels(lua_State* L)
+{
     lua_pushinteger(L, static_cast<int>(level::all));
     lua_setfield(L, -2, "ALL");
 
@@ -109,14 +111,16 @@ static void register_log_levels(lua_State* L) {
 }
 
 // 从 lua 栈获取 logger 对象
-static logger* lua_check_logger(lua_State* L, int index) {
+static logger* lua_check_logger(lua_State* L, int index)
+{
     void* ud = luaL_checkudata(L, index, LOGGER_METATABLE);
     luaL_argcheck(L, ud != nullptr, index, "logger expected");
     return static_cast<logger*>(ud);
 }
 
 // 创建 logger 对象并推入 lua 栈
-static void lua_push_logger(lua_State* L, const logger& log) {
+static void lua_push_logger(lua_State* L, const logger& log)
+{
     void* ud = lua_newuserdata(L, sizeof(logger));
     new (ud) logger(log);
     luaL_getmetatable(L, LOGGER_METATABLE);
@@ -124,7 +128,8 @@ static void lua_push_logger(lua_State* L, const logger& log) {
 }
 
 // logger:get_name()
-static int lua_logger_get_name(lua_State* L) {
+static int lua_logger_get_name(lua_State* L)
+{
     logger*            log  = lua_check_logger(L, 1);
     const std::string& name = log->get_name();
     lua_pushstring(L, name.c_str());
@@ -132,7 +137,8 @@ static int lua_logger_get_name(lua_State* L) {
 }
 
 // logger:set_name(name)
-static int lua_logger_set_name(lua_State* L) {
+static int lua_logger_set_name(lua_State* L)
+{
     logger*     log  = lua_check_logger(L, 1);
     const char* name = luaL_checkstring(L, 2);
     log->set_name(name);
@@ -140,7 +146,8 @@ static int lua_logger_set_name(lua_State* L) {
 }
 
 // logger:get_level()
-static int lua_logger_get_level(lua_State* L) {
+static int lua_logger_get_level(lua_State* L)
+{
     logger* log = lua_check_logger(L, 1);
     level   lvl = log->get_level();
     lua_pushinteger(L, static_cast<int>(lvl));
@@ -148,7 +155,8 @@ static int lua_logger_get_level(lua_State* L) {
 }
 
 // logger:set_level(level)
-static int lua_logger_set_level(lua_State* L) {
+static int lua_logger_set_level(lua_State* L)
+{
     logger* log = lua_check_logger(L, 1);
     int     lvl = static_cast<int>(luaL_checkinteger(L, 2));
     log->set_level(static_cast<level>(lvl));
@@ -157,7 +165,8 @@ static int lua_logger_set_level(lua_State* L) {
 }
 
 // logger:is_enabled(level)
-static int lua_logger_is_enabled(lua_State* L) {
+static int lua_logger_is_enabled(lua_State* L)
+{
     logger* log     = lua_check_logger(L, 1);
     int     lvl     = static_cast<int>(luaL_checkinteger(L, 2));
     bool    enabled = log->is_enabled(static_cast<level>(lvl));
@@ -172,7 +181,8 @@ static int lua_logger_is_enabled(lua_State* L) {
 #if defined(BUILD_TYPE) && defined(BUILD_TYPE_DT) && (BUILD_TYPE == BUILD_TYPE_DT)
 // logger:add_file_appender(filename, truncate?, module_name?)
 // 仅用于测试：添加文件 appender，便于读文件断言日志格式
-static int lua_logger_add_file_appender(lua_State* L) {
+static int lua_logger_add_file_appender(lua_State* L)
+{
     logger*     log      = lua_check_logger(L, 1);
     const char* filename = luaL_checkstring(L, 2);
     bool        truncate = false;
@@ -188,7 +198,7 @@ static int lua_logger_add_file_appender(lua_State* L) {
     }
     mc::dict config;
     config["flush_on_write"] = true;
-    config["truncate"]        = truncate;
+    config["truncate"]       = truncate;
     if (module_name != nullptr) {
         config["module_name"] = std::string(module_name);
     }
@@ -210,7 +220,8 @@ static int lua_logger_add_file_appender(lua_State* L) {
 
 // logger:clear_appenders()
 // 仅用于测试：清空所有 appender
-static int lua_logger_clear_appenders(lua_State* L) {
+static int lua_logger_clear_appenders(lua_State* L)
+{
     logger* log = lua_check_logger(L, 1);
     log->clear_appenders();
     return 0;
@@ -219,7 +230,8 @@ static int lua_logger_clear_appenders(lua_State* L) {
 
 // logger:system(system_id)
 // 如果传入 system_id，则设置 system_id；如果未传入参数，则重置为未设置状态（-1）
-static int lua_logger_system(lua_State* L) {
+static int lua_logger_system(lua_State* L)
+{
     logger* log = lua_check_logger(L, 1);
     int     system_id;
     // 检查是否传入了 system_id 参数
@@ -239,7 +251,8 @@ static int lua_logger_system(lua_State* L) {
 }
 
 // logger:period(period_s)
-static int lua_logger_period(lua_State* L) {
+static int lua_logger_period(lua_State* L)
+{
     logger* log      = lua_check_logger(L, 1);
     int     period_s = static_cast<int>(luaL_checkinteger(L, 2));
 
@@ -258,7 +271,8 @@ static int lua_logger_period(lua_State* L) {
 // logger:condition(cond)
 // 设置 condition，控制是否输出日志；cond 为 false 时不打印，为 true 时打印
 // 返回克隆 logger 用于链式调用，仿照 system/period
-static int lua_logger_condition(lua_State* L) {
+static int lua_logger_condition(lua_State* L)
+{
     logger* log  = lua_check_logger(L, 1);
     bool    cond = lua_toboolean(L, 2) != 0;
 
@@ -273,7 +287,8 @@ static int lua_logger_condition(lua_State* L) {
 // 如果第一个参数和第二个参数都是字符串，则第一个参数作为 module_name（可选）
 // 否则，第一个参数作为消息内容
 // limit_rate：true 限流，false 不限流（_easy）
-static int lua_logger_log_impl(lua_State* L, level lvl, bool limit_rate) {
+static int lua_logger_log_impl(lua_State* L, level lvl, bool limit_rate)
+{
     logger* log   = lua_check_logger(L, 1);
     int     nargs = lua_gettop(L);
 
@@ -333,7 +348,8 @@ static int lua_logger_log_impl(lua_State* L, level lvl, bool limit_rate) {
 
 // logger:raise(fmt, ...)
 // 按日志的 ${key} 格式模板进行格式化后抛出 Lua 异常
-static int lua_logger_raise(lua_State* L) {
+static int lua_logger_raise(lua_State* L)
+{
     logger*     log = lua_check_logger(L, 1);
     const char* fmt = luaL_checkstring(L, 2);
 
@@ -369,7 +385,8 @@ static int lua_logger_raise(lua_State* L) {
 }
 
 // logger:log(level, message, ...) 最后一参可为 table 作为 attrs
-static int lua_logger_log(lua_State* L) {
+static int lua_logger_log(lua_State* L)
+{
     logger*     log = lua_check_logger(L, 1);
     int         lvl = static_cast<int>(luaL_checkinteger(L, 2));
     const char* msg = luaL_checkstring(L, 3);
@@ -377,7 +394,7 @@ static int lua_logger_log(lua_State* L) {
     mc::dict args;
     args["module_name"] = std::string("unknown");
     mc::dict attrs;
-    int      nargs = lua_gettop(L);
+    int      nargs     = lua_gettop(L);
     int      end_index = nargs;
     if (nargs >= 4 && lua_type(L, nargs) == LUA_TTABLE) {
         mc::variant v = mc::lua::lua_to_variant(L, nargs);
@@ -407,77 +424,92 @@ static int lua_logger_log(lua_State* L) {
 }
 
 // logger:trace(message, ...)
-static int lua_logger_trace(lua_State* L) {
+static int lua_logger_trace(lua_State* L)
+{
     return lua_logger_log_impl(L, level::trace, true);
 }
 
 // logger:debug(message, ...)
-static int lua_logger_debug(lua_State* L) {
+static int lua_logger_debug(lua_State* L)
+{
     return lua_logger_log_impl(L, level::debug, true);
 }
 
 // logger:info(message, ...)
-static int lua_logger_info(lua_State* L) {
+static int lua_logger_info(lua_State* L)
+{
     return lua_logger_log_impl(L, level::info, true);
 }
 
 // logger:notice(message, ...)
-static int lua_logger_notice(lua_State* L) {
+static int lua_logger_notice(lua_State* L)
+{
     return lua_logger_log_impl(L, level::notice, true);
 }
 
 // logger:warn(message, ...)
-static int lua_logger_warn(lua_State* L) {
+static int lua_logger_warn(lua_State* L)
+{
     return lua_logger_log_impl(L, level::warn, true);
 }
 
 // logger:error(message, ...)
-static int lua_logger_error(lua_State* L) {
+static int lua_logger_error(lua_State* L)
+{
     return lua_logger_log_impl(L, level::error, true);
 }
 
 // logger:fatal(message, ...)
-static int lua_logger_fatal(lua_State* L) {
+static int lua_logger_fatal(lua_State* L)
+{
     return lua_logger_log_impl(L, level::fatal, true);
 }
 
 // logger:trace_easy(message, ...) 不限流
-static int lua_logger_trace_easy(lua_State* L) {
+static int lua_logger_trace_easy(lua_State* L)
+{
     return lua_logger_log_impl(L, level::trace, false);
 }
 
 // logger:debug_easy(message, ...) 不限流
-static int lua_logger_debug_easy(lua_State* L) {
+static int lua_logger_debug_easy(lua_State* L)
+{
     return lua_logger_log_impl(L, level::debug, false);
 }
 
 // logger:info_easy(message, ...) 不限流
-static int lua_logger_info_easy(lua_State* L) {
+static int lua_logger_info_easy(lua_State* L)
+{
     return lua_logger_log_impl(L, level::info, false);
 }
 
 // logger:notice_easy(message, ...) 不限流
-static int lua_logger_notice_easy(lua_State* L) {
+static int lua_logger_notice_easy(lua_State* L)
+{
     return lua_logger_log_impl(L, level::notice, false);
 }
 
 // logger:warn_easy(message, ...) 不限流
-static int lua_logger_warn_easy(lua_State* L) {
+static int lua_logger_warn_easy(lua_State* L)
+{
     return lua_logger_log_impl(L, level::warn, false);
 }
 
 // logger:error_easy(message, ...) 不限流
-static int lua_logger_error_easy(lua_State* L) {
+static int lua_logger_error_easy(lua_State* L)
+{
     return lua_logger_log_impl(L, level::error, false);
 }
 
 // logger:fatal_easy(message, ...) 不限流
-static int lua_logger_fatal_easy(lua_State* L) {
+static int lua_logger_fatal_easy(lua_State* L)
+{
     return lua_logger_log_impl(L, level::fatal, false);
 }
 
 // logger:mdbctl_log(fmt) 输出到 mdbctl 终端（使用 mdbctl_logger，仅输出到 socket，不含 console/file）
-static int lua_logger_mdbctl_log(lua_State* L) {
+static int lua_logger_mdbctl_log(lua_State* L)
+{
     lua_check_logger(L, 1);
     const char* fmt = luaL_checkstring(L, 2);
     context     ctx = get_lua_call_context(L, 1);
@@ -491,7 +523,8 @@ static int lua_logger_mdbctl_log(lua_State* L) {
 // 值可能为带 :value() 方法的对象（如 variant），空字符串用 'Unknown' 代替
 // 返回是否解析成功；成功时填充 interface_name、username、client_addr
 static bool parse_initiator(lua_State* L, int table_idx, std::string& interface_name,
-                            std::string& username, std::string& client_addr) {
+                            std::string& username, std::string& client_addr)
+{
     static const char* caller_info[] = {"Interface", "UserName", "ClientIp"};
     std::string*       out_fields[]  = {&interface_name, &username, &client_addr};
 
@@ -519,7 +552,8 @@ static bool parse_initiator(lua_State* L, int table_idx, std::string& interface_
 // initiator: Lua 表，包含 Interface、UserName、ClientIp（值可为带 :value() 的对象，空字符串用 'Unknown'）
 // executor: module_name
 // fmt: 日志内容，支持 ${key} 占位符，可跟键值对参数
-static int lua_logger_operation(lua_State* L) {
+static int lua_logger_operation(lua_State* L)
+{
     logger* log = lua_check_logger(L, 1);
     luaL_checktype(L, 2, LUA_TTABLE); // initiator 必须是 table
     const char* executor = luaL_checkstring(L, 3);
@@ -562,7 +596,8 @@ static int lua_logger_operation(lua_State* L) {
 
 // logger:running(level, message)
 // 运行日志接口，格式：时间、级别、日志内容，如 2026-02-04 15:20:32 WARN : test running log
-static int lua_logger_running(lua_State* L) {
+static int lua_logger_running(lua_State* L)
+{
     logger*     log = lua_check_logger(L, 1);
     int         lvl = static_cast<int>(luaL_checkinteger(L, 2));
     const char* msg = luaL_checkstring(L, 3);
@@ -576,7 +611,8 @@ static int lua_logger_running(lua_State* L) {
 
 // logger:security(message)
 // 安全日志接口，格式：时间、级别、日志内容，仅 message 参数，使用 info 级别
-static int lua_logger_security(lua_State* L) {
+static int lua_logger_security(lua_State* L)
+{
     logger*     log = lua_check_logger(L, 1);
     const char* msg = luaL_checkstring(L, 2);
 
@@ -589,7 +625,8 @@ static int lua_logger_security(lua_State* L) {
 
 // logger:maintenance(level, error_code, message) 或 logger:maintenance(level, message)
 // 维护日志接口，有错误码时格式：时间、级别、错误码、日志内容；无错误码时：时间、级别、日志内容
-static int lua_logger_maintenance(lua_State* L) {
+static int lua_logger_maintenance(lua_State* L)
+{
     logger*     log   = lua_check_logger(L, 1);
     int         lvl   = static_cast<int>(luaL_checkinteger(L, 2));
     int         nargs = lua_gettop(L);
@@ -614,7 +651,8 @@ static int lua_logger_maintenance(lua_State* L) {
 // 南向硬件流日志通用实现：级别 + 类别 hw_stream，参数约定与 lua_logger_log_impl 一致
 // 接口：log:hw_stream_xxx(module_name, message, ...) 或 log:hw_stream_xxx(message, ...)
 // 最后一个参数可为 table 作为 attrs
-static int lua_logger_hw_stream_impl(lua_State* L, level lvl) {
+static int lua_logger_hw_stream_impl(lua_State* L, level lvl)
+{
     logger* log   = lua_check_logger(L, 1);
     int     nargs = lua_gettop(L);
 
@@ -667,22 +705,27 @@ static int lua_logger_hw_stream_impl(lua_State* L, level lvl) {
     return 0;
 }
 
-static int lua_logger_hw_stream_info(lua_State* L) {
+static int lua_logger_hw_stream_info(lua_State* L)
+{
     return lua_logger_hw_stream_impl(L, level::info);
 }
-static int lua_logger_hw_stream_warn(lua_State* L) {
+static int lua_logger_hw_stream_warn(lua_State* L)
+{
     return lua_logger_hw_stream_impl(L, level::warn);
 }
-static int lua_logger_hw_stream_notice(lua_State* L) {
+static int lua_logger_hw_stream_notice(lua_State* L)
+{
     return lua_logger_hw_stream_impl(L, level::notice);
 }
-static int lua_logger_hw_stream_error(lua_State* L) {
+static int lua_logger_hw_stream_error(lua_State* L)
+{
     return lua_logger_hw_stream_impl(L, level::error);
 }
 
 // mc 流日志通用实现：级别 + 类别 mc_stream，参数约定与 hw_stream 一致，输出到 LOG_LOCAL5
 // 最后一个参数可为 table 作为 attrs
-static int lua_logger_mc_stream_impl(lua_State* L, level lvl) {
+static int lua_logger_mc_stream_impl(lua_State* L, level lvl)
+{
     logger* log   = lua_check_logger(L, 1);
     int     nargs = lua_gettop(L);
 
@@ -735,23 +778,28 @@ static int lua_logger_mc_stream_impl(lua_State* L, level lvl) {
     return 0;
 }
 
-static int lua_logger_mc_stream_info(lua_State* L) {
+static int lua_logger_mc_stream_info(lua_State* L)
+{
     return lua_logger_mc_stream_impl(L, level::info);
 }
-static int lua_logger_mc_stream_warn(lua_State* L) {
+static int lua_logger_mc_stream_warn(lua_State* L)
+{
     return lua_logger_mc_stream_impl(L, level::warn);
 }
-static int lua_logger_mc_stream_notice(lua_State* L) {
+static int lua_logger_mc_stream_notice(lua_State* L)
+{
     return lua_logger_mc_stream_impl(L, level::notice);
 }
-static int lua_logger_mc_stream_error(lua_State* L) {
+static int lua_logger_mc_stream_error(lua_State* L)
+{
     return lua_logger_mc_stream_impl(L, level::error);
 }
 
 // 串口 printf 日志通用实现：使用 Lua string.format 格式化后调用 log_serial_printf
 // 接口：log:debug_printf(module_name, fmt, ...) 或 log:debug_printf(fmt, ...)
 // 如果参数数量 >= 3 且第一个和第二个参数都是字符串，则第一个参数作为 module_name（可选）
-static int lua_logger_printf_impl(lua_State* L, level lvl) {
+static int lua_logger_printf_impl(lua_State* L, level lvl)
+{
     logger* log   = lua_check_logger(L, 1);
     int     nargs = lua_gettop(L);
 
@@ -804,35 +852,42 @@ static int lua_logger_printf_impl(lua_State* L, level lvl) {
     return 0;
 }
 
-static int lua_logger_debug_printf(lua_State* L) {
+static int lua_logger_debug_printf(lua_State* L)
+{
     return lua_logger_printf_impl(L, level::debug);
 }
 
-static int lua_logger_info_printf(lua_State* L) {
+static int lua_logger_info_printf(lua_State* L)
+{
     return lua_logger_printf_impl(L, level::info);
 }
 
-static int lua_logger_notice_printf(lua_State* L) {
+static int lua_logger_notice_printf(lua_State* L)
+{
     return lua_logger_printf_impl(L, level::notice);
 }
 
-static int lua_logger_warn_printf(lua_State* L) {
+static int lua_logger_warn_printf(lua_State* L)
+{
     return lua_logger_printf_impl(L, level::warn);
 }
 
-static int lua_logger_error_printf(lua_State* L) {
+static int lua_logger_error_printf(lua_State* L)
+{
     return lua_logger_printf_impl(L, level::error);
 }
 
 // logger:__gc()
-static int lua_logger_gc(lua_State* L) {
+static int lua_logger_gc(lua_State* L)
+{
     logger* log = lua_check_logger(L, 1);
     log->~logger();
     return 0;
 }
 
 // logger:__tostring()
-static int lua_logger_tostring(lua_State* L) {
+static int lua_logger_tostring(lua_State* L)
+{
     logger*     log = lua_check_logger(L, 1);
     std::string str = "logger(" + log->get_name() + ")";
     lua_pushstring(L, str.c_str());
@@ -840,7 +895,8 @@ static int lua_logger_tostring(lua_State* L) {
 }
 
 // __index 元方法
-static int lua_logger_index(lua_State* L) {
+static int lua_logger_index(lua_State* L)
+{
     // 从元表中查找方法
     luaL_getmetatable(L, LOGGER_METATABLE);
     lua_pushvalue(L, 2); // key（要查找的方法名）
@@ -859,7 +915,8 @@ static int lua_logger_index(lua_State* L) {
 }
 
 // 注册 logger 元表
-static void register_logger_metatable(lua_State* L) {
+static void register_logger_metatable(lua_State* L)
+{
     luaL_newmetatable(L, LOGGER_METATABLE);
 
     // 设置元方法
@@ -1072,7 +1129,8 @@ static void register_logger_metatable(lua_State* L) {
 
 extern "C" {
 // 注册 mc.log 模块
-__attribute__((visibility("default"))) int luaopen_mc_log(lua_State* L) {
+__attribute__((visibility("default"))) int luaopen_mc_log(lua_State* L)
+{
     // 注册 logger 元表
     register_logger_metatable(L);
 

@@ -26,13 +26,15 @@ using mc::string::starts_with;
 namespace detail {
 
 template <typename ObjectType>
-auto get_object_static_interfaces() {
+auto get_object_static_interfaces()
+{
     const auto& members = mc::reflect::get_static_members<ObjectType>();
     return mc::reflect::detail::filter_members<ObjectType, filter_interface>(members);
 }
 
 template <typename DeclaredInterfaces, typename Members>
-constexpr void set_object_member_flags(Members& members) {
+constexpr void set_object_member_flags(Members& members)
+{
     mc::traits::tuple_for_each(members, [&](auto& member) {
         using member_info_type = std::decay_t<decltype(member)>;
         if constexpr (mc::reflect::has_tag_v<mc::reflect::property_tag, member_info_type>) {
@@ -51,7 +53,8 @@ constexpr void set_object_member_flags(Members& members) {
 }
 
 template <typename ObjectType>
-object_metadata make_object_interfaces_metadata() {
+object_metadata make_object_interfaces_metadata()
+{
     auto arr = make_interface_metadatas<typename ObjectType::DeclaredInterfaces>();
     if (arr.size() == 0) {
         return object_metadata(ObjectType::class_name, mc::reflect::reflector<ObjectType>::get_metadata());
@@ -65,7 +68,8 @@ object_metadata make_object_interfaces_metadata() {
 template <typename ValueType>
 class object_optional_data {
 public:
-    object_optional_data() {
+    object_optional_data()
+    {
     }
 
     // 禁止拷贝和移动
@@ -74,12 +78,14 @@ public:
     object_optional_data(object_optional_data&&)                 = delete;
     object_optional_data& operator=(object_optional_data&&)      = delete;
 
-    void set(std::string_view interface, std::string_view property, const ValueType& value) {
+    void set(std::string_view interface, std::string_view property, const ValueType& value)
+    {
         std::lock_guard<std::mutex> lock(m_mutex);
         m_map[std::string(interface)][std::string(property)] = value;
     }
 
-    void unset(std::string_view interface, std::string_view property) {
+    void unset(std::string_view interface, std::string_view property)
+    {
         std::lock_guard<std::mutex> lock(m_mutex);
         auto                        interface_it = m_map.find(std::string(interface));
         if (interface_it == m_map.end()) {
@@ -96,7 +102,8 @@ public:
         }
     }
 
-    ValueType get(std::string_view interface, std::string_view property) {
+    ValueType get(std::string_view interface, std::string_view property)
+    {
         std::lock_guard<std::mutex> lock(m_mutex);
         auto                        interface_it = m_map.find(std::string(interface));
         if (interface_it == m_map.end()) {
@@ -109,13 +116,14 @@ public:
         return property_it->second;
     }
 
-    void visit_interface(std::string_view interface, const std::function<void(std::string_view, const ValueType&)> &cb) {
+    void visit_interface(std::string_view interface, const std::function<void(std::string_view, const ValueType&)>& cb)
+    {
         std::lock_guard<std::mutex> lock(m_mutex);
         auto                        interface_it = m_map.find(std::string(interface));
         if (interface_it == m_map.end()) {
             return;
         }
-        for (const auto &[name, value] : interface_it->second) {
+        for (const auto& [name, value] : interface_it->second) {
             cb(name, value);
         }
     }
@@ -136,12 +144,12 @@ public:
 
     const managed_objects& get_managed_objects() const override;
 
-    void                           notify_property_changed(const mc::variant&   value,
-                                                           const property_base& prop) override;
-    property_changed_signal&       property_changed() override;
-    void                           notify_property_update_shm(const mc::variant&   value,
-                                                              const property_base& prop) override;
-    property_changed_signal&       property_update_shm() override;
+    void                     notify_property_changed(const mc::variant&   value,
+                                                     const property_base& prop) override;
+    property_changed_signal& property_changed() override;
+    void                     notify_property_update_shm(const mc::variant&   value,
+                                                        const property_base& prop) override;
+    property_changed_signal& property_update_shm() override;
 
     abstract_object* get_owner() const override;
     void             set_owner(abstract_object* owner) override;
@@ -222,34 +230,42 @@ public:
     using object_type = ObjectType;
 
     template <typename Members>
-    static constexpr void initial_members(Members& members) {
+    static constexpr void initial_members(Members& members)
+    {
         detail::set_object_member_flags<typename object_type::DeclaredInterfaces>(members);
     }
 
-    object(core_object* parent = nullptr) : object_impl(parent) {
+    object(core_object* parent = nullptr)
+        : object_impl(parent)
+    {
         init_interface_object(metadata());
     }
 
     virtual ~object() = default;
 
-    std::string_view get_class_name() const noexcept override {
+    std::string_view get_class_name() const noexcept override
+    {
         return object_type::class_name;
     }
 
-    std::string_view get_path_pattern() const noexcept override {
+    std::string_view get_path_pattern() const noexcept override
+    {
         return object_type::path_pattern;
     }
 
-    static mc::shared_ptr<object_type> create() {
+    static mc::shared_ptr<object_type> create()
+    {
         return mc::make_shared<object_type>();
     }
 
     // 获取静态接口属性信息，仅在 MC_REFLECT 可见范围可用
-    static auto get_static_interface_infos() noexcept {
+    static auto get_static_interface_infos() noexcept
+    {
         return detail::get_object_static_interfaces<object_type>();
     }
 
-    static const object_metadata& metadata() noexcept {
+    static const object_metadata& metadata() noexcept
+    {
         auto& extension = mc::reflect::reflector<object_type>::get_extension();
 
         mc::atomic_ref<void*> extension_ref(extension.data);
@@ -270,7 +286,8 @@ public:
         return *reinterpret_cast<object_metadata*>(expected);
     }
 
-    const object_metadata& get_metadata() const noexcept override {
+    const object_metadata& get_metadata() const noexcept override
+    {
         return metadata();
     }
 };

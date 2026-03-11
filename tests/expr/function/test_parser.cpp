@@ -19,25 +19,30 @@ using namespace mc::expr;
 
 namespace {
 
-bool check_string_value(const mc::variant& value, const std::string& expected) {
+bool check_string_value(const mc::variant& value, const std::string& expected)
+{
     return value.get_type() == mc::type_id::string_type && value.as_string() == expected;
 }
 
-bool check_int_value(const mc::variant& value, int expected) {
+bool check_int_value(const mc::variant& value, int expected)
+{
     return value.get_type() == mc::type_id::int32_type &&
            value.as_int32() == static_cast<int32_t>(expected);
 }
 
-bool check_double_value(const mc::variant& value, double expected) {
+bool check_double_value(const mc::variant& value, double expected)
+{
     return value.get_type() == mc::type_id::double_type && value.as_double() == expected;
 }
 
-bool check_bool_value(const mc::variant& value, bool expected) {
+bool check_bool_value(const mc::variant& value, bool expected)
+{
     return value.get_type() == mc::type_id::bool_type && value.as_bool() == expected;
 }
 
 bool check_property_value(const mc::variant& value, const std::string& expected_obj,
-                          const std::string& expected_prop, const std::string& expected_full_name, const std::string& expected_type) {
+                          const std::string& expected_prop, const std::string& expected_full_name, const std::string& expected_type)
+{
     if (value.get_type() != mc::type_id::object_type) {
         return false;
     }
@@ -77,7 +82,8 @@ bool check_property_value(const mc::variant& value, const std::string& expected_
     return true;
 }
 
-bool check_function_call_value(const mc::variant& value, const func_call& expected) {
+bool check_function_call_value(const mc::variant& value, const func_call& expected)
+{
     if (value.get_type() != mc::type_id::object_type) {
         return false;
     }
@@ -114,14 +120,16 @@ bool check_function_call_value(const mc::variant& value, const func_call& expect
     return true;
 }
 
-TEST(PropertyTest, ParseBasicProperty) {
+TEST(PropertyTest, ParseBasicProperty)
+{
     auto& parser = func_parser::get_instance();
     auto  prop   = parser.parse_property("CPU.Temperature");
     EXPECT_EQ(prop.object_name, "CPU");
     EXPECT_EQ(prop.property_name, "Temperature");
 }
 
-TEST(PropertyTest, ParseSyncProperty) {
+TEST(PropertyTest, ParseSyncProperty)
+{
     auto& parser = func_parser::get_instance();
     auto  prop   = parser.parse_sync_property("<=/CPU.Temperature");
     EXPECT_EQ(prop.type, "sync");
@@ -129,7 +137,8 @@ TEST(PropertyTest, ParseSyncProperty) {
     EXPECT_EQ(prop.property_name, "Temperature");
 }
 
-TEST(PropertyTest, ParseRefProperty) {
+TEST(PropertyTest, ParseRefProperty)
+{
     auto& parser = func_parser::get_instance();
     auto  prop   = parser.parse_ref_property("#/CPU.Temperature");
     EXPECT_EQ(prop.type, "ref");
@@ -137,14 +146,16 @@ TEST(PropertyTest, ParseRefProperty) {
     EXPECT_EQ(prop.property_name, "Temperature");
 }
 
-TEST(PropertyTest, InvalidPropertyFormat) {
+TEST(PropertyTest, InvalidPropertyFormat)
+{
     auto& parser = func_parser::get_instance();
     EXPECT_THROW(parser.parse_property("InvalidFormat"), mc::invalid_arg_exception);
     EXPECT_THROW(parser.parse_sync_property("InvalidFormat"), mc::invalid_arg_exception);
     EXPECT_THROW(parser.parse_ref_property("InvalidFormat"), mc::invalid_arg_exception);
 }
 
-TEST(FunctionParserTest, ParseSimpleFunctionCall) {
+TEST(FunctionParserTest, ParseSimpleFunctionCall)
+{
     auto& parser = func_parser::get_instance();
     auto  result = parser.parse_function_call("$Func_test({})");
 
@@ -152,7 +163,8 @@ TEST(FunctionParserTest, ParseSimpleFunctionCall) {
     EXPECT_TRUE(result.params.empty());
 }
 
-TEST(FunctionParserTest, ParseFunctionCallWithNoParams) {
+TEST(FunctionParserTest, ParseFunctionCallWithNoParams)
+{
     auto& parser = func_parser::get_instance();
     auto  result = parser.parse_function_call("$Func_test()");
 
@@ -160,7 +172,8 @@ TEST(FunctionParserTest, ParseFunctionCallWithNoParams) {
     EXPECT_TRUE(result.params.empty());
 }
 
-TEST(FunctionParserTest, ParseFunctionCallWithStringParam) {
+TEST(FunctionParserTest, ParseFunctionCallWithStringParam)
+{
     auto& parser = func_parser::get_instance();
     auto  result = parser.parse_function_call("$Func_test({param: \"value\"})");
 
@@ -169,7 +182,8 @@ TEST(FunctionParserTest, ParseFunctionCallWithStringParam) {
     EXPECT_TRUE(check_string_value(result.params["param"], "value"));
 }
 
-TEST(FunctionParserTest, ParseFunctionCallWithIntParam) {
+TEST(FunctionParserTest, ParseFunctionCallWithIntParam)
+{
     auto& parser = func_parser::get_instance();
     auto  result = parser.parse_function_call("$Func_test({param: 42})");
 
@@ -178,7 +192,8 @@ TEST(FunctionParserTest, ParseFunctionCallWithIntParam) {
     EXPECT_TRUE(check_int_value(result.params["param"], 42));
 }
 
-TEST(FunctionParserTest, ParseFunctionCallWithDoubleParam) {
+TEST(FunctionParserTest, ParseFunctionCallWithDoubleParam)
+{
     auto& parser = func_parser::get_instance();
     auto  result = parser.parse_function_call("$Func_test({param: 3.14})");
 
@@ -187,7 +202,8 @@ TEST(FunctionParserTest, ParseFunctionCallWithDoubleParam) {
     EXPECT_TRUE(check_double_value(result.params["param"], 3.14));
 }
 
-TEST(FunctionParserTest, ParseFunctionCallWithBoolParam) {
+TEST(FunctionParserTest, ParseFunctionCallWithBoolParam)
+{
     auto& parser = func_parser::get_instance();
     auto  result = parser.parse_function_call("$Func_test({param: true})");
 
@@ -196,7 +212,8 @@ TEST(FunctionParserTest, ParseFunctionCallWithBoolParam) {
     EXPECT_TRUE(check_bool_value(result.params["param"], true));
 }
 
-TEST(FunctionParserTest, ParseFunctionCallWithPropertyParam) {
+TEST(FunctionParserTest, ParseFunctionCallWithPropertyParam)
+{
     auto& parser = func_parser::get_instance();
     auto  result = parser.parse_function_call("$Func_test({param: CPU.Temperature})");
 
@@ -205,7 +222,8 @@ TEST(FunctionParserTest, ParseFunctionCallWithPropertyParam) {
     EXPECT_TRUE(check_property_value(result.params["param"], "CPU", "Temperature", "CPU.Temperature", ""));
 }
 
-TEST(FunctionParserTest, ParseFunctionCallWithNestedFunctionCall) {
+TEST(FunctionParserTest, ParseFunctionCallWithNestedFunctionCall)
+{
     auto& parser = func_parser::get_instance();
     auto  result = parser.parse_function_call("$Func_outer({nested: $Func_inner({param: \"value\"})})");
 
@@ -219,7 +237,8 @@ TEST(FunctionParserTest, ParseFunctionCallWithNestedFunctionCall) {
     EXPECT_TRUE(check_function_call_value(result.params["nested"], expected_nested));
 }
 
-TEST(FunctionParserTest, ParseFunctionCallWithMultipleParams) {
+TEST(FunctionParserTest, ParseFunctionCallWithMultipleParams)
+{
     auto& parser = func_parser::get_instance();
     auto  result = parser.parse_function_call("$Func_test({str: \"value\", num: 42, flag: true})");
 
@@ -230,7 +249,8 @@ TEST(FunctionParserTest, ParseFunctionCallWithMultipleParams) {
     EXPECT_TRUE(check_bool_value(result.params["flag"], true));
 }
 
-TEST(FunctionParserTest, BasicFunctionCall) {
+TEST(FunctionParserTest, BasicFunctionCall)
+{
     auto& parser = func_parser::get_instance();
     auto  result = parser.parse_function_call(
         "$Func_test({param1: \"value1\", param2: 42, param3: 3.14, param4: true, param5: "
@@ -250,7 +270,8 @@ TEST(FunctionParserTest, BasicFunctionCall) {
     EXPECT_TRUE(check_function_call_value(result.params["param5"], expected_nested));
 }
 
-TEST(FunctionParserTest, ParseNestedFunctionCallWithIdentifiers) {
+TEST(FunctionParserTest, ParseNestedFunctionCallWithIdentifiers)
+{
     auto& parser = func_parser::get_instance();
     auto  result = parser.parse_function_call(
         "$Func_TempAlert({temp: CPU.Temperature, health: $Func_TempStatus({x: CPU.Temperature})})");
@@ -277,7 +298,8 @@ TEST(FunctionParserTest, ParseNestedFunctionCallWithIdentifiers) {
     EXPECT_TRUE(check_property_value(nested_params.find("x")->value, "CPU", "Temperature", "CPU.Temperature", ""));
 }
 
-TEST(FunctionParserTest, ParseFunctionCallWithSyncProperty) {
+TEST(FunctionParserTest, ParseFunctionCallWithSyncProperty)
+{
     auto& parser = func_parser::get_instance();
     auto  result = parser.parse_function_call("$Func_test({sync_temp: <=/CPU.Temperature})");
 
@@ -286,7 +308,8 @@ TEST(FunctionParserTest, ParseFunctionCallWithSyncProperty) {
     EXPECT_TRUE(check_property_value(result.params["sync_temp"], "CPU", "Temperature", "<=/CPU.Temperature", "sync"));
 }
 
-TEST(FunctionParserTest, ParseFunctionCallWithRefProperty) {
+TEST(FunctionParserTest, ParseFunctionCallWithRefProperty)
+{
     auto& parser = func_parser::get_instance();
     auto  result = parser.parse_function_call("$Func_test({ref_temp: #/CPU.Temperature})");
 
@@ -295,7 +318,8 @@ TEST(FunctionParserTest, ParseFunctionCallWithRefProperty) {
     EXPECT_TRUE(check_property_value(result.params["ref_temp"], "CPU", "Temperature", "#/CPU.Temperature", "ref"));
 }
 
-TEST(FunctionParserTest, ParseFunctionCallWithMultiplePropertyTypes) {
+TEST(FunctionParserTest, ParseFunctionCallWithMultiplePropertyTypes)
+{
     auto& parser = func_parser::get_instance();
     auto  result = parser.parse_function_call(
         "$Func_test({normal: CPU.Temperature, sync: <=/CPU.Temperature, ref: #/CPU.Temperature})");
@@ -307,7 +331,8 @@ TEST(FunctionParserTest, ParseFunctionCallWithMultiplePropertyTypes) {
     EXPECT_TRUE(check_property_value(result.params["ref"], "CPU", "Temperature", "#/CPU.Temperature", "ref"));
 }
 
-TEST(FunctionParserTest, ParseNestedFunctionCallWithProperties) {
+TEST(FunctionParserTest, ParseNestedFunctionCallWithProperties)
+{
     auto& parser = func_parser::get_instance();
     auto  result = parser.parse_function_call(
         "$Func_outer({nested: $Func_inner({normal: CPU.Temperature, sync: "
@@ -345,7 +370,8 @@ TEST(FunctionParserTest, ParseNestedFunctionCallWithProperties) {
     EXPECT_TRUE(check_function_call_value(result.params["nested"], expected_nested));
 }
 
-TEST(FunctionParserTest, ParseFunctionCallWithMixedParameters) {
+TEST(FunctionParserTest, ParseFunctionCallWithMixedParameters)
+{
     auto& parser = func_parser::get_instance();
     auto  result = parser.parse_function_call(
         "$Func_test({str: \"value\", num: 42, flag: true, normal: CPU.Temperature, sync: "
@@ -362,7 +388,8 @@ TEST(FunctionParserTest, ParseFunctionCallWithMixedParameters) {
 }
 
 // 测试 relate_property 结构体的 variant 转换
-TEST(RelatePropertyTest, VariantConversion) {
+TEST(RelatePropertyTest, VariantConversion)
+{
     relate_property prop;
     prop.type          = "ref";
     prop.object_name   = "CPU";
@@ -395,7 +422,8 @@ TEST(RelatePropertyTest, VariantConversion) {
 }
 
 // 测试空的 relate_property 转换
-TEST(RelatePropertyTest, EmptyVariantConversion) {
+TEST(RelatePropertyTest, EmptyVariantConversion)
+{
     relate_property prop;
 
     // 测试空结构体的 to_variant
@@ -413,7 +441,8 @@ TEST(RelatePropertyTest, EmptyVariantConversion) {
 }
 
 // 测试不完整字典的 from_variant
-TEST(RelatePropertyTest, PartialVariantConversion) {
+TEST(RelatePropertyTest, PartialVariantConversion)
+{
     mc::dict dict;
     dict["type"]        = "sync";
     dict["object_name"] = "Memory";
@@ -430,7 +459,8 @@ TEST(RelatePropertyTest, PartialVariantConversion) {
 }
 
 // 测试非字典类型的 from_variant
-TEST(RelatePropertyTest, InvalidVariantConversion) {
+TEST(RelatePropertyTest, InvalidVariantConversion)
+{
     mc::variant     v("not a dict");
     relate_property prop;
     prop.type = "original";
@@ -441,7 +471,8 @@ TEST(RelatePropertyTest, InvalidVariantConversion) {
 }
 
 // 测试各种属性类型的解析
-TEST(PropertyParserTest, ParseDifferentPropertyTypes) {
+TEST(PropertyParserTest, ParseDifferentPropertyTypes)
+{
     auto& parser = func_parser::get_instance();
 
     // 测试普通属性（无前缀）
@@ -467,7 +498,8 @@ TEST(PropertyParserTest, ParseDifferentPropertyTypes) {
 }
 
 // 测试复杂的对象属性名
-TEST(PropertyParserTest, ParseComplexPropertyNames) {
+TEST(PropertyParserTest, ParseComplexPropertyNames)
+{
     auto& parser = func_parser::get_instance();
 
     // 测试包含数字的对象名
@@ -487,7 +519,8 @@ TEST(PropertyParserTest, ParseComplexPropertyNames) {
 }
 
 // 测试边界和错误情况
-TEST(PropertyParserTest, ParseErrorCases) {
+TEST(PropertyParserTest, ParseErrorCases)
+{
     auto& parser = func_parser::get_instance();
 
     // 测试无效格式的属性（没有点分隔符）
@@ -512,7 +545,8 @@ TEST(PropertyParserTest, ParseErrorCases) {
 }
 
 // 测试函数解析的边界情况
-TEST(FunctionParserTest, ParseEdgeCases) {
+TEST(FunctionParserTest, ParseEdgeCases)
+{
     auto& parser = func_parser::get_instance();
 
     // 测试无参数函数
@@ -538,7 +572,8 @@ TEST(FunctionParserTest, ParseEdgeCases) {
 }
 
 // 测试参数类型推断
-TEST(FunctionParserTest, ParseParameterTypes) {
+TEST(FunctionParserTest, ParseParameterTypes)
+{
     auto& parser = func_parser::get_instance();
 
     // 测试各种参数类型的推断
@@ -568,7 +603,8 @@ TEST(FunctionParserTest, ParseParameterTypes) {
 }
 
 // 测试嵌套解析的深度
-TEST(FunctionParserTest, ParseNestedDepth) {
+TEST(FunctionParserTest, ParseNestedDepth)
+{
     auto& parser = func_parser::get_instance();
 
     // 测试三层嵌套函数调用
@@ -595,7 +631,8 @@ TEST(FunctionParserTest, ParseNestedDepth) {
 }
 
 // 测试特殊字符和转义
-TEST(FunctionParserTest, ParseSpecialCharacters) {
+TEST(FunctionParserTest, ParseSpecialCharacters)
+{
     auto& parser = func_parser::get_instance();
 
     // 测试包含特殊字符的字符串
@@ -616,7 +653,8 @@ TEST(FunctionParserTest, ParseSpecialCharacters) {
 }
 
 // 测试新语法：带接口的属性解析
-TEST(FunctionParserTest, ParsePropertyWithInterface) {
+TEST(FunctionParserTest, ParsePropertyWithInterface)
+{
     auto& parser = func_parser::get_instance();
 
     // 测试引用属性的新语法
@@ -652,7 +690,8 @@ TEST(FunctionParserTest, ParsePropertyWithInterface) {
 }
 
 // 测试普通属性解析的新语法支持
-TEST(FunctionParserTest, ParsePropertyWithInterfaceNoPrefix) {
+TEST(FunctionParserTest, ParsePropertyWithInterfaceNoPrefix)
+{
     auto& parser = func_parser::get_instance();
 
     // 测试不带前缀的新语法
@@ -671,7 +710,8 @@ TEST(FunctionParserTest, ParsePropertyWithInterfaceNoPrefix) {
 }
 
 // 测试函数调用中的新语法参数
-TEST(FunctionParserTest, ParseFunctionCallWithInterfaceParameters) {
+TEST(FunctionParserTest, ParseFunctionCallWithInterfaceParameters)
+{
     auto& parser = func_parser::get_instance();
     auto  result = parser.parse_function_call(
         "$Func_test({device_temp: #/Device[bmc.dev.TestInterface].Temperature, "
@@ -704,7 +744,8 @@ TEST(FunctionParserTest, ParseFunctionCallWithInterfaceParameters) {
 }
 
 // 测试引用对象解析功能
-TEST(PropertyParserTest, ParseRefObject) {
+TEST(PropertyParserTest, ParseRefObject)
+{
     auto& parser = func_parser::get_instance();
 
     // 测试基本引用对象解析
@@ -726,7 +767,8 @@ TEST(PropertyParserTest, ParseRefObject) {
 }
 
 // 测试引用对象解析的错误情况
-TEST(PropertyParserTest, ParseRefObjectErrors) {
+TEST(PropertyParserTest, ParseRefObjectErrors)
+{
     auto& parser = func_parser::get_instance();
 
     // 测试无效前缀
@@ -751,7 +793,8 @@ TEST(PropertyParserTest, ParseRefObjectErrors) {
 }
 
 // 测试函数调用解析中的引用对象vs引用属性区分
-TEST(PropertyParserTest, ParseFunctionCallWithRefObjectAndRefProperty) {
+TEST(PropertyParserTest, ParseFunctionCallWithRefObjectAndRefProperty)
+{
     auto& parser = func_parser::get_instance();
 
     // 测试包含引用对象的函数调用
@@ -780,7 +823,8 @@ TEST(PropertyParserTest, ParseFunctionCallWithRefObjectAndRefProperty) {
 }
 
 // 测试 relate_object 的 variant 转换
-TEST(RelateObjectTest, VariantConversion) {
+TEST(RelateObjectTest, VariantConversion)
+{
     mc::expr::relate_object obj;
     obj.type        = "ref";
     obj.object_name = "CPU";
@@ -805,7 +849,8 @@ TEST(RelateObjectTest, VariantConversion) {
 }
 
 // 测试 relate_object 的部分字段转换
-TEST(RelateObjectTest, PartialVariantConversion) {
+TEST(RelateObjectTest, PartialVariantConversion)
+{
     mc::dict dict;
     dict["type"]        = "ref";
     dict["object_name"] = "Memory";
@@ -821,7 +866,8 @@ TEST(RelateObjectTest, PartialVariantConversion) {
 }
 
 // 测试非字典类型的 relate_object from_variant
-TEST(RelateObjectTest, InvalidVariantConversion) {
+TEST(RelateObjectTest, InvalidVariantConversion)
+{
     mc::variant             v("not a dict");
     mc::expr::relate_object obj;
     obj.type = "original";
@@ -837,15 +883,16 @@ TEST(RelateObjectTest, InvalidVariantConversion) {
 // 所以这个改动目前还没有被测试覆盖
 
 // 测试浮点数参数解析
-TEST(FunctionParserTest, ParseFloatParamNotTruncated) {
+TEST(FunctionParserTest, ParseFloatParamNotTruncated)
+{
     auto& parser = func_parser::get_instance();
-    
+
     // 测试 "3.25" 应该被解析为 double 类型，而不是 int 类型
     auto result = parser.parse_function_call("$Func_test({param: 3.25})");
-    
+
     EXPECT_EQ(result.func, "Func_test");
     ASSERT_EQ(result.params.size(), 1);
-    
+
     // 验证参数是 double 类型，而不是 int 类型
     EXPECT_TRUE(result.params["param"].is_double());
     EXPECT_FALSE(result.params["param"].is_int32());
@@ -853,23 +900,25 @@ TEST(FunctionParserTest, ParseFloatParamNotTruncated) {
 }
 
 // 测试浮点数参数解析 - 确保 "3.14" 不会被截断为整数 3
-TEST(FunctionParserTest, ParseFloatParam3_14NotTruncated) {
+TEST(FunctionParserTest, ParseFloatParam3_14NotTruncated)
+{
     auto& parser = func_parser::get_instance();
-    
+
     // 测试 "3.14" 应该被解析为 double 类型
     auto result = parser.parse_function_call("$Func_test({param: 3.14})");
-    
+
     EXPECT_EQ(result.func, "Func_test");
     ASSERT_EQ(result.params.size(), 1);
-    
+
     // 验证参数是 double 类型
     EXPECT_TRUE(result.params["param"].is_double());
     EXPECT_DOUBLE_EQ(result.params["param"].as_double(), 3.14);
 }
 
 // 测试科学计数法浮点数解析 - 覆盖大小写 E 与正负指数
-TEST(FunctionParserTest, ParseScientificNotationNotTruncated) {
-    auto& parser = func_parser::get_instance();
+TEST(FunctionParserTest, ParseScientificNotationNotTruncated)
+{
+    auto&                                             parser      = func_parser::get_instance();
     const std::vector<std::pair<std::string, double>> expressions = {
         {"$Func_test({param: 3.25e2})", 325.0},
         {"$Func_test({param: 3.25E2})", 325.0},
@@ -887,15 +936,16 @@ TEST(FunctionParserTest, ParseScientificNotationNotTruncated) {
 }
 
 // 测试整数参数解析 - 确保 "42" 被解析为 int 类型（没有小数点）
-TEST(FunctionParserTest, ParseIntParamWithoutFraction) {
+TEST(FunctionParserTest, ParseIntParamWithoutFraction)
+{
     auto& parser = func_parser::get_instance();
-    
+
     // 测试 "42" 应该被解析为 int 类型（因为没有小数点）
     auto result = parser.parse_function_call("$Func_test({param: 42})");
-    
+
     EXPECT_EQ(result.func, "Func_test");
     ASSERT_EQ(result.params.size(), 1);
-    
+
     // 验证参数是 int 类型
     EXPECT_TRUE(result.params["param"].is_int32());
     EXPECT_FALSE(result.params["param"].is_double());
@@ -903,22 +953,24 @@ TEST(FunctionParserTest, ParseIntParamWithoutFraction) {
 }
 
 // 测试负数浮点数解析
-TEST(FunctionParserTest, ParseNegativeFloatParam) {
+TEST(FunctionParserTest, ParseNegativeFloatParam)
+{
     auto& parser = func_parser::get_instance();
-    
+
     // 测试 "-3.25" 应该被解析为 double 类型
     auto result = parser.parse_function_call("$Func_test({param: -3.25})");
-    
+
     EXPECT_EQ(result.func, "Func_test");
     ASSERT_EQ(result.params.size(), 1);
-    
+
     // 验证参数是 double 类型
     EXPECT_TRUE(result.params["param"].is_double());
     EXPECT_DOUBLE_EQ(result.params["param"].as_double(), -3.25);
 }
 
 // 测试边界情况 - 小数点开头的浮点数（含负值）
-TEST(FunctionParserTest, ParseFloatStartingWithDot) {
+TEST(FunctionParserTest, ParseFloatStartingWithDot)
+{
     auto& parser = func_parser::get_instance();
 
     auto positive = parser.parse_function_call("$Func_test({param: .25})");

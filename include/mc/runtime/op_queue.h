@@ -27,31 +27,39 @@ class op_queue {
 public:
     using operation_type = Operation;
 
-    op_queue() : m_front(nullptr), m_back(nullptr) {
+    op_queue()
+        : m_front(nullptr), m_back(nullptr)
+    {
     }
 
-    ~op_queue() {
+    ~op_queue()
+    {
         // 清空队列,不删除操作对象，由调用者负责
         clear();
     }
 
-    Operation* front() {
+    Operation* front()
+    {
         return m_front;
     }
 
-    const Operation* front() const {
+    const Operation* front() const
+    {
         return m_front;
     }
 
-    Operation* back() {
+    Operation* back()
+    {
         return m_back;
     }
 
-    const Operation* back() const {
+    const Operation* back() const
+    {
         return m_back;
     }
 
-    void pop_front() {
+    void pop_front()
+    {
         if (m_front) {
             m_front = static_cast<Operation*>(m_front->next);
             if (!m_front) {
@@ -61,7 +69,8 @@ public:
     }
 
     // 将操作添加到队列头部
-    void push_front(Operation& op) {
+    void push_front(Operation& op)
+    {
         if (!m_front) {
             m_front = &op;
             m_back  = &op;
@@ -71,7 +80,8 @@ public:
         }
     }
 
-    void push_back(Operation& op) {
+    void push_back(Operation& op)
+    {
         if (!m_back) {
             m_front = &op;
             m_back  = &op;
@@ -81,17 +91,20 @@ public:
         }
     }
 
-    bool empty() const {
+    bool empty() const
+    {
         return m_front == nullptr;
     }
 
-    void clear() {
+    void clear()
+    {
         m_front = nullptr;
         m_back  = nullptr;
     }
 
     // 将另一个队列的所有元素追加到当前队列的头部
-    void splice_front(op_queue& other) {
+    void splice_front(op_queue& other)
+    {
         if (other.empty()) {
             return;
         }
@@ -110,7 +123,8 @@ public:
     }
 
     // 将另一个队列的所有元素追加到当前队列的尾部
-    void splice_back(op_queue& other) {
+    void splice_back(op_queue& other)
+    {
         if (other.empty()) {
             return;
         }
@@ -128,7 +142,8 @@ public:
         other.m_back  = nullptr;
     }
 
-    size_t size() const {
+    size_t size() const
+    {
         size_t count = 0;
         for (Operation* op = m_front; op != nullptr; op = static_cast<Operation*>(op->next)) {
             ++count;

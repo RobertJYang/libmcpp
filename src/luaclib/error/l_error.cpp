@@ -26,7 +26,8 @@ namespace mc::lua::error {
 /**
  * @brief 从 Lua 栈中读取 dict
  */
-static mc::dict check_dict(lua_State* L, int index) {
+static mc::dict check_dict(lua_State* L, int index)
+{
     mc::dict result;
 
     if (!lua_istable(L, index)) {
@@ -60,7 +61,8 @@ static mc::dict check_dict(lua_State* L, int index) {
 /**
  * @brief 将 dict 推入 Lua 栈
  */
-static void push_dict(lua_State* L, const mc::dict& dict) {
+static void push_dict(lua_State* L, const mc::dict& dict)
+{
     lua_newtable(L);
 
     for (mc::dict::const_iterator it = dict.begin(); it != dict.end(); ++it) {
@@ -106,10 +108,11 @@ static void push_dict(lua_State* L, const mc::dict& dict) {
  * @param format 原始 format 字符串
  * @return 转换后的 format 字符串
  */
-static std::string convert_format_placeholders(std::string_view format) {
+static std::string convert_format_placeholders(std::string_view format)
+{
     std::string result;
-    size_t pos = 0;
-    size_t arg_index = 0;
+    size_t      pos       = 0;
+    size_t      arg_index = 0;
 
     while (pos < format.length()) {
         size_t percent_pos = format.find('%', pos);
@@ -163,7 +166,8 @@ static std::string convert_format_placeholders(std::string_view format) {
 /**
  * @brief 将 standard_error_message 推入 Lua 栈
  */
-static void push_standard_message(lua_State* L, const mc::standard_error_message& msg) {
+static void push_standard_message(lua_State* L, const mc::standard_error_message& msg)
+{
     lua_newtable(L);
 
     lua_pushstring(L, "message_id");
@@ -209,7 +213,8 @@ static void push_standard_message(lua_State* L, const mc::standard_error_message
 // 错误相关函数实现
 // ============================================================================
 
-int error_new(lua_State* L) {
+int error_new(lua_State* L)
+{
     const char* name   = luaL_checkstring(L, 1);
     const char* format = luaL_optstring(L, 2, "");
 
@@ -224,7 +229,8 @@ int error_new(lua_State* L) {
     return push_error(L, std::move(err));
 }
 
-int error_new_message_error(lua_State* L) {
+int error_new_message_error(lua_State* L)
+{
     // 检查参数是否是 table
     if (!lua_istable(L, 1)) {
         lua_pushstring(L, "new_message_error: expected table as first argument");
@@ -313,7 +319,8 @@ int error_new_message_error(lua_State* L) {
     return 1; // 返回 error 对象
 }
 
-int error_tostring(lua_State* L) {
+int error_tostring(lua_State* L)
+{
     auto wrapper = check_error(L);
 
     if (!wrapper->err) {
@@ -326,7 +333,8 @@ int error_tostring(lua_State* L) {
     return 1;
 }
 
-int error_args(lua_State* L) {
+int error_args(lua_State* L)
+{
     auto wrapper = check_error(L);
 
     if (!wrapper->err) {
@@ -338,7 +346,8 @@ int error_args(lua_State* L) {
     return 1;
 }
 
-int error_traceback(lua_State* L) {
+int error_traceback(lua_State* L)
+{
     auto wrapper = check_error(L);
 
     if (!wrapper->err) {
@@ -355,7 +364,8 @@ int error_traceback(lua_State* L) {
     return 1;
 }
 
-int error_post_process(lua_State* L) {
+int error_post_process(lua_State* L)
+{
     auto wrapper = check_error(L);
 
     if (!wrapper->err) {
@@ -381,7 +391,8 @@ int error_post_process(lua_State* L) {
     return 1;
 }
 
-int error_raise(lua_State* L) {
+int error_raise(lua_State* L)
+{
     auto wrapper = check_error(L);
 
     if (!wrapper->err) {
@@ -407,7 +418,8 @@ int error_raise(lua_State* L) {
     }
 }
 
-int error_encode(lua_State* L) {
+int error_encode(lua_State* L)
+{
     auto wrapper = check_error(L);
 
     if (!wrapper->err) {
@@ -427,13 +439,15 @@ int error_encode(lua_State* L) {
     }
 }
 
-int error_gc(lua_State* L) {
+int error_gc(lua_State* L)
+{
     auto wrapper = check_error(L);
     wrapper->~error_wrapper();
     return 0;
 }
 
-int error_index(lua_State* L) {
+int error_index(lua_State* L)
+{
     // 获取 key
     const char* key = lua_tostring(L, 2);
     if (key == nullptr) {
@@ -510,7 +524,8 @@ int error_index(lua_State* L) {
     return 1; // 返回找到的方法（如 err:tostring()）
 }
 
-int error_newindex(lua_State* L) {
+int error_newindex(lua_State* L)
+{
     // 获取 key
     const char* key = lua_tostring(L, 2);
     if (key == nullptr) {
@@ -564,7 +579,8 @@ int error_newindex(lua_State* L) {
     return 0;
 }
 
-void register_error_metatable(lua_State* L) {
+void register_error_metatable(lua_State* L)
+{
     luaL_newmetatable(L, ERROR_METATABLE);
 
     static const luaL_Reg methods[] = {{"tostring", error_tostring},
@@ -596,7 +612,8 @@ void register_error_metatable(lua_State* L) {
 // 错误消息转换器相关函数实现
 // ============================================================================
 
-int converter_load_registries(lua_State* L) {
+int converter_load_registries(lua_State* L)
+{
     const char* base_path   = luaL_checkstring(L, 1);
     const char* custom_path = luaL_checkstring(L, 2);
 
@@ -611,7 +628,8 @@ int converter_load_registries(lua_State* L) {
     }
 }
 
-int converter_load_registries_from_string(lua_State* L) {
+int converter_load_registries_from_string(lua_State* L)
+{
     const char* base_json   = luaL_checkstring(L, 1);
     const char* custom_json = luaL_checkstring(L, 2);
 
@@ -627,7 +645,8 @@ int converter_load_registries_from_string(lua_State* L) {
     }
 }
 
-int converter_convert(lua_State* L) {
+int converter_convert(lua_State* L)
+{
     auto wrapper = check_error(L, 1);
 
     if (!wrapper->err) {
@@ -642,7 +661,8 @@ int converter_convert(lua_State* L) {
     return 1;
 }
 
-int converter_convert_to_dict(lua_State* L) {
+int converter_convert_to_dict(lua_State* L)
+{
     auto wrapper = check_error(L, 1);
 
     if (!wrapper->err) {
@@ -656,12 +676,14 @@ int converter_convert_to_dict(lua_State* L) {
     return 1;
 }
 
-int converter_gc(lua_State* L) {
+int converter_gc(lua_State* L)
+{
     (void)L;
     return 0;
 }
 
-int converter_index(lua_State* L) {
+int converter_index(lua_State* L)
+{
     luaL_getmetatable(L, ERROR_CONVERTER_METATABLE);
     lua_pushvalue(L, 2); // key
     lua_rawget(L, -2);
@@ -673,7 +695,8 @@ int converter_index(lua_State* L) {
     return 0;
 }
 
-void register_converter_metatable(lua_State* L) {
+void register_converter_metatable(lua_State* L)
+{
     luaL_newmetatable(L, ERROR_CONVERTER_METATABLE);
 
     static const luaL_Reg methods[] = {{"load_registries", converter_load_registries},
@@ -705,7 +728,8 @@ void register_converter_metatable(lua_State* L) {
  * 注意：此函数会将 format 中的 %s, %d, %1, %2 等占位符转换为 {n} 格式
  * 以便使用 format_dict 进行格式化
  */
-int compat_new_error(lua_State* L) {
+int compat_new_error(lua_State* L)
+{
     const char* name   = luaL_checkstring(L, 1);
     const char* format = luaL_optstring(L, 2, "");
 
@@ -745,7 +769,8 @@ int compat_new_error(lua_State* L) {
  * @brief raise_error(name, message, params, ...)
  * 抛出错误，通过 new_error 创建错误对象然后抛出
  */
-int compat_raise_error(lua_State* L) {
+int compat_raise_error(lua_State* L)
+{
     const char* name   = luaL_checkstring(L, 1);
     const char* format = luaL_optstring(L, 2, "");
 
@@ -793,7 +818,8 @@ int compat_raise_error(lua_State* L) {
  * 使用方式: print_log(level, "message: %s %d", arg1, arg2)
  * 类似于 C 的 printf，可变参数按顺序填充 format 中的占位符
  */
-int compat_print_log(lua_State* L) {
+int compat_print_log(lua_State* L)
+{
     // 参数: severity, format, ...
     int severity = luaL_checkinteger(L, 1);
 
@@ -912,7 +938,8 @@ int compat_print_log(lua_State* L) {
  * @brief print_trace(backtrace_level, err_data)
  * 打印错误调用栈跟踪信息
  */
-int compat_print_trace(lua_State* L) {
+int compat_print_trace(lua_State* L)
+{
     // 参数: backtrace_level, err_data
     // backtrace_level 在这个实现中没有使用，但保留参数以兼容接口
     // int backtrace_level = luaL_optinteger(L, 1, 0);
@@ -947,7 +974,8 @@ int compat_print_trace(lua_State* L) {
 // ============================================================================
 
 extern "C" {
-int luaopen_mc_error(lua_State* L) {
+int luaopen_mc_error(lua_State* L)
+{
     // 创建错误模块表
     lua_newtable(L);
 

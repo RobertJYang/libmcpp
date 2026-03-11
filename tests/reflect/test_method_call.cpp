@@ -32,43 +32,51 @@ public:
     std::string              m_last_operation;
     std::vector<std::string> m_history;
 
-    Calculator() : m_base_value(0) {
+    Calculator()
+        : m_base_value(0)
+    {
     }
 
     // 无参数方法
-    int get_base() const {
+    int get_base() const
+    {
         return m_base_value;
     }
 
     // 一个参数方法
-    void set_base(int value) {
+    void set_base(int value)
+    {
         m_base_value = value;
         record_operation("set_base");
     }
 
     // 两个参数方法
-    int add(int a, int b) {
+    int add(int a, int b)
+    {
         int result = a + b + m_base_value;
         record_operation("add");
         return result;
     }
 
     // 三个参数方法
-    int add3(int a, int b, int c) {
+    int add3(int a, int b, int c)
+    {
         int result = a + b + c + m_base_value;
         record_operation("add3");
         return result;
     }
 
     // 多参数字符串方法
-    std::string format_result(int value, std::string prefix, std::string suffix) {
+    std::string format_result(int value, std::string prefix, std::string suffix)
+    {
         std::string result = prefix + ": " + std::to_string(value) + suffix;
         record_operation("format");
         return result;
     }
 
 private:
-    void record_operation(const std::string& op) {
+    void record_operation(const std::string& op)
+    {
         m_last_operation = op;
         m_history.push_back(op);
     }
@@ -80,7 +88,8 @@ MC_REFLECT(
     (m_base_value)(m_last_operation)(m_history)(get_base)(set_base)(add)(add3)(format_result))
 
 // 测试精确参数方法调用
-TEST(MethodCallTest, ExactArgsMethodCall) {
+TEST(MethodCallTest, ExactArgsMethodCall)
+{
     Calculator calc;
     calc.m_base_value = 10;
 
@@ -102,7 +111,8 @@ TEST(MethodCallTest, ExactArgsMethodCall) {
 }
 
 // 测试字符串参数
-TEST(MethodCallTest, StringArgsMethodCall) {
+TEST(MethodCallTest, StringArgsMethodCall)
+{
     Calculator calc;
 
     // 查找format_result方法
@@ -123,7 +133,8 @@ TEST(MethodCallTest, StringArgsMethodCall) {
 }
 
 // 测试无参数和单参数方法
-TEST(MethodCallTest, SimpleMethodCall) {
+TEST(MethodCallTest, SimpleMethodCall)
+{
     Calculator calc;
     calc.m_base_value = 5;
 
@@ -149,7 +160,8 @@ TEST(MethodCallTest, SimpleMethodCall) {
 }
 
 // 测试三参数方法
-TEST(MethodCallTest, ThreeArgsMethodCall) {
+TEST(MethodCallTest, ThreeArgsMethodCall)
+{
     Calculator calc;
     calc.m_base_value = 10;
 
@@ -167,7 +179,8 @@ TEST(MethodCallTest, ThreeArgsMethodCall) {
 
 // 测试反射方法调用便捷函数
 // 这是反射方法调用便捷函数，不需要用户手动查找方法信息
-TEST(MethodCallTest, InvokeMethodCall) {
+TEST(MethodCallTest, InvokeMethodCall)
+{
     Calculator calc;
     calc.m_base_value = 10;
 

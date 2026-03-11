@@ -20,7 +20,8 @@
 namespace mc::expr {
 
 // 模板字符串节点求值
-mc::variant template_string_node::evaluate(const context_base& ctx) const {
+mc::variant template_string_node::evaluate(const context_base& ctx) const
+{
     // 确保文本部分比表达式部分多1个（文本、表达式、文本、表达式...文本）
     if (m_text_parts.size() != m_expressions.size() + 1) {
         MC_THROW(invalid_arg_exception, "表达式求值错误: 模板字符串结构不正确");
@@ -36,7 +37,8 @@ mc::variant template_string_node::evaluate(const context_base& ctx) const {
     return result;
 }
 
-std::string template_string_node::to_string() const {
+std::string template_string_node::to_string() const
+{
     std::string result = "\"" + m_text_parts[0];
 
     for (size_t i = 0; i < m_expressions.size(); ++i) {
@@ -48,7 +50,8 @@ std::string template_string_node::to_string() const {
     return result;
 }
 
-node_ptr make_template_string(std::vector<std::string> text_parts, node_ptrs expressions) {
+node_ptr make_template_string(std::vector<std::string> text_parts, node_ptrs expressions)
+{
     return std::make_shared<template_string_node>(std::move(text_parts), std::move(expressions));
 }
 

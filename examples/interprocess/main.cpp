@@ -17,7 +17,8 @@
 #include "common.h"
 
 // 主函数
-int main(int argc, char** argv) {
+int main(int argc, char** argv)
+{
     // 设置信号处理
     std::signal(SIGINT, signal_handler);
     std::signal(SIGTERM, signal_handler);

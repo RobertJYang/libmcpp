@@ -64,7 +64,8 @@ namespace memory {
  * @return 当前引用计数，如果ptr为空则返回0
  */
 template <typename T>
-size_t use_count(const T* ptr) noexcept {
+size_t use_count(const T* ptr) noexcept
+{
     return ptr ? ptr->ref_count() : 0;
 }
 
@@ -74,7 +75,8 @@ size_t use_count(const T* ptr) noexcept {
  * @return 如果引用计数为1则返回true，否则返回false
  */
 template <typename T>
-bool unique(const T* ptr) noexcept {
+bool unique(const T* ptr) noexcept
+{
     return use_count(ptr) == 1;
 }
 } // namespace memory

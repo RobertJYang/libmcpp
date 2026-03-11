@@ -30,10 +30,12 @@ namespace mc::expr {
 class property_access_node : public node {
 public:
     property_access_node(node_ptr object, std::string property)
-        : m_object(std::move(object)), m_property(std::move(property)) {
+        : m_object(std::move(object)), m_property(std::move(property))
+    {
     }
 
-    node_type get_type() const override {
+    node_type get_type() const override
+    {
         return node_type::property_access;
     }
 
@@ -41,11 +43,13 @@ public:
 
     std::string to_string() const override;
 
-    const node& get_object() const {
+    const node& get_object() const
+    {
         return *m_object;
     }
 
-    const std::string& get_property() const {
+    const std::string& get_property() const
+    {
         return m_property;
     }
 

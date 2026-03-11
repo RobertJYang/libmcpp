@@ -49,7 +49,8 @@ public:
     template <typename T>
     static std::unordered_map<std::string, dependency_node> build_dependency_graph(
         const std::unordered_map<std::string, T>&                items,
-        const std::function<std::vector<std::string>(const T&)>& dependency_getter) {
+        const std::function<std::vector<std::string>(const T&)>& dependency_getter)
+    {
         std::unordered_map<std::string, dependency_node> graph;
 
         // 构建初始节点和依赖关系

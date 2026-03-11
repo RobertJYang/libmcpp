@@ -17,29 +17,36 @@
 namespace mc {
 namespace io {
 
-io_stream::io_stream() : m_buffer(std::make_unique<io_buffer>()) {
+io_stream::io_stream()
+    : m_buffer(std::make_unique<io_buffer>())
+{
 }
 
 io_stream::io_stream(std::unique_ptr<io_buffer> buffer, bool writable)
-    : m_buffer(std::move(buffer)), m_writable(writable) {
+    : m_buffer(std::move(buffer)), m_writable(writable)
+{
     if (!m_buffer) {
         m_buffer = std::make_unique<io_buffer>();
     }
 }
 
-io_stream::io_stream(std::size_t capacity) : m_buffer(io_buffer::create(capacity)) {
+io_stream::io_stream(std::size_t capacity)
+    : m_buffer(io_buffer::create(capacity))
+{
 }
 
 io_stream::io_stream(io_stream&& other) noexcept
     : m_buffer(std::move(other.m_buffer)), m_read_pos(other.m_read_pos),
-      m_write_pos(other.m_write_pos), m_writable(other.m_writable) {
+      m_write_pos(other.m_write_pos), m_writable(other.m_writable)
+{
     other.m_read_pos  = 0;
     other.m_write_pos = 0;
     other.m_writable  = true;
     other.m_buffer    = std::make_unique<io_buffer>();
 }
 
-io_stream& io_stream::operator=(io_stream&& other) noexcept {
+io_stream& io_stream::operator=(io_stream&& other) noexcept
+{
     if (this != &other) {
         m_buffer    = std::move(other.m_buffer);
         m_read_pos  = other.m_read_pos;
@@ -56,11 +63,13 @@ io_stream& io_stream::operator=(io_stream&& other) noexcept {
 
 io_stream::~io_stream() = default;
 
-io_buffer* io_stream::get_buffer() const {
+io_buffer* io_stream::get_buffer() const
+{
     return m_buffer.get();
 }
 
-std::unique_ptr<io_buffer> io_stream::release_buffer() {
+std::unique_ptr<io_buffer> io_stream::release_buffer()
+{
     m_read_pos  = 0;
     m_write_pos = 0;
     auto result = std::move(m_buffer);
@@ -68,7 +77,8 @@ std::unique_ptr<io_buffer> io_stream::release_buffer() {
     return result;
 }
 
-void io_stream::reset(std::unique_ptr<io_buffer> buffer, bool writable) {
+void io_stream::reset(std::unique_ptr<io_buffer> buffer, bool writable)
+{
     m_buffer = std::move(buffer);
     if (!m_buffer) {
         m_buffer = std::make_unique<io_buffer>();
@@ -78,19 +88,23 @@ void io_stream::reset(std::unique_ptr<io_buffer> buffer, bool writable) {
     m_writable  = writable;
 }
 
-std::size_t io_stream::get_read_pos() const noexcept {
+std::size_t io_stream::get_read_pos() const noexcept
+{
     return m_read_pos;
 }
 
-std::size_t io_stream::get_write_pos() const noexcept {
+std::size_t io_stream::get_write_pos() const noexcept
+{
     return m_write_pos;
 }
 
-std::size_t io_stream::length() const noexcept {
+std::size_t io_stream::length() const noexcept
+{
     return m_buffer->length();
 }
 
-std::size_t io_stream::readable_bytes() const noexcept {
+std::size_t io_stream::readable_bytes() const noexcept
+{
     if (m_read_pos >= m_buffer->length()) {
         return 0;
     }
@@ -98,15 +112,18 @@ std::size_t io_stream::readable_bytes() const noexcept {
     return m_buffer->length() - m_read_pos;
 }
 
-std::size_t io_stream::written_bytes() const noexcept {
+std::size_t io_stream::written_bytes() const noexcept
+{
     return m_write_pos;
 }
 
-bool io_stream::has_remaining(std::size_t length) const noexcept {
+bool io_stream::has_remaining(std::size_t length) const noexcept
+{
     return m_read_pos + length <= m_buffer->length();
 }
 
-std::size_t io_stream::seek_read(std::int64_t pos, seek_mode mode) {
+std::size_t io_stream::seek_read(std::int64_t pos, seek_mode mode)
+{
     std::int64_t new_pos = 0;
 
     switch (mode) {
@@ -132,7 +149,8 @@ std::size_t io_stream::seek_read(std::int64_t pos, seek_mode mode) {
     return m_read_pos;
 }
 
-std::size_t io_stream::seek_write(std::int64_t pos, seek_mode mode) {
+std::size_t io_stream::seek_write(std::int64_t pos, seek_mode mode)
+{
     ensure_writable();
 
     std::int64_t new_pos = 0;
@@ -172,38 +190,44 @@ std::size_t io_stream::seek_write(std::int64_t pos, seek_mode mode) {
     return m_write_pos;
 }
 
-std::size_t io_stream::skip(std::size_t skip_size) {
+std::size_t io_stream::skip(std::size_t skip_size)
+{
     std::size_t available   = readable_bytes();
     std::size_t actual_skip = std::min(skip_size, available);
     m_read_pos += actual_skip;
     return actual_skip;
 }
 
-std::size_t io_stream::read(void* data, std::size_t length) {
+std::size_t io_stream::read(void* data, std::size_t length)
+{
     auto result = m_buffer->read(m_read_pos, data, length);
     m_read_pos += result;
     return result;
 }
 
-std::string_view io_stream::read(std::size_t length) {
+std::string_view io_stream::read(std::size_t length)
+{
     std::string_view result = m_buffer->read(m_read_pos, length);
     m_read_pos += length;
     return result;
 }
 
-std::size_t io_stream::read_some(void* data, std::size_t length) {
+std::size_t io_stream::read_some(void* data, std::size_t length)
+{
     auto result = m_buffer->read_some(m_read_pos, data, length);
     m_read_pos += result;
     return result;
 }
 
-std::string_view io_stream::read_some(std::size_t length) {
+std::string_view io_stream::read_some(std::size_t length)
+{
     std::string_view result = m_buffer->read_some(m_read_pos, length);
     m_read_pos += length;
     return result;
 }
 
-bool io_stream::try_read(void* data, std::size_t length) {
+bool io_stream::try_read(void* data, std::size_t length)
+{
     if (m_buffer->try_read(m_read_pos, data, length)) {
         m_read_pos += length;
         return true;
@@ -211,7 +235,8 @@ bool io_stream::try_read(void* data, std::size_t length) {
     return false;
 }
 
-std::string_view io_stream::try_read(std::size_t length) {
+std::string_view io_stream::try_read(std::size_t length)
+{
     std::string_view result = m_buffer->try_read(m_read_pos, length);
     if (result.empty()) {
         return {};
@@ -220,7 +245,8 @@ std::string_view io_stream::try_read(std::size_t length) {
     return result;
 }
 
-std::size_t io_stream::write(const void* data, std::size_t length) {
+std::size_t io_stream::write(const void* data, std::size_t length)
+{
     ensure_writable();
 
     m_buffer->write_at_offset(m_write_pos, data, length);
@@ -228,21 +254,25 @@ std::size_t io_stream::write(const void* data, std::size_t length) {
     return length;
 }
 
-std::size_t io_stream::write(std::string_view str) {
+std::size_t io_stream::write(std::string_view str)
+{
     return write(str.data(), str.size());
 }
 
-void io_stream::clear() {
+void io_stream::clear()
+{
     m_buffer->clear();
     m_read_pos  = 0;
     m_write_pos = 0;
 }
 
-std::size_t io_stream::get_headroom() const noexcept {
+std::size_t io_stream::get_headroom() const noexcept
+{
     return m_buffer->headroom();
 }
 
-std::size_t io_stream::align(std::size_t alignment) {
+std::size_t io_stream::align(std::size_t alignment)
+{
     ensure_writable();
 
     if (alignment <= 1) {
@@ -272,7 +302,8 @@ std::size_t io_stream::align(std::size_t alignment) {
     return padding;
 }
 
-std::size_t io_stream::align_read(std::size_t alignment) {
+std::size_t io_stream::align_read(std::size_t alignment)
+{
     auto padding = try_align_read(alignment);
     if (!padding) {
         MC_THROW(mc::eof_exception, "无法对齐读取位置");
@@ -281,7 +312,8 @@ std::size_t io_stream::align_read(std::size_t alignment) {
     return padding.value();
 }
 
-std::optional<std::size_t> io_stream::try_align_read(std::size_t alignment) {
+std::optional<std::size_t> io_stream::try_align_read(std::size_t alignment)
+{
     auto current_mod = m_read_pos % alignment;
     if (current_mod == 0) {
         return 0;
@@ -296,21 +328,25 @@ std::optional<std::size_t> io_stream::try_align_read(std::size_t alignment) {
     return padding;
 }
 
-std::size_t io_stream::get_tailroom() const noexcept {
+std::size_t io_stream::get_tailroom() const noexcept
+{
     return m_buffer->tailroom();
 }
 
-void io_stream::reserve(std::size_t headroom, std::size_t tailroom) {
+void io_stream::reserve(std::size_t headroom, std::size_t tailroom)
+{
     m_buffer->reserve(headroom, tailroom);
 }
 
-void io_stream::ensure_writable() const {
+void io_stream::ensure_writable() const
+{
     if (!m_writable) {
         MC_THROW(mc::eof_exception, "流不可写");
     }
 }
 
-std::string_view io_stream::peek(std::size_t max_length) const {
+std::string_view io_stream::peek(std::size_t max_length) const
+{
     std::size_t length = std::min(readable_bytes(), max_length);
     if (length == 0) {
         return {};
@@ -320,11 +356,13 @@ std::string_view io_stream::peek(std::size_t max_length) const {
     return std::string_view(reinterpret_cast<const char*>(data), std::min(length, max_length));
 }
 
-std::string_view io_stream::get_data() const {
+std::string_view io_stream::get_data() const
+{
     return std::string_view(reinterpret_cast<const char*>(m_buffer->data()), m_buffer->length());
 }
 
-std::string_view io_stream::get_writeable_data(std::size_t min_length) {
+std::string_view io_stream::get_writeable_data(std::size_t min_length)
+{
     if (m_read_pos == m_write_pos) {
         m_read_pos  = 0;
         m_write_pos = 0;

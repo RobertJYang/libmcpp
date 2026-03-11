@@ -31,7 +31,8 @@ namespace mc::db {
  * 用于在不改变底层位表示的情况下转换类型
  */
 template <typename To, typename From>
-inline To bit_cast(const From& from) {
+inline To bit_cast(const From& from)
+{
     static_assert(sizeof(To) == sizeof(From), "类型大小必须相同");
     static_assert(std::is_trivially_copyable<From>::value, "From必须是可平凡复制的");
     static_assert(std::is_trivially_copyable<To>::value, "To必须是可平凡复制的");
@@ -44,7 +45,8 @@ inline To bit_cast(const From& from) {
 /**
  * 浮点数与无符号整数的转换函数
  */
-inline uint32_t float32_to_uint32(float f) {
+inline uint32_t float32_to_uint32(float f)
+{
     uint32_t u = bit_cast<uint32_t>(f);
     if (f >= 0) {
         u |= 0x80000000;
@@ -54,7 +56,8 @@ inline uint32_t float32_to_uint32(float f) {
     return u;
 }
 
-inline uint64_t float64_to_uint64(double f) {
+inline uint64_t float64_to_uint64(double f)
+{
     uint64_t u = bit_cast<uint64_t>(f);
     if (f >= 0) {
         u |= 0x8000000000000000;
@@ -64,7 +67,8 @@ inline uint64_t float64_to_uint64(double f) {
     return u;
 }
 
-inline float uint32_to_float32(uint32_t u) {
+inline float uint32_to_float32(uint32_t u)
+{
     if (u & 0x80000000) {
         u &= ~uint32_t(0x80000000);
     } else {
@@ -73,7 +77,8 @@ inline float uint32_to_float32(uint32_t u) {
     return bit_cast<float>(u);
 }
 
-inline double uint64_to_float64(uint64_t u) {
+inline double uint64_to_float64(uint64_t u)
+{
     if (u & 0x8000000000000000) {
         u &= ~uint64_t(0x8000000000000000);
     } else {
@@ -95,7 +100,8 @@ public:
      * @param key_count 键数量
      * @param is_unique 是否是唯一键
      */
-    void init(int key_count, bool is_unique) {
+    void init(int key_count, bool is_unique)
+    {
         m_key_count = key_count;
         m_is_unique = is_unique;
         if (key_count <= 0) {
@@ -110,7 +116,8 @@ public:
      * 判断是否是唯一键
      * @return 如果是唯一键返回true
      */
-    bool is_unique() const {
+    bool is_unique() const
+    {
         return m_is_unique;
     }
 
@@ -118,7 +125,8 @@ public:
      * 判断是否是复合键
      * @return 如果是复合键返回true
      */
-    bool is_compound_key() const {
+    bool is_compound_key() const
+    {
         return m_key_count > 1;
     }
 
@@ -126,7 +134,8 @@ public:
      * 获取键数量
      * @return 键数量
      */
-    int key_count() const {
+    int key_count() const
+    {
         return m_key_count;
     }
 
@@ -134,14 +143,16 @@ public:
      * 获取当前键数量
      * @return 当前键数量
      */
-    int key_num() const {
+    int key_num() const
+    {
         return m_key_num;
     }
 
     /**
      * 重置键
      */
-    void reset() {
+    void reset()
+    {
         m_buf.reset();
         m_key_num  = 0;
         m_tail_nil = false;
@@ -151,7 +162,8 @@ public:
      * 获取键数据
      * @return 键数据视图
      */
-    std::string_view key() const {
+    std::string_view key() const
+    {
         return m_buf.bytes();
     }
 
@@ -159,7 +171,8 @@ public:
      * 获取键长度
      * @return 键长度
      */
-    size_t len() const {
+    size_t len() const
+    {
         return m_buf.len();
     }
 
@@ -167,7 +180,8 @@ public:
      * 获取字节缓冲区
      * @return 字节缓冲区
      */
-    mc::db::byte_buffer* buffer() {
+    mc::db::byte_buffer* buffer()
+    {
         return &m_buf;
     }
 
@@ -176,7 +190,8 @@ public:
      * @param data 字节数据
      * @param size 数据大小
      */
-    void append_bytes(const uint8_t* data, size_t size) {
+    void append_bytes(const uint8_t* data, size_t size)
+    {
         write_head(size);
         m_buf.write(data, size);
     }
@@ -185,7 +200,8 @@ public:
      * 添加字符串
      * @param val 字符串
      */
-    void append_string(std::string_view val) {
+    void append_string(std::string_view val)
+    {
         write_head(val.size());
         m_buf.write_string(val);
     }
@@ -194,7 +210,8 @@ public:
      * 添加16位整数
      * @param val 整数值
      */
-    void append_int16(int16_t val) {
+    void append_int16(int16_t val)
+    {
         write_head(3);
         if (val >= 0) {
             m_buf.write_byte('>');
@@ -208,7 +225,8 @@ public:
      * 添加32位整数
      * @param val 整数值
      */
-    void append_int32(int32_t val) {
+    void append_int32(int32_t val)
+    {
         write_head(5);
         if (val >= 0) {
             m_buf.write_byte('>');
@@ -222,7 +240,8 @@ public:
      * 添加64位整数
      * @param val 整数值
      */
-    void append_int64(int64_t val) {
+    void append_int64(int64_t val)
+    {
         write_head(9);
         if (val >= 0) {
             m_buf.write_byte('>');
@@ -236,7 +255,8 @@ public:
      * 添加整数
      * @param val 整数值
      */
-    void append_int(int val) {
+    void append_int(int val)
+    {
         append_int32(static_cast<int32_t>(val));
     }
 
@@ -244,7 +264,8 @@ public:
      * 添加无符号整数
      * @param val 整数值
      */
-    void append_uint(unsigned int val) {
+    void append_uint(unsigned int val)
+    {
         append_uint32(static_cast<uint32_t>(val));
     }
 
@@ -252,7 +273,8 @@ public:
      * 添加16位无符号整数
      * @param val 整数值
      */
-    void append_uint16(uint16_t val) {
+    void append_uint16(uint16_t val)
+    {
         write_head(2);
         m_buf.write_uint16(val);
     }
@@ -261,7 +283,8 @@ public:
      * 添加32位无符号整数
      * @param val 整数值
      */
-    void append_uint32(uint32_t val) {
+    void append_uint32(uint32_t val)
+    {
         write_head(4);
         m_buf.write_uint32(val);
     }
@@ -270,7 +293,8 @@ public:
      * 添加64位无符号整数
      * @param val 整数值
      */
-    void append_uint64(uint64_t val) {
+    void append_uint64(uint64_t val)
+    {
         write_head(8);
         m_buf.write_uint64(val);
     }
@@ -279,7 +303,8 @@ public:
      * 添加32位浮点数
      * @param val 浮点数值
      */
-    void append_float32(float val) {
+    void append_float32(float val)
+    {
         append_uint32(float32_to_uint32(val));
     }
 
@@ -287,7 +312,8 @@ public:
      * 添加64位浮点数
      * @param val 浮点数值
      */
-    void append_float64(double val) {
+    void append_float64(double val)
+    {
         append_uint64(float64_to_uint64(val));
     }
 
@@ -296,7 +322,8 @@ public:
      * @param val 要添加的值
      */
     template <typename T>
-    void append_value(const T& val) {
+    void append_value(const T& val)
+    {
         if constexpr (std::is_same<T, int16_t>::value) {
             append_int16(val);
         } else if constexpr (std::is_same<T, int32_t>::value) {
@@ -340,7 +367,8 @@ public:
      * @param val 要写入的值
      */
     template <typename T>
-    void write_value(const T& val) {
+    void write_value(const T& val)
+    {
         if constexpr (std::is_same<T, int16_t>::value) {
             write_int16(val);
         } else if constexpr (std::is_same<T, int32_t>::value) {
@@ -383,7 +411,8 @@ public:
      * 直接写入16位整数，不添加类型头信息
      * @param val 整数值
      */
-    void write_int16(int16_t val) {
+    void write_int16(int16_t val)
+    {
         if (val >= 0) {
             m_buf.write_byte('>');
         } else {
@@ -396,7 +425,8 @@ public:
      * 直接写入32位整数，不添加类型头信息
      * @param val 整数值
      */
-    void write_int32(int32_t val) {
+    void write_int32(int32_t val)
+    {
         if (val >= 0) {
             m_buf.write_byte('>');
         } else {
@@ -409,7 +439,8 @@ public:
      * 直接写入64位整数，不添加类型头信息
      * @param val 整数值
      */
-    void write_int64(int64_t val) {
+    void write_int64(int64_t val)
+    {
         if (val >= 0) {
             m_buf.write_byte('>');
         } else {
@@ -422,7 +453,8 @@ public:
      * 直接写入整数，不添加类型头信息
      * @param val 整数值
      */
-    void write_int(int val) {
+    void write_int(int val)
+    {
         write_int32(static_cast<int32_t>(val));
     }
 
@@ -430,7 +462,8 @@ public:
      * 直接写入无符号整数，不添加类型头信息
      * @param val 整数值
      */
-    void write_uint(unsigned int val) {
+    void write_uint(unsigned int val)
+    {
         write_uint32(static_cast<uint32_t>(val));
     }
 
@@ -438,7 +471,8 @@ public:
      * 直接写入16位无符号整数，不添加类型头信息
      * @param val 整数值
      */
-    void write_uint16(uint16_t val) {
+    void write_uint16(uint16_t val)
+    {
         m_buf.write_uint16(val);
     }
 
@@ -446,7 +480,8 @@ public:
      * 直接写入32位无符号整数，不添加类型头信息
      * @param val 整数值
      */
-    void write_uint32(uint32_t val) {
+    void write_uint32(uint32_t val)
+    {
         m_buf.write_uint32(val);
     }
 
@@ -454,7 +489,8 @@ public:
      * 直接写入64位无符号整数，不添加类型头信息
      * @param val 整数值
      */
-    void write_uint64(uint64_t val) {
+    void write_uint64(uint64_t val)
+    {
         m_buf.write_uint64(val);
     }
 
@@ -462,7 +498,8 @@ public:
      * 直接写入32位浮点数，不添加类型头信息
      * @param val 浮点数值
      */
-    void write_float32(float val) {
+    void write_float32(float val)
+    {
         write_uint32(float32_to_uint32(val));
     }
 
@@ -470,7 +507,8 @@ public:
      * 直接写入64位浮点数，不添加类型头信息
      * @param val 浮点数值
      */
-    void write_float64(double val) {
+    void write_float64(double val)
+    {
         write_uint64(float64_to_uint64(val));
     }
 
@@ -478,7 +516,8 @@ public:
      * 直接写入字符串，不添加类型头信息
      * @param val 字符串值
      */
-    void write_string(std::string_view val) {
+    void write_string(std::string_view val)
+    {
         m_buf.write_string(val);
     }
 
@@ -487,7 +526,8 @@ public:
      * @param data 字节数组指针
      * @param size 字节数组大小
      */
-    void write_bytes(const uint8_t* data, size_t size) {
+    void write_bytes(const uint8_t* data, size_t size)
+    {
         m_buf.write_string(std::string_view(reinterpret_cast<const char*>(data), size));
     }
 
@@ -504,7 +544,8 @@ private:
      * @param n 数据长度
      * @return 成功返回true，失败返回false
      */
-    bool write_head(size_t n) {
+    bool write_head(size_t n)
+    {
         if (m_key_num >= m_key_count) {
             MC_THROW(mc::invalid_arg_exception, "超出给定Key数量[${count}]",
                      ("count", m_key_count));

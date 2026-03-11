@@ -240,7 +240,8 @@ public:
      */
     template <typename T,
               typename std::enable_if<std::is_trivially_copyable<T>::value, int>::type = 0>
-    T read_value(bool is_little_endian = mc::is_little_endian()) {
+    T read_value(bool is_little_endian = mc::is_little_endian())
+    {
         T value = {};
         if (!read_value(value, is_little_endian)) {
             MC_THROW(mc::out_of_range_exception, "读取位置超出缓冲区范围");
@@ -259,7 +260,8 @@ public:
      */
     template <typename T,
               typename std::enable_if<std::is_trivially_copyable<T>::value, int>::type = 0>
-    bool read_value(T& value, bool is_little_endian = mc::is_little_endian()) {
+    bool read_value(T& value, bool is_little_endian = mc::is_little_endian())
+    {
         if (!m_buffer->read_value(m_read_pos, value, is_little_endian)) {
             return false;
         }
@@ -295,7 +297,8 @@ public:
      */
     template <typename T,
               typename std::enable_if<std::is_trivially_copyable<T>::value, int>::type = 0>
-    std::size_t write_value(T value, bool is_little_endian = mc::is_little_endian()) {
+    std::size_t write_value(T value, bool is_little_endian = mc::is_little_endian())
+    {
         if (!m_writable) {
             MC_THROW(mc::eof_exception, "流不可写");
         }
@@ -358,11 +361,13 @@ public:
         static constexpr std::size_t invalid_pos = std::numeric_limits<std::size_t>::max();
 
         write_length_guard(io_stream& stream, bool is_little_endian = mc::is_little_endian())
-            : m_stream(stream), m_is_little_endian(is_little_endian) {
+            : m_stream(stream), m_is_little_endian(is_little_endian)
+        {
         }
 
         // 预先写入长度
-        void prepare_length_field(std::size_t alignment = sizeof(LengthType)) {
+        void prepare_length_field(std::size_t alignment = sizeof(LengthType))
+        {
             if (alignment > 1) {
                 m_stream.align(alignment);
             }
@@ -371,26 +376,31 @@ public:
             m_stream.write_value<LengthType>(0, m_is_little_endian);
         }
 
-        void set_write_pos(std::size_t pos) {
+        void set_write_pos(std::size_t pos)
+        {
             m_write_pos = pos;
         }
 
-        void set_body_start_pos(std::size_t body_start_pos) {
+        void set_body_start_pos(std::size_t body_start_pos)
+        {
             m_body_start_pos = body_start_pos;
         }
 
-        void set_body_start_pos() {
+        void set_body_start_pos()
+        {
             set_body_start_pos(m_stream.get_write_pos());
         }
 
-        ~write_length_guard() {
+        ~write_length_guard()
+        {
             fire();
         }
 
         /**
          * @brief 触发回填消息体大小
          */
-        void fire() {
+        void fire()
+        {
             if (m_write_pos == invalid_pos) {
                 return;
             }

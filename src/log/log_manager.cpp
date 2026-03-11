@@ -28,13 +28,15 @@
 namespace mc {
 namespace log {
 
-log_manager& log_manager::instance() {
+log_manager& log_manager::instance()
+{
     return mc::singleton_leaky<log_manager>::instance_with_creator([]() {
         return new log_manager();
     });
 }
 
-log_manager::log_manager() {
+log_manager::log_manager()
+{
     logger default_logger(MC_LOG_DEFAULT_LOGGER);
 
     mc::dict default_config{
@@ -64,7 +66,8 @@ log_manager::log_manager() {
     m_loggers[MC_LOG_DEFAULT_LOGGER] = default_logger;
 }
 
-logger log_manager::get_logger(const char* name) {
+logger log_manager::get_logger(const char* name)
+{
     std::lock_guard<std::mutex> lock(m_mutex);
 
     auto it = m_loggers.find(name);
@@ -77,15 +80,18 @@ logger log_manager::get_logger(const char* name) {
     return new_logger;
 }
 
-bool log_manager::load_appender(const std::string& lib_path, const std::string& appender_name) {
+bool log_manager::load_appender(const std::string& lib_path, const std::string& appender_name)
+{
     return appender_factory::instance().load(lib_path, appender_name);
 }
 
-void log_manager::load_appenders(const std::string& dir_path) {
+void log_manager::load_appenders(const std::string& dir_path)
+{
     appender_factory::instance().load_all(dir_path);
 }
 
-bool log_manager::load_single_appender(const appender_config& app_config) {
+bool log_manager::load_single_appender(const appender_config& app_config)
+{
     if (!app_config.lib_path.empty()) {
         if (!appender_factory::instance().load(app_config.lib_path, app_config.type)) {
             elog("Failed to load appender[${name}] dynamic library: ${lib_path}",
@@ -105,7 +111,8 @@ bool log_manager::load_single_appender(const appender_config& app_config) {
     return true;
 }
 
-bool log_manager::load_appenders_from_config(const std::vector<appender_config>& appender_configs) {
+bool log_manager::load_appenders_from_config(const std::vector<appender_config>& appender_configs)
+{
     bool has_error = false;
     for (const auto& app_config : appender_configs) {
         if (!load_single_appender(app_config)) {
@@ -117,7 +124,8 @@ bool log_manager::load_appenders_from_config(const std::vector<appender_config>&
     return !has_error;
 }
 
-void log_manager::update_existing_logger(logger& log, const logger_config& log_config) {
+void log_manager::update_existing_logger(logger& log, const logger_config& log_config)
+{
     log.set_level(log_config.level);
     log.condition(log_config.condition);
 
@@ -166,7 +174,8 @@ void log_manager::update_existing_logger(logger& log, const logger_config& log_c
     }
 }
 
-logger log_manager::create_new_logger(const logger_config& log_config) {
+logger log_manager::create_new_logger(const logger_config& log_config)
+{
     logger new_logger(log_config.name);
     new_logger.set_level(log_config.level);
     new_logger.condition(log_config.condition);
@@ -186,7 +195,8 @@ logger log_manager::create_new_logger(const logger_config& log_config) {
     return new_logger;
 }
 
-bool log_manager::apply_config(const logging_config& config) {
+bool log_manager::apply_config(const logging_config& config)
+{
     // 加载appender配置
     if (!load_appenders_from_config(config.appenders)) {
         wlog("Some appenders failed to load, continuing with other configurations");
@@ -214,7 +224,8 @@ bool log_manager::apply_config(const logging_config& config) {
     return true;
 }
 
-void log_manager::set_dlog_level(level lvl) {
+void log_manager::set_dlog_level(level lvl)
+{
     std::vector<std::string> logger_names;
     {
         std::lock_guard<std::mutex> lock(m_mutex);

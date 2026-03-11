@@ -33,7 +33,8 @@ namespace mc {
  *
  * @return log::logger 默认日志记录器
  */
-inline log::logger get_default_logger() {
+inline log::logger get_default_logger()
+{
     return log::logger::get();
 }
 
@@ -43,7 +44,8 @@ inline log::logger get_default_logger() {
  * @param name 日志记录器名称
  * @return log::logger 日志记录器
  */
-inline log::logger get_logger(const char* name) {
+inline log::logger get_logger(const char* name)
+{
     return log::logger::get(name);
 }
 
@@ -54,7 +56,8 @@ namespace log {
  *
  * @return logger 默认日志记录器
  */
-inline logger default_logger() {
+inline logger default_logger()
+{
     return log_manager::instance().get_logger();
 }
 
@@ -63,7 +66,8 @@ inline logger default_logger() {
  *
  * @return logger mdbctl 日志记录器
  */
-inline logger mdbctl_logger() {
+inline logger mdbctl_logger()
+{
     return log_manager::instance().get_logger(MC_LOG_MDBCTL_LOGGER);
 }
 

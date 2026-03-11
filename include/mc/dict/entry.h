@@ -37,18 +37,22 @@ struct entry : public mc::intrusive::list_base_hook<>,
     entry() = default;
 
     // 带参数的构造函数
-    entry(variant k, variant v) : key(std::move(k)), value(std::move(v)) {
+    entry(variant k, variant v)
+        : key(std::move(k)), value(std::move(v))
+    {
     }
 
     // 拷贝构造函数 - 不拷贝钩子状态
     entry(const entry& other)
         : key(other.key),
-          value(other.value) {
+          value(other.value)
+    {
     }
 
     // 移动构造函数 - 不移动钩子状态
     entry(entry&& other) noexcept
-        : key(std::move(other.key)), value(std::move(other.value)) {
+        : key(std::move(other.key)), value(std::move(other.value))
+    {
     }
 
     // 禁止赋值操作，因为钩子不支持赋值
@@ -56,60 +60,75 @@ struct entry : public mc::intrusive::list_base_hook<>,
     entry& operator=(entry&&)      = delete;
 
     // 相等比较
-    friend bool operator==(const entry& a, const entry& b) {
+    friend bool operator==(const entry& a, const entry& b)
+    {
         return a.key == b.key && a.value == b.value;
     }
 
-    friend bool operator!=(const entry& a, const entry& b) {
+    friend bool operator!=(const entry& a, const entry& b)
+    {
         return !(a == b);
     }
 };
 
 // 定义哈希函数和相等比较函数
 struct key_hash {
-    std::size_t operator()(const entry& e) const {
+    std::size_t operator()(const entry& e) const
+    {
         return e.key.hash();
     }
-    std::size_t operator()(const std::string& key) const {
+    std::size_t operator()(const std::string& key) const
+    {
         return calculate_str_hash(key);
     }
-    std::size_t operator()(std::string_view key) const {
+    std::size_t operator()(std::string_view key) const
+    {
         return calculate_str_hash(key);
     }
-    std::size_t operator()(const char* key) const {
+    std::size_t operator()(const char* key) const
+    {
         return calculate_str_hash(key);
     }
-    std::size_t operator()(const variant& key) const {
+    std::size_t operator()(const variant& key) const
+    {
         return key.hash();
     }
 };
 
 struct key_equal {
-    bool operator()(const entry& lhs, const entry& rhs) const {
+    bool operator()(const entry& lhs, const entry& rhs) const
+    {
         return lhs.key == rhs.key;
     }
-    bool operator()(const std::string& key, const entry& e) const {
+    bool operator()(const std::string& key, const entry& e) const
+    {
         return key == e.key;
     }
-    bool operator()(const entry& e, const std::string& key) const {
+    bool operator()(const entry& e, const std::string& key) const
+    {
         return e.key == key;
     }
     // bool operator()(std::string_view key, const entry& e) const {
     //     return key == e.key;
     // }
-    bool operator()(const entry& e, std::string_view key) const {
+    bool operator()(const entry& e, std::string_view key) const
+    {
         return e.key == key;
     }
-    bool operator()(const char* key, const entry& e) const {
+    bool operator()(const char* key, const entry& e) const
+    {
         return key == e.key;
     }
-    bool operator()(const entry& e, const char* key) const {
+    bool operator()(const entry& e, const char* key) const
+    {
         return e.key == key;
     }
-    bool operator()(const variant& key, const entry& e) const {
+    bool operator()(const variant& key, const entry& e) const
+    {
         return key == e.key;
     }
-    bool operator()(const entry& e, const variant& key) const {
+    bool operator()(const entry& e, const variant& key) const
+    {
         return e.key == key;
     }
 };
@@ -132,9 +151,13 @@ struct iterator : public entry_list::iterator {
     using reference         = typename base_type::reference;
 
     iterator() = default;
-    iterator(const base_type& iter) : base_type(iter) {
+    iterator(const base_type& iter)
+        : base_type(iter)
+    {
     }
-    iterator(base_type&& iter) : base_type(std::move(iter)) {
+    iterator(base_type&& iter)
+        : base_type(std::move(iter))
+    {
     }
     iterator(const iterator& other)            = default;
     iterator(iterator&& other)                 = default;
@@ -151,9 +174,13 @@ struct reverse_iterator : public entry_list::reverse_iterator {
     using reference         = typename base_type::reference;
 
     reverse_iterator() = default;
-    reverse_iterator(const base_type& iter) : base_type(iter) {
+    reverse_iterator(const base_type& iter)
+        : base_type(iter)
+    {
     }
-    reverse_iterator(base_type&& iter) : base_type(std::move(iter)) {
+    reverse_iterator(base_type&& iter)
+        : base_type(std::move(iter))
+    {
     }
     reverse_iterator(const reverse_iterator& other)            = default;
     reverse_iterator(reverse_iterator&& other)                 = default;
@@ -174,9 +201,13 @@ struct const_iterator : public entry_list::const_iterator {
     const_iterator() = default;
 
     // 从基类构造函数构造
-    const_iterator(const base_type& iter) : base_type(iter) {
+    const_iterator(const base_type& iter)
+        : base_type(iter)
+    {
     }
-    const_iterator(base_type&& iter) : base_type(std::move(iter)) {
+    const_iterator(base_type&& iter)
+        : base_type(std::move(iter))
+    {
     }
 
     // 拷贝和移动构造函数
@@ -188,9 +219,13 @@ struct const_iterator : public entry_list::const_iterator {
     const_iterator& operator=(const_iterator&& other)      = default;
 
     // 从 iterator 构造
-    const_iterator(const iterator& iter) : base_type(static_cast<const entry_list::iterator&>(iter)) {
+    const_iterator(const iterator& iter)
+        : base_type(static_cast<const entry_list::iterator&>(iter))
+    {
     }
-    const_iterator(iterator&& iter) : base_type(std::move(static_cast<entry_list::iterator&&>(iter))) {
+    const_iterator(iterator&& iter)
+        : base_type(std::move(static_cast<entry_list::iterator&&>(iter)))
+    {
     }
 };
 
@@ -207,7 +242,9 @@ struct const_reverse_iterator : public entry_list::const_reverse_iterator {
     const_reverse_iterator() = default;
 
     // 从基类构造
-    const_reverse_iterator(const base_type& iter) : base_type(iter) {
+    const_reverse_iterator(const base_type& iter)
+        : base_type(iter)
+    {
     }
 
     // 拷贝和移动构造函数
@@ -239,11 +276,14 @@ struct data_t : public mc::enable_shared_from_this<data_t> {
     entry_set index;
 
     // 构造函数
-    data_t() : index(entry_set::bucket_traits(buckets, MC_DICT_BUCKET_COUNT)) {
+    data_t()
+        : index(entry_set::bucket_traits(buckets, MC_DICT_BUCKET_COUNT))
+    {
     }
 
     // 析构函数，清理资源
-    ~data_t() {
+    ~data_t()
+    {
         // 先清空索引，这样钩子就不再链接到容器中
         index.clear();
         // 然后清空链表并释放内存

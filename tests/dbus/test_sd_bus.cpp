@@ -27,19 +27,23 @@ class TestInterface1 : public mc::engine::interface<TestInterface1> {
 public:
     MC_INTERFACE("org.test.sd_bus.TestInterface1")
 
-    void set_value(int32_t value) {
+    void set_value(int32_t value)
+    {
         m_value = value;
     }
 
-    int32_t get_value() const {
+    int32_t get_value() const
+    {
         return m_value;
     }
 
-    void sleep(int32_t seconds) {
+    void sleep(int32_t seconds)
+    {
         std::this_thread::sleep_for(std::chrono::seconds(seconds));
     }
 
-    std::string parse_requestor(mc::dict context) {
+    std::string parse_requestor(mc::dict context)
+    {
         return context["Requestor"].as_string();
     }
 
@@ -50,7 +54,8 @@ class TestObject1 : public mc::engine::object<TestObject1> {
 public:
     MC_OBJECT(TestObject1, "TestObject1", "/org/test/sd_bus/TestObject1", (TestInterface1))
 
-    void init() {
+    void init()
+    {
         set_object_name("TestObject1");
     }
 
@@ -61,16 +66,19 @@ class TestInterfaceA : public mc::engine::interface<TestInterfaceA> {
 public:
     MC_INTERFACE("org.test.sd_bus.TestInterfaceA")
 
-    void test_increment(std::string_view input) {
+    void test_increment(std::string_view input)
+    {
         g_test_cnt++;
     }
 
-    std::string test_increment_and_return_string() {
+    std::string test_increment_and_return_string()
+    {
         g_test_cnt++;
         return std::string(UINT16_MAX + 1, 'a');
     }
 
-    void test_throw_unknown_property(std::string_view property) {
+    void test_throw_unknown_property(std::string_view property)
+    {
         MC_REPLY_ERROR_AND_THROW(mc::engine::errors::unknown_property, ("property", property));
     }
 };
@@ -79,7 +87,8 @@ class TestObjectA : public mc::engine::object<TestObjectA> {
 public:
     MC_OBJECT(TestObjectA, "TestObjectA", "/org/test/sd_bus/TestObjectA", (TestInterfaceA))
 
-    void init() {
+    void init()
+    {
         set_object_name("TestObjectA");
     }
 
@@ -90,28 +99,34 @@ class TestChipInterface : public mc::engine::interface<TestChipInterface> {
 public:
     MC_INTERFACE("bmc.dev.Chip")
 
-    std::vector<uint32_t> BitIORead(uint32_t offset, uint8_t length, uint32_t mask) {
+    std::vector<uint32_t> BitIORead(uint32_t offset, uint8_t length, uint32_t mask)
+    {
         return {0x12, 0x34, 0x56, 0x78};
     }
 
-    void BitIOWrite(uint32_t offset, uint8_t length, uint32_t mask, const std::vector<uint8_t>& buffer) {
+    void BitIOWrite(uint32_t offset, uint8_t length, uint32_t mask, const std::vector<uint8_t>& buffer)
+    {
         return;
     }
 
-    std::vector<uint32_t> BlockIORead(uint32_t offset, uint32_t length) {
+    std::vector<uint32_t> BlockIORead(uint32_t offset, uint32_t length)
+    {
         return {0x12, 0x34, 0x56, 0x78};
     }
 
-    void BlockIOWrite(uint32_t offset, const std::vector<uint8_t>& buffer) {
+    void BlockIOWrite(uint32_t offset, const std::vector<uint8_t>& buffer)
+    {
         return;
     }
 
-    std::vector<uint32_t> BlockIOWriteRead(const std::vector<uint8_t>& indata, uint32_t read_length) {
+    std::vector<uint32_t> BlockIOWriteRead(const std::vector<uint8_t>& indata, uint32_t read_length)
+    {
         return {0x12, 0x34, 0x56, 0x78};
     }
 
     std::vector<uint32_t> BlockIOComboWriteRead(uint32_t write_offset, const std::vector<uint8_t>& write_buffer,
-                                                uint32_t read_offset, uint32_t read_length) {
+                                                uint32_t read_offset, uint32_t read_length)
+    {
         return {0x12, 0x34, 0x56, 0x78};
     }
 };
@@ -120,7 +135,8 @@ class TestChipObject : public mc::engine::object<TestChipObject> {
 public:
     MC_OBJECT(TestChipObject, "TestChipObject", "/bmc/dev/TestChip", (TestChipInterface))
 
-    void init() {
+    void init()
+    {
         set_object_name("TestChipObject");
     }
 
@@ -128,17 +144,21 @@ public:
 };
 
 struct test_service_1 : public mc::engine::service {
-    test_service_1() : mc::engine::service("org.test.test_service_1") {
+    test_service_1()
+        : mc::engine::service("org.test.test_service_1")
+    {
     }
 
-    bool init(mc::dict args = {}) override {
+    bool init(mc::dict args = {}) override
+    {
         mc::dict args_mut(args);
         args_mut["service_path"] = "/org/test/test_service_1";
         args_mut["service_name"] = "org.test.test_service_1";
         return mc::engine::service::init(args_mut);
     }
 
-    bool start() override {
+    bool start() override
+    {
         if (!mc::engine::service::start()) {
             return false;
         }
@@ -161,14 +181,18 @@ struct test_service_1 : public mc::engine::service {
 };
 
 struct test_devmon_service : public mc::engine::service {
-    test_devmon_service() : mc::engine::service("bmc.kepler.devmon") {
+    test_devmon_service()
+        : mc::engine::service("bmc.kepler.devmon")
+    {
     }
 
-    bool init(mc::dict args = {}) override {
+    bool init(mc::dict args = {}) override
+    {
         return mc::engine::service::init(args);
     }
 
-    bool start() override {
+    bool start() override
+    {
         if (!mc::engine::service::start()) {
             return false;
         }
@@ -205,7 +229,8 @@ static sd_bus*                                   test_bus;
 
 class SdBusTest : public ::testing::Test {
 protected:
-    static void SetUpTestSuite() {
+    static void SetUpTestSuite()
+    {
         service_1 = new tests::dbus::sd_bus::test_service_1();
         service_1->init();
         service_1->start();
@@ -216,7 +241,8 @@ protected:
         test_bus->request_name("org.openubmc.test_bus");
     }
 
-    static void TearDownTestSuite() {
+    static void TearDownTestSuite()
+    {
         service_1->stop();
         devmon_service->stop();
         delete service_1;
@@ -226,7 +252,8 @@ protected:
 };
 
 // 测试有效参数的调用
-TEST_F(SdBusTest, test_valid_args_call) {
+TEST_F(SdBusTest, test_valid_args_call)
+{
     auto result = test_bus->call({"org.test.test_service_1", "/org/test/sd_bus/TestObject1", "org.test.sd_bus.TestInterface1", "SetValue", "i", {12}});
     ASSERT_TRUE(result.empty());
     result = test_bus->call({"org.test.test_service_1", "/org/test/sd_bus/TestObject1", "org.test.sd_bus.TestInterface1", "GetValue", "", {}});
@@ -236,7 +263,8 @@ TEST_F(SdBusTest, test_valid_args_call) {
 }
 
 // 测试无效参数的调用
-TEST_F(SdBusTest, test_invalid_args_call) {
+TEST_F(SdBusTest, test_invalid_args_call)
+{
     EXPECT_THROW(test_bus->call({"org.test.test_service_1", "/org/test/sd_bus/TestObjectA", "org.test.sd_bus.TestInterfaceA", "NonExistentMethod", "", {}}),
                  mc::exception);
     auto [error, result] = test_bus->pcall({"org.test.test_service_1", "/org/test/sd_bus/TestObjectA", "org.test.sd_bus.TestInterfaceA", "NonExistentMethod", "", {}});
@@ -245,7 +273,8 @@ TEST_F(SdBusTest, test_invalid_args_call) {
 }
 
 // 测试阻塞式DBus调用
-TEST_F(SdBusTest, test_blocking_bus_call) {
+TEST_F(SdBusTest, test_blocking_bus_call)
+{
     sd_bus blocking_bus(true, true);
     auto   result = blocking_bus.call({"org.test.test_service_1", "/org/test/sd_bus/TestObject1", "org.test.sd_bus.TestInterface1", "SetValue", "i", {-33}});
     ASSERT_TRUE(result.empty());
@@ -256,7 +285,8 @@ TEST_F(SdBusTest, test_blocking_bus_call) {
 }
 
 // 测试指定超时时间调用
-TEST_F(SdBusTest, test_call_timeout) {
+TEST_F(SdBusTest, test_call_timeout)
+{
     auto result = test_bus->timeout_call(mc::seconds(3), {"org.test.test_service_1", "/org/test/sd_bus/TestObject1",
                                                           "org.test.sd_bus.TestInterface1", "Sleep", "i", mc::variants{2}});
     ASSERT_TRUE(result.empty());
@@ -266,7 +296,8 @@ TEST_F(SdBusTest, test_call_timeout) {
 }
 
 // 测试devmon chip接口和方法映射调用
-TEST_F(SdBusTest, test_devmon_chip_methods) {
+TEST_F(SdBusTest, test_devmon_chip_methods)
+{
     auto result = test_bus->call({"bmc.kepler.devmon", "/bmc/dev/TestChip", "bmc.kepler.Chip.BitIO", "Read", "a{ss}uyu",
                                   mc::variants{mc::dict(), 0x1234, 0x5678, 0x9ABC}});
     ASSERT_EQ(result.size(), 1u);
@@ -321,7 +352,8 @@ TEST_F(SdBusTest, test_devmon_chip_methods) {
 }
 
 // 测试上下文Requestor字段
-TEST_F(SdBusTest, test_context_requestor) {
+TEST_F(SdBusTest, test_context_requestor)
+{
     // 测试入参显式指定Requestor字段
     mc::dict context;
     context["Requestor"] = "org.openubmc.test_client";
@@ -340,7 +372,8 @@ TEST_F(SdBusTest, test_context_requestor) {
 }
 
 // 测试有异常处理的方法调用
-TEST_F(SdBusTest, test_protected_call) {
+TEST_F(SdBusTest, test_protected_call)
+{
     auto [error_1, result_1] =
         test_bus->pcall({"org.test.test_service_1", "/org/test/sd_bus/TestObject1", "org.test.sd_bus.TestInterface1", "TestThrowUnknownProperty", "s", {"TestProperty1"}});
     ASSERT_TRUE(error_1.has_value());
@@ -353,7 +386,8 @@ TEST_F(SdBusTest, test_protected_call) {
 }
 
 // 测试无异常处理的方法调用
-TEST_F(SdBusTest, test_unprotected_call) {
+TEST_F(SdBusTest, test_unprotected_call)
+{
     EXPECT_THROW(test_bus->call({"org.test.test_service_1", "/org/test/sd_bus/TestObject1", "org.test.sd_bus.TestInterface1",
                                  "TestThrowUnknownProperty", "s", mc::variants{"TestProperty"}}),
                  mc::exception);
@@ -365,7 +399,8 @@ TEST_F(SdBusTest, test_unprotected_call) {
 
 #if defined(ENABLE_CONAN_COMPILE) && ENABLE_CONAN_COMPILE == 1
 // 测试共享内存调用
-TEST_F(SdBusTest, test_shm_call) {
+TEST_F(SdBusTest, test_shm_call)
+{
     auto result_opt =
         test_bus->shm_timeout_call(mc::seconds(30), {"org.test.test_service_1", "/org/test/sd_bus/TestObject1",
                                                      "org.test.sd_bus.TestInterface1", "SetValue", "i", mc::variants{99}});
@@ -383,7 +418,8 @@ TEST_F(SdBusTest, test_shm_call) {
 }
 
 // 测试共享内存调用请求大小超过限制
-TEST_F(SdBusTest, test_shm_call_request_size_over_limit) {
+TEST_F(SdBusTest, test_shm_call_request_size_over_limit)
+{
     g_test_cnt = 0;
     std::string large_string(UINT16_MAX + 1, 'a');
     auto        result_opt =

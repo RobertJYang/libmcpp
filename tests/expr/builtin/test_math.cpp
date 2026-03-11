@@ -21,13 +21,15 @@ class math_builtin_test : public ::testing::Test {
 protected:
     math_builtin_test() = default;
 
-    void SetUp() override {
+    void SetUp() override
+    {
         auto& builtin = mc::expr::builtin::get_instance();
         auto& ctx     = builtin.get_context();
         context       = engine.make_context(&ctx);
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
     }
 
     mc::expr::engine  engine;
@@ -36,7 +38,8 @@ protected:
 } // namespace
 
 // 测试 abs 函数
-TEST_F(math_builtin_test, AbsFunction) {
+TEST_F(math_builtin_test, AbsFunction)
+{
     // 测试正整数
     EXPECT_EQ(engine.evaluate("abs(10)", context), 10);
 
@@ -61,7 +64,8 @@ TEST_F(math_builtin_test, AbsFunction) {
 }
 
 // 测试 min 函数
-TEST_F(math_builtin_test, MinFunction) {
+TEST_F(math_builtin_test, MinFunction)
+{
     // 测试整数
     EXPECT_EQ(engine.evaluate("min(3, 1, 4, 1, 5)", context), 1);
 
@@ -80,7 +84,8 @@ TEST_F(math_builtin_test, MinFunction) {
 }
 
 // 测试 max 函数
-TEST_F(math_builtin_test, MaxFunction) {
+TEST_F(math_builtin_test, MaxFunction)
+{
     // 测试整数
     EXPECT_EQ(engine.evaluate("max(3, 1, 4, 1, 5)", context), 5);
 
@@ -99,7 +104,8 @@ TEST_F(math_builtin_test, MaxFunction) {
 }
 
 // 测试 pow 函数
-TEST_F(math_builtin_test, PowFunction) {
+TEST_F(math_builtin_test, PowFunction)
+{
     // 测试整数
     EXPECT_EQ(engine.evaluate("pow(2, 3)", context), 8.0);
 
@@ -125,7 +131,8 @@ TEST_F(math_builtin_test, PowFunction) {
 }
 
 // 测试 sqrt 函数
-TEST_F(math_builtin_test, SqrtFunction) {
+TEST_F(math_builtin_test, SqrtFunction)
+{
     // 测试整数
     EXPECT_EQ(engine.evaluate("sqrt(4)", context), 2.0);
     EXPECT_EQ(engine.evaluate("sqrt(9)", context), 3.0);
@@ -148,7 +155,8 @@ TEST_F(math_builtin_test, SqrtFunction) {
 }
 
 // 测试 floor 函数
-TEST_F(math_builtin_test, FloorFunction) {
+TEST_F(math_builtin_test, FloorFunction)
+{
     // 测试整数
     EXPECT_EQ(engine.evaluate("floor(42)", context), 42.0);
 
@@ -169,7 +177,8 @@ TEST_F(math_builtin_test, FloorFunction) {
 }
 
 // 测试 ceil 函数
-TEST_F(math_builtin_test, CeilFunction) {
+TEST_F(math_builtin_test, CeilFunction)
+{
     // 测试整数
     EXPECT_EQ(engine.evaluate("ceil(42)", context), 42.0);
 
@@ -190,7 +199,8 @@ TEST_F(math_builtin_test, CeilFunction) {
 }
 
 // 测试 round 函数
-TEST_F(math_builtin_test, RoundFunction) {
+TEST_F(math_builtin_test, RoundFunction)
+{
     // 测试整数
     EXPECT_EQ(engine.evaluate("round(42)", context), 42.0);
 
@@ -212,7 +222,8 @@ TEST_F(math_builtin_test, RoundFunction) {
 }
 
 // 测试 log 函数
-TEST_F(math_builtin_test, LogFunction) {
+TEST_F(math_builtin_test, LogFunction)
+{
     // 测试正数
     EXPECT_NEAR(engine.evaluate("log(1)", context).as_double(), 0.0, 1e-10);
     EXPECT_NEAR(engine.evaluate("log(2.718281828)", context).as_double(), 1.0, 1e-6);
@@ -234,7 +245,8 @@ TEST_F(math_builtin_test, LogFunction) {
 }
 
 // 测试 exp 函数
-TEST_F(math_builtin_test, ExpFunction) {
+TEST_F(math_builtin_test, ExpFunction)
+{
     // 测试零
     EXPECT_EQ(engine.evaluate("exp(0)", context), 1.0);
 

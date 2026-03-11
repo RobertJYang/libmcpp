@@ -29,12 +29,13 @@ class RuntimeBasicTest : public mc::test::TestWithRuntime {
 } // namespace
 
 // 测试基本用法示例
-TEST_F(RuntimeBasicTest, BasicUsageExample) {
+TEST_F(RuntimeBasicTest, BasicUsageExample)
+{
     // 获取全局运行时上下文
     auto& runtime = mc::get_runtime_context();
 
-    std::atomic<bool> network_task_done{false};
-    std::atomic<bool> hardware_task_done{false};
+    std::atomic<bool>              network_task_done{false};
+    std::atomic<bool>              hardware_task_done{false};
     mc::test::runtime::future_flag network_ready;
     mc::test::runtime::future_flag hardware_ready;
 
@@ -57,15 +58,16 @@ TEST_F(RuntimeBasicTest, BasicUsageExample) {
 }
 
 // 测试执行器对象的使用
-TEST_F(RuntimeBasicTest, ExecutorObjectUsage) {
+TEST_F(RuntimeBasicTest, ExecutorObjectUsage)
+{
     auto& runtime = mc::get_runtime_context();
 
     std::atomic<int> task_count{0};
 
     mc::test::runtime::countdown_future tasks_done(3);
-    auto io_executor      = mc::get_io_executor();
-    auto system_executor  = mc::get_work_executor();
-    auto default_executor = mc::get_default_executor();
+    auto                                io_executor      = mc::get_io_executor();
+    auto                                system_executor  = mc::get_work_executor();
+    auto                                default_executor = mc::get_default_executor();
 
     boost::asio::post(io_executor, [&, tasks_done]() mutable {
         task_count.fetch_add(1);
@@ -87,11 +89,12 @@ TEST_F(RuntimeBasicTest, ExecutorObjectUsage) {
 }
 
 // 测试标签的使用
-TEST_F(RuntimeBasicTest, ExecutorTagUsage) {
+TEST_F(RuntimeBasicTest, ExecutorTagUsage)
+{
     auto& runtime = mc::get_runtime_context();
 
-    std::atomic<int> io_task_count{0};
-    std::atomic<int> system_task_count{0};
+    std::atomic<int>               io_task_count{0};
+    std::atomic<int>               system_task_count{0};
     mc::test::runtime::future_flag io_done;
     mc::test::runtime::future_flag system_done;
 
@@ -128,7 +131,8 @@ TEST_F(RuntimeBasicTest, ExecutorTagUsage) {
 }
 
 // 测试嵌入式系统场景
-TEST_F(RuntimeBasicTest, EmbeddedSystemScenario) {
+TEST_F(RuntimeBasicTest, EmbeddedSystemScenario)
+{
     auto& runtime = mc::get_runtime_context();
 
     std::atomic<int> sensor_readings{0};

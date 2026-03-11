@@ -19,22 +19,27 @@
 
 namespace mc::core {
 
-object_base::object_base() {
+object_base::object_base()
+{
 }
 
-object_base::~object_base() {
+object_base::~object_base()
+{
 }
 
 object_base::object_base(const object_base& other)
-    : enable_shared_from_this<object_base>(other), m_object_id(other.m_object_id) {
+    : enable_shared_from_this<object_base>(other), m_object_id(other.m_object_id)
+{
 }
 
 object_base::object_base(object_base&& other)
-    : enable_shared_from_this<object_base>(std::forward<object_base>(other)), m_object_id(other.m_object_id) {
+    : enable_shared_from_this<object_base>(std::forward<object_base>(other)), m_object_id(other.m_object_id)
+{
     other.m_object_id = 0;
 }
 
-object_base& object_base::operator=(object_base&& other) {
+object_base& object_base::operator=(object_base&& other)
+{
     if (this != &other) {
         enable_shared_from_this<object_base>::operator=(std::forward<object_base>(other));
         m_object_id       = other.m_object_id;
@@ -43,7 +48,8 @@ object_base& object_base::operator=(object_base&& other) {
     return *this;
 }
 
-object_base& object_base::operator=(const object_base& other) {
+object_base& object_base::operator=(const object_base& other)
+{
     if (this != &other) {
         enable_shared_from_this<object_base>::operator=(other);
         m_object_id = other.m_object_id;
@@ -51,15 +57,18 @@ object_base& object_base::operator=(const object_base& other) {
     return *this;
 }
 
-object_id_type object_base::get_object_id() const {
+object_id_type object_base::get_object_id() const
+{
     return m_object_id;
 }
 
-void object_base::set_object_id(object_id_type id) {
+void object_base::set_object_id(object_id_type id)
+{
     m_object_id = id;
 }
 
-bool object_base::has_valid_id() const {
+bool object_base::has_valid_id() const
+{
     return m_object_id != 0;
 }
 
@@ -74,18 +83,21 @@ struct object_data {
     mc::executor       executor;       // 绑定的执行器
 
     object_data()
-        : parent(nullptr), is_deleted(false) {
+        : parent(nullptr), is_deleted(false)
+    {
     }
 
     // 拷贝构造函数
     object_data(const object_data& other)
         : name(other.name), parent(other.parent),
-          children(other.children), is_deleted(other.is_deleted) {
+          children(other.children), is_deleted(other.is_deleted)
+    {
         // 连接管理器不应该被复制，每个对象应该有自己的连接
     }
 
     // 拷贝赋值运算符
-    object_data& operator=(const object_data& other) {
+    object_data& operator=(const object_data& other)
+    {
         if (this != &other) {
             name       = other.name;
             parent     = other.parent;
@@ -135,7 +147,8 @@ private:
 
 using impl_ptr = std::unique_ptr<object_impl>;
 
-object_impl::object_impl(const object_impl& other) {
+object_impl::object_impl(const object_impl& other)
+{
     // 复制基本数据但不复制父子关系
     auto other_data = other.m_data.rlock();
     auto my_data    = m_data.wlock();
@@ -144,7 +157,8 @@ object_impl::object_impl(const object_impl& other) {
     // 连接管理器不需要复制，每个对象应该有自己的连接
 }
 
-object_impl& object_impl::operator=(const object_impl& other) {
+object_impl& object_impl::operator=(const object_impl& other)
+{
     if (this != &other) {
         // 复制基本数据但不复制父子关系
         auto other_data = other.m_data.rlock();
@@ -156,14 +170,16 @@ object_impl& object_impl::operator=(const object_impl& other) {
     return *this;
 }
 
-std::string_view object_impl::get_name() const {
+std::string_view object_impl::get_name() const
+{
     // 使用 thread_local 存储确保 string_view 的生命周期安全
     thread_local std::string cached_name;
     cached_name = m_data.rlock()->name;
     return cached_name;
 }
 
-void object_impl::set_name(std::string_view name) {
+void object_impl::set_name(std::string_view name)
+{
     // 在同一个锁保护下进行检查和设置，确保原子性
     auto data = m_data.wlock();
     MC_ASSERT(data->name.empty(), "对象名称已设置，不能重复设置: 当前名称='${current}', 尝试设置='${new}'",
@@ -172,19 +188,23 @@ void object_impl::set_name(std::string_view name) {
     data->name = std::string(name);
 }
 
-object_ptr object_impl::get_parent() const {
+object_ptr object_impl::get_parent() const
+{
     return m_data.rlock()->parent.lock();
 }
 
-void object_impl::set_parent(object* parent) {
+void object_impl::set_parent(object* parent)
+{
     m_data.wlock()->parent = parent->weak_from_this();
 }
 
-child_list object_impl::get_children() const {
+child_list object_impl::get_children() const
+{
     return m_data.rlock()->children;
 }
 
-object_ptr object_impl::find_child(std::string_view name) const {
+object_ptr object_impl::find_child(std::string_view name) const
+{
     return m_data.with_lock([name](auto& data) -> object_ptr {
         auto it = std::find_if(data.children.begin(), data.children.end(),
                                [name](const object_ptr& child) {
@@ -198,7 +218,8 @@ object_ptr object_impl::find_child(std::string_view name) const {
     });
 }
 
-void object_impl::add_child(object* child) {
+void object_impl::add_child(object* child)
+{
     if (!child) {
         return;
     }
@@ -216,7 +237,8 @@ void object_impl::add_child(object* child) {
     });
 }
 
-void object_impl::remove_child(object* child) {
+void object_impl::remove_child(object* child)
+{
     if (!child) {
         return;
     }
@@ -229,7 +251,8 @@ void object_impl::remove_child(object* child) {
     });
 }
 
-std::pair<child_list, object_ptr> object_impl::cleanup_data() {
+std::pair<child_list, object_ptr> object_impl::cleanup_data()
+{
     return m_data.with_lock([](auto& data) {
         data.is_deleted = true;
 
@@ -250,27 +273,33 @@ std::pair<child_list, object_ptr> object_impl::cleanup_data() {
 }
 
 connection_id_type object_impl::add_connection(signal_type sig, mc::connection_type conn,
-                                               connection_id_type id) {
+                                               connection_id_type id)
+{
     return m_data.wlock()->connection_mgr.add_connection(sig, std::move(conn), id);
 }
 
-void object_impl::remove_connection(connection_id_type id) {
+void object_impl::remove_connection(connection_id_type id)
+{
     m_data.wlock()->connection_mgr.remove_connection(id);
 }
 
-size_t object_impl::remove_connections(signal_type sig) {
+size_t object_impl::remove_connections(signal_type sig)
+{
     return m_data.wlock()->connection_mgr.remove_connections(sig);
 }
 
-void object_impl::clear_connections() {
+void object_impl::clear_connections()
+{
     m_data.wlock()->connection_mgr.clear();
 }
 
-void object_impl::set_executor(mc::executor executor) {
+void object_impl::set_executor(mc::executor executor)
+{
     m_data.wlock()->executor = std::move(executor);
 }
 
-mc::any_executor object_impl::get_executor() const {
+mc::any_executor object_impl::get_executor() const
+{
     return m_data.with_lock([](auto& data) -> mc::any_executor {
         if (data.executor.valid()) {
             return {data.executor};
@@ -280,22 +309,26 @@ mc::any_executor object_impl::get_executor() const {
 }
 
 /* ------------------------ object ----------------------- */
-object::object() {
+object::object()
+{
     // impl 将在需要时延迟创建
 }
 
-object::object(object* parent) {
+object::object(object* parent)
+{
     // 现在可以安全地设置父对象，因为 shared_from_this() 总是可用
     if (parent) {
         set_parent(parent);
     }
 }
 
-object::~object() noexcept {
+object::~object() noexcept
+{
     cleanup_on_destroy();
 }
 
-void object::cleanup_on_destroy() noexcept {
+void object::cleanup_on_destroy() noexcept
+{
     impl_ptr impl(m_object_impl.exchange(nullptr, std::memory_order_acq_rel));
     if (!impl) {
         return;
@@ -320,7 +353,8 @@ void object::cleanup_on_destroy() noexcept {
 }
 
 object::object(const object& other)
-    : object_base(other) {
+    : object_base(other)
+{
     auto* impl = other.m_object_impl.load(std::memory_order_acquire);
     if (impl) {
         m_object_impl.store(new object_impl(*impl), std::memory_order_release);
@@ -328,7 +362,8 @@ object::object(const object& other)
     // 复制基本数据但不复制父子关系在 object_impl 的构造函数中处理
 }
 
-object& object::operator=(const object& other) {
+object& object::operator=(const object& other)
+{
     if (this == &other) {
         return *this;
     }
@@ -351,7 +386,8 @@ object& object::operator=(const object& other) {
     return *this;
 }
 
-void object::set_parent(object* parent) {
+void object::set_parent(object* parent)
+{
     auto& impl       = ensure_impl();
     auto  old_parent = impl.get_parent();
     if (old_parent == parent) {
@@ -372,7 +408,8 @@ void object::set_parent(object* parent) {
     }
 }
 
-object_ptr object::get_parent() const {
+object_ptr object::get_parent() const
+{
     auto* impl = m_object_impl.load(std::memory_order_acquire);
     if (!impl) {
         return nullptr;
@@ -380,15 +417,18 @@ object_ptr object::get_parent() const {
     return impl->get_parent();
 }
 
-void object::set_name(std::string_view name) {
+void object::set_name(std::string_view name)
+{
     ensure_impl().set_name(name);
 }
 
-std::string_view object::get_name() const {
+std::string_view object::get_name() const
+{
     return ensure_impl().get_name();
 }
 
-child_list object::get_children() const {
+child_list object::get_children() const
+{
     auto* impl = m_object_impl.load(std::memory_order_acquire);
     if (!impl) {
         return {};
@@ -396,7 +436,8 @@ child_list object::get_children() const {
     return impl->get_children();
 }
 
-object_ptr object::find_child(std::string_view name) const {
+object_ptr object::find_child(std::string_view name) const
+{
     auto* impl = m_object_impl.load(std::memory_order_acquire);
     if (!impl) {
         return nullptr;
@@ -404,11 +445,13 @@ object_ptr object::find_child(std::string_view name) const {
     return impl->find_child(name);
 }
 
-void object::add_child(object* child) {
+void object::add_child(object* child)
+{
     ensure_impl().add_child(child);
 }
 
-void object::remove_child(object* child) {
+void object::remove_child(object* child)
+{
     auto* impl = m_object_impl.load(std::memory_order_acquire);
     if (!impl) {
         return;
@@ -416,7 +459,8 @@ void object::remove_child(object* child) {
     impl->remove_child(child);
 }
 
-object_impl& object::ensure_impl() const {
+object_impl& object::ensure_impl() const
+{
     // 使用双重检查确保线程安全的延迟初始化
     object_impl* impl = m_object_impl.load(std::memory_order_acquire);
     if (impl) {
@@ -433,11 +477,13 @@ object_impl& object::ensure_impl() const {
 }
 
 connection_id_type object::add_connection(signal_type sig, mc::connection_type conn,
-                                          connection_id_type id) {
+                                          connection_id_type id)
+{
     return ensure_impl().add_connection(sig, std::move(conn), id);
 }
 
-void object::disconnect(connection_id_type id) const {
+void object::disconnect(connection_id_type id) const
+{
     auto* impl = m_object_impl.load(std::memory_order_acquire);
     if (!impl) {
         return;
@@ -445,7 +491,8 @@ void object::disconnect(connection_id_type id) const {
     impl->remove_connection(id);
 }
 
-void object::disconnect_all(signal_type sig) {
+void object::disconnect_all(signal_type sig)
+{
     auto* impl = m_object_impl.load(std::memory_order_acquire);
     if (!impl) {
         return;
@@ -453,7 +500,8 @@ void object::disconnect_all(signal_type sig) {
     impl->remove_connections(&sig);
 }
 
-object::executor_type object::get_executor() const {
+object::executor_type object::get_executor() const
+{
     auto* impl = m_object_impl.load(std::memory_order_acquire);
     if (impl) {
         return impl->get_executor();
@@ -461,19 +509,23 @@ object::executor_type object::get_executor() const {
     return mc::get_work_executor();
 }
 
-void object::set_executor(mc::executor executor) {
+void object::set_executor(mc::executor executor)
+{
     ensure_impl().set_executor(std::move(executor));
 }
 
-object_ptr object::shared_from_this() {
+object_ptr object::shared_from_this()
+{
     return object_base::shared_from_this().template static_pointer_cast<object>();
 }
 
-mc::weak_ptr<object> object::weak_from_this() {
+mc::weak_ptr<object> object::weak_from_this()
+{
     return mc::weak_ptr<object>(this);
 }
 
-mc::weak_ptr<const object> object::weak_from_this() const {
+mc::weak_ptr<const object> object::weak_from_this() const
+{
     return mc::weak_ptr<const object>(this);
 }
 

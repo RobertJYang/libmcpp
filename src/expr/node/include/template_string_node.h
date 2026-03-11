@@ -29,10 +29,12 @@ namespace mc::expr {
 class template_string_node : public node {
 public:
     template_string_node(std::vector<std::string> text_parts, node_ptrs expressions)
-        : m_text_parts(std::move(text_parts)), m_expressions(std::move(expressions)) {
+        : m_text_parts(std::move(text_parts)), m_expressions(std::move(expressions))
+    {
     }
 
-    node_type get_type() const override {
+    node_type get_type() const override
+    {
         return node_type::template_string;
     }
 
@@ -40,11 +42,13 @@ public:
 
     std::string to_string() const override;
 
-    const std::vector<std::string>& get_text_parts() const {
+    const std::vector<std::string>& get_text_parts() const
+    {
         return m_text_parts;
     }
 
-    const node_ptrs& get_expressions() const {
+    const node_ptrs& get_expressions() const
+    {
         return m_expressions;
     }
 

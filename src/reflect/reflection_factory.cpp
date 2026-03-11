@@ -14,12 +14,14 @@
 
 namespace mc::reflect {
 
-static void unique_sort(std::vector<std::string>& paths) {
+static void unique_sort(std::vector<std::string>& paths)
+{
     std::sort(paths.begin(), paths.end());
     paths.erase(std::unique(paths.begin(), paths.end()), paths.end());
 }
 
-static std::optional<std::string_view> remove_prefix_if_matches(std::string_view text, std::string_view prefix) {
+static std::optional<std::string_view> remove_prefix_if_matches(std::string_view text, std::string_view prefix)
+{
     if (prefix.empty()) {
         return text;
     }
@@ -52,40 +54,47 @@ static std::optional<std::string_view> remove_prefix_if_matches(std::string_view
     return text_it.tail();
 }
 
-reflection_factory& reflection_factory::global() {
+reflection_factory& reflection_factory::global()
+{
     return *global_ptr();
 }
 
-factory_ptr& reflection_factory::global_ptr() {
+factory_ptr& reflection_factory::global_ptr()
+{
     return mc::singleton<factory_ptr, global_namespace>::instance_with_creator([]() {
         return new factory_ptr(new reflection_factory(
             global_namespace::factory_name, "global_namespace", true));
     });
 }
 
-factory_ptr reflection_factory::try_global_ptr() {
+factory_ptr reflection_factory::try_global_ptr()
+{
     auto p = mc::singleton<factory_ptr, global_namespace>::try_get();
     return p ? *p : factory_ptr();
 }
 
-void reflection_factory::reset_global() {
+void reflection_factory::reset_global()
+{
     mc::singleton<factory_ptr, global_namespace>::reset_for_test();
 }
 
 reflection_factory::reflection_factory(
     std::string_view factory_name, std::string_view factory_type_name, bool is_global)
-    : m_impl(std::make_unique<impl>(factory_name, factory_type_name, is_global)) {
+    : m_impl(std::make_unique<impl>(factory_name, factory_type_name, is_global))
+{
 }
 
 reflection_factory::~reflection_factory() = default;
 
-reflection_metadata_ptr reflection_factory::get_metadata(type_id_type type_id) {
+reflection_metadata_ptr reflection_factory::get_metadata(type_id_type type_id)
+{
     return m_impl->m_data.with_rlock([&](auto& data) {
         return m_impl->get_metadata_by_id(type_id, data);
     });
 }
 
-reflection_metadata_ptr reflection_factory::get_metadata(std::string_view type_name) {
+reflection_metadata_ptr reflection_factory::get_metadata(std::string_view type_name)
+{
     auto result = remove_prefix_if_matches(type_name, get_factory_name());
     if (!result) {
         return nullptr;
@@ -96,7 +105,8 @@ reflection_metadata_ptr reflection_factory::get_metadata(std::string_view type_n
     });
 }
 
-reflected_object_ptr reflection_factory::try_create_object(type_id_type type_id) {
+reflected_object_ptr reflection_factory::try_create_object(type_id_type type_id)
+{
     return m_impl->m_data.with_rlock([&](auto& data) -> reflected_object_ptr {
         auto metadata = m_impl->get_metadata_by_id(type_id, data);
         if (!metadata) {
@@ -107,7 +117,8 @@ reflected_object_ptr reflection_factory::try_create_object(type_id_type type_id)
     });
 }
 
-reflected_object_ptr reflection_factory::try_create_object(std::string_view type_name) {
+reflected_object_ptr reflection_factory::try_create_object(std::string_view type_name)
+{
     auto result = remove_prefix_if_matches(type_name, get_factory_name());
     if (!result) {
         return nullptr;
@@ -123,7 +134,8 @@ reflected_object_ptr reflection_factory::try_create_object(std::string_view type
     });
 }
 
-reflected_object_ptr reflection_factory::create_object(type_id_type type_id) {
+reflected_object_ptr reflection_factory::create_object(type_id_type type_id)
+{
     auto obj = try_create_object(type_id);
     if (!obj) {
         MC_THROW(mc::bad_type_exception, "Type does not exist: ${type_id}", ("type_id", type_id));
@@ -131,7 +143,8 @@ reflected_object_ptr reflection_factory::create_object(type_id_type type_id) {
     return obj;
 }
 
-reflected_object_ptr reflection_factory::create_object(std::string_view type_name) {
+reflected_object_ptr reflection_factory::create_object(std::string_view type_name)
+{
     auto obj = try_create_object(type_name);
     if (!obj) {
         MC_THROW(mc::bad_type_exception, "Type does not exist: ${type_name}", ("type_name", type_name));
@@ -139,7 +152,8 @@ reflected_object_ptr reflection_factory::create_object(std::string_view type_nam
     return obj;
 }
 
-type_id_type reflection_factory::get_type_id(std::string_view type_name) const {
+type_id_type reflection_factory::get_type_id(std::string_view type_name) const
+{
     auto result = remove_prefix_if_matches(type_name, get_factory_name());
     if (!result) {
         return INVALID_TYPE_ID;
@@ -155,7 +169,8 @@ type_id_type reflection_factory::get_type_id(std::string_view type_name) const {
     });
 }
 
-std::vector<std::string> reflection_factory::get_registered_types() const {
+std::vector<std::string> reflection_factory::get_registered_types() const
+{
     std::vector<std::string> types;
     m_impl->m_data.with_rlock([&](auto& data) {
         m_impl->get_registered_types(data, types);
@@ -164,7 +179,8 @@ std::vector<std::string> reflection_factory::get_registered_types() const {
     return types;
 }
 
-std::vector<std::string> reflection_factory::get_module_types(std::string_view module_path) const {
+std::vector<std::string> reflection_factory::get_module_types(std::string_view module_path) const
+{
     if (module_path.empty()) {
         module_path = get_factory_name();
     }
@@ -188,7 +204,8 @@ std::vector<std::string> reflection_factory::get_module_types(std::string_view m
     return types;
 }
 
-std::vector<std::string> reflection_factory::get_module_paths() const {
+std::vector<std::string> reflection_factory::get_module_paths() const
+{
     auto paths = m_impl->m_data.with_rlock([&](auto& data) {
         std::vector<std::string> paths;
         m_impl->collect_module_paths(paths, data);
@@ -198,7 +215,8 @@ std::vector<std::string> reflection_factory::get_module_paths() const {
     return paths;
 }
 
-bool reflection_factory::has_module(std::string_view module_path) const {
+bool reflection_factory::has_module(std::string_view module_path) const
+{
     auto result = remove_prefix_if_matches(module_path, get_factory_name());
     if (!result) {
         return {};
@@ -209,7 +227,8 @@ bool reflection_factory::has_module(std::string_view module_path) const {
     });
 }
 
-factory_id_type reflection_factory::register_factory(factory_ptr factory) {
+factory_id_type reflection_factory::register_factory(factory_ptr factory)
+{
     if (!factory) {
         return INVALID_FACTORY_ID;
     }
@@ -268,7 +287,8 @@ factory_id_type reflection_factory::register_factory(factory_ptr factory) {
     });
 }
 
-void reflection_factory::unregister_factory(std::string_view factory_name) {
+void reflection_factory::unregister_factory(std::string_view factory_name)
+{
     auto result = remove_prefix_if_matches(factory_name, get_factory_name());
     if (!result) {
         return;
@@ -284,7 +304,8 @@ void reflection_factory::unregister_factory(std::string_view factory_name) {
     }
 }
 
-factory_ptr reflection_factory::get_factory(std::string_view factory_name) const {
+factory_ptr reflection_factory::get_factory(std::string_view factory_name) const
+{
     auto result = remove_prefix_if_matches(factory_name, get_factory_name());
     if (!result) {
         return nullptr;
@@ -295,19 +316,22 @@ factory_ptr reflection_factory::get_factory(std::string_view factory_name) const
     });
 }
 
-factory_ptr reflection_factory::get_factory_by_id(factory_id_type factory_id) const {
+factory_ptr reflection_factory::get_factory_by_id(factory_id_type factory_id) const
+{
     return m_impl->m_data.with_rlock([&](auto& data) -> factory_ptr {
         return m_impl->get_factory_by_id(factory_id, data);
     });
 }
 
-factory_ptr reflection_factory::get_parent_factory() const {
+factory_ptr reflection_factory::get_parent_factory() const
+{
     return m_impl->m_data.with_rlock([&](auto& data) -> factory_ptr {
         return data.m_parent.lock();
     });
 }
 
-std::vector<std::string> reflection_factory::get_factory_names() const {
+std::vector<std::string> reflection_factory::get_factory_names() const
+{
     return m_impl->m_data.with_rlock([&](auto& data) {
         std::vector<std::string> names;
         m_impl->collect_factory_names(get_factory_name(), names, data);
@@ -315,22 +339,26 @@ std::vector<std::string> reflection_factory::get_factory_names() const {
     });
 }
 
-const std::string& reflection_factory::get_factory_name() const {
+const std::string& reflection_factory::get_factory_name() const
+{
     return m_impl->m_factory_name;
 }
 
-const std::string& reflection_factory::get_namespace_type_name() const {
+const std::string& reflection_factory::get_namespace_type_name() const
+{
     return m_impl->m_namespace_type_name;
 }
 
-factory_id_type reflection_factory::get_factory_id() const {
+factory_id_type reflection_factory::get_factory_id() const
+{
     return m_impl->m_data.unsafe_get_data().m_factory_id;
 }
 
 type_id_type reflection_factory::register_type_impl(
     std::string_view                           type_name,
     type_id_type                               old_type_id,
-    std::function<reflection_metadata_ptr()>&& creator) {
+    std::function<reflection_metadata_ptr()>&& creator)
+{
     if (type_name.empty()) {
         wlog("Failed to register type: type name cannot be empty");
         return INVALID_TYPE_ID;
@@ -359,7 +387,8 @@ type_id_type reflection_factory::register_type_impl(
     return type_id;
 }
 
-void reflection_factory::unregister_type_impl(std::string_view type_name) {
+void reflection_factory::unregister_type_impl(std::string_view type_name)
+{
     if (type_name.empty()) {
         return;
     }
@@ -380,19 +409,23 @@ void reflection_factory::unregister_type_impl(std::string_view type_name) {
 }
 
 // 全局便利函数实现
-reflected_object_ptr try_create_object(type_id_type type_id) {
+reflected_object_ptr try_create_object(type_id_type type_id)
+{
     return reflection_factory::global().try_create_object(type_id);
 }
 
-reflected_object_ptr try_create_object(std::string_view type_name) {
+reflected_object_ptr try_create_object(std::string_view type_name)
+{
     return reflection_factory::global().try_create_object(type_name);
 }
 
-reflected_object_ptr create_object(type_id_type type_id) {
+reflected_object_ptr create_object(type_id_type type_id)
+{
     return reflection_factory::global().create_object(type_id);
 }
 
-reflected_object_ptr create_object(std::string_view type_name) {
+reflected_object_ptr create_object(std::string_view type_name)
+{
     return reflection_factory::global().create_object(type_name);
 }
 

@@ -17,7 +17,8 @@
 namespace mc {
 
 namespace detail {
-void throw_method_call_exception(const mc::error_ptr& err) {
+void throw_method_call_exception(const mc::error_ptr& err)
+{
     mc::method_call_exception ex;
     if (err) {
         err->to_exception(ex);
@@ -27,7 +28,8 @@ void throw_method_call_exception(const mc::error_ptr& err) {
     throw ex;
 }
 
-mc::error_ptr get_default_error() {
+mc::error_ptr get_default_error()
+{
     auto& error_engine = mc::error_engine::get_instance();
     auto  last_error   = error_engine.last_error();
     if (last_error && last_error->is_set()) {
@@ -38,7 +40,8 @@ mc::error_ptr get_default_error() {
                           "Failed to execute method");
 }
 
-mc::method_call_exception make_method_call_exception(const mc::error_ptr& err) {
+mc::method_call_exception make_method_call_exception(const mc::error_ptr& err)
+{
     mc::method_call_exception ex;
     if (err) {
         err->to_exception(ex);

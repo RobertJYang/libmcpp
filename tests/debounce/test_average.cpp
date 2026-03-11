@@ -1,14 +1,14 @@
 /*
-* Copyright (c) 2025 Huawei Technologies Co., Ltd.
-* openUBMC is licensed under Mulan PSL v2.
-* You can use this software according to the terms and conditions of the Mulan PSL v2.
-* You may obtain a copy of Mulan PSL v2 at:
-*         http://license.coscl.org.cn/MulanPSL2
-* THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
-* EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
-* MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
-* See the Mulan PSL v2 for more details.
-*/
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * openUBMC is licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *         http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
 
 #include <gtest/gtest.h>
 #include <mc/debounce/average.h>
@@ -44,7 +44,7 @@ TEST(debounce_average, trim_min_max_then_average)
 // 偶数窗口测试（窗口=4）和窗口滑动行为
 TEST(debounce_average, even_window_size_and_sliding)
 {
-    Average avg(4, false);
+    Average            avg(4, false);
     std::optional<int> value;
 
     value = avg.get_debounce_val(1);
@@ -94,7 +94,7 @@ TEST(debounce_average, signed_input_multiple_negatives)
     EXPECT_FALSE(avg.get_debounce_val(254).has_value()); // -2
     EXPECT_FALSE(avg.get_debounce_val(253).has_value()); // -3
     EXPECT_FALSE(avg.get_debounce_val(252).has_value()); // -4
-    auto v = avg.get_debounce_val(1); // 1
+    auto v = avg.get_debounce_val(1);                    // 1
     ASSERT_TRUE(v.has_value());
     // 排序后为 [-4,-3,-2,-1,1]，去掉最小-4和最大1，平均 (-3-2-1)/3 = -2
     // 输出调整：-2 + 256 = 254

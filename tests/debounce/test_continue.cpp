@@ -18,7 +18,7 @@ using mc::debounce::Continue;
 // 完整功能测试：连续相同值稳定、稳定后继续输入相同值、稳定后输入不同值需重新累积
 TEST(debounce_continue, get_value)
 {
-    Continue ctn(3);
+    Continue           ctn(3);
     std::optional<int> value;
 
     // 输入 3 次 1，第 3 次才稳定
@@ -68,5 +68,3 @@ TEST(debounce_continue, invalid_count_throw)
     EXPECT_THROW(Continue(0), std::runtime_error);
     EXPECT_THROW(Continue(-1), std::runtime_error);
 }
-
-

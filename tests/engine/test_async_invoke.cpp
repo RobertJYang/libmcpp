@@ -24,19 +24,22 @@ public:
     MC_INTERFACE("org.test.AsyncInterface")
 
     // 立即返回的同步方法
-    int32_t sync_method(int32_t value) {
+    int32_t sync_method(int32_t value)
+    {
         return value * 2;
     }
 
     // 延迟返回的异步方法
-    mc::result<int32_t> async_method(int32_t value) {
+    mc::result<int32_t> async_method(int32_t value)
+    {
         return mc::delay(mc::milliseconds(100)).then([value]() {
             return value * 3;
         });
     }
 
     // 可能同步或异步返回的混合方法
-    mc::result<std::string> hybrid_method(const std::string& value, bool immediate) {
+    mc::result<std::string> hybrid_method(const std::string& value, bool immediate)
+    {
         if (immediate) {
             std::string result = "immediate:" + value;
             operation_completed(result);
@@ -50,7 +53,8 @@ public:
     }
 
     // 抛出异常的方法
-    mc::result<void> error_method(bool immediate, bool use_throw) {
+    mc::result<void> error_method(bool immediate, bool use_throw)
+    {
         if (immediate) {
             if (use_throw) {
                 MC_THROW(mc::invalid_arg_exception, "immediate error");
@@ -68,7 +72,8 @@ public:
         });
     }
 
-    mc::result<void> void_method(bool immediate) {
+    mc::result<void> void_method(bool immediate)
+    {
         if (immediate) {
             return {};
         }
@@ -78,14 +83,16 @@ public:
     }
 
     // 可取消的长时间运行方法
-    mc::result<std::string> long_running_method() {
+    mc::result<std::string> long_running_method()
+    {
         return mc::delay(mc::milliseconds(1000)).then([]() {
             return "completed";
         });
     }
 
     // 链式异步操作方法
-    mc::result<int32_t> chain_method(int32_t value) {
+    mc::result<int32_t> chain_method(int32_t value)
+    {
         return mc::delay(mc::milliseconds(50)).then([value]() {
             return value + 1;
         }).then([](int32_t v) {
@@ -98,7 +105,8 @@ public:
     }
 
     // 并发异步操作方法
-    mc::result<std::vector<int32_t>> parallel_method(const std::vector<int32_t>& values) {
+    mc::result<std::vector<int32_t>> parallel_method(const std::vector<int32_t>& values)
+    {
         std::vector<mc::future<int32_t>> futures;
         for (auto value : values) {
             futures.push_back(mc::delay(mc::milliseconds(50)).then([value]() {
@@ -116,7 +124,8 @@ public:
     MC_OBJECT(AsyncObject, "AsyncObject", "/org/test/AsyncObject", (AsyncInterface))
 
     AsyncObject(mc::engine::core_object* parent = nullptr)
-        : mc::engine::object<AsyncObject>(parent) {
+        : mc::engine::object<AsyncObject>(parent)
+    {
     }
 
     AsyncInterface m_iface;
@@ -133,10 +142,12 @@ MC_REFLECT(AsyncObject, ((m_iface, "async")))
 
 class async_invoke_test : public ::testing::Test {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
     }
 
     AsyncObject                  obj;
@@ -144,21 +155,24 @@ protected:
 };
 
 // 测试同步方法调用
-TEST_F(async_invoke_test, test_sync_method) {
+TEST_F(async_invoke_test, test_sync_method)
+{
     auto result = obj_base.async_invoke("SyncMethod", {42});
     EXPECT_TRUE(result.is_value() && result.is_ready());
     EXPECT_EQ(result.get(), 84);
 }
 
 // 测试异步方法调用
-TEST_F(async_invoke_test, test_async_method) {
+TEST_F(async_invoke_test, test_async_method)
+{
     auto result = obj_base.async_invoke("AsyncMethod", {42});
     EXPECT_TRUE(result.is_future() && !result.is_ready());
     EXPECT_EQ(result.get(), 126);
 }
 
 // 测试混合方法调用
-TEST_F(async_invoke_test, test_hybrid_method) {
+TEST_F(async_invoke_test, test_hybrid_method)
+{
     // 测试立即返回
     auto immediate_result = obj_base.async_invoke("HybridMethod", {"test", true});
     EXPECT_TRUE(immediate_result.is_value() && immediate_result.is_ready());
@@ -171,7 +185,8 @@ TEST_F(async_invoke_test, test_hybrid_method) {
 }
 
 // 测试错误处理
-TEST_F(async_invoke_test, test_error_handling) {
+TEST_F(async_invoke_test, test_error_handling)
+{
     // 测试立即错误（如果发生错误 get() 会抛出异常）
     auto immediate_error = obj_base.async_invoke("ErrorMethod", {true, true});
     EXPECT_THROW(immediate_error.get(), mc::invalid_arg_exception);
@@ -200,7 +215,8 @@ TEST_F(async_invoke_test, test_error_handling) {
     EXPECT_EQ(err1->get_name(), "TestError");
 }
 
-TEST_F(async_invoke_test, test_void_result) {
+TEST_F(async_invoke_test, test_void_result)
+{
     auto result = obj_base.async_invoke("VoidMethod", {true});
     EXPECT_TRUE(result.is_value() && result.is_ready());
     EXPECT_EQ(result.get(), mc::variant());
@@ -215,7 +231,8 @@ TEST_F(async_invoke_test, test_void_result) {
 }
 
 // 测试取消操作
-TEST_F(async_invoke_test, test_cancellation) {
+TEST_F(async_invoke_test, test_cancellation)
+{
     auto result = obj_base.async_invoke("LongRunningMethod");
     EXPECT_TRUE(result.is_future() && !result.is_ready());
 
@@ -225,14 +242,16 @@ TEST_F(async_invoke_test, test_cancellation) {
 }
 
 // 测试链式异步操作
-TEST_F(async_invoke_test, test_chain_operations) {
+TEST_F(async_invoke_test, test_chain_operations)
+{
     auto result = obj_base.async_invoke("ChainMethod", {5});
     EXPECT_TRUE(result.is_future() && !result.is_ready());
     EXPECT_EQ(result.get(), 22); // (5 + 1) * 2 + 10
 }
 
 // 测试并发异步操作
-TEST_F(async_invoke_test, test_parallel_operations) {
+TEST_F(async_invoke_test, test_parallel_operations)
+{
     std::vector<int32_t> values = {1, 2, 3, 4, 5};
     auto                 result = obj_base.async_invoke("ParallelMethod", {values});
     EXPECT_TRUE(result.is_future() && !result.is_ready());
@@ -242,14 +261,16 @@ TEST_F(async_invoke_test, test_parallel_operations) {
 }
 
 // 测试超时处理
-TEST_F(async_invoke_test, test_timeout) {
+TEST_F(async_invoke_test, test_timeout)
+{
     auto result         = obj_base.async_invoke("LongRunningMethod");
     auto timeout_result = mc::timeout(result.as_future(), mc::milliseconds(50));
     EXPECT_THROW(timeout_result.get(), mc::timeout_exception);
 }
 
 // 测试多个异步操作的组合
-TEST_F(async_invoke_test, test_combined_operations) {
+TEST_F(async_invoke_test, test_combined_operations)
+{
     auto sync_result   = obj_base.async_invoke("SyncMethod", {10});
     auto async_result  = obj_base.async_invoke("AsyncMethod", {20});
     auto hybrid_result = obj_base.async_invoke("HybridMethod", {"test", false});
@@ -267,7 +288,8 @@ TEST_F(async_invoke_test, test_combined_operations) {
 }
 
 // 测试信号与异步操作的结合
-TEST_F(async_invoke_test, test_signal_with_async) {
+TEST_F(async_invoke_test, test_signal_with_async)
+{
     std::string signal_value;
     auto        conn = obj_base.connect(
         "OperationCompleted",

@@ -11,18 +11,19 @@
  */
 
 #include <gtest/gtest.h>
+#include <limits>
 #include <mc/dbus/shm/local_msg.h>
 #include <mc/dbus/shm/serialize.h>
 #include <mc/dict.h>
 #include <mc/variant.h>
-#include <limits>
 #include <vector>
 
 using namespace mc;
 using namespace mc::dbus;
 using namespace mc::dbus::serialize;
 
-TEST(SerializeTest, SerializeArrays) {
+TEST(SerializeTest, SerializeArrays)
+{
     variants msg_arr;
     auto     msg1 = variants({1, "str1", "str2", 3.3});
     auto     msg2 = variants();
@@ -58,7 +59,8 @@ TEST(SerializeTest, SerializeArrays) {
     ASSERT_EQ(msg3_unpacked[0].as_dict()["b"].as_int32(), 2);
 }
 
-TEST(SerializeTest, SerializeMsg) {
+TEST(SerializeTest, SerializeMsg)
+{
     variants msg_arr;
     auto     msg1 = new dbus::local_msg("bmc.kepler.test1", "/bmc/kepler/test/obj1",
                                         "bmc.kepler.test.intf1", "TestMethod1");
@@ -108,7 +110,8 @@ TEST(SerializeTest, SerializeMsg) {
     ASSERT_EQ(unpacked[11].as_uint32(), 789);
 }
 
-TEST(SerializeTest, SerializeBasicTypes) {
+TEST(SerializeTest, SerializeBasicTypes)
+{
     variants msg_arr;
     // 测试布尔值
     msg_arr.push_back(true);
@@ -160,7 +163,8 @@ TEST(SerializeTest, SerializeBasicTypes) {
     ASSERT_EQ(unpacked[19].as_string(), std::string(0x10000, 'd'));
 }
 
-TEST(SerializeTest, SerializeNestedArrays) {
+TEST(SerializeTest, SerializeNestedArrays)
+{
     variants msg_arr;
     // 测试空数组
     msg_arr.push_back(variants());
@@ -226,7 +230,8 @@ TEST(SerializeTest, SerializeNestedArrays) {
     ASSERT_EQ(arr4[4].as_array()[1].as_int32(), 2);
 }
 
-TEST(SerializeTest, SerializeDicts) {
+TEST(SerializeTest, SerializeDicts)
+{
     variants msg_arr;
     // 测试包含基本类型的字典
     dict basic_dict;
@@ -267,7 +272,8 @@ TEST(SerializeTest, SerializeDicts) {
     ASSERT_EQ(dict3["inner"].as_dict()["b"].as_int32(), 2);
 }
 
-TEST(SerializeTest, SerializeMixedTypes) {
+TEST(SerializeTest, SerializeMixedTypes)
+{
     variants msg_arr;
     // 测试混合类型的数组
     variants mixed_arr;
@@ -308,7 +314,8 @@ TEST(SerializeTest, SerializeMixedTypes) {
     ASSERT_EQ(dict["dict"].as_dict()["b"].as_int32(), 2);
 }
 
-TEST(SerializeTest, WriteVariantElements) {
+TEST(SerializeTest, WriteVariantElements)
+{
     dbus::signature_iterator      it = "a{ss}s";
     dbus::serialize::write_buffer wb;
     mc::variants                  args;
@@ -324,7 +331,8 @@ TEST(SerializeTest, WriteVariantElements) {
     ASSERT_EQ(unpacked[0].as_array()[1].as_string(), "test");
 }
 
-TEST(SerializeTest, WriteNumberVariousTypes) {
+TEST(SerializeTest, WriteNumberVariousTypes)
+{
     write_buffer buf;
     buf.write_arg(static_cast<int64_t>(0), 0);
     buf.write_arg(static_cast<int64_t>(-123), 0);
@@ -335,14 +343,14 @@ TEST(SerializeTest, WriteNumberVariousTypes) {
     buf.write_arg(3.14, 0);
     buf.write_arg(static_cast<uint64_t>(std::numeric_limits<int64_t>::max()) + 1, 0);
 
-    auto       packed = buf.to_string();
+    auto        packed = buf.to_string();
     read_buffer rb(packed);
 
     auto expect_int64 = [&](int64_t expected) {
         uint8_t type = 0;
         auto*   t    = reinterpret_cast<const uint8_t*>(rb.read(sizeof(type)));
         ASSERT_NE(t, nullptr);
-        type = *t;
+        type       = *t;
         auto value = rb.read_value(type & TYPE_MASK, type >> VALUE_SHIFT);
         EXPECT_EQ(value.as_int64(), expected);
     };
@@ -358,7 +366,7 @@ TEST(SerializeTest, WriteNumberVariousTypes) {
         uint8_t type = 0;
         auto*   t    = reinterpret_cast<const uint8_t*>(rb.read(sizeof(type)));
         ASSERT_NE(t, nullptr);
-        type = *t;
+        type       = *t;
         auto value = rb.read_value(type & TYPE_MASK, type >> VALUE_SHIFT);
         EXPECT_DOUBLE_EQ(value.as_double(), 3.14);
     }
@@ -367,14 +375,15 @@ TEST(SerializeTest, WriteNumberVariousTypes) {
         uint8_t type = 0;
         auto*   t    = reinterpret_cast<const uint8_t*>(rb.read(sizeof(type)));
         ASSERT_NE(t, nullptr);
-        type = *t;
+        type       = *t;
         auto value = rb.read_value(type & TYPE_MASK, type >> VALUE_SHIFT);
         EXPECT_DOUBLE_EQ(value.as_double(),
                          static_cast<double>(static_cast<uint64_t>(std::numeric_limits<int64_t>::max()) + 1));
     }
 }
 
-TEST(SerializeTest, WriteStringVariousLengths) {
+TEST(SerializeTest, WriteStringVariousLengths)
+{
     write_buffer buf1;
     buf1.write_arg(std::string("short"), 0);
     write_buffer buf2;
@@ -385,12 +394,12 @@ TEST(SerializeTest, WriteStringVariousLengths) {
     buf4.write_arg(std::string(""), 0);
 
     auto verify_string = [](const write_buffer& buf, const std::string& expected) {
-        auto       packed = buf.to_string();
+        auto        packed = buf.to_string();
         read_buffer rb(packed);
         uint8_t     type = 0;
         auto*       t    = reinterpret_cast<const uint8_t*>(rb.read(sizeof(type)));
         ASSERT_NE(t, nullptr);
-        type = *t;
+        type       = *t;
         auto value = rb.read_value(type & TYPE_MASK, type >> VALUE_SHIFT);
         EXPECT_EQ(value.as_string(), expected);
     };
@@ -401,7 +410,8 @@ TEST(SerializeTest, WriteStringVariousLengths) {
     verify_string(buf4, "");
 }
 
-TEST(SerializeTest, WriteLargeArray) {
+TEST(SerializeTest, WriteLargeArray)
+{
     variants large_arr;
     for (int i = 0; i < 100; ++i) {
         large_arr.push_back(i);
@@ -409,12 +419,12 @@ TEST(SerializeTest, WriteLargeArray) {
     write_buffer buf;
     buf.write_arg(variant(large_arr), 0);
 
-    auto packed = buf.to_string();
+    auto        packed = buf.to_string();
     read_buffer rb(packed);
     uint8_t     type = 0;
     auto*       t    = reinterpret_cast<const uint8_t*>(rb.read(sizeof(type)));
     ASSERT_NE(t, nullptr);
-    type = *t;
+    type       = *t;
     auto value = rb.read_value(type & TYPE_MASK, type >> VALUE_SHIFT);
     ASSERT_TRUE(value.is_array());
     ASSERT_EQ(value.as_array().size(), large_arr.size());
@@ -423,30 +433,32 @@ TEST(SerializeTest, WriteLargeArray) {
     }
 }
 
-TEST(SerializeTest, WriteInnerCrossBlock) {
+TEST(SerializeTest, WriteInnerCrossBlock)
+{
     write_buffer buf;
     buf.write_arg(std::string(5000, 'x'), 0);
 
-    auto       packed = buf.to_string();
+    auto        packed = buf.to_string();
     read_buffer rb(packed);
     uint8_t     type = 0;
     auto*       t    = reinterpret_cast<const uint8_t*>(rb.read(sizeof(type)));
     ASSERT_NE(t, nullptr);
-    type = *t;
+    type       = *t;
     auto value = rb.read_value(type & TYPE_MASK, type >> VALUE_SHIFT);
     EXPECT_EQ(value.as_string(), std::string(5000, 'x'));
 }
 
-TEST(SerializeTest, WriteArgWithSignatureVariousTypes) {
+TEST(SerializeTest, WriteArgWithSignatureVariousTypes)
+{
     write_buffer buf;
     buf.write_arg_with_signature(signature_iterator("(isd)"), variant(variants{1, "test", 3.14}), 0);
 
-    auto       packed = buf.to_string();
+    auto        packed = buf.to_string();
     read_buffer rb(packed);
     uint8_t     type = 0;
     auto*       t    = reinterpret_cast<const uint8_t*>(rb.read(sizeof(type)));
     ASSERT_NE(t, nullptr);
-    type = *t;
+    type       = *t;
     auto value = rb.read_value(type & TYPE_MASK, type >> VALUE_SHIFT);
     ASSERT_TRUE(value.is_array());
     auto tuple = value.as_array();
@@ -456,16 +468,17 @@ TEST(SerializeTest, WriteArgWithSignatureVariousTypes) {
     EXPECT_DOUBLE_EQ(tuple[2].as_double(), 3.14);
 }
 
-TEST(SerializeTest, WriteArrayOrDictByteType) {
+TEST(SerializeTest, WriteArrayOrDictByteType)
+{
     write_buffer buf;
     buf.write_arg_with_signature(signature_iterator("ay"), variant(std::vector<uint8_t>{0x01, 0x02, 0x03, 0x04}), 0);
 
-    auto       packed = buf.to_string();
+    auto        packed = buf.to_string();
     read_buffer rb(packed);
     uint8_t     type = 0;
     auto*       t    = reinterpret_cast<const uint8_t*>(rb.read(sizeof(type)));
     ASSERT_NE(t, nullptr);
-    type = *t;
+    type       = *t;
     auto value = rb.read_value(type & TYPE_MASK, type >> VALUE_SHIFT);
     ASSERT_TRUE(value.is_string());
     auto str = value.as_string();
@@ -476,7 +489,8 @@ TEST(SerializeTest, WriteArrayOrDictByteType) {
     EXPECT_EQ(static_cast<uint8_t>(str[3]), 0x04);
 }
 
-TEST(SerializeTest, ReadValueInvalidType) {
+TEST(SerializeTest, ReadValueInvalidType)
+{
     std::string invalid_data;
     invalid_data.push_back(static_cast<uint8_t>(255));
     invalid_data.push_back(0);
@@ -484,21 +498,23 @@ TEST(SerializeTest, ReadValueInvalidType) {
     EXPECT_THROW(rb.read_value(255, 0), mc::invalid_arg_exception);
 }
 
-TEST(SerializeTest, ReadLongStringInvalidCookie) {
+TEST(SerializeTest, ReadLongStringInvalidCookie)
+{
     std::string invalid_data;
-    uint8_t type_byte = static_cast<uint8_t>(data_type::long_string) | (3 << VALUE_SHIFT);
+    uint8_t     type_byte = static_cast<uint8_t>(data_type::long_string) | (3 << VALUE_SHIFT);
     invalid_data.push_back(type_byte);
     invalid_data.push_back(0);
     invalid_data.push_back(0);
     invalid_data.push_back(0);
     read_buffer rb(invalid_data);
-    uint8_t type = static_cast<uint8_t>(data_type::long_string);
+    uint8_t     type = static_cast<uint8_t>(data_type::long_string);
     EXPECT_THROW(rb.read_value(type, 3), mc::invalid_arg_exception);
 }
 
-TEST(SerializeTest, ReadTableAsDict) {
+TEST(SerializeTest, ReadTableAsDict)
+{
     write_buffer wb;
-    dict d;
+    dict         d;
     d["key1"] = "value1";
     d["key2"] = 42;
     variant v(d);
@@ -506,97 +522,105 @@ TEST(SerializeTest, ReadTableAsDict) {
     auto packed = wb.to_string();
 
     read_buffer rb(packed);
-    uint8_t type = 0;
-    auto t = reinterpret_cast<const uint8_t*>(rb.read(sizeof(type)));
+    uint8_t     type = 0;
+    auto        t    = reinterpret_cast<const uint8_t*>(rb.read(sizeof(type)));
     ASSERT_NE(t, nullptr);
-    type = *t;
+    type        = *t;
     auto result = rb.read_value(type & TYPE_MASK, type >> VALUE_SHIFT);
     EXPECT_TRUE(result.is_dict());
     EXPECT_EQ(result.as_dict()["key1"].as_string(), "value1");
     EXPECT_EQ(result.as_dict()["key2"].as_int32(), 42);
 }
 
-TEST(SerializeTest, ReadValueBooleanFalse) {
+TEST(SerializeTest, ReadValueBooleanFalse)
+{
     write_buffer wb;
-    variant v(false);
+    variant      v(false);
     wb.write_arg(v, 0);
     auto packed = wb.to_string();
 
     read_buffer rb(packed);
-    uint8_t type = 0;
-    auto t = reinterpret_cast<const uint8_t*>(rb.read(sizeof(type)));
+    uint8_t     type = 0;
+    auto        t    = reinterpret_cast<const uint8_t*>(rb.read(sizeof(type)));
     ASSERT_NE(t, nullptr);
-    type = *t;
+    type        = *t;
     auto result = rb.read_value(type & TYPE_MASK, type >> VALUE_SHIFT);
     EXPECT_FALSE(result.as_bool());
 }
 
-TEST(SerializeTest, ReadValueBooleanTrue) {
+TEST(SerializeTest, ReadValueBooleanTrue)
+{
     write_buffer wb;
-    variant v(true);
+    variant      v(true);
     wb.write_arg(v, 0);
     auto packed = wb.to_string();
 
     read_buffer rb(packed);
-    uint8_t type = 0;
-    auto t = reinterpret_cast<const uint8_t*>(rb.read(sizeof(type)));
+    uint8_t     type = 0;
+    auto        t    = reinterpret_cast<const uint8_t*>(rb.read(sizeof(type)));
     ASSERT_NE(t, nullptr);
-    type = *t;
+    type        = *t;
     auto result = rb.read_value(type & TYPE_MASK, type >> VALUE_SHIFT);
     EXPECT_TRUE(result.as_bool());
 }
 
-TEST(SerializeTest, ReadValueNumberReal) {
+TEST(SerializeTest, ReadValueNumberReal)
+{
     write_buffer wb;
-    variant v(3.14159);
+    variant      v(3.14159);
     wb.write_arg(v, 0);
     auto packed = wb.to_string();
 
     read_buffer rb(packed);
-    uint8_t type = 0;
-    auto t = reinterpret_cast<const uint8_t*>(rb.read(sizeof(type)));
+    uint8_t     type = 0;
+    auto        t    = reinterpret_cast<const uint8_t*>(rb.read(sizeof(type)));
     ASSERT_NE(t, nullptr);
-    type = *t;
+    type        = *t;
     auto result = rb.read_value(type & TYPE_MASK, type >> VALUE_SHIFT);
     EXPECT_DOUBLE_EQ(result.as_double(), 3.14159);
 }
 
-TEST(SerializeTest, ReadValueUserdata) {
+TEST(SerializeTest, ReadValueUserdata)
+{
     write_buffer wb;
-    uint64_t ptr_value = 0x12345678;
-    variant v(ptr_value);
+    uint64_t     ptr_value = 0x12345678;
+    variant      v(ptr_value);
     wb.write_arg(v, 0);
     auto packed = wb.to_string();
 
     read_buffer rb(packed);
-    uint8_t type = 0;
-    auto t = reinterpret_cast<const uint8_t*>(rb.read(sizeof(type)));
+    uint8_t     type = 0;
+    auto        t    = reinterpret_cast<const uint8_t*>(rb.read(sizeof(type)));
     ASSERT_NE(t, nullptr);
-    type = *t;
+    type        = *t;
     auto result = rb.read_value(type & TYPE_MASK, type >> VALUE_SHIFT);
     EXPECT_EQ(result.as_uint64(), ptr_value);
 }
 
-TEST(SerializeTest, DeserializeInvalidFormat) {
+TEST(SerializeTest, DeserializeInvalidFormat)
+{
     std::string invalid_msg = "abc";
     EXPECT_THROW(deserialize(invalid_msg), mc::invalid_arg_exception);
 }
 
-TEST(SerializeTest, DeserializeEmptyMessage) {
+TEST(SerializeTest, DeserializeEmptyMessage)
+{
     std::string empty_msg;
     empty_msg.resize(4, 0);
     auto result = deserialize(empty_msg);
     EXPECT_TRUE(result.empty());
 }
 
-TEST(SerializeTest, WriteArgDepthExceedsLimit) {
+TEST(SerializeTest, WriteArgDepthExceedsLimit)
+{
     write_buffer buf;
-    variant v_int = 42;
+    variant      v_int = 42;
     EXPECT_THROW(buf.write_arg(v_int, MAX_DEPTH + 1), mc::exception);
 }
 
 // 测试 deserialize_variant 读取 blob 时 buffer 不足
-TEST(SerializeTest, BlobInsufficientBuffer) {
+TEST(SerializeTest, BlobInsufficientBuffer)
+{
     // 构造一个包含 gvariant 类型的序列化数据，但 buffer 不足
     write_buffer wb;
     // 创建一个包含 blob 的 variant
@@ -610,7 +634,7 @@ TEST(SerializeTest, BlobInsufficientBuffer) {
 
     // 尝试读取，应该抛出异常或返回 nullptr
     uint8_t type = 0;
-    auto t = reinterpret_cast<const uint8_t*>(rb.read(sizeof(type)));
+    auto    t    = reinterpret_cast<const uint8_t*>(rb.read(sizeof(type)));
     if (t != nullptr) {
         type = *t;
         // 如果类型是 gvariant，尝试读取应该失败

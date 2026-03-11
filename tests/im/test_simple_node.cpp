@@ -21,7 +21,8 @@ namespace mc::im::tests {
 using default_config    = tree_config<>;
 using default_node_type = node<default_config>;
 
-TEST(SimpleNodeTest, BasicNodeFunctionality) {
+TEST(SimpleNodeTest, BasicNodeFunctionality)
+{
     // 使用非零值作为叶子值
     void* leaf_val = reinterpret_cast<void*>(1);
 
@@ -46,7 +47,8 @@ TEST(SimpleNodeTest, BasicNodeFunctionality) {
     EXPECT_EQ(std::string(prefix_node.m_prefix.data(), prefix_node.m_prefix.size()), "test");
 }
 
-TEST(SimpleNodeTest, GetKey) {
+TEST(SimpleNodeTest, GetKey)
+{
     // 使用非零值作为叶子值
     void* leaf1 = reinterpret_cast<void*>(1);
     void* leaf2 = reinterpret_cast<void*>(2);
@@ -75,7 +77,8 @@ TEST(SimpleNodeTest, GetKey) {
     EXPECT_FALSE(wrong_result.has_value());
 }
 
-TEST(SimpleNodeTest, AddAndGetEdge) {
+TEST(SimpleNodeTest, AddAndGetEdge)
+{
     // 使用非零值作为叶子值
     void* leaf1 = reinterpret_cast<void*>(1);
 
@@ -109,7 +112,8 @@ TEST(SimpleNodeTest, AddAndGetEdge) {
     EXPECT_EQ(result_b.value(), leaf1);
 }
 
-TEST(SimpleNodeTest, SimpleWalkPrefix) {
+TEST(SimpleNodeTest, SimpleWalkPrefix)
+{
     // 使用非零值作为叶子值
     void* leaf1 = reinterpret_cast<void*>(1);
 

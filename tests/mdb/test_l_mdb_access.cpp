@@ -35,7 +35,8 @@ protected:
     static mc::dbus::connection test_conn;
     static mc::dbus::sd_bus*    test_bus;
 
-    static void SetUpTestSuite() {
+    static void SetUpTestSuite()
+    {
         mc::test::TestBase::SetUpTestSuite();
 
         // 创建 D-Bus 连接
@@ -49,14 +50,16 @@ protected:
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
-    static void TearDownTestSuite() {
+    static void TearDownTestSuite()
+    {
         delete test_bus;
         test_bus = nullptr;
 
         mc::test::TestBase::TearDownTestSuite();
     }
 
-    void SetUp() override {
+    void SetUp() override
+    {
         mc::test::TestBase::SetUp();
 
         // 创建 Lua 状态机
@@ -69,7 +72,8 @@ protected:
         lua_setglobal(L, "mdb_access");
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         if (L) {
             lua_close(L);
             L = nullptr;
@@ -83,7 +87,8 @@ mc::dbus::connection l_mdb_access_test::test_conn;
 mc::dbus::sd_bus*    l_mdb_access_test::test_bus = nullptr;
 
 // 测试注册 mdb_access 函数
-TEST_F(l_mdb_access_test, register_functions) {
+TEST_F(l_mdb_access_test, register_functions)
+{
     // 检查 mdb_access 表是否存在
     lua_getglobal(L, "mdb_access");
     ASSERT_TRUE(lua_istable(L, -1));
@@ -91,7 +96,8 @@ TEST_F(l_mdb_access_test, register_functions) {
 }
 
 // 测试 proxy_object metatable 注册
-TEST_F(l_mdb_access_test, register_proxy_object_metatable) {
+TEST_F(l_mdb_access_test, register_proxy_object_metatable)
+{
     // 注册 metatable
     mc::mdb::lua::register_proxy_object_metatable(L);
 
@@ -102,7 +108,8 @@ TEST_F(l_mdb_access_test, register_proxy_object_metatable) {
 }
 
 // 测试 push_proxy_object 和 check_proxy_object
-TEST_F(l_mdb_access_test, push_and_check_proxy_object) {
+TEST_F(l_mdb_access_test, push_and_check_proxy_object)
+{
     // 由于需要真实的 proxy_object，这里只测试基本功能
     // 创建一个简单的 interface_info
     interface_info iface_info;
@@ -131,7 +138,8 @@ TEST_F(l_mdb_access_test, push_and_check_proxy_object) {
     lua_pop(L, 1);
 }
 
-TEST_F(l_mdb_access_test, lua_call_get_object) {
+TEST_F(l_mdb_access_test, lua_call_get_object)
+{
     // 注册 metatable
     mc::mdb::lua::register_proxy_object_metatable(L);
 

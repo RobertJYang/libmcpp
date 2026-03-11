@@ -12,8 +12,8 @@
 #ifndef MC_INTROSPECTION_PARSER_H
 #define MC_INTROSPECTION_PARSER_H
 
-#include <string>
 #include "introspection_types.h"
+#include <string>
 
 #include <boost/property_tree/ptree_fwd.hpp>
 

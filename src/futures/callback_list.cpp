@@ -16,11 +16,13 @@
 
 namespace mc::futures {
 
-callback_pool& callback_pool::instance() {
+callback_pool& callback_pool::instance()
+{
     return mc::singleton<callback_pool>::instance();
 }
 
-std::unique_ptr<callback_node> callback_pool::acquire_node(callback_type callback) {
+std::unique_ptr<callback_node> callback_pool::acquire_node(callback_type callback)
+{
     std::unique_ptr<callback_node> node;
 
     {
@@ -42,7 +44,8 @@ std::unique_ptr<callback_node> callback_pool::acquire_node(callback_type callbac
     return node;
 }
 
-void callback_pool::release_node(std::unique_ptr<callback_node> node) {
+void callback_pool::release_node(std::unique_ptr<callback_node> node)
+{
     if (!node) {
         return;
     }
@@ -61,7 +64,8 @@ void callback_pool::release_node(std::unique_ptr<callback_node> node) {
     m_pool_size++;
 }
 
-void callback_pool::set_max_pool_size(std::size_t max_size) {
+void callback_pool::set_max_pool_size(std::size_t max_size)
+{
     std::lock_guard<std::mutex> lock(m_mutex);
     m_max_pool_size = max_size;
 
@@ -73,18 +77,21 @@ void callback_pool::set_max_pool_size(std::size_t max_size) {
     }
 }
 
-callback_pool::pool_stats callback_pool::get_stats() const {
+callback_pool::pool_stats callback_pool::get_stats() const
+{
     std::lock_guard<std::mutex> lock(m_mutex);
     return {m_pool_size, m_max_pool_size};
 }
 
-void callback_pool::clear() {
+void callback_pool::clear()
+{
     std::lock_guard<std::mutex> lock(m_mutex);
     m_pool_head = nullptr;
     m_pool_size = 0;
 }
 
-void callback_list::push_back(callback_type callback) {
+void callback_list::push_back(callback_type callback)
+{
     auto node = callback_pool::instance().acquire_node(std::move(callback));
     if (!m_head) {
         m_tail = node.get();
@@ -95,7 +102,8 @@ void callback_list::push_back(callback_type callback) {
     }
 }
 
-void callback_list::execute_and_clear() {
+void callback_list::execute_and_clear()
+{
     auto current = std::move(m_head);
     m_tail       = nullptr;
 
@@ -108,12 +116,14 @@ void callback_list::execute_and_clear() {
     }
 }
 
-void callback_list::swap(callback_list& other) noexcept {
+void callback_list::swap(callback_list& other) noexcept
+{
     std::swap(m_head, other.m_head);
     std::swap(m_tail, other.m_tail);
 }
 
-void callback_list::clear() {
+void callback_list::clear()
+{
     auto current = std::move(m_head);
     m_tail       = nullptr;
 
@@ -126,11 +136,13 @@ void callback_list::clear() {
     }
 }
 
-bool callback_list::empty() const {
+bool callback_list::empty() const
+{
     return m_head == nullptr;
 }
 
-std::size_t callback_list::size() const {
+std::size_t callback_list::size() const
+{
     std::size_t count  = 0;
     auto*       cursor = m_head.get();
     while (cursor != nullptr) {

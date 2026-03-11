@@ -26,20 +26,23 @@
 
 namespace mc::expr {
 
-void to_variant(const func_call& fc, mc::variant& v) {
+void to_variant(const func_call& fc, mc::variant& v)
+{
     mc::dict d;
     d.insert("func", mc::variant(fc.func));
     d.insert("params", mc::variant(fc.params));
     v = mc::variant(d);
 }
 
-void from_variant(const mc::variant& v, func_call& fc) {
+void from_variant(const mc::variant& v, func_call& fc)
+{
     const auto& d = v.as_dict();
     fc.func       = d.at("func").as_string();
     fc.params     = d.at("params").as_dict();
 }
 
-bool is_function_call(const mc::variant& v) {
+bool is_function_call(const mc::variant& v)
+{
     if (!v.is_dict()) {
         return false;
     }
@@ -60,19 +63,22 @@ bool is_function_call(const mc::variant& v) {
     return true;
 }
 
-void func::validate_result() {
+void func::validate_result()
+{
     if (m_result == "") {
         MC_THROW(mc::parse_error_exception, "Func result is not initialized");
     }
 }
 
-void func::validate_args() {
+void func::validate_args()
+{
     if (m_args.empty()) {
         MC_THROW(mc::parse_error_exception, "Func args Compatible is empty");
     }
 }
 
-bool is_relate_property(const mc::variant& value) {
+bool is_relate_property(const mc::variant& value)
+{
     // 检查是否为字典类型
     if (value.get_type() != mc::type_id::object_type) {
         return false;
@@ -108,7 +114,8 @@ bool is_relate_property(const mc::variant& value) {
 }
 
 // 生成 relate_property 的标准化key
-std::string generate_relate_property_key(const mc::variant& prop_value) {
+std::string generate_relate_property_key(const mc::variant& prop_value)
+{
     std::string object_name    = prop_value["object_name"].as<std::string>();
     std::string property_name  = prop_value["property_name"].as<std::string>();
     std::string interface_name = prop_value["interface"].as<std::string>();
@@ -123,7 +130,8 @@ std::string generate_relate_property_key(const mc::variant& prop_value) {
 }
 
 // 处理函数调用
-mc::variant handle_function_call(const mc::variant& call_value, const std::string_view& position) {
+mc::variant handle_function_call(const mc::variant& call_value, const std::string_view& position)
+{
     auto functions = func_collection::get_instance().get(position);
 
     // 创建一个可变的字典来存储参数
@@ -139,7 +147,8 @@ mc::variant handle_function_call(const mc::variant& call_value, const std::strin
 }
 
 // 处理属性引用
-mc::variant handle_relate_property(const mc::variant& prop_value, const std::string_view& position) {
+mc::variant handle_relate_property(const mc::variant& prop_value, const std::string_view& position)
+{
     auto service = func_collection::get_instance().get_service(position);
     if (service == nullptr) {
         elog("Service not found: ${object_name}", ("object_name", prop_value["object_name"].as<std::string>()));
@@ -166,7 +175,8 @@ mc::variant handle_relate_property(const mc::variant& prop_value, const std::str
 // 处理单个参数的变量注册
 void handle_parameter_registration(mc::expr::context& ctx, const std::string& key,
                                    const mc::variant&      param_value,
-                                   const std::string_view& position) {
+                                   const std::string_view& position)
+{
     if (is_function_call(param_value)) {
         // 处理函数调用
         mc::variant result = handle_function_call(param_value, position);
@@ -181,7 +191,8 @@ void handle_parameter_registration(mc::expr::context& ctx, const std::string& ke
     }
 }
 
-mc::variant func::call(const std::string_view& position, mc::dict& params) {
+mc::variant func::call(const std::string_view& position, mc::dict& params)
+{
     mc::expr::engine engine;
     auto&            ctx = engine.get_global_context();
 
@@ -202,7 +213,8 @@ mc::variant func::call(const std::string_view& position, mc::dict& params) {
     return engine.evaluate(m_result, ctx);
 }
 
-mc::dict func::get_relate_properties(const std::string_view& position, mc::dict& params) {
+mc::dict func::get_relate_properties(const std::string_view& position, mc::dict& params)
+{
     mc::dict relate_properties;
     // 处理所有参数
     for (auto& item : m_args) {
