@@ -102,6 +102,145 @@ TEST_F(state_pool_test, pool_reuse)
     EXPECT_EQ(stats.total_global_states, 1) << "应该有状态被缓存";
 }
 
+// 验证 State 从池中复用时，旧值的析构函数必须被调用（否则产生内存泄漏）
+//
+// 复现路径：
+//   1. 第一次使用 State<T>：构造时 m_destory = get_destory_()（非平凡类型不为 nullptr）
+//   2. 释放后 state_base::reset() 将 m_destory 置为 nullptr，State 进池
+//   3. 第二次从池中复用：State<T>::reuse() 未恢复 m_destory
+//   4. 第二次释放：destory() 因 m_destory==nullptr 跳过 destory_impl，
+//      m_result 中的值（如 DBusMessage* 引用计数）永远不会被析构 → 内存泄漏
+//
+// 用 std::shared_ptr<int> 作为值类型，通过 weak_ptr::expired() 检测析构是否发生
+TEST_F(state_pool_test, pool_reuse_no_value_leak)
+{
+    std::weak_ptr<int> weak1;
+    std::weak_ptr<int> weak2;
+
+    // 第一次使用：State 第一次创建，m_destory 正常，值应该被正确析构
+    {
+        auto promise = mc::make_promise<std::shared_ptr<int>>(io_context_);
+        auto future  = promise.get_future();
+        auto val     = std::make_shared<int>(42);
+        weak1        = val;
+        promise.set_value(std::move(val));
+        EXPECT_EQ(*future.get(), 42);
+        // 离开作用域：future/promise 析构 → state ref count 归零 → destroy() 被调用
+        // m_destory 非 nullptr → destory_impl 被调用 → m_result 被清空 → val 引用计数归零
+    }
+    // 第一次使用后值应该已经析构（基线验证，应该通过）
+    EXPECT_TRUE(weak1.expired()) << "第一次使用后值应被正确析构（基线）";
+
+    // 第二次使用：从池中复用 State，此时存在 m_destory == nullptr 的 bug
+    {
+        auto promise = mc::make_promise<std::shared_ptr<int>>(io_context_);
+        auto future  = promise.get_future();
+        auto val     = std::make_shared<int>(100);
+        weak2        = val;
+        promise.set_value(std::move(val));
+        EXPECT_EQ(*future.get(), 100);
+        // 离开作用域：future/promise 析构 → state ref count 归零 → destroy() 被调用
+        // BUG：m_destory == nullptr → destory_impl 未调用 → m_result 未被清空
+        // val 的引用计数保持为 1（m_result 持有），shared_ptr 不会析构 → 内存泄漏
+    }
+
+    // 第二次使用后，值也应该被析构
+    // BUG 存在时：weak2 未过期（m_result 仍然持有值），valgrind 会报告堆内存泄漏
+    // BUG 修复后：weak2 过期（m_result 已被清空），valgrind 无泄漏
+    EXPECT_TRUE(weak2.expired())
+        << "第二次（池复用）使用后值应被正确析构；"
+           "若此断言失败，valgrind 将报告 State<T>::reuse() 未恢复 m_destory 导致的内存泄漏";
+}
+
+// 多次复用时值不泄漏：验证第3次、第4次复用同样正确
+TEST_F(state_pool_test, pool_reuse_multiple_times_no_leak)
+{
+    constexpr int                   rounds = 5;
+    std::vector<std::weak_ptr<int>> weaks(rounds);
+
+    for (int i = 0; i < rounds; ++i) {
+        auto promise = mc::make_promise<std::shared_ptr<int>>(io_context_);
+        auto future  = promise.get_future();
+        auto val     = std::make_shared<int>(i * 10);
+        weaks[i]     = val;
+        promise.set_value(std::move(val));
+        EXPECT_EQ(*future.get(), i * 10);
+        // 离开作用域后 state 回池
+    }
+
+    // 每一轮的值都应该已经被析构
+    for (int i = 0; i < rounds; ++i) {
+        EXPECT_TRUE(weaks[i].expired())
+            << "第 " << i + 1 << " 次复用后值应被正确析构";
+    }
+}
+
+// 非平凡类型（std::string）复用时不泄漏：string 在堆上有动态分配，valgrind 可检测
+TEST_F(state_pool_test, pool_reuse_string_no_leak)
+{
+    // std::string 是非平凡类型，m_destory 必须被正确恢复才能释放其堆内存
+    for (int i = 0; i < 3; ++i) {
+        auto promise = mc::make_promise<std::string>(io_context_);
+        auto future  = promise.get_future();
+        // 超过 SSO 阈值，确保堆上有动态分配
+        promise.set_value(std::string(64, 'a' + i));
+        EXPECT_EQ(future.get().size(), 64u);
+    }
+    // valgrind 应无 "definitely lost" 报告
+}
+
+// void 类型复用不受 bug 影响（monostate 是平凡类型，m_destory 本来就是 nullptr）
+// 此用例验证修复不破坏 void future 的正常行为
+TEST_F(state_pool_test, pool_reuse_void_no_regression)
+{
+    for (int i = 0; i < 3; ++i) {
+        auto promise = mc::make_promise<void>(io_context_);
+        auto future  = promise.get_future();
+        promise.set_value();
+        future.get(); // 不应抛异常
+    }
+}
+
+// 平凡类型（int）复用不受 bug 影响（get_destory_() 本就为 nullptr，修复是幂等的）
+// 此用例验证修复不破坏平凡类型 future 的正常行为
+TEST_F(state_pool_test, pool_reuse_trivial_type_no_regression)
+{
+    for (int i = 0; i < 3; ++i) {
+        auto promise = mc::make_promise<int>(io_context_);
+        auto future  = promise.get_future();
+        promise.set_value(i * 100);
+        EXPECT_EQ(future.get(), i * 100);
+    }
+}
+
+// 复用后 future 设置异常时值也不泄漏
+TEST_F(state_pool_test, pool_reuse_exception_no_leak)
+{
+    // 第一次：正常完成，State 进池
+    {
+        auto promise = mc::make_promise<std::shared_ptr<int>>(io_context_);
+        auto future  = promise.get_future();
+        promise.set_value(std::make_shared<int>(1));
+        future.get();
+    }
+
+    // 第二次（复用）：通过异常路径结束
+    std::weak_ptr<int> weak;
+    {
+        auto promise = mc::make_promise<std::shared_ptr<int>>(io_context_);
+        auto future  = promise.get_future();
+        auto val     = std::make_shared<int>(2);
+        weak         = val;
+        // 以异常而非正常值结束，m_result 不会被 set_value 填入
+        // 但要验证 State 正常析构时不会 crash
+        promise.set_exception(std::make_exception_ptr(std::runtime_error("test")));
+        EXPECT_THROW(future.get(), std::runtime_error);
+    }
+    // 异常路径不会将值写入 m_result，val 的引用计数由 weak 和本地 val 控制
+    // val 在上面的块中已经超出作用域，应该已经析构
+    EXPECT_TRUE(weak.expired()) << "异常路径下 val 应在作用域结束时析构";
+}
+
 // 池大小限制测试
 TEST_F(state_pool_test, pool_size_limit)
 {
@@ -319,6 +458,155 @@ TEST_F(state_pool_test, pool_count_limit)
     // 检查池数量不超过限制
     auto stats = pool.get_stats();
     EXPECT_LE(stats.total_pools, 2) << "池数量不应超过限制";
+}
+
+// =============================================================================
+// 验证 get_destory_() 的类型分类行为
+// =============================================================================
+
+namespace {
+
+// ---- 编译期断言：哪些类型属于平凡析构（get_destory_() = nullptr） ----
+//
+// std::optional<T> 是平凡析构 当且仅当 T 是平凡析构；
+// get_destory_() 以 is_trivially_destructible_v<optional<T>> 作为判据。
+
+// 平凡析构类型：不会调用 destory_impl，也不需要调用（无副作用析构）
+static_assert(std::is_trivially_destructible_v<std::optional<int>>,
+              "State<int>: get_destory_() 返回 nullptr，destory_impl 不被调用");
+static_assert(std::is_trivially_destructible_v<std::optional<double>>,
+              "State<double>: get_destory_() 返回 nullptr");
+static_assert(std::is_trivially_destructible_v<std::optional<std::monostate>>,
+              "State<void>: monostate 是平凡析构，get_destory_() 返回 nullptr");
+
+struct trivial_pod {
+    int   x;
+    float y;
+};
+static_assert(std::is_trivially_destructible_v<std::optional<trivial_pod>>,
+              "纯 POD 结构体：平凡析构，get_destory_() 返回 nullptr");
+
+// 非平凡析构类型：必须调用 destory_impl 才能释放资源
+static_assert(!std::is_trivially_destructible_v<std::optional<std::shared_ptr<int>>>,
+              "State<shared_ptr>: get_destory_() 必须返回 &destory_impl");
+static_assert(!std::is_trivially_destructible_v<std::optional<std::string>>,
+              "State<string>: get_destory_() 必须返回 &destory_impl");
+static_assert(!std::is_trivially_destructible_v<std::optional<std::vector<int>>>,
+              "State<vector>: get_destory_() 必须返回 &destory_impl");
+
+// 含用户提供析构函数的类型：即使析构体为空，也是非平凡析构
+struct user_dtor_empty {
+    int x;
+    ~user_dtor_empty()
+    {
+    } // 空析构函数 → 非平凡析构
+};
+static_assert(!std::is_trivially_destructible_v<std::optional<user_dtor_empty>>,
+              "含用户析构函数（即使为空）的类型是非平凡析构，"
+              "get_destory_() 返回 &destory_impl");
+
+// 含原始指针的"伪资源"类型：由于无用户析构函数，属于平凡析构；
+// m_destory = nullptr，state_pool 不会释放指针——指针生命周期由调用者负责。
+struct raw_ptr_holder {
+    int* p; // 持有裸指针但无析构函数
+};
+static_assert(std::is_trivially_destructible_v<std::optional<raw_ptr_holder>>,
+              "裸指针包装体没有用户析构函数，属于平凡析构；"
+              "get_destory_() 返回 nullptr，调用者必须自行管理指针生命周期");
+
+} // anonymous namespace
+
+// 运行期：含用户析构函数的类型，验证池复用时析构依然被调用
+//
+// tracked_struct 含 shared_ptr 成员和用户析构函数：
+//   - is_trivially_destructible = false → get_destory_() 返回 &destory_impl
+//   - 池复用时 State<T>::reuse() 必须恢复 m_destory，否则析构不会被调用
+TEST_F(state_pool_test, get_destory_user_dtor_type_dtor_called_on_pool_reuse)
+{
+    struct tracked_struct {
+        std::shared_ptr<int> owner; // 通过 weak_ptr 间接观察析构是否发生
+        ~tracked_struct()
+        {
+        } // 用户析构函数 → 非平凡析构
+    };
+    static_assert(!std::is_trivially_destructible_v<std::optional<tracked_struct>>);
+
+    std::weak_ptr<int> weak1;
+    std::weak_ptr<int> weak2;
+
+    // 第一轮（新分配）：基线验证
+    {
+        auto promise = mc::make_promise<tracked_struct>(io_context_);
+        auto future  = promise.get_future();
+        auto sp      = std::make_shared<int>(1);
+        weak1        = sp;
+        promise.set_value(tracked_struct{std::move(sp)});
+        EXPECT_EQ(*future.get().owner, 1);
+    }
+    EXPECT_TRUE(weak1.expired()) << "首次使用后析构应被调用（基线）";
+
+    // 第二轮（池复用）：关键验证——若 reuse() 未恢复 m_destory，析构不会被调用
+    {
+        auto promise = mc::make_promise<tracked_struct>(io_context_);
+        auto future  = promise.get_future();
+        auto sp      = std::make_shared<int>(2);
+        weak2        = sp;
+        promise.set_value(tracked_struct{std::move(sp)});
+        EXPECT_EQ(*future.get().owner, 2);
+    }
+    EXPECT_TRUE(weak2.expired())
+        << "池复用后，含用户析构函数的类型析构仍应被调用；"
+           "若此断言失败，说明 reuse() 未恢复 m_destory，destory_impl 被跳过";
+}
+
+// 运行期：vector<shared_ptr> 多次复用，确保每轮所有堆对象均被析构
+// vector 是非平凡析构，get_destory_() 返回 &destory_impl
+TEST_F(state_pool_test, get_destory_vector_heap_objects_freed_on_reuse)
+{
+    static_assert(!std::is_trivially_destructible_v<std::optional<std::vector<std::shared_ptr<int>>>>);
+
+    constexpr int                   rounds    = 4;
+    constexpr int                   per_round = 3;
+    std::vector<std::weak_ptr<int>> weaks;
+
+    for (int i = 0; i < rounds; ++i) {
+        auto promise = mc::make_promise<std::vector<std::shared_ptr<int>>>(io_context_);
+        auto future  = promise.get_future();
+
+        std::vector<std::shared_ptr<int>> elems;
+        for (int j = 0; j < per_round; ++j) {
+            auto sp = std::make_shared<int>(i * 10 + j);
+            weaks.push_back(sp);
+            elems.push_back(std::move(sp));
+        }
+        promise.set_value(std::move(elems));
+        ASSERT_EQ(static_cast<int>(future.get().size()), per_round);
+    }
+
+    for (int i = 0; i < rounds * per_round; ++i) {
+        EXPECT_TRUE(weaks[i].expired())
+            << "第 " << i / per_round + 1 << " 轮第 " << i % per_round + 1
+            << " 个元素应在 destory_impl 调用后析构";
+    }
+}
+
+// 运行期：平凡析构类型（int）—— get_destory_() 返回 nullptr，destory_impl 不被调用；
+// 但因 reuse() 中有显式 m_result.~result_type()/placement-new，旧值不会泄露给新一轮。
+// 验证新一轮始终能获取到正确的新值，而非上一轮残留的旧值。
+TEST_F(state_pool_test, get_destory_trivial_type_no_stale_value_after_reuse)
+{
+    static_assert(std::is_trivially_destructible_v<std::optional<int>>,
+                  "int 是平凡析构：destory_impl 不被调用，"
+                  "reuse() 的显式 placement-new 负责清除旧值");
+
+    for (int i = 0; i < 5; ++i) {
+        auto promise = mc::make_promise<int>(io_context_);
+        auto future  = promise.get_future();
+        promise.set_value(i * 111);
+        EXPECT_EQ(future.get(), i * 111)
+            << "第 " << i + 1 << " 轮：复用 State 后应读到本轮写入的值 "
+            << i * 111 << "，而不是上一轮的残留值";
+    }
 }
 
 // 多线程并发测试

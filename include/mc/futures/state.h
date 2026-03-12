@@ -159,6 +159,11 @@ public:
         static_assert(std::is_same_v<Executor, executor_type> ||
                           boost::asio::is_executor<Executor>::value,
                       "reuse() 参数必须是 executor 类型");
+        // state_base::destory() 调用链末尾的 state_base::reset() 会将 m_destory 清为
+        // nullptr。重新从池中取出时必须在此恢复，否则第二次释放时 destory_impl 不会被调
+        // 用，m_result 持有的非平凡类型（如 mc::dbus::message 的 DBusMessage* 引用计数）
+        // 将永远得不到析构，造成内存泄漏。
+        m_destory = get_destory_();
         new (static_cast<result_type*>(&m_result)) result_type();
         state_base::reuse(executor_type(std::move(executor)));
     }
