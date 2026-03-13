@@ -191,55 +191,55 @@ bool json_equal(const Json* lhs, const Json* rhs)
     }
 
     switch (lhs_type) {
-    case JSONTYPE_NULL:
-        return true;
-    case JSONTYPE_TRUE:
-    case JSONTYPE_FALSE: {
-        bool lhs_val = false;
-        bool rhs_val = false;
-        check_json_ret(JsonItemBoolValueGet(lhs, &lhs_val), "Failed to get bool value (lhs)");
-        check_json_ret(JsonItemBoolValueGet(rhs, &rhs_val), "Failed to get bool value (rhs)");
-        return lhs_val == rhs_val;
-    }
-    case JSONTYPE_NUMBER: {
-        // 先尽量按整数比较，如果存在类型不匹配则统一用 double 比较
-        int64_t  lhs_int = 0;
-        int64_t  rhs_int = 0;
-        uint32_t rl      = JsonItemIntegerValueGet(const_cast<Json*>(lhs), &lhs_int);
-        uint32_t rr      = JsonItemIntegerValueGet(const_cast<Json*>(rhs), &rhs_int);
-        if (rl == JSON_OK && rr == JSON_OK) {
-            return lhs_int == rhs_int;
+        case JSONTYPE_NULL:
+            return true;
+        case JSONTYPE_TRUE:
+        case JSONTYPE_FALSE: {
+            bool lhs_val = false;
+            bool rhs_val = false;
+            check_json_ret(JsonItemBoolValueGet(lhs, &lhs_val), "Failed to get bool value (lhs)");
+            check_json_ret(JsonItemBoolValueGet(rhs, &rhs_val), "Failed to get bool value (rhs)");
+            return lhs_val == rhs_val;
         }
+        case JSONTYPE_NUMBER: {
+            // 先尽量按整数比较，如果存在类型不匹配则统一用 double 比较
+            int64_t  lhs_int = 0;
+            int64_t  rhs_int = 0;
+            uint32_t rl      = JsonItemIntegerValueGet(const_cast<Json*>(lhs), &lhs_int);
+            uint32_t rr      = JsonItemIntegerValueGet(const_cast<Json*>(rhs), &rhs_int);
+            if (rl == JSON_OK && rr == JSON_OK) {
+                return lhs_int == rhs_int;
+            }
 
-        double lhs_d = 0.0;
-        double rhs_d = 0.0;
-        check_json_ret(JsonItemDoubleValueGet(lhs, &lhs_d), "Failed to get double value (lhs)");
-        check_json_ret(JsonItemDoubleValueGet(rhs, &rhs_d), "Failed to get double value (rhs)");
-        return lhs_d == rhs_d;
-    }
-    case JSONTYPE_STRING: {
-        char* lhs_str = nullptr;
-        char* rhs_str = nullptr;
-        check_json_ret(JsonItemStringValueGet(lhs, &lhs_str), "Failed to get string value (lhs)");
-        check_json_ret(JsonItemStringValueGet(rhs, &rhs_str), "Failed to get string value (rhs)");
-        if (lhs_str == nullptr || rhs_str == nullptr) {
-            return lhs_str == rhs_str;
+            double lhs_d = 0.0;
+            double rhs_d = 0.0;
+            check_json_ret(JsonItemDoubleValueGet(lhs, &lhs_d), "Failed to get double value (lhs)");
+            check_json_ret(JsonItemDoubleValueGet(rhs, &rhs_d), "Failed to get double value (rhs)");
+            return lhs_d == rhs_d;
         }
-        return std::strcmp(lhs_str, rhs_str) == 0;
-    }
-    case JSONTYPE_ARRAY:
-        return json_array_equal(lhs, rhs);
-    case JSONTYPE_OBJECT:
-        return json_object_equal(lhs, rhs);
-    case JSONTYPE_QUOTE: {
-        Json* lhs_obj = nullptr;
-        Json* rhs_obj = nullptr;
-        check_json_ret(JsonObjectQuoteGet(lhs, &lhs_obj), "Failed to get quote object (lhs)");
-        check_json_ret(JsonObjectQuoteGet(rhs, &rhs_obj), "Failed to get quote object (rhs)");
-        return json_equal(lhs_obj, rhs_obj);
-    }
-    default:
-        return false;
+        case JSONTYPE_STRING: {
+            char* lhs_str = nullptr;
+            char* rhs_str = nullptr;
+            check_json_ret(JsonItemStringValueGet(lhs, &lhs_str), "Failed to get string value (lhs)");
+            check_json_ret(JsonItemStringValueGet(rhs, &rhs_str), "Failed to get string value (rhs)");
+            if (lhs_str == nullptr || rhs_str == nullptr) {
+                return lhs_str == rhs_str;
+            }
+            return std::strcmp(lhs_str, rhs_str) == 0;
+        }
+        case JSONTYPE_ARRAY:
+            return json_array_equal(lhs, rhs);
+        case JSONTYPE_OBJECT:
+            return json_object_equal(lhs, rhs);
+        case JSONTYPE_QUOTE: {
+            Json* lhs_obj = nullptr;
+            Json* rhs_obj = nullptr;
+            check_json_ret(JsonObjectQuoteGet(lhs, &lhs_obj), "Failed to get quote object (lhs)");
+            check_json_ret(JsonObjectQuoteGet(rhs, &rhs_obj), "Failed to get quote object (rhs)");
+            return json_equal(lhs_obj, rhs_obj);
+        }
+        default:
+            return false;
     }
 }
 
@@ -311,92 +311,92 @@ mc::variant build_variant_from_json(const Json* json)
 
     JsonType type = JsonTypeGet(json);
     switch (type) {
-    case JSONTYPE_NULL:
-        return mc::variant();
-    case JSONTYPE_TRUE:
-    case JSONTYPE_FALSE: {
-        bool v = false;
-        check_json_ret(JsonItemBoolValueGet(json, &v), "Failed to get bool value");
-        return mc::variant(v);
-    }
-    case JSONTYPE_NUMBER: {
-        int64_t  iv  = 0;
-        uint32_t ret = JsonItemIntegerValueGet(const_cast<Json*>(json), &iv);
-        if (ret == JSON_OK) {
-            return mc::variant(iv);
-        }
-        double dv = 0.0;
-        check_json_ret(JsonItemDoubleValueGet(json, &dv), "Failed to get double value");
-        return mc::variant(dv);
-    }
-    case JSONTYPE_STRING: {
-        char* str = nullptr;
-        check_json_ret(JsonItemStringValueGet(json, &str), "Failed to get string value");
-        if (str == nullptr) {
+        case JSONTYPE_NULL:
             return mc::variant();
+        case JSONTYPE_TRUE:
+        case JSONTYPE_FALSE: {
+            bool v = false;
+            check_json_ret(JsonItemBoolValueGet(json, &v), "Failed to get bool value");
+            return mc::variant(v);
         }
-        // 直接使用 const char* 构造 variant，避免先构造 std::string
-        // variant 可以从 const char* 直接构造（通过 string_view）
-        return mc::variant(str);
-    }
-    case JSONTYPE_ARRAY: {
-        uint32_t size = 0;
-        check_json_ret(JsonArraySizeGet(json, &size), "Failed to get array size");
-        if (size == 0) {
-            return mc::variant(mc::variants());
+        case JSONTYPE_NUMBER: {
+            int64_t  iv  = 0;
+            uint32_t ret = JsonItemIntegerValueGet(const_cast<Json*>(json), &iv);
+            if (ret == JSON_OK) {
+                return mc::variant(iv);
+            }
+            double dv = 0.0;
+            check_json_ret(JsonItemDoubleValueGet(json, &dv), "Failed to get double value");
+            return mc::variant(dv);
         }
-        mc::variants arr;
-        arr.reserve(size);
-        for (uint32_t i = 0; i < size; ++i) {
-            Json* item = nullptr;
-            check_json_ret(JsonArrayItemGet(json, i, &item), "Failed to get array item");
-
-            // 如果 item 是 Quote 类型，JsonTypeGet(item) 会返回 JSONTYPE_QUOTE
-            // 递归调用 build_variant_from_json(item) 会进入 JSONTYPE_QUOTE 分支处理
-            // 因此这里不需要检查 JsonIsQuote
-            arr.push_back(build_variant_from_json(item));
-        }
-        return mc::variant(arr);
-    }
-    case JSONTYPE_OBJECT: {
-        mc::dict obj;
-        Json*    child = nullptr;
-        uint32_t ret   = JsonItemFirstChild(const_cast<Json*>(json), &child);
-        if (ret == JSON_NO_FIRST_CHILD) {
-            return mc::variant(obj);
-        }
-        check_json_ret(ret, "Failed to get first child of object");
-
-        while (child != nullptr) {
-            char* key_c = nullptr;
-            check_json_ret(JsonItemKeyGet(child, &key_c), "Failed to get object key");
+        case JSONTYPE_STRING: {
+            char* str = nullptr;
+            check_json_ret(JsonItemStringValueGet(json, &str), "Failed to get string value");
+            if (str == nullptr) {
+                return mc::variant();
+            }
             // 直接使用 const char* 构造 variant，避免先构造 std::string
             // variant 可以从 const char* 直接构造（通过 string_view）
-            // 一般键值不会是空，所以优先使用 key_c，只有在为空时才使用空字符串
-            mc::variant key_var(key_c ? key_c : "");
-
-            // 如果 child 是 Quote 类型，JsonTypeGet(child) 会返回 JSONTYPE_QUOTE
-            // 递归调用 build_variant_from_json(child) 会进入 JSONTYPE_QUOTE 分支处理
-            // 因此这里不需要检查 JsonIsQuote
-            obj(key_var, build_variant_from_json(child));
-
-            Json*    next = nullptr;
-            uint32_t r    = JsonItemNextSibling(child, &next);
-            if (r == JSON_NO_NEXT_SIBLING) {
-                break;
-            }
-            check_json_ret(r, "Failed to get next child");
-            child = next;
+            return mc::variant(str);
         }
-        return mc::variant(obj);
-    }
-    case JSONTYPE_QUOTE: {
-        Json* target = nullptr;
-        check_json_ret(JsonObjectQuoteGet(const_cast<Json*>(json), &target), "Failed to get quote object");
-        return build_variant_from_json(target);
-    }
-    default:
-        MC_THROW(mc::parse_error_exception, "Unsupported JSON node type");
+        case JSONTYPE_ARRAY: {
+            uint32_t size = 0;
+            check_json_ret(JsonArraySizeGet(json, &size), "Failed to get array size");
+            if (size == 0) {
+                return mc::variant(mc::variants());
+            }
+            mc::variants arr;
+            arr.reserve(size);
+            for (uint32_t i = 0; i < size; ++i) {
+                Json* item = nullptr;
+                check_json_ret(JsonArrayItemGet(json, i, &item), "Failed to get array item");
+
+                // 如果 item 是 Quote 类型，JsonTypeGet(item) 会返回 JSONTYPE_QUOTE
+                // 递归调用 build_variant_from_json(item) 会进入 JSONTYPE_QUOTE 分支处理
+                // 因此这里不需要检查 JsonIsQuote
+                arr.push_back(build_variant_from_json(item));
+            }
+            return mc::variant(arr);
+        }
+        case JSONTYPE_OBJECT: {
+            mc::dict obj;
+            Json*    child = nullptr;
+            uint32_t ret   = JsonItemFirstChild(const_cast<Json*>(json), &child);
+            if (ret == JSON_NO_FIRST_CHILD) {
+                return mc::variant(obj);
+            }
+            check_json_ret(ret, "Failed to get first child of object");
+
+            while (child != nullptr) {
+                char* key_c = nullptr;
+                check_json_ret(JsonItemKeyGet(child, &key_c), "Failed to get object key");
+                // 直接使用 const char* 构造 variant，避免先构造 std::string
+                // variant 可以从 const char* 直接构造（通过 string_view）
+                // 一般键值不会是空，所以优先使用 key_c，只有在为空时才使用空字符串
+                mc::variant key_var(key_c ? key_c : "");
+
+                // 如果 child 是 Quote 类型，JsonTypeGet(child) 会返回 JSONTYPE_QUOTE
+                // 递归调用 build_variant_from_json(child) 会进入 JSONTYPE_QUOTE 分支处理
+                // 因此这里不需要检查 JsonIsQuote
+                obj(key_var, build_variant_from_json(child));
+
+                Json*    next = nullptr;
+                uint32_t r    = JsonItemNextSibling(child, &next);
+                if (r == JSON_NO_NEXT_SIBLING) {
+                    break;
+                }
+                check_json_ret(r, "Failed to get next child");
+                child = next;
+            }
+            return mc::variant(obj);
+        }
+        case JSONTYPE_QUOTE: {
+            Json* target = nullptr;
+            check_json_ret(JsonObjectQuoteGet(const_cast<Json*>(json), &target), "Failed to get quote object");
+            return build_variant_from_json(target);
+        }
+        default:
+            MC_THROW(mc::parse_error_exception, "Unsupported JSON node type");
     }
 }
 

@@ -210,39 +210,39 @@ struct compile_format_arg {
     constexpr void visit(Visitor&& vis) const
     {
         switch (type) {
-        case compile_arg_enum::null_type:
-            vis(nullptr);
-            break;
-        case compile_arg_enum::bool_type:
-            vis(false);
-            break;
-        case compile_arg_enum::char_type:
-            vis(char{});
-            break;
-        case compile_arg_enum::signed_type:
-            vis(int64_t{});
-            break;
-        case compile_arg_enum::unsigned_type:
-            vis(uint64_t{});
-            break;
-        case compile_arg_enum::double_type:
-            vis(double{});
-            break;
-        case compile_arg_enum::float_type:
-            vis(float{});
-            break;
-        case compile_arg_enum::long_double_type:
-            vis(static_cast<long double>(0));
-            break;
-        case compile_arg_enum::string_type:
-            vis(std::string_view{});
-            break;
-        case compile_arg_enum::pointer_type:
-            vis(static_cast<const void*>(nullptr));
-            break;
-        case compile_arg_enum::custom_type:
-            vis(custom_value);
-            break;
+            case compile_arg_enum::null_type:
+                vis(nullptr);
+                break;
+            case compile_arg_enum::bool_type:
+                vis(false);
+                break;
+            case compile_arg_enum::char_type:
+                vis(char{});
+                break;
+            case compile_arg_enum::signed_type:
+                vis(int64_t{});
+                break;
+            case compile_arg_enum::unsigned_type:
+                vis(uint64_t{});
+                break;
+            case compile_arg_enum::double_type:
+                vis(double{});
+                break;
+            case compile_arg_enum::float_type:
+                vis(float{});
+                break;
+            case compile_arg_enum::long_double_type:
+                vis(static_cast<long double>(0));
+                break;
+            case compile_arg_enum::string_type:
+                vis(std::string_view{});
+                break;
+            case compile_arg_enum::pointer_type:
+                vis(static_cast<const void*>(nullptr));
+                break;
+            case compile_arg_enum::custom_type:
+                vis(custom_value);
+                break;
         }
     }
 
@@ -387,32 +387,32 @@ public:
 
         set_invalid();
         switch (result.err) {
-        case detail::parser_error::invalid_brace_arg:
-            MC_COMPILE_TIME_ERROR("未找到对应的 '}'");
-            break;
-        case detail::parser_error::invalid_named_arg_name:
-            MC_COMPILE_TIME_ERROR("命名参数名称不能为空");
-            break;
-        case detail::parser_error::invalid_index_arg:
-            MC_COMPILE_TIME_ERROR("位置参数索引必须是数字");
-            break;
-        case detail::parser_error::invalid_single_brace_arg:
-            MC_COMPILE_TIME_ERROR("单独的 '}' 在格式化字符串中");
-            break;
-        case detail::parser_error::name_arg_not_found:
-            MC_COMPILE_TIME_ERROR("找不到命名参数");
-            break;
-        case detail::parser_error::index_arg_not_found:
-            MC_COMPILE_TIME_ERROR("找不到位置参数");
-            break;
-        case detail::parser_error::invalid_spec_arg:
-            MC_COMPILE_TIME_ERROR("格式化字符串或参数错误");
-            break;
-        case detail::parser_error::invalid_dynamic_param:
-            MC_COMPILE_TIME_ERROR("动态参数类型错误");
-            break;
-        default:
-            break;
+            case detail::parser_error::invalid_brace_arg:
+                MC_COMPILE_TIME_ERROR("未找到对应的 '}'");
+                break;
+            case detail::parser_error::invalid_named_arg_name:
+                MC_COMPILE_TIME_ERROR("命名参数名称不能为空");
+                break;
+            case detail::parser_error::invalid_index_arg:
+                MC_COMPILE_TIME_ERROR("位置参数索引必须是数字");
+                break;
+            case detail::parser_error::invalid_single_brace_arg:
+                MC_COMPILE_TIME_ERROR("单独的 '}' 在格式化字符串中");
+                break;
+            case detail::parser_error::name_arg_not_found:
+                MC_COMPILE_TIME_ERROR("找不到命名参数");
+                break;
+            case detail::parser_error::index_arg_not_found:
+                MC_COMPILE_TIME_ERROR("找不到位置参数");
+                break;
+            case detail::parser_error::invalid_spec_arg:
+                MC_COMPILE_TIME_ERROR("格式化字符串或参数错误");
+                break;
+            case detail::parser_error::invalid_dynamic_param:
+                MC_COMPILE_TIME_ERROR("动态参数类型错误");
+                break;
+            default:
+                break;
         }
     }
 

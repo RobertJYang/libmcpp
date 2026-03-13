@@ -198,15 +198,15 @@ public:
         if (m_is_logical) {
             std::string result;
             switch (m_logical_op) {
-            case logical_op::AND:
-                result = "AND(";
-                break;
-            case logical_op::OR:
-                result = "OR(";
-                break;
-            case logical_op::NOT:
-                result = "NOT(";
-                break;
+                case logical_op::AND:
+                    result = "AND(";
+                    break;
+                case logical_op::OR:
+                    result = "OR(";
+                    break;
+                case logical_op::NOT:
+                    result = "NOT(";
+                    break;
             }
 
             for (size_t i = 0; i < m_conditions.size(); ++i) {
@@ -220,36 +220,36 @@ public:
         } else {
             std::string op_str;
             switch (m_op) {
-            case compare_op::eq:
-                op_str = "==";
-                break;
-            case compare_op::ne:
-                op_str = "!=";
-                break;
-            case compare_op::gt:
-                op_str = ">";
-                break;
-            case compare_op::ge:
-                op_str = ">=";
-                break;
-            case compare_op::lt:
-                op_str = "<";
-                break;
-            case compare_op::le:
-                op_str = "<=";
-                break;
-            case compare_op::contains:
-                op_str = "contains";
-                break;
-            case compare_op::like:
-                op_str = "like";
-                break;
-            case compare_op::in:
-                op_str = "in";
-                break;
-            case compare_op::between:
-                op_str = "between";
-                break;
+                case compare_op::eq:
+                    op_str = "==";
+                    break;
+                case compare_op::ne:
+                    op_str = "!=";
+                    break;
+                case compare_op::gt:
+                    op_str = ">";
+                    break;
+                case compare_op::ge:
+                    op_str = ">=";
+                    break;
+                case compare_op::lt:
+                    op_str = "<";
+                    break;
+                case compare_op::le:
+                    op_str = "<=";
+                    break;
+                case compare_op::contains:
+                    op_str = "contains";
+                    break;
+                case compare_op::like:
+                    op_str = "like";
+                    break;
+                case compare_op::in:
+                    op_str = "in";
+                    break;
+                case compare_op::between:
+                    op_str = "between";
+                    break;
             }
 
             std::string value_str;
@@ -279,33 +279,33 @@ private:
         }
 
         switch (m_logical_op) {
-        case logical_op::AND: {
-            // 所有条件都必须匹配
-            for (const auto& cond : m_conditions) {
-                if (!cond.matches(obj)) {
-                    return false;
+            case logical_op::AND: {
+                // 所有条件都必须匹配
+                for (const auto& cond : m_conditions) {
+                    if (!cond.matches(obj)) {
+                        return false;
+                    }
                 }
+                return true;
             }
-            return true;
-        }
-        case logical_op::OR: {
-            // 至少一个条件匹配
-            for (const auto& cond : m_conditions) {
-                if (cond.matches(obj)) {
-                    return true;
+            case logical_op::OR: {
+                // 至少一个条件匹配
+                for (const auto& cond : m_conditions) {
+                    if (cond.matches(obj)) {
+                        return true;
+                    }
                 }
+                return false;
             }
-            return false;
-        }
-        case logical_op::NOT: {
-            // 条件取反（通常只有一个子条件）
-            if (m_conditions.size() >= 1) {
-                return !m_conditions[0].matches(obj);
+            case logical_op::NOT: {
+                // 条件取反（通常只有一个子条件）
+                if (m_conditions.size() >= 1) {
+                    return !m_conditions[0].matches(obj);
+                }
+                return true; // 空NOT条件默认匹配
             }
-            return true; // 空NOT条件默认匹配
-        }
-        default:
-            return false;
+            default:
+                return false;
         }
     }
 
@@ -344,45 +344,45 @@ private:
                         compare_op op) const
     {
         switch (op) {
-        case compare_op::eq:
-            return field_value == value;
-        case compare_op::ne:
-            return field_value != value;
-        case compare_op::gt:
-            return field_value > value;
-        case compare_op::ge:
-            return field_value >= value;
-        case compare_op::lt:
-            return field_value < value;
-        case compare_op::le:
-            return field_value <= value;
-        case compare_op::contains:
-            if (field_value.is_string() && value.is_string()) {
-                return string_ops::contains(field_value.get_string(), value.get_string());
-            }
-            return false;
-        case compare_op::like:
-            if (field_value.is_string() && value.is_string()) {
-                return string_ops::like(field_value.get_string(), value.get_string());
-            }
-            return false;
-        case compare_op::in:
-            if (value.is_array()) {
-                for (const auto& item : value.get_array()) {
-                    if (field_value == item) {
-                        return true;
+            case compare_op::eq:
+                return field_value == value;
+            case compare_op::ne:
+                return field_value != value;
+            case compare_op::gt:
+                return field_value > value;
+            case compare_op::ge:
+                return field_value >= value;
+            case compare_op::lt:
+                return field_value < value;
+            case compare_op::le:
+                return field_value <= value;
+            case compare_op::contains:
+                if (field_value.is_string() && value.is_string()) {
+                    return string_ops::contains(field_value.get_string(), value.get_string());
+                }
+                return false;
+            case compare_op::like:
+                if (field_value.is_string() && value.is_string()) {
+                    return string_ops::like(field_value.get_string(), value.get_string());
+                }
+                return false;
+            case compare_op::in:
+                if (value.is_array()) {
+                    for (const auto& item : value.get_array()) {
+                        if (field_value == item) {
+                            return true;
+                        }
                     }
                 }
-            }
-            return false;
-        case compare_op::between:
-            if (value.is_array() && value.size() >= 2) {
-                const auto& arr = value.get_array();
-                return field_value >= arr[0] && field_value <= arr[1];
-            }
-            return false;
-        default:
-            return false;
+                return false;
+            case compare_op::between:
+                if (value.is_array() && value.size() >= 2) {
+                    const auto& arr = value.get_array();
+                    return field_value >= arr[0] && field_value <= arr[1];
+                }
+                return false;
+            default:
+                return false;
         }
     }
 

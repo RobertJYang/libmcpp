@@ -86,23 +86,23 @@ void console_appender::configure(const config& cfg)
 static const char* get_console_color(console_appender::color_type clr)
 {
     switch (clr) {
-    case console_appender::color_type::red:
-        return CONSOLE_RED;
-    case console_appender::color_type::green:
-        return CONSOLE_GREEN;
-    case console_appender::color_type::brown:
-        return CONSOLE_BROWN;
-    case console_appender::color_type::blue:
-        return CONSOLE_BLUE;
-    case console_appender::color_type::magenta:
-        return CONSOLE_MAGENTA;
-    case console_appender::color_type::cyan:
-        return CONSOLE_CYAN;
-    case console_appender::color_type::white:
-        return CONSOLE_WHITE;
-    case console_appender::color_type::console_default:
-    default:
-        return CONSOLE_DEFAULT;
+        case console_appender::color_type::red:
+            return CONSOLE_RED;
+        case console_appender::color_type::green:
+            return CONSOLE_GREEN;
+        case console_appender::color_type::brown:
+            return CONSOLE_BROWN;
+        case console_appender::color_type::blue:
+            return CONSOLE_BLUE;
+        case console_appender::color_type::magenta:
+            return CONSOLE_MAGENTA;
+        case console_appender::color_type::cyan:
+            return CONSOLE_CYAN;
+        case console_appender::color_type::white:
+            return CONSOLE_WHITE;
+        case console_appender::color_type::console_default:
+        default:
+            return CONSOLE_DEFAULT;
     }
 }
 

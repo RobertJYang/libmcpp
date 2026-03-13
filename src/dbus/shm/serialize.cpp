@@ -76,36 +76,36 @@ void write_buffer::write_arg_with_signature(signature_iterator it, const variant
         return;
     }
     switch (it.current_type_code()) {
-    case type_code::boolean_type:
-        write_boolean(arg.as_bool());
-        break;
-    case type_code::byte_type:
-    case type_code::int16_type:
-    case type_code::uint16_type:
-    case type_code::int32_type:
-    case type_code::uint32_type:
-    case type_code::int64_type:
-    case type_code::uint64_type:
-    case type_code::double_type:
-        write_number(arg);
-        break;
-    case type_code::string_type:
-    case type_code::signature_type:
-    case type_code::object_path_type:
-        write_string(arg.as_string());
-        break;
-    case type_code::array_start:
-        write_array_or_dict(it.get_content_iterator(), arg, depth + 1);
-        break;
-    case type_code::struct_start:
-        write_variant_elements(it.get_content_iterator(), arg.as_array(), depth + 1);
-        break;
-    case type_code::variant_type:
-        write_gvariant(arg);
-        break;
-    default:
-        MC_THROW(mc::invalid_arg_exception, "unsupported type for write_arg_with_signature: ${type}",
-                 ("type", it.current_type_char()));
+        case type_code::boolean_type:
+            write_boolean(arg.as_bool());
+            break;
+        case type_code::byte_type:
+        case type_code::int16_type:
+        case type_code::uint16_type:
+        case type_code::int32_type:
+        case type_code::uint32_type:
+        case type_code::int64_type:
+        case type_code::uint64_type:
+        case type_code::double_type:
+            write_number(arg);
+            break;
+        case type_code::string_type:
+        case type_code::signature_type:
+        case type_code::object_path_type:
+            write_string(arg.as_string());
+            break;
+        case type_code::array_start:
+            write_array_or_dict(it.get_content_iterator(), arg, depth + 1);
+            break;
+        case type_code::struct_start:
+            write_variant_elements(it.get_content_iterator(), arg.as_array(), depth + 1);
+            break;
+        case type_code::variant_type:
+            write_gvariant(arg);
+            break;
+        default:
+            MC_THROW(mc::invalid_arg_exception, "unsupported type for write_arg_with_signature: ${type}",
+                     ("type", it.current_type_char()));
     }
 }
 
@@ -399,38 +399,38 @@ const char* read_buffer::read(size_t size)
 int64_t read_buffer::read_integer(uint8_t cookie)
 {
     switch (cookie) {
-    case COOKIE_NUMBER_ZERO:
-        return 0;
-    case COOKIE_NUMBER_BYTE: {
-        uint8_t n;
-        auto    pn = reinterpret_cast<const uint8_t*>(read(sizeof(n)));
-        MC_ASSERT(pn != nullptr, ERROR_INVALID_FORMAT);
-        n = *pn;
-        return n;
-    }
-    case COOKIE_NUMBER_WORD: {
-        uint16_t n;
-        auto     pn = read(sizeof(n));
-        MC_ASSERT(pn != nullptr, ERROR_INVALID_FORMAT);
-        memcpy(&n, pn, sizeof(n));
-        return n;
-    }
-    case COOKIE_NUMBER_DWORD: {
-        int32_t n;
-        auto    pn = read(sizeof(n));
-        MC_ASSERT(pn != nullptr, ERROR_INVALID_FORMAT);
-        memcpy(&n, pn, sizeof(n));
-        return n;
-    }
-    case COOKIE_NUMBER_QWORD: {
-        int64_t n;
-        auto    pn = read(sizeof(n));
-        MC_ASSERT(pn != nullptr, ERROR_INVALID_FORMAT);
-        memcpy(&n, pn, sizeof(n));
-        return n;
-    }
-    default:
-        break;
+        case COOKIE_NUMBER_ZERO:
+            return 0;
+        case COOKIE_NUMBER_BYTE: {
+            uint8_t n;
+            auto    pn = reinterpret_cast<const uint8_t*>(read(sizeof(n)));
+            MC_ASSERT(pn != nullptr, ERROR_INVALID_FORMAT);
+            n = *pn;
+            return n;
+        }
+        case COOKIE_NUMBER_WORD: {
+            uint16_t n;
+            auto     pn = read(sizeof(n));
+            MC_ASSERT(pn != nullptr, ERROR_INVALID_FORMAT);
+            memcpy(&n, pn, sizeof(n));
+            return n;
+        }
+        case COOKIE_NUMBER_DWORD: {
+            int32_t n;
+            auto    pn = read(sizeof(n));
+            MC_ASSERT(pn != nullptr, ERROR_INVALID_FORMAT);
+            memcpy(&n, pn, sizeof(n));
+            return n;
+        }
+        case COOKIE_NUMBER_QWORD: {
+            int64_t n;
+            auto    pn = read(sizeof(n));
+            MC_ASSERT(pn != nullptr, ERROR_INVALID_FORMAT);
+            memcpy(&n, pn, sizeof(n));
+            return n;
+        }
+        default:
+            break;
     }
     return 0;
 }
@@ -476,43 +476,43 @@ variant read_buffer::read_value(uint8_t type, uint8_t cookie)
     }
     auto value_type = static_cast<data_type>(type);
     switch (value_type) {
-    case data_type::nil:
-        return variant();
-    case data_type::boolean:
-        return variant(cookie != 0);
-    case data_type::number:
-        if (cookie == COOKIE_NUMBER_REAL) {
-            return variant(read_double());
-        }
-        return variant(read_integer(cookie));
-    case data_type::userdata:
-        return variant(reinterpret_cast<uint64_t>(read_pointer()));
-    case data_type::short_string:
-        return variant(read_string(cookie));
-    case data_type::long_string:
-        if (cookie == 2) {
-            const void* plen = read(2);
-            MC_ASSERT(plen != nullptr, ERROR_INVALID_FORMAT);
-            uint16_t n;
-            memcpy(&n, plen, sizeof(n));
-            return variant(read_string(n));
-        } else {
-            if (cookie != 4) {
-                MC_THROW(mc::invalid_arg_exception, "invalid cookie: ${cookie}",
-                         ("cookie", cookie));
+        case data_type::nil:
+            return variant();
+        case data_type::boolean:
+            return variant(cookie != 0);
+        case data_type::number:
+            if (cookie == COOKIE_NUMBER_REAL) {
+                return variant(read_double());
             }
-            const void* plen = read(4);
-            MC_ASSERT(plen != nullptr, ERROR_INVALID_FORMAT);
-            uint32_t n;
-            memcpy(&n, plen, sizeof(n));
-            return variant(read_string(n));
-        }
-    case data_type::table:
-        return read_table(cookie);
-    case data_type::gvariant:
-        return read_gvariant(cookie);
-    default:
-        break;
+            return variant(read_integer(cookie));
+        case data_type::userdata:
+            return variant(reinterpret_cast<uint64_t>(read_pointer()));
+        case data_type::short_string:
+            return variant(read_string(cookie));
+        case data_type::long_string:
+            if (cookie == 2) {
+                const void* plen = read(2);
+                MC_ASSERT(plen != nullptr, ERROR_INVALID_FORMAT);
+                uint16_t n;
+                memcpy(&n, plen, sizeof(n));
+                return variant(read_string(n));
+            } else {
+                if (cookie != 4) {
+                    MC_THROW(mc::invalid_arg_exception, "invalid cookie: ${cookie}",
+                            ("cookie", cookie));
+                }
+                const void* plen = read(4);
+                MC_ASSERT(plen != nullptr, ERROR_INVALID_FORMAT);
+                uint32_t n;
+                memcpy(&n, plen, sizeof(n));
+                return variant(read_string(n));
+            }
+        case data_type::table:
+            return read_table(cookie);
+        case data_type::gvariant:
+            return read_gvariant(cookie);
+        default:
+            break;
     }
     MC_THROW(mc::invalid_arg_exception, "unsupported type: ${type}", ("type", type));
 }

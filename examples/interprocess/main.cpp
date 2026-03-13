@@ -53,32 +53,32 @@ int main(int argc, char** argv)
 
     // 运行选定的测试
     switch (test_type) {
-    case TestType::SHARED_MEMORY:
-        test::test_shared_memory();
-        break;
-    case TestType::MULTI_PROCESS:
-        test::test_multi_process_shared_memory();
-        break;
-    case TestType::MUTEX:
-        test::test_mutex();
-        break;
-    case TestType::SHARED_MUTEX:
-        test::test_shared_mutex();
-        break;
-    case TestType::MULTI_PROCESS_MUTEX:
-        test::test_multi_process_mutex();
-        break;
-    case TestType::MULTI_PROCESS_SHARED_MUTEX:
-        test::test_multi_process_shared_mutex();
-        break;
-    case TestType::ALL:
-        test::test_shared_memory();
-        test::test_multi_process_shared_memory();
-        test::test_mutex();
-        test::test_shared_mutex();
-        test::test_multi_process_mutex();
-        test::test_multi_process_shared_mutex();
-        break;
+        case TestType::SHARED_MEMORY:
+            test::test_shared_memory();
+            break;
+        case TestType::MULTI_PROCESS:
+            test::test_multi_process_shared_memory();
+            break;
+        case TestType::MUTEX:
+            test::test_mutex();
+            break;
+        case TestType::SHARED_MUTEX:
+            test::test_shared_mutex();
+            break;
+        case TestType::MULTI_PROCESS_MUTEX:
+            test::test_multi_process_mutex();
+            break;
+        case TestType::MULTI_PROCESS_SHARED_MUTEX:
+            test::test_multi_process_shared_mutex();
+            break;
+        case TestType::ALL:
+            test::test_shared_memory();
+            test::test_multi_process_shared_memory();
+            test::test_mutex();
+            test::test_shared_mutex();
+            test::test_multi_process_mutex();
+            test::test_multi_process_shared_mutex();
+            break;
     }
 
     ilog("所有测试完成");

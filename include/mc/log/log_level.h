@@ -61,26 +61,26 @@ enum class level {
 inline std::string_view to_string(level lvl)
 {
     switch (lvl) {
-    case level::all:
-        return "ALL";
-    case level::trace:
-        return "TRACE";
-    case level::debug:
-        return "DEBUG";
-    case level::info:
-        return "INFO";
-    case level::notice:
-        return "NOTICE";
-    case level::warn:
-        return "WARN";
-    case level::error:
-        return "ERROR";
-    case level::fatal:
-        return "FATAL";
-    case level::off:
-        return "OFF";
-    default:
-        return "UNKNOWN";
+        case level::all:
+            return "ALL";
+        case level::trace:
+            return "TRACE";
+        case level::debug:
+            return "DEBUG";
+        case level::info:
+            return "INFO";
+        case level::notice:
+            return "NOTICE";
+        case level::warn:
+            return "WARN";
+        case level::error:
+            return "ERROR";
+        case level::fatal:
+            return "FATAL";
+        case level::off:
+            return "OFF";
+        default:
+            return "UNKNOWN";
     }
 }
 

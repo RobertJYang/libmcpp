@@ -21,57 +21,57 @@ namespace mc::dbus {
 static bool gvariant_is_basic_type(int8_t type)
 {
     switch (type) {
-    case DBUS_TYPE_BOOLEAN:
-    case DBUS_TYPE_BYTE:
-    case DBUS_TYPE_INT16:
-    case DBUS_TYPE_UINT16:
-    case DBUS_TYPE_INT32:
-    case DBUS_TYPE_UINT32:
-    case DBUS_TYPE_UNIX_FD:
-    case DBUS_TYPE_INT64:
-    case DBUS_TYPE_UINT64:
-    case DBUS_TYPE_DOUBLE:
-    case DBUS_TYPE_STRING:
-    case DBUS_TYPE_OBJECT_PATH:
-    case DBUS_TYPE_SIGNATURE:
-        return true;
-    default:
-        return false;
+        case DBUS_TYPE_BOOLEAN:
+        case DBUS_TYPE_BYTE:
+        case DBUS_TYPE_INT16:
+        case DBUS_TYPE_UINT16:
+        case DBUS_TYPE_INT32:
+        case DBUS_TYPE_UINT32:
+        case DBUS_TYPE_UNIX_FD:
+        case DBUS_TYPE_INT64:
+        case DBUS_TYPE_UINT64:
+        case DBUS_TYPE_DOUBLE:
+        case DBUS_TYPE_STRING:
+        case DBUS_TYPE_OBJECT_PATH:
+        case DBUS_TYPE_SIGNATURE:
+            return true;
+        default:
+            return false;
     }
 }
 
 static GVariant* new_basic_gvariant(const variant& v, const char* types)
 {
     switch (*types) {
-    case DBUS_TYPE_BOOLEAN:
-        return g_variant_new_boolean(v.as_bool());
-    case DBUS_TYPE_BYTE:
-        return g_variant_new_byte(v.as_uint8());
-    case DBUS_TYPE_INT16:
-        return g_variant_new_int16(v.as_int16());
-    case DBUS_TYPE_UINT16:
-        return g_variant_new_uint16(v.as_uint16());
-    case DBUS_TYPE_INT32:
-        return g_variant_new_int32(v.as_int32());
-    case DBUS_TYPE_UINT32:
-        return g_variant_new_uint32(v.as_uint32());
-    case DBUS_TYPE_INT64:
-        return g_variant_new_int64(v.as_int64());
-    case DBUS_TYPE_UINT64:
-        return g_variant_new_uint64(v.as_uint64());
-    case DBUS_TYPE_DOUBLE:
-        return g_variant_new_double(v.as_double());
-    case DBUS_TYPE_STRING:
-    case DBUS_TYPE_OBJECT_PATH:
-    case DBUS_TYPE_SIGNATURE: {
-        auto str = v.as_string();
-        if (!g_utf8_validate(str.data(), str.size(), nullptr)) {
-            MC_THROW(mc::invalid_arg_exception, "invalid utf-8 string");
+        case DBUS_TYPE_BOOLEAN:
+            return g_variant_new_boolean(v.as_bool());
+        case DBUS_TYPE_BYTE:
+            return g_variant_new_byte(v.as_uint8());
+        case DBUS_TYPE_INT16:
+            return g_variant_new_int16(v.as_int16());
+        case DBUS_TYPE_UINT16:
+            return g_variant_new_uint16(v.as_uint16());
+        case DBUS_TYPE_INT32:
+            return g_variant_new_int32(v.as_int32());
+        case DBUS_TYPE_UINT32:
+            return g_variant_new_uint32(v.as_uint32());
+        case DBUS_TYPE_INT64:
+            return g_variant_new_int64(v.as_int64());
+        case DBUS_TYPE_UINT64:
+            return g_variant_new_uint64(v.as_uint64());
+        case DBUS_TYPE_DOUBLE:
+            return g_variant_new_double(v.as_double());
+        case DBUS_TYPE_STRING:
+        case DBUS_TYPE_OBJECT_PATH:
+        case DBUS_TYPE_SIGNATURE: {
+            auto str = v.as_string();
+            if (!g_utf8_validate(str.data(), str.size(), nullptr)) {
+                MC_THROW(mc::invalid_arg_exception, "invalid utf-8 string");
+            }
+            return g_variant_new_string(str.data());
         }
-        return g_variant_new_string(str.data());
-    }
-    default:
-        MC_THROW(mc::invalid_arg_exception, "unsupported type: ${type}", ("type", types));
+        default:
+            MC_THROW(mc::invalid_arg_exception, "unsupported type: ${type}", ("type", types));
     }
 }
 
@@ -123,17 +123,17 @@ int sig_unit::get_sig_len(const char* types, bool allow_dict_entry, size_t array
         return 1;
     }
     switch (type) {
-    case DBUS_TYPE_ARRAY:
-        if (array_depth >= MAX_CONTAINER_DEPTH) {
-            MC_THROW(mc::invalid_arg_exception, "array depth too deep");
-        }
-        return get_sig_len(types + 1, true, array_depth + 1, struct_depth) + 1;
-    case DBUS_DICT_ENTRY_BEGIN_CHAR:
-        return get_dict_len(types, allow_dict_entry, array_depth, struct_depth);
-    case DBUS_STRUCT_BEGIN_CHAR:
-        return get_struct_len(types, allow_dict_entry, array_depth, struct_depth);
-    default:
-        MC_THROW(mc::invalid_arg_exception, "unsupported type: ${type}", ("type", type));
+        case DBUS_TYPE_ARRAY:
+            if (array_depth >= MAX_CONTAINER_DEPTH) {
+                MC_THROW(mc::invalid_arg_exception, "array depth too deep");
+            }
+            return get_sig_len(types + 1, true, array_depth + 1, struct_depth) + 1;
+        case DBUS_DICT_ENTRY_BEGIN_CHAR:
+            return get_dict_len(types, allow_dict_entry, array_depth, struct_depth);
+        case DBUS_STRUCT_BEGIN_CHAR:
+            return get_struct_len(types, allow_dict_entry, array_depth, struct_depth);
+        default:
+            MC_THROW(mc::invalid_arg_exception, "unsupported type: ${type}", ("type", type));
     }
 }
 
@@ -309,21 +309,21 @@ std::tuple<GVariant*, const char*> gvariant_convert::to_gvariant_inner(const var
     }
     GVariant* res = nullptr;
     switch (*types) {
-    case DBUS_TYPE_ARRAY:
-        if (sig.sub_types[0] == DBUS_DICT_ENTRY_BEGIN_CHAR) {
-            res = new_gvariant_dict(v, sig);
-        } else {
-            res = new_gvariant_array(v, sig);
-        }
-        break;
-    case DBUS_STRUCT_BEGIN_CHAR:
-        res = new_gvariant_struct(v, sig);
-        break;
-    case DBUS_TYPE_VARIANT:
-        res = g_variant_new_variant(to_gvariant(v));
-        break;
-    default:
-        MC_THROW(mc::invalid_arg_exception, "unsupported type: ${types}", ("types", types));
+        case DBUS_TYPE_ARRAY:
+            if (sig.sub_types[0] == DBUS_DICT_ENTRY_BEGIN_CHAR) {
+                res = new_gvariant_dict(v, sig);
+            } else {
+                res = new_gvariant_array(v, sig);
+            }
+            break;
+        case DBUS_STRUCT_BEGIN_CHAR:
+            res = new_gvariant_struct(v, sig);
+            break;
+        case DBUS_TYPE_VARIANT:
+            res = g_variant_new_variant(to_gvariant(v));
+            break;
+        default:
+            MC_THROW(mc::invalid_arg_exception, "unsupported type: ${types}", ("types", types));
     }
     return std::make_tuple(res, sig.next_types);
 }
@@ -378,35 +378,35 @@ variant gvariant_convert::to_mc_variant(GVariant* value)
 {
     const char* type = g_variant_get_type_string(value);
     switch (type[0]) {
-    case DBUS_TYPE_BOOLEAN:
-        return variant(static_cast<bool>(g_variant_get_boolean(value)));
-    case DBUS_TYPE_BYTE:
-        return variant(static_cast<uint8_t>(g_variant_get_byte(value)));
-    case DBUS_TYPE_INT16:
-        return variant(static_cast<int16_t>(g_variant_get_int16(value)));
-    case DBUS_TYPE_UINT16:
-        return variant(static_cast<uint16_t>(g_variant_get_uint16(value)));
-    case DBUS_TYPE_INT32:
-        return variant(static_cast<int32_t>(g_variant_get_int32(value)));
-    case DBUS_TYPE_UINT32:
-        return variant(static_cast<uint32_t>(g_variant_get_uint32(value)));
-    case DBUS_TYPE_INT64:
-        return variant(static_cast<int64_t>(g_variant_get_int64(value)));
-    case DBUS_TYPE_UINT64:
-        return variant(static_cast<uint64_t>(g_variant_get_uint64(value)));
-    case DBUS_TYPE_DOUBLE:
-        return variant(static_cast<double>(g_variant_get_double(value)));
-    case DBUS_TYPE_STRING:
-        return variant(std::string(g_variant_get_string(value, nullptr)));
-    case DBUS_TYPE_VARIANT: {
-        gvariant_auto_free child(g_variant_get_child_value(value, 0));
-        return to_mc_variant(child.ptr);
-    }
-    default:
-        if (g_variant_is_container(value)) {
-            return container_to_mc_variant(value);
+        case DBUS_TYPE_BOOLEAN:
+            return variant(static_cast<bool>(g_variant_get_boolean(value)));
+        case DBUS_TYPE_BYTE:
+            return variant(static_cast<uint8_t>(g_variant_get_byte(value)));
+        case DBUS_TYPE_INT16:
+            return variant(static_cast<int16_t>(g_variant_get_int16(value)));
+        case DBUS_TYPE_UINT16:
+            return variant(static_cast<uint16_t>(g_variant_get_uint16(value)));
+        case DBUS_TYPE_INT32:
+            return variant(static_cast<int32_t>(g_variant_get_int32(value)));
+        case DBUS_TYPE_UINT32:
+            return variant(static_cast<uint32_t>(g_variant_get_uint32(value)));
+        case DBUS_TYPE_INT64:
+            return variant(static_cast<int64_t>(g_variant_get_int64(value)));
+        case DBUS_TYPE_UINT64:
+            return variant(static_cast<uint64_t>(g_variant_get_uint64(value)));
+        case DBUS_TYPE_DOUBLE:
+            return variant(static_cast<double>(g_variant_get_double(value)));
+        case DBUS_TYPE_STRING:
+            return variant(std::string(g_variant_get_string(value, nullptr)));
+        case DBUS_TYPE_VARIANT: {
+            gvariant_auto_free child(g_variant_get_child_value(value, 0));
+            return to_mc_variant(child.ptr);
         }
-        MC_THROW(mc::invalid_arg_exception, "unsupported type: ${type}", ("type", type));
+        default:
+            if (g_variant_is_container(value)) {
+                return container_to_mc_variant(value);
+            }
+            MC_THROW(mc::invalid_arg_exception, "unsupported type: ${type}", ("type", type));
     }
 }
 

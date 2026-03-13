@@ -145,24 +145,24 @@ std::string exception::to_detail_string(mc::log::level ll) const
 
         // 添加日志级别
         switch (log.get_level()) {
-        case mc::log::level::debug:
-            ss << "DEBUG ";
-            break;
-        case mc::log::level::info:
-            ss << "INFO  ";
-            break;
-        case mc::log::level::warn:
-            ss << "WARN  ";
-            break;
-        case mc::log::level::error:
-            ss << "ERROR ";
-            break;
-        case mc::log::level::notice:
-            ss << "NOTICE ";
-            break;
-        default:
-            ss << "      ";
-            break;
+            case mc::log::level::debug:
+                ss << "DEBUG ";
+                break;
+            case mc::log::level::info:
+                ss << "INFO  ";
+                break;
+            case mc::log::level::warn:
+                ss << "WARN  ";
+                break;
+            case mc::log::level::error:
+                ss << "ERROR ";
+                break;
+            case mc::log::level::notice:
+                ss << "NOTICE ";
+                break;
+            default:
+                ss << "      ";
+                break;
         }
 
         // 添加文件和行号信息

@@ -22,14 +22,14 @@ mc::variant unary_op_node::evaluate(const context_base& ctx) const
     mc::variant operand_val = m_operand->evaluate(ctx);
 
     switch (m_operator) {
-    case operator_type::neg:
-        return -operand_val;
-    case operator_type::not_op:
-        return !operand_val;
-    case operator_type::bit_not:
-        return ~operand_val;
-    default:
-        MC_THROW(invalid_arg_exception, "表达式求值错误: 不支持的一元操作符");
+        case operator_type::neg:
+            return -operand_val;
+        case operator_type::not_op:
+            return !operand_val;
+        case operator_type::bit_not:
+            return ~operand_val;
+        default:
+            MC_THROW(invalid_arg_exception, "表达式求值错误: 不支持的一元操作符");
     }
 }
 
@@ -37,18 +37,18 @@ std::string unary_op_node::to_string() const
 {
     std::string op_str;
     switch (m_operator) {
-    case operator_type::neg:
-        op_str = "-";
-        break;
-    case operator_type::not_op:
-        op_str = "!";
-        break;
-    case operator_type::bit_not:
-        op_str = "~";
-        break;
-    default:
-        op_str = "?";
-        break;
+        case operator_type::neg:
+            op_str = "-";
+            break;
+        case operator_type::not_op:
+            op_str = "!";
+            break;
+        case operator_type::bit_not:
+            op_str = "~";
+            break;
+        default:
+            op_str = "?";
+            break;
     }
     return op_str + m_operand->to_string();
 }

@@ -888,24 +888,24 @@ int compat_print_log(lua_State* L)
     // 3(DLOG_INFO) -> info, 4(DLOG_DEBUG) -> debug
     mc::log::level log_level;
     switch (severity) {
-    case 0:
-        log_level = mc::log::level::error;
-        break;
-    case 1:
-        log_level = mc::log::level::warn;
-        break;
-    case 2:
-        log_level = mc::log::level::notice;
-        break;
-    case 3:
-        log_level = mc::log::level::info;
-        break;
-    case 4:
-        log_level = mc::log::level::debug;
-        break;
-    default:
-        log_level = mc::log::level::info;
-        break;
+        case 0:
+            log_level = mc::log::level::error;
+            break;
+        case 1:
+            log_level = mc::log::level::warn;
+            break;
+        case 2:
+            log_level = mc::log::level::notice;
+            break;
+        case 3:
+            log_level = mc::log::level::info;
+            break;
+        case 4:
+            log_level = mc::log::level::debug;
+            break;
+        default:
+            log_level = mc::log::level::info;
+            break;
     }
 
     // 处理可变参数并格式化消息

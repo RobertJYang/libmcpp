@@ -66,18 +66,18 @@ std::string_view prepare_number_string(
     // 根据进制检查字符串长度是否合法
     size_t max_len;
     switch (radix) {
-    case 2:
-        max_len = 64;
-        break;
-    case 8:
-        max_len = 22;
-        break;
-    case 16:
-        max_len = 16;
-        break;
-    default: // 10进制
-        max_len = 20;
-        break;
+        case 2:
+            max_len = 64;
+            break;
+        case 8:
+            max_len = 22;
+            break;
+        case 16:
+            max_len = 16;
+            break;
+        default: // 10进制
+            max_len = 20;
+            break;
     }
 
     if (s.size() > max_len || (s.size() + 1) > buffer_size) {

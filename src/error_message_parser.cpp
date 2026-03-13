@@ -174,32 +174,32 @@ std::string error_message_parser::format_message(std::string_view template_msg,
 
             // 根据类型进行转换
             switch (arg_value.get_type()) {
-            case mc::type_id::string_type:
-                value = arg_value.as<std::string>();
-                break;
-            case mc::type_id::int8_type:
-            case mc::type_id::int16_type:
-            case mc::type_id::int32_type:
-            case mc::type_id::int64_type:
-                value = std::to_string(arg_value.as<int64_t>());
-                break;
-            case mc::type_id::uint8_type:
-            case mc::type_id::uint16_type:
-            case mc::type_id::uint32_type:
-            case mc::type_id::uint64_type:
-                value = std::to_string(arg_value.as<uint64_t>());
-                break;
-            case mc::type_id::double_type:
-                value = std::to_string(arg_value.as<double>());
-                break;
-            case mc::type_id::bool_type:
-                value = arg_value.as<bool>() ? "true" : "false";
-                break;
-            default:
-                // 其他类型转换为字符串
-                value = mc::to_string(arg_value);
-                break;
-            }
+                case mc::type_id::string_type:
+                    value = arg_value.as<std::string>();
+                    break;
+                case mc::type_id::int8_type:
+                case mc::type_id::int16_type:
+                case mc::type_id::int32_type:
+                case mc::type_id::int64_type:
+                    value = std::to_string(arg_value.as<int64_t>());
+                    break;
+                case mc::type_id::uint8_type:
+                case mc::type_id::uint16_type:
+                case mc::type_id::uint32_type:
+                case mc::type_id::uint64_type:
+                    value = std::to_string(arg_value.as<uint64_t>());
+                    break;
+                case mc::type_id::double_type:
+                    value = std::to_string(arg_value.as<double>());
+                    break;
+                case mc::type_id::bool_type:
+                    value = arg_value.as<bool>() ? "true" : "false";
+                    break;
+                default:
+                    // 其他类型转换为字符串
+                    value = mc::to_string(arg_value);
+                    break;
+                }
 
             output += value;
         } else {

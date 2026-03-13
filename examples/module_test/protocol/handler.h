@@ -111,14 +111,14 @@ public:
     std::string get_version_string() const
     {
         switch (m_version) {
-        case protocol_version::V1_0:
-            return "1.0";
-        case protocol_version::V1_1:
-            return "1.1";
-        case protocol_version::V2_0:
-            return "2.0";
-        default:
-            return "unknown";
+            case protocol_version::V1_0:
+                return "1.0";
+            case protocol_version::V1_1:
+                return "1.1";
+            case protocol_version::V2_0:
+                return "2.0";
+            default:
+                return "unknown";
         }
     }
 
