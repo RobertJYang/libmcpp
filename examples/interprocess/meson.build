@@ -13,10 +13,16 @@ interprocess_example_sources = [
 
 interprocess_example_incdir = include_directories('.')
 
+# 构建 include_directories 列表（使用根目录定义的 stubdir_global）
+example_inc_dirs = [incdir, interprocess_example_incdir]
+if not enable_conan_compile
+  example_inc_dirs += [stubdir_global]
+endif
+
 executable(
   'interprocess_example',
   interprocess_example_sources,
-  include_directories: [incdir, interprocess_example_incdir],
+  include_directories: example_inc_dirs,
   dependencies: [libmcpp_dep, boost_dep, boost_program_options_dep],
   install: false,
 )

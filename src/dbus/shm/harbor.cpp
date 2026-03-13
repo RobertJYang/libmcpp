@@ -19,6 +19,7 @@
 #include <memory>
 #include <regex>
 #include <sys/file.h>
+#include "securec.h"
 
 #ifndef BUILD_TYPE_DEBUG
 #define BUILD_TYPE_DEBUG (0x0b)
@@ -108,7 +109,7 @@ void message_queue::dispatch(int timeout_ms, int max_read_count,
             if (msg_data.ptr == nullptr) {
                 return;
             }
-            std::memcpy(msg_data.ptr, data.data(), data.size());
+            (void)memcpy_s(msg_data.ptr, data.size(), data.data(), data.size());
             msg_data.size = data.size();
         }
         m_messages.push_back(msg_data);

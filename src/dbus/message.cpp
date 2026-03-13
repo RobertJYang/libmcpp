@@ -13,6 +13,7 @@
 #include <mc/dbus/error.h>
 #include <mc/dbus/message.h>
 #include <mc/dbus/validator.h>
+#include "securec.h"
 
 namespace mc::dbus {
 void ensure_container_max_length(const char* type_name, std::size_t size)
@@ -919,7 +920,7 @@ message_writer::message_writer(DBusMessageIter& parent_iter, int type, std::stri
     char        sig_buf[mc::reflect::max_signature_length + 1];
     const char* sig = nullptr;
     if (!signature.empty()) {
-        std::strncpy(sig_buf, signature.data(), signature.size());
+        (void)strncpy_s(sig_buf, sizeof(sig_buf), signature.data(), signature.size());
         sig_buf[signature.size()] = '\0';
         sig                       = sig_buf;
     }
@@ -1154,7 +1155,7 @@ void message_writer::write_signature(std::string_view sig, bool need_add_tail_ze
     const char* sig_str = nullptr;
     char        sig_buf[mc::reflect::max_signature_length + 1];
     if (need_add_tail_zeros) {
-        std::strncpy(sig_buf, sig.data(), sig.size());
+        (void)strncpy_s(sig_buf, sizeof(sig_buf), sig.data(), sig.size());
         sig_buf[sig.size()] = '\0';
         sig_str             = sig_buf;
     } else {
@@ -1177,7 +1178,7 @@ void message_writer::write_path(std::string_view p, bool need_add_tail_zero) con
     const char* p_str = nullptr;
     char        p_buf[mc::reflect::max_path_length + 1];
     if (need_add_tail_zero) {
-        std::strncpy(p_buf, p.data(), p.size());
+        (void)strncpy_s(p_buf, sizeof(p_buf), p.data(), p.size());
         p_buf[p.size()] = '\0';
         p_str           = p_buf;
     } else {

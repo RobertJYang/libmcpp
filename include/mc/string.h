@@ -34,6 +34,7 @@
 
 #include <mc/common.h>
 #include <mc/pretty_name.h>
+#include "securec.h"
 
 namespace mc::string {
 
@@ -43,7 +44,8 @@ void append_formatted_number(std::string& result, T val, const char* format)
 {
     constexpr std::size_t BUFFER_SIZE = 64;
     char                  buffer[BUFFER_SIZE];
-    int                   len = std::snprintf(buffer, BUFFER_SIZE, format, val);
+    // securec 的 snprintf_s 需要同时指定目标缓冲区大小与最大写入字符数
+    int                   len = snprintf_s(buffer, BUFFER_SIZE, BUFFER_SIZE, format, val);
     if (len > 0) {
         result.append(buffer, len);
     }

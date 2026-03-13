@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <limits>
 #include <mc/io/io_stream.h>
+#include "securec.h"
 
 namespace mc {
 namespace io {
@@ -295,7 +296,7 @@ std::size_t io_stream::align(std::size_t alignment)
             m_buffer->reserve(m_buffer->headroom(), padding);
         }
 
-        std::memset(m_buffer->mutable_data() + m_write_pos, 0, padding);
+        (void)memset_s(m_buffer->mutable_data() + m_write_pos, m_buffer->tailroom(), 0, padding);
         m_write_pos += padding;
     }
 

@@ -25,10 +25,16 @@ expr_src_files = files(
   'parser.cpp',
 )
 
+# 构建 include_directories 列表（使用根目录定义的 stubdir_global）
+base_inc_dirs = [incdir, srcdir]
+if not enable_conan_compile
+  base_inc_dirs += [stubdir_global]
+endif
+
 libmcpp_expr_lib = library(
   'mcpp_expr',
   expr_src_files,
-  include_directories: [incdir, srcdir],
+  include_directories: base_inc_dirs,
   dependencies: [dep_arr, libmcpp_engine_dep],
   install: true,
   install_dir: install_dir,

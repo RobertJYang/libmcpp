@@ -31,6 +31,7 @@
 #include <string>
 #include <type_traits>
 #include <vector>
+#include "securec.h"
 
 /**
  * @brief 主命名空间
@@ -412,7 +413,7 @@ inline To bit_cast(const From& src) noexcept
 {
     static_assert(sizeof(To) == sizeof(From), "bit_cast requires same size types");
     To dst;
-    std::memcpy(&dst, &src, sizeof(To));
+    (void)memcpy_s(&dst, sizeof(To), &src, sizeof(From));
     return dst;
 }
 

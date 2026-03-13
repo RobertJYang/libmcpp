@@ -19,6 +19,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
+#include "securec.h"
 
 namespace mc {
 namespace log {
@@ -74,7 +75,7 @@ bool unix_socket::connect(std::string_view path)
 
     sockaddr_un addr {};
     addr.sun_family = AF_UNIX;
-    std::memcpy(addr.sun_path, path.data(), path.size());
+    (void)memcpy_s(addr.sun_path, sizeof(addr.sun_path), path.data(), path.size());
     addr.sun_path[path.size()] = '\0';
 
     if (::connect(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(sockaddr_un)) != 0) {

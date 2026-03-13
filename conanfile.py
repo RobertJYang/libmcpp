@@ -38,7 +38,7 @@ class AppConan(ConanBase):
         ms = VirtualBuildEnv(self)
         if self.settings.arch in ["armv8"]:
             tc.properties["pkg_config_libdir"] = ms.vars().get("PKG_CONFIG_PATH").split(":")
-        
+
         if self.options.test:
             # 为 Debug 类型添加 -Os 优化参数
             tc.extra_cxxflags.append("-Os")
@@ -64,7 +64,7 @@ class AppConan(ConanBase):
             # Clang 支持该选项
             tc.extra_cxxflags.append("-Wno-deprecated-copy")
         tc.generate()
-      
+
     def build(self):
         meson = Meson(self)
         meson.configure()
@@ -73,7 +73,7 @@ class AppConan(ConanBase):
     def package(self):
         meson = Meson(self)
         meson.install()
-   
+
         if os.path.isfile("permissions.ini"):
             copy(self, "permissions.ini")
         copy(self, "*", src=os.path.join(self.source_folder, "mds"), dst=os.path.join(self.package_folder, "include/mds"))
@@ -85,7 +85,7 @@ class AppConan(ConanBase):
             copy(self, "*", src=os.path.join(self.source_folder, "docs"), dst=os.path.join(self.package_folder, "usr/share/doc/openubmc/libmcpp/docs"))
         copy(self, "*.md", src=self.source_folder, dst=os.path.join(self.package_folder, "usr/share/doc/openubmc/libmcpp/docs"))
         copy(self, "*.MD", src=self.source_folder, dst=os.path.join(self.package_folder, "usr/share/doc/openubmc/libmcpp/docs"))
-        
+
         # 对静态库运行ranlib以创建符号索引
         self._run_ranlib_on_static_libs()
 
@@ -97,7 +97,7 @@ class AppConan(ConanBase):
         """对Debug模式编译生成的文件进行strip处理"""
         import subprocess
         import stat
-        
+
         # 根据架构确定strip工具
         if self.settings.arch == "armv8":
             strip_tool = "aarch64-target-linux-gnu-strip"
@@ -105,38 +105,38 @@ class AppConan(ConanBase):
             strip_tool = "strip"
         else:
             strip_tool = "strip"
-        
+
         # 查找需要strip的文件
         lib_dirs = []
         if self.settings.arch == "armv8" or self.settings.arch == "x86_64":
             lib_dirs.append("usr/lib64")
         else:
             lib_dirs.append("usr/lib")
-        
+
         # 添加可执行文件和驱动库目录
         bin_dirs = ["opt/bmc/apps/libmcpp", "opt/bmc/drivers"]
-        
+
         all_dirs = lib_dirs + bin_dirs
-        
+
         for directory in all_dirs:
             dir_path = os.path.join(self.package_folder, directory)
             if not os.path.exists(dir_path):
                 continue
-                
+
             for root, dirs, files in os.walk(dir_path):
                 for file in files:
                     file_path = os.path.join(root, file)
-                    
+
                     # 检查文件是否为可执行文件或共享库
                     try:
                         if os.path.isfile(file_path) and not os.path.islink(file_path):
                             # 检查文件类型
-                            result = subprocess.run(["file", file_path], 
+                            result = subprocess.run(["file", file_path],
                                                   capture_output=True, text=True, timeout=10)
                             if result.returncode == 0:
                                 file_type = result.stdout.lower()
                                 if ("executable" in file_type or "current ar archive" in file_type or
-                                    "shared object" in file_type or 
+                                    "shared object" in file_type or
                                     "dynamically linked" in file_type):
                                     # 执行strip操作
                                     # 对于静态库，不要使用-s参数，因为会移除符号索引
@@ -200,22 +200,22 @@ class AppConan(ConanBase):
             self.cpp_info.libdirs = ["usr/lib"]
             self.env_info.LD_LIBRARY_PATH.append(os.path.join(self.package_folder, "usr/lib"))
             libdir = "usr/lib"
-            
+
         self.env_info.PATH.append(os.path.join(self.package_folder, "opt/bmc/apps/libmcpp"))
 
         include_dirs = ["include"]
         self.cpp_info.includedirs = include_dirs
-        
+
         # 配置libmcpp的pkg-config
         self.cpp_info.components["libmcpp"].libs = ["libmcpp"]
         self.cpp_info.components["libmcpp"].libdirs = ["usr/lib64"]
         self.cpp_info.components["libmcpp"].includedirs = include_dirs
         self.cpp_info.components["libmcpp"].set_property("pkg_config_name", "libmcpp")
-        self.cpp_info.components["libmcpp"].requires = ["libsomp::libsomp", "liblogger::liblogger", "boost::boost", "skynet::skynet", "json::json"]
-        self.cpp_info.components["libmcpp"].set_property("pkg_config_custom_content", 
+        self.cpp_info.components["libmcpp"].requires = ["libsomp::libsomp", "liblogger::liblogger", "boost::boost", "skynet::skynet", "json::json", "huawei_secure_c::securec"]
+        self.cpp_info.components["libmcpp"].set_property("pkg_config_custom_content",
            f"libdir=${{prefix}}/{libdir}\n"
            "Requires: dbus-1 glib-2.0\n")
-        
+
         # 配置test_utilities的pkg-config
         self.cpp_info.components["test_utilities"].libs = ["mc_test_utilities"]
         self.cpp_info.components["test_utilities"].libdirs = ["usr/lib64"]
@@ -224,6 +224,6 @@ class AppConan(ConanBase):
         self.cpp_info.components["test_utilities"].set_property("pkg_config_custom_content",
            f"libdir=${{prefix}}/{libdir}\n"
            "Requires: dbus-1\n")
-        
+
         if self.options.test:
             self.cpp_info.components["libmcpp_test"].requires.append("gtest::gtest")

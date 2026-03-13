@@ -14,6 +14,7 @@
 #include <mc/dict.h>
 #include <mc/exception.h>
 #include <mc/variant.h>
+#include "securec.h"
 
 namespace mc::dbus::serialize {
 
@@ -145,13 +146,13 @@ void write_buffer::write_inner(const uint8_t* input, size_t size)
     size_t remaining_size = size;
     while (remaining_size > 0) {
         if (remaining_size <= BLOCK_SIZE - m_offset) {
-            memcpy(m_current->buf.data() + m_offset, input, remaining_size);
+            (void)memcpy_s(m_current->buf.data() + m_offset, m_current->buf.size() - m_offset, input, remaining_size);
             m_offset += remaining_size;
             m_len += remaining_size;
             break;
         }
         size_t copy_size = BLOCK_SIZE - m_offset;
-        memcpy(m_current->buf.data() + m_offset, input, copy_size);
+        (void)memcpy_s(m_current->buf.data() + m_offset, m_current->buf.size() - m_offset, input, copy_size);
         input += copy_size;
         remaining_size -= copy_size;
         m_len += copy_size;
@@ -368,10 +369,10 @@ std::string write_buffer::to_string() const
     data_block* node           = m_head;
     while (remaining_size > 0) {
         if (remaining_size < BLOCK_SIZE) {
-            memcpy(ptr, node->buf.data(), remaining_size);
+            (void)memcpy_s(ptr, remaining_size, node->buf.data(), remaining_size);
             break;
         }
-        memcpy(ptr, node->buf.data(), BLOCK_SIZE);
+        (void)memcpy_s(ptr, remaining_size, node->buf.data(), BLOCK_SIZE);
         ptr += BLOCK_SIZE;
         remaining_size -= BLOCK_SIZE;
         node = node->next;
@@ -412,21 +413,21 @@ int64_t read_buffer::read_integer(uint8_t cookie)
             uint16_t n;
             auto     pn = read(sizeof(n));
             MC_ASSERT(pn != nullptr, ERROR_INVALID_FORMAT);
-            memcpy(&n, pn, sizeof(n));
+            (void)memcpy_s(&n, sizeof(n), pn, sizeof(n));
             return n;
         }
         case COOKIE_NUMBER_DWORD: {
             int32_t n;
             auto    pn = read(sizeof(n));
             MC_ASSERT(pn != nullptr, ERROR_INVALID_FORMAT);
-            memcpy(&n, pn, sizeof(n));
+            (void)memcpy_s(&n, sizeof(n), pn, sizeof(n));
             return n;
         }
         case COOKIE_NUMBER_QWORD: {
             int64_t n;
             auto    pn = read(sizeof(n));
             MC_ASSERT(pn != nullptr, ERROR_INVALID_FORMAT);
-            memcpy(&n, pn, sizeof(n));
+            (void)memcpy_s(&n, sizeof(n), pn, sizeof(n));
             return n;
         }
         default:
@@ -440,7 +441,7 @@ double read_buffer::read_double()
     double n;
     auto   pn = read(sizeof(n));
     MC_ASSERT(pn != nullptr, ERROR_INVALID_FORMAT);
-    memcpy(&n, pn, sizeof(n));
+    (void)memcpy_s(&n, sizeof(n), pn, sizeof(n));
     return n;
 }
 
@@ -449,7 +450,7 @@ void* read_buffer::read_pointer()
     void* userdata = 0;
     auto  v        = read(sizeof(userdata));
     MC_ASSERT(v != nullptr, ERROR_INVALID_FORMAT);
-    memcpy(&userdata, v, sizeof(userdata));
+    (void)memcpy_s(&userdata, sizeof(userdata), v, sizeof(userdata));
     return userdata;
 }
 
@@ -494,7 +495,7 @@ variant read_buffer::read_value(uint8_t type, uint8_t cookie)
                 const void* plen = read(2);
                 MC_ASSERT(plen != nullptr, ERROR_INVALID_FORMAT);
                 uint16_t n;
-                memcpy(&n, plen, sizeof(n));
+                (void)memcpy_s(&n, sizeof(n), plen, sizeof(n));
                 return variant(read_string(n));
             } else {
                 if (cookie != 4) {
@@ -504,7 +505,7 @@ variant read_buffer::read_value(uint8_t type, uint8_t cookie)
                 const void* plen = read(4);
                 MC_ASSERT(plen != nullptr, ERROR_INVALID_FORMAT);
                 uint32_t n;
-                memcpy(&n, plen, sizeof(n));
+                (void)memcpy_s(&n, sizeof(n), plen, sizeof(n));
                 return variant(read_string(n));
             }
         case data_type::table:
@@ -529,7 +530,7 @@ variant read_buffer::read_gvariant(size_t len)
         if (!p_data) {
             MC_THROW(mc::exception, "failed to allocate memory for p_data");
         }
-        memcpy(p_data, data, size);
+        (void)memcpy_s(p_data, size, data, size);
     }
     gvariant_auto_free gvar(g_variant_new_from_data(G_VARIANT_TYPE(t), p_data, size,
                                                     true, g_free, p_data));
@@ -616,7 +617,7 @@ std::string serialize(const variants& args)
     result[1] = static_cast<char>((sz >> 8) & 0xff);
     result[2] = static_cast<char>((sz >> 16) & 0xff);
     result[3] = static_cast<char>((sz >> 24) & 0xff);
-    memcpy(result.data() + 4, data.data(), data.size());
+    (void)memcpy_s(result.data() + 4, result.size() - 4, data.data(), data.size());
     return result;
 }
 

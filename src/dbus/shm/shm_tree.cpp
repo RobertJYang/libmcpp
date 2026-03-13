@@ -18,6 +18,7 @@
 #include <mc/json.h>
 #include <mc/variant.h>
 #include <type_traits>
+#include "securec.h"
 
 #ifndef BUILD_TYPE_DEBUG
 #define BUILD_TYPE_DEBUG (0x0b)
@@ -185,7 +186,7 @@ static std::optional<variant> read_property_variant(const shm::property& prop)
     if (buf == nullptr) {
         return std::nullopt;
     }
-    std::memcpy(buf, data.data(), data_size);
+    (void)memcpy_s(buf, data_size, data.data(), data_size);
     gvariant_auto_free gv(
         g_variant_new_from_data(G_VARIANT_TYPE(sig.data()), buf, data_size, false, g_free, buf));
     return gvariant_convert::to_mc_variant(gv.ptr);
@@ -1544,7 +1545,7 @@ static std::optional<variant> get_property_inner(std::string_view service_name, 
         if (p_data == nullptr) {
             MC_THROW(mc::exception, "g_malloc0 failed, len: ${len}", ("len", p_data_len));
         }
-        std::memcpy(p_data, prop_value.data(), p_data_len);
+        (void)memcpy_s(p_data, p_data_len, prop_value.data(), p_data_len);
         gvariant_auto_free v(
             g_variant_new_from_data(G_VARIANT_TYPE(signature.data()), p_data, p_data_len, false, g_free, p_data));
         return std::make_optional(gvariant_convert::to_mc_variant(v.ptr));

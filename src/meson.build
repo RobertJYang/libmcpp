@@ -72,7 +72,8 @@ if enable_conan_compile
   libsomp_dep = dependency('libsomp', method: 'pkg-config', required: true)
   liblogger_dep = dependency('liblogger', method: 'pkg-config', required: true)
   json_dep = dependency('json', method: 'pkg-config', required: true)
-  dep_arr += [libsomp_dep, liblogger_dep, json_dep]
+  securec_dep = dependency('securec', method: 'pkg-config', required: true)
+  dep_arr += [libsomp_dep, liblogger_dep, json_dep, securec_dep]
 endif
 
 if meson_build

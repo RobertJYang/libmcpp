@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <new>
+#include "securec.h"
 
 namespace mc {
 namespace io {
@@ -192,7 +193,7 @@ std::unique_ptr<io_buffer> io_buffer::copy_buffer(const void* data, std::size_t 
     buf->m_data = buf->m_buffer.data() + headroom;
 
     if (length > 0) {
-        std::memcpy(buf->m_data, data, length);
+        (void)memcpy_s(buf->m_data, length + tailroom, data, length);
         buf->m_length = length;
     }
 
@@ -287,7 +288,7 @@ void io_buffer::reserve(std::size_t min_headroom, std::size_t min_tailroom)
 
         uint8_t* new_data_pos = m_buffer.data() + min_headroom;
         if (new_data_pos != m_data) {
-            std::memmove(new_data_pos, m_data, m_length);
+            (void)memmove_s(new_data_pos, m_capacity - min_headroom, m_data, m_length);
             m_data = new_data_pos;
         }
         return;
@@ -303,7 +304,7 @@ void io_buffer::reserve(std::size_t min_headroom, std::size_t min_tailroom)
     new_buf->m_data = new_buf->m_buffer.data() + min_headroom;
 
     if (m_length > 0) {
-        std::memcpy(new_buf->m_data, m_data, m_length);
+        (void)memcpy_s(new_buf->m_data, new_buf->m_capacity - min_headroom, m_data, m_length);
         new_buf->m_length = m_length;
     }
 
@@ -327,7 +328,7 @@ std::size_t io_buffer::align(std::size_t alignment)
         reserve(headroom(), padding);
     }
 
-    std::memset(m_data + m_length, 0, padding);
+    (void)memset_s(m_data + m_length, tailroom(), 0, padding);
     m_length += padding;
 
     return padding;
@@ -353,7 +354,7 @@ std::size_t io_buffer::write_at_offset(std::size_t offset, const void* data, std
         m_length += additional;
     }
 
-    std::memcpy(m_data + offset, data, length);
+    (void)memcpy_s(m_data + offset, m_length - offset, data, length);
     return length;
 }
 
@@ -371,7 +372,7 @@ std::size_t io_buffer::write(const void* data, std::size_t length)
         MC_THROW(mc::bad_alloc_exception, "无法扩展缓冲区");
     }
 
-    std::memcpy(m_data + m_length, data, length);
+    (void)memcpy_s(m_data + m_length, tailroom(), data, length);
     m_length += length;
 
     return length;
@@ -396,7 +397,7 @@ std::size_t io_buffer::read(std::size_t offset, void* data, std::size_t length) 
         MC_THROW(mc::out_of_range_exception, "读取位置超出缓冲区范围");
     }
 
-    std::memcpy(data, m_data + offset, length);
+    (void)memcpy_s(data, length, m_data + offset, length);
     return length;
 }
 
@@ -406,7 +407,7 @@ bool io_buffer::try_read(std::size_t offset, void* data, std::size_t length) con
         return false;
     }
 
-    std::memcpy(data, m_data + offset, length);
+    (void)memcpy_s(data, length, m_data + offset, length);
     return true;
 }
 
@@ -440,7 +441,7 @@ std::size_t io_buffer::read_some(std::size_t offset, void* data, std::size_t len
     }
 
     std::size_t read_length = std::min(length, m_length - offset);
-    std::memcpy(data, m_data + offset, read_length);
+    (void)memcpy_s(data, length, m_data + offset, read_length);
     return read_length;
 }
 
@@ -583,7 +584,8 @@ std::string_view io_buffer::normalize()
     const io_buffer* current = this;
     do {
         if (current->m_length > 0) {
-            std::memcpy(dest, current->m_data, current->m_length);
+            (void)memcpy_s(dest, total_length - static_cast<std::size_t>(dest - new_buf->m_buffer.data()),
+                           current->m_data, current->m_length);
             dest += current->m_length;
         }
 
