@@ -111,20 +111,20 @@ struct format_spec {
     {
         if (ptr < end) {
             switch (*ptr) {
-            case '+':
-                sign_mode = sign::plus;
-                ++ptr;
-                break;
-            case '-':
-                sign_mode = sign::minus;
-                ++ptr;
-                break;
-            case ' ':
-                sign_mode = sign::space;
-                ++ptr;
-                break;
-            default:
-                break;
+                case '+':
+                    sign_mode = sign::plus;
+                    ++ptr;
+                    break;
+                case '-':
+                    sign_mode = sign::minus;
+                    ++ptr;
+                    break;
+                case ' ':
+                    sign_mode = sign::space;
+                    ++ptr;
+                    break;
+                default:
+                    break;
             }
         }
 

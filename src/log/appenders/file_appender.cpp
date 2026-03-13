@@ -56,19 +56,19 @@ constexpr uint32_t                LOG_US_TIME = 0x01;
 static DLOG_LEVEL_E log_level_to_dlog_level(mc::log::level lvl)
 {
     switch (lvl) {
-    case mc::log::level::error:
-        return DLOG_ERROR;
-    case mc::log::level::warn:
-        return DLOG_WARN;
-    case mc::log::level::notice:
-        return DLOG_NOTICE;
-    case mc::log::level::info:
-        return DLOG_INFO;
-    case mc::log::level::debug:
-        return DLOG_DEBUG;
-    default:
-        // all, trace, fatal, off 没有对应级别，返回默认值
-        return DLOG_DEBUG;
+        case mc::log::level::error:
+            return DLOG_ERROR;
+        case mc::log::level::warn:
+            return DLOG_WARN;
+        case mc::log::level::notice:
+            return DLOG_NOTICE;
+        case mc::log::level::info:
+            return DLOG_INFO;
+        case mc::log::level::debug:
+            return DLOG_DEBUG;
+        default:
+            // all, trace, fatal, off 没有对应级别，返回默认值
+            return DLOG_DEBUG;
     }
 }
 
@@ -419,34 +419,34 @@ void file_appender::append(const message& msg)
     log_category  category = msg.get_category();
     std::ostream* fallback = m_file.is_open() ? &m_file : nullptr;
     switch (category) {
-    case log_category::debug:
-        append_debug(msg, fallback);
-        break;
-    case log_category::operation:
-        append_operation(msg, fallback);
-        break;
-    case log_category::running:
-        append_running(msg, fallback);
-        break;
-    case log_category::maintenance:
-        append_maintenance(msg, fallback);
-        break;
-    case log_category::security:
-        append_security(msg, fallback);
-        break;
-    case log_category::hw_stream:
-        append_hw_stream(msg, fallback);
-        break;
-    case log_category::mc_stream:
-        append_mc_stream(msg, fallback);
-        break;
-    case log_category::serial_printf:
-        // serial_printf 使用与 debug 相同的格式
-        append_debug(msg, fallback);
-        break;
-    default:
-        append_debug(msg, fallback);
-        break;
+        case log_category::debug:
+            append_debug(msg, fallback);
+            break;
+        case log_category::operation:
+            append_operation(msg, fallback);
+            break;
+        case log_category::running:
+            append_running(msg, fallback);
+            break;
+        case log_category::maintenance:
+            append_maintenance(msg, fallback);
+            break;
+        case log_category::security:
+            append_security(msg, fallback);
+            break;
+        case log_category::hw_stream:
+            append_hw_stream(msg, fallback);
+            break;
+        case log_category::mc_stream:
+            append_mc_stream(msg, fallback);
+            break;
+        case log_category::serial_printf:
+            // serial_printf 使用与 debug 相同的格式
+            append_debug(msg, fallback);
+            break;
+        default:
+            append_debug(msg, fallback);
+            break;
     }
 }
 

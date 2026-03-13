@@ -136,78 +136,78 @@ int variant_to_lua(::lua_State* L, const variant& v)
 
     try {
         switch (v.get_type()) {
-        case type_id::null_type:
-            lua_pushnil(L);
-            break;
+            case type_id::null_type:
+                lua_pushnil(L);
+                break;
 
-        case type_id::bool_type:
-            lua_pushboolean(L, v.as_bool() ? 1 : 0);
-            break;
+            case type_id::bool_type:
+                lua_pushboolean(L, v.as_bool() ? 1 : 0);
+                break;
 
-        case type_id::int8_type:
-        case type_id::int16_type:
-        case type_id::int32_type:
-        case type_id::int64_type:
-            lua_pushinteger(L, v.as_int64());
-            break;
+            case type_id::int8_type:
+            case type_id::int16_type:
+            case type_id::int32_type:
+            case type_id::int64_type:
+                lua_pushinteger(L, v.as_int64());
+                break;
 
-        case type_id::uint8_type:
-        case type_id::uint16_type:
-        case type_id::uint32_type:
-        case type_id::uint64_type: {
-            uint64_t val = v.as_uint64();
-            // Lua 5.1 没有 LUA_MAXINTEGER，直接使用 number
-            lua_pushnumber(L, static_cast<lua_Number>(val));
-            break;
-        }
-
-        case type_id::double_type:
-            lua_pushnumber(L, v.as_double());
-            break;
-
-        case type_id::string_type: {
-            const std::string& str = v.get_string();
-            lua_pushlstring(L, str.data(), str.size());
-            break;
-        }
-
-        case type_id::array_type: {
-            const variants& arr = v.get_array();
-            lua_createtable(L, static_cast<int>(arr.size()), 0);
-            for (size_t i = 0; i < arr.size(); ++i) {
-                variant_to_lua(L, arr[i]);
-                lua_rawseti(L, -2, static_cast<int>(i + 1)); // Lua 数组索引从 1 开始
+            case type_id::uint8_type:
+            case type_id::uint16_type:
+            case type_id::uint32_type:
+            case type_id::uint64_type: {
+                uint64_t val = v.as_uint64();
+                // Lua 5.1 没有 LUA_MAXINTEGER，直接使用 number
+                lua_pushnumber(L, static_cast<lua_Number>(val));
+                break;
             }
-            break;
-        }
 
-        case type_id::object_type: {
-            const dict& obj = v.get_object();
-            lua_createtable(L, 0, static_cast<int>(obj.size()));
-            for (const auto& entry : obj) {
-                variant_to_lua(L, entry.key);
-                variant_to_lua(L, entry.value);
-                lua_settable(L, -3);
+            case type_id::double_type:
+                lua_pushnumber(L, v.as_double());
+                break;
+
+            case type_id::string_type: {
+                const std::string& str = v.get_string();
+                lua_pushlstring(L, str.data(), str.size());
+                break;
             }
-            break;
-        }
 
-        case type_id::blob_type: {
-            const blob& b = v.get_blob();
-            lua_pushlstring(L, b.data.data(), b.data.size());
-            break;
-        }
+            case type_id::array_type: {
+                const variants& arr = v.get_array();
+                lua_createtable(L, static_cast<int>(arr.size()), 0);
+                for (size_t i = 0; i < arr.size(); ++i) {
+                    variant_to_lua(L, arr[i]);
+                    lua_rawseti(L, -2, static_cast<int>(i + 1)); // Lua 数组索引从 1 开始
+                }
+                break;
+            }
 
-        case type_id::extension_type: {
-            // extension 类型转换为字符串表示
-            std::string str = v.as_string();
-            lua_pushlstring(L, str.data(), str.size());
-            break;
-        }
+            case type_id::object_type: {
+                const dict& obj = v.get_object();
+                lua_createtable(L, 0, static_cast<int>(obj.size()));
+                for (const auto& entry : obj) {
+                    variant_to_lua(L, entry.key);
+                    variant_to_lua(L, entry.value);
+                    lua_settable(L, -3);
+                }
+                break;
+            }
 
-        default:
-            MC_THROW(mc::exception, "unsupported variant type: ${type}",
-                     ("type", get_type_name_internal(v.get_type())));
+            case type_id::blob_type: {
+                const blob& b = v.get_blob();
+                lua_pushlstring(L, b.data.data(), b.data.size());
+                break;
+            }
+
+            case type_id::extension_type: {
+                // extension 类型转换为字符串表示
+                std::string str = v.as_string();
+                lua_pushlstring(L, str.data(), str.size());
+                break;
+            }
+
+            default:
+                MC_THROW(mc::exception, "unsupported variant type: ${type}",
+                         ("type", get_type_name_internal(v.get_type())));
         }
 
         return 1;
@@ -251,72 +251,72 @@ variant lua_to_variant(::lua_State* L, int index)
         int type = lua_type(L, index);
 
         switch (type) {
-        case LUA_TNIL:
-            return variant();
+            case LUA_TNIL:
+                return variant();
 
-        case LUA_TBOOLEAN:
-            return variant(lua_toboolean(L, index) != 0);
+            case LUA_TBOOLEAN:
+                return variant(lua_toboolean(L, index) != 0);
 
-        case LUA_TNUMBER: {
-            // Lua 5.1 只有 number 类型，需要判断是否为整数
-            lua_Number val = lua_tonumber(L, index);
-            // 检查是否为整数
-            if (std::floor(val) == val && val >= static_cast<lua_Number>(INT64_MIN) &&
-                val <= static_cast<lua_Number>(INT64_MAX)) {
-                lua_Integer int_val = static_cast<lua_Integer>(val);
-                // 根据值的大小选择合适的整数类型
-                if (int_val >= INT8_MIN && int_val <= INT8_MAX) {
-                    return variant(static_cast<int8_t>(int_val));
-                } else if (int_val >= INT16_MIN && int_val <= INT16_MAX) {
-                    return variant(static_cast<int16_t>(int_val));
-                } else if (int_val >= INT32_MIN && int_val <= INT32_MAX) {
-                    return variant(static_cast<int32_t>(int_val));
+            case LUA_TNUMBER: {
+                // Lua 5.1 只有 number 类型，需要判断是否为整数
+                lua_Number val = lua_tonumber(L, index);
+                // 检查是否为整数
+                if (std::floor(val) == val && val >= static_cast<lua_Number>(INT64_MIN) &&
+                    val <= static_cast<lua_Number>(INT64_MAX)) {
+                    lua_Integer int_val = static_cast<lua_Integer>(val);
+                    // 根据值的大小选择合适的整数类型
+                    if (int_val >= INT8_MIN && int_val <= INT8_MAX) {
+                        return variant(static_cast<int8_t>(int_val));
+                    } else if (int_val >= INT16_MIN && int_val <= INT16_MAX) {
+                        return variant(static_cast<int16_t>(int_val));
+                    } else if (int_val >= INT32_MIN && int_val <= INT32_MAX) {
+                        return variant(static_cast<int32_t>(int_val));
+                    } else {
+                        return variant(static_cast<int64_t>(int_val));
+                    }
                 } else {
-                    return variant(static_cast<int64_t>(int_val));
+                    return variant(static_cast<double>(val));
                 }
-            } else {
-                return variant(static_cast<double>(val));
             }
-        }
 
-        case LUA_TSTRING: {
-            size_t      len;
-            const char* str = lua_tolstring(L, index, &len);
-            return variant(std::string(str, len));
-        }
-
-        case LUA_TTABLE: {
-            int abs_index = (index < 0) ? lua_gettop(L) + index + 1 : index;
-            if (is_lua_array(L, index)) {
-                // 作为数组处理
-                variants    arr;
-                lua_Integer size = get_lua_table_length(L, abs_index);
-
-                arr.reserve(static_cast<size_t>(size));
-                for (lua_Integer i = 1; i <= size; ++i) {
-                    // Lua 5.1 使用 lua_rawgeti
-                    lua_rawgeti(L, abs_index, static_cast<int>(i));
-                    arr.push_back(lua_to_variant(L, -1));
-                    lua_pop(L, 1);
-                }
-                return variant(arr);
-            } else {
-                // 作为字典处理
-                dict obj;
-                lua_pushnil(L);
-                while (lua_next(L, abs_index) != 0) {
-                    variant key   = lua_to_variant(L, -2);
-                    variant value = lua_to_variant(L, -1);
-                    obj.insert(key, value);
-                    lua_pop(L, 1); // 弹出值，保留键用于下一次迭代
-                }
-                return variant(obj);
+            case LUA_TSTRING: {
+                size_t      len;
+                const char* str = lua_tolstring(L, index, &len);
+                return variant(std::string(str, len));
             }
-        }
 
-        default:
-            MC_THROW(mc::exception, "unsupported Lua type: ${type}",
-                     ("type", lua_typename(L, type)));
+            case LUA_TTABLE: {
+                int abs_index = (index < 0) ? lua_gettop(L) + index + 1 : index;
+                if (is_lua_array(L, index)) {
+                    // 作为数组处理
+                    variants    arr;
+                    lua_Integer size = get_lua_table_length(L, abs_index);
+
+                    arr.reserve(static_cast<size_t>(size));
+                    for (lua_Integer i = 1; i <= size; ++i) {
+                        // Lua 5.1 使用 lua_rawgeti
+                        lua_rawgeti(L, abs_index, static_cast<int>(i));
+                        arr.push_back(lua_to_variant(L, -1));
+                        lua_pop(L, 1);
+                    }
+                    return variant(arr);
+                } else {
+                    // 作为字典处理
+                    dict obj;
+                    lua_pushnil(L);
+                    while (lua_next(L, abs_index) != 0) {
+                        variant key   = lua_to_variant(L, -2);
+                        variant value = lua_to_variant(L, -1);
+                        obj.insert(key, value);
+                        lua_pop(L, 1); // 弹出值，保留键用于下一次迭代
+                    }
+                    return variant(obj);
+                }
+            }
+
+            default:
+                MC_THROW(mc::exception, "unsupported Lua type: ${type}",
+                        ("type", lua_typename(L, type)));
         }
     } catch (const mc::exception& e) {
         MC_THROW(mc::exception, "failed to convert Lua value to variant: ${error}",

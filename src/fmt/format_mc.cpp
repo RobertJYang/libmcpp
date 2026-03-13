@@ -20,44 +20,44 @@ void format_variant(const mc::variant& v, format_context& ctx, const format_spec
     auto& out = ctx.out();
     if (spec.type != '\0') {
         switch (spec.type) {
-        case 'd':
-        case 'i':
-        case 'u':
-        case 'x':
-        case 'X':
-        case 'o':
-        case 'b':
-            if (auto v_uint64 = v.try_as<uint64_t>()) {
-                detail::format_to(ctx, spec, *v_uint64);
-                return;
-            }
-            break;
-        case 'f':
-        case 'F':
-        case 'e':
-        case 'E':
-        case 'g':
-        case 'G':
-            if (auto v_double = v.try_as<double>()) {
-                detail::format_to(ctx, spec, *v_double);
-                return;
-            }
-            break;
-        case 's':
-            if (v.is_string()) {
-                detail::format_to(ctx, spec, v.get_string());
-                return;
-            } else if (auto v_string = v.try_as<std::string>()) {
-                detail::format_to(ctx, spec, *v_string);
-                return;
-            }
-            break;
-        case 'c':
-            if (auto v_int8 = v.try_as<int8_t>()) {
-                detail::format_to(ctx, spec, static_cast<char>(*v_int8));
-                return;
-            }
-            break;
+            case 'd':
+            case 'i':
+            case 'u':
+            case 'x':
+            case 'X':
+            case 'o':
+            case 'b':
+                if (auto v_uint64 = v.try_as<uint64_t>()) {
+                    detail::format_to(ctx, spec, *v_uint64);
+                    return;
+                }
+                break;
+            case 'f':
+            case 'F':
+            case 'e':
+            case 'E':
+            case 'g':
+            case 'G':
+                if (auto v_double = v.try_as<double>()) {
+                    detail::format_to(ctx, spec, *v_double);
+                    return;
+                }
+                break;
+            case 's':
+                if (v.is_string()) {
+                    detail::format_to(ctx, spec, v.get_string());
+                    return;
+                } else if (auto v_string = v.try_as<std::string>()) {
+                    detail::format_to(ctx, spec, *v_string);
+                    return;
+                }
+                break;
+            case 'c':
+                if (auto v_int8 = v.try_as<int8_t>()) {
+                    detail::format_to(ctx, spec, static_cast<char>(*v_int8));
+                    return;
+                }
+                break;
         }
     }
 

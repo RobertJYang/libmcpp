@@ -55,45 +55,45 @@ bool variant_base::operator>=(const variant_base& other) const
 bool variant_base::same_type_equal(const variant_base& other) const
 {
     switch (m_type) {
-    case type_id::null_type:
-        return true;
-    case type_id::double_type: {
-        return MC_FLOAT_EQUAL(m_double, other.m_double, VARIANT_FLOAT_EPSILON);
-    }
-    case type_id::int8_type:
-    case type_id::int16_type:
-    case type_id::int32_type:
-    case type_id::int64_type:
-        return m_int64 == other.m_int64;
-    case type_id::uint8_type:
-    case type_id::uint16_type:
-    case type_id::uint32_type:
-    case type_id::uint64_type:
-        return m_uint64 == other.m_uint64;
-    case type_id::bool_type:
-        return m_bool == other.m_bool;
-    case type_id::string_type:
-        return *m_string_ptr == *other.m_string_ptr;
-    case type_id::array_type:
-        if (m_array.size() != other.m_array.size()) {
-            return false;
-        }
-        return std::equal(m_array.begin(), m_array.end(), other.m_array.begin());
-    case type_id::object_type:
-        return m_object == other.m_object;
-    case type_id::blob_type:
-        return m_blob_ptr->as_string_view() == other.m_blob_ptr->as_string_view();
-    case type_id::extension_type: {
-        if (m_extension == other.m_extension) {
+        case type_id::null_type:
             return true;
-        } else if (!m_extension || !other.m_extension) {
-            return false;
-        } else {
-            return m_extension->equals(*other.m_extension);
+        case type_id::double_type: {
+            return MC_FLOAT_EQUAL(m_double, other.m_double, VARIANT_FLOAT_EPSILON);
         }
-    }
-    default:
-        break;
+        case type_id::int8_type:
+        case type_id::int16_type:
+        case type_id::int32_type:
+        case type_id::int64_type:
+            return m_int64 == other.m_int64;
+        case type_id::uint8_type:
+        case type_id::uint16_type:
+        case type_id::uint32_type:
+        case type_id::uint64_type:
+            return m_uint64 == other.m_uint64;
+        case type_id::bool_type:
+            return m_bool == other.m_bool;
+        case type_id::string_type:
+            return *m_string_ptr == *other.m_string_ptr;
+        case type_id::array_type:
+            if (m_array.size() != other.m_array.size()) {
+                return false;
+            }
+            return std::equal(m_array.begin(), m_array.end(), other.m_array.begin());
+        case type_id::object_type:
+            return m_object == other.m_object;
+        case type_id::blob_type:
+            return m_blob_ptr->as_string_view() == other.m_blob_ptr->as_string_view();
+        case type_id::extension_type: {
+            if (m_extension == other.m_extension) {
+                return true;
+            } else if (!m_extension || !other.m_extension) {
+                return false;
+            } else {
+                return m_extension->equals(*other.m_extension);
+            }
+        }
+        default:
+            break;
     }
 
     return false;
@@ -157,28 +157,28 @@ bool variant_base::other_type_equal(const variant_base& other) const
 bool variant_base::same_type_less(const variant_base& other) const
 {
     switch (m_type) {
-    case type_id::null_type:
-        return false; // null等于null
-    case type_id::int8_type:
-    case type_id::int16_type:
-    case type_id::int32_type:
-    case type_id::int64_type:
-        return m_int64 < other.m_int64;
-    case type_id::uint8_type:
-    case type_id::uint16_type:
-    case type_id::uint32_type:
-    case type_id::uint64_type:
-        return m_uint64 < other.m_uint64;
-    case type_id::double_type:
-        return m_double < other.m_double;
-    case type_id::bool_type:
-        return m_bool < other.m_bool;
-    case type_id::string_type:
-        return *m_string_ptr < *other.m_string_ptr;
-    case type_id::blob_type:
-        return *m_blob_ptr < *other.m_blob_ptr;
-    default:
-        break;
+        case type_id::null_type:
+            return false; // null等于null
+        case type_id::int8_type:
+        case type_id::int16_type:
+        case type_id::int32_type:
+        case type_id::int64_type:
+            return m_int64 < other.m_int64;
+        case type_id::uint8_type:
+        case type_id::uint16_type:
+        case type_id::uint32_type:
+        case type_id::uint64_type:
+            return m_uint64 < other.m_uint64;
+        case type_id::double_type:
+            return m_double < other.m_double;
+        case type_id::bool_type:
+            return m_bool < other.m_bool;
+        case type_id::string_type:
+            return *m_string_ptr < *other.m_string_ptr;
+        case type_id::blob_type:
+            return *m_blob_ptr < *other.m_blob_ptr;
+        default:
+            break;
     }
 
     throw_invalid_type_comparison_error(get_type_name(), other.get_type_name(), "<");

@@ -62,18 +62,18 @@ std::vector<std::pair<std::string, variant>> generate_random_pairs(size_t count)
         variant     value;
 
         switch (type_dis(gen)) {
-        case 0:
-            value = static_cast<int>(i);
-            break;
-        case 1:
-            value = random_string(10);
-            break;
-        case 2:
-            value = (i % 2 == 0);
-            break;
-        case 3:
-            value = static_cast<double>(i) / 10.0;
-            break;
+            case 0:
+                value = static_cast<int>(i);
+                break;
+            case 1:
+                value = random_string(10);
+                break;
+            case 2:
+                value = (i % 2 == 0);
+                break;
+            case 3:
+                value = static_cast<double>(i) / 10.0;
+                break;
         }
 
         pairs.emplace_back(key, value);

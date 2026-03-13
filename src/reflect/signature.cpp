@@ -152,22 +152,22 @@ bool signature::is_complete_type(type_code type)
 bool signature::is_basic_type(char c)
 {
     switch (char_to_type(c)) {
-    case type_code::byte_type:        // 字节（byte）
-    case type_code::boolean_type:     // 布尔（boolean）
-    case type_code::int16_type:       // 16位整数（int16）
-    case type_code::uint16_type:      // 16位无符号整数（uint16）
-    case type_code::int32_type:       // 32位整数（int32）
-    case type_code::uint32_type:      // 32位无符号整数（uint32）
-    case type_code::int64_type:       // 64位整数（int64）
-    case type_code::uint64_type:      // 64位无符号整数（uint64）
-    case type_code::double_type:      // 双精度浮点数（double）
-    case type_code::string_type:      // 字符串（string）
-    case type_code::object_path_type: // 对象路径（object_path）
-    case type_code::signature_type:   // 签名（signature）
-    case type_code::unix_fd_type:     // 文件描述符（unix_fd）
-        return true;
-    default:
-        return false;
+        case type_code::byte_type:        // 字节（byte）
+        case type_code::boolean_type:     // 布尔（boolean）
+        case type_code::int16_type:       // 16位整数（int16）
+        case type_code::uint16_type:      // 16位无符号整数（uint16）
+        case type_code::int32_type:       // 32位整数（int32）
+        case type_code::uint32_type:      // 32位无符号整数（uint32）
+        case type_code::int64_type:       // 64位整数（int64）
+        case type_code::uint64_type:      // 64位无符号整数（uint64）
+        case type_code::double_type:      // 双精度浮点数（double）
+        case type_code::string_type:      // 字符串（string）
+        case type_code::object_path_type: // 对象路径（object_path）
+        case type_code::signature_type:   // 签名（signature）
+        case type_code::unix_fd_type:     // 文件描述符（unix_fd）
+            return true;
+        default:
+            return false;
     }
 }
 
@@ -179,15 +179,15 @@ bool signature::is_basic_type(type_code type)
 bool signature::is_container_type(char c)
 {
     switch (char_to_type(c)) {
-    case type_code::array_type:       // 数组
-    case type_code::struct_type:      // 结构体开始
-    case type_code::struct_start:     // 结构体开始
-    case type_code::variant_type:     // 变体
-    case type_code::dict_entry_type:  // 字典项开始
-    case type_code::dict_entry_start: // 字典项开始
-        return true;
-    default:
-        return false;
+        case type_code::array_type:       // 数组
+        case type_code::struct_type:      // 结构体开始
+        case type_code::struct_start:     // 结构体开始
+        case type_code::variant_type:     // 变体
+        case type_code::dict_entry_type:  // 字典项开始
+        case type_code::dict_entry_start: // 字典项开始
+            return true;
+        default:
+            return false;
     }
 }
 
@@ -220,68 +220,68 @@ size_t signature::get_complete_type_length(std::string_view sig, size_t start_po
 
     // 对于容器类型，需要计算整个类型的长度
     switch (char_to_type(c)) {
-    case type_code::variant: // 变体
-        return 1;
+        case type_code::variant: // 变体
+            return 1;
 
-    case type_code::array_start: // 数组
-        if (start_pos + 1 >= sig.size()) {
-            return 0; // 数组后面必须有一个完整类型
-        }
-        return 1 + get_complete_type_length(sig, start_pos + 1);
-
-    case type_code::struct_start: { // 结构体
-        size_t pos     = start_pos + 1;
-        int    nesting = 1;
-
-        while (pos < sig.size() && nesting > 0) {
-            if (sig[pos] == type_to_char(type_code::struct_start)) {
-                nesting++;
-            } else if (sig[pos] == type_to_char(type_code::struct_end)) {
-                nesting--;
+        case type_code::array_start: // 数组
+            if (start_pos + 1 >= sig.size()) {
+                return 0; // 数组后面必须有一个完整类型
             }
-            pos++;
+            return 1 + get_complete_type_length(sig, start_pos + 1);
+
+        case type_code::struct_start: { // 结构体
+            size_t pos     = start_pos + 1;
+            int    nesting = 1;
+
+            while (pos < sig.size() && nesting > 0) {
+                if (sig[pos] == type_to_char(type_code::struct_start)) {
+                    nesting++;
+                } else if (sig[pos] == type_to_char(type_code::struct_end)) {
+                    nesting--;
+                }
+                pos++;
+            }
+
+            if (nesting > 0) {
+                return 0; // 结构体没有闭合
+            }
+
+            return pos - start_pos;
         }
 
-        if (nesting > 0) {
-            return 0; // 结构体没有闭合
+        case type_code::dict_entry_start: { // 字典项
+            size_t pos = start_pos + 1;
+
+            // 字典项必须有一个基本类型作为键
+            if (pos >= sig.size() || !is_basic_type(sig[pos])) {
+                return 0;
+            }
+
+            // 键之后必须有一个值类型
+            size_t key_len = get_complete_type_length(sig, pos);
+            if (key_len == 0) {
+                return 0;
+            }
+
+            pos += key_len;
+
+            // 值类型之后必须是结束括号
+            size_t value_len = get_complete_type_length(sig, pos);
+            if (value_len == 0) {
+                return 0;
+            }
+
+            pos += value_len;
+
+            if (pos >= sig.size() || sig[pos] != type_to_char(type_code::dict_entry_end)) {
+                return 0;
+            }
+
+            return pos - start_pos + 1;
         }
 
-        return pos - start_pos;
-    }
-
-    case type_code::dict_entry_start: { // 字典项
-        size_t pos = start_pos + 1;
-
-        // 字典项必须有一个基本类型作为键
-        if (pos >= sig.size() || !is_basic_type(sig[pos])) {
-            return 0;
-        }
-
-        // 键之后必须有一个值类型
-        size_t key_len = get_complete_type_length(sig, pos);
-        if (key_len == 0) {
-            return 0;
-        }
-
-        pos += key_len;
-
-        // 值类型之后必须是结束括号
-        size_t value_len = get_complete_type_length(sig, pos);
-        if (value_len == 0) {
-            return 0;
-        }
-
-        pos += value_len;
-
-        if (pos >= sig.size() || sig[pos] != type_to_char(type_code::dict_entry_end)) {
-            return 0;
-        }
-
-        return pos - start_pos + 1;
-    }
-
-    default:
-        return 0; // 无效的容器类型
+        default:
+            return 0; // 无效的容器类型
     }
 }
 

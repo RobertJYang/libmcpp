@@ -145,85 +145,85 @@ void lexer::add_token(token_type type, mc::variant literal)
 void lexer::handle_operator(char c)
 {
     switch (c) {
-    case '(':
-        add_token(token_type::left_paren);
-        break;
-    case ')':
-        add_token(token_type::right_paren);
-        break;
-    case ',':
-        add_token(token_type::comma);
-        break;
-    case '.':
-        add_token(token_type::dot);
-        break;
-    case '-':
-        add_token(token_type::minus);
-        break;
-    case '+':
-        add_token(token_type::plus);
-        break;
-    case ';':
-        add_token(token_type::semicolon);
-        break;
-    case '?':
-        add_token(token_type::question);
-        break;
-    case ':':
-        add_token(token_type::colon);
-        break;
-    case '*':
-        add_token(token_type::asterisk);
-        break;
-    case '%':
-        add_token(token_type::percent);
-        break;
-    case '^':
-        add_token(token_type::bit_xor);
-        break;
-    case '~':
-        add_token(token_type::bit_not);
-        break;
-    case '!':
-        add_token(match('=') ? token_type::not_equals : token_type::logical_not);
-        break;
-    case '=':
-        add_token(match('=') ? token_type::equals : token_type::error);
-        break;
-    case '<':
-        if (match('<')) {
-            add_token(token_type::lshift);
-        } else {
-            add_token(match('=') ? token_type::less_equals : token_type::less);
-        }
-        break;
-    case '>':
-        if (match('>')) {
-            add_token(token_type::rshift);
-        } else {
-            add_token(match('=') ? token_type::greater_equals : token_type::greater);
-        }
-        break;
-    case '&':
-        if (match('&')) {
-            add_token(token_type::logical_and);
-        } else {
-            add_token(token_type::bit_and);
-        }
-        break;
-    case '|':
-        if (match('|')) {
-            add_token(token_type::logical_or);
-        } else {
-            add_token(token_type::bit_or);
-        }
-        break;
-    case '/':
-        add_token(token_type::slash);
-        break;
-    default:
-        add_token(token_type::error);
-        break;
+        case '(':
+            add_token(token_type::left_paren);
+            break;
+        case ')':
+            add_token(token_type::right_paren);
+            break;
+        case ',':
+            add_token(token_type::comma);
+            break;
+        case '.':
+            add_token(token_type::dot);
+            break;
+        case '-':
+            add_token(token_type::minus);
+            break;
+        case '+':
+            add_token(token_type::plus);
+            break;
+        case ';':
+            add_token(token_type::semicolon);
+            break;
+        case '?':
+            add_token(token_type::question);
+            break;
+        case ':':
+            add_token(token_type::colon);
+            break;
+        case '*':
+            add_token(token_type::asterisk);
+            break;
+        case '%':
+            add_token(token_type::percent);
+            break;
+        case '^':
+            add_token(token_type::bit_xor);
+            break;
+        case '~':
+            add_token(token_type::bit_not);
+            break;
+        case '!':
+            add_token(match('=') ? token_type::not_equals : token_type::logical_not);
+            break;
+        case '=':
+            add_token(match('=') ? token_type::equals : token_type::error);
+            break;
+        case '<':
+            if (match('<')) {
+                add_token(token_type::lshift);
+            } else {
+                add_token(match('=') ? token_type::less_equals : token_type::less);
+            }
+            break;
+        case '>':
+            if (match('>')) {
+                add_token(token_type::rshift);
+            } else {
+                add_token(match('=') ? token_type::greater_equals : token_type::greater);
+            }
+            break;
+        case '&':
+            if (match('&')) {
+                add_token(token_type::logical_and);
+            } else {
+                add_token(token_type::bit_and);
+            }
+            break;
+        case '|':
+            if (match('|')) {
+                add_token(token_type::logical_or);
+            } else {
+                add_token(token_type::bit_or);
+            }
+            break;
+        case '/':
+            add_token(token_type::slash);
+            break;
+        default:
+            add_token(token_type::error);
+            break;
     }
 }
 

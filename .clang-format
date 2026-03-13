@@ -8,11 +8,11 @@ IndentWidth: 4
 TabWidth: 4
 UseTab: Never
 AccessModifierOffset: -4
-IndentCaseLabels: false
+IndentCaseLabels: true
 NamespaceIndentation: None
 
 # 行长度设置
-ColumnLimit: 0
+ColumnLimit: 120
 
 # 括号设置
 BreakBeforeBraces: Custom

@@ -19,40 +19,42 @@
 namespace mc::fmt::detail {
 
 // 应用对齐和填充
-static void apply_alignment_and_padding(std::string& out, size_t content_start, size_t content_len, const format_spec& spec)
+static void apply_alignment_and_padding(std::string& out, size_t content_start, size_t content_len,
+                                        const format_spec& spec)
 {
     if (spec.width <= static_cast<int>(content_len)) {
         return;
     }
     int padding = spec.width - static_cast<int>(content_len);
     switch (spec.alignment) {
-    case format_spec::align::left:
-        out.append(padding, spec.fill);
-        break;
-    case format_spec::align::center: {
-        int left  = padding / 2;
-        int right = padding - left;
-        out.insert(content_start, left, spec.fill);
-        out.append(right, spec.fill);
-        break;
-    }
-    case format_spec::align::right:
-        out.insert(content_start, padding, spec.fill);
-        break;
-    case format_spec::align::none:
-    default:
-        // 默认右对齐
-        if (spec.zero_pad) {
-            // 对于补0的场景，右对齐需要填充到符号位后面
-            size_t sign_pos = content_start;
-            while (sign_pos < out.size() && (out[sign_pos] == ' ' || out[sign_pos] == '+' || out[sign_pos] == '-')) {
-                ++sign_pos; // 跳过符号
-            }
-            out.insert(sign_pos, padding, spec.fill);
-        } else {
-            out.insert(content_start, padding, spec.fill);
+        case format_spec::align::left:
+            out.append(padding, spec.fill);
+            break;
+        case format_spec::align::center: {
+            int left  = padding / 2;
+            int right = padding - left;
+            out.insert(content_start, left, spec.fill);
+            out.append(right, spec.fill);
+            break;
         }
-        break;
+        case format_spec::align::right:
+            out.insert(content_start, padding, spec.fill);
+            break;
+        case format_spec::align::none:
+        default:
+            // 默认右对齐
+            if (spec.zero_pad) {
+                // 对于补0的场景，右对齐需要填充到符号位后面
+                size_t sign_pos = content_start;
+                while (sign_pos < out.size() &&
+                       (out[sign_pos] == ' ' || out[sign_pos] == '+' || out[sign_pos] == '-')) {
+                    ++sign_pos; // 跳过符号
+                }
+                out.insert(sign_pos, padding, spec.fill);
+            } else {
+                out.insert(content_start, padding, spec.fill);
+            }
+            break;
     }
 }
 
@@ -103,30 +105,30 @@ void format_integer(format_context& ctx, T value, const format_spec& spec)
     auto abs_val     = to_unsigned_type(value);
     format_number(ctx.out(), spec, is_negative, [&](std::ostream& os) {
         switch (spec.type) {
-        case '\0':
-        case 'd':
-            os << std::dec << abs_val;
-            break;
-        case 'b':
-        case 'B': {
-            write_bit_value(os, std::bitset<64>(abs_val), spec);
-            break;
-        }
-        case 'o':
-            if (spec.alternate_form) {
-                os << '0';
+            case '\0':
+            case 'd':
+                os << std::dec << abs_val;
+                break;
+            case 'b':
+            case 'B': {
+                write_bit_value(os, std::bitset<64>(abs_val), spec);
+                break;
             }
-            os << std::oct << abs_val;
-            break;
-        case 'x':
-        case 'X':
-            if (spec.alternate_form) {
-                os << (spec.type == 'X' ? "0X" : "0x");
-            }
-            os << std::hex << (spec.type == 'X' ? std::uppercase : std::nouppercase) << abs_val;
-            break;
-        default:
-            MC_THROW(mc::format_error, "invalid format specifier for integer");
+            case 'o':
+                if (spec.alternate_form) {
+                    os << '0';
+                }
+                os << std::oct << abs_val;
+                break;
+            case 'x':
+            case 'X':
+                if (spec.alternate_form) {
+                    os << (spec.type == 'X' ? "0X" : "0x");
+                }
+                os << std::hex << (spec.type == 'X' ? std::uppercase : std::nouppercase) << abs_val;
+                break;
+            default:
+                MC_THROW(mc::format_error, "invalid format specifier for integer");
         }
     });
 }
@@ -146,51 +148,52 @@ template <typename T>
 void write_double_value(std::ostream& os, std::string& out, char type_char, int precision, T abs_val)
 {
     switch (type_char) {
-    case 'f':
-    case 'F':
-        os << std::fixed << std::setprecision(precision) << abs_val;
-        break;
-    case 'e':
-    case 'E': {
-        os << std::scientific << (type_char == 'E' ? std::uppercase : std::nouppercase)
-           << std::setprecision(precision) << abs_val;
-        break;
-    }
-    case 'g':
-    case 'G': {
-        if (precision == 0) {
-            os << std::fixed;
-        } else if (abs_val >= std::pow(10.0, precision) || (abs_val < 1e-4 && abs_val != 0)) {
-            // 大于 10^precision 或者小于 1e-4 的数，使用科学计数法
-            os << std::scientific;
+        case 'f':
+        case 'F':
+            os << std::fixed << std::setprecision(precision) << abs_val;
+            break;
+        case 'e':
+        case 'E': {
+            os << std::scientific << (type_char == 'E' ? std::uppercase : std::nouppercase)
+            << std::setprecision(precision) << abs_val;
+            break;
         }
-        os << (type_char == 'G' ? std::uppercase : std::nouppercase);
-        os << std::setprecision(precision) << abs_val;
-        break;
-    }
-    case 'a':
-    case 'A': {
-        auto start_pos = out.size();
-        os << std::hexfloat << (type_char == 'A' ? std::uppercase : std::nouppercase)
-           << std::setprecision(precision) << abs_val;
-        remove_hex_prefix(out, start_pos);
-        break;
-    }
-    case '\0':
-        // 默认格式：对于大数使用固定点格式，对于小数使用科学计数法
-        if (abs_val < 1e-4 && abs_val != 0) {
-            os << std::scientific << std::nouppercase << std::setprecision(precision) << abs_val;
-        } else {
-            os << std::fixed << std::nouppercase << std::setprecision(precision) << abs_val;
+        case 'g':
+        case 'G': {
+            if (precision == 0) {
+                os << std::fixed;
+            } else if (abs_val >= std::pow(10.0, precision) || (abs_val < 1e-4 && abs_val != 0)) {
+                // 大于 10^precision 或者小于 1e-4 的数，使用科学计数法
+                os << std::scientific;
+            }
+            os << (type_char == 'G' ? std::uppercase : std::nouppercase);
+            os << std::setprecision(precision) << abs_val;
+            break;
         }
-        break;
-    default:
-        MC_THROW(mc::format_error, "invalid format specifier for float");
+        case 'a':
+        case 'A': {
+            auto start_pos = out.size();
+            os << std::hexfloat << (type_char == 'A' ? std::uppercase : std::nouppercase)
+            << std::setprecision(precision) << abs_val;
+            remove_hex_prefix(out, start_pos);
+            break;
+        }
+        case '\0':
+            // 默认格式：对于大数使用固定点格式，对于小数使用科学计数法
+            if (abs_val < 1e-4 && abs_val != 0) {
+                os << std::scientific << std::nouppercase << std::setprecision(precision) << abs_val;
+            } else {
+                os << std::fixed << std::nouppercase << std::setprecision(precision) << abs_val;
+            }
+            break;
+        default:
+            MC_THROW(mc::format_error, "invalid format specifier for float");
     }
 }
 
 // 处理 g/G 格式的替代形式
-static void handle_g_format_alternate(std::string& s, std::size_t pos, int precision, double abs_val, const format_spec& spec)
+static void handle_g_format_alternate(std::string& s, std::size_t pos, int precision, double abs_val,
+                                      const format_spec& spec)
 {
     if (!spec.alternate_form) {
         return;
@@ -268,7 +271,8 @@ static void remove_trailing_zeros(std::string& s, std::size_t pos, const format_
 }
 
 // 调整浮点数尾部格式
-static void adjust_double_trailing(std::string& s, std::size_t pos, int precision, double abs_val, const format_spec& spec)
+static void adjust_double_trailing(std::string& s, std::size_t pos, int precision, double abs_val,
+                                   const format_spec& spec)
 {
     // 处理 g/G 格式的替代形式
     if (spec.type == 'g' || spec.type == 'G') {

@@ -442,98 +442,98 @@ constexpr std::string_view parse_chrono_format(std::string_view fmt, Handler&& h
         // 处理格式说明符
         char spec = *it++;
         switch (spec) {
-        case '%':
-            handler.on_text("%");
-            break;
-        case 'n':
-            handler.on_text("\n");
-            break;
-        case 't':
-            handler.on_text("\t");
-            break;
+            case '%':
+                handler.on_text("%");
+                break;
+            case 'n':
+                handler.on_text("\n");
+                break;
+            case 't':
+                handler.on_text("\t");
+                break;
 
-        // 年份
-        case 'Y':
-            handler.on_year(ns, pad);
-            break;
-        case 'y':
-            handler.on_short_year(ns);
-            break;
+            // 年份
+            case 'Y':
+                handler.on_year(ns, pad);
+                break;
+            case 'y':
+                handler.on_short_year(ns);
+                break;
 
-        // 月份
-        case 'm':
-            handler.on_month(ns, pad);
-            break;
-        case 'B':
-        case 'b':
-        case 'h':
-            handler.on_month(ns, pad);
-            break;
+            // 月份
+            case 'm':
+                handler.on_month(ns, pad);
+                break;
+            case 'B':
+            case 'b':
+            case 'h':
+                handler.on_month(ns, pad);
+                break;
 
-        // 日期
-        case 'd':
-            handler.on_day(ns, pad);
-            break;
-        case 'e':
-            handler.on_day(ns, pad_type::space);
-            break;
+            // 日期
+            case 'd':
+                handler.on_day(ns, pad);
+                break;
+            case 'e':
+                handler.on_day(ns, pad_type::space);
+                break;
 
-        // 小时
-        case 'H':
-            handler.on_hour_24(ns, pad);
-            break;
-        case 'I':
-            handler.on_hour_12(ns, pad);
-            break;
+            // 小时
+            case 'H':
+                handler.on_hour_24(ns, pad);
+                break;
+            case 'I':
+                handler.on_hour_12(ns, pad);
+                break;
 
-        // 分钟和秒
-        case 'M':
-            handler.on_minute(ns, pad);
-            break;
-        case 'S':
-            handler.on_second(ns, pad);
-            break;
+            // 分钟和秒
+            case 'M':
+                handler.on_minute(ns, pad);
+                break;
+            case 'S':
+                handler.on_second(ns, pad);
+                break;
 
-        // 组合格式
-        case 'c':
-            handler.on_datetime(ns);
-            break;
-        case 'F':
-            handler.on_iso_date();
-            break;
-        case 'T':
-            handler.on_iso_time();
-            break;
-        case 'R':
-            handler.on_24_hour_time();
-            break;
-        case 'r':
-            handler.on_12_hour_time();
-            break;
+            // 组合格式
+            case 'c':
+                handler.on_datetime(ns);
+                break;
+            case 'F':
+                handler.on_iso_date();
+                break;
+            case 'T':
+                handler.on_iso_time();
+                break;
+            case 'R':
+                handler.on_24_hour_time();
+                break;
+            case 'r':
+                handler.on_12_hour_time();
+                break;
 
-        // duration 专用
-        case 'Q':
-            handler.on_duration_value();
-            break;
-        case 'q':
-            handler.on_duration_unit();
-            break;
+            // duration 专用
+            case 'Q':
+                handler.on_duration_value();
+                break;
+            case 'q':
+                handler.on_duration_unit();
+                break;
 
-        // 其他
-        case 'p':
-            handler.on_am_pm();
-            break;
-        case 'z':
-            handler.on_timezone_offset(ns);
-            break;
-        case 'Z':
-            handler.on_timezone_name(ns);
-            break;
+            // 其他
+            case 'p':
+                handler.on_am_pm();
+                break;
+            case 'z':
+                handler.on_timezone_offset(ns);
+                break;
+            case 'Z':
+                handler.on_timezone_name(ns);
+                break;
 
-        default:
-            // 未知格式说明符
-            handler.on_invalid_spec();
-            break;
+            default:
+                // 未知格式说明符
+                handler.on_invalid_spec();
+                break;
         }
 
         text_begin = it;

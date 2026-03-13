@@ -160,7 +160,7 @@ inline int push_json_value(lua_State* L, JsonValue&& value)
 static Json *json_array_new(lua_State* L, int idx);
 static Json *json_object_new(lua_State* L, int idx);
 static Json *json_new(lua_State* L, int index)
-{   
+{
     Json *json;
     int idx = (index < 0) ? lua_gettop(L) + index + 1 : index;
     int type = lua_type(L, idx);
@@ -1163,29 +1163,28 @@ static int lencode_empty_table_as_object(lua_State* L)
     }
 }
 
-static const luaL_Reg methods[] = {
-    {"encode", lencode},
-    {"decode", ldecode},
-    {"dump", ldump},
-    {"dump_pretty", ldump_pretty},
-    {"encode_empty_table_as_object", lencode_empty_table_as_object},
-    {"json_object_ordered_decode", ljson_object_ordered_decode},
-    {"json_object_ordered_encode", ljson_object_ordered_encode},
-    {"json_object_ordered_encode_pretty", ljson_object_ordered_encode_pretty},
-    {"json_object_dump", ljson_object_dump},
-    {"json_object_dump_pretty", ljson_object_dump_pretty},
-    {"json_object_get_keys", l_json_object_get_keys},
-    {"json_object_is_equal", l_json_object_is_equal},
-    {"json_object_to_table", l_json_object_to_table},
-    {"json_object_from_table", l_json_object_from_table},
-    {"json_object_copy", l_json_object_copy},
-    {"json_object_is_object", l_json_object_is_object},
-    {"json_object_is_array", l_json_object_is_array},
-    {"json_object_new_object", l_json_object_new_object},
-    {"json_object_new_array", l_json_object_new_array},
-    {"to_raw", l_to_raw},
-    {"new_from_raw", l_new_from_raw},
-    {nullptr, nullptr}};
+static const luaL_Reg methods[] = {{"encode", lencode},
+                                   {"decode", ldecode},
+                                   {"dump", ldump},
+                                   {"dump_pretty", ldump_pretty},
+                                   {"encode_empty_table_as_object", lencode_empty_table_as_object},
+                                   {"json_object_ordered_decode", ljson_object_ordered_decode},
+                                   {"json_object_ordered_encode", ljson_object_ordered_encode},
+                                   {"json_object_ordered_encode_pretty", ljson_object_ordered_encode_pretty},
+                                   {"json_object_dump", ljson_object_dump},
+                                   {"json_object_dump_pretty", ljson_object_dump_pretty},
+                                   {"json_object_get_keys", l_json_object_get_keys},
+                                   {"json_object_is_equal", l_json_object_is_equal},
+                                   {"json_object_to_table", l_json_object_to_table},
+                                   {"json_object_from_table", l_json_object_from_table},
+                                   {"json_object_copy", l_json_object_copy},
+                                   {"json_object_is_object", l_json_object_is_object},
+                                   {"json_object_is_array", l_json_object_is_array},
+                                   {"json_object_new_object", l_json_object_new_object},
+                                   {"json_object_new_array", l_json_object_new_array},
+                                   {"to_raw", l_to_raw},
+                                   {"new_from_raw", l_new_from_raw},
+                                   {nullptr, nullptr}};
 
 } // namespace lua
 } // namespace json_wrapper

@@ -247,42 +247,42 @@ variant local_msg::parse_variant(signature_iterator it, const variant& v, size_t
 {
     ensure_message_depth(depth);
     switch (it.current_type_code()) {
-    case type_code::byte_type:
-        return parse_variant_basic<uint8_t>(v);
-    case type_code::boolean_type:
-        return parse_variant_basic<bool>(v);
-    case type_code::int16_type:
-        return parse_variant_basic<int16_t>(v);
-    case type_code::uint16_type:
-        return parse_variant_basic<uint16_t>(v);
-    case type_code::int32_type:
-        return parse_variant_basic<int32_t>(v);
-    case type_code::uint32_type:
-        return parse_variant_basic<uint32_t>(v);
-    case type_code::int64_type:
-        return parse_variant_basic<int64_t>(v);
-    case type_code::uint64_type:
-        return parse_variant_basic<uint64_t>(v);
-    case type_code::double_type:
-        return parse_variant_basic<double>(v);
-    case type_code::string_type:
-        return parse_variant_basic<std::string_view>(v);
-    case type_code::signature_type:
-        return parse_variant_basic<mc::dbus::signature>(v);
-    case type_code::object_path_type:
-        return parse_variant_basic<mc::dbus::path>(v);
-    case type_code::array_start:
-        return parse_variant_array_or_dict(it.get_content_iterator(), v, depth + 1);
-    case type_code::struct_start:
-        return parse_variant_elements(it.get_content_iterator(), v.get_array(), depth + 1);
-    case type_code::variant_type: {
-        mc::dbus::signature sig;
-        detail::variant_to_dbus_signature(sig, v);
-        return parse_variant(sig, v, depth + 1);
-    }
-    default:
-        MC_THROW(mc::invalid_arg_exception, "unknown type: ${type}",
-                 ("type", it.current_type_char()));
+        case type_code::byte_type:
+            return parse_variant_basic<uint8_t>(v);
+        case type_code::boolean_type:
+            return parse_variant_basic<bool>(v);
+        case type_code::int16_type:
+            return parse_variant_basic<int16_t>(v);
+        case type_code::uint16_type:
+            return parse_variant_basic<uint16_t>(v);
+        case type_code::int32_type:
+            return parse_variant_basic<int32_t>(v);
+        case type_code::uint32_type:
+            return parse_variant_basic<uint32_t>(v);
+        case type_code::int64_type:
+            return parse_variant_basic<int64_t>(v);
+        case type_code::uint64_type:
+            return parse_variant_basic<uint64_t>(v);
+        case type_code::double_type:
+            return parse_variant_basic<double>(v);
+        case type_code::string_type:
+            return parse_variant_basic<std::string_view>(v);
+        case type_code::signature_type:
+            return parse_variant_basic<mc::dbus::signature>(v);
+        case type_code::object_path_type:
+            return parse_variant_basic<mc::dbus::path>(v);
+        case type_code::array_start:
+            return parse_variant_array_or_dict(it.get_content_iterator(), v, depth + 1);
+        case type_code::struct_start:
+            return parse_variant_elements(it.get_content_iterator(), v.get_array(), depth + 1);
+        case type_code::variant_type: {
+            mc::dbus::signature sig;
+            detail::variant_to_dbus_signature(sig, v);
+            return parse_variant(sig, v, depth + 1);
+        }
+        default:
+            MC_THROW(mc::invalid_arg_exception, "unknown type: ${type}",
+                    ("type", it.current_type_char()));
     }
 }
 

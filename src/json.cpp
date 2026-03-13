@@ -96,38 +96,36 @@ public:
         m_stream << '"';
         for (unsigned char c : str) {
             switch (c) {
-            case '"':
-                m_stream << "\\\"";
-                break;
-            case '\\':
-                m_stream << "\\\\";
-                break;
-            case '\b':
-                m_stream << "\\b";
-                break;
-            case '\f':
-                m_stream << "\\f";
-                break;
-            case '\n':
-                m_stream << "\\n";
-                break;
-            case '\r':
-                m_stream << "\\r";
-                break;
-            case '\t':
-                m_stream << "\\t";
-                break;
-            default:
-                if (c < 0x20) {
-                    m_stream << "\\u" << std::hex << std::setw(4) << std::setfill('0')
-                             << static_cast<int>(c);
-                } else if (m_options.escape_non_ascii && c >= 0x80) {
-                    // 转义非ASCII字符
-                    m_stream << "\\u" << std::hex << std::setw(4) << std::setfill('0')
-                             << static_cast<int>(c);
-                } else {
-                    m_stream << c;
-                }
+                case '"':
+                    m_stream << "\\\"";
+                    break;
+                case '\\':
+                    m_stream << "\\\\";
+                    break;
+                case '\b':
+                    m_stream << "\\b";
+                    break;
+                case '\f':
+                    m_stream << "\\f";
+                    break;
+                case '\n':
+                    m_stream << "\\n";
+                    break;
+                case '\r':
+                    m_stream << "\\r";
+                    break;
+                case '\t':
+                    m_stream << "\\t";
+                    break;
+                default:
+                    if (c < 0x20) {
+                        m_stream << "\\u" << std::hex << std::setw(4) << std::setfill('0') << static_cast<int>(c);
+                    } else if (m_options.escape_non_ascii && c >= 0x80) {
+                        // 转义非ASCII字符
+                        m_stream << "\\u" << std::hex << std::setw(4) << std::setfill('0') << static_cast<int>(c);
+                    } else {
+                        m_stream << c;
+                    }
             }
         }
         m_stream << '"';
@@ -337,23 +335,23 @@ public:
         skip_whitespace();
         char c = current();
         switch (c) {
-        case 'n':
-            return parse_null();
-        case 't':
-            return parse_true();
-        case 'f':
-            return parse_false();
-        case '"':
-            return parse_string();
-        case '[':
-            return parse_array();
-        case '{':
-            return parse_object();
-        default:
-            if (c == '-' || std::isdigit(c)) {
-                return parse_number();
-            }
-            MC_THROW(mc::parse_error_exception, "Invalid JSON value");
+            case 'n':
+                return parse_null();
+            case 't':
+                return parse_true();
+            case 'f':
+                return parse_false();
+            case '"':
+                return parse_string();
+            case '[':
+                return parse_array();
+            case '{':
+                return parse_object();
+            default:
+                if (c == '-' || std::isdigit(c)) {
+                    return parse_number();
+                }
+                MC_THROW(mc::parse_error_exception, "Invalid JSON value");
         }
     }
 
@@ -436,35 +434,35 @@ public:
         }
         char c = current();
         switch (c) {
-        case '"':
-            result += '"';
-            break;
-        case '\\':
-            result += '\\';
-            break;
-        case '/':
-            result += '/';
-            break;
-        case 'b':
-            result += '\b';
-            break;
-        case 'f':
-            result += '\f';
-            break;
-        case 'n':
-            result += '\n';
-            break;
-        case 'r':
-            result += '\r';
-            break;
-        case 't':
-            result += '\t';
-            break;
-        case 'u':
-            handle_unicode_escape(result);
-            break;
-        default:
-            MC_THROW(mc::parse_error_exception, "Invalid escape sequence");
+            case '"':
+                result += '"';
+                break;
+            case '\\':
+                result += '\\';
+                break;
+            case '/':
+                result += '/';
+                break;
+            case 'b':
+                result += '\b';
+                break;
+            case 'f':
+                result += '\f';
+                break;
+            case 'n':
+                result += '\n';
+                break;
+            case 'r':
+                result += '\r';
+                break;
+            case 't':
+                result += '\t';
+                break;
+            case 'u':
+                handle_unicode_escape(result);
+                break;
+            default:
+                MC_THROW(mc::parse_error_exception, "Invalid escape sequence");
         }
     }
 

@@ -240,36 +240,36 @@ public:
     auto visit_with(Visitor&& visitor) const
     {
         switch (m_type) {
-        case type_id::null_type:
-            return detail::invoke_visitor<Visitor>(std::forward<Visitor>(visitor), nullptr);
-        case type_id::int8_type:
-        case type_id::int16_type:
-        case type_id::int32_type:
-        case type_id::int64_type:
-            return detail::invoke_visitor<Visitor>(std::forward<Visitor>(visitor), m_int64);
-        case type_id::uint8_type:
-        case type_id::uint16_type:
-        case type_id::uint32_type:
-        case type_id::uint64_type:
-            return detail::invoke_visitor<Visitor>(std::forward<Visitor>(visitor), m_uint64);
-        case type_id::double_type:
-            return detail::invoke_visitor<Visitor>(std::forward<Visitor>(visitor), m_double);
-        case type_id::bool_type:
-            return detail::invoke_visitor<Visitor>(std::forward<Visitor>(visitor), m_bool);
-        case type_id::string_type:
-            return detail::invoke_visitor<Visitor>(std::forward<Visitor>(visitor), *m_string_ptr);
-        case type_id::object_type:
-            return detail::invoke_visitor<Visitor>(std::forward<Visitor>(visitor), m_object);
-        case type_id::array_type:
-            return detail::invoke_visitor<Visitor>(std::forward<Visitor>(visitor), m_array);
-        case type_id::blob_type:
-            return detail::invoke_visitor<Visitor>(std::forward<Visitor>(visitor), *m_blob_ptr);
-        case type_id::extension_type:
-            if (m_extension) {
-                return detail::invoke_visitor<Visitor>(std::forward<Visitor>(visitor), *m_extension);
-            }
-        default:
-            break;
+            case type_id::null_type:
+                return detail::invoke_visitor<Visitor>(std::forward<Visitor>(visitor), nullptr);
+            case type_id::int8_type:
+            case type_id::int16_type:
+            case type_id::int32_type:
+            case type_id::int64_type:
+                return detail::invoke_visitor<Visitor>(std::forward<Visitor>(visitor), m_int64);
+            case type_id::uint8_type:
+            case type_id::uint16_type:
+            case type_id::uint32_type:
+            case type_id::uint64_type:
+                return detail::invoke_visitor<Visitor>(std::forward<Visitor>(visitor), m_uint64);
+            case type_id::double_type:
+                return detail::invoke_visitor<Visitor>(std::forward<Visitor>(visitor), m_double);
+            case type_id::bool_type:
+                return detail::invoke_visitor<Visitor>(std::forward<Visitor>(visitor), m_bool);
+            case type_id::string_type:
+                return detail::invoke_visitor<Visitor>(std::forward<Visitor>(visitor), *m_string_ptr);
+            case type_id::object_type:
+                return detail::invoke_visitor<Visitor>(std::forward<Visitor>(visitor), m_object);
+            case type_id::array_type:
+                return detail::invoke_visitor<Visitor>(std::forward<Visitor>(visitor), m_array);
+            case type_id::blob_type:
+                return detail::invoke_visitor<Visitor>(std::forward<Visitor>(visitor), *m_blob_ptr);
+            case type_id::extension_type:
+                if (m_extension) {
+                    return detail::invoke_visitor<Visitor>(std::forward<Visitor>(visitor), *m_extension);
+                }
+            default:
+                break;
         }
         throw_unknow_type_error(get_type());
     }

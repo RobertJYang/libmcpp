@@ -127,15 +127,15 @@ std::size_t io_stream::seek_read(std::int64_t pos, seek_mode mode)
     std::int64_t new_pos = 0;
 
     switch (mode) {
-    case seek_mode::begin:
-        new_pos = pos;
-        break;
-    case seek_mode::current:
-        new_pos = static_cast<std::int64_t>(m_read_pos) + pos;
-        break;
-    case seek_mode::end:
-        new_pos = static_cast<std::int64_t>(m_buffer->length()) + pos;
-        break;
+        case seek_mode::begin:
+            new_pos = pos;
+            break;
+        case seek_mode::current:
+            new_pos = static_cast<std::int64_t>(m_read_pos) + pos;
+            break;
+        case seek_mode::end:
+            new_pos = static_cast<std::int64_t>(m_buffer->length()) + pos;
+            break;
     }
 
     // 检查边界
@@ -156,15 +156,15 @@ std::size_t io_stream::seek_write(std::int64_t pos, seek_mode mode)
     std::int64_t new_pos = 0;
 
     switch (mode) {
-    case seek_mode::begin:
-        new_pos = pos;
-        break;
-    case seek_mode::current:
-        new_pos = static_cast<std::int64_t>(m_write_pos) + pos;
-        break;
-    case seek_mode::end:
-        new_pos = static_cast<std::int64_t>(m_buffer->length()) + pos;
-        break;
+        case seek_mode::begin:
+            new_pos = pos;
+            break;
+        case seek_mode::current:
+            new_pos = static_cast<std::int64_t>(m_write_pos) + pos;
+            break;
+        case seek_mode::end:
+            new_pos = static_cast<std::int64_t>(m_buffer->length()) + pos;
+            break;
     }
 
     // 检查边界

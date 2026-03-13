@@ -169,39 +169,39 @@ static void dict_to_dbus_signature(signature& sig, const mc::dict& v)
 void variant_to_dbus_signature(signature& sig, const mc::variant& v)
 {
     switch (v.get_type()) {
-    case mc::type_id::null_type: // dbus 不支持空类型，用一个 std::optional 类型来表示
-        sig += "ai";
-        return;
-    case mc::type_id::bool_type:
-        return add_type(sig, type_code::boolean_type);
-    case mc::type_id::int8_type:
-    case mc::type_id::uint8_type:
-        return add_type(sig, type_code::byte_type);
-    case mc::type_id::int16_type:
-        return add_type(sig, type_code::int16_type);
-    case mc::type_id::uint16_type:
-        return add_type(sig, type_code::uint16_type);
-    case mc::type_id::int32_type:
-        return add_type(sig, type_code::int32_type);
-    case mc::type_id::uint32_type:
-        return add_type(sig, type_code::uint32_type);
-    case mc::type_id::int64_type:
-        return add_type(sig, type_code::int64_type);
-    case mc::type_id::uint64_type:
-        return add_type(sig, type_code::uint64_type);
-    case mc::type_id::double_type:
-        return add_type(sig, type_code::double_type);
-    case mc::type_id::string_type:
-        return add_type(sig, type_code::string_type);
-    case mc::type_id::object_type:
-        return dict_to_dbus_signature(sig, v.get_object());
-    case mc::type_id::array_type:
-        return array_to_dbus_signature(sig, v.get_array());
-    case mc::type_id::blob_type:
-        sig += container::array_of_byte;
-        break;
-    default:
-        throw_unknow_type_error(v.get_type());
+        case mc::type_id::null_type: // dbus 不支持空类型，用一个 std::optional 类型来表示
+            sig += "ai";
+            return;
+        case mc::type_id::bool_type:
+            return add_type(sig, type_code::boolean_type);
+        case mc::type_id::int8_type:
+        case mc::type_id::uint8_type:
+            return add_type(sig, type_code::byte_type);
+        case mc::type_id::int16_type:
+            return add_type(sig, type_code::int16_type);
+        case mc::type_id::uint16_type:
+            return add_type(sig, type_code::uint16_type);
+        case mc::type_id::int32_type:
+            return add_type(sig, type_code::int32_type);
+        case mc::type_id::uint32_type:
+            return add_type(sig, type_code::uint32_type);
+        case mc::type_id::int64_type:
+            return add_type(sig, type_code::int64_type);
+        case mc::type_id::uint64_type:
+            return add_type(sig, type_code::uint64_type);
+        case mc::type_id::double_type:
+            return add_type(sig, type_code::double_type);
+        case mc::type_id::string_type:
+            return add_type(sig, type_code::string_type);
+        case mc::type_id::object_type:
+            return dict_to_dbus_signature(sig, v.get_object());
+        case mc::type_id::array_type:
+            return array_to_dbus_signature(sig, v.get_array());
+        case mc::type_id::blob_type:
+            sig += container::array_of_byte;
+            break;
+        default:
+            throw_unknow_type_error(v.get_type());
     }
 }
 } // namespace detail
@@ -863,42 +863,42 @@ void message_reader::read_variant_value(type_code type, mc::variant& v, std::siz
     ensure_message_depth(depth);
 
     switch (type) {
-    case type_code::byte_type:
-        return detail::demarshal_variant_basic<uint8_t>(*this, v);
-    case type_code::boolean_type:
-        return detail::demarshal_variant_basic<bool>(*this, v);
-    case type_code::int16_type:
-        return detail::demarshal_variant_basic<int16_t>(*this, v);
-    case type_code::uint16_type:
-        return detail::demarshal_variant_basic<uint16_t>(*this, v);
-    case type_code::int32_type:
-        return detail::demarshal_variant_basic<int32_t>(*this, v);
-    case type_code::uint32_type:
-        return detail::demarshal_variant_basic<uint32_t>(*this, v);
-    case type_code::int64_type:
-        return detail::demarshal_variant_basic<int64_t>(*this, v);
-    case type_code::uint64_type:
-        return detail::demarshal_variant_basic<uint64_t>(*this, v);
-    case type_code::double_type:
-        return detail::demarshal_variant_basic<double>(*this, v);
-    case type_code::string_type:
-        return detail::demarshal_variant_basic<std::string_view>(*this, v);
-    case type_code::signature_type:
-        return detail::demarshal_variant_basic<mc::dbus::signature>(*this, v);
-    case type_code::object_path_type:
-        return detail::demarshal_variant_basic<mc::dbus::path>(*this, v);
-    case type_code::array_start:
-        return read_variant_array_or_dict(v, depth + 1);
-    case type_code::struct_type:
-        return read_variant_raw_struct(v, depth + 1);
-    case type_code::struct_start:
-        return read_variant_struct(v, depth + 1);
-    case type_code::variant_type: {
-        return read_variant(v, depth + 1);
-    }
-    default:
-        MC_THROW(mc::invalid_arg_exception, "unknown type: ${type}",
-                 ("type", static_cast<char>(type)));
+        case type_code::byte_type:
+            return detail::demarshal_variant_basic<uint8_t>(*this, v);
+        case type_code::boolean_type:
+            return detail::demarshal_variant_basic<bool>(*this, v);
+        case type_code::int16_type:
+            return detail::demarshal_variant_basic<int16_t>(*this, v);
+        case type_code::uint16_type:
+            return detail::demarshal_variant_basic<uint16_t>(*this, v);
+        case type_code::int32_type:
+            return detail::demarshal_variant_basic<int32_t>(*this, v);
+        case type_code::uint32_type:
+            return detail::demarshal_variant_basic<uint32_t>(*this, v);
+        case type_code::int64_type:
+            return detail::demarshal_variant_basic<int64_t>(*this, v);
+        case type_code::uint64_type:
+            return detail::demarshal_variant_basic<uint64_t>(*this, v);
+        case type_code::double_type:
+            return detail::demarshal_variant_basic<double>(*this, v);
+        case type_code::string_type:
+            return detail::demarshal_variant_basic<std::string_view>(*this, v);
+        case type_code::signature_type:
+            return detail::demarshal_variant_basic<mc::dbus::signature>(*this, v);
+        case type_code::object_path_type:
+            return detail::demarshal_variant_basic<mc::dbus::path>(*this, v);
+        case type_code::array_start:
+            return read_variant_array_or_dict(v, depth + 1);
+        case type_code::struct_type:
+            return read_variant_raw_struct(v, depth + 1);
+        case type_code::struct_start:
+            return read_variant_struct(v, depth + 1);
+        case type_code::variant_type:
+            {
+                return read_variant(v, depth + 1);
+            }
+        default:
+            MC_THROW(mc::invalid_arg_exception, "unknown type: ${type}", ("type", static_cast<char>(type)));
     }
 }
 
@@ -1026,40 +1026,40 @@ void message_writer::write_variant(signature_iterator it, const mc::variant& v,
     ensure_message_depth(depth);
 
     switch (it.current_type_code()) {
-    case type_code::byte_type:
-        return detail::marshal_variant_basic<uint8_t>(*this, v);
-    case type_code::boolean_type:
-        return detail::marshal_variant_basic<bool>(*this, v);
-    case type_code::int16_type:
-        return detail::marshal_variant_basic<int16_t>(*this, v);
-    case type_code::uint16_type:
-        return detail::marshal_variant_basic<uint16_t>(*this, v);
-    case type_code::int32_type:
-        return detail::marshal_variant_basic<int32_t>(*this, v);
-    case type_code::uint32_type:
-        return detail::marshal_variant_basic<uint32_t>(*this, v);
-    case type_code::int64_type:
-        return detail::marshal_variant_basic<int64_t>(*this, v);
-    case type_code::uint64_type:
-        return detail::marshal_variant_basic<uint64_t>(*this, v);
-    case type_code::double_type:
-        return detail::marshal_variant_basic<double>(*this, v);
-    case type_code::string_type:
-        return detail::marshal_variant_basic<std::string_view>(*this, v);
-    case type_code::signature_type:
-        return detail::marshal_variant_basic<mc::dbus::signature>(*this, v);
-    case type_code::object_path_type:
-        return detail::marshal_variant_basic<mc::dbus::path>(*this, v);
-    case type_code::array_start:
-        return write_variant_array_or_dict(it.get_content_iterator(), v, depth + 1);
-    case type_code::struct_start:
-        return write_variant_struct(it.get_content_iterator(), v, depth + 1);
-    case type_code::variant_type: {
-        return write_variant(v, depth + 1);
-    }
-    default:
-        MC_THROW(mc::invalid_arg_exception, "unknown type: ${type}",
-                 ("type", it.current_type_char()));
+        case type_code::byte_type:
+            return detail::marshal_variant_basic<uint8_t>(*this, v);
+        case type_code::boolean_type:
+            return detail::marshal_variant_basic<bool>(*this, v);
+        case type_code::int16_type:
+            return detail::marshal_variant_basic<int16_t>(*this, v);
+        case type_code::uint16_type:
+            return detail::marshal_variant_basic<uint16_t>(*this, v);
+        case type_code::int32_type:
+            return detail::marshal_variant_basic<int32_t>(*this, v);
+        case type_code::uint32_type:
+            return detail::marshal_variant_basic<uint32_t>(*this, v);
+        case type_code::int64_type:
+            return detail::marshal_variant_basic<int64_t>(*this, v);
+        case type_code::uint64_type:
+            return detail::marshal_variant_basic<uint64_t>(*this, v);
+        case type_code::double_type:
+            return detail::marshal_variant_basic<double>(*this, v);
+        case type_code::string_type:
+            return detail::marshal_variant_basic<std::string_view>(*this, v);
+        case type_code::signature_type:
+            return detail::marshal_variant_basic<mc::dbus::signature>(*this, v);
+        case type_code::object_path_type:
+            return detail::marshal_variant_basic<mc::dbus::path>(*this, v);
+        case type_code::array_start:
+            return write_variant_array_or_dict(it.get_content_iterator(), v, depth + 1);
+        case type_code::struct_start:
+            return write_variant_struct(it.get_content_iterator(), v, depth + 1);
+        case type_code::variant_type:
+            {
+                return write_variant(v, depth + 1);
+            }
+        default:
+            MC_THROW(mc::invalid_arg_exception, "unknown type: ${type}", ("type", it.current_type_char()));
     }
 }
 

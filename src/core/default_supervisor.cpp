@@ -389,15 +389,15 @@ void default_supervisor::handle_service_crash(const std::string& name)
 
     // 根据策略重启服务
     switch (m_strategy) {
-    case config::supervisor_strategy::one_for_one:
-        restart_one_service(name);
-        break;
-    case config::supervisor_strategy::one_for_all:
-        restart_all_services();
-        break;
-    case config::supervisor_strategy::rest_for_one:
-        restart_dependent_services(name);
-        break;
+        case config::supervisor_strategy::one_for_one:
+            restart_one_service(name);
+            break;
+        case config::supervisor_strategy::one_for_all:
+            restart_all_services();
+            break;
+        case config::supervisor_strategy::rest_for_one:
+            restart_dependent_services(name);
+            break;
     }
 }
 
@@ -405,14 +405,14 @@ void default_supervisor::handle_service_crash(const std::string& name)
 std::string default_supervisor::get_strategy_name(config::supervisor_strategy strategy)
 {
     switch (strategy) {
-    case config::supervisor_strategy::one_for_one:
-        return "one_for_one";
-    case config::supervisor_strategy::one_for_all:
-        return "one_for_all";
-    case config::supervisor_strategy::rest_for_one:
-        return "rest_for_one";
-    default:
-        return "unknown";
+        case config::supervisor_strategy::one_for_one:
+            return "one_for_one";
+        case config::supervisor_strategy::one_for_all:
+            return "one_for_all";
+        case config::supervisor_strategy::rest_for_one:
+            return "rest_for_one";
+        default:
+            return "unknown";
     }
 }
 

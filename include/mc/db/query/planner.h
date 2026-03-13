@@ -207,65 +207,65 @@ private:
 
         // 根据操作类型确定查询计划类型
         switch (op) {
-        case compare_op::eq: {
-            // 等值查询使用精确匹配
-            plan.plan_type = query_plan_type::index_exact_match;
-            plan.key_value = cond.get_value();
-            break;
-        }
-        case compare_op::in: {
-            plan.plan_type = query_plan_type::index_exact_match;
-            if (cond.get_value().is_array()) {
-                plan.values = cond.get_value().get_array();
+            case compare_op::eq: {
+                // 等值查询使用精确匹配
+                plan.plan_type = query_plan_type::index_exact_match;
+                plan.key_value = cond.get_value();
+                break;
             }
-            break;
-        }
-        case compare_op::gt:
-        case compare_op::ge:
-        case compare_op::lt:
-        case compare_op::le:
-        case compare_op::between: {
-            // 范围查询
-            plan.plan_type = query_plan_type::index_range;
-
-            // 设置范围
-            if (op == compare_op::gt) {
-                plan.range.has_lower_bound = true;
-                plan.range.include_lower   = false;
-                plan.range.lower_bound     = cond.get_value();
-            } else if (op == compare_op::ge) {
-                plan.range.has_lower_bound = true;
-                plan.range.include_lower   = true;
-                plan.range.lower_bound     = cond.get_value();
-            } else if (op == compare_op::lt) {
-                plan.range.has_upper_bound = true;
-                plan.range.include_upper   = false;
-                plan.range.upper_bound     = cond.get_value();
-            } else if (op == compare_op::le) {
-                plan.range.has_upper_bound = true;
-                plan.range.include_upper   = true;
-                plan.range.upper_bound     = cond.get_value();
-            } else if (op == compare_op::between) {
-                const auto& values = cond.get_value();
-                if (!values.is_array() || values.size() < 2) {
-                    break;
+            case compare_op::in: {
+                plan.plan_type = query_plan_type::index_exact_match;
+                if (cond.get_value().is_array()) {
+                    plan.values = cond.get_value().get_array();
                 }
-
-                plan.range.has_lower_bound = true;
-                plan.range.include_lower   = true;
-                plan.range.lower_bound     = values[0];
-
-                plan.range.has_upper_bound = true;
-                plan.range.include_upper   = true;
-                plan.range.upper_bound     = values[1];
+                break;
             }
-            break;
-        }
-        default:
-            // 其他操作不适合索引优化
-            plan.use_index = false;
-            plan.plan_type = query_plan_type::full_scan;
-            break;
+            case compare_op::gt:
+            case compare_op::ge:
+            case compare_op::lt:
+            case compare_op::le:
+            case compare_op::between: {
+                // 范围查询
+                plan.plan_type = query_plan_type::index_range;
+
+                // 设置范围
+                if (op == compare_op::gt) {
+                    plan.range.has_lower_bound = true;
+                    plan.range.include_lower   = false;
+                    plan.range.lower_bound     = cond.get_value();
+                } else if (op == compare_op::ge) {
+                    plan.range.has_lower_bound = true;
+                    plan.range.include_lower   = true;
+                    plan.range.lower_bound     = cond.get_value();
+                } else if (op == compare_op::lt) {
+                    plan.range.has_upper_bound = true;
+                    plan.range.include_upper   = false;
+                    plan.range.upper_bound     = cond.get_value();
+                } else if (op == compare_op::le) {
+                    plan.range.has_upper_bound = true;
+                    plan.range.include_upper   = true;
+                    plan.range.upper_bound     = cond.get_value();
+                } else if (op == compare_op::between) {
+                    const auto& values = cond.get_value();
+                    if (!values.is_array() || values.size() < 2) {
+                        break;
+                    }
+
+                    plan.range.has_lower_bound = true;
+                    plan.range.include_lower   = true;
+                    plan.range.lower_bound     = values[0];
+
+                    plan.range.has_upper_bound = true;
+                    plan.range.include_upper   = true;
+                    plan.range.upper_bound     = values[1];
+                }
+                break;
+            }
+            default:
+                // 其他操作不适合索引优化
+                plan.use_index = false;
+                plan.plan_type = query_plan_type::full_scan;
+                break;
         }
 
         return plan;

@@ -201,17 +201,17 @@ private:
     bool query_by_index(const query_builder& builder, const query_plan& plan, Handler&& handler)
     {
         switch (plan.plan_type) {
-        case query_plan_type::index_exact_match:
-            return query_by_exact_match(builder, plan, std::forward<Handler>(handler));
-        case query_plan_type::index_range:
-            return query_by_range(builder, plan, std::forward<Handler>(handler));
-        case query_plan_type::composite_key:
-            return query_by_composite_key(builder, plan, std::forward<Handler>(handler));
-        case query_plan_type::empty_result:
-            // 直接返回空结果，无需处理
-            return true;
-        default:
-            return false;
+            case query_plan_type::index_exact_match:
+                return query_by_exact_match(builder, plan, std::forward<Handler>(handler));
+            case query_plan_type::index_range:
+                return query_by_range(builder, plan, std::forward<Handler>(handler));
+            case query_plan_type::composite_key:
+                return query_by_composite_key(builder, plan, std::forward<Handler>(handler));
+            case query_plan_type::empty_result:
+                // 直接返回空结果，无需处理
+                return true;
+            default:
+                return false;
         }
     }
 

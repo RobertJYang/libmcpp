@@ -203,21 +203,21 @@ node_ptr parser::comparison()
                   token_type::greater_equals})) {
         operator_type op;
         switch (previous().type) {
-        case token_type::less:
-            op = operator_type::lt;
-            break;
-        case token_type::less_equals:
-            op = operator_type::le;
-            break;
-        case token_type::greater:
-            op = operator_type::gt;
-            break;
-        case token_type::greater_equals:
-            op = operator_type::ge;
-            break;
-        default:
-            op = operator_type::eq;
-            break; // 不应该到达这里
+            case token_type::less:
+                op = operator_type::lt;
+                break;
+            case token_type::less_equals:
+                op = operator_type::le;
+                break;
+            case token_type::greater:
+                op = operator_type::gt;
+                break;
+            case token_type::greater_equals:
+                op = operator_type::ge;
+                break;
+            default:
+                op = operator_type::eq;
+                break; // 不应该到达这里
         }
 
         auto right = term();
@@ -276,18 +276,18 @@ node_ptr parser::factor()
         // 3. 根据运算符类型确定操作类型
         operator_type op;
         switch (previous().type) {
-        case token_type::asterisk: // *
-            op = operator_type::mul;
-            break;
-        case token_type::slash: // /
-            op = operator_type::div;
-            break;
-        case token_type::percent: // %
-            op = operator_type::mod;
-            break;
-        default:
-            op = operator_type::mul;
-            break; // 不应该到达这里
+            case token_type::asterisk: // *
+                op = operator_type::mul;
+                break;
+            case token_type::slash: // /
+                op = operator_type::div;
+                break;
+            case token_type::percent: // %
+                op = operator_type::mod;
+                break;
+            default:
+                op = operator_type::mul;
+                break; // 不应该到达这里
         }
 
         // 4. 解析右操作数并创建二元运算节点
@@ -307,18 +307,18 @@ node_ptr parser::unary()
         // 2. 根据运算符类型确定操作类型
         operator_type op;
         switch (previous().type) {
-        case token_type::minus: // -
-            op = operator_type::neg;
-            break;
-        case token_type::logical_not: // !
-            op = operator_type::not_op;
-            break;
-        case token_type::bit_not: // ~
-            op = operator_type::bit_not;
-            break;
-        default:
-            op = operator_type::neg; // 不应该到达这里
-            break;
+            case token_type::minus: // -
+                op = operator_type::neg;
+                break;
+            case token_type::logical_not: // !
+                op = operator_type::not_op;
+                break;
+            case token_type::bit_not: // ~
+                op = operator_type::bit_not;
+                break;
+            default:
+                op = operator_type::neg; // 不应该到达这里
+                break;
         }
         // 3. 解析操作数并创建一元运算节点
         auto right = unary();

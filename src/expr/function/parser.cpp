@@ -357,18 +357,18 @@ bool param_value_comparator::operator()(const mc::variant& a, const mc::variant&
     }
 
     switch (a.get_type()) {
-    case mc::type_id::string_type:
-        return a.as_string() == b.as_string();
-    case mc::type_id::int8_type:
-        return a.as_int8() == b.as_int8();
-    case mc::type_id::double_type:
-        return a.as_double() == b.as_double();
-    case mc::type_id::bool_type:
-        return a.as_bool() == b.as_bool();
-    case mc::type_id::object_type:
-        return compare_dicts(a.as_dict(), b.as_dict());
-    default:
-        return false;
+        case mc::type_id::string_type:
+            return a.as_string() == b.as_string();
+        case mc::type_id::int8_type:
+            return a.as_int8() == b.as_int8();
+        case mc::type_id::double_type:
+            return a.as_double() == b.as_double();
+        case mc::type_id::bool_type:
+            return a.as_bool() == b.as_bool();
+        case mc::type_id::object_type:
+            return compare_dicts(a.as_dict(), b.as_dict());
+        default:
+            return false;
     }
 }
 
