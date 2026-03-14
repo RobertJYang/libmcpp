@@ -2,11 +2,17 @@
 devices_dir = modules_dir / 'mc'
 run_command('mkdir', '-p', devices_dir, check: false)
 
+# 构建 include_directories 列表（使用根目录定义的 stubdir_global）
+example_inc_dirs = [incdir]
+if not enable_conan_compile
+  example_inc_dirs += [stubdir_global]
+endif
+
 # 构建示例插件
 example_moudle = shared_library(
     'devices',
     'module.cpp',
-    include_directories: incdir,
+    include_directories: example_inc_dirs,
     dependencies: dep_arr,
     link_with: [libmcpp_lib],
     install: true,

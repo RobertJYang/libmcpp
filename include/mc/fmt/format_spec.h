@@ -16,6 +16,7 @@
 #include <mc/fmt/format_arg.h>
 
 #include <string_view>
+#include "securec.h"
 
 namespace mc {
 class dict;
@@ -86,7 +87,7 @@ struct format_spec {
 
         custom_spec_in_use = true;
         new (custom_spec) CustomSpec();
-        std::memcpy(custom_spec, &spec, sizeof(CustomSpec));
+        (void)memcpy_s(custom_spec, sizeof(custom_spec), &spec, sizeof(CustomSpec));
     }
 
     constexpr bool parse_alignment_and_fill(const char*& ptr, const char* end)

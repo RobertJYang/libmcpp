@@ -26,6 +26,7 @@
 #include <memory>
 #include <mutex>
 #include <unordered_map>
+#include "securec.h"
 
 #include <sys/wait.h>
 
@@ -290,7 +291,7 @@ void logger::log_printf(level lvl, const char* fmt, std::va_list ap)
     }
 
     char buf[LOG_PRINTF_BUF_SIZE];
-    int  n = std::vsnprintf(buf, sizeof(buf), fmt, ap);
+    int  n = vsnprintf_s(buf, sizeof(buf), sizeof(buf), fmt, ap);
     if (n < 0) {
         return;
     }

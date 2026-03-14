@@ -31,11 +31,12 @@ void signal_handler(int signum)
 // 模拟写入共享内存
 void write_to_shared_memory(shared_memory_allocator& allocator, const std::string& data)
 {
+    const size_t buf_size = data.size() + 1;
     // 分配内存
-    void* mem = allocator.allocate(data.size() + 1);
+    void* mem = allocator.allocate(buf_size);
     if (mem) {
         // 写入数据
-        std::memcpy(mem, data.c_str(), data.size() + 1);
+        (void)memcpy_s(mem, buf_size, data.c_str(), buf_size);
         ilog("已写入数据到共享内存: ${data}", ("data", data));
     } else {
         elog("无法分配共享内存");

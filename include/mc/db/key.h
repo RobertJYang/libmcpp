@@ -23,6 +23,7 @@
 
 #include <mc/db/byte_buffer.h>
 #include <mc/exception.h>
+#include "securec.h"
 
 namespace mc::db {
 
@@ -38,7 +39,7 @@ inline To bit_cast(const From& from)
     static_assert(std::is_trivially_copyable<To>::value, "To必须是可平凡复制的");
 
     To to;
-    std::memcpy(&to, &from, sizeof(To));
+    (void)memcpy_s(&to, sizeof(To), &from, sizeof(From));
     return to;
 }
 

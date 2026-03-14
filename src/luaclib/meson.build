@@ -12,14 +12,25 @@ subdir('mdb')
 subdir('json')
 subdir('error')
 
+# 构建 include_directories 列表（使用根目录定义的 stubdir_global）
+base_inc_dirs1 = [incdir, srcdir]
+if not enable_conan_compile
+  base_inc_dirs1 += [stubdir_global]
+endif
+
 if lua_dep.found()
   # 获取可选的 libsomp 依赖
   libsomp_dep = dependency('libsomp', required: false)
-  
+  # 获取可选的 securec 依赖
+  securec_dep = dependency('securec', required: false)
+
   # 基础依赖列表（仅用于编译时头文件）
   lua_base_deps = [dbus_dep, boost_dep, glib_dep, lua_dep]
   if libsomp_dep.found()
     lua_base_deps += [libsomp_dep]
+  endif
+  if securec_dep.found()
+    lua_base_deps += [securec_dep]
   endif
 
   # 编译 lutils.so 动态库（Lua C 模块）
@@ -27,7 +38,7 @@ if lua_dep.found()
   libmcpp_lua_utils_lib = shared_library(
     'lutils',
     lua_utils_sources,
-    include_directories: [incdir, srcdir],
+    include_directories: base_inc_dirs1,
     dependencies: lua_base_deps,
     link_with: [libmcpp_lib],
     name_prefix: '',
@@ -42,7 +53,7 @@ if lua_dep.found()
   lua_dft_lib = shared_library(
     'ldft',
     dft_sources,
-    include_directories: [incdir, srcdir],
+    include_directories: base_inc_dirs1,
     dependencies: lua_base_deps,
     link_with: [libmcpp_lib, libmcpp_lua_utils_lib],
     name_prefix: '',
@@ -61,7 +72,7 @@ if lua_dep.found()
     name_suffix: 'so',
     dependencies: lua_base_deps,
     link_with: [libmcpp_lib, libmcpp_lua_utils_lib],
-    include_directories: [incdir, srcdir],
+    include_directories: base_inc_dirs1,
     install: true,
     install_dir: install_dir,
     gnu_symbol_visibility: 'default',
@@ -72,8 +83,8 @@ if lua_dep.found()
   lvalidate = shared_module(
     'lvalidate',
     lvalidate_src,
-    include_directories: [incdir, srcdir],
-    dependencies: [lua_dep, boost_dep, glib_dep],
+    include_directories: base_inc_dirs1,
+    dependencies: [lua_dep, boost_dep, glib_dep, securec_dep],
     link_with: [libmcpp_lib],
     name_prefix: '',
     install: true,
@@ -90,7 +101,7 @@ if lua_dep.found()
     name_suffix: 'so',
     dependencies: lua_base_deps,
     link_with: [libmcpp_lib, libmcpp_engine_lib, libmcpp_lua_utils_lib],
-    include_directories: [incdir, srcdir],
+    include_directories: base_inc_dirs1,
     install: true,
     install_dir: install_dir,
     gnu_symbol_visibility: 'default',
@@ -105,7 +116,7 @@ if lua_dep.found()
     name_suffix: 'so',
     dependencies: lua_base_deps,
     link_with: [libmcpp_lib, libmcpp_lua_utils_lib],
-    include_directories: [incdir, srcdir],
+    include_directories: base_inc_dirs1,
     install: true,
     install_dir: install_dir,
     gnu_symbol_visibility: 'default',
@@ -119,18 +130,13 @@ if lua_dep.found()
     name_suffix: 'so',
     dependencies: lua_base_deps,
     link_with: [libmcpp_lib, libmcpp_lua_utils_lib],
-    include_directories: [incdir, srcdir],
+    include_directories: base_inc_dirs1,
     install: true,
     install_dir: install_dir,
     gnu_symbol_visibility: 'default',
   )
 else
   warning('Lua not found, Lua modules will not be built')
-endif
-
-base_inc_dirs1 = [incdir, srcdir]
-if not enable_conan_compile
-  base_inc_dirs1 += [stubdir_global]
 endif
 
 if enable_conan_compile

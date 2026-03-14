@@ -2,11 +2,17 @@
 
 dep_arr = [boost_dep, boost_program_options_dep, dbus_dep, glib_dep, libmcpp_dep]
 
+# 构建 include_directories 列表（使用根目录定义的 stubdir_global）
+example_inc_dirs = [incdir]
+if not enable_conan_compile
+  example_inc_dirs += [stubdir_global]
+endif
+
 # 创建插件示例可执行文件
 executable(
     'example_plugin',
     'main.cpp',
-    include_directories: incdir,
+    include_directories: example_inc_dirs,
     dependencies: dep_arr,
     install: true,
     install_dir: get_option('bindir'),
@@ -26,7 +32,7 @@ run_command('mkdir', '-p', plugins_dir, check: false)
 example_plugin = shared_library(
     'example_plugin',
     'example_plugin.cpp',
-    include_directories: incdir,
+    include_directories: example_inc_dirs,
     dependencies: dep_arr,
     install: true,
     install_dir: get_option('libdir') / 'libmcpp/plugins',

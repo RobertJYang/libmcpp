@@ -11,7 +11,7 @@
  */
 
 #include <mc/db/byte_buffer.h>
-
+#include "securec.h"
 #include <algorithm>
 
 namespace mc::db {
@@ -117,7 +117,7 @@ void byte_buffer::truncate(size_t n)
 
         // 如果新大小足够小，考虑切换回内部缓冲区
         if (n <= 64) {
-            std::memcpy(m_bootstrap, m_buf.data(), n);
+            (void)memcpy_s(m_bootstrap, sizeof(m_bootstrap), m_buf.data(), n);
             m_buf.clear();
             m_using_bootstrap = true;
             m_capacity        = 64;
@@ -129,9 +129,9 @@ void byte_buffer::write(const uint8_t* p, size_t size)
 {
     size_t old_size = grow_internal(size);
     if (m_using_bootstrap) {
-        std::memcpy(m_bootstrap + old_size, p, size);
+        (void)memcpy_s(m_bootstrap + old_size, sizeof(m_bootstrap) - old_size, p, size);
     } else {
-        std::memcpy(m_buf.data() + old_size, p, size);
+        (void)memcpy_s(m_buf.data() + old_size, m_buf.size() - old_size, p, size);
     }
 }
 

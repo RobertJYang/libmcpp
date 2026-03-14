@@ -11,13 +11,14 @@
  */
 #include <mc/fmt/format.h>
 #include <mc/fmt/formatter_chrono.h>
+#include "securec.h"
 
 namespace mc::fmt::detail {
 
 static void pad_number(std::string& out, int value, int width, pad_type pad)
 {
     char buffer[32];
-    int  len = std::snprintf(buffer, sizeof(buffer), "%d", value);
+    int  len = snprintf_s(buffer, sizeof(buffer), sizeof(buffer), "%d", value);
 
     if (width <= 0 || len >= width || pad == pad_type::none) {
         out.append(buffer, len);

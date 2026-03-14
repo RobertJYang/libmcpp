@@ -25,6 +25,7 @@
 #include <mc/variant.h>
 
 #include <dbus/dbus.h>
+#include "securec.h"
 
 namespace mc::dbus {
 using signature_iterator = mc::reflect::signature_iterator;
@@ -715,7 +716,7 @@ const message_reader& read_array(const message_reader& reader, Container& v)
         int   len  = 0;
         void* data = nullptr;
         dbus_message_iter_get_fixed_array(&arr_reader.m_iter, &data, &len);
-        std::memcpy(v.data(), data, len * sizeof(T));
+        (void)memcpy_s(v.data(), len * sizeof(T), data, len * sizeof(T));
     } else {
         while (!arr_reader.at_end()) {
             T item;
@@ -769,7 +770,7 @@ const message_reader& operator>>(const message_reader& reader, std::array<T, N>&
         int   len  = 0;
         void* data = nullptr;
         dbus_message_iter_get_fixed_array(&arr_reader.m_iter, &data, &len);
-        std::memcpy(v.data(), data, len * sizeof(T));
+        (void)memcpy_s(v.data(), len * sizeof(T), data, len * sizeof(T));
     } else {
         for (std::size_t i = 0; i < N; ++i) {
             arr_reader >> v[i];

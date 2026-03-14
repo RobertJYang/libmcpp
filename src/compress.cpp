@@ -16,6 +16,7 @@
 #include <mc/compress.h>
 #include <mc/exception.h>
 #include <zlib.h>
+#include "securec.h"
 
 namespace mc::compress {
 
@@ -41,7 +42,7 @@ void gzip_decompress(const std::string& input, std::string& output)
 
     // 初始化 zlib 流结构
     z_stream stream{};
-    std::memset(&stream, 0, sizeof(stream));
+    (void)memset_s(&stream, sizeof(stream), 0, sizeof(stream));
     stream.zalloc    = Z_NULL;
     stream.zfree     = Z_NULL;
     stream.opaque    = Z_NULL;

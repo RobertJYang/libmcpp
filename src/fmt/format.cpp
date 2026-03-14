@@ -19,6 +19,7 @@
 #include <mc/exception.h>
 #include <mc/format.h>
 #include <mc/variant.h>
+#include "securec.h"
 
 namespace mc::fmt {
 
@@ -99,7 +100,7 @@ bool format_vv(std::string& result, const char* format, va_list args)
     }
 
     result.resize(size + 1);
-    int ret = std::vsnprintf(const_cast<char*>(result.data()), size + 1, format, args);
+    int ret = vsnprintf_s(const_cast<char*>(result.data()), size + 1, size + 1, format, args);
     if (ret <= 0) {
         result.clear();
         return false;
