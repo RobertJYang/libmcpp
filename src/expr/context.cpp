@@ -29,29 +29,23 @@ enum class symbol_type {
 };
 
 struct symbol_info {
-    symbol_info()
-        : type(symbol_type::invalid)
-    {
-    }
+    symbol_info() : type(symbol_type::invalid)
+    {}
 
     symbol_info(std::string name, function_ptr func)
         : name(std::move(name)), type(symbol_type::function), function(std::move(func))
-    {
-    }
+    {}
 
     symbol_info(std::string name, mc::variant variable)
         : name(std::move(name)), type(symbol_type::variable), variable(std::move(variable))
-    {
-    }
+    {}
 
     symbol_info(std::string name, mc::engine::abstract_object* object)
         : name(std::move(name)), type(symbol_type::object), object(object)
-    {
-    }
+    {}
 
     ~symbol_info()
-    {
-    }
+    {}
 
     std::string name;
     symbol_type type;
@@ -62,10 +56,8 @@ struct symbol_info {
     };
 };
 
-context_base::context_base(context_base* parent)
-    : m_parent(parent)
-{
-}
+context_base::context_base(context_base* parent) : m_parent(parent)
+{}
 
 void context_base::set_parent(context_base* parent)
 {
@@ -77,10 +69,8 @@ context_base* context_base::get_parent() const
     return m_parent;
 }
 
-context_base::context_base(const context_base& other)
-    : m_parent(other.m_parent)
-{
-}
+context_base::context_base(const context_base& other) : m_parent(other.m_parent)
+{}
 
 context_base& context_base::operator=(const context_base& other)
 {
@@ -90,8 +80,7 @@ context_base& context_base::operator=(const context_base& other)
     return *this;
 }
 
-context_base::context_base(context_base&& other) noexcept
-    : m_parent(other.m_parent)
+context_base::context_base(context_base&& other) noexcept : m_parent(other.m_parent)
 {
     other.m_parent = nullptr;
 }
@@ -132,8 +121,7 @@ const mc::variant& context_base::get_variable(std::string_view name, std::string
     return empty_variant;
 }
 
-mc::variant context_base::invoke(std::string_view name, const mc::variants& args,
-                                 std::string_view iface) const
+mc::variant context_base::invoke(std::string_view name, const mc::variants& args, std::string_view iface) const
 {
     if (m_parent) {
         return m_parent->invoke(name, args, iface);
@@ -142,8 +130,7 @@ mc::variant context_base::invoke(std::string_view name, const mc::variants& args
     if (iface.empty()) {
         MC_THROW(mc::invalid_arg_exception, "函数 ${name} 不存在", ("name", name));
     } else {
-        MC_THROW(mc::invalid_arg_exception, "接口 ${iface}.${name} 不存在",
-                 ("iface", iface)("name", name));
+        MC_THROW(mc::invalid_arg_exception, "接口 ${iface}.${name} 不存在", ("iface", iface)("name", name));
     }
 }
 
@@ -156,8 +143,7 @@ public:
     friend class context;
 
     context_impl()
-    {
-    }
+    {}
 
     explicit context_impl(const mc::dict& dict)
     {
@@ -272,25 +258,18 @@ private:
     int                m_next_id{0};
 };
 
-context::context()
-    : m_impl(std::make_shared<context_impl>())
-{
-}
+context::context() : m_impl(std::make_shared<context_impl>())
+{}
 
-context::context(context_base* parent)
-    : context_base(parent), m_impl(std::make_shared<context_impl>())
-{
-}
+context::context(context_base* parent) : context_base(parent), m_impl(std::make_shared<context_impl>())
+{}
 
 context::context(const mc::dict& dict, context_base* parent)
     : context_base(parent), m_impl(std::make_shared<context_impl>(dict))
-{
-}
+{}
 
-context::context(const context& other)
-    : context_base(other.get_parent()), m_impl(other.m_impl)
-{
-}
+context::context(const context& other) : context_base(other.get_parent()), m_impl(other.m_impl)
+{}
 
 context& context::operator=(const context& other)
 {
@@ -301,8 +280,7 @@ context& context::operator=(const context& other)
     return *this;
 }
 
-context::context(context&& other) noexcept
-    : context_base(other.get_parent()), m_impl(other.m_impl)
+context::context(context&& other) noexcept : context_base(other.get_parent()), m_impl(other.m_impl)
 {
     other.set_parent(nullptr);
     other.m_impl = nullptr;
@@ -336,8 +314,7 @@ const mc::variant& context::get_variable(std::string_view name, std::string_view
         if (obj_symbol->type == symbol_type::object) {
             m_impl->m_temp_variable = obj_symbol->object->get_property(name);
             return m_impl->m_temp_variable;
-        } else if (obj_symbol->type == symbol_type::variable &&
-                   obj_symbol->variable.contains(name)) {
+        } else if (obj_symbol->type == symbol_type::variable && obj_symbol->variable.contains(name)) {
             return obj_symbol->variable[name];
         }
 
@@ -362,8 +339,7 @@ bool context::has_variable(std::string_view name, std::string_view object) const
 
         if (obj_symbol->type == symbol_type::object) {
             return obj_symbol->object->has_property(name);
-        } else if (obj_symbol->type == symbol_type::variable &&
-                   obj_symbol->variable.contains(name)) {
+        } else if (obj_symbol->type == symbol_type::variable && obj_symbol->variable.contains(name)) {
             return true;
         }
 
@@ -401,8 +377,7 @@ bool context::has_function(std::string_view name, std::string_view object) const
     return context_base::has_function(name);
 }
 
-mc::variant context::invoke(std::string_view name, const mc::variants& args,
-                            std::string_view object) const
+mc::variant context::invoke(std::string_view name, const mc::variants& args, std::string_view object) const
 {
     if (!object.empty()) {
         auto obj_symbol = m_impl->get_symbol(object);
@@ -443,8 +418,7 @@ int context::register_object(std::string name, mc::engine::abstract_object* obj)
 
 object_context::object_context(mc::engine::abstract_object* obj, context_base* parent)
     : context_base(parent), m_object(obj)
-{
-}
+{}
 
 mc::engine::abstract_object* object_context::get_object() const
 {
@@ -461,15 +435,13 @@ bool object_context::has_function(std::string_view name, std::string_view iface)
     return m_object->has_method(name, iface);
 }
 
-const mc::variant& object_context::get_variable(std::string_view name,
-                                                std::string_view iface) const
+const mc::variant& object_context::get_variable(std::string_view name, std::string_view iface) const
 {
     m_property = m_object->get_property(name, iface);
     return m_property;
 }
 
-mc::variant object_context::invoke(std::string_view name, const mc::variants& args,
-                                   std::string_view iface) const
+mc::variant object_context::invoke(std::string_view name, const mc::variants& args, std::string_view iface) const
 {
     return m_object->invoke(name, args, iface);
 }

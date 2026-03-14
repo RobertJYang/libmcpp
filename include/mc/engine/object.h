@@ -59,9 +59,8 @@ object_metadata make_object_interfaces_metadata()
     if (arr.size() == 0) {
         return object_metadata(ObjectType::class_name, mc::reflect::reflector<ObjectType>::get_metadata());
     }
-    return object_metadata(ObjectType::class_name,
-                           mc::reflect::reflector<ObjectType>::get_metadata(),
-                           &arr[0], arr.size());
+    return object_metadata(ObjectType::class_name, mc::reflect::reflector<ObjectType>::get_metadata(), &arr[0],
+                           arr.size());
 }
 } // namespace detail
 
@@ -69,8 +68,7 @@ template <typename ValueType>
 class object_optional_data {
 public:
     object_optional_data()
-    {
-    }
+    {}
 
     // 禁止拷贝和移动
     object_optional_data(const object_optional_data&)            = delete;
@@ -144,11 +142,9 @@ public:
 
     const managed_objects& get_managed_objects() const override;
 
-    void                     notify_property_changed(const mc::variant&   value,
-                                                     const property_base& prop) override;
+    void                     notify_property_changed(const mc::variant& value, const property_base& prop) override;
     property_changed_signal& property_changed() override;
-    void                     notify_property_update_shm(const mc::variant&   value,
-                                                        const property_base& prop) override;
+    void                     notify_property_update_shm(const mc::variant& value, const property_base& prop) override;
     property_changed_signal& property_update_shm() override;
 
     abstract_object* get_owner() const override;
@@ -168,12 +164,12 @@ public:
     void     set_service(service* s) override;
     service* get_service() const override;
 
-    mc::variant get_property(
-        std::string_view property_name, std::string_view interface_name, int options) const override;
-    bool     set_property(std::string_view property_name, const mc::variant& value,
-                          std::string_view interface_name) override;
-    mc::dict get_all_properties(std::string_view interface_name = {}, int options = 0) const override;
-    bool     has_property(std::string_view property_name, std::string_view interface_name) const override;
+    mc::variant get_property(std::string_view property_name, std::string_view interface_name,
+                             int options) const override;
+    bool        set_property(std::string_view property_name, const mc::variant& value,
+                             std::string_view interface_name) override;
+    mc::dict    get_all_properties(std::string_view interface_name = {}, int options = 0) const override;
+    bool        has_property(std::string_view property_name, std::string_view interface_name) const override;
 
     void                   set_property_ref_info(std::string_view property_name, const std::string& info,
                                                  std::string_view interface_name = {}) override;
@@ -192,8 +188,7 @@ public:
     mc::variant         emit(std::string_view signal_name, const mc::variants& args,
                              std::string_view interface_name = {}) override;
 
-    bool                has_method(std::string_view method_name,
-                                   std::string_view interface_name = {}) const override;
+    bool                has_method(std::string_view method_name, std::string_view interface_name = {}) const override;
     invoke_result       invoke(std::string_view method_name, const mc::variants& args = {},
                                std::string_view interface_name = {}) override;
     result<mc::variant> async_invoke(std::string_view method_name, const mc::variants& args = {},
@@ -235,8 +230,7 @@ public:
         detail::set_object_member_flags<typename object_type::DeclaredInterfaces>(members);
     }
 
-    object(core_object* parent = nullptr)
-        : object_impl(parent)
+    object(core_object* parent = nullptr) : object_impl(parent)
     {
         init_interface_object(metadata());
     }

@@ -79,13 +79,11 @@ inline bool like(std::string_view str, std::string_view pattern)
 
     // 后缀匹配: "%abc"
     if (pattern.front() == '%' && pattern.find('%', 1) == std::string_view::npos) {
-        return str.size() >= pattern.size() - 1 &&
-               str.substr(str.size() - (pattern.size() - 1)) == pattern.substr(1);
+        return str.size() >= pattern.size() - 1 && str.substr(str.size() - (pattern.size() - 1)) == pattern.substr(1);
     }
 
     // 包含匹配: "%abc%"
-    if (pattern.front() == '%' && pattern.back() == '%' &&
-        pattern.find('%', 1) == pattern.size() - 1) {
+    if (pattern.front() == '%' && pattern.back() == '%' && pattern.find('%', 1) == pattern.size() - 1) {
         auto sub = pattern.substr(1, pattern.size() - 2);
         return contains(str, sub);
     }
@@ -103,10 +101,8 @@ public:
     /**
      * 默认构造函数
      */
-    condition()
-        : m_op(compare_op::eq), m_is_logical(false)
-    {
-    }
+    condition() : m_op(compare_op::eq), m_is_logical(false)
+    {}
 
     /**
      * 字段条件构造函数
@@ -116,8 +112,7 @@ public:
      */
     condition(compare_op op, std::string field, const mc::variant& value)
         : m_op(op), m_field(std::move(field)), m_value(value), m_is_logical(false)
-    {
-    }
+    {}
 
     /**
      * 逻辑条件构造函数
@@ -126,8 +121,7 @@ public:
      */
     condition(logical_op op, std::vector<condition> conditions)
         : m_logical_op(op), m_conditions(std::move(conditions)), m_is_logical(true)
-    {
-    }
+    {}
 
     /**
      * 判断对象是否匹配条件
@@ -340,8 +334,7 @@ private:
     /**
      * 比较两个值
      */
-    bool compare_values(const mc::variant& field_value, const mc::variant& value,
-                        compare_op op) const
+    bool compare_values(const mc::variant& field_value, const mc::variant& value, compare_op op) const
     {
         switch (op) {
             case compare_op::eq:

@@ -10,9 +10,9 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <mc/validate/validator.h>
-#include <mc/error_engine.h>
 #include <mc/error.h>
+#include <mc/error_engine.h>
+#include <mc/validate/validator.h>
 
 #include <glib.h>
 #include <mc/json.h>

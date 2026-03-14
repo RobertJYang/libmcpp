@@ -103,10 +103,8 @@ private:
     void add_load_path(const std::string& path);
     bool is_readable(const mc::filesystem::path& path) const;
 
-    bool load_path(const fs::path&    lib_path,
-                   const std::string& lib_name,
-                   const std::string& template_path,
-                   load_callback      callback) const;
+    bool load_path(const fs::path& lib_path, const std::string& lib_name, const std::string& template_path,
+                   load_callback callback) const;
 
     std::vector<std::string> m_search_paths;
     load_lib_func_t          m_load_lib_func;

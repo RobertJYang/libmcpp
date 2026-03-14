@@ -30,14 +30,10 @@ namespace test {
 // 不支持引用访问的扩展类型（用于测试值访问模式）
 class test_extension_no_ref_access : public variant_extension<test_extension_no_ref_access> {
 public:
-    test_extension_no_ref_access()
-        : m_value(0)
-    {
-    }
-    explicit test_extension_no_ref_access(int value)
-        : m_value(value)
-    {
-    }
+    test_extension_no_ref_access() : m_value(0)
+    {}
+    explicit test_extension_no_ref_access(int value) : m_value(value)
+    {}
 
     bool operator==(const test_extension_no_ref_access& other) const
     {
@@ -118,10 +114,8 @@ private:
 class unsupported_extension : public variant_extension<unsupported_extension> {
 public:
     unsupported_extension() = default;
-    explicit unsupported_extension(int v)
-        : m_value(v)
-    {
-    }
+    explicit unsupported_extension(int v) : m_value(v)
+    {}
 
     bool operator==(const unsupported_extension& other) const
     {
@@ -480,8 +474,7 @@ TEST_F(VariantEdgeCasesTest, VisitVariousTypes)
         mutable std::string blob_value;
 
         void handle() const override
-        {
-        }
+        {}
 
         void handle(const int64_t& v) const override
         {
@@ -496,12 +489,10 @@ TEST_F(VariantEdgeCasesTest, VisitVariousTypes)
         }
 
         void handle(const double& v) const override
-        {
-        }
+        {}
 
         void handle(const bool& v) const override
-        {
-        }
+        {}
 
         void handle(const std::string& v) const override
         {
@@ -510,12 +501,10 @@ TEST_F(VariantEdgeCasesTest, VisitVariousTypes)
         }
 
         void handle(const dict& v) const override
-        {
-        }
+        {}
 
         void handle(const variants& v) const override
-        {
-        }
+        {}
 
         void handle(const blob& v) const override
         {
@@ -524,8 +513,7 @@ TEST_F(VariantEdgeCasesTest, VisitVariousTypes)
         }
 
         void handle(const variant_extension_base& v) const override
-        {
-        }
+        {}
     };
 
     // 测试整数类型
@@ -922,7 +910,12 @@ TEST_F(VariantEdgeCasesTest, OperatorLessVariantsException)
 {
     variant  v("string");
     variants arr = {1, 2, 3};
-    EXPECT_THROW({ bool result = v < arr; MC_UNUSED(result); }, mc::exception);
+    EXPECT_THROW(
+        {
+            bool result = v < arr;
+            MC_UNUSED(result);
+        },
+        mc::exception);
 }
 
 // 测试 operator>(const variants& other) 异常情况（非数组类型）
@@ -930,7 +923,12 @@ TEST_F(VariantEdgeCasesTest, OperatorGreaterVariantsException)
 {
     variant  v("string");
     variants arr = {1, 2, 3};
-    EXPECT_THROW({ bool result = v > arr; MC_UNUSED(result); }, mc::exception);
+    EXPECT_THROW(
+        {
+            bool result = v > arr;
+            MC_UNUSED(result);
+        },
+        mc::exception);
 }
 
 TEST_F(VariantEdgeCasesTest, ExtensionNullVariant)

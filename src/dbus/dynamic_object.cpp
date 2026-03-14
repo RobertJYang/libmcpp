@@ -16,10 +16,8 @@
 
 namespace mc::dbus {
 
-dynamic_interface::dynamic_interface(std::string_view name)
-    : m_interface_name(name)
-{
-}
+dynamic_interface::dynamic_interface(std::string_view name) : m_interface_name(name)
+{}
 
 void dynamic_interface::add_method(std::string_view name, dynamic_method m)
 {
@@ -107,10 +105,8 @@ std::map<std::string, dynamic_property>& dynamic_interface::get_properties()
     return m_properties;
 }
 
-dynamic_object::dynamic_object(mc::core::object* parent)
-    : mc::engine::object_impl(parent), m_metadata(nullptr)
-{
-}
+dynamic_object::dynamic_object(mc::core::object* parent) : mc::engine::object_impl(parent), m_metadata(nullptr)
+{}
 
 bool dynamic_object::set_property(std::string_view property_name, const mc::variant& value,
                                   std::string_view interface_name)
@@ -122,7 +118,8 @@ bool dynamic_object::set_property(std::string_view property_name, const mc::vari
     return it->second->set_property(std::string(property_name), value);
 }
 
-mc::variant dynamic_object::get_property(std::string_view property_name, std::string_view interface_name, int options) const
+mc::variant dynamic_object::get_property(std::string_view property_name, std::string_view interface_name,
+                                         int options) const
 {
     MC_UNUSED(options);
     auto it = m_interfaces.find(std::string(interface_name));
@@ -151,7 +148,8 @@ bool dynamic_object::has_property(std::string_view property_name, std::string_vi
     return it->second->has_property(std::string(property_name));
 }
 
-std::tuple<int, mc::variant> dynamic_object::try_get_property(std::string_view property_name, std::string_view interface_name) const
+std::tuple<int, mc::variant> dynamic_object::try_get_property(std::string_view property_name,
+                                                              std::string_view interface_name) const
 {
     auto it = m_interfaces.find(std::string(interface_name));
     if (it == m_interfaces.end()) {
@@ -221,7 +219,8 @@ const mc::engine::object_metadata& dynamic_object::get_metadata() const
     return *m_metadata;
 }
 
-void dynamic_object::update_shm_prop(std::string_view property_name, const mc::variant& value, std::string_view interface_name)
+void dynamic_object::update_shm_prop(std::string_view property_name, const mc::variant& value,
+                                     std::string_view interface_name)
 {
     auto it = m_interfaces.find(std::string(interface_name));
     if (it == m_interfaces.end()) {

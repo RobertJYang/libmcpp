@@ -39,12 +39,10 @@ public:
 
     test_user(uint32_t id, std::string name, int age, std::string city, double score = 0.0)
         : m_id(id), m_name(std::move(name)), m_age(age), m_city(std::move(city)), m_score(score)
-    {
-    }
+    {}
 
     ~test_user() override
-    {
-    }
+    {}
 
     // 获取用户ID
     uint32_t id() const
@@ -91,26 +89,24 @@ public:
 
 } // namespace
 
-MC_REFLECT(test_user,
-           ((m_id, "id"))((m_name, "name"))((m_age, "age"))((m_city, "city"))((m_score, "score")))
+MC_REFLECT(test_user, ((m_id, "id"))((m_name, "name"))((m_age, "age"))((m_city, "city"))((m_score, "score")))
 
 namespace {
 MC_FIELD_INDEX_TAG(by_id_add_age, "id_age");
 
 // 使用限定命名空间访问
-using user_table = mdb::table<
-    test_user,
-    mdb::indexed_by<mdb::ordered_unique<&test_user::m_id>, mdb::ordered_unique<&test_user::m_name>,
-                    mdb::ordered_non_unique<&test_user::m_age, by_age::tag>,
-                    mdb::ordered_non_unique<&test_user::m_city, by_city::tag>,
-                    mdb::ordered_unique<&test_user::get_id_add_age, by_id_add_age::tag>>>;
+using user_table =
+    mdb::table<test_user,
+               mdb::indexed_by<mdb::ordered_unique<&test_user::m_id>, mdb::ordered_unique<&test_user::m_name>,
+                               mdb::ordered_non_unique<&test_user::m_age, by_age::tag>,
+                               mdb::ordered_non_unique<&test_user::m_city, by_city::tag>,
+                               mdb::ordered_unique<&test_user::get_id_add_age, by_id_add_age::tag>>>;
 
 // 测试表查询功能
 class table_query_test : public ::testing::Test {
 protected:
     table_query_test()
-    {
-    }
+    {}
 
     void SetUp() override
     {

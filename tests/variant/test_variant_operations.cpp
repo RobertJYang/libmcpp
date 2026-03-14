@@ -743,7 +743,12 @@ TEST_F(VariantOperationsTest, DictionaryAdditionInvalidOperand)
     variant dict_value = dict{{"key", 1}};
     variant scalar(5);
 
-    EXPECT_THROW({ auto result = dict_value + scalar; (void)result; }, mc::invalid_op_exception);
+    EXPECT_THROW(
+        {
+            auto result = dict_value + scalar;
+            (void)result;
+        },
+        mc::invalid_op_exception);
 }
 
 TEST_F(VariantOperationsTest, AdditionInvalidNumericConversionThrows)
@@ -751,7 +756,12 @@ TEST_F(VariantOperationsTest, AdditionInvalidNumericConversionThrows)
     variant bool_value(true);
     variant object_value = dict{{"nested", 1}};
 
-    EXPECT_THROW({ auto result = bool_value + object_value; (void)result; }, mc::invalid_op_exception);
+    EXPECT_THROW(
+        {
+            auto result = bool_value + object_value;
+            (void)result;
+        },
+        mc::invalid_op_exception);
 }
 
 /**

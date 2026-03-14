@@ -26,14 +26,14 @@ properties_interface& properties_interface::get_instance()
 
 static bool object_has_interface(abstract_object* object, std::string_view interface_name)
 {
-    if (interface_name == properties_interface_name || interface_name == introspectable_interface_name || interface_name == peer_interface_name || interface_name == object_manager_interface_name) {
+    if (interface_name == properties_interface_name || interface_name == introspectable_interface_name ||
+        interface_name == peer_interface_name || interface_name == object_manager_interface_name) {
         return true;
     }
     return object->has_interface(interface_name);
 }
 
-mc::variant properties_interface::get(std::string_view interface_name,
-                                      std::string_view property_name) const
+mc::variant properties_interface::get(std::string_view interface_name, std::string_view property_name) const
 {
     auto* object = object_call_stack::top_value();
     if (object == nullptr) {
@@ -136,8 +136,7 @@ struct inintrospect_vistor : metadata_visitor {
             // 仅针对 bmc.kepler.ObjectGroup.GetBinaryObjects 展开 struct 为多个 out 参数，其他统一单参数
             bool expand_struct =
                 (current_interface_name == "bmc.kepler.ObjectGroup" && info->name == "GetBinaryObjects") &&
-                return_signature.size() > 1 && return_signature.front() == '(' &&
-                return_signature.back() == ')';
+                return_signature.size() > 1 && return_signature.front() == '(' && return_signature.back() == ')';
             if (expand_struct) {
                 auto content_it = mc::dbus::signature_iterator(return_signature).get_content_iterator();
                 while (!content_it.at_end()) {
@@ -247,8 +246,7 @@ peer_interface& peer_interface::get_instance()
 }
 
 void peer_interface::ping() const
-{
-}
+{}
 
 std::string peer_interface::get_machine_id() const
 {
@@ -261,10 +259,8 @@ object_manager_interface& object_manager_interface::get_instance()
     return instance;
 }
 struct object_manager_vistor : metadata_visitor {
-    object_manager_vistor(abstract_object* object)
-        : m_object(object)
-    {
-    }
+    object_manager_vistor(abstract_object* object) : m_object(object)
+    {}
 
     void handle_interface_begin(const interface_metadata& iface) override
     {
@@ -296,8 +292,7 @@ struct object_manager_vistor : metadata_visitor {
     std::map<std::string_view, mc::dict> m_interfaces;
 };
 
-object_manager_interface::objects_type
-object_manager_interface::get_managed_objects() const
+object_manager_interface::objects_type object_manager_interface::get_managed_objects() const
 {
     auto* object = object_call_stack::top_value();
     if (object == nullptr) {
@@ -350,8 +345,9 @@ mc::variant common_properties_interface::get(std::string_view property_name)
     return {};
 }
 
-mc::variant common_properties_interface::get_with_context(std::map<std::string, std::string> context, std::string_view interface_name,
-                                                          std::string_view property_name)
+mc::variant common_properties_interface::get_with_context(std::map<std::string, std::string> context,
+                                                          std::string_view                   interface_name,
+                                                          std::string_view                   property_name)
 {
     if (interface_name == common_properties_name) {
         return get(property_name);
@@ -383,8 +379,9 @@ mc::dict common_properties_interface::get_all()
     return dict;
 }
 
-void common_properties_interface::set_with_context(std::map<std::string, std::string> context, std::string_view interface_name,
-                                                   std::string_view property_name, const mc::variant& value)
+void common_properties_interface::set_with_context(std::map<std::string, std::string> context,
+                                                   std::string_view interface_name, std::string_view property_name,
+                                                   const mc::variant& value)
 {
     if (interface_name == common_properties_name) {
         return;
@@ -446,8 +443,8 @@ static mc::variant get_target_property_value(service* srv, std::string_view serv
                                              std::string_view interface, std::string_view property)
 {
     mc::variants args{mc::dict{}, interface, property};
-    return srv->timeout_call(mc::milliseconds(GET_PROPERTY_CALL_TIMEOUT), service_name, path,
-                             common_properties_name, "GetWithContext", "a{ss}ss", args);
+    return srv->timeout_call(mc::milliseconds(GET_PROPERTY_CALL_TIMEOUT), service_name, path, common_properties_name,
+                             "GetWithContext", "a{ss}ss", args);
 }
 
 std::string common_properties_interface::get_property_detail(std::map<std::string, std::string> context,
@@ -483,8 +480,7 @@ std::string common_properties_interface::get_property_detail(std::map<std::strin
 }
 
 invoke_result standard_interfaces::invoke(abstract_object* object, std::string_view method_name,
-                                          const mc::variants& args,
-                                          std::string_view    interface_name)
+                                          const mc::variants& args, std::string_view interface_name)
 {
     // 优化：所有的标准接口都有同样的前缀，前缀不匹配可以快速返回
     if (!mc::string::starts_with(interface_name, common_prefix)) {
@@ -511,16 +507,14 @@ invoke_result standard_interfaces::invoke(abstract_object* object, std::string_v
 } // namespace mc::engine
 
 MC_REFLECT(mc::engine::properties_interface,
-           ((get, "Get"))((get_all, "GetAll"))((set, "Set"))((properties_changed,
-                                                              "PropertiesChanged")))
+           ((get, "Get"))((get_all, "GetAll"))((set, "Set"))((properties_changed, "PropertiesChanged")))
 MC_REFLECT(mc::engine::introspectable_interface, ((introspect, "Introspect")))
 MC_REFLECT(mc::engine::peer_interface, ((ping, "Ping"))((get_machine_id, "GetMachineId")))
 MC_REFLECT(mc::engine::object_manager_interface,
-           ((get_managed_objects, "GetManagedObjects"))((interfaces_added, "InterfacesAdded"))(
-               (interfaces_removed, "InterfacesRemoved")))
-MC_REFLECT(mc::engine::common_properties_interface,
-           ((m_parent_path, "ParentPath"))((m_object_name, "ObjectName"))                            //
-           ((m_class_name, "ClassName"))((m_object_identifier, "ObjectIdentifier"))                  //
-           ((get_with_context, "GetWithContext"))((set_with_context, "SetWithContext"))              //
-           ((get_all_with_context, "GetAllWithContext"))((get_property_detail, "GetPropertyDetail")) //
+           ((get_managed_objects, "GetManagedObjects"))((interfaces_added, "InterfacesAdded"))((interfaces_removed,
+                                                                                                "InterfacesRemoved")))
+MC_REFLECT(mc::engine::common_properties_interface, ((m_parent_path, "ParentPath"))((m_object_name, "ObjectName")) //
+           ((m_class_name, "ClassName"))((m_object_identifier, "ObjectIdentifier"))                                //
+           ((get_with_context, "GetWithContext"))((set_with_context, "SetWithContext"))                            //
+           ((get_all_with_context, "GetAllWithContext"))((get_property_detail, "GetPropertyDetail"))               //
            ((get_private_properties, "GetPrivateProperties")))

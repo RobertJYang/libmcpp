@@ -16,8 +16,7 @@
 namespace mc::debounce {
 
 Continue::Continue(int count)
-    : m_count(count), m_stable_val(-1), m_unstable_val(-1),
-      m_unstable_val_count(0), is_valid(false)
+    : m_count(count), m_stable_val(-1), m_unstable_val(-1), m_unstable_val_count(0), is_valid(false)
 {
     if (count <= 0) {
         throw std::runtime_error("count must be greater than 0");

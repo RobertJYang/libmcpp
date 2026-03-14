@@ -30,11 +30,9 @@ using namespace mc::sync;
 class mutex_box_test : public ::testing::Test {
 protected:
     void SetUp() override
-    {
-    }
+    {}
     void TearDown() override
-    {
-    }
+    {}
 };
 
 // 测试基本的构造和析构
@@ -676,8 +674,7 @@ TEST_F(mutex_box_test, timeout_lock_functions)
     // 测试通用超时锁
     {
         // 使用标准库的 std::chrono::milliseconds 作为超时时间
-        auto locked = sync_data.try_lock_for(
-            std::chrono::milliseconds(100));
+        auto locked = sync_data.try_lock_for(std::chrono::milliseconds(100));
         EXPECT_TRUE(locked);
 
         *locked = 200;

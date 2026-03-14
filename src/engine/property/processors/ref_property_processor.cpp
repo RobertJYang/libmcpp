@@ -35,15 +35,18 @@ p_type ref_property_processor::get_property_type() const
     return p_type::reference;
 }
 
-void ref_property_processor::hook_ref_property(property_helper* property, const mc::expr::relate_property& relate_property)
+void ref_property_processor::hook_ref_property(property_helper*                 property,
+                                               const mc::expr::relate_property& relate_property)
 {
     property->ensure_extension_data();
 
     property->set_getter_function([property, relate_property]() -> mc::variant {
         auto result = property->get_relate_property(relate_property);
         if (result.is_null()) {
-            MC_THROW(mc::invalid_op_exception, "get reference property of ${name} failed: ${object_name}.${property_name}",
-                     ("name", property->get_name())("object_name", relate_property.object_name)("property_name", relate_property.property_name));
+            MC_THROW(mc::invalid_op_exception,
+                     "get reference property of ${name} failed: ${object_name}.${property_name}",
+                     ("name", property->get_name())("object_name", relate_property.object_name)(
+                         "property_name", relate_property.property_name));
         }
         return result;
     });
@@ -68,7 +71,8 @@ void ref_property_processor::hook_ref_properties(property_helper* property, mc::
 
     // 引用属性不支持设置值
     property->set_setter_function([property](const mc::variant& value) {
-        MC_THROW(mc::invalid_op_exception, "Setting sync property value is not allowed: ${name}", ("name", property->get_name()));
+        MC_THROW(mc::invalid_op_exception, "Setting sync property value is not allowed: ${name}",
+                 ("name", property->get_name()));
     });
 }
 

@@ -56,10 +56,8 @@ private:
     void free();
 
     struct shared_info {
-        shared_info()
-            : ref_count(1)
-        {
-        }
+        shared_info() : ref_count(1)
+        {}
         std::atomic<uint32_t> ref_count;
     };
 
@@ -148,10 +146,8 @@ public:
      * @param user_data 传递给释放函数的用户数据
      * @return 创建的 io_buffer 对象指针
      */
-    static std::unique_ptr<io_buffer> take_ownership(void* buf, std::size_t capacity,
-                                                     std::size_t   length    = 0,
-                                                     free_function free_fn   = nullptr,
-                                                     void*         user_data = nullptr);
+    static std::unique_ptr<io_buffer> take_ownership(void* buf, std::size_t capacity, std::size_t length = 0,
+                                                     free_function free_fn = nullptr, void* user_data = nullptr);
 
     /**
      * @brief 封装外部缓冲区但不获取所有权
@@ -171,8 +167,7 @@ public:
      * @param tailroom 预留的尾部空间
      * @return 创建的 io_buffer 对象指针
      */
-    static std::unique_ptr<io_buffer> copy_buffer(const void* data, std::size_t length,
-                                                  std::size_t headroom = 0,
+    static std::unique_ptr<io_buffer> copy_buffer(const void* data, std::size_t length, std::size_t headroom = 0,
                                                   std::size_t tailroom = 0);
 
     /**
@@ -368,8 +363,7 @@ public:
      * @param is_little_endian 是否为小端字节序
      * @return 实际写入的字节数
      */
-    template <typename T,
-              typename std::enable_if<std::is_trivially_copyable<T>::value, int>::type = 0>
+    template <typename T, typename std::enable_if<std::is_trivially_copyable<T>::value, int>::type = 0>
     std::size_t write_value(T value, bool is_little_endian = mc::is_little_endian())
     {
         if constexpr (sizeof(T) > 1 && std::is_arithmetic_v<T>) {
@@ -390,10 +384,8 @@ public:
      * @param is_little_endian 是否为小端字节序
      * @return 实际写入的字节数
      */
-    template <typename T,
-              typename std::enable_if<std::is_trivially_copyable<T>::value, int>::type = 0>
-    std::size_t write_value_at_offset(std::size_t offset, T value,
-                                      bool is_little_endian = mc::is_little_endian())
+    template <typename T, typename std::enable_if<std::is_trivially_copyable<T>::value, int>::type = 0>
+    std::size_t write_value_at_offset(std::size_t offset, T value, bool is_little_endian = mc::is_little_endian())
     {
         if constexpr (sizeof(T) > 1 && std::is_arithmetic_v<T>) {
             if (is_little_endian != mc::is_little_endian()) {
@@ -468,8 +460,7 @@ public:
      * @param is_little_endian 是否为小端字节序
      * @return 读取的值
      */
-    template <typename T,
-              typename std::enable_if<std::is_trivially_copyable<T>::value, int>::type = 0>
+    template <typename T, typename std::enable_if<std::is_trivially_copyable<T>::value, int>::type = 0>
     T read_value(std::size_t offset, bool is_little_endian = mc::is_little_endian()) const
     {
         T value{};
@@ -484,10 +475,8 @@ public:
         return value;
     }
 
-    template <typename T,
-              typename std::enable_if<std::is_trivially_copyable<T>::value, int>::type = 0>
-    bool read_value(std::size_t offset, T& value,
-                    bool is_little_endian = mc::is_little_endian()) const
+    template <typename T, typename std::enable_if<std::is_trivially_copyable<T>::value, int>::type = 0>
+    bool read_value(std::size_t offset, T& value, bool is_little_endian = mc::is_little_endian()) const
     {
         if (!try_read(offset, &value, sizeof(T))) {
             return false;
@@ -574,8 +563,7 @@ private:
      * @param free_fn 自定义释放函数，如果为 nullptr，则不释放
      * @param user_data 传递给释放函数的用户数据
      */
-    io_buffer(void* buf, std::size_t capacity, std::size_t length, free_function fn,
-              void* user_data);
+    io_buffer(void* buf, std::size_t capacity, std::size_t length, free_function fn, void* user_data);
 
     /**
      * @brief 内部辅助构造函数，用于控制是否复制链表

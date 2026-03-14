@@ -70,8 +70,7 @@ auto invoke_func(F&& func, Args&&... args)
         // 4、不能直接调用，如果是 mc::variant 类型，尝试转换参数类型后调用
         using function_traits = mc::traits::function_traits<F>;
         using args_type       = typename function_traits::args_type;
-        return invoke_func_convert_arg<T, F, args_type>::invoke(
-            std::forward<F>(func), std::forward<Args>(args)...);
+        return invoke_func_convert_arg<T, F, args_type>::invoke(std::forward<F>(func), std::forward<Args>(args)...);
     } else {
         // 5、还是不行就直接调用，让编译器去报错吧
         return func(std::forward<Args>(args)...);
@@ -84,9 +83,8 @@ struct continuation_result : std::false_type {
 };
 
 template <typename T, typename F, typename P>
-struct continuation_result<
-    T, F, P,
-    std::void_t<decltype(invoke_func<T>(std::declval<F>(), std::declval<P>()))>> : std::true_type {
+struct continuation_result<T, F, P, std::void_t<decltype(invoke_func<T>(std::declval<F>(), std::declval<P>()))>>
+    : std::true_type {
     using call_result_type = decltype(invoke_func<T>(std::declval<F>(), std::declval<P>()));
 
     static constexpr bool is_future = is_future_v<call_result_type>;
@@ -97,26 +95,22 @@ template <typename T, typename F, typename Args, typename = void>
 struct result_test;
 
 template <typename T, typename F>
-struct result_test<T, F, std::tuple<>,
-                   std::enable_if_t<std::is_same_v<T, void>>> {
+struct result_test<T, F, std::tuple<>, std::enable_if_t<std::is_same_v<T, void>>> {
     using type = typename continuation_result<T, F, int>::return_type;
 };
 
 template <typename T, typename F, typename Arg, typename... Args>
-struct result_test<T, F, std::tuple<Arg, Args...>,
-                   std::enable_if_t<std::is_same_v<T, void>>> {
+struct result_test<T, F, std::tuple<Arg, Args...>, std::enable_if_t<std::is_same_v<T, void>>> {
     using type = typename continuation_result<T, F, Arg>::return_type;
 };
 
 template <typename T, typename F>
-struct result_test<T, F, std::tuple<>,
-                   std::enable_if_t<!std::is_same_v<T, void>>> {
+struct result_test<T, F, std::tuple<>, std::enable_if_t<!std::is_same_v<T, void>>> {
     using type = typename continuation_result<T, F, T>::return_type;
 };
 
 template <typename T, typename F, typename Arg, typename... Args>
-struct result_test<T, F, std::tuple<Arg, Args...>,
-                   std::enable_if_t<!std::is_same_v<T, void>>> {
+struct result_test<T, F, std::tuple<Arg, Args...>, std::enable_if_t<!std::is_same_v<T, void>>> {
     using type = typename continuation_result<T, F, Arg>::return_type;
 };
 
@@ -174,14 +168,10 @@ public:
     using future_type   = Future<T>;
 
     Future() = default;
-    explicit Future(state_ptr<state_type> state)
-        : any_future(*reinterpret_cast<state_base_ptr*>(&state))
-    {
-    }
-    explicit Future(any_future&& future)
-        : any_future(std::forward<any_future>(future))
-    {
-    }
+    explicit Future(state_ptr<state_type> state) : any_future(*reinterpret_cast<state_base_ptr*>(&state))
+    {}
+    explicit Future(any_future&& future) : any_future(std::forward<any_future>(future))
+    {}
     ~Future() = default;
 
     Future(const Future&)                = default;
@@ -192,32 +182,29 @@ public:
     // 链式操作
     template <typename F>
     auto then(F&& func, launch policy = launch::async, std::optional<mc::any_executor> executor = std::nullopt)
-        -> std::enable_if_t<
-            detail::is_future_v<detail::result_t<T, F>>,
-            Future<typename detail::result_t<T, F>::value_type>>;
+        -> std::enable_if_t<detail::is_future_v<detail::result_t<T, F>>,
+                            Future<typename detail::result_t<T, F>::value_type>>;
 
     template <typename F>
     auto then(F&& func, launch policy = launch::async, std::optional<mc::any_executor> executor = std::nullopt)
-        -> std::enable_if_t<!detail::is_future_v<detail::result_t<T, F>>,
-                            Future<detail::result_t<T, F>>>;
+        -> std::enable_if_t<!detail::is_future_v<detail::result_t<T, F>>, Future<detail::result_t<T, F>>>;
 
     template <typename F>
     auto catch_error(F&& func, launch policy = launch::async, std::optional<mc::any_executor> executor = std::nullopt)
-        -> std::enable_if_t<
-            detail::is_future_v<std::invoke_result_t<F, const mc::exception&>> &&
-                std::is_same_v<typename std::invoke_result_t<F, const mc::exception&>::value_type, T>,
-            Future<T>>;
+        -> std::enable_if_t<detail::is_future_v<std::invoke_result_t<F, const mc::exception&>> &&
+                                std::is_same_v<typename std::invoke_result_t<F, const mc::exception&>::value_type, T>,
+                            Future<T>>;
 
     template <typename F>
     auto catch_error(F&& func, launch policy = launch::async, std::optional<mc::any_executor> executor = std::nullopt)
-        -> std::enable_if_t<
-            !detail::is_future_v<std::invoke_result_t<F, const mc::exception&>> &&
-                std::is_same_v<std::invoke_result_t<F, const mc::exception&>, T>,
-            Future<T>>;
+        -> std::enable_if_t<!detail::is_future_v<std::invoke_result_t<F, const mc::exception&>> &&
+                                std::is_same_v<std::invoke_result_t<F, const mc::exception&>, T>,
+                            Future<T>>;
 
     // 清理操作（无论成功失败都会执行）
     template <typename F>
-    auto finally(F&& cleanup, launch policy = launch::async, std::optional<mc::any_executor> executor = std::nullopt) -> future_type;
+    auto finally(F&& cleanup, launch policy = launch::async,
+                 std::optional<mc::any_executor> executor = std::nullopt) -> future_type;
 
     // 查看值但不改变
     template <typename F>
@@ -229,17 +216,16 @@ public:
 
     // 添加取消回调（用于清理资源）- 左值引用版本
     template <typename F>
-    auto on_cancel(F&& callback) & -> std::enable_if_t<
-                                       detail::is_cancel_callback_v<F>, future_type&>;
+    auto on_cancel(F&& callback) & -> std::enable_if_t<detail::is_cancel_callback_v<F>, future_type&>;
 
     // 添加取消回调（用于清理资源）- 右值引用版本
     template <typename F>
-    auto on_cancel(F&& callback) && -> std::enable_if_t<
-                                        detail::is_cancel_callback_v<F>, future_type>;
+    auto on_cancel(F&& callback) && -> std::enable_if_t<detail::is_cancel_callback_v<F>, future_type>;
 
     // 获取结果（异步等待）
     template <typename CompletionToken>
-    void async_get(CompletionToken&& token, launch policy = launch::async, std::optional<mc::any_executor> executor = std::nullopt);
+    void async_get(CompletionToken&& token, launch policy = launch::async,
+                   std::optional<mc::any_executor> executor = std::nullopt);
 
     // 同步获取结果
     template <typename U = T>
@@ -250,8 +236,7 @@ public:
     T get_for(Duration duration) const;
 
     template <typename OtherT>
-    auto as_future(std::optional<mc::any_executor> executor = std::nullopt)
-        -> Future<detail::state_tt<OtherT>>;
+    auto as_future(std::optional<mc::any_executor> executor = std::nullopt) -> Future<detail::state_tt<OtherT>>;
 
     const state_ptr<state_type>& get_state() const
     {

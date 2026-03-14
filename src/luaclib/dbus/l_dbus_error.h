@@ -29,14 +29,10 @@ struct error_wrapper {
     mc::dbus::error err;
 
     error_wrapper() = default;
-    explicit error_wrapper(const mc::dbus::error& e)
-        : err(e)
-    {
-    }
-    explicit error_wrapper(mc::dbus::error&& e)
-        : err(std::move(e))
-    {
-    }
+    explicit error_wrapper(const mc::dbus::error& e) : err(e)
+    {}
+    explicit error_wrapper(mc::dbus::error&& e) : err(std::move(e))
+    {}
 };
 
 // 检查并获取 error userdata
@@ -165,9 +161,7 @@ inline void register_error_metatable(lua_State* L)
     luaL_newmetatable(L, ERROR_METATABLE);
 
     // 设置方法
-    static const luaL_Reg methods[] = {{"is_set", error_is_set},
-                                       {"ensure_ok", error_ensure_ok},
-                                       {nullptr, nullptr}};
+    static const luaL_Reg methods[] = {{"is_set", error_is_set}, {"ensure_ok", error_ensure_ok}, {nullptr, nullptr}};
 
     luaL_setfuncs(L, methods, 0);
 

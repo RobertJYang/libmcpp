@@ -55,44 +55,31 @@ public:
     using base_type::base_type;
 
     // 默认构造函数
-    array_impl()
-        : base_type()
-    {
-    }
+    array_impl() : base_type()
+    {}
 
     // 从 allocator 构造
-    explicit array_impl(const Allocator& alloc)
-        : base_type(alloc)
-    {
-    }
+    explicit array_impl(const Allocator& alloc) : base_type(alloc)
+    {}
 
     // 从 std::vector 拷贝构造
-    array_impl(const base_type& vec)
-        : base_type(vec)
-    {
-    }
+    array_impl(const base_type& vec) : base_type(vec)
+    {}
 
     // 从 std::vector 移动构造
-    array_impl(base_type&& vec) noexcept
-        : base_type(std::move(vec))
-    {
-    }
+    array_impl(base_type&& vec) noexcept : base_type(std::move(vec))
+    {}
 
     // 拷贝构造函数
-    array_impl(const array_impl& other)
-        : base_type(static_cast<const base_type&>(other))
-    {
-    }
+    array_impl(const array_impl& other) : base_type(static_cast<const base_type&>(other))
+    {}
 
     // 移动构造函数
-    array_impl(array_impl&& other) noexcept
-        : base_type(std::move(static_cast<base_type&&>(other)))
-    {
-    }
+    array_impl(array_impl&& other) noexcept : base_type(std::move(static_cast<base_type&&>(other)))
+    {}
 
     ~array_impl()
-    {
-    }
+    {}
 
     // 赋值运算符
     array_impl& operator=(const array_impl& other)
@@ -208,10 +195,8 @@ public:
      * @brief 从分配器构造空数组
      * @param alloc 分配器
      */
-    explicit array(const Allocator& alloc)
-        : m_data(mc::make_shared<impl_type>(alloc))
-    {
-    }
+    explicit array(const Allocator& alloc) : m_data(mc::make_shared<impl_type>(alloc))
+    {}
 
     /**
      * @brief 构造包含 count 个默认值元素的数组
@@ -220,8 +205,7 @@ public:
      */
     explicit array(size_type count, const Allocator& alloc = Allocator())
         : m_data(mc::make_shared<impl_type>(count, alloc))
-    {
-    }
+    {}
 
     /**
      * @brief 构造包含 count 个指定值元素的数组
@@ -231,8 +215,7 @@ public:
      */
     array(size_type count, const T& value, const Allocator& alloc = Allocator())
         : m_data(mc::make_shared<impl_type>(count, value, alloc))
-    {
-    }
+    {}
 
     /**
      * @brief 从迭代器范围构造
@@ -245,8 +228,7 @@ public:
     array(InputIt first, InputIt last, const Allocator& alloc = Allocator(),
           std::enable_if_t<!is_variant_reference_v<typename std::iterator_traits<InputIt>::value_type>>* = nullptr)
         : m_data(mc::make_shared<impl_type>(first, last, alloc))
-    {
-    }
+    {}
 
     /**
      * @brief 拷贝构造函数
@@ -260,10 +242,8 @@ public:
      * @param alloc 分配器（忽略，因为共享数据）
      * @note 此操作会共享内部数据，不会复制数据，allocator 参数被忽略
      */
-    array(const array& other, const Allocator& alloc)
-        : m_data(other.m_data)
-    {
-    }
+    array(const array& other, const Allocator& alloc) : m_data(other.m_data)
+    {}
 
     /**
      * @brief 移动构造函数
@@ -277,36 +257,30 @@ public:
      */
     array(std::initializer_list<T> init, const Allocator& alloc = Allocator())
         : m_data(mc::make_shared<impl_type>(init, alloc))
-    {
-    }
+    {}
 
     /**
      * @brief 从 std::vector 构造
      * @param vec 源 vector
      * @param alloc 分配器
      */
-    array(const vector_type& vec, const Allocator& alloc = Allocator())
-        : m_data(mc::make_shared<impl_type>(vec))
-    {
-    }
+    array(const vector_type& vec, const Allocator& alloc = Allocator()) : m_data(mc::make_shared<impl_type>(vec))
+    {}
 
     /**
      * @brief 从 std::vector 移动构造
      * @param vec 源 vector
      * @param alloc 分配器
      */
-    array(vector_type&& vec, const Allocator& alloc = Allocator())
-        : m_data(mc::make_shared<impl_type>(std::move(vec)))
-    {
-    }
+    array(vector_type&& vec, const Allocator& alloc = Allocator()) : m_data(mc::make_shared<impl_type>(std::move(vec)))
+    {}
 
     /**
      * @brief 特殊构造函数：当 T 是 variant_reference 时，创建 array<variant>
      * @param init variant_reference 初始化列表
      * @param alloc 分配器
      */
-    array(const std::initializer_list<variant_reference>& init,
-          const Allocator&                                alloc = Allocator());
+    array(const std::initializer_list<variant_reference>& init, const Allocator& alloc = Allocator());
 
     /**
      * @brief 特殊构造函数：从 variant_reference 迭代器范围构造
@@ -316,8 +290,7 @@ public:
      * @param alloc 分配器
      */
     template <typename InputIt>
-    array(InputIt first, InputIt last,
-          const Allocator& alloc                                                                        = Allocator(),
+    array(InputIt first, InputIt last, const Allocator& alloc = Allocator(),
           std::enable_if_t<is_variant_reference_v<typename std::iterator_traits<InputIt>::value_type>>* = nullptr);
 
     /**

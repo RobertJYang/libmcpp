@@ -63,8 +63,8 @@ MC_API std::pair<int, std::string_view> detect_number_radix(std::string_view s);
  * @param buffer 栈上分配的缓冲区
  * @return 可以安全用于 std::strtoX 函数的字符串指针，如果字符串无效则返回 nullptr
  */
-MC_API std::string_view prepare_number_string(
-    std::string_view s, int radix, char* buffer, std::size_t buffer_size) noexcept;
+MC_API std::string_view prepare_number_string(std::string_view s, int radix, char* buffer,
+                                              std::size_t buffer_size) noexcept;
 } // namespace detail
 
 template <typename T>
@@ -261,8 +261,7 @@ MC_API std::string_view substring(std::string_view s, int start, std::size_t len
 template <typename T>
 void append(std::string& result, T&& value)
 {
-    if constexpr (std::is_same_v<std::decay_t<T>, std::string> ||
-                  std::is_same_v<std::decay_t<T>, std::string_view>) {
+    if constexpr (std::is_same_v<std::decay_t<T>, std::string> || std::is_same_v<std::decay_t<T>, std::string_view>) {
         // 对于字符串和字符串视图，直接追加
         result.append(value);
     } else if constexpr (std::is_same_v<std::decay_t<T>, const char*>) {
@@ -326,8 +325,7 @@ std::string join(std::string_view delim, Args&&... args)
 inline std::string concat(const std::vector<std::string>& v)
 {
     std::string result;
-    result.reserve(std::accumulate(v.begin(), v.end(), size_t{0},
-                                   [](size_t sum, const std::string& s) {
+    result.reserve(std::accumulate(v.begin(), v.end(), size_t{0}, [](size_t sum, const std::string& s) {
         return sum + s.size();
     }));
     for (const auto& s : v) {
@@ -360,8 +358,7 @@ std::string concat(T&& first, Args&&... args)
  * @param s 要格式化的字符串
  * @param left_align 是否左对齐，默认为true
  */
-MC_API void fixed_width_append(std::string& result, size_t width, std::string_view s,
-                               bool left_align = true);
+MC_API void fixed_width_append(std::string& result, size_t width, std::string_view s, bool left_align = true);
 
 /**
  * @brief 检查字符串是否以指定前缀开始
@@ -674,8 +671,7 @@ public:
      * @brief 默认构造函数，构造一个结束迭代器
      */
     constexpr split_iterator() noexcept
-    {
-    }
+    {}
 
     /**
      * @brief 构造函数

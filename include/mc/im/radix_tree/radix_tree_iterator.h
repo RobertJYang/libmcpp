@@ -34,14 +34,11 @@ public:
     using reference         = const value_type&;
 
     // 默认构造函数（end迭代器）
-    const_iterator()
-        : m_is_end(true)
-    {
-    }
+    const_iterator() : m_is_end(true)
+    {}
 
     // 构造函数（begin迭代器）
-    explicit const_iterator(const node_ptr& root)
-        : m_is_end(false), m_root(root)
+    explicit const_iterator(const node_ptr& root) : m_is_end(false), m_root(root)
     {
         if (!root) {
             m_is_end = true;
@@ -282,22 +279,16 @@ public:
     using reference         = value_type&;
 
     // 默认构造函数（end迭代器）
-    iterator()
-        : const_iterator()
-    {
-    }
+    iterator() : const_iterator()
+    {}
 
     // 构造函数（begin迭代器）
-    explicit iterator(const node_ptr& root)
-        : const_iterator(root)
-    {
-    }
+    explicit iterator(const node_ptr& root) : const_iterator(root)
+    {}
 
     // 复制构造函数
-    iterator(const iterator& other)
-        : const_iterator(other)
-    {
-    }
+    iterator(const iterator& other) : const_iterator(other)
+    {}
 
     // 复制赋值运算符
     iterator& operator=(const iterator& other)
@@ -309,10 +300,8 @@ public:
     }
 
     // 移动构造函数
-    iterator(iterator&& other) noexcept
-        : const_iterator(std::move(other))
-    {
-    }
+    iterator(iterator&& other) noexcept : const_iterator(std::move(other))
+    {}
 
     // 移动赋值运算符
     iterator& operator=(iterator&& other) noexcept

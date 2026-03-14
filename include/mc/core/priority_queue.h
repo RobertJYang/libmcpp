@@ -47,10 +47,8 @@ template <typename ContextType = boost::asio::io_context>
 class priority_queue_executor {
     class handler_base {
     public:
-        handler_base(int p, size_t order)
-            : m_priority(p), m_order(order)
-        {
-        }
+        handler_base(int p, size_t order) : m_priority(p), m_order(order)
+        {}
 
         virtual ~handler_base() = default;
         virtual void execute()  = 0;
@@ -68,10 +66,8 @@ class priority_queue_executor {
     template <typename Function>
     class handler : public handler_base {
     public:
-        handler(int p, size_t order, Function f)
-            : handler_base(p, order), m_function(std::move(f))
-        {
-        }
+        handler(int p, size_t order, Function f) : handler_base(p, order), m_function(std::move(f))
+        {}
 
         void execute() override
         {
@@ -105,11 +101,9 @@ public:
     };
 
     explicit priority_queue_executor(context_type& context, bool auto_start = true)
-        : m_context(context), m_order(std::numeric_limits<size_type>::max()),
-          m_is_task_scheduled(false),
+        : m_context(context), m_order(std::numeric_limits<size_type>::max()), m_is_task_scheduled(false),
           m_state(auto_start ? QueueState::Running : QueueState::Stopped)
-    {
-    }
+    {}
 
     ~priority_queue_executor()
     {
@@ -197,20 +191,17 @@ public:
     }
 
     template <typename Function>
-    boost::asio::executor_binder<Function, priority_queue_executor> wrap(int        p,
-                                                                         Function&& func) const
+    boost::asio::executor_binder<Function, priority_queue_executor> wrap(int p, Function&& func) const
     {
         return boost::asio::bind_executor(*this, std::forward<Function>(func));
     }
 
-    friend bool operator==(const priority_queue_executor& a,
-                           const priority_queue_executor& b) noexcept
+    friend bool operator==(const priority_queue_executor& a, const priority_queue_executor& b) noexcept
     {
         return &a.m_context == &b.m_context;
     }
 
-    friend bool operator!=(const priority_queue_executor& a,
-                           const priority_queue_executor& b) noexcept
+    friend bool operator!=(const priority_queue_executor& a, const priority_queue_executor& b) noexcept
     {
         return !(a == b);
     }

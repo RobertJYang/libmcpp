@@ -19,18 +19,13 @@ namespace reflect {
 // signature类实现
 
 signature::signature()
-{
-}
+{}
 
-signature::signature(std::string sig)
-    : m_sig(std::move(sig))
-{
-}
+signature::signature(std::string sig) : m_sig(std::move(sig))
+{}
 
-signature::signature(const char* sig)
-    : signature(std::string(sig))
-{
-}
+signature::signature(const char* sig) : signature(std::string(sig))
+{}
 
 signature::signature(type_code type)
 {
@@ -342,16 +337,12 @@ std::ostream& operator<<(std::ostream& os, const signature& sig)
 // signature_iterator类实现
 
 signature_iterator::signature_iterator()
-{
-}
+{}
 
-signature_iterator::signature_iterator(const signature& sig, size_t pos)
-    : signature_iterator(sig.str(), pos)
-{
-}
+signature_iterator::signature_iterator(const signature& sig, size_t pos) : signature_iterator(sig.str(), pos)
+{}
 
-signature_iterator::signature_iterator(std::string_view sig, size_t pos)
-    : m_sig(sig), m_pos(pos)
+signature_iterator::signature_iterator(std::string_view sig, size_t pos) : m_sig(sig), m_pos(pos)
 {
     signature::validate(sig);
 }

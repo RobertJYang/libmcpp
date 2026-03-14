@@ -11,17 +11,17 @@
  */
 
 #include "mc/interprocess/shared_memory.h"
-#include "mc/interprocess/shared_memory_manager.h"
 #include "mc/exception.h"
+#include "mc/interprocess/shared_memory_manager.h"
 #include "mc/log.h"
 
 #include <cstring>
+#include <fcntl.h> // 对于 O_* 常量
 #include <functional>
 #include <signal.h>
-#include <sys/wait.h>
-#include <fcntl.h>    // 对于 O_* 常量
 #include <sys/mman.h> // 对于 mmap, munmap
-#include <unistd.h>   // 对于 ftruncate
+#include <sys/wait.h>
+#include <unistd.h> // 对于 ftruncate
 
 namespace mc {
 namespace interprocess {
@@ -75,15 +75,13 @@ std::shared_ptr<shared_memory> shared_memory::create(const std::string& name, si
 
     // 检查大小是否足够
     if (!is_new && actual_size < size) {
-        elog("现有共享内存大小不足, 需要${need}字节，实际${actual}字节",
-             ("need", size)("actual", actual_size));
+        elog("现有共享内存大小不足, 需要${need}字节，实际${actual}字节", ("need", size)("actual", actual_size));
         close(fd);
         return nullptr;
     }
 
     // 映射共享内存
-    void* addr = mmap(nullptr, actual_size, PROT_READ | PROT_WRITE, MAP_SHARED,
-                      fd, 0);
+    void* addr = mmap(nullptr, actual_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (addr == MAP_FAILED) {
         elog("无法映射共享内存: ${error}", ("error", strerror(errno)));
         close(fd);
@@ -112,13 +110,10 @@ std::shared_ptr<shared_memory> shared_memory::create(const std::string& name, si
 }
 
 shared_memory::shared_memory(std::string name, int fd, void* addr, size_t size)
-    : m_name(std::move(name)), m_fd(fd), m_addr(addr), m_size(size),
-      m_header(static_cast<shared_memory_header*>(addr)),
-      m_allocator(static_cast<char*>(addr) + sizeof(shared_memory_header),
-                  size - sizeof(shared_memory_header)),
+    : m_name(std::move(name)), m_fd(fd), m_addr(addr), m_size(size), m_header(static_cast<shared_memory_header*>(addr)),
+      m_allocator(static_cast<char*>(addr) + sizeof(shared_memory_header), size - sizeof(shared_memory_header)),
       m_process_slot(0)
-{
-}
+{}
 
 shared_memory::~shared_memory()
 {

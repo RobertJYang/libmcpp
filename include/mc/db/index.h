@@ -69,12 +69,9 @@ public:
      * @param extractor 键提取器
      * @param alloc 内存分配器
      */
-    explicit index(const key_extractor_type& extractor = key_extractor_type(),
-                   const alloc_type&         alloc     = alloc_type(),
-                   uint8_t                   index_id  = 0,
-                   table_base*               table     = nullptr)
-        : m_extractor(extractor), m_txn(std::make_unique<txn_type>(alloc)),
-          m_index_id(index_id), m_table(table)
+    explicit index(const key_extractor_type& extractor = key_extractor_type(), const alloc_type& alloc = alloc_type(),
+                   uint8_t index_id = 0, table_base* table = nullptr)
+        : m_extractor(extractor), m_txn(std::make_unique<txn_type>(alloc)), m_index_id(index_id), m_table(table)
     {
         m_key.init(key_count, is_unique);
         m_key1.init(key_count, is_unique);
@@ -504,11 +501,9 @@ private:
  */
 template <typename ObjectType, bool IsUnique, typename KeyExtractor, typename Tag = void,
           typename Alloc = std::allocator<ObjectType>>
-static auto make_index(const KeyExtractor& extractor = KeyExtractor(),
-                       const Alloc&        alloc     = Alloc())
+static auto make_index(const KeyExtractor& extractor = KeyExtractor(), const Alloc& alloc = Alloc())
 {
-    return std::make_unique<index<ObjectType, KeyExtractor, IsUnique, Tag, Alloc>>(extractor,
-                                                                                   alloc);
+    return std::make_unique<index<ObjectType, KeyExtractor, IsUnique, Tag, Alloc>>(extractor, alloc);
 }
 
 } // namespace mc::db

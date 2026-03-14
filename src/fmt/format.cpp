@@ -115,8 +115,7 @@ public:
     using arg_type = detail::format_arg;
 
     get_format_args_context()
-    {
-    }
+    {}
 
     bool get_arg(size_t, detail::format_arg&) const
     {
@@ -130,16 +129,13 @@ public:
     }
 
     void format_arg(const detail::format_arg& arg, detail::format_spec& spec)
-    {
-    }
+    {}
 
     void append(char)
-    {
-    }
+    {}
 
     void set_used(size_t index)
-    {
-    }
+    {}
 
     bool resolve_dynamic_param(size_t index, std::string_view name, int& out)
     {

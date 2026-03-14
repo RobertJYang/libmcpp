@@ -18,10 +18,8 @@
 namespace mc {
 namespace engine {
 
-path::path()
-    : m_path("/")
-{
-}
+path::path() : m_path("/")
+{}
 
 path::path(std::string p)
 {
@@ -31,10 +29,8 @@ path::path(std::string p)
     m_path = std::move(p);
 }
 
-path::path(const char* p)
-    : path(std::string(p))
-{
-}
+path::path(const char* p) : path(std::string(p))
+{}
 
 const std::string& path::str() const
 {

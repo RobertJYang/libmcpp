@@ -29,10 +29,8 @@ namespace po = boost::program_options;
 class example_service : public mc::core::service_base {
 public:
     // 构造函数
-    example_service(const std::string& name)
-        : mc::core::service_base(name)
-    {
-    }
+    example_service(const std::string& name) : mc::core::service_base(name)
+    {}
 
     bool init(dict args) override
     {
@@ -74,8 +72,7 @@ public:
 
         // 先设置状态，再输出日志
         for (int32_t i = 0; i < m_repeat_count; ++i) {
-            ilog("${message} [${count}/${total}]",
-                 ("message", m_message)("count", i + 1)("total", m_repeat_count));
+            ilog("${message} [${count}/${total}]", ("message", m_message)("count", i + 1)("total", m_repeat_count));
         }
 
         // 在设置完状态后，再输出带有监督器信息的日志
@@ -113,12 +110,10 @@ public:
     struct register_options {
         void operator()(po::options_description& cli_opts, po::options_description& cfg_opts)
         {
-            cfg_opts.add_options()(
-                "example.message",
-                po::value<std::string>()->default_value("Hello from Example Service!"),
-                "example service message")("example.repeat_count",
-                                           po::value<int32_t>()->default_value(3),
-                                           "example service repeat count");
+            cfg_opts.add_options()("example.message",
+                                   po::value<std::string>()->default_value("Hello from Example Service!"),
+                                   "example service message")(
+                "example.repeat_count", po::value<int32_t>()->default_value(3), "example service repeat count");
         }
     };
 

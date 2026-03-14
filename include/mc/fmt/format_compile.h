@@ -52,10 +52,8 @@ enum class compile_arg_enum {
 };
 
 struct compile_custom_t {
-    constexpr compile_custom_t()
-        : parse_fn(nullptr)
-    {
-    }
+    constexpr compile_custom_t() : parse_fn(nullptr)
+    {}
 
     bool (*parse_fn)(std::string_view, format_spec&);
 };
@@ -65,119 +63,62 @@ struct compile_format_arg {
     compile_custom_t custom_value;
     bool             used = false;
 
-    constexpr compile_format_arg()
-        : type(compile_arg_enum::null_type),
-          custom_value()
-    {
-    }
+    constexpr compile_format_arg() : type(compile_arg_enum::null_type), custom_value()
+    {}
 
-    constexpr explicit compile_format_arg(bool v)
-        : type(compile_arg_enum::bool_type),
-          custom_value()
-    {
-    }
+    constexpr explicit compile_format_arg(bool v) : type(compile_arg_enum::bool_type), custom_value()
+    {}
 
-    constexpr explicit compile_format_arg(char v)
-        : type(compile_arg_enum::char_type),
-          custom_value()
-    {
-    }
+    constexpr explicit compile_format_arg(char v) : type(compile_arg_enum::char_type), custom_value()
+    {}
 
-    template <typename T, std::enable_if_t<std::is_integral_v<T> &&
-                                               std::is_signed_v<T>,
-                                           int> = 0>
-    constexpr explicit compile_format_arg(T v)
-        : type(compile_arg_enum::signed_type),
-          custom_value()
-    {
-    }
+    template <typename T, std::enable_if_t<std::is_integral_v<T> && std::is_signed_v<T>, int> = 0>
+    constexpr explicit compile_format_arg(T v) : type(compile_arg_enum::signed_type), custom_value()
+    {}
 
-    template <typename T, std::enable_if_t<std::is_integral_v<T> &&
-                                               std::is_unsigned_v<T>,
-                                           int> = 0>
-    constexpr explicit compile_format_arg(T v)
-        : type(compile_arg_enum::unsigned_type),
-          custom_value()
-    {
-    }
+    template <typename T, std::enable_if_t<std::is_integral_v<T> && std::is_unsigned_v<T>, int> = 0>
+    constexpr explicit compile_format_arg(T v) : type(compile_arg_enum::unsigned_type), custom_value()
+    {}
 
     // 支持枚举类型，将其转换为有符号整数
     template <typename T, std::enable_if_t<std::is_enum_v<T>, int> = 0>
-    constexpr explicit compile_format_arg(T v)
-        : type(compile_arg_enum::signed_type),
-          custom_value()
-    {
-    }
+    constexpr explicit compile_format_arg(T v) : type(compile_arg_enum::signed_type), custom_value()
+    {}
 
-    constexpr explicit compile_format_arg(double v)
-        : type(compile_arg_enum::double_type),
-          custom_value()
-    {
-    }
+    constexpr explicit compile_format_arg(double v) : type(compile_arg_enum::double_type), custom_value()
+    {}
 
-    constexpr explicit compile_format_arg(float v)
-        : type(compile_arg_enum::float_type),
-          custom_value()
-    {
-    }
+    constexpr explicit compile_format_arg(float v) : type(compile_arg_enum::float_type), custom_value()
+    {}
 
-    constexpr explicit compile_format_arg(long double v)
-        : type(compile_arg_enum::long_double_type),
-          custom_value()
-    {
-    }
+    constexpr explicit compile_format_arg(long double v) : type(compile_arg_enum::long_double_type), custom_value()
+    {}
 
-    constexpr explicit compile_format_arg(std::string_view v)
-        : type(compile_arg_enum::string_type),
-          custom_value()
-    {
-    }
+    constexpr explicit compile_format_arg(std::string_view v) : type(compile_arg_enum::string_type), custom_value()
+    {}
 
-    constexpr explicit compile_format_arg(const char* v)
-        : type(compile_arg_enum::string_type),
-          custom_value()
-    {
-    }
+    constexpr explicit compile_format_arg(const char* v) : type(compile_arg_enum::string_type), custom_value()
+    {}
 
-    constexpr explicit compile_format_arg(const void* v)
-        : type(compile_arg_enum::pointer_type),
-          custom_value()
-    {
-    }
+    constexpr explicit compile_format_arg(const void* v) : type(compile_arg_enum::pointer_type), custom_value()
+    {}
 
-    template <typename T, std::enable_if_t<
-                              has_formatter_v<T> &&
-                                  !is_basic_formatter_v<T>,
-                              int> = 0>
-    explicit compile_format_arg(const T& v)
-        : type(compile_arg_enum::custom_type),
-          custom_value()
-    {
-    }
+    template <typename T, std::enable_if_t<has_formatter_v<T> && !is_basic_formatter_v<T>, int> = 0>
+    explicit compile_format_arg(const T& v) : type(compile_arg_enum::custom_type), custom_value()
+    {}
 
-    template <typename T, std::enable_if_t<
-                              has_formatter_v<T> &&
-                                  !is_basic_formatter_v<T>,
-                              int> = 0>
+    template <typename T, std::enable_if_t<has_formatter_v<T> && !is_basic_formatter_v<T>, int> = 0>
     constexpr explicit compile_format_arg(const T* v)
-        : type(compile_arg_enum::custom_type),
-          custom_value(compile_make_custom_value(v))
-    {
-    }
+        : type(compile_arg_enum::custom_type), custom_value(compile_make_custom_value(v))
+    {}
 
     constexpr compile_format_arg(const compile_format_arg& other)
-        : type(other.type),
-          custom_value(other.custom_value),
-          used(other.used)
-    {
-    }
+        : type(other.type), custom_value(other.custom_value), used(other.used)
+    {}
 
     constexpr compile_format_arg(compile_format_arg&& other)
-        : type(other.type),
-          custom_value(std::move(other.custom_value)),
-          used(other.used)
-    {
-    }
+        : type(other.type), custom_value(std::move(other.custom_value)), used(other.used)
+    {}
 
     constexpr compile_format_arg& operator=(const compile_format_arg& other)
     {
@@ -302,10 +243,8 @@ class compile_format_context {
 public:
     using arg_type = compile_format_arg;
 
-    constexpr compile_format_context(compile_arg_store& args)
-        : m_args(args)
-    {
-    }
+    constexpr compile_format_context(compile_arg_store& args) : m_args(args)
+    {}
 
     constexpr bool get_arg(size_t index, compile_format_arg& arg) const
     {
@@ -326,12 +265,10 @@ public:
     }
 
     constexpr void format_arg(const compile_format_arg& arg, detail::format_spec& spec)
-    {
-    }
+    {}
 
     constexpr void append(char)
-    {
-    }
+    {}
 
     constexpr void set_invalid()
     {
@@ -427,10 +364,8 @@ struct compile_named_arg {
     std::string_view name;
     using value_type = T;
 
-    constexpr compile_named_arg(std::string_view n)
-        : name(n)
-    {
-    }
+    constexpr compile_named_arg(std::string_view n) : name(n)
+    {}
 };
 
 template <typename T>
@@ -537,10 +472,9 @@ using extract_value_type_t = typename extract_value_type<T>::type;
 
 template <typename T>
 struct compile_type_checker {
-    using actual_type                    = extract_value_type_t<std::decay_t<T>>;
-    static constexpr bool is_formattable = std::is_void_v<actual_type> ||
-                                           has_formatter_v<actual_type> ||
-                                           std::is_enum_v<actual_type>;
+    using actual_type = extract_value_type_t<std::decay_t<T>>;
+    static constexpr bool is_formattable =
+        std::is_void_v<actual_type> || has_formatter_v<actual_type> || std::is_enum_v<actual_type>;
 };
 
 template <typename... Args>

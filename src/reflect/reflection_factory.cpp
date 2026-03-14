@@ -62,8 +62,7 @@ reflection_factory& reflection_factory::global()
 factory_ptr& reflection_factory::global_ptr()
 {
     return mc::singleton<factory_ptr, global_namespace>::instance_with_creator([]() {
-        return new factory_ptr(new reflection_factory(
-            global_namespace::factory_name, "global_namespace", true));
+        return new factory_ptr(new reflection_factory(global_namespace::factory_name, "global_namespace", true));
     });
 }
 
@@ -78,11 +77,10 @@ void reflection_factory::reset_global()
     mc::singleton<factory_ptr, global_namespace>::reset_for_test();
 }
 
-reflection_factory::reflection_factory(
-    std::string_view factory_name, std::string_view factory_type_name, bool is_global)
+reflection_factory::reflection_factory(std::string_view factory_name, std::string_view factory_type_name,
+                                       bool is_global)
     : m_impl(std::make_unique<impl>(factory_name, factory_type_name, is_global))
-{
-}
+{}
 
 reflection_factory::~reflection_factory() = default;
 
@@ -243,11 +241,13 @@ factory_id_type reflection_factory::register_factory(factory_ptr factory)
 
     auto result = remove_prefix_if_matches(sub_name, get_factory_name());
     if (!result) {
-        wlog("Failed to register reflection module: sub-module ${sub_name} must have current module ${prefix} as prefix",
-             ("sub_name", sub_name)("prefix", get_factory_name()));
+        wlog(
+            "Failed to register reflection module: sub-module ${sub_name} must have current module ${prefix} as prefix",
+            ("sub_name", sub_name)("prefix", get_factory_name()));
         return INVALID_FACTORY_ID;
     } else if (result->empty()) {
-        wlog("Failed to register reflection module: sub-module name cannot be same as current module name, sub-module name=${sub_name}",
+        wlog("Failed to register reflection module: sub-module name cannot be same as current module name, sub-module "
+             "name=${sub_name}",
              ("sub_name", sub_name));
         return INVALID_FACTORY_ID;
     }
@@ -270,16 +270,19 @@ factory_id_type reflection_factory::register_factory(factory_ptr factory)
         auto ret = m_impl->register_factory(*result, lock_ptr->m_factory_id, factory);
         if (ret.first == INVALID_FACTORY_ID) {
             if (ret.second) {
-                wlog("Failed to register reflection module: sub-module name=${sub_name} already exists, existing module namespace type=${namespace_type_name}",
+                wlog("Failed to register reflection module: sub-module name=${sub_name} already exists, existing "
+                     "module namespace type=${namespace_type_name}",
                      ("sub_name", sub_name)("namespace_type_name", ret.second->get_namespace_type_name()));
             } else {
-                wlog("Failed to register reflection module: sub-module name=${sub_name} already exists", ("sub_name", sub_name));
+                wlog("Failed to register reflection module: sub-module name=${sub_name} already exists",
+                     ("sub_name", sub_name));
             }
             return INVALID_FACTORY_ID;
         }
 
         lock_ptr->m_parent = shared_from_this();
-        dlog("Successfully registered reflection module: current module name=${factory_name}, sub-module name=${sub_name}, module ID=${factory_id}",
+        dlog("Successfully registered reflection module: current module name=${factory_name}, sub-module "
+             "name=${sub_name}, module ID=${factory_id}",
              ("factory_name", m_impl->get_pretty_name()) // 当前模块名
              ("sub_name", sub_name)                      // 子模块名
              ("factory_id", ret.first));                 // 模块ID
@@ -354,10 +357,8 @@ factory_id_type reflection_factory::get_factory_id() const
     return m_impl->m_data.unsafe_get_data().m_factory_id;
 }
 
-type_id_type reflection_factory::register_type_impl(
-    std::string_view                           type_name,
-    type_id_type                               old_type_id,
-    std::function<reflection_metadata_ptr()>&& creator)
+type_id_type reflection_factory::register_type_impl(std::string_view type_name, type_id_type old_type_id,
+                                                    std::function<reflection_metadata_ptr()>&& creator)
 {
     if (type_name.empty()) {
         wlog("Failed to register type: type name cannot be empty");

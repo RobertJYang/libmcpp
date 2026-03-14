@@ -37,23 +37,16 @@ struct entry : public mc::intrusive::list_base_hook<>,
     entry() = default;
 
     // 带参数的构造函数
-    entry(variant k, variant v)
-        : key(std::move(k)), value(std::move(v))
-    {
-    }
+    entry(variant k, variant v) : key(std::move(k)), value(std::move(v))
+    {}
 
     // 拷贝构造函数 - 不拷贝钩子状态
-    entry(const entry& other)
-        : key(other.key),
-          value(other.value)
-    {
-    }
+    entry(const entry& other) : key(other.key), value(other.value)
+    {}
 
     // 移动构造函数 - 不移动钩子状态
-    entry(entry&& other) noexcept
-        : key(std::move(other.key)), value(std::move(other.value))
-    {
-    }
+    entry(entry&& other) noexcept : key(std::move(other.key)), value(std::move(other.value))
+    {}
 
     // 禁止赋值操作，因为钩子不支持赋值
     entry& operator=(const entry&) = delete;
@@ -135,11 +128,8 @@ struct key_equal {
 
 // 定义侵入式容器类型
 using entry_list = mc::intrusive::list<entry>;
-using entry_set  = mc::intrusive::unordered_set<
-     entry,
-     mc::intrusive::hash<key_hash>,
-     mc::intrusive::equal<key_equal>,
-     mc::intrusive::constant_time_size<true>>;
+using entry_set  = mc::intrusive::unordered_set<entry, mc::intrusive::hash<key_hash>, mc::intrusive::equal<key_equal>,
+                                                mc::intrusive::constant_time_size<true>>;
 
 // 定义迭代器结构体，继承自底层迭代器，方便 dict 中定义前向声明
 struct iterator : public entry_list::iterator {
@@ -151,14 +141,10 @@ struct iterator : public entry_list::iterator {
     using reference         = typename base_type::reference;
 
     iterator() = default;
-    iterator(const base_type& iter)
-        : base_type(iter)
-    {
-    }
-    iterator(base_type&& iter)
-        : base_type(std::move(iter))
-    {
-    }
+    iterator(const base_type& iter) : base_type(iter)
+    {}
+    iterator(base_type&& iter) : base_type(std::move(iter))
+    {}
     iterator(const iterator& other)            = default;
     iterator(iterator&& other)                 = default;
     iterator& operator=(const iterator& other) = default;
@@ -174,14 +160,10 @@ struct reverse_iterator : public entry_list::reverse_iterator {
     using reference         = typename base_type::reference;
 
     reverse_iterator() = default;
-    reverse_iterator(const base_type& iter)
-        : base_type(iter)
-    {
-    }
-    reverse_iterator(base_type&& iter)
-        : base_type(std::move(iter))
-    {
-    }
+    reverse_iterator(const base_type& iter) : base_type(iter)
+    {}
+    reverse_iterator(base_type&& iter) : base_type(std::move(iter))
+    {}
     reverse_iterator(const reverse_iterator& other)            = default;
     reverse_iterator(reverse_iterator&& other)                 = default;
     reverse_iterator& operator=(const reverse_iterator& other) = default;
@@ -201,14 +183,10 @@ struct const_iterator : public entry_list::const_iterator {
     const_iterator() = default;
 
     // 从基类构造函数构造
-    const_iterator(const base_type& iter)
-        : base_type(iter)
-    {
-    }
-    const_iterator(base_type&& iter)
-        : base_type(std::move(iter))
-    {
-    }
+    const_iterator(const base_type& iter) : base_type(iter)
+    {}
+    const_iterator(base_type&& iter) : base_type(std::move(iter))
+    {}
 
     // 拷贝和移动构造函数
     const_iterator(const const_iterator& other) = default;
@@ -219,14 +197,10 @@ struct const_iterator : public entry_list::const_iterator {
     const_iterator& operator=(const_iterator&& other)      = default;
 
     // 从 iterator 构造
-    const_iterator(const iterator& iter)
-        : base_type(static_cast<const entry_list::iterator&>(iter))
-    {
-    }
-    const_iterator(iterator&& iter)
-        : base_type(std::move(static_cast<entry_list::iterator&&>(iter)))
-    {
-    }
+    const_iterator(const iterator& iter) : base_type(static_cast<const entry_list::iterator&>(iter))
+    {}
+    const_iterator(iterator&& iter) : base_type(std::move(static_cast<entry_list::iterator&&>(iter)))
+    {}
 };
 
 // 定义反向迭代器结构体
@@ -242,10 +216,8 @@ struct const_reverse_iterator : public entry_list::const_reverse_iterator {
     const_reverse_iterator() = default;
 
     // 从基类构造
-    const_reverse_iterator(const base_type& iter)
-        : base_type(iter)
-    {
-    }
+    const_reverse_iterator(const base_type& iter) : base_type(iter)
+    {}
 
     // 拷贝和移动构造函数
     const_reverse_iterator(const const_reverse_iterator& other) = default;
@@ -276,10 +248,8 @@ struct data_t : public mc::enable_shared_from_this<data_t> {
     entry_set index;
 
     // 构造函数
-    data_t()
-        : index(entry_set::bucket_traits(buckets, MC_DICT_BUCKET_COUNT))
-    {
-    }
+    data_t() : index(entry_set::bucket_traits(buckets, MC_DICT_BUCKET_COUNT))
+    {}
 
     // 析构函数，清理资源
     ~data_t()

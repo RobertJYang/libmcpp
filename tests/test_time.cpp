@@ -31,8 +31,7 @@ namespace {
 
 class scoped_env {
 public:
-    scoped_env(const char* key, const char* value)
-        : m_key(key)
+    scoped_env(const char* key, const char* value) : m_key(key)
     {
         const char* current = std::getenv(key);
         if (current != nullptr) {

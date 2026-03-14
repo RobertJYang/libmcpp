@@ -215,10 +215,8 @@ private:
 };
 
 template <typename T, typename PointerType>
-ref_list<T, PointerType>::ref_list()
-    : m_root(nullptr), m_len(0)
-{
-}
+ref_list<T, PointerType>::ref_list() : m_root(nullptr), m_len(0)
+{}
 
 template <typename T, typename PointerType>
 ref_list<T, PointerType>::~ref_list()
@@ -256,8 +254,7 @@ typename ref_list<T, PointerType>::ref_ptr_type ref_list<T, PointerType>::back()
 }
 
 template <typename T, typename PointerType>
-typename ref_list<T, PointerType>::ref_ptr_type
-ref_list<T, PointerType>::init_single_node(ref_ptr_type e)
+typename ref_list<T, PointerType>::ref_ptr_type ref_list<T, PointerType>::init_single_node(ref_ptr_type e)
 {
     if (!e) {
         return nullptr;
@@ -298,8 +295,7 @@ bool ref_list<T, PointerType>::prepare_node_for_insertion(ref_ptr_type& node)
 }
 
 template <typename T, typename PointerType>
-typename ref_list<T, PointerType>::ref_ptr_type ref_list<T, PointerType>::insert(ref_ptr_type e,
-                                                                                 ref_ptr_type at)
+typename ref_list<T, PointerType>::ref_ptr_type ref_list<T, PointerType>::insert(ref_ptr_type e, ref_ptr_type at)
 {
     if (prepare_node_for_insertion(e)) {
         return e;
@@ -346,8 +342,7 @@ typename ref_list<T, PointerType>::ref_ptr_type ref_list<T, PointerType>::remove
 }
 
 template <typename T, typename PointerType>
-typename ref_list<T, PointerType>::ref_ptr_type
-ref_list<T, PointerType>::push_front(ref_ptr_type e)
+typename ref_list<T, PointerType>::ref_ptr_type ref_list<T, PointerType>::push_front(ref_ptr_type e)
 {
     if (prepare_node_for_insertion(e)) {
         return e;
@@ -362,8 +357,7 @@ ref_list<T, PointerType>::push_front(ref_ptr_type e)
 }
 
 template <typename T, typename PointerType>
-typename ref_list<T, PointerType>::ref_ptr_type
-ref_list<T, PointerType>::push_back(ref_ptr_type e)
+typename ref_list<T, PointerType>::ref_ptr_type ref_list<T, PointerType>::push_back(ref_ptr_type e)
 {
     if (prepare_node_for_insertion(e)) {
         return e;
@@ -377,8 +371,8 @@ ref_list<T, PointerType>::push_back(ref_ptr_type e)
 }
 
 template <typename T, typename PointerType>
-typename ref_list<T, PointerType>::ref_ptr_type
-ref_list<T, PointerType>::insert_before(ref_ptr_type v, ref_ptr_type mark)
+typename ref_list<T, PointerType>::ref_ptr_type ref_list<T, PointerType>::insert_before(ref_ptr_type v,
+                                                                                        ref_ptr_type mark)
 {
     if (!v || !mark) {
         return nullptr;
@@ -401,8 +395,8 @@ ref_list<T, PointerType>::insert_before(ref_ptr_type v, ref_ptr_type mark)
 }
 
 template <typename T, typename PointerType>
-typename ref_list<T, PointerType>::ref_ptr_type
-ref_list<T, PointerType>::insert_after(ref_ptr_type v, ref_ptr_type mark)
+typename ref_list<T, PointerType>::ref_ptr_type ref_list<T, PointerType>::insert_after(ref_ptr_type v,
+                                                                                       ref_ptr_type mark)
 {
     if (!v || !mark) {
         return nullptr;

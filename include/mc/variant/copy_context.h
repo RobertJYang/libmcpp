@@ -136,8 +136,7 @@ bool copy_context::has_copied(const T* ptr) const
 template <typename T>
 mc::shared_ptr<T> copy_context::get_copied(const T* ptr) const
 {
-    static_assert(std::is_base_of_v<mc::memory::shared_base, T>,
-                  "T must inherit from mc::memory::shared_base");
+    static_assert(std::is_base_of_v<mc::memory::shared_base, T>, "T must inherit from mc::memory::shared_base");
 
     mc::memory::shared_base* base = get_copied_impl(ptr);
     if (!base) {
@@ -150,8 +149,7 @@ mc::shared_ptr<T> copy_context::get_copied(const T* ptr) const
 template <typename T>
 void copy_context::record_copied(const T* original_ptr, const mc::shared_ptr<T>& copied_ptr)
 {
-    static_assert(std::is_base_of_v<mc::memory::shared_base, T>,
-                  "T must inherit from mc::memory::shared_base");
+    static_assert(std::is_base_of_v<mc::memory::shared_base, T>, "T must inherit from mc::memory::shared_base");
 
     if (!original_ptr || !copied_ptr) {
         return;

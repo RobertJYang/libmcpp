@@ -255,7 +255,6 @@ static int lua_logger_period(lua_State* L)
 {
     logger* log      = lua_check_logger(L, 1);
     int     period_s = static_cast<int>(luaL_checkinteger(L, 2));
-
     // 检查参数有效性：period_s 不能为负数
     if (period_s < 0) {
         luaL_error(L, "Invalid log period value");
@@ -522,8 +521,8 @@ static int lua_logger_mdbctl_log(lua_State* L)
 // 解析 initiator 表，参考 Lua parse_initiator：键为 Interface、UserName、ClientIp，
 // 值可能为带 :value() 方法的对象（如 variant），空字符串用 'Unknown' 代替
 // 返回是否解析成功；成功时填充 interface_name、username、client_addr
-static bool parse_initiator(lua_State* L, int table_idx, std::string& interface_name,
-                            std::string& username, std::string& client_addr)
+static bool parse_initiator(lua_State* L, int table_idx, std::string& interface_name, std::string& username,
+                            std::string& client_addr)
 {
     static const char* caller_info[] = {"Interface", "UserName", "ClientIp"};
     std::string*       out_fields[]  = {&interface_name, &username, &client_addr};

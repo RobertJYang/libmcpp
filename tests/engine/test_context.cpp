@@ -32,8 +32,7 @@ public:
 
 class context_test_object : public ::mc::engine::object<context_test_object> {
 public:
-    MC_OBJECT(context_test_object, "ContextObject", "/org/openubmc/test_context",
-              (context_test_interface))
+    MC_OBJECT(context_test_object, "ContextObject", "/org/openubmc/test_context", (context_test_interface))
 
     void init()
     {
@@ -46,10 +45,8 @@ public:
 
 class context_test_service : public ::mc::engine::service {
 public:
-    context_test_service()
-        : ::mc::engine::service("org.openubmc.test.context.service")
-    {
-    }
+    context_test_service() : ::mc::engine::service("org.openubmc.test.context.service")
+    {}
 
     bool start() override
     {

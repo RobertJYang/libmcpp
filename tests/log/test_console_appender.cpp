@@ -172,14 +172,12 @@ TEST_F(console_appender_test, GetOrCreateAppender)
     mc::dict config;
 
     // 首次调用应该创建新的appender
-    auto appender1 =
-        appender_factory::instance().get_or_create_appender("test_console2", "console", config);
+    auto appender1 = appender_factory::instance().get_or_create_appender("test_console2", "console", config);
     ASSERT_NE(appender1, nullptr);
     EXPECT_EQ(appender1->get_name(), "test_console2");
 
     // 再次调用应该返回已有的appender
-    auto appender2 =
-        appender_factory::instance().get_or_create_appender("test_console2", "console", config);
+    auto appender2 = appender_factory::instance().get_or_create_appender("test_console2", "console", config);
     ASSERT_NE(appender2, nullptr);
     EXPECT_EQ(appender2, appender1);
 }
@@ -302,12 +300,9 @@ TEST_F(console_appender_test, ConfigureAllColorTypesForGetConsoleColor)
 
     // 为每个日志级别配置不同的颜色，覆盖所有颜色类型
     std::vector<std::pair<level, console_appender::color_type>> color_mappings = {
-        {level::trace, console_appender::color_type::red},
-        {level::debug, console_appender::color_type::green},
-        {level::info, console_appender::color_type::brown},
-        {level::warn, console_appender::color_type::blue},
-        {level::error, console_appender::color_type::magenta},
-        {level::fatal, console_appender::color_type::cyan},
+        {level::trace, console_appender::color_type::red},     {level::debug, console_appender::color_type::green},
+        {level::info, console_appender::color_type::brown},    {level::warn, console_appender::color_type::blue},
+        {level::error, console_appender::color_type::magenta}, {level::fatal, console_appender::color_type::cyan},
         {level::notice, console_appender::color_type::white},
     };
 

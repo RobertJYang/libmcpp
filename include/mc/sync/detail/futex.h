@@ -91,18 +91,17 @@ public:
 
 private:
 #ifdef __linux__
-    static int wait_linux(const std::atomic<uint32_t>* addr, uint32_t& expected,
-                          std::chrono::nanoseconds timeout, uint32_t wait_mask) noexcept;
+    static int wait_linux(const std::atomic<uint32_t>* addr, uint32_t& expected, std::chrono::nanoseconds timeout,
+                          uint32_t wait_mask) noexcept;
     static int wake_linux(const std::atomic<uint32_t>* addr, int count, uint32_t wake_mask) noexcept;
 #endif
     template <typename T>
-    static int wait_fallback(const std::atomic<T>* addr, T& expected,
-                             std::chrono::nanoseconds timeout) noexcept;
+    static int wait_fallback(const std::atomic<T>* addr, T& expected, std::chrono::nanoseconds timeout) noexcept;
 };
 
 #ifdef __linux__
-inline int futex::wait_linux(const std::atomic<uint32_t>* addr, uint32_t& expected,
-                             std::chrono::nanoseconds timeout, uint32_t wait_mask) noexcept
+inline int futex::wait_linux(const std::atomic<uint32_t>* addr, uint32_t& expected, std::chrono::nanoseconds timeout,
+                             uint32_t wait_mask) noexcept
 {
     struct timespec  ts;
     struct timespec* timeout_ptr = nullptr;
@@ -113,8 +112,7 @@ inline int futex::wait_linux(const std::atomic<uint32_t>* addr, uint32_t& expect
         auto end = now + timeout;
 
         auto end_sec  = std::chrono::duration_cast<std::chrono::seconds>(end.time_since_epoch());
-        auto end_nsec = std::chrono::duration_cast<std::chrono::nanoseconds>(
-            end.time_since_epoch() - end_sec);
+        auto end_nsec = std::chrono::duration_cast<std::chrono::nanoseconds>(end.time_since_epoch() - end_sec);
 
         ts.tv_sec   = end_sec.count();
         ts.tv_nsec  = end_nsec.count();
@@ -122,14 +120,8 @@ inline int futex::wait_linux(const std::atomic<uint32_t>* addr, uint32_t& expect
     }
 
     // 使用 FUTEX_CLOCK_REALTIME 标志，让内核使用绝对时间
-    const auto rv = syscall(
-        SYS_futex,
-        addr,
-        FUTEX_WAIT_BITSET_PRIVATE | FUTEX_CLOCK_REALTIME,
-        expected,
-        timeout_ptr,
-        nullptr,
-        wait_mask);
+    const auto rv = syscall(SYS_futex, addr, FUTEX_WAIT_BITSET_PRIVATE | FUTEX_CLOCK_REALTIME, expected, timeout_ptr,
+                            nullptr, wait_mask);
 
     auto current = addr->load(std::memory_order_acquire);
     expected     = current;
@@ -139,15 +131,13 @@ inline int futex::wait_linux(const std::atomic<uint32_t>* addr, uint32_t& expect
 
 inline int futex::wake_linux(const std::atomic<uint32_t>* addr, int count, uint32_t wake_mask) noexcept
 {
-    return syscall(SYS_futex, addr, FUTEX_WAKE_BITSET_PRIVATE,
-                   count, nullptr, nullptr, wake_mask);
+    return syscall(SYS_futex, addr, FUTEX_WAKE_BITSET_PRIVATE, count, nullptr, nullptr, wake_mask);
 }
 
 #endif
 
 template <typename T>
-int futex::wait_fallback(const std::atomic<T>* addr, T& expected,
-                         std::chrono::nanoseconds timeout) noexcept
+int futex::wait_fallback(const std::atomic<T>* addr, T& expected, std::chrono::nanoseconds timeout) noexcept
 {
     auto start_time = std::chrono::steady_clock::now();
     while (true) {

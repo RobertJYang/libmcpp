@@ -75,8 +75,7 @@ public:
      * @param name 变量名
      * @return 变量值
      */
-    virtual const mc::variant& get_variable(std::string_view name,
-                                            std::string_view iface = {}) const;
+    virtual const mc::variant& get_variable(std::string_view name, std::string_view iface = {}) const;
 
     /**
      * @brief 函数调用
@@ -84,8 +83,7 @@ public:
      * @param args 参数
      * @return 返回值
      */
-    virtual mc::variant invoke(std::string_view name, const mc::variants& args,
-                               std::string_view iface = {}) const;
+    virtual mc::variant invoke(std::string_view name, const mc::variants& args, std::string_view iface = {}) const;
 
 protected:
     context_base* m_parent{nullptr};
@@ -127,8 +125,7 @@ public:
      * @brief 获取变量值
      * @note 如果当前上下文找不到变量，会尝试从父级上下文查找
      */
-    const mc::variant& get_variable(std::string_view name,
-                                    std::string_view iface = {}) const override;
+    const mc::variant& get_variable(std::string_view name, std::string_view iface = {}) const override;
 
     /**
      * @brief 判断变量是否存在
@@ -165,8 +162,7 @@ public:
      * @param args 参数
      * @return 返回值
      */
-    mc::variant invoke(std::string_view name, const mc::variants& args,
-                       std::string_view iface = {}) const override;
+    mc::variant invoke(std::string_view name, const mc::variants& args, std::string_view iface = {}) const override;
 
 private:
     std::shared_ptr<context_impl> m_impl;
@@ -180,10 +176,8 @@ public:
 
     bool               has_variable(std::string_view name, std::string_view iface = {}) const override;
     bool               has_function(std::string_view name, std::string_view iface = {}) const override;
-    const mc::variant& get_variable(std::string_view name,
-                                    std::string_view iface = {}) const override;
-    mc::variant        invoke(std::string_view name, const mc::variants& args,
-                              std::string_view iface = {}) const override;
+    const mc::variant& get_variable(std::string_view name, std::string_view iface = {}) const override;
+    mc::variant invoke(std::string_view name, const mc::variants& args, std::string_view iface = {}) const override;
 
 private:
     mc::engine::abstract_object* m_object;

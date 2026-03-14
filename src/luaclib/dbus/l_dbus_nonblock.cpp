@@ -138,7 +138,6 @@ int dbus_nonblock_async_call(lua_State* L)
             // 成功：调用回调 ok=true, result...
             lua_pushboolean(L, true);
             int ret_count = mc::lua::variants_to_lua(L, result);
-
             // 调用回调函数：1个固定参数 + ret_count个返回值
             if (lua_pcall(L, 1 + ret_count, 0, 0) != LUA_OK) {
                 const char* err = lua_tostring(L, -1);
@@ -170,8 +169,8 @@ int dbus_nonblock_async_timeout_call(lua_State* L)
         }
 
         // 直接使用 wrapper->bus_impl 调用方法
-        auto [error, result] =
-            wrapper->bus_impl->async_timeout_call(timeout_ms, service_name, path, interface, method, signature, std::move(args));
+        auto [error, result] = wrapper->bus_impl->async_timeout_call(timeout_ms, service_name, path, interface, method,
+                                                                     signature, std::move(args));
 
         // 获取回调函数
         lua_pushvalue(L, 3); // 复制回调函数到栈顶
@@ -189,7 +188,6 @@ int dbus_nonblock_async_timeout_call(lua_State* L)
             // 成功：调用回调 ok=true, result...
             lua_pushboolean(L, true);
             int ret_count = mc::lua::variants_to_lua(L, result);
-
             // 调用回调函数：1个固定参数 + ret_count个返回值
             if (lua_pcall(L, 1 + ret_count, 0, 0) != LUA_OK) {
                 const char* err = lua_tostring(L, -1);
@@ -221,8 +219,8 @@ int dbus_nonblock_async_shm_timeout_call(lua_State* L)
         }
 
         // 直接使用 wrapper->bus_impl 调用方法
-        auto [error, result] = wrapper->bus_impl->async_shm_timeout_call(
-            timeout_ms, service_name, path, interface, method, signature, std::move(args));
+        auto [error, result] = wrapper->bus_impl->async_shm_timeout_call(timeout_ms, service_name, path, interface,
+                                                                         method, signature, std::move(args));
 
         // 获取回调函数
         lua_pushvalue(L, 3); // 复制回调函数到栈顶
@@ -244,7 +242,6 @@ int dbus_nonblock_async_shm_timeout_call(lua_State* L)
         // 成功：调用回调 ok=true, result...
         lua_pushboolean(L, true);
         int ret_count = mc::lua::variants_to_lua(L, result);
-
         // 调用回调函数：1个固定参数 + ret_count个返回值
         if (lua_pcall(L, 1 + ret_count, 0, 0) != LUA_OK) {
             const char* err = lua_tostring(L, -1);

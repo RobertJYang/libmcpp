@@ -40,10 +40,8 @@ protected:
 
 class copy_context_stub : public mc::enable_shared_from_this<copy_context_stub> {
 public:
-    explicit copy_context_stub(int value)
-        : m_value(value)
-    {
-    }
+    explicit copy_context_stub(int value) : m_value(value)
+    {}
 
     int value() const
     {

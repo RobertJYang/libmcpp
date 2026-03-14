@@ -47,8 +47,7 @@ public:
 
     // 其他必要的方法，提供默认实现
     void set_service(mc::engine::service* s) override
-    {
-    }
+    {}
     mc::engine::service* get_service() const override
     {
         return nullptr;
@@ -58,27 +57,23 @@ public:
         return nullptr;
     }
     void set_owner(mc::engine::abstract_object* owner) override
-    {
-    }
+    {}
     const mc::engine::abstract_object::managed_objects& get_managed_objects() const override
     {
         static mc::engine::abstract_object::managed_objects empty;
         return empty;
     }
     void set_object_name(std::string_view name) override
-    {
-    }
+    {}
     std::string_view get_object_path() const override
     {
         static std::string path = "/mock/object";
         return path;
     }
     void set_object_path(std::string_view path) override
-    {
-    }
+    {}
     void set_position(std::string_view position) override
-    {
-    }
+    {}
     std::string_view get_class_name() const override
     {
         static std::string cls = "MockObject";
@@ -89,8 +84,7 @@ public:
         return mc::engine::object_identifier_t{};
     }
     void set_object_identifier(const mc::engine::object_identifier_t& identifier) override
-    {
-    }
+    {}
 
     bool has_interface(std::string_view interface_name) const override
     {
@@ -101,11 +95,13 @@ public:
         return nullptr;
     }
 
-    mc::variant get_property(std::string_view property_name, std::string_view interface_name = {}, int options = 0) const override
+    mc::variant get_property(std::string_view property_name, std::string_view interface_name = {},
+                             int options = 0) const override
     {
         return mc::variant("mock_value");
     }
-    mc::engine::property_base* get_property_base(std::string_view property_name, std::string_view interface_name = {}) const
+    mc::engine::property_base* get_property_base(std::string_view property_name,
+                                                 std::string_view interface_name = {}) const
     {
         return nullptr;
     }
@@ -117,40 +113,43 @@ public:
     {
         return mc::dict();
     }
-    bool set_property(std::string_view property_name, const mc::variant& value, std::string_view interface_name = {}) override
+    bool set_property(std::string_view property_name, const mc::variant& value,
+                      std::string_view interface_name = {}) override
     {
         return true;
     }
 
-    mc::connection_type connect(std::string_view signal_name, mc::engine::slot_type slot, std::string_view interface_name = {}) override
+    mc::connection_type connect(std::string_view signal_name, mc::engine::slot_type slot,
+                                std::string_view interface_name = {}) override
     {
         return mc::connection_type();
     }
-    mc::variant emit(std::string_view signal_name, const mc::variants& args, std::string_view interface_name = {}) override
+    mc::variant emit(std::string_view signal_name, const mc::variants& args,
+                     std::string_view interface_name = {}) override
     {
         return mc::variant();
     }
 
     void visit(mc::engine::metadata_visitor& v) const
-    {
-    }
+    {}
 
     bool has_method(std::string_view method_name, std::string_view interface_name = {}) const override
     {
         return false;
     }
-    mc::engine::invoke_result invoke(std::string_view method_name, const mc::variants& args = {}, std::string_view interface_name = {}) override
+    mc::engine::invoke_result invoke(std::string_view method_name, const mc::variants& args = {},
+                                     std::string_view interface_name = {}) override
     {
         return mc::engine::invoke_result();
     }
-    mc::result<mc::variant> async_invoke(std::string_view method_name, const mc::variants& args = {}, std::string_view interface_name = {}) override
+    mc::result<mc::variant> async_invoke(std::string_view method_name, const mc::variants& args = {},
+                                         std::string_view interface_name = {}) override
     {
         return mc::result<mc::variant>();
     }
 
     void notify_property_changed(const mc::variant& value, const mc::engine::property_base& prop) override
-    {
-    }
+    {}
     mc::engine::property_changed_signal& property_changed() override
     {
         static mc::engine::property_changed_signal signal;
@@ -158,8 +157,7 @@ public:
     }
 
     void notify_property_update_shm(const mc::variant& value, const mc::engine::property_base& prop) override
-    {
-    }
+    {}
 
     mc::engine::property_changed_signal& property_update_shm() override
     {
@@ -175,27 +173,22 @@ public:
     }
 
     void add_managed_object(mc::engine::abstract_object* obj) override
-    {
-    }
+    {}
     void remove_managed_object(mc::engine::abstract_object* obj) override
-    {
-    }
+    {}
 
     void set_property_ref_info(std::string_view property_name, const std::string& info,
                                std::string_view interface_name) override
-    {
-    }
+    {}
 
-    std::string get_property_ref_info(std::string_view property_name,
-                                      std::string_view interface_name) const override
+    std::string get_property_ref_info(std::string_view property_name, std::string_view interface_name) const override
     {
         return "";
     }
 
     void set_property_sync_info(std::string_view property_name, mc::engine::property_sync_info_ptr info,
                                 std::string_view interface_name) override
-    {
-    }
+    {}
 
     mc::engine::property_sync_info_ptr get_property_sync_info(std::string_view property_name,
                                                               std::string_view interface_name) const override
@@ -219,22 +212,19 @@ public:
         return m_type;
     }
     void set_variant_value(const mc::variant& value) override
-    {
-    }
+    {}
     mc::variant get_variant_value() const override
     {
         return mc::variant();
     }
     void set_internal_value(const mc::variant& value) override
-    {
-    }
+    {}
     bool has_extension_data() const override
     {
         return false;
     }
     void ensure_extension_data() override
-    {
-    }
+    {}
     void set_ref_object_cache(std::unique_ptr<mc::variant> cache) override
     {
         m_cache = std::move(cache);
@@ -252,11 +242,9 @@ public:
         m_setter = std::move(setter);
     }
     void add_connection_slot(mc::connection_type slot) override
-    {
-    }
+    {}
     void clear_connection_slots() override
-    {
-    }
+    {}
     void set_function_data(std::unique_ptr<mc::engine::detail::func_data> data) override
     {
         m_func_data = std::move(data);
@@ -356,8 +344,7 @@ public:
     }
 
     void set_override_value(const mc::variant& value) override
-    {
-    }
+    {}
 
     // 公开成员用于测试
     mc::engine::p_type m_type = mc::engine::p_type::normal;
@@ -434,9 +421,7 @@ TEST_F(PropertyProcessorTest, SyncPropertyProcessor)
     EXPECT_EQ(processor.get_property_type(), mc::engine::p_type::sync);
 
     // 测试处理功能（合并了 SyncPropertyProcessorDetails）
-    EXPECT_NO_THROW({
-        processor.process(&helper, "<=/CPU.Temperature");
-    });
+    EXPECT_NO_THROW({ processor.process(&helper, "<=/CPU.Temperature"); });
     EXPECT_EQ(helper.m_type, mc::engine::p_type::sync);
     EXPECT_TRUE(helper.has_extension);
     EXPECT_TRUE(helper.m_setter);
@@ -458,9 +443,7 @@ TEST_F(PropertyProcessorTest, RefPropertyProcessor)
     EXPECT_EQ(processor.get_property_type(), mc::engine::p_type::reference);
 
     // 测试处理功能（合并了 RefPropertyProcessorDetails）
-    EXPECT_NO_THROW({
-        processor.process(&helper, "#/CPU.Temperature");
-    });
+    EXPECT_NO_THROW({ processor.process(&helper, "#/CPU.Temperature"); });
     EXPECT_EQ(helper.m_type, mc::engine::p_type::reference);
     EXPECT_TRUE(helper.has_extension);
     EXPECT_TRUE(helper.m_getter);
@@ -483,9 +466,7 @@ TEST_F(PropertyProcessorTest, RefObjectProcessor)
     EXPECT_EQ(processor.get_property_type(), mc::engine::p_type::ref_object);
 
     // 测试处理功能（合并了 RefObjectProcessorDetails）
-    EXPECT_NO_THROW({
-        processor.process(&helper, "#/CPU");
-    });
+    EXPECT_NO_THROW({ processor.process(&helper, "#/CPU"); });
     EXPECT_EQ(helper.m_type, mc::engine::p_type::ref_object);
     EXPECT_TRUE(helper.has_extension);
 }
@@ -506,9 +487,7 @@ TEST_F(PropertyProcessorTest, FunctionCallProcessor)
     EXPECT_EQ(processor.get_property_type(), mc::engine::p_type::normal);
 
     // 测试处理功能（合并了 FunctionCallProcessorDetails）
-    EXPECT_NO_THROW({
-        processor.process(&helper, "$Func_compute_average({})");
-    });
+    EXPECT_NO_THROW({ processor.process(&helper, "$Func_compute_average({})"); });
     EXPECT_EQ(helper.m_type, mc::engine::p_type::normal);
     // 当函数不存在时，不应该设置扩展数据和getter
     EXPECT_FALSE(helper.has_extension);
@@ -565,20 +544,14 @@ TEST_F(PropertyProcessorTest, ProcessorRegistration)
     };
 
     for (const auto& format : supported_formats) {
-        EXPECT_TRUE(factory->process_property_value(&helper, format))
-            << "格式 '" << format << "' 应该被支持";
+        EXPECT_TRUE(factory->process_property_value(&helper, format)) << "格式 '" << format << "' 应该被支持";
     }
 
     // 不支持的格式
-    std::vector<std::string> unsupported_formats = {
-        "normal_value",
-        "invalid_format",
-        "",
-        "xyz123"};
+    std::vector<std::string> unsupported_formats = {"normal_value", "invalid_format", "", "xyz123"};
 
     for (const auto& format : unsupported_formats) {
-        EXPECT_FALSE(factory->process_property_value(&helper, format))
-            << "格式 '" << format << "' 不应该被支持";
+        EXPECT_FALSE(factory->process_property_value(&helper, format)) << "格式 '" << format << "' 不应该被支持";
     }
 }
 
@@ -648,8 +621,7 @@ public:
 
     void set_setter_function(std::function<void(const mc::variant&)> setter) override
     {
-        DetailedMockPropertyHelper::set_setter_function(
-            [this, setter = std::move(setter)](const mc::variant& value) {
+        DetailedMockPropertyHelper::set_setter_function([this, setter = std::move(setter)](const mc::variant& value) {
             set_relate_property_called = true;
             set_relate_property_value  = value;
             setter(value);
@@ -658,8 +630,7 @@ public:
 
     void set_getter_function(std::function<mc::variant()> getter) override
     {
-        DetailedMockPropertyHelper::set_getter_function(
-            [this, getter = std::move(getter)]() -> mc::variant {
+        DetailedMockPropertyHelper::set_getter_function([this, getter = std::move(getter)]() -> mc::variant {
             get_relate_property_called = true;
             return getter();
         });

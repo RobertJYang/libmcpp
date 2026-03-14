@@ -11,8 +11,8 @@
  */
 
 #include "mc/interprocess/mutex/ipc_shared_mutex.h"
-#include "mc/interprocess/mutex/detail/mutex_utils.h"
 #include "mc/exception.h"
+#include "mc/interprocess/mutex/detail/mutex_utils.h"
 #include "mc/log.h"
 
 #include <chrono>
@@ -249,7 +249,6 @@ bool ipc_shared_mutex::should_clean_reader(size_t slot, uint64_t now) const
 {
     pid_t reader_pid  = m_readers[slot].pid;
     pid_t current_pid = getpid();
-
     // 空槽位或当前进程占用的不需要清理
     if (reader_pid == 0 || reader_pid == current_pid) {
         return false;
@@ -263,8 +262,7 @@ bool ipc_shared_mutex::should_clean_reader(size_t slot, uint64_t now) const
 
     // 检查读锁是否超时
     if (m_readers[slot].read_time > 0 && now - m_readers[slot].read_time > SHARED_MUTEX_TIMEOUT_US) {
-        wlog("读锁已超时${time}秒，清除读锁",
-             ("time", (now - m_readers[slot].read_time) / 1000000.0));
+        wlog("读锁已超时${time}秒，清除读锁", ("time", (now - m_readers[slot].read_time) / 1000000.0));
         return true;
     }
 

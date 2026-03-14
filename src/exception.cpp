@@ -45,8 +45,7 @@ exception::exception(int64_t code, const std::string& name_value, const std::str
     m_impl->m_code = code;
 }
 
-exception::exception(mc::log::message&& msg, int64_t code, const std::string& name_value,
-                     const std::string& what_value)
+exception::exception(mc::log::message&& msg, int64_t code, const std::string& name_value, const std::string& what_value)
     : exception(code, name_value, what_value)
 {
     m_impl->m_logs.emplace_back(std::move(msg));
@@ -66,19 +65,14 @@ exception::exception(const mc::log::messages& msgs, int64_t code, const std::str
     m_impl->m_logs = msgs;
 }
 
-exception::exception(const exception& e)
-    : m_impl(new detail::exception_impl(*e.m_impl))
-{
-}
+exception::exception(const exception& e) : m_impl(new detail::exception_impl(*e.m_impl))
+{}
 
-exception::exception(exception&& e)
-    : m_impl(std::move(e.m_impl))
-{
-}
+exception::exception(exception&& e) : m_impl(std::move(e.m_impl))
+{}
 
 exception::~exception()
-{
-}
+{}
 
 int64_t exception::code() const noexcept
 {
@@ -238,16 +232,13 @@ mc::log::messages exception::take_messages() const
 
 unhandled_exception::unhandled_exception(mc::log::message&& msg, std::exception_ptr e)
     : exception(std::move(msg), unhandled_exception_code, "unhandled", "未处理的异常"), m_inner(e)
-{
-}
+{}
 
 unhandled_exception::unhandled_exception(mc::log::messages msgs)
     : exception(std::move(msgs), unhandled_exception_code, "unhandled", "未处理的异常")
-{
-}
+{}
 
-unhandled_exception::unhandled_exception(const exception& e)
-    : exception(e)
+unhandled_exception::unhandled_exception(const exception& e) : exception(e)
 {
     m_impl->m_code = unhandled_exception_code;
     m_impl->m_name = "unhandled";
@@ -275,11 +266,9 @@ std::shared_ptr<exception> unhandled_exception::dynamic_copy_exception() const
 // 标准异常包装类实现
 
 std_exception_wrapper::std_exception_wrapper(mc::log::message&& msg, std::exception_ptr e,
-                                             const std::string& name_value,
-                                             const std::string& what_value)
+                                             const std::string& name_value, const std::string& what_value)
     : exception(std::move(msg), std_exception_code, name_value, what_value), m_inner(e)
-{
-}
+{}
 
 std::exception_ptr std_exception_wrapper::get_inner_exception() const
 {
@@ -288,8 +277,8 @@ std::exception_ptr std_exception_wrapper::get_inner_exception() const
 
 std_exception_wrapper std_exception_wrapper::from_current_exception(const std::exception& e)
 {
-    return std_exception_wrapper(mc::log::message(mc::log::level::error, e.what()),
-                                 std::current_exception(), "std_exception", e.what());
+    return std_exception_wrapper(mc::log::message(mc::log::level::error, e.what()), std::current_exception(),
+                                 "std_exception", e.what());
 }
 
 void std_exception_wrapper::dynamic_rethrow_exception() const
@@ -327,23 +316,15 @@ MC_STD_EXCEPTION_CLASS(MC_IMPLEMENT_EXCEPTION_CLASS)
 
 // 错误引擎异常类实现
 
-error_exception::error_exception(const char*     error_name,
-                                 const mc::dict& args,
-                                 int64_t         code)
+error_exception::error_exception(const char* error_name, const mc::dict& args, int64_t code)
     : exception(code, error_name), args_(args), has_json_error_(false)
-{
-}
+{}
 
-error_exception::error_exception(const char*        error_name,
-                                 const std::string& error_json,
-                                 int64_t            code)
+error_exception::error_exception(const char* error_name, const std::string& error_json, int64_t code)
     : exception(code, error_name), args_(), error_json_(error_json), has_json_error_(true)
-{
-}
+{}
 
-error_exception::error_exception(const char*        error_name,
-                                 mc::log::message&& message,
-                                 int64_t            code)
+error_exception::error_exception(const char* error_name, mc::log::message&& message, int64_t code)
     : exception(std::move(message), code, error_name), args_(), has_json_error_(false)
 {
     // 委托给父类exception的log::message构造函数

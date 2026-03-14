@@ -28,10 +28,8 @@ namespace mc::expr {
  */
 class unary_op_node : public node {
 public:
-    unary_op_node(operator_type op, node_ptr operand)
-        : m_operator(op), m_operand(std::move(operand))
-    {
-    }
+    unary_op_node(operator_type op, node_ptr operand) : m_operator(op), m_operand(std::move(operand))
+    {}
 
     node_type get_type() const override
     {

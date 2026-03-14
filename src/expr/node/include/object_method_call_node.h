@@ -31,10 +31,8 @@ namespace mc::expr {
 class object_method_call_node : public node {
 public:
     object_method_call_node(node_ptr object, std::string method_name, node_ptrs args)
-        : m_object(std::move(object)), m_method_name(std::move(method_name)),
-          m_args(std::move(args))
-    {
-    }
+        : m_object(std::move(object)), m_method_name(std::move(method_name)), m_args(std::move(args))
+    {}
 
     node_type get_type() const override
     {

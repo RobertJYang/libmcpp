@@ -11,16 +11,15 @@
  */
 
 #include "l_mdb.h"
+#include "l_mdb_access.h"
 #include "l_mdb_service.h"
 #include "l_privilege.h"
-#include "l_mdb_access.h"
 
 extern "C" {
 #include <lualib.h>
 }
 
 extern "C" {
-
 // lmdb 模块加载函数
 __attribute__((visibility("default"))) int luaopen_lmdb(lua_State* L)
 {

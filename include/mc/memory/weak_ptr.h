@@ -34,20 +34,15 @@ public:
     using ref_ptr_type = shared_ptr<element_type, Deleter, pointer_type>;
 
     // 默认构造函数
-    constexpr weak_ptr() noexcept
-        : m_ptr(nullptr)
-    {
-    }
+    constexpr weak_ptr() noexcept : m_ptr(nullptr)
+    {}
 
     // nullptr 构造函数
-    constexpr weak_ptr(std::nullptr_t) noexcept
-        : m_ptr(nullptr)
-    {
-    }
+    constexpr weak_ptr(std::nullptr_t) noexcept : m_ptr(nullptr)
+    {}
 
     // 从 shared_ptr 构造
-    weak_ptr(const ref_ptr_type& ref) noexcept
-        : m_ptr(ref.get())
+    weak_ptr(const ref_ptr_type& ref) noexcept : m_ptr(ref.get())
     {
         if (m_ptr) {
             m_ptr->add_weak_ref();
@@ -55,8 +50,7 @@ public:
     }
 
     // 接受裸指针的构造函数
-    explicit weak_ptr(pointer_type ptr) noexcept
-        : m_ptr(ptr)
+    explicit weak_ptr(pointer_type ptr) noexcept : m_ptr(ptr)
     {
         if (m_ptr) {
             m_ptr->add_weak_ref();
@@ -64,8 +58,7 @@ public:
     }
 
     // 拷贝构造函数
-    weak_ptr(const weak_ptr& other) noexcept
-        : m_ptr(other.m_ptr)
+    weak_ptr(const weak_ptr& other) noexcept : m_ptr(other.m_ptr)
     {
         if (m_ptr) {
             m_ptr->add_weak_ref();
@@ -74,8 +67,7 @@ public:
 
     // 类型转换拷贝构造函数
     template <typename U, typename UP>
-    weak_ptr(const weak_ptr<U, UP>& other) noexcept
-        : m_ptr(other.get())
+    weak_ptr(const weak_ptr<U, UP>& other) noexcept : m_ptr(other.get())
     {
         static_assert(std::is_convertible_v<U*, T*>, "U* must be convertible to T*");
         if (m_ptr) {
@@ -84,16 +76,14 @@ public:
     }
 
     // 移动构造函数
-    weak_ptr(weak_ptr&& other) noexcept
-        : m_ptr(other.m_ptr)
+    weak_ptr(weak_ptr&& other) noexcept : m_ptr(other.m_ptr)
     {
         other.m_ptr = nullptr;
     }
 
     // 类型转换移动构造函数
     template <typename U, typename UP>
-    weak_ptr(weak_ptr<U, UP>&& other) noexcept
-        : m_ptr(other.get())
+    weak_ptr(weak_ptr<U, UP>&& other) noexcept : m_ptr(other.get())
     {
         static_assert(std::is_convertible_v<U*, T*>, "U* must be convertible to T*");
         other.reset();
@@ -186,7 +176,8 @@ public:
         if (!m_ptr || !m_ptr->try_add_ref()) {
             return ref_ptr_type();
         }
-        return ref_ptr_type(m_ptr, typename ref_ptr_type::already_referenced_tag{}); // 已经增加了引用计数，不需要再次增加
+        return ref_ptr_type(m_ptr,
+                            typename ref_ptr_type::already_referenced_tag{}); // 已经增加了引用计数，不需要再次增加
     }
 
     // 获取原始指针

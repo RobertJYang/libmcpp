@@ -68,19 +68,16 @@ public:
     service_object_table& get_object_table() const;
     mc::dbus::connection  get_connection() const;
 
-    mc::variant timeout_call(mc::milliseconds timeout, std::string_view service_name,
-                             std::string_view path, std::string_view interface,
-                             std::string_view method, std::string_view signature,
+    mc::variant timeout_call(mc::milliseconds timeout, std::string_view service_name, std::string_view path,
+                             std::string_view interface, std::string_view method, std::string_view signature,
                              const mc::variants& args);
 
-    std::optional<mc::variant> shm_timeout_call(mc::milliseconds timeout,
-                                                std::string_view service_name,
+    std::optional<mc::variant> shm_timeout_call(mc::milliseconds timeout, std::string_view service_name,
                                                 std::string_view path, std::string_view interface,
                                                 std::string_view method, std::string_view signature,
                                                 const mc::variants& args);
 
-    static std::string resolve_object_path(std::string_view       path_pattern,
-                                           const abstract_object& obj);
+    static std::string resolve_object_path(std::string_view path_pattern, const abstract_object& obj);
 
     uint64_t add_match(mc::dbus::match_rule& rule, mc::dbus::match_cb_t&& cb);
     void     remove_match(uint64_t id);

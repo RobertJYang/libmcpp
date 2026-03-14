@@ -29,11 +29,8 @@
 namespace mc::runtime {
 
 namespace detail {
-using executor_variant = std::variant<
-    ::mc::runtime::immediate_executor,
-    ::mc::runtime::thread_pool::executor_type,
-    ::mc::runtime::runtime_strand,
-    ::mc::runtime::executor>;
+using executor_variant = std::variant<::mc::runtime::immediate_executor, ::mc::runtime::thread_pool::executor_type,
+                                      ::mc::runtime::runtime_strand, ::mc::runtime::executor>;
 }
 
 /**
@@ -69,11 +66,10 @@ public:
      * @brief 从任意执行器构造（会被包装到 mc::runtime::executor 中）
      */
     template <typename Executor,
-              typename = std::enable_if_t<
-                  !std::is_same_v<std::decay_t<Executor>, any_executor> &&
-                  !std::is_same_v<std::decay_t<Executor>, thread_pool::executor_type> &&
-                  !std::is_same_v<std::decay_t<Executor>, runtime_strand> &&
-                  !std::is_same_v<std::decay_t<Executor>, runtime::executor>>>
+              typename = std::enable_if_t<!std::is_same_v<std::decay_t<Executor>, any_executor> &&
+                                          !std::is_same_v<std::decay_t<Executor>, thread_pool::executor_type> &&
+                                          !std::is_same_v<std::decay_t<Executor>, runtime_strand> &&
+                                          !std::is_same_v<std::decay_t<Executor>, runtime::executor>>>
     any_executor(Executor&& executor);
 
     /**
@@ -164,10 +160,8 @@ private:
 
 // 模板实现
 template <typename Executor, typename>
-any_executor::any_executor(Executor&& executor)
-    : m_executor(runtime::executor(std::forward<Executor>(executor)))
-{
-}
+any_executor::any_executor(Executor&& executor) : m_executor(runtime::executor(std::forward<Executor>(executor)))
+{}
 
 template <typename Function, typename Allocator>
 auto any_executor::post(Function&& f, const Allocator& a) const

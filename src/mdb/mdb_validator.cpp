@@ -22,10 +22,7 @@ void TypeError(const std::string& msg)
     throw std::runtime_error(msg);
 }
 
-void mdb_validator::check(
-    const std::string& name,
-    const std::string& signature,
-    const mc::variant& value)
+void mdb_validator::check(const std::string& name, const std::string& signature, const mc::variant& value)
 {
     try {
         check_type(signature, value);
@@ -36,7 +33,8 @@ void mdb_validator::check(
     }
 }
 
-void mdb_validator::check_method_args(const std::string& method_name, const std::string& signature, const mc::variant& args)
+void mdb_validator::check_method_args(const std::string& method_name, const std::string& signature,
+                                      const mc::variant& args)
 {
     if (!args.is_array()) {
         TypeError("method arguments must be array");
@@ -56,7 +54,6 @@ void mdb_validator::check_method_args(const std::string& method_name, const std:
 void mdb_validator::check_type(const std::string& signature, const mc::variant& value)
 {
     auto sigs = mc::dbus::signature(signature).get_complete_types();
-
     if (sigs.size() == 1) {
         check_one(signature, value);
         return;
@@ -177,8 +174,7 @@ bool mdb_validator::is_basic_type(const std::string& sig)
 
 bool mdb_validator::is_integer_type(const std::string& sig)
 {
-    return sig == "y" || sig == "q" || sig == "u" || sig == "t" ||
-           sig == "n" || sig == "i" || sig == "x";
+    return sig == "y" || sig == "q" || sig == "u" || sig == "t" || sig == "n" || sig == "i" || sig == "x";
 }
 
 bool mdb_validator::is_string_type(const std::string& sig)
@@ -271,5 +267,4 @@ void mdb_validator::check_integer_range(const std::string& sig, const mc::varian
 }
 
 void mdb_validator::check_utf8(const std::string& s)
-{
-}
+{}

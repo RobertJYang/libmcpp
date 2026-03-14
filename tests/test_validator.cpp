@@ -99,32 +99,25 @@ TEST(ValidatorTest, CheckInteger)
     EXPECT_NO_THROW(validator::check_integer("Prop1", 100.0, 0.0, 100.0, false));
 
     // 情况5: 整数，小于 min，need_convert = false
-    EXPECT_THROW(validator::check_integer("Prop1", -1.0, 0.0, 100.0, false),
-                 mc::error_exception);
+    EXPECT_THROW(validator::check_integer("Prop1", -1.0, 0.0, 100.0, false), mc::error_exception);
 
     // 情况6: 整数，大于 max，need_convert = false
-    EXPECT_THROW(validator::check_integer("Prop1", 101.0, 0.0, 100.0, false),
-                 mc::error_exception);
+    EXPECT_THROW(validator::check_integer("Prop1", 101.0, 0.0, 100.0, false), mc::error_exception);
 
     // 情况7: 整数，小于 min，need_convert = true
-    EXPECT_THROW(validator::check_integer("Prop1", -1.0, 0.0, 100.0, true),
-                 mc::error_exception);
+    EXPECT_THROW(validator::check_integer("Prop1", -1.0, 0.0, 100.0, true), mc::error_exception);
 
     // 情况8: 浮点数（非整数），need_convert = false
-    EXPECT_THROW(validator::check_integer("Prop1", 3.14, 0.0, 100.0, false),
-                 mc::error_exception);
+    EXPECT_THROW(validator::check_integer("Prop1", 3.14, 0.0, 100.0, false), mc::error_exception);
 
     // 情况9: 浮点数（非整数），need_convert = true
-    EXPECT_THROW(validator::check_integer("Prop1", 3.14, 0.0, 100.0, true),
-                 mc::error_exception);
+    EXPECT_THROW(validator::check_integer("Prop1", 3.14, 0.0, 100.0, true), mc::error_exception);
 
     // 情况10: NaN，need_convert = false
-    EXPECT_THROW(validator::check_integer("Prop1", std::nan(""), 0.0, 100.0, false),
-                 mc::error_exception);
+    EXPECT_THROW(validator::check_integer("Prop1", std::nan(""), 0.0, 100.0, false), mc::error_exception);
 
     // 情况11: NaN，need_convert = true
-    EXPECT_THROW(validator::check_integer("Prop1", std::nan(""), 0.0, 100.0, true),
-                 mc::error_exception);
+    EXPECT_THROW(validator::check_integer("Prop1", std::nan(""), 0.0, 100.0, true), mc::error_exception);
 
     // 情况12: 整数 0.0（边界情况）
     EXPECT_NO_THROW(validator::check_integer("Prop1", 0.0, 0.0, 100.0, false));
@@ -167,20 +160,16 @@ TEST(ValidatorTest, Ranges)
     EXPECT_NO_THROW(validator::ranges("Prop1", 100.0, 0.0, 100.0, false, false));
 
     // 情况7: 小于 min，allow_nil = false，need_convert = false
-    EXPECT_THROW(validator::ranges("Prop1", -1.0, 0.0, 100.0, false, false),
-                 mc::error_exception);
+    EXPECT_THROW(validator::ranges("Prop1", -1.0, 0.0, 100.0, false, false), mc::error_exception);
 
     // 情况8: 大于 max，allow_nil = false，need_convert = false
-    EXPECT_THROW(validator::ranges("Prop1", 101.0, 0.0, 100.0, false, false),
-                 mc::error_exception);
+    EXPECT_THROW(validator::ranges("Prop1", 101.0, 0.0, 100.0, false, false), mc::error_exception);
 
     // 情况9: 小于 min，allow_nil = false，need_convert = true
-    EXPECT_THROW(validator::ranges("Prop1", -1.0, 0.0, 100.0, true, false),
-                 mc::error_exception);
+    EXPECT_THROW(validator::ranges("Prop1", -1.0, 0.0, 100.0, true, false), mc::error_exception);
 
     // 情况10: 大于 max，allow_nil = true，need_convert = false
-    EXPECT_THROW(validator::ranges("Prop1", 101.0, 0.0, 100.0, false, true),
-                 mc::error_exception);
+    EXPECT_THROW(validator::ranges("Prop1", 101.0, 0.0, 100.0, false, true), mc::error_exception);
 
     // 情况11: 浮点数（允许）
     EXPECT_NO_THROW(validator::ranges("Prop1", 3.14, 0.0, 10.0, false, false));
@@ -228,15 +217,13 @@ TEST(ValidatorTest, Lens)
     EXPECT_THROW(validator::lens("Prop1", "", 1, 10, false, false), mc::error_exception);
 
     // 情况8: 长度过长，allow_nil = false，need_convert = false
-    EXPECT_THROW(validator::lens("Prop1", "12345678901", 1, 10, false, false),
-                 mc::error_exception);
+    EXPECT_THROW(validator::lens("Prop1", "12345678901", 1, 10, false, false), mc::error_exception);
 
     // 情况9: 长度过短，allow_nil = false，need_convert = true
     EXPECT_THROW(validator::lens("Prop1", "", 1, 10, true, false), mc::error_exception);
 
     // 情况10: 长度过长，allow_nil = true，need_convert = false
-    EXPECT_THROW(validator::lens("Prop1", "12345678901", 1, 10, false, true),
-                 mc::error_exception);
+    EXPECT_THROW(validator::lens("Prop1", "12345678901", 1, 10, false, true), mc::error_exception);
 
     // 情况11: 空字符串，min = 0
     EXPECT_NO_THROW(validator::lens("Prop1", "", 0, 10, false, false));
@@ -290,15 +277,13 @@ TEST(ValidatorTest, Regex)
     EXPECT_NO_THROW(validator::regex("Prop1", "", ".*", false, false));
 
     // 情况10: 邮箱格式匹配
-    EXPECT_NO_THROW(validator::regex("Prop1", "test@example.com",
-                                     "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
+    EXPECT_NO_THROW(validator::regex("Prop1", "test@example.com", "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
                                      false, false));
 
     // 情况11: 邮箱格式不匹配
-    EXPECT_THROW(validator::regex("Prop1", "invalid-email",
-                                  "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$", false,
-                                  false),
-                 mc::error_exception);
+    EXPECT_THROW(
+        validator::regex("Prop1", "invalid-email", "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$", false, false),
+        mc::error_exception);
 
     // 情况12: 数字匹配
     EXPECT_NO_THROW(validator::regex("Prop1", "12345", "^[0-9]+$", false, false));

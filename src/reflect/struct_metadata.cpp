@@ -166,8 +166,7 @@ void struct_metadata::impl::load_base_class_members(data_t& data, const base_cla
     });
 }
 
-struct_metadata::struct_metadata(std::string_view name, type_id_type type_id)
-    : m_impl(std::make_unique<impl>())
+struct_metadata::struct_metadata(std::string_view name, type_id_type type_id) : m_impl(std::make_unique<impl>())
 {
     m_impl->name    = name;
     m_impl->type_id = type_id;

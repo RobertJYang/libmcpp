@@ -51,12 +51,10 @@ namespace shmlock {
 class LockHandle {
 public:
     LockHandle()
-    {
-    }
+    {}
 
     void release()
-    {
-    }
+    {}
 };
 
 class ShmLockManager;
@@ -66,8 +64,7 @@ static std::unique_ptr<ShmLockManager> _shm_instance;
 class ShmLockManager {
 public:
     ShmLockManager()
-    {
-    }
+    {}
 
     static ShmLockManager& get_instance()
     {
@@ -85,12 +82,14 @@ public:
         return 1;
     }
 
-    LockHandle acquire_read_lock(uint64_t object_id, uint16_t service_id, uint32_t timeout_ms = SHM_LOCK_TIMEOUT_DEFAULT_MS)
+    LockHandle acquire_read_lock(uint64_t object_id, uint16_t service_id,
+                                 uint32_t timeout_ms = SHM_LOCK_TIMEOUT_DEFAULT_MS)
     {
         return LockHandle();
     }
 
-    LockHandle acquire_write_lock(uint64_t object_id, uint16_t service_id, uint32_t timeout_ms = SHM_LOCK_TIMEOUT_DEFAULT_MS)
+    LockHandle acquire_write_lock(uint64_t object_id, uint16_t service_id,
+                                  uint32_t timeout_ms = SHM_LOCK_TIMEOUT_DEFAULT_MS)
     {
         return LockHandle();
     }
@@ -112,10 +111,8 @@ class shared_memory;
 
 class Rule {
 public:
-    Rule()
-        : m_type(MessageType::signal), m_path_namespace(false)
-    {
-    }
+    Rule() : m_type(MessageType::signal), m_path_namespace(false)
+    {}
 
     void member(const std::string_view& member)
     {
@@ -184,8 +181,7 @@ public:
     }
 
     void disconnect()
-    {
-    }
+    {}
 
     void destination(const std::string_view& destination)
     {
@@ -374,8 +370,7 @@ private:
             if (rule->path_namespace()) {
                 // path_namespace 匹配：消息路径必须以规则路径开头
                 std::string_view msg_path_sv(msg_path);
-                if (msg_path_sv.size() < rule_path.size() ||
-                    msg_path_sv.substr(0, rule_path.size()) != rule_path) {
+                if (msg_path_sv.size() < rule_path.size() || msg_path_sv.substr(0, rule_path.size()) != rule_path) {
                     return false;
                 }
             } else {
@@ -423,8 +418,8 @@ class shared_memory;
 class object_tree;
 class message_queue_t {
 public:
-    bool pop_front(std::function<void(const std::string_view&, int)> handler, int timeout_ms,
-                   int max_read_count, std::string& read_buf)
+    bool pop_front(std::function<void(const std::string_view&, int)> handler, int timeout_ms, int max_read_count,
+                   std::string& read_buf)
     {
         return true;
     }
@@ -437,27 +432,20 @@ public:
 
 class property {
 public:
-    property()
-        : m_data(""), m_signature("")
-    {
-    }
+    property() : m_data(""), m_signature("")
+    {}
 
-    property(const std::string_view& signature)
-        : m_data(""), m_signature(signature)
-    {
-    }
+    property(const std::string_view& signature) : m_data(""), m_signature(signature)
+    {}
 
     void set_read_privilege(int read_privilege)
-    {
-    }
+    {}
 
     void set_write_privilege(int write_privilege)
-    {
-    }
+    {}
 
     void set_flags(int flags)
-    {
-    }
+    {}
 
     void set_data(shared_memory& ins, const std::string_view& value)
     {
@@ -481,41 +469,36 @@ public:
 class method {
 public:
     void set_privilege(int privilege)
-    {
-    }
+    {}
 
     void set_flags(int flags)
-    {
-    }
+    {}
 };
 
 class signal {
 public:
     void set_flags(int flags)
-    {
-    }
+    {}
 };
 
 class interface {
 public:
     using properties_t = std::unordered_map<std::string, shared_ptr<property>>;
 
-    shared_ptr<property> add_p(shared_memory& ins, const std::string_view& name,
-                               const std::string_view& signature)
+    shared_ptr<property> add_p(shared_memory& ins, const std::string_view& name, const std::string_view& signature)
     {
         auto p = std::make_shared<property>(signature);
         m_properties.emplace(std::string(name), p);
         return p;
     }
 
-    method& add_m(shared_memory& ins, const std::string_view& name,
-                  const std::string_view& signature, const std::string_view& return_signature)
+    method& add_m(shared_memory& ins, const std::string_view& name, const std::string_view& signature,
+                  const std::string_view& return_signature)
     {
         return m_method;
     }
 
-    signal& add_s(shared_memory& ins, const std::string_view& name,
-                  const std::string_view& signature)
+    signal& add_s(shared_memory& ins, const std::string_view& name, const std::string_view& signature)
     {
         return m_signal;
     }
@@ -543,8 +526,7 @@ class object {
 public:
     using interface_map_t = std::unordered_map<std::string_view, interface*>;
 
-    interface& register_interface(shared_memory& ins, bool is_remote,
-                                  const std::string_view& name)
+    interface& register_interface(shared_memory& ins, bool is_remote, const std::string_view& name)
     {
         auto p = new interface();
         m_interfaces.emplace(name, p);
@@ -552,8 +534,7 @@ public:
     }
 
     void add_named_object_view(shared_memory& ins, const std::string_view& name)
-    {
-    }
+    {}
 
     interface_map_t& interfaces()
     {
@@ -577,10 +558,8 @@ public:
 
 class object_tree {
 public:
-    object_tree()
-        : m_unique_name("1.23"), m_harbor_name("")
-    {
-    }
+    object_tree() : m_unique_name("1.23"), m_harbor_name("")
+    {}
 
     std::string_view unique_name() const
     {
@@ -613,8 +592,7 @@ public:
     }
 
     void unregister_object(shared_memory& ins, const std::string_view& name)
-    {
-    }
+    {}
 
     message_queue_t& create_message_queue(shared_memory& ins, int size)
     {
@@ -682,8 +660,7 @@ public:
     using match_cb_t = std::function<void(DBus::Match::Context&, object_tree*)>;
 
     void run(DBus::Match::Context& ctx, match_cb_t cb)
-    {
-    }
+    {}
 
     std::function<void()> add_rule(shared_memory& ins, DBus::Match::Rule& rule, object_tree* tree)
     {
@@ -703,10 +680,8 @@ struct mdb_interface {
 // mdb_object 类定义
 class mdb_object {
 public:
-    mdb_object(shared_memory& shm, const std::string_view& path, void* t)
-        : m_path(path)
-    {
-    }
+    mdb_object(shared_memory& shm, const std::string_view& path, void* t) : m_path(path)
+    {}
 
     using mdb_interfaces     = std::unordered_map<std::string, mdb_interface>;
     using mdb_interfaces_all = std::unordered_map<std::string, mdb_interfaces>;
@@ -746,8 +721,7 @@ public:
     using travel_cb_t = std::function<bool(mdb_object&, int level)>;
 
     mdb_objects_tree()
-    {
-    }
+    {}
 
     template <typename Func>
     void travel(Func&& f, uint32_t depth, bool)
@@ -785,8 +759,7 @@ public:
     using unique_name_map_t = std::unordered_map<std::string, std::string>;
 
     shared_memory()
-    {
-    }
+    {}
 
     static shared_memory& get_instance()
     {
@@ -811,20 +784,16 @@ public:
     }
 
     void lock()
-    {
-    }
+    {}
 
     void unlock()
-    {
-    }
+    {}
 
     void lock_shared()
-    {
-    }
+    {}
 
     void unlock_shared()
-    {
-    }
+    {}
 
     void set_harbor_name(const std::string_view& name, const std::string_view& harbor_name)
     {
@@ -872,8 +841,7 @@ public:
     }
 
     using query_interface_view_t = std::function<bool(mdb_interface&)>;
-    mdb_interface* query_interface_view(const std::string_view&       iface_name,
-                                        const query_interface_view_t& filter)
+    mdb_interface* query_interface_view(const std::string_view& iface_name, const query_interface_view_t& filter)
     {
         // 打桩实现：返回 nullptr
         return nullptr;

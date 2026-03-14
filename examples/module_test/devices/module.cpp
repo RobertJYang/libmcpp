@@ -16,13 +16,10 @@
 #include <mc/log.h>
 
 // 导出传感器状态枚举到模块
-MC_MODULE_REFLECT_ENUM(mc_devices,
-                       mc::devices::sensor_status,
-                       (INACTIVE)(ACTIVE)(ERROR))
+MC_MODULE_REFLECT_ENUM(mc_devices, mc::devices::sensor_status, (INACTIVE)(ACTIVE)(ERROR))
 
 // 导出设备管理器类到模块
-MC_MODULE_REFLECT(mc_devices,
-                  mc::devices::device_manager,
+MC_MODULE_REFLECT(mc_devices, mc::devices::device_manager,
                   ((create_sensor, "createSensor"))        // 创建传感器
                   ((sensor_count, "sensorCount"))          // 获取传感器数量
                   ((read_all_sensors, "readAllSensors"))   // 读取所有传感器数据
@@ -30,8 +27,7 @@ MC_MODULE_REFLECT(mc_devices,
                   ((list_sensors, "listSensors")))         // 获取传感器列表
 
 // 导出传感器类到模块
-MC_MODULE_REFLECT(mc_devices,
-                  mc::devices::sensor,
+MC_MODULE_REFLECT(mc_devices, mc::devices::sensor,
                   ((set_name, "setName"))      // 设置名称
                   ((get_name, "getName"))      // 获取名称
                   ((initialize, "initialize")) // 初始化

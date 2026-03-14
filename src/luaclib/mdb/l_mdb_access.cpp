@@ -30,8 +30,7 @@ namespace mc::mdb::lua {
 
 // 辅助函数：将方法返回值转换为字典格式并推送到 Lua 栈
 // 如果成功转换，返回推送到栈上的值数量（1）；否则返回 0
-static int convert_method_results_to_lua(lua_State* L, const method_info* minfo,
-                                         const mc::variants& results)
+static int convert_method_results_to_lua(lua_State* L, const method_info* minfo, const mc::variants& results)
 {
     if (!minfo) {
         return 0;
@@ -61,7 +60,6 @@ static int convert_method_results_to_lua(lua_State* L, const method_info* minfo,
 
         // 检查参数类型是否是数组类型（如 ay, au, ai 等）
         bool is_array_type = !param_type.empty() && param_type[0] == 'a';
-
         // 特殊情况：如果只有一个输出参数且类型是数组，且 results 有多个元素
         // 说明数组被展开了，需要重新组合
         if (is_array_type && out_args.size() == 1 && results.size() > 1) {
@@ -80,9 +78,8 @@ static int convert_method_results_to_lua(lua_State* L, const method_info* minfo,
                 // 将单个值包装成数组
                 mc::variants arr = {result_value};
                 result_value     = mc::variant(arr);
-            }
-            // 如果参数类型是数组类型，且返回值是 blob，转换为数组
-            else if (is_array_type && result_value.is_blob()) {
+            } else if (is_array_type && result_value.is_blob()) {
+                // 如果参数类型是数组类型，且返回值是 blob，转换为数组
                 const auto&  blob_data = result_value.get_blob();
                 mc::variants arr;
                 arr.reserve(blob_data.data.size());
@@ -114,8 +111,7 @@ static int convert_method_results_to_lua(lua_State* L, const method_info* minfo,
 
 static int proxy_object_method_closure(lua_State* L)
 {
-    auto* wrapper = static_cast<proxy_object_wrapper*>(
-        lua_touserdata(L, lua_upvalueindex(1)));
+    auto*       wrapper     = static_cast<proxy_object_wrapper*>(lua_touserdata(L, lua_upvalueindex(1)));
     const char* method_name = lua_tostring(L, lua_upvalueindex(2));
 
     try {
@@ -153,8 +149,7 @@ static int proxy_object_method_closure(lua_State* L)
 // pcall 闭包函数：安全调用方法，返回 (ok, ret) 格式
 static int proxy_object_pcall_closure(lua_State* L)
 {
-    auto* wrapper = static_cast<proxy_object_wrapper*>(
-        lua_touserdata(L, lua_upvalueindex(1)));
+    auto* wrapper = static_cast<proxy_object_wrapper*>(lua_touserdata(L, lua_upvalueindex(1)));
 
     try {
         auto& obj = wrapper->get();
@@ -182,8 +177,8 @@ static int proxy_object_pcall_closure(lua_State* L)
         }
 
         // 从 Lua 栈读取参数（从方法名之后开始）
-        int         arg_start = method_name_index + 1;
-        int         arg_count = lua_gettop(L) - method_name_index; // 总元素数 - 方法名索引 = 方法名及之后的所有元素数
+        int arg_start = method_name_index + 1;
+        int arg_count = lua_gettop(L) - method_name_index; // 总元素数 - 方法名索引 = 方法名及之后的所有元素数
         mc::variant args_variant;
         if (arg_count > 0) {
             // arg_count 包含了方法名，所以实际参数数量需要减1
@@ -251,8 +246,7 @@ static std::shared_ptr<mc::dbus::sd_bus> create_sd_bus_from_lua(lua_State* L, in
 // is_volatile 闭包函数
 static int proxy_object_is_volatile_closure(lua_State* L)
 {
-    auto* wrapper = static_cast<proxy_object_wrapper*>(
-        lua_touserdata(L, lua_upvalueindex(1)));
+    auto* wrapper = static_cast<proxy_object_wrapper*>(lua_touserdata(L, lua_upvalueindex(1)));
 
     try {
         auto& obj = wrapper->get();
@@ -285,8 +279,7 @@ static int proxy_object_is_volatile_closure(lua_State* L)
 // get_all 闭包函数
 static int proxy_object_get_all_closure(lua_State* L)
 {
-    auto* wrapper = static_cast<proxy_object_wrapper*>(
-        lua_touserdata(L, lua_upvalueindex(1)));
+    auto* wrapper = static_cast<proxy_object_wrapper*>(lua_touserdata(L, lua_upvalueindex(1)));
 
     try {
         auto& obj = wrapper->get();
@@ -313,8 +306,7 @@ static int proxy_object_get_all_closure(lua_State* L)
 // get_properties 闭包函数
 static int proxy_object_get_properties_closure(lua_State* L)
 {
-    auto* wrapper = static_cast<proxy_object_wrapper*>(
-        lua_touserdata(L, lua_upvalueindex(1)));
+    auto* wrapper = static_cast<proxy_object_wrapper*>(lua_touserdata(L, lua_upvalueindex(1)));
 
     try {
         auto& obj = wrapper->get();
@@ -490,7 +482,6 @@ static int proxy_object_call(lua_State* L)
 
         // 调用方法（proxy_object 内部会进行校验）
         mc::variants results = obj.call_method(method_name, args_variant);
-
         // 获取方法信息，构建返回值的字典
         if (convert_method_results_to_lua(L, minfo, results) > 0) {
             return 1;
@@ -731,19 +722,19 @@ static int objects_fold(lua_State* L)
     // initial_acc 是初始累积值（索引3，可选）
     // 如果没有提供或为 nil，默认为空表 {}
     if (lua_gettop(L) >= 3 && !lua_isnil(L, 3)) {
-        lua_pushvalue(L, 3);  // 复制 initial_acc
+        lua_pushvalue(L, 3); // 复制 initial_acc
     } else {
-        lua_newtable(L);  // 创建空表作为默认值
+        lua_newtable(L); // 创建空表作为默认值
     }
     // acc_val 现在在栈顶，记录其位置
     int acc_val_index = lua_gettop(L);
 
     // 遍历 table
-    lua_pushnil(L);  // 第一个 key
+    lua_pushnil(L); // 第一个 key
     while (lua_next(L, 1) != 0) {
-        lua_pushvalue(L, 2);           // f
-        lua_pushvalue(L, -2);          // obj (value)
-        lua_pushvalue(L, acc_val_index);  // acc_val
+        lua_pushvalue(L, 2);             // f
+        lua_pushvalue(L, -2);            // obj (value)
+        lua_pushvalue(L, acc_val_index); // acc_val
 
         int call_result = lua_pcall(L, 2, 2, 0);
         if (call_result != LUA_OK) {
@@ -761,13 +752,13 @@ static int objects_fold(lua_State* L)
         } else if (!lua_isnil(L, -1)) {
             should_continue = true;
         }
-        lua_pop(L, 1);  // 弹出 continue_flag
+        lua_pop(L, 1); // 弹出 continue_flag
 
-        lua_pop(L, 1);  // 弹出 value
+        lua_pop(L, 1); // 弹出 value
 
         if (!should_continue) {
             // continue_flag == false，提前退出
-            lua_pop(L, 1);  // 弹出 key
+            lua_pop(L, 1); // 弹出 key
             break;
         }
     }
@@ -799,7 +790,7 @@ static int objects_index(lua_State* L)
 static void register_objects_metatable(lua_State* L)
 {
     // 创建 Objects 元表
-    lua_newtable(L);  // Objects 元表
+    lua_newtable(L); // Objects 元表
 
     // 设置 __index 元方法（用于访问 fold 方法）
     lua_pushcfunction(L, objects_index);
@@ -819,7 +810,7 @@ static void get_objects_metatable(lua_State* L)
     lua_getfield(L, LUA_REGISTRYINDEX, "lmdb.mdb_access.Objects");
     if (lua_isnil(L, -1)) {
         // 不存在，创建并注册
-        lua_pop(L, 1);  // 弹出 nil
+        lua_pop(L, 1); // 弹出 nil
         register_objects_metatable(L);
     }
 }
@@ -866,8 +857,8 @@ static int mdb_access_get_sub_objects(lua_State* L)
         // 现在 obj_list table 在栈顶
 
         // 获取 Objects 元表并设置
-        get_objects_metatable(L);  // Objects 元表在栈顶
-        lua_setmetatable(L, -2);    // setmetatable(obj_list, Objects)
+        get_objects_metatable(L); // Objects 元表在栈顶
+        lua_setmetatable(L, -2);  // setmetatable(obj_list, Objects)
 
         return 1;
     } catch (const mc::exception& e) {
@@ -878,14 +869,13 @@ static int mdb_access_get_sub_objects(lua_State* L)
 }
 
 // 模块函数注册表
-static const luaL_Reg mdb_access_funcs[] = {
-    {"get_object", mdb_access_get_object},
-    {"get_object_by_short_call", mdb_access_get_object_by_short_call},
-    {"get_object_with_service", mdb_access_get_object_with_service},
-    {"get_all", mdb_access_get_all},
-    {"get_properties", mdb_access_get_properties},
-    {"get_sub_objects", mdb_access_get_sub_objects},
-    {nullptr, nullptr}};
+static const luaL_Reg mdb_access_funcs[] = {{"get_object", mdb_access_get_object},
+                                            {"get_object_by_short_call", mdb_access_get_object_by_short_call},
+                                            {"get_object_with_service", mdb_access_get_object_with_service},
+                                            {"get_all", mdb_access_get_all},
+                                            {"get_properties", mdb_access_get_properties},
+                                            {"get_sub_objects", mdb_access_get_sub_objects},
+                                            {nullptr, nullptr}};
 
 // 注册 mdb_access 模块的所有函数到 Lua 栈顶的 table 中
 void register_mdb_access_functions(lua_State* L)

@@ -40,11 +40,7 @@ using signal_type      = void*;
 using connection_id_type                           = uint32_t;
 constexpr connection_id_type INVALID_CONNECTION_ID = std::numeric_limits<connection_id_type>::max();
 
-enum class connection_type {
-    Auto,
-    Direct,
-    Queued
-};
+enum class connection_type { Auto, Direct, Queued };
 
 using object_id_type = uint64_t;
 
@@ -203,22 +199,20 @@ public:
      * @param type 连接类型
      */
     template <typename RetType, typename... Args, typename SlotType>
-    connection_id_type connect(connection_id_type id, mc::signal<RetType(Args...)>& sig,
-                               SlotType&& slot, connection_type type = connection_type::Auto)
+    connection_id_type connect(connection_id_type id, mc::signal<RetType(Args...)>& sig, SlotType&& slot,
+                               connection_type type = connection_type::Auto)
     {
         mc::connection_type conn;
 
         if (type == connection_type::Auto) {
             conn = sig.connect([this, slot = std::forward<SlotType>(slot)](auto&&... args) mutable {
-                this->dispatch([slot, args = std::make_tuple(
-                                          std::forward<decltype(args)>(args)...)]() mutable {
+                this->dispatch([slot, args = std::make_tuple(std::forward<decltype(args)>(args)...)]() mutable {
                     std::apply(slot, std::move(args));
                 });
             });
         } else if (type == connection_type::Queued) {
             conn = sig.connect([this, slot = std::forward<SlotType>(slot)](auto&&... args) mutable {
-                this->post([slot, args = std::make_tuple(
-                                      std::forward<decltype(args)>(args)...)]() mutable {
+                this->post([slot, args = std::make_tuple(std::forward<decltype(args)>(args)...)]() mutable {
                     std::apply(slot, std::move(args));
                 });
             });
@@ -330,8 +324,7 @@ protected:
      */
     void remove_child(object* child);
 
-    connection_id_type add_connection(signal_type sig, mc::connection_type conn,
-                                      connection_id_type id);
+    connection_id_type add_connection(signal_type sig, mc::connection_type conn, connection_id_type id);
     void               disconnect_all(signal_type sig);
 
 private:

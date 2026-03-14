@@ -112,11 +112,10 @@ private:
     const std::chrono::duration<Rep, Period>& m_duration;
 
 public:
-    duration_format_handler(const std::chrono::duration<Rep, Period>& d,
-                            std::string& output, int precision, bool has_precision)
+    duration_format_handler(const std::chrono::duration<Rep, Period>& d, std::string& output, int precision,
+                            bool has_precision)
         : duration_format_handler_base(output, precision, has_precision), m_duration(d)
-    {
-    }
+    {}
 
 protected:
     int get_days() override
@@ -182,8 +181,7 @@ protected:
     void output_duration_value() override
     {
         if constexpr (std::is_floating_point_v<Rep>) {
-            detail::format_float(m_output, static_cast<double>(m_duration.count()),
-                                 m_precision, m_has_precision);
+            detail::format_float(m_output, static_cast<double>(m_duration.count()), m_precision, m_has_precision);
         } else {
             detail::format_to(m_output, m_duration.count());
         }
@@ -198,8 +196,7 @@ private:
 public:
     time_point_format_handler(const std::chrono::time_point<Clock, Duration>& tp, std::string& output)
         : time_point_format_handler_base(output), m_time_point(tp)
-    {
-    }
+    {}
 
 protected:
     void ensure_tm() override
@@ -228,8 +225,8 @@ protected:
 
 template <typename Rep, typename Period>
 template <typename Context>
-void formatter<std::chrono::duration<Rep, Period>>::format(
-    const std::chrono::duration<Rep, Period>& d, Context& ctx, const format_spec& spec) const
+void formatter<std::chrono::duration<Rep, Period>>::format(const std::chrono::duration<Rep, Period>& d, Context& ctx,
+                                                           const format_spec& spec) const
 {
     auto& out   = ctx.out();
     auto  count = d.count();
@@ -246,8 +243,7 @@ void formatter<std::chrono::duration<Rep, Period>>::format(
     if (custom.format_str.empty()) {
         // 默认格式：值 + 单位
         if (std::is_floating_point_v<Rep>) {
-            detail::format_float(out, static_cast<double>(std::abs(count)),
-                                 custom.precision, custom.has_precision);
+            detail::format_float(out, static_cast<double>(std::abs(count)), custom.precision, custom.has_precision);
         } else {
             detail::format_to(out, std::abs(count));
         }
@@ -260,8 +256,8 @@ void formatter<std::chrono::duration<Rep, Period>>::format(
 
 template <typename Clock, typename Duration>
 template <typename Context>
-void formatter<std::chrono::time_point<Clock, Duration>>::format(
-    const std::chrono::time_point<Clock, Duration>& tp, Context& ctx, const format_spec& spec) const
+void formatter<std::chrono::time_point<Clock, Duration>>::format(const std::chrono::time_point<Clock, Duration>& tp,
+                                                                 Context& ctx, const format_spec& spec) const
 {
     auto& out = ctx.out();
 

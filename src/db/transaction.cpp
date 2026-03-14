@@ -15,16 +15,12 @@
 
 namespace mc::db {
 
-db_resource::db_resource()
-    : m_savepoint_id(-1), m_next(nullptr), m_is_head(false), m_is_valid(true)
-{
-}
+db_resource::db_resource() : m_savepoint_id(-1), m_next(nullptr), m_is_head(false), m_is_valid(true)
+{}
 
 // 事务保存点实现
-savepoint::savepoint(transaction* txn)
-    : m_txn(txn)
-{
-}
+savepoint::savepoint(transaction* txn) : m_txn(txn)
+{}
 
 bool savepoint::commit()
 {
@@ -48,8 +44,7 @@ uint64_t savepoint::resource_id() const
 transaction::transaction()
     : m_resource_map(resource_map::bucket_traits(m_buckets, MC_DICT_BUCKET_COUNT), resource_hash(), resource_equal()),
       m_current_savepoint_id(-1)
-{
-}
+{}
 
 transaction::~transaction()
 {
@@ -259,7 +254,8 @@ size_t transaction::get_resource_map_size() const
 
 bool transaction::has_resource(uint64_t resource_id) const
 {
-    return m_resource_map.find(resource_id, m_resource_map.hash_function(), m_resource_map.key_eq()) != m_resource_map.end();
+    return m_resource_map.find(resource_id, m_resource_map.hash_function(), m_resource_map.key_eq()) !=
+           m_resource_map.end();
 }
 
 size_t transaction::get_resource_chain_length(uint64_t resource_id) const

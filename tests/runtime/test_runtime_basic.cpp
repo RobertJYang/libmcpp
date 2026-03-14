@@ -23,8 +23,7 @@ using namespace std::chrono_literals;
 
 namespace {
 
-class RuntimeBasicTest : public mc::test::TestWithRuntime {
-};
+class RuntimeBasicTest : public mc::test::TestWithRuntime {};
 
 } // namespace
 

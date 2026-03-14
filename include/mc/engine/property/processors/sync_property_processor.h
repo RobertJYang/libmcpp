@@ -43,36 +43,31 @@ private:
     /**
      * @brief 设置同步属性连接
      */
-    void setup_sync_property_connection(property_helper*                 property,
-                                        const mc::expr::relate_property& relate_property,
-                                        abstract_object&                 target_object);
+    void setup_sync_property_connection(property_helper* property, const mc::expr::relate_property& relate_property,
+                                        abstract_object& target_object);
 
     /**
      * @brief 设置延迟同步连接
      */
-    void setup_deferred_sync_connection(property_helper*                 property,
-                                        const mc::expr::relate_property& relate_property);
+    void setup_deferred_sync_connection(property_helper* property, const mc::expr::relate_property& relate_property);
 
     /**
      * @brief 处理单个对象的同步属性
      */
-    void process_sync_properties_for_object(property_helper*   property,
-                                            const std::string& object_name,
-                                            const mc::dict&    object_properties);
+    void process_sync_properties_for_object(property_helper* property, const std::string& object_name,
+                                            const mc::dict& object_properties);
 
     /**
      * @brief 设置多属性同步连接
      */
-    void setup_multi_sync_connection(property_helper* property,
-                                     abstract_object& target_object,
-                                     const mc::dict&  object_properties);
+    void setup_multi_sync_connection(property_helper* property, abstract_object& target_object,
+                                     const mc::dict& object_properties);
 
     /**
      * @brief 设置延迟多属性同步连接
      */
-    void setup_deferred_multi_sync_connection(property_helper*   property,
-                                              const std::string& object_name,
-                                              const mc::dict&    object_properties);
+    void setup_deferred_multi_sync_connection(property_helper* property, const std::string& object_name,
+                                              const mc::dict& object_properties);
 
     /**
      * @brief 更新同步属性值

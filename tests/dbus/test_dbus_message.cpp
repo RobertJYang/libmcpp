@@ -122,8 +122,7 @@ protected:
     }
 
     void TearDown() override
-    {
-    }
+    {}
 
     test_data data;
 };
@@ -131,20 +130,18 @@ protected:
 // 测试使用 mc::dbus::message 的 reader 和 writer 流接口读写数据
 TEST_F(dbus_message_test, test_message_reader_writer)
 {
-    mc::dbus::message msg = message::new_method_call("org.example.Test", "/org/example/Test",
-                                                     "org.example.Test", "TestVariantNesting");
+    mc::dbus::message msg =
+        message::new_method_call("org.example.Test", "/org/example/Test", "org.example.Test", "TestVariantNesting");
     msg.set_sender("org.example.Test");
     msg.set_serial(1);
 
     auto writer = msg.writer();
 
-    writer << data.m_u8 << data.m_u16 << data.m_u32 << data.m_u64 << data.m_d << data.m_str
-           << data.m_b;
+    writer << data.m_u8 << data.m_u16 << data.m_u32 << data.m_u64 << data.m_d << data.m_str << data.m_b;
     writer << data.m_v << data.m_arr << data.m_dict;
-    writer << data.m_std_o << data.m_std_p << data.m_std_t << data.m_std_vec << data.m_std_list
-           << data.m_std_map << data.m_std_mmap << data.m_std_umap << data.m_std_set
-           << data.m_std_multiset << data.m_std_uset << data.m_std_deque << data.m_std_array
-           << data.m_std_vec_tuple;
+    writer << data.m_std_o << data.m_std_p << data.m_std_t << data.m_std_vec << data.m_std_list << data.m_std_map
+           << data.m_std_mmap << data.m_std_umap << data.m_std_set << data.m_std_multiset << data.m_std_uset
+           << data.m_std_deque << data.m_std_array << data.m_std_vec_tuple;
 
     // 将消息系列化成二进制数据
     auto [data_ptr, size] = msg.marshal();
@@ -165,13 +162,11 @@ TEST_F(dbus_message_test, test_message_reader_writer)
 
     test_data data2;
     auto      reader = msg2.reader();
-    reader >> data2.m_u8 >> data2.m_u16 >> data2.m_u32 >> data2.m_u64 >> data2.m_d >> data2.m_str >>
-        data2.m_b;
+    reader >> data2.m_u8 >> data2.m_u16 >> data2.m_u32 >> data2.m_u64 >> data2.m_d >> data2.m_str >> data2.m_b;
     reader >> data2.m_v >> data2.m_arr >> data2.m_dict;
-    reader >> data2.m_std_o >> data2.m_std_p >> data2.m_std_t >> data2.m_std_vec >>
-        data2.m_std_list >> data2.m_std_map >> data2.m_std_mmap >> data2.m_std_umap >>
-        data2.m_std_set >> data2.m_std_multiset >> data2.m_std_uset >> data2.m_std_deque >>
-        data2.m_std_array >> data2.m_std_vec_tuple;
+    reader >> data2.m_std_o >> data2.m_std_p >> data2.m_std_t >> data2.m_std_vec >> data2.m_std_list >>
+        data2.m_std_map >> data2.m_std_mmap >> data2.m_std_umap >> data2.m_std_set >> data2.m_std_multiset >>
+        data2.m_std_uset >> data2.m_std_deque >> data2.m_std_array >> data2.m_std_vec_tuple;
 
     verify_data(data, data2);
 }
@@ -179,8 +174,8 @@ TEST_F(dbus_message_test, test_message_reader_writer)
 // 使用原始 libdbus 接口创建消息，使用 mc::dbus::message 读取数据并验证结果
 TEST_F(dbus_message_test, test_libdbus_write_mc_dbus_message_read)
 {
-    DBusMessage* msg = dbus_message_new_method_call("org.example.Test", "/org/example/Test",
-                                                    "org.example.Test", "TestVariantNesting");
+    DBusMessage* msg =
+        dbus_message_new_method_call("org.example.Test", "/org/example/Test", "org.example.Test", "TestVariantNesting");
     ASSERT_TRUE(msg != nullptr);
 
     dbus_message_set_sender(msg, "org.example.Test");
@@ -278,8 +273,7 @@ TEST_F(dbus_message_test, test_libdbus_write_mc_dbus_message_read)
     dbus_message_iter_open_container(&iter, DBUS_TYPE_ARRAY, "i", &std_vec_iter);
     const int* std_vec_data = data.m_std_vec.data();
     int        std_vec_size = data.m_std_vec.size();
-    dbus_message_iter_append_fixed_array(&std_vec_iter, DBUS_TYPE_INT32, &std_vec_data,
-                                         std_vec_size);
+    dbus_message_iter_append_fixed_array(&std_vec_iter, DBUS_TYPE_INT32, &std_vec_data, std_vec_size);
     dbus_message_iter_close_container(&iter, &std_vec_iter);
 
     DBusMessageIter std_list_iter;
@@ -305,8 +299,7 @@ TEST_F(dbus_message_test, test_libdbus_write_mc_dbus_message_read)
     dbus_message_iter_open_container(&iter, DBUS_TYPE_ARRAY, "{ii}", &std_mmap_iter);
     for (const auto& [key, val] : data.m_std_mmap) {
         DBusMessageIter entry_iter;
-        dbus_message_iter_open_container(&std_mmap_iter, DBUS_TYPE_DICT_ENTRY, nullptr,
-                                         &entry_iter);
+        dbus_message_iter_open_container(&std_mmap_iter, DBUS_TYPE_DICT_ENTRY, nullptr, &entry_iter);
         dbus_message_iter_append_basic(&entry_iter, DBUS_TYPE_INT32, &key);
         dbus_message_iter_append_basic(&entry_iter, DBUS_TYPE_INT32, &val);
         dbus_message_iter_close_container(&std_mmap_iter, &entry_iter);
@@ -317,8 +310,7 @@ TEST_F(dbus_message_test, test_libdbus_write_mc_dbus_message_read)
     dbus_message_iter_open_container(&iter, DBUS_TYPE_ARRAY, "{si}", &std_umap_iter);
     for (const auto& [key, val] : data.m_std_umap) {
         DBusMessageIter entry_iter;
-        dbus_message_iter_open_container(&std_umap_iter, DBUS_TYPE_DICT_ENTRY, nullptr,
-                                         &entry_iter);
+        dbus_message_iter_open_container(&std_umap_iter, DBUS_TYPE_DICT_ENTRY, nullptr, &entry_iter);
         const char* k = key.c_str();
         dbus_message_iter_append_basic(&entry_iter, DBUS_TYPE_STRING, &k);
         dbus_message_iter_append_basic(&entry_iter, DBUS_TYPE_INT32, &val);
@@ -358,16 +350,14 @@ TEST_F(dbus_message_test, test_libdbus_write_mc_dbus_message_read)
     DBusMessageIter std_array_iter;
     dbus_message_iter_open_container(&iter, DBUS_TYPE_ARRAY, "i", &std_array_iter);
     const int* std_array_data = data.m_std_array.data();
-    dbus_message_iter_append_fixed_array(&std_array_iter, DBUS_TYPE_INT32, &std_array_data,
-                                         data.m_std_array.size());
+    dbus_message_iter_append_fixed_array(&std_array_iter, DBUS_TYPE_INT32, &std_array_data, data.m_std_array.size());
     dbus_message_iter_close_container(&iter, &std_array_iter);
 
     DBusMessageIter std_vec_tuple_iter;
     dbus_message_iter_open_container(&iter, DBUS_TYPE_ARRAY, "(ib)", &std_vec_tuple_iter);
     for (const auto& val : data.m_std_vec_tuple) {
         DBusMessageIter tuple_iter;
-        dbus_message_iter_open_container(&std_vec_tuple_iter, DBUS_TYPE_STRUCT, nullptr,
-                                         &tuple_iter);
+        dbus_message_iter_open_container(&std_vec_tuple_iter, DBUS_TYPE_STRUCT, nullptr, &tuple_iter);
         dbus_message_iter_append_basic(&tuple_iter, DBUS_TYPE_INT32, &std::get<0>(val));
         dbus_bool_t b = std::get<1>(val) ? TRUE : FALSE;
         dbus_message_iter_append_basic(&tuple_iter, DBUS_TYPE_BOOLEAN, &b);
@@ -396,11 +386,11 @@ TEST_F(dbus_message_test, test_libdbus_write_mc_dbus_message_read)
     EXPECT_EQ(mc_msg.get_signature(), dbus_message_get_signature(msg));
 
     test_data data2;
-    mc_msg.reader() >> data2.m_u8 >> data2.m_u16 >> data2.m_u32 >> data2.m_u64 >> data2.m_d >>
-        data2.m_str >> data2.m_b >> data2.m_v >> data2.m_arr >> data2.m_dict >> data2.m_std_o >>
-        data2.m_std_p >> data2.m_std_t >> data2.m_std_vec >> data2.m_std_list >> data2.m_std_map >>
-        data2.m_std_mmap >> data2.m_std_umap >> data2.m_std_set >> data2.m_std_multiset >>
-        data2.m_std_uset >> data2.m_std_deque >> data2.m_std_array >> data2.m_std_vec_tuple;
+    mc_msg.reader() >> data2.m_u8 >> data2.m_u16 >> data2.m_u32 >> data2.m_u64 >> data2.m_d >> data2.m_str >>
+        data2.m_b >> data2.m_v >> data2.m_arr >> data2.m_dict >> data2.m_std_o >> data2.m_std_p >> data2.m_std_t >>
+        data2.m_std_vec >> data2.m_std_list >> data2.m_std_map >> data2.m_std_mmap >> data2.m_std_umap >>
+        data2.m_std_set >> data2.m_std_multiset >> data2.m_std_uset >> data2.m_std_deque >> data2.m_std_array >>
+        data2.m_std_vec_tuple;
 
     verify_data(data, data2);
     dbus_message_unref(msg);
@@ -410,16 +400,15 @@ TEST_F(dbus_message_test, test_libdbus_write_mc_dbus_message_read)
 TEST_F(dbus_message_test, test_mc_dbus_message_write_libdbus_read)
 {
     // 使用 mc::dbus::message 创建消息并写入数据
-    mc::dbus::message msg = message::new_method_call("org.example.Test", "/org/example/Test",
-                                                     "org.example.Test", "TestVariantNesting");
+    mc::dbus::message msg =
+        message::new_method_call("org.example.Test", "/org/example/Test", "org.example.Test", "TestVariantNesting");
     msg.set_sender("org.example.Test");
     msg.set_serial(1);
 
-    msg.writer() << data.m_u8 << data.m_u16 << data.m_u32 << data.m_u64 << data.m_d << data.m_str
-                 << data.m_b << data.m_v << data.m_arr << data.m_dict << data.m_std_o
-                 << data.m_std_p << data.m_std_t << data.m_std_vec << data.m_std_list
-                 << data.m_std_map << data.m_std_mmap << data.m_std_umap << data.m_std_set
-                 << data.m_std_multiset << data.m_std_uset << data.m_std_deque << data.m_std_array
+    msg.writer() << data.m_u8 << data.m_u16 << data.m_u32 << data.m_u64 << data.m_d << data.m_str << data.m_b
+                 << data.m_v << data.m_arr << data.m_dict << data.m_std_o << data.m_std_p << data.m_std_t
+                 << data.m_std_vec << data.m_std_list << data.m_std_map << data.m_std_mmap << data.m_std_umap
+                 << data.m_std_set << data.m_std_multiset << data.m_std_uset << data.m_std_deque << data.m_std_array
                  << data.m_std_vec_tuple;
 
     auto [data_ptr, size] = msg.marshal();
@@ -596,8 +585,7 @@ TEST_F(dbus_message_test, test_mc_dbus_message_write_libdbus_read)
     dbus_bool_t tuple_third = FALSE;
     ASSERT_EQ(dbus_message_iter_get_arg_type(&tuple_iter), DBUS_TYPE_BOOLEAN);
     dbus_message_iter_get_basic(&tuple_iter, &tuple_third);
-    data2.m_std_t =
-        std::make_tuple(tuple_first, tuple_second ? tuple_second : "", (bool)tuple_third);
+    data2.m_std_t = std::make_tuple(tuple_first, tuple_second ? tuple_second : "", (bool)tuple_third);
     dbus_message_iter_next(&iter);
 
     // 读取 std::vector<int32_t>
@@ -790,8 +778,8 @@ TEST_F(dbus_message_test, test_mc_dbus_message_write_libdbus_read)
 
 TEST_F(dbus_message_test, test_message_setters_and_flags)
 {
-    auto method_call = message::new_method_call("org.example.Test", "/org/example/Test",
-                                                "org.example.Test", "TestMethod");
+    auto method_call =
+        message::new_method_call("org.example.Test", "/org/example/Test", "org.example.Test", "TestMethod");
     EXPECT_TRUE(method_call.is_method_call());
     EXPECT_FALSE(method_call.is_signal());
     EXPECT_FALSE(method_call.is_error());
@@ -819,8 +807,7 @@ TEST_F(dbus_message_test, test_message_setters_and_flags)
     EXPECT_EQ(error_msg.get_error_name(), "org.example.Error");
     EXPECT_EQ(error_msg.get_reply_serial(), method_call.get_serial());
 
-    auto signal_msg = message::new_signal("/org/example/Test", "org.example.Test",
-                                          "TestSignal");
+    auto signal_msg = message::new_signal("/org/example/Test", "org.example.Test", "TestSignal");
     EXPECT_TRUE(signal_msg.is_signal());
     signal_msg.set_destination("org.example.Listener");
     signal_msg.set_sender("org.example.Sender");
@@ -831,8 +818,8 @@ TEST_F(dbus_message_test, test_message_setters_and_flags)
 
 TEST_F(dbus_message_test, test_empty_dict)
 {
-    mc::dbus::message msg = message::new_method_call("org.example.Test", "/org/example/Test",
-                                                     "org.example.Test", "TestVariantNesting");
+    mc::dbus::message msg =
+        message::new_method_call("org.example.Test", "/org/example/Test", "org.example.Test", "TestVariantNesting");
     msg.set_sender("org.example.Test");
     msg.set_serial(1);
 
@@ -867,8 +854,8 @@ TEST_F(dbus_message_test, test_empty_dict)
 
 TEST_F(dbus_message_test, test_empty_array)
 {
-    mc::dbus::message msg = message::new_method_call("org.example.Test", "/org/example/Test",
-                                                     "org.example.Test", "TestVariantNesting");
+    mc::dbus::message msg =
+        message::new_method_call("org.example.Test", "/org/example/Test", "org.example.Test", "TestVariantNesting");
     msg.set_sender("org.example.Test");
     msg.set_serial(1);
 
@@ -903,8 +890,8 @@ TEST_F(dbus_message_test, test_empty_array)
 
 TEST_F(dbus_message_test, test_read_args)
 {
-    mc::dbus::message msg = message::new_method_call("org.example.Test", "/org/example/Test",
-                                                     "org.example.Test", "TestVariantNesting");
+    mc::dbus::message msg =
+        message::new_method_call("org.example.Test", "/org/example/Test", "org.example.Test", "TestVariantNesting");
     msg.set_sender("org.example.Test");
     msg.set_serial(1);
 

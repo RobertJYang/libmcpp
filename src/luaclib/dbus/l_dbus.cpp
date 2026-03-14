@@ -10,14 +10,14 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include "inner/l_interface.h"
+#include "inner/l_object.h"
 #include "l_dbus_blocking.h"
 #include "l_dbus_connection.h"
 #include "l_dbus_error.h"
 #include "l_dbus_message.h"
 #include "l_dbus_nonblock.h"
 #include "l_sd_bus.h"
-#include "inner/l_interface.h"
-#include "inner/l_object.h"
 #include <mc/log.h>
 
 extern "C" {
@@ -27,7 +27,6 @@ extern "C" {
 #include <cstdlib>
 
 extern "C" {
-
 // 设置环境变量
 static int ldbus_setenv(lua_State* L)
 {
@@ -36,7 +35,6 @@ static int ldbus_setenv(lua_State* L)
     int         overwrite = lua_toboolean(L, 3); // 默认 false
 
     int result = ::setenv(name, value, overwrite ? 1 : 0);
-
     if (result == 0) {
         lua_pushboolean(L, 1);
         return 1;

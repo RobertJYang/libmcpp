@@ -16,15 +16,11 @@
 
 namespace mcpy {
 
-actor_base::actor_base()
-    : m_executor(mc::runtime::runtime_context::create_strand())
-{
-}
+actor_base::actor_base() : m_executor(mc::runtime::runtime_context::create_strand())
+{}
 
-actor_base::actor_base(const actor_base&)
-    : m_executor(mc::runtime::runtime_context::create_strand())
-{
-}
+actor_base::actor_base(const actor_base&) : m_executor(mc::runtime::runtime_context::create_strand())
+{}
 
 actor_base& actor_base::operator=(const actor_base&)
 {

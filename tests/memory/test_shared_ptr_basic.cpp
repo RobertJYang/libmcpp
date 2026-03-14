@@ -18,14 +18,12 @@
 // 测试用的简单类
 class test_object : public mc::enable_shared_from_this<test_object> {
 public:
-    test_object()
-        : m_value(42)
+    test_object() : m_value(42)
     {
         ++s_construct_count;
     }
 
-    explicit test_object(int value)
-        : m_value(value)
+    explicit test_object(int value) : m_value(value)
     {
         ++s_construct_count;
     }
@@ -74,15 +72,11 @@ int test_object::s_destruct_count  = 0;
 // 派生类用于测试类型转换
 class derived_object : public test_object {
 public:
-    derived_object()
-        : test_object(100)
-    {
-    }
+    derived_object() : test_object(100)
+    {}
 
-    derived_object(int value)
-        : test_object(value)
-    {
-    }
+    derived_object(int value) : test_object(value)
+    {}
 
     int get_derived_value() const
     {

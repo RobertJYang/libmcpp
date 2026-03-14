@@ -43,21 +43,16 @@ log_manager::log_manager()
         {"stream", "std_out"},
         {"use_color", true},
         {"flush", true},
-        {"level_colors", mc::variants{mc::dict{{"level", "debug"}, {"color", "cyan"}},
-                                      mc::dict{{"level", "info"}, {"color", "green"}},
-                                      mc::dict{{"level", "warn"}, {"color", "blue"}},
-                                      mc::dict{{"level", "error"}, {"color", "red"}},
-                                      mc::dict{{"level", "fatal"}, {"color", "magenta"}}}}};
-    appender_ptr console_appender =
-        appender_factory::instance().create("default_console", "console", default_config);
-
+        {"level_colors",
+         mc::variants{mc::dict{{"level", "debug"}, {"color", "cyan"}}, mc::dict{{"level", "info"}, {"color", "green"}},
+                      mc::dict{{"level", "warn"}, {"color", "blue"}}, mc::dict{{"level", "error"}, {"color", "red"}},
+                      mc::dict{{"level", "fatal"}, {"color", "magenta"}}}}};
+    appender_ptr console_appender = appender_factory::instance().create("default_console", "console", default_config);
     if (console_appender) {
         default_logger.add_appender(console_appender);
     }
 
-    appender_ptr file_appender =
-        appender_factory::instance().create("default_file", "file", {});
-
+    appender_ptr file_appender = appender_factory::instance().create("default_file", "file", {});
     if (file_appender) {
         default_logger.add_appender(file_appender);
     }
@@ -100,9 +95,8 @@ bool log_manager::load_single_appender(const appender_config& app_config)
         }
     }
 
-    appender_ptr appender = appender_factory::instance().get_or_create_appender(
-        app_config.name, app_config.type, app_config.properties);
-
+    appender_ptr appender =
+        appender_factory::instance().get_or_create_appender(app_config.name, app_config.type, app_config.properties);
     if (!appender) {
         elog("Failed to create or configure appender[${name}]", ("name", app_config.name));
         return false;
@@ -133,8 +127,7 @@ void log_manager::update_existing_logger(logger& log, const logger_config& log_c
     std::vector<std::string> to_remove;
     for (const auto& appender : log.get_appenders()) {
         const std::string& name = appender->get_name();
-        if (std::find(log_config.appenders.begin(), log_config.appenders.end(), name) ==
-            log_config.appenders.end()) {
+        if (std::find(log_config.appenders.begin(), log_config.appenders.end(), name) == log_config.appenders.end()) {
             to_remove.push_back(name);
         }
     }
@@ -155,8 +148,7 @@ void log_manager::update_existing_logger(logger& log, const logger_config& log_c
     // 删除需要删除的appender
     for (const auto& name : to_remove) {
         if (log.remove_appender(name)) {
-            ilog("Removed appender[${name}] from logger[${logger}]",
-                 ("logger", log.get_name())("name", name));
+            ilog("Removed appender[${name}] from logger[${logger}]", ("logger", log.get_name())("name", name));
         }
     }
 
@@ -165,8 +157,7 @@ void log_manager::update_existing_logger(logger& log, const logger_config& log_c
         appender_ptr appender = appender_factory::instance().get_appender(name);
         if (appender) {
             log.add_appender(appender);
-            ilog("Added appender[${name}] to logger[${logger}]",
-                 ("logger", log.get_name())("name", name));
+            ilog("Added appender[${name}] to logger[${logger}]", ("logger", log.get_name())("name", name));
         } else {
             wlog("Failed to add appender to logger[${logger}]: appender[${name}] not found",
                  ("logger", log.get_name())("name", name));
@@ -252,8 +243,7 @@ void log_manager::set_dlog_level(level lvl)
     }
 
     for (const auto& logger_name : logger_names) {
-        ilog("Set logger ${name} log level to ${level}",
-             ("name", logger_name)("level", mc::log::to_string(lvl)));
+        ilog("Set logger ${name} log level to ${level}", ("name", logger_name)("level", mc::log::to_string(lvl)));
     }
 }
 

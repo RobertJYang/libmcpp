@@ -32,12 +32,9 @@ struct file_appender_config {
 
     file_appender_config() = default;
 
-    file_appender_config(std::string name, std::string filename, bool truncate = false,
-                         bool flush_on_write = false)
-        : name(std::move(name)), filename(std::move(filename)), truncate(truncate),
-          flush_on_write(flush_on_write)
-    {
-    }
+    file_appender_config(std::string name, std::string filename, bool truncate = false, bool flush_on_write = false)
+        : name(std::move(name)), filename(std::move(filename)), truncate(truncate), flush_on_write(flush_on_write)
+    {}
 };
 
 /**

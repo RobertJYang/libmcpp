@@ -42,10 +42,8 @@ void runtime_strand::data_t::destory_queue(task_queue* q)
 // invoker 实现
 // ============================================================================
 
-runtime_strand::invoker::invoker(mc::shared_ptr<data_t> data)
-    : m_data(data)
-{
-}
+runtime_strand::invoker::invoker(mc::shared_ptr<data_t> data) : m_data(data)
+{}
 
 void runtime_strand::invoker::operator()()
 {
@@ -124,8 +122,7 @@ void runtime_strand::invoker::schedule_next(thread_pool* target_pool)
 // runtime_strand 实现
 // ============================================================================
 
-runtime_strand::runtime_strand()
-    : m_data(mc::make_shared<data_t>())
+runtime_strand::runtime_strand() : m_data(mc::make_shared<data_t>())
 {
     ;
 }

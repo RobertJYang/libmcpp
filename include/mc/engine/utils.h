@@ -62,8 +62,7 @@ constexpr bool is_interface_declared(const DeclaredInterfaces& interfaces)
 
 // 检查对象实现的 interface 成员是否都声明了
 template <typename DeclaredInterfaces, typename Members>
-constexpr bool check_members_is_declared(const DeclaredInterfaces& declared_interfaces,
-                                         const Members&            members)
+constexpr bool check_members_is_declared(const DeclaredInterfaces& declared_interfaces, const Members& members)
 {
     bool all_valid = true;
     mc::traits::tuple_for_each(members, [&](auto& element) {
@@ -88,8 +87,7 @@ constexpr bool check_declared_interfaces(const DeclaredInterfaces& declared_inte
 {
     bool all_valid = true;
     mc::traits::tuple_for_each(declared_interfaces, [&](auto& interface) {
-        using interface_type =
-            std::remove_pointer_t<mc::traits::remove_cvref_t<decltype(interface)>>;
+        using interface_type = std::remove_pointer_t<mc::traits::remove_cvref_t<decltype(interface)>>;
         if constexpr (!is_interface_v<interface_type>) {
             all_valid = false;
         }
@@ -107,8 +105,7 @@ constexpr int get_members_count(const Members& members)
         if constexpr (mc::reflect::has_tag_v<mc::reflect::property_tag, element_type> ||
                       mc::reflect::has_tag_v<mc::reflect::base_class_tag, element_type>) {
             using member_type = typename element_type::member_type;
-            if constexpr (is_interface_v<member_type> &&
-                          std::is_same_v<member_type, InterfaceType>) {
+            if constexpr (is_interface_v<member_type> && std::is_same_v<member_type, InterfaceType>) {
                 count++;
             }
         }
@@ -119,13 +116,11 @@ constexpr int get_members_count(const Members& members)
 
 // 检查对象声明的 interface 成员是否都实现了，并且仅且实现了一次
 template <typename DeclaredInterfaces, typename Members>
-constexpr bool check_interface_implement(const DeclaredInterfaces& declared_interfaces,
-                                         const Members&            members)
+constexpr bool check_interface_implement(const DeclaredInterfaces& declared_interfaces, const Members& members)
 {
     bool all_valid = true;
     mc::traits::tuple_for_each(declared_interfaces, [&](auto& interface) {
-        using interface_type =
-            std::remove_pointer_t<mc::traits::remove_cvref_t<decltype(interface)>>;
+        using interface_type = std::remove_pointer_t<mc::traits::remove_cvref_t<decltype(interface)>>;
         if (get_members_count<interface_type>(members) != 1) {
             // 没有实现或者实现多个
             all_valid = false;

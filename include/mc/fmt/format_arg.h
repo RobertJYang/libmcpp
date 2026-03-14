@@ -35,10 +35,8 @@ namespace mc::fmt::detail {
 template <typename T>
 class named_arg {
 public:
-    constexpr explicit named_arg(std::string_view name, const T& value)
-        : m_name(name), m_value(value)
-    {
-    }
+    constexpr explicit named_arg(std::string_view name, const T& value) : m_name(name), m_value(value)
+    {}
 
     constexpr std::string_view name() const
     {
@@ -73,12 +71,8 @@ using monostate   = std::monostate;
 struct format_spec;
 
 struct custom_t {
-    constexpr custom_t()
-        : obj(nullptr),
-          format_fn(nullptr),
-          parse_fn(nullptr)
-    {
-    }
+    constexpr custom_t() : obj(nullptr), format_fn(nullptr), parse_fn(nullptr)
+    {}
 
     const void* obj;
     void (*format_fn)(const void*, format_context&, const format_spec& spec);
@@ -87,113 +81,68 @@ struct custom_t {
 
 // format_arg 类型擦除存储，支持基础类型和自定义类型
 struct format_arg {
-    using storage_type = std::variant<
-        monostate, bool, char, int64_t, uint64_t, double, float, long double,
-        std::string_view, const char*, const void*, custom_t>;
+    using storage_type = std::variant<monostate, bool, char, int64_t, uint64_t, double, float, long double,
+                                      std::string_view, const char*, const void*, custom_t>;
 
     storage_type value;
     bool         used = false;
 
-    format_arg()
-        : value(monostate{})
-    {
-    }
+    format_arg() : value(monostate{})
+    {}
 
-    explicit format_arg(bool v)
-        : value(v)
-    {
-    }
+    explicit format_arg(bool v) : value(v)
+    {}
 
-    explicit format_arg(char v)
-        : value(v)
-    {
-    }
+    explicit format_arg(char v) : value(v)
+    {}
 
-    template <typename T, std::enable_if_t<std::is_integral_v<T> &&
-                                               std::is_signed_v<T>,
-                                           int> = 0>
-    explicit format_arg(T v)
-        : value(static_cast<int64_t>(v))
-    {
-    }
+    template <typename T, std::enable_if_t<std::is_integral_v<T> && std::is_signed_v<T>, int> = 0>
+    explicit format_arg(T v) : value(static_cast<int64_t>(v))
+    {}
 
-    template <typename T, std::enable_if_t<std::is_integral_v<T> &&
-                                               std::is_unsigned_v<T>,
-                                           int> = 0>
-    explicit format_arg(T v)
-        : value(static_cast<uint64_t>(v))
-    {
-    }
+    template <typename T, std::enable_if_t<std::is_integral_v<T> && std::is_unsigned_v<T>, int> = 0>
+    explicit format_arg(T v) : value(static_cast<uint64_t>(v))
+    {}
 
     // 支持枚举类型，将其转换为整数
     template <typename T, std::enable_if_t<std::is_enum_v<T>, int> = 0>
-    explicit format_arg(T v)
-        : value(static_cast<int64_t>(v))
-    {
-    }
+    explicit format_arg(T v) : value(static_cast<int64_t>(v))
+    {}
 
-    explicit format_arg(double v)
-        : value(v)
-    {
-    }
+    explicit format_arg(double v) : value(v)
+    {}
 
-    explicit format_arg(float v)
-        : value(v)
-    {
-    }
+    explicit format_arg(float v) : value(v)
+    {}
 
-    explicit format_arg(long double v)
-        : value(v)
-    {
-    }
+    explicit format_arg(long double v) : value(v)
+    {}
 
-    explicit format_arg(std::string_view v)
-        : value(v)
-    {
-    }
+    explicit format_arg(std::string_view v) : value(v)
+    {}
 
-    explicit format_arg(const std::string& v)
-        : value(std::string_view{v})
-    {
-    }
+    explicit format_arg(const std::string& v) : value(std::string_view{v})
+    {}
 
-    explicit format_arg(const char* v)
-        : value(v)
-    {
-    }
+    explicit format_arg(const char* v) : value(v)
+    {}
 
-    explicit format_arg(const void* v)
-        : value(v)
-    {
-    }
+    explicit format_arg(const void* v) : value(v)
+    {}
 
-    template <typename T, std::enable_if_t<
-                              has_formatter_v<T> &&
-                                  !is_basic_formatter_v<T>,
-                              int> = 0>
-    format_arg(const T& v)
-        : value(make_custom_value(v))
-    {
-    }
+    template <typename T, std::enable_if_t<has_formatter_v<T> && !is_basic_formatter_v<T>, int> = 0>
+    format_arg(const T& v) : value(make_custom_value(v))
+    {}
 
-    template <typename T, std::enable_if_t<
-                              has_formatter_v<T> &&
-                                  !is_basic_formatter_v<T>,
-                              int> = 0>
-    explicit format_arg(const T* v)
-        : value(compile_make_custom_value(v))
-    {
-    }
+    template <typename T, std::enable_if_t<has_formatter_v<T> && !is_basic_formatter_v<T>, int> = 0>
+    explicit format_arg(const T* v) : value(compile_make_custom_value(v))
+    {}
 
-    format_arg(const format_arg& other)
-        : value(other.value), used(other.used)
-    {
-    }
+    format_arg(const format_arg& other) : value(other.value), used(other.used)
+    {}
 
-    format_arg(format_arg&& other)
-        : value(std::move(other.value)), used(other.used)
-    {
-    }
+    format_arg(format_arg&& other) : value(std::move(other.value)), used(other.used)
+    {}
 
     format_arg& operator=(const format_arg& other)
     {
@@ -419,8 +368,7 @@ struct arg_store {
     }
 
     constexpr void add_arg(const std::monostate&)
-    {
-    }
+    {}
 
     constexpr void add_arg(std::string_view name, Arg arg)
     {

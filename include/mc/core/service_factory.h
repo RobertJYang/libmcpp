@@ -39,8 +39,8 @@ struct has_register_options : std::false_type {};
 
 template <typename T>
 struct has_register_options<T, std::void_t<typename T::register_options>>
-    : std::bool_constant<std::is_invocable_v<typename T::register_options, po::options_description&,
-                                             po::options_description&>> {};
+    : std::bool_constant<
+          std::is_invocable_v<typename T::register_options, po::options_description&, po::options_description&>> {};
 
 template <typename T>
 inline constexpr bool has_register_options_v = has_register_options<T>::value;
@@ -58,10 +58,8 @@ public:
     };
 
     // 构造函数
-    service_factory()
-        : m_opts(std::make_unique<service_options>())
-    {
-    }
+    service_factory() : m_opts(std::make_unique<service_options>())
+    {}
 
     // 虚析构函数
     virtual ~service_factory() = default;
@@ -96,8 +94,7 @@ public:
      * @param args 服务配置
      * @return 服务实例
      */
-    virtual service_base_ptr create_service(const std::string& service_name, std::string object_name,
-                                            mc::dict args)
+    virtual service_base_ptr create_service(const std::string& service_name, std::string object_name, mc::dict args)
     {
         auto it = m_creators.find(service_name);
         if (it == m_creators.end()) {

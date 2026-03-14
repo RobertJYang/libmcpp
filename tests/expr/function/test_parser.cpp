@@ -26,8 +26,7 @@ bool check_string_value(const mc::variant& value, const std::string& expected)
 
 bool check_int_value(const mc::variant& value, int expected)
 {
-    return value.get_type() == mc::type_id::int32_type &&
-           value.as_int32() == static_cast<int32_t>(expected);
+    return value.get_type() == mc::type_id::int32_type && value.as_int32() == static_cast<int32_t>(expected);
 }
 
 bool check_double_value(const mc::variant& value, double expected)
@@ -40,8 +39,8 @@ bool check_bool_value(const mc::variant& value, bool expected)
     return value.get_type() == mc::type_id::bool_type && value.as_bool() == expected;
 }
 
-bool check_property_value(const mc::variant& value, const std::string& expected_obj,
-                          const std::string& expected_prop, const std::string& expected_full_name, const std::string& expected_type)
+bool check_property_value(const mc::variant& value, const std::string& expected_obj, const std::string& expected_prop,
+                          const std::string& expected_full_name, const std::string& expected_type)
 {
     if (value.get_type() != mc::type_id::object_type) {
         return false;
@@ -252,9 +251,9 @@ TEST(FunctionParserTest, ParseFunctionCallWithMultipleParams)
 TEST(FunctionParserTest, BasicFunctionCall)
 {
     auto& parser = func_parser::get_instance();
-    auto  result = parser.parse_function_call(
-        "$Func_test({param1: \"value1\", param2: 42, param3: 3.14, param4: true, param5: "
-         "$Func_nested({nested_param: \"nested_value\"})})");
+    auto  result =
+        parser.parse_function_call("$Func_test({param1: \"value1\", param2: 42, param3: 3.14, param4: true, param5: "
+                                   "$Func_nested({nested_param: \"nested_value\"})})");
 
     EXPECT_EQ(result.func, "Func_test");
     ASSERT_EQ(result.params.size(), 5);
@@ -334,9 +333,8 @@ TEST(FunctionParserTest, ParseFunctionCallWithMultiplePropertyTypes)
 TEST(FunctionParserTest, ParseNestedFunctionCallWithProperties)
 {
     auto& parser = func_parser::get_instance();
-    auto  result = parser.parse_function_call(
-        "$Func_outer({nested: $Func_inner({normal: CPU.Temperature, sync: "
-         "<=/CPU.Temperature, ref: #/CPU.Temperature})})");
+    auto  result = parser.parse_function_call("$Func_outer({nested: $Func_inner({normal: CPU.Temperature, sync: "
+                                               "<=/CPU.Temperature, ref: #/CPU.Temperature})})");
 
     EXPECT_EQ(result.func, "Func_outer");
     ASSERT_EQ(result.params.size(), 1);
@@ -373,9 +371,9 @@ TEST(FunctionParserTest, ParseNestedFunctionCallWithProperties)
 TEST(FunctionParserTest, ParseFunctionCallWithMixedParameters)
 {
     auto& parser = func_parser::get_instance();
-    auto  result = parser.parse_function_call(
-        "$Func_test({str: \"value\", num: 42, flag: true, normal: CPU.Temperature, sync: "
-         "<=/CPU.Temperature, ref: #/CPU.Temperature})");
+    auto  result =
+        parser.parse_function_call("$Func_test({str: \"value\", num: 42, flag: true, normal: CPU.Temperature, sync: "
+                                   "<=/CPU.Temperature, ref: #/CPU.Temperature})");
 
     EXPECT_EQ(result.func, "Func_test");
     ASSERT_EQ(result.params.size(), 6);
@@ -577,8 +575,8 @@ TEST(FunctionParserTest, ParseParameterTypes)
     auto& parser = func_parser::get_instance();
 
     // 测试各种参数类型的推断
-    auto result = parser.parse_function_call(
-        "$Func_Test({str: \"hello\", num: 42, flag: true, prop: CPU.Temperature})");
+    auto result =
+        parser.parse_function_call("$Func_Test({str: \"hello\", num: 42, flag: true, prop: CPU.Temperature})");
 
     EXPECT_EQ(result.func, "Func_Test");
     EXPECT_EQ(result.params.size(), 4);
@@ -713,10 +711,9 @@ TEST(FunctionParserTest, ParsePropertyWithInterfaceNoPrefix)
 TEST(FunctionParserTest, ParseFunctionCallWithInterfaceParameters)
 {
     auto& parser = func_parser::get_instance();
-    auto  result = parser.parse_function_call(
-        "$Func_test({device_temp: #/Device[bmc.dev.TestInterface].Temperature, "
-         "cpu_usage: <=/CPU[bmc.hardware.Processor].Usage, "
-         "traditional: #/GPU.Load})");
+    auto  result = parser.parse_function_call("$Func_test({device_temp: #/Device[bmc.dev.TestInterface].Temperature, "
+                                               "cpu_usage: <=/CPU[bmc.hardware.Processor].Usage, "
+                                               "traditional: #/GPU.Load})");
 
     EXPECT_EQ(result.func, "Func_test");
     ASSERT_EQ(result.params.size(), 3);

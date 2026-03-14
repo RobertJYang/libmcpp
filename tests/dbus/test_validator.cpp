@@ -89,8 +89,7 @@ TEST(ValidatorTest, IsValidBusName)
 TEST(ValidatorTest, IsValidErrorName)
 {
     // 有效的错误名（与接口名规则相同）
-    EXPECT_TRUE(
-        validator::is_valid_error_name("org.freedesktop.DBus.Error.Failed"));
+    EXPECT_TRUE(validator::is_valid_error_name("org.freedesktop.DBus.Error.Failed"));
     EXPECT_TRUE(validator::is_valid_error_name("com.example.Error"));
 
     // 无效的错误名
@@ -113,18 +112,14 @@ TEST(ValidatorTest, IsMessageTooLarge)
 {
     // 小于最大消息大小
     EXPECT_FALSE(validator::is_message_too_large(0));
-    EXPECT_FALSE(
-        validator::is_message_too_large(validator::maximum_message_size - 1));
-    EXPECT_FALSE(
-        validator::is_message_too_large(validator::maximum_message_size / 2));
+    EXPECT_FALSE(validator::is_message_too_large(validator::maximum_message_size - 1));
+    EXPECT_FALSE(validator::is_message_too_large(validator::maximum_message_size / 2));
 
     // 等于最大消息大小
-    EXPECT_TRUE(
-        validator::is_message_too_large(validator::maximum_message_size));
+    EXPECT_TRUE(validator::is_message_too_large(validator::maximum_message_size));
 
     // 大于最大消息大小
-    EXPECT_TRUE(
-        validator::is_message_too_large(validator::maximum_message_size + 1));
+    EXPECT_TRUE(validator::is_message_too_large(validator::maximum_message_size + 1));
     EXPECT_TRUE(validator::is_message_too_large(UINT32_MAX));
 }
 

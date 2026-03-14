@@ -80,16 +80,13 @@ public:
     using blob_ptr_type      = typename Config::blob_ptr_type;
     using extension_ptr_type = typename Config::extension_ptr_type;
 
-    variant_base()
-        : m_uint64(0), m_type(type_id::null_type), m_is_fixed(false)
+    variant_base() : m_uint64(0), m_type(type_id::null_type), m_is_fixed(false)
     {
         static_assert(sizeof(uint64_t) >= sizeof(void*) && sizeof(uint64_t) >= sizeof(double),
                       "uint64_t 不是联合体中最大的成员");
     }
-    variant_base(std::nullptr_t)
-        : variant_base()
-    {
-    }
+    variant_base(std::nullptr_t) : variant_base()
+    {}
     variant_base(type_id type);
 
     template <typename T, std::enable_if_t<std::is_fundamental_v<T>, int> = 0>
@@ -111,16 +108,11 @@ public:
     /**
      * @brief 从字符串构造 variant_base
      */
-    variant_base(const char* str)
-        : variant_base(std::string_view(str))
-    {
-    }
-    variant_base(const std::string& str)
-        : variant_base(std::string_view(str))
-    {
-    }
-    variant_base(std::string_view str)
-        : m_uint64(0), m_type(type_id::string_type), m_is_fixed(false)
+    variant_base(const char* str) : variant_base(std::string_view(str))
+    {}
+    variant_base(const std::string& str) : variant_base(std::string_view(str))
+    {}
+    variant_base(std::string_view str) : m_uint64(0), m_type(type_id::string_type), m_is_fixed(false)
     {
         m_string_ptr = mc::allocate_ptr<string_type>(allocator_type(), str.data(), str.size());
     }
@@ -128,59 +120,44 @@ public:
     /*
      * 从各种基础类型构造 variant_base
      */
-    variant_base(bool val)
-        : variant_base(type_id::bool_type, val)
-    {
-    }
+    variant_base(bool val) : variant_base(type_id::bool_type, val)
+    {}
     template <typename T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
-    variant_base(T val)
-        : variant_base(mc::detail::fixed_integer_type<T>(), val)
-    {
-    }
+    variant_base(T val) : variant_base(mc::detail::fixed_integer_type<T>(), val)
+    {}
     template <typename T, std::enable_if_t<std::is_floating_point_v<T>, int> = 0>
-    variant_base(T val)
-        : variant_base(type_id::double_type, val)
+    variant_base(T val) : variant_base(type_id::double_type, val)
+    {}
+    variant_base(const blob_type& val) : m_type(type_id::blob_type), m_is_fixed(false)
     {
-    }
-    variant_base(const blob_type& val)
-        : m_type(type_id::blob_type), m_is_fixed(false)
-    {
-        m_blob_ptr =
-            mc::allocate_ptr<blob_type>(allocator_type(), val.data.data(), val.data.size());
+        m_blob_ptr = mc::allocate_ptr<blob_type>(allocator_type(), val.data.data(), val.data.size());
     }
 
     // 从字典构造 variant_base
-    variant_base(const dict& obj)
-        : m_type(type_id::object_type), m_is_fixed(false)
+    variant_base(const dict& obj) : m_type(type_id::object_type), m_is_fixed(false)
     {
         new (&m_object) object_type(obj);
     }
 
     // 从 array_type 构造 variant_base
-    variant_base(const array_type& arr)
-        : m_type(type_id::array_type), m_is_fixed(false)
+    variant_base(const array_type& arr) : m_type(type_id::array_type), m_is_fixed(false)
     {
         new (&m_array) array_type(arr);
     }
 
     template <typename T, std::enable_if_t<std::is_base_of_v<variant_extension_base, T>, int> = 0>
-    variant_base(mc::shared_ptr<T> ext)
-        : m_type(type_id::extension_type), m_is_fixed(false)
+    variant_base(mc::shared_ptr<T> ext) : m_type(type_id::extension_type), m_is_fixed(false)
     {
         new (&m_extension) extension_ptr_type(mc::static_pointer_cast<variant_extension_base>(ext));
     }
 
-    template <typename T, std::enable_if_t<
-                              !is_variant_v<T> &&
-                                  !std::is_pointer_v<T> &&
-                                  !mc::is_variant_fundamental_v<T> &&
-                                  !std::is_same_v<std::decay_t<T>, object_type> &&
-                                  !std::is_same_v<std::decay_t<T>, blob_type> &&
-                                  !std::is_same_v<std::decay_t<T>, array_type> &&
-                                  mc::is_variant_constructible_v<T>,
-                              int> = 0>
-    variant_base(const T& obj)
-        : variant_base()
+    template <typename T,
+              std::enable_if_t<!is_variant_v<T> && !std::is_pointer_v<T> && !mc::is_variant_fundamental_v<T> &&
+                                   !std::is_same_v<std::decay_t<T>, object_type> &&
+                                   !std::is_same_v<std::decay_t<T>, blob_type> &&
+                                   !std::is_same_v<std::decay_t<T>, array_type> && mc::is_variant_constructible_v<T>,
+                               int> = 0>
+    variant_base(const T& obj) : variant_base()
     {
         to_variant(obj, *this);
     }
@@ -209,8 +186,7 @@ public:
     class visitor {
     public:
         virtual ~visitor()
-        {
-        }
+        {}
 
         virtual void handle() const                                = 0;
         virtual void handle(const int64_t& v) const                = 0;
@@ -1386,8 +1362,7 @@ public:
     /*
      * @brief 与 std::vector<T> 的比较运算符
      */
-    template <typename T, std::enable_if_t<
-                              mc::is_variant_constructible_v<T> || mc::is_variant_v<T>, int> = 0>
+    template <typename T, std::enable_if_t<mc::is_variant_constructible_v<T> || mc::is_variant_v<T>, int> = 0>
     bool operator==(const std::vector<T>& other) const
     {
         if (get_type() != type_id::array_type) {
@@ -1406,8 +1381,7 @@ public:
         if (is_array()) {
             throw_type_error("array", get_type());
         }
-        return std::lexicographical_compare(m_array.begin(), m_array.end(),
-                                            other.begin(), other.end());
+        return std::lexicographical_compare(m_array.begin(), m_array.end(), other.begin(), other.end());
     }
     template <typename T, std::enable_if_t<mc::is_variant_constructible_v<T> || mc::is_variant_v<T>, int> = 0>
     bool operator>(const std::vector<T>& other) const
@@ -1415,8 +1389,7 @@ public:
         if (!is_array()) {
             throw_type_error("array", get_type());
         }
-        return std::lexicographical_compare(other.begin(), other.end(),
-                                            m_array.begin(), m_array.end());
+        return std::lexicographical_compare(other.begin(), other.end(), m_array.begin(), m_array.end());
     }
     template <typename T, std::enable_if_t<mc::is_variant_constructible_v<T> || mc::is_variant_v<T>, int> = 0>
     bool operator<=(const std::vector<T>& other) const
@@ -1673,14 +1646,12 @@ MC_API void to_variant(const dict& var, variant_base& vo);
 MC_API void from_variant(const variant_base& var, dict& vo);
 
 // 为继承自 variant_extension 的类型提供 to_variant 转换
-template <typename T,
-          std::enable_if_t<std::is_base_of_v<variant_extension_base, T>, int> = 0>
+template <typename T, std::enable_if_t<std::is_base_of_v<variant_extension_base, T>, int> = 0>
 void to_variant(const T& var, variant_base& vo)
 {
     variant_base(var.clone()).swap(vo);
 }
-template <typename T,
-          std::enable_if_t<std::is_base_of_v<variant_extension_base, T>, int> = 0>
+template <typename T, std::enable_if_t<std::is_base_of_v<variant_extension_base, T>, int> = 0>
 void from_variant(const variant_base& var, T& vo)
 {
     if (var.is_extension()) {

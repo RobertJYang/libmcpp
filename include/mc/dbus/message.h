@@ -97,8 +97,8 @@ public:
      * @param member [in] 方法名称
      * @return 返回方法调用消息对象
      */
-    static message new_method_call(std::string_view destination, std::string_view path,
-                                   std::string_view interface, std::string_view member);
+    static message new_method_call(std::string_view destination, std::string_view path, std::string_view interface,
+                                   std::string_view member);
 
     /**
      * @brief 创建方法返回消息
@@ -114,8 +114,7 @@ public:
      * @param error_message [in] 错误消息内容
      * @return 返回错误消息对象
      */
-    static message new_error(const message& msg, std::string_view error_name,
-                             std::string_view error_message = {});
+    static message new_error(const message& msg, std::string_view error_name, std::string_view error_message = {});
 
     /**
      * @brief 创建信号消息
@@ -124,8 +123,7 @@ public:
      * @param member [in] 信号名称
      * @return 返回信号消息对象
      */
-    static message new_signal(std::string_view path, std::string_view interface,
-                              std::string_view member);
+    static message new_signal(std::string_view path, std::string_view interface, std::string_view member);
 
     /**
      * @brief 创建指定类型的消息
@@ -140,8 +138,7 @@ public:
      * @param error_message [in] 错误消息内容
      * @return 返回错误消息对象
      */
-    static message new_error_message(std::string_view error_name,
-                                     std::string_view error_message = {});
+    static message new_error_message(std::string_view error_name, std::string_view error_message = {});
 
     /**
      * @brief 获取底层DBus消息指针
@@ -545,8 +542,7 @@ struct MC_API message_writer {
      * @param type [in] 容器类型
      * @param signature [in] 类型签名
      */
-    message_writer(DBusMessageIter& parent_iter, int type,
-                   std::string_view signature = std::string_view());
+    message_writer(DBusMessageIter& parent_iter, int type, std::string_view signature = std::string_view());
 
     /**
      * @brief 关闭容器
@@ -580,8 +576,7 @@ struct MC_API message_writer {
      * @param v [in] variant对象
      * @param depth [in] 嵌套深度
      */
-    void write_variant_array_or_dict(signature_iterator it, const mc::variant& v,
-                                     std::size_t depth) const;
+    void write_variant_array_or_dict(signature_iterator it, const mc::variant& v, std::size_t depth) const;
 
     /**
      * @brief 写入variant数组
@@ -589,8 +584,7 @@ struct MC_API message_writer {
      * @param arr [in] variants数组
      * @param depth [in] 嵌套深度
      */
-    void write_variant_array(signature_iterator it, const mc::variants& arr,
-                             std::size_t depth) const;
+    void write_variant_array(signature_iterator it, const mc::variants& arr, std::size_t depth) const;
 
     /**
      * @brief 写入variant结构体
@@ -787,8 +781,7 @@ const message_reader& operator>>(const message_reader& reader, std::set<T, Comp,
 }
 
 template <typename T, typename Hash, typename KeyEqual, typename Alloc>
-const message_reader& operator>>(const message_reader&                         reader,
-                                 std::unordered_set<T, Hash, KeyEqual, Alloc>& v)
+const message_reader& operator>>(const message_reader& reader, std::unordered_set<T, Hash, KeyEqual, Alloc>& v)
 {
     return read_array<T, false, false>(reader, v);
 }
@@ -885,15 +878,13 @@ const message_reader& operator>>(const message_reader& reader, std::map<K, V, Co
 }
 
 template <typename K, typename V, typename Comp, typename Alloc>
-const message_reader& operator>>(const message_reader&             reader,
-                                 std::multimap<K, V, Comp, Alloc>& v)
+const message_reader& operator>>(const message_reader& reader, std::multimap<K, V, Comp, Alloc>& v)
 {
     return read_dict<K, V>(reader, v);
 }
 
 template <typename K, typename V, typename Hash, typename KeyEqual, typename Alloc>
-const message_reader& operator>>(const message_reader&                            reader,
-                                 std::unordered_map<K, V, Hash, KeyEqual, Alloc>& v)
+const message_reader& operator>>(const message_reader& reader, std::unordered_map<K, V, Hash, KeyEqual, Alloc>& v)
 {
     return read_dict<K, V>(reader, v);
 }
@@ -974,8 +965,7 @@ const message_writer& write_array(const message_writer& writer, const Container&
     if constexpr (std::is_trivially_copyable_v<T> && IsContiguous && !std::is_pointer_v<T>) {
         // 对可平凡复制的类型，直接使用 fixed array 写入方式优化
         const T* data = v.data();
-        dbus_message_iter_append_fixed_array(&sub_writer.m_iter, mc::reflect::first_type(sig),
-                                             &data, v.size());
+        dbus_message_iter_append_fixed_array(&sub_writer.m_iter, mc::reflect::first_type(sig), &data, v.size());
     } else {
         for (const auto& item : v) {
             sub_writer << item;
@@ -1010,15 +1000,13 @@ const message_writer& operator<<(const message_writer& writer, const std::set<T,
 }
 
 template <typename T, typename Hash, typename KeyEqual, typename Alloc>
-const message_writer& operator<<(const message_writer&                               writer,
-                                 const std::unordered_set<T, Hash, KeyEqual, Alloc>& v)
+const message_writer& operator<<(const message_writer& writer, const std::unordered_set<T, Hash, KeyEqual, Alloc>& v)
 {
     return write_array<T, false>(writer, v);
 }
 
 template <typename T, typename Comp, typename Alloc>
-const message_writer& operator<<(const message_writer&                writer,
-                                 const std::multiset<T, Comp, Alloc>& v)
+const message_writer& operator<<(const message_writer& writer, const std::multiset<T, Comp, Alloc>& v)
 {
     return write_array<T, false>(writer, v);
 }
@@ -1078,22 +1066,19 @@ const message_writer& write_dict(const message_writer& writer, const Container& 
 }
 
 template <typename K, typename V, typename Comp, typename Alloc>
-const message_writer& operator<<(const message_writer&              writer,
-                                 const std::map<K, V, Comp, Alloc>& v)
+const message_writer& operator<<(const message_writer& writer, const std::map<K, V, Comp, Alloc>& v)
 {
     return write_dict<K, V>(writer, v);
 }
 
 template <typename K, typename V, typename Comp, typename Alloc>
-const message_writer& operator<<(const message_writer&                   writer,
-                                 const std::multimap<K, V, Comp, Alloc>& v)
+const message_writer& operator<<(const message_writer& writer, const std::multimap<K, V, Comp, Alloc>& v)
 {
     return write_dict<K, V>(writer, v);
 }
 
 template <typename K, typename V, typename Hash, typename KeyEqual, typename Alloc>
-const message_writer& operator<<(const message_writer&                                  writer,
-                                 const std::unordered_map<K, V, Hash, KeyEqual, Alloc>& v)
+const message_writer& operator<<(const message_writer& writer, const std::unordered_map<K, V, Hash, KeyEqual, Alloc>& v)
 {
     return write_dict<K, V>(writer, v);
 }
@@ -1110,21 +1095,19 @@ struct has_operator : std::false_type {};
 template <typename T>
 struct has_operator<
     T, const_ref_tag,
-    std::void_t<decltype(static_cast<const message_writer& (*)(const message_writer&, const T&)>(
-        &operator<<))>> : std::true_type {};
+    std::void_t<decltype(static_cast<const message_writer& (*)(const message_writer&, const T&)>(&operator<<))>>
+    : std::true_type {};
 
 // 检测 T 值重载版本
 template <typename T>
 struct has_operator<
-    T, value_tag,
-    std::void_t<decltype(static_cast<const message_writer& (*)(const message_writer&, T)>(
-        &operator<<))>> : std::true_type {};
+    T, value_tag, std::void_t<decltype(static_cast<const message_writer& (*)(const message_writer&, T)>(&operator<<))>>
+    : std::true_type {};
 
 // 侦测 T 类型是否支持通过 operator<< 直接写入到 dbus::stream 中，防止出现类型隐士转换导致
 // 写入的类型签名与 get_signature<> 获取的类型签名不一致
 template <typename T>
-inline constexpr bool has_operator_v =
-    has_operator<T, const_ref_tag>::value || has_operator<T, value_tag>::value;
+inline constexpr bool has_operator_v = has_operator<T, const_ref_tag>::value || has_operator<T, value_tag>::value;
 
 // 将 variant 解析为 dbus 签名
 void variant_to_dbus_signature(signature& sig, const mc::variant& v);
@@ -1140,8 +1123,7 @@ const message_writer& operator<<(const message_writer& writer, const T& v)
         using item_type     = std::decay_t<decltype(*item)>;
         using property_type = typename item_type::member_type;
 
-        static_assert(detail::has_operator_v<property_type>,
-                      "属性类型T不支持通过 operator<< 写入到 dbus::message 中");
+        static_assert(detail::has_operator_v<property_type>, "属性类型T不支持通过 operator<< 写入到 dbus::message 中");
 
         sub_writer << v.*item->member_ptr;
     });

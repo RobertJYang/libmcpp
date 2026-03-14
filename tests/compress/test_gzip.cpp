@@ -40,8 +40,7 @@ static std::string compress_gzip(const std::string& input)
     stream.zfree  = Z_NULL;
     stream.opaque = Z_NULL;
 
-    int ret = deflateInit2(&stream, Z_DEFAULT_COMPRESSION, Z_DEFLATED,
-                           MAX_WBITS + 16, 8, Z_DEFAULT_STRATEGY);
+    int ret = deflateInit2(&stream, Z_DEFAULT_COMPRESSION, Z_DEFLATED, MAX_WBITS + 16, 8, Z_DEFAULT_STRATEGY);
     if (ret != Z_OK) {
         return "";
     }
@@ -63,8 +62,7 @@ static std::string compress_gzip(const std::string& input)
     return compressed;
 }
 
-class GzipTest : public ::testing::Test {
-};
+class GzipTest : public ::testing::Test {};
 
 TEST_F(GzipTest, TestDecompress_case1)
 {

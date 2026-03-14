@@ -33,20 +33,15 @@ public:
     using pointer_type = PointerType;
 
     // 默认构造函数
-    constexpr shared_ptr() noexcept
-        : m_ptr(nullptr)
-    {
-    }
+    constexpr shared_ptr() noexcept : m_ptr(nullptr)
+    {}
 
     // nullptr 构造函数
-    constexpr shared_ptr(std::nullptr_t) noexcept
-        : m_ptr(nullptr)
-    {
-    }
+    constexpr shared_ptr(std::nullptr_t) noexcept : m_ptr(nullptr)
+    {}
 
     // 接受裸指针的构造函数
-    explicit shared_ptr(pointer_type ptr) noexcept
-        : m_ptr(ptr)
+    explicit shared_ptr(pointer_type ptr) noexcept : m_ptr(ptr)
     {
         if (m_ptr) {
             m_ptr->add_ref();
@@ -54,8 +49,7 @@ public:
     }
 
     // 拷贝构造函数
-    shared_ptr(const shared_ptr& other) noexcept
-        : m_ptr(other.m_ptr)
+    shared_ptr(const shared_ptr& other) noexcept : m_ptr(other.m_ptr)
     {
         if (m_ptr) {
             m_ptr->add_ref();
@@ -64,8 +58,7 @@ public:
 
     // 类型转换拷贝构造函数
     template <typename U, typename UP>
-    shared_ptr(const shared_ptr<U, UP>& other) noexcept
-        : m_ptr(other.get())
+    shared_ptr(const shared_ptr<U, UP>& other) noexcept : m_ptr(other.get())
     {
         static_assert(std::is_convertible_v<U*, T*>, "U* must be convertible to T*");
         if (m_ptr) {
@@ -74,16 +67,14 @@ public:
     }
 
     // 移动构造函数
-    shared_ptr(shared_ptr&& other) noexcept
-        : m_ptr(other.m_ptr)
+    shared_ptr(shared_ptr&& other) noexcept : m_ptr(other.m_ptr)
     {
         other.m_ptr = nullptr;
     }
 
     // 类型转换移动构造函数
     template <typename U, typename UP>
-    shared_ptr(shared_ptr<U, UP>&& other) noexcept
-        : m_ptr(other.detach())
+    shared_ptr(shared_ptr<U, UP>&& other) noexcept : m_ptr(other.detach())
     {
         static_assert(std::is_convertible_v<U*, T*>, "U* must be convertible to T*");
     }
@@ -315,8 +306,7 @@ private:
 
     // 内部构造函数，用于已经增加引用计数的情况
     struct already_referenced_tag {};
-    explicit shared_ptr(pointer_type ptr, already_referenced_tag) noexcept
-        : m_ptr(ptr)
+    explicit shared_ptr(pointer_type ptr, already_referenced_tag) noexcept : m_ptr(ptr)
     {
         // 不增加引用计数，因为调用者已经增加了
     }

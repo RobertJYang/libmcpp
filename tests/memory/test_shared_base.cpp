@@ -19,30 +19,26 @@
 // 测试用的简单类，直接继承 enable_shared_from_this
 class base_test_object : public mc::enable_shared_from_this<base_test_object> {
 public:
-    base_test_object()
-        : m_value(0)
+    base_test_object() : m_value(0)
     {
         ++s_construct_count;
     }
 
-    explicit base_test_object(int value)
-        : m_value(value)
+    explicit base_test_object(int value) : m_value(value)
     {
         ++s_construct_count;
     }
 
     // 拷贝构造函数
     base_test_object(const base_test_object& other)
-        : mc::enable_shared_from_this<base_test_object>(other),
-          m_value(other.m_value)
+        : mc::enable_shared_from_this<base_test_object>(other), m_value(other.m_value)
     {
         ++s_construct_count;
     }
 
     // 移动构造函数
     base_test_object(base_test_object&& other) noexcept
-        : mc::enable_shared_from_this<base_test_object>(std::move(other)),
-          m_value(other.m_value)
+        : mc::enable_shared_from_this<base_test_object>(std::move(other)), m_value(other.m_value)
     {
         ++s_construct_count;
     }
@@ -326,8 +322,7 @@ TEST_F(shared_base_test, CopyAndMoveConstructors)
     // 验证构造和析构计数匹配
     int final_construct_count = base_test_object::get_construct_count();
     int final_destruct_count  = base_test_object::get_destruct_count();
-    EXPECT_EQ(final_construct_count - initial_construct_count,
-              final_destruct_count - initial_destruct_count);
+    EXPECT_EQ(final_construct_count - initial_construct_count, final_destruct_count - initial_destruct_count);
 }
 
 // 测试赋值操作符

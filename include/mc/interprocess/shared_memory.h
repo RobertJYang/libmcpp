@@ -295,18 +295,15 @@ public:
     /**
      * @brief 默认构造函数，创建空指针
      */
-    shared_ptr()
-        : m_ptr(nullptr), m_counter(nullptr)
-    {
-    }
+    shared_ptr() : m_ptr(nullptr), m_counter(nullptr)
+    {}
 
     /**
      * @brief 构造函数，从普通指针创建共享指针
      * @param ptr 对象指针
      * @param counter 引用计数器
      */
-    shared_ptr(T* ptr, std::shared_ptr<shared_ref_counter> counter)
-        : m_ptr(ptr), m_counter(counter)
+    shared_ptr(T* ptr, std::shared_ptr<shared_ref_counter> counter) : m_ptr(ptr), m_counter(counter)
     {
         if (m_ptr && m_counter) {
             m_counter->add_ref();
@@ -317,8 +314,7 @@ public:
      * @brief 拷贝构造函数
      * @param other 其他共享指针
      */
-    shared_ptr(const shared_ptr& other)
-        : m_ptr(other.m_ptr), m_counter(other.m_counter)
+    shared_ptr(const shared_ptr& other) : m_ptr(other.m_ptr), m_counter(other.m_counter)
     {
         if (m_ptr && m_counter) {
             m_counter->add_ref();
@@ -329,8 +325,7 @@ public:
      * @brief 移动构造函数
      * @param other 其他共享指针
      */
-    shared_ptr(shared_ptr&& other) noexcept
-        : m_ptr(other.m_ptr), m_counter(std::move(other.m_counter))
+    shared_ptr(shared_ptr&& other) noexcept : m_ptr(other.m_ptr), m_counter(std::move(other.m_counter))
     {
         other.m_ptr = nullptr;
     }

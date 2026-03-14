@@ -18,8 +18,7 @@
 namespace mc::dbus {
 
 match::match()
-{
-}
+{}
 
 bool match::run_msg(DBusMessage* msg)
 {
@@ -91,8 +90,7 @@ match_rule::match_rule(DBus::Match::MessageType type, const std::string_view& me
     }
 }
 
-match_rule match_rule::new_signal(const std::string_view& member,
-                                  const std::string_view& interface)
+match_rule match_rule::new_signal(const std::string_view& member, const std::string_view& interface)
 {
     return {DBus::Match::MessageType::signal, member, interface};
 }

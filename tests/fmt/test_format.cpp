@@ -146,8 +146,7 @@ TEST(format_test, remove_trailing_zeros)
 // 综合格式化测试
 TEST(format_test, complex_formatting)
 {
-    EXPECT_EQ(sformat("{:0.7f}:{:03}:{:+g}:{}:{}:{}",
-                      1.234, 42, 3.13, "str", reinterpret_cast<void*>(1000), 'x'),
+    EXPECT_EQ(sformat("{:0.7f}:{:03}:{:+g}:{}:{}:{}", 1.234, 42, 3.13, "str", reinterpret_cast<void*>(1000), 'x'),
               "1.2340000:042:+3.13:str:0x3e8:x");
 }
 
@@ -334,18 +333,23 @@ TEST(format_test, integer_format_types)
     EXPECT_EQ(sformat("{}", 0ll), "0");
 
     // 极值
-    EXPECT_EQ(sformat("{}", static_cast<int>(numeric_limits<short>::max())), std::to_string(numeric_limits<short>::max()));
-    EXPECT_EQ(sformat("{}", static_cast<int>(numeric_limits<short>::min())), std::to_string(numeric_limits<short>::min()));
-    EXPECT_EQ(sformat("{}", static_cast<unsigned int>(numeric_limits<unsigned short>::max())), std::to_string(numeric_limits<unsigned short>::max()));
+    EXPECT_EQ(sformat("{}", static_cast<int>(numeric_limits<short>::max())),
+              std::to_string(numeric_limits<short>::max()));
+    EXPECT_EQ(sformat("{}", static_cast<int>(numeric_limits<short>::min())),
+              std::to_string(numeric_limits<short>::min()));
+    EXPECT_EQ(sformat("{}", static_cast<unsigned int>(numeric_limits<unsigned short>::max())),
+              std::to_string(numeric_limits<unsigned short>::max()));
     EXPECT_EQ(sformat("{}", numeric_limits<int>::max()), std::to_string(numeric_limits<int>::max()));
     EXPECT_EQ(sformat("{}", numeric_limits<int>::min()), std::to_string(numeric_limits<int>::min()));
     EXPECT_EQ(sformat("{}", numeric_limits<unsigned int>::max()), std::to_string(numeric_limits<unsigned int>::max()));
     EXPECT_EQ(sformat("{}", numeric_limits<long>::max()), std::to_string(numeric_limits<long>::max()));
     EXPECT_EQ(sformat("{}", numeric_limits<long>::min()), std::to_string(numeric_limits<long>::min()));
-    EXPECT_EQ(sformat("{}", numeric_limits<unsigned long>::max()), std::to_string(numeric_limits<unsigned long>::max()));
+    EXPECT_EQ(sformat("{}", numeric_limits<unsigned long>::max()),
+              std::to_string(numeric_limits<unsigned long>::max()));
     EXPECT_EQ(sformat("{}", numeric_limits<long long>::max()), std::to_string(numeric_limits<long long>::max()));
     EXPECT_EQ(sformat("{}", numeric_limits<long long>::min()), std::to_string(numeric_limits<long long>::min()));
-    EXPECT_EQ(sformat("{}", numeric_limits<unsigned long long>::max()), std::to_string(numeric_limits<unsigned long long>::max()));
+    EXPECT_EQ(sformat("{}", numeric_limits<unsigned long long>::max()),
+              std::to_string(numeric_limits<unsigned long long>::max()));
 
     // 填充、对齐、符号
     EXPECT_EQ(sformat("{:06d}", static_cast<int>(12)), "000012");
@@ -439,13 +443,10 @@ TEST(format_test, index_args)
     EXPECT_EQ(sformat("{} {1}", "first", "second"), "first second");
 
     // 隐式索引总是从前一个显示索引开始自增
-    EXPECT_EQ(sformat("{0} {1} {0} {} {}", "first", "second", "third"),
-              "first second first second third");
+    EXPECT_EQ(sformat("{0} {1} {0} {} {}", "first", "second", "third"), "first second first second third");
 
     // 隐式索引后最好使用显式索引避免歧义
-    EXPECT_EQ(sformat("{0} {1} {} {2}", "first",
-                      "second", "third"),
-              "first second third third");
+    EXPECT_EQ(sformat("{0} {1} {} {2}", "first", "second", "third"), "first second third third");
 }
 
 TEST(format_test, runtim_error_handling)
@@ -466,15 +467,11 @@ TEST(format_test, runtim_error_handling)
 TEST(format_test, compile_check)
 {
     // 测试基本的编译期检查
-    bool valid_format = MC_FORMAT_COMPILE_CHECK(
-        "{} {} {}",
-        42, 3.14, "hello");
+    bool valid_format = MC_FORMAT_COMPILE_CHECK("{} {} {}", 42, 3.14, "hello");
     EXPECT_TRUE(valid_format);
 
     // 测试字符串字面量处理（这个之前会导致编译错误）
-    bool string_literal = MC_FORMAT_COMPILE_CHECK(
-        "{}",
-        "test");
+    bool string_literal = MC_FORMAT_COMPILE_CHECK("{}", "test");
     EXPECT_TRUE(string_literal);
 
     // 测试 chrono 错误检测
@@ -482,27 +479,19 @@ TEST(format_test, compile_check)
     auto duration = seconds(42);
 
     // 测试有效的 chrono 格式
-    bool valid_chrono = MC_FORMAT_COMPILE_CHECK(
-        "{:%H:%M:%S}",
-        duration);
+    bool valid_chrono = MC_FORMAT_COMPILE_CHECK("{:%H:%M:%S}", duration);
     EXPECT_TRUE(valid_chrono);
 
     // 测试无效的 chrono 格式（无效的格式说明符）
-    bool invalid_chrono = MC_FORMAT_COMPILE_CHECK(
-        "{:%H:%M:%}",
-        duration);
+    bool invalid_chrono = MC_FORMAT_COMPILE_CHECK("{:%H:%M:%}", duration);
     EXPECT_FALSE(invalid_chrono);
 
     // 测试 duration 不支持的格式说明符
-    bool invalid_duration = MC_FORMAT_COMPILE_CHECK(
-        "{:%Y}",
-        duration);
+    bool invalid_duration = MC_FORMAT_COMPILE_CHECK("{:%Y}", duration);
     EXPECT_FALSE(invalid_duration);
 
     // 测试不完整的格式说明符
-    bool incomplete_format = MC_FORMAT_COMPILE_CHECK(
-        "{:%H:%M%}",
-        duration);
+    bool incomplete_format = MC_FORMAT_COMPILE_CHECK("{:%H:%M%}", duration);
     EXPECT_FALSE(incomplete_format);
 }
 

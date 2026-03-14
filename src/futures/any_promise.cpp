@@ -19,10 +19,8 @@
 
 namespace mc::futures {
 
-any_promise::any_promise(state_base_ptr state)
-    : m_state(std::move(state))
-{
-}
+any_promise::any_promise(state_base_ptr state) : m_state(std::move(state))
+{}
 
 void any_promise::set_result_inner(bool strict_once)
 {
@@ -52,7 +50,8 @@ void any_promise::set_exception(std::exception_ptr e, bool strict_once)
         }
 
         if (strict_once) {
-            MC_ASSERT_THROW(!m_state->is_ready() && !m_state->is_bound(), promise_already_satisfied, "Promise 值已被设置");
+            MC_ASSERT_THROW(!m_state->is_ready() && !m_state->is_bound(), promise_already_satisfied,
+                            "Promise 值已被设置");
         } else if (m_state->is_ready()) {
             return;
         }

@@ -15,8 +15,7 @@
 
 namespace mc::debounce {
 
-Average::Average(int size, bool is_signed)
-    : m_size(size), is_signed(is_signed)
+Average::Average(int size, bool is_signed) : m_size(size), is_signed(is_signed)
 {
     if (size <= 0) {
         throw std::runtime_error("size must be greater than 0");

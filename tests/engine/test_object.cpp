@@ -67,10 +67,8 @@ class TTestObject : public mc::engine::object<TTestObject> {
 public:
     MC_OBJECT(TTestObject, "TTestObject", "/org/test/TTestObject", (TestInterface1)(TestInterface2))
 
-    TTestObject(mc::engine::core_object* parent = nullptr)
-        : mc::engine::object<TTestObject>(parent)
-    {
-    }
+    TTestObject(mc::engine::core_object* parent = nullptr) : mc::engine::object<TTestObject>(parent)
+    {}
 
     int32_t m_prev_value = 0;
 
@@ -80,22 +78,18 @@ public:
 
 } // namespace
 
-MC_REFLECT(TestInterface1,
-           ((m_value, "value"))((add, "Add"))((subtract, "Subtract"))((value_changed,
-                                                                       "value_changed")))
-MC_REFLECT(TestInterface2, ((m_value, "value"))((set_value, "SetValue"))((get_value, "GetValue"))(
-                               (value_changed, "value_changed")))
+MC_REFLECT(TestInterface1, ((m_value, "value"))((add, "Add"))((subtract, "Subtract"))((value_changed, "value_changed")))
+MC_REFLECT(TestInterface2,
+           ((m_value, "value"))((set_value, "SetValue"))((get_value, "GetValue"))((value_changed, "value_changed")))
 MC_REFLECT(TTestObject, ((m_iface1, "iface1"))((m_iface2, "iface2")))
 
 class object_test : public mc::test::TestBase {
 protected:
     void SetUp() override
-    {
-    }
+    {}
 
     void TearDown() override
-    {
-    }
+    {}
 
     TTestObject                  obj;
     mc::engine::abstract_object& obj_base = obj;
@@ -167,14 +161,11 @@ TEST_F(object_test, test_signal_connect)
     int new_value = 0;
 
     // 连接 iface1 的 value_changed 信号
-    auto conn = obj_base.connect(
-        "value_changed",
-        [&](const mc::variants& args) -> mc::variant {
+    auto conn = obj_base.connect("value_changed", [&](const mc::variants& args) -> mc::variant {
         old_value = args[0].as<int32_t>();
         new_value = args[1].as<int32_t>();
         return {};
-    },
-        "iface1");
+    }, "iface1");
 
     EXPECT_TRUE(conn.connected());
 
@@ -199,14 +190,11 @@ TEST_F(object_test, test_signal_emit)
     std::string new_value;
 
     // 连接 iface2 的 value_changed 信号
-    auto conn = obj_base.connect(
-        "value_changed",
-        [&](const mc::variants& args) -> mc::variant {
+    auto conn = obj_base.connect("value_changed", [&](const mc::variants& args) -> mc::variant {
         old_value = args[0].as<std::string>();
         new_value = args[1].as<std::string>();
         return {};
-    },
-        "iface2");
+    }, "iface2");
 
     // 通过 emit 直接发送信号
     obj_base.emit("value_changed", {"old_test", "new_test"}, "iface2");
@@ -225,13 +213,10 @@ TEST_F(object_test, test_connect_by_interface_name)
     int signal_count = 0;
 
     // 使用接口名称连接信号
-    auto conn = obj_base.connect(
-        "value_changed",
-        [&](const mc::variants& args) -> mc::variant {
+    auto conn = obj_base.connect("value_changed", [&](const mc::variants& args) -> mc::variant {
         signal_count++;
         return {};
-    },
-        "org.test.TestInterface1");
+    }, "org.test.TestInterface1");
 
     EXPECT_TRUE(conn.connected());
 
@@ -250,22 +235,16 @@ TEST_F(object_test, test_multiple_connections)
     int count2 = 0;
 
     // 第一个连接
-    auto conn1 = obj_base.connect(
-        "value_changed",
-        [&](const mc::variants& args) -> mc::variant {
+    auto conn1 = obj_base.connect("value_changed", [&](const mc::variants& args) -> mc::variant {
         count1++;
         return {};
-    },
-        "iface1");
+    }, "iface1");
 
     // 第二个连接
-    auto conn2 = obj_base.connect(
-        "value_changed",
-        [&](const mc::variants& args) -> mc::variant {
+    auto conn2 = obj_base.connect("value_changed", [&](const mc::variants& args) -> mc::variant {
         count2++;
         return {};
-    },
-        "iface1");
+    }, "iface1");
 
     // 触发信号
     obj_base.invoke("Add", {100});

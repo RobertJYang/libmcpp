@@ -264,8 +264,7 @@ TEST_F(file_appender_test, AppendMultiParamDictFormattedMessage)
     args["city"]  = "北京";
     args["score"] = 95.5;
 
-    auto msg = create_format_message(level::info,
-                                     "用户: ${user}, 年龄: ${age}, 城市: ${city}, 分数: ${score}", args);
+    auto msg = create_format_message(level::info, "用户: ${user}, 年龄: ${age}, 城市: ${city}, 分数: ${score}", args);
 
     // 追加消息
     ASSERT_NO_THROW(m_appender->append(msg));
@@ -314,8 +313,7 @@ TEST_F(file_appender_test, AppendMessagesConcurrently)
     for (int i = 0; i < 5; ++i) {
         threads.emplace_back([this, i]() {
             for (int j = 0; j < 10; ++j) {
-                auto msg = create_test_message(level::info,
-                                               "线程 " + std::to_string(i) + " 消息 " + std::to_string(j));
+                auto msg = create_test_message(level::info, "线程 " + std::to_string(i) + " 消息 " + std::to_string(j));
                 m_appender->append(msg);
             }
         });

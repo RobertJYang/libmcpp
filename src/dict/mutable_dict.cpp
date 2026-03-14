@@ -18,8 +18,7 @@ namespace mc {
 
 // dict 的可变操作实现
 
-dict::dict(variant key, variant value)
-    : dict()
+dict::dict(variant key, variant value) : dict()
 {
     (*this)(std::move(key), std::move(value));
 }

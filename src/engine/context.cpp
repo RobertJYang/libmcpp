@@ -16,14 +16,11 @@
 
 namespace mc::engine {
 
-context::context(service& s, abstract_object& object)
-    : m_service(s), m_object(object)
-{
-}
+context::context(service& s, abstract_object& object) : m_service(s), m_object(object)
+{}
 
 context::~context()
-{
-}
+{}
 
 mc::error_ptr context::get_error()
 {
@@ -158,8 +155,7 @@ context& context::get_current_context()
 {
     auto* ctx = context_stack::top_value();
     if (!ctx) {
-        MC_THROW(mc::method_call_exception,
-                 "context not found, maybe you are not in a method call");
+        MC_THROW(mc::method_call_exception, "context not found, maybe you are not in a method call");
     }
 
     return *ctx;

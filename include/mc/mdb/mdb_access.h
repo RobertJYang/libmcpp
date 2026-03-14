@@ -62,15 +62,11 @@ public:
      */
     static mdb_access& instance(size_t max_cache_size = 100);
 
-    std::shared_ptr<proxy_object> get_object_by_short_call(
-        mc::dbus::sd_bus*  bus,
-        const std::string& path,
-        const std::string& interface);
+    std::shared_ptr<proxy_object> get_object_by_short_call(mc::dbus::sd_bus* bus, const std::string& path,
+                                                           const std::string& interface);
 
-    std::shared_ptr<proxy_object> get_object(
-        std::shared_ptr<mc::dbus::sd_bus> bus,
-        const std::string&                path,
-        const std::string&                interface);
+    std::shared_ptr<proxy_object> get_object(std::shared_ptr<mc::dbus::sd_bus> bus, const std::string& path,
+                                             const std::string& interface);
 
     /**
      * @brief 使用指定的 service 名称获取代理对象
@@ -81,11 +77,9 @@ public:
      * @return 返回 proxy_object 的 shared_ptr
      * @note 此方法不会查找 service，直接使用提供的 service 名称，但会对 service 名称进行格式校验
      */
-    std::shared_ptr<proxy_object> get_object_with_service(
-        std::shared_ptr<mc::dbus::sd_bus> bus,
-        const std::string&                service,
-        const std::string&                path,
-        const std::string&                interface);
+    std::shared_ptr<proxy_object> get_object_with_service(std::shared_ptr<mc::dbus::sd_bus> bus,
+                                                          const std::string& service, const std::string& path,
+                                                          const std::string& interface);
 
     /**
      * @brief 获取指定路径下所有子对象的代理对象
@@ -96,11 +90,10 @@ public:
      * @return 返回 map，键为子路径字符串，值为对应的 proxy_object 的 shared_ptr
      * @note 如果某个子路径获取对象失败，会跳过该路径，不影响其他路径的处理
      */
-    std::map<std::string, std::shared_ptr<proxy_object>> get_sub_objects(
-        std::shared_ptr<mc::dbus::sd_bus> bus,
-        const std::string&                path,
-        const std::string&                interface,
-        int32_t                           depth = 1);
+    std::map<std::string, std::shared_ptr<proxy_object>> get_sub_objects(std::shared_ptr<mc::dbus::sd_bus> bus,
+                                                                         const std::string&                path,
+                                                                         const std::string&                interface,
+                                                                         int32_t                           depth = 1);
 
     /**
      * @brief 清空缓存

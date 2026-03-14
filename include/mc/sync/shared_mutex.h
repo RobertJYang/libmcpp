@@ -167,9 +167,11 @@ class basic_shared_mutex {
     static constexpr uint32_t UPGRADE_MASK = WRITER_BIT | UPGRADE_BIT | WRITER_WAITING_BIT;
 
     // wait_mask 定义：只监视特定位的变化，减少虚假唤醒
-    static constexpr uint32_t SHARED_WAIT_MASK  = WRITER_BIT | WRITER_WAITING_BIT;               // 共享锁等待：关心写位和写等待位
-    static constexpr uint32_t UPGRADE_WAIT_MASK = WRITER_BIT | UPGRADE_BIT | WRITER_WAITING_BIT; // 升级锁等待：关心写位、升级位和写等待位
-    static constexpr uint32_t WRITER_WAIT_MASK  = WRITER_BIT | READER_MASK | UPGRADE_BIT;        // 写锁等待：关心写位、读计数和升级位
+    static constexpr uint32_t SHARED_WAIT_MASK = WRITER_BIT | WRITER_WAITING_BIT; // 共享锁等待：关心写位和写等待位
+    static constexpr uint32_t UPGRADE_WAIT_MASK =
+        WRITER_BIT | UPGRADE_BIT | WRITER_WAITING_BIT; // 升级锁等待：关心写位、升级位和写等待位
+    static constexpr uint32_t WRITER_WAIT_MASK =
+        WRITER_BIT | READER_MASK | UPGRADE_BIT; // 写锁等待：关心写位、读计数和升级位
 
     static constexpr uint32_t ALL = std::numeric_limits<int>::max();
 
@@ -178,10 +180,8 @@ class basic_shared_mutex {
     using wait_for_duration_type = detail::wait_for_duration<Duration, Policy::spin_limit, Policy::yield_limit>;
 
 public:
-    basic_shared_mutex() noexcept
-        : m_state(0)
-    {
-    }
+    basic_shared_mutex() noexcept : m_state(0)
+    {}
     ~basic_shared_mutex() = default;
 
     basic_shared_mutex(const basic_shared_mutex&)            = delete;
@@ -202,9 +202,8 @@ public:
     bool try_lock() noexcept
     {
         uint32_t expected = 0;
-        if (m_state.compare_exchange_strong(
-                expected, WRITER_BIT,
-                std::memory_order_acq_rel, std::memory_order_acquire)) {
+        if (m_state.compare_exchange_strong(expected, WRITER_BIT, std::memory_order_acq_rel,
+                                            std::memory_order_acquire)) {
             return true;
         }
 
@@ -244,9 +243,8 @@ public:
         }
 
         uint32_t expected = current;
-        return m_state.compare_exchange_strong(
-            expected, current + 1,
-            std::memory_order_acq_rel, std::memory_order_acquire);
+        return m_state.compare_exchange_strong(expected, current + 1, std::memory_order_acq_rel,
+                                               std::memory_order_acquire);
     }
 
     template <typename Duration>
@@ -279,9 +277,8 @@ public:
             return false;
         }
 
-        return m_state.compare_exchange_strong(
-            current, current | UPGRADE_BIT,
-            std::memory_order_acq_rel, std::memory_order_acquire);
+        return m_state.compare_exchange_strong(current, current | UPGRADE_BIT, std::memory_order_acq_rel,
+                                               std::memory_order_acquire);
     }
 
     template <typename Duration>
@@ -320,9 +317,8 @@ public:
         // 判断是否有其他互斥的操作，如果没有尝试立即升级
         if ((current & (WRITER_BIT | WRITER_WAITING_BIT | READER_MASK)) == 0) {
             uint32_t new_state = (current & ~UPGRADE_BIT) | WRITER_BIT;
-            if (m_state.compare_exchange_strong(
-                    current, new_state,
-                    std::memory_order_acq_rel, std::memory_order_acquire)) {
+            if (m_state.compare_exchange_strong(current, new_state, std::memory_order_acq_rel,
+                                                std::memory_order_acquire)) {
                 // 升级成功，唤醒其他等待升级锁的线程
                 detail::futex_wake(&m_state, ALL, UPGRADE_BIT);
                 return true;
@@ -357,9 +353,8 @@ public:
 
         while (expected & UPGRADE_BIT) {
             uint32_t new_state = (expected & ~UPGRADE_BIT) + 1;
-            if (m_state.compare_exchange_weak(
-                    expected, new_state,
-                    std::memory_order_acq_rel, std::memory_order_acquire)) {
+            if (m_state.compare_exchange_weak(expected, new_state, std::memory_order_acq_rel,
+                                              std::memory_order_acquire)) {
                 // 降级成功，唤醒等待升级锁的线程
                 detail::futex_wake(&m_state, ALL, UPGRADE_BIT);
                 return;
@@ -379,9 +374,8 @@ public:
 
         while (expected & WRITER_BIT) {
             uint32_t new_state = (expected & ~WRITER_BIT) | UPGRADE_BIT;
-            if (m_state.compare_exchange_weak(
-                    expected, new_state,
-                    std::memory_order_acq_rel, std::memory_order_acquire)) {
+            if (m_state.compare_exchange_weak(expected, new_state, std::memory_order_acq_rel,
+                                              std::memory_order_acquire)) {
                 detail::futex_wake(&m_state, ALL, WRITER_BIT);
                 return;
             }
@@ -400,9 +394,8 @@ public:
 
         while (expected & WRITER_BIT) {
             uint32_t new_state = (expected & ~WRITER_BIT) + 1;
-            if (m_state.compare_exchange_weak(
-                    expected, new_state,
-                    std::memory_order_acq_rel, std::memory_order_acquire)) {
+            if (m_state.compare_exchange_weak(expected, new_state, std::memory_order_acq_rel,
+                                              std::memory_order_acquire)) {
                 detail::futex_wake(&m_state, ALL, WRITER_BIT);
                 return;
             }
@@ -416,8 +409,7 @@ private:
     {
         constexpr uint32_t wait_mask =
             IsUpgrade ? (WRITER_BIT | READER_MASK) : (WRITER_BIT | READER_MASK | UPGRADE_BIT);
-        constexpr uint32_t clear_mask =
-            IsUpgrade ? (UPGRADE_BIT | WRITER_WAITING_BIT) : WRITER_WAITING_BIT;
+        constexpr uint32_t clear_mask = IsUpgrade ? (UPGRADE_BIT | WRITER_WAITING_BIT) : WRITER_WAITING_BIT;
 
         uint32_t count   = 0;
         uint32_t current = m_state.load(std::memory_order_acquire);
@@ -431,11 +423,9 @@ private:
             }
 
             // 设置写等待位
-            if (!(current & WRITER_WAITING_BIT) &&
-                (count >= Policy::write_limit) &&
-                !m_state.compare_exchange_weak(
-                    current, current | WRITER_WAITING_BIT,
-                    std::memory_order_acq_rel, std::memory_order_acquire)) {
+            if (!(current & WRITER_WAITING_BIT) && (count >= Policy::write_limit) &&
+                !m_state.compare_exchange_weak(current, current | WRITER_WAITING_BIT, std::memory_order_acq_rel,
+                                               std::memory_order_acquire)) {
                 continue;
             }
 
@@ -454,9 +444,8 @@ private:
             // 清除指定位，设置写位
             uint32_t new_state = (current & ~clear_mask) | WRITER_BIT;
 
-            if (m_state.compare_exchange_strong(
-                    current, new_state,
-                    std::memory_order_acq_rel, std::memory_order_acquire)) {
+            if (m_state.compare_exchange_strong(current, new_state, std::memory_order_acq_rel,
+                                                std::memory_order_acquire)) {
                 return true; // 成功获取写锁
             }
         }
@@ -480,9 +469,8 @@ private:
             }
 
             uint32_t new_state = current + 1;
-            if (m_state.compare_exchange_strong(
-                    current, new_state,
-                    std::memory_order_acq_rel, std::memory_order_acquire)) {
+            if (m_state.compare_exchange_strong(current, new_state, std::memory_order_acq_rel,
+                                                std::memory_order_acquire)) {
                 return true;
             }
         }
@@ -500,9 +488,8 @@ private:
                 continue;
             }
 
-            if (m_state.compare_exchange_strong(
-                    current, current | UPGRADE_BIT,
-                    std::memory_order_acq_rel, std::memory_order_acquire)) {
+            if (m_state.compare_exchange_strong(current, current | UPGRADE_BIT, std::memory_order_acq_rel,
+                                                std::memory_order_acquire)) {
                 return true;
             }
         }

@@ -21,19 +21,16 @@ REGISTER_CONST_ERROR(task_state_error, "bmc.kepler.error.TaskStateError",
 } // namespace errors
 
 my_task_interface::my_task_interface()
-{
-}
+{}
 
 my_task_interface::~my_task_interface()
-{
-}
+{}
 
 void my_task_interface::start()
 {
     if (*m_state != task_state::PENDING) {
         elog("task {} is not pending", *m_name);
-        MC_REPLY_ERROR(test::errors::task_state_error,
-                       task_state::PENDING, *m_state);
+        MC_REPLY_ERROR(test::errors::task_state_error, task_state::PENDING, *m_state);
         return;
     }
 
@@ -56,8 +53,7 @@ void my_task_interface::pause()
 {
     if (*m_state != task_state::RUNNING) {
         elog("task {} is not running", *m_name);
-        MC_REPLY_ERROR(test::errors::task_state_error,
-                       task_state::RUNNING, *m_state);
+        MC_REPLY_ERROR(test::errors::task_state_error, task_state::RUNNING, *m_state);
         return;
     }
 
@@ -69,8 +65,7 @@ void my_task_interface::resume()
 {
     if (*m_state != task_state::PAUSED) {
         elog("task {} is not paused", *m_name);
-        MC_REPLY_ERROR(test::errors::task_state_error,
-                       ("expect", task_state::PAUSED)("current", *m_state));
+        MC_REPLY_ERROR(test::errors::task_state_error, ("expect", task_state::PAUSED)("current", *m_state));
         return;
     }
 
@@ -87,8 +82,7 @@ void my_task_interface::start_timer()
     }
 
     m_timer->start(mc::milliseconds(1000));
-    ilog("task {} start, current time: {}, progress: {}",
-         *m_name, mc::time_point::now(), *m_progress);
+    ilog("task {} start, current time: {}, progress: {}", *m_name, mc::time_point::now(), *m_progress);
 }
 
 void my_task_interface::create_timer()
@@ -115,8 +109,7 @@ void my_task_interface::stop_timer()
 {
     if (m_timer) {
         m_timer->stop();
-        ilog("task {} stop, current time: {}, progress: {}",
-             *m_name, mc::time_point::now(), *m_progress);
+        ilog("task {} stop, current time: {}, progress: {}", *m_name, mc::time_point::now(), *m_progress);
     }
 }
 
@@ -132,8 +125,7 @@ task_state my_task_interface::get_state()
 
 void my_task_interface::set_state(task_state state)
 {
-    ilog("task {} state from {} to {}",
-         *m_name, *m_state, state);
+    ilog("task {} state from {} to {}", *m_name, *m_state, state);
     m_state.set_value(state);
 }
 
@@ -141,14 +133,12 @@ void my_task_interface::set_state(task_state state)
 
 // 自动生成代码的反射单独放到一个模块的命名空间中
 MC_MODULE_REFLECT_ENUM(mc_task_service_gen, test::task_state, (PENDING)(RUNNING)(PAUSED)(COMPLETED)(FAILED))
-MC_MODULE_REFLECT(mc_task_service_gen, test::task_interface,
-                  (m_id, "Id")(m_name, "Name")(m_startTime, "StartTime"),
+MC_MODULE_REFLECT(mc_task_service_gen, test::task_interface, (m_id, "Id")(m_name, "Name")(m_startTime, "StartTime"),
                   (m_endTime, "EndTime")(m_progress, "Progress"),
                   (m_state, "State")(m_result, "Result")(start, "Start"),
                   (stop, "Stop")(pause, "Pause")(resume, "Resume"),
                   (get_progress, "GetProgress")(get_state, "GetState"))
-MC_MODULE_REFLECT(mc_task_service_gen, test::tasks_interface,
-                  (create_task, "CreateTask")(get_tasks, "GetTasks"))
+MC_MODULE_REFLECT(mc_task_service_gen, test::tasks_interface, (create_task, "CreateTask")(get_tasks, "GetTasks"))
 
 // 继承的接口的放在全局命名空间（这里是测试，实际使用时应该放在对应模块中，尽量不放到全局命名空间）
 MC_REFLECT(test::my_task_interface)

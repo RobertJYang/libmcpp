@@ -30,27 +30,21 @@ class abstract_object;
 
 struct metadata_visitor {
     virtual void handle_interface_begin(const interface_metadata& iface)
-    {
-    }
+    {}
     virtual void handle_interface_end(const interface_metadata& iface)
-    {
-    }
+    {}
     virtual void handle(const property_type_info* info)
-    {
-    }
+    {}
     virtual void handle(const method_type_info* info)
-    {
-    }
+    {}
     virtual void handle(const signal_type_info* info)
-    {
-    }
+    {}
 };
 
 class MC_API metadata_list {
 public:
     metadata_list() = default;
-    metadata_list(
-        std::string_view class_name, const mc::reflect::struct_metadata** obj_metadata, size_t count);
+    metadata_list(std::string_view class_name, const mc::reflect::struct_metadata** obj_metadata, size_t count);
     ~metadata_list();
 
     metadata_list(metadata_list&&) noexcept            = default;
@@ -83,10 +77,8 @@ private:
 
 struct interface_metadata {
     interface_metadata() = default;
-    interface_metadata(const property_type_info* iface, const metadata_list* md)
-        : interface(iface), metadata(md)
-    {
-    }
+    interface_metadata(const property_type_info* iface, const metadata_list* md) : interface(iface), metadata(md)
+    {}
 
     interface_metadata(const interface_metadata& other)            = default;
     interface_metadata(interface_metadata&& other)                 = default;
@@ -112,10 +104,8 @@ struct interface_item : boost::intrusive::slist_base_hook<> {
     const ReflectItem*        item{nullptr};      // interface 具体属性、方法、信号类型的元信息
 
     interface_item() = default;
-    interface_item(const property_type_info* interface, const ReflectItem* item)
-        : interface(interface), item(item)
-    {
-    }
+    interface_item(const property_type_info* interface, const ReflectItem* item) : interface(interface), item(item)
+    {}
 
     // 辅助函数：给定一个对象指针，计算当前元信息代表的属性、方法、信号在对象中的指针
     template <typename ItemType, typename ObjectType>
@@ -129,9 +119,10 @@ struct interface_item : boost::intrusive::slist_base_hook<> {
 };
 
 // 单项链表，只占一个指针大小，方便保持顺序遍历
-using property_list = mc::intrusive::slist<interface_item<property_type_info>, mc::intrusive::constant_time_size<false>>;
-using method_list   = mc::intrusive::slist<interface_item<method_type_info>, mc::intrusive::constant_time_size<false>>;
-using signal_list   = mc::intrusive::slist<interface_item<signal_type_info>, mc::intrusive::constant_time_size<false>>;
+using property_list =
+    mc::intrusive::slist<interface_item<property_type_info>, mc::intrusive::constant_time_size<false>>;
+using method_list = mc::intrusive::slist<interface_item<method_type_info>, mc::intrusive::constant_time_size<false>>;
+using signal_list = mc::intrusive::slist<interface_item<signal_type_info>, mc::intrusive::constant_time_size<false>>;
 
 struct MC_API object_metadata {
 public:
@@ -146,12 +137,12 @@ public:
 
     const metadata_list&                     get_object_metadata() const;
     const interface_type_info*               get_interface_info(std::string_view name) const;
-    const interface_item<property_type_info> get_property_info(
-        std::string_view name, std::string_view interface_name) const;
-    const interface_item<method_type_info> get_method_info(
-        std::string_view name, std::string_view interface_name) const;
-    const interface_item<signal_type_info> get_signal_info(
-        std::string_view name, std::string_view interface_name) const;
+    const interface_item<property_type_info> get_property_info(std::string_view name,
+                                                               std::string_view interface_name) const;
+    const interface_item<method_type_info>   get_method_info(std::string_view name,
+                                                             std::string_view interface_name) const;
+    const interface_item<signal_type_info>   get_signal_info(std::string_view name,
+                                                             std::string_view interface_name) const;
 
     std::vector<const interface_type_info*> get_interfaces() const;
     const property_list&                    get_propertis() const;

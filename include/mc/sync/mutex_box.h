@@ -117,43 +117,40 @@ namespace detail {
 template <typename Mutex, typename = void>
 inline constexpr bool has_lock = false;
 template <typename Mutex>
-inline constexpr bool has_lock<
-    Mutex, decltype(void(std::declval<Mutex&>().lock()))> = true;
+inline constexpr bool has_lock<Mutex, decltype(void(std::declval<Mutex&>().lock()))> = true;
 
 // 判断互斥锁是否支持共享锁
 template <typename Mutex, typename = void>
 inline constexpr bool has_shared = false;
 template <typename Mutex>
-inline constexpr bool has_shared<
-    Mutex, decltype(void(std::declval<Mutex&>().lock_shared()))> = true;
+inline constexpr bool has_shared<Mutex, decltype(void(std::declval<Mutex&>().lock_shared()))> = true;
 
 // 判断互斥锁是否支持超时独占锁
 template <typename Mutex, typename = void>
 inline constexpr bool has_try_lock_for = false;
 template <typename Mutex>
-inline constexpr bool has_try_lock_for<
-    Mutex, decltype(void(std::declval<Mutex&>().try_lock_for(std::chrono::milliseconds(1))))> = true;
+inline constexpr bool
+    has_try_lock_for<Mutex, decltype(void(std::declval<Mutex&>().try_lock_for(std::chrono::milliseconds(1))))> = true;
 
 // 判断互斥锁是否支持超时共享锁
 template <typename Mutex, typename = void>
 inline constexpr bool has_try_lock_shared_for = false;
 template <typename Mutex>
-inline constexpr bool has_try_lock_shared_for<
-    Mutex, decltype(void(std::declval<Mutex&>().try_lock_shared_for(std::chrono::milliseconds(1))))> = true;
+inline constexpr bool has_try_lock_shared_for<Mutex, decltype(void(std::declval<Mutex&>().try_lock_shared_for(
+                                                         std::chrono::milliseconds(1))))> = true;
 
 // 判断互斥锁是否支持升级锁
 template <typename Mutex, typename = void>
 inline constexpr bool has_upgrade = false;
 template <typename Mutex>
-inline constexpr bool has_upgrade<
-    Mutex, decltype(void(std::declval<Mutex&>().lock_upgrade()))> = true;
+inline constexpr bool has_upgrade<Mutex, decltype(void(std::declval<Mutex&>().lock_upgrade()))> = true;
 
 // 判断互斥锁是否支持超时升级锁
 template <typename Mutex, typename = void>
 inline constexpr bool has_try_lock_upgrade_for = false;
 template <typename Mutex>
-inline constexpr bool has_try_lock_upgrade_for<
-    Mutex, decltype(void(std::declval<Mutex&>().try_lock_upgrade_for(std::chrono::milliseconds(1))))> = true;
+inline constexpr bool has_try_lock_upgrade_for<Mutex, decltype(void(std::declval<Mutex&>().try_lock_upgrade_for(
+                                                          std::chrono::milliseconds(1))))> = true;
 
 /**
  * @brief 锁类型枚举
@@ -209,10 +206,10 @@ template <lock_type LockType, typename Mutex>
 using lock_type_t = typename lock_select<LockType, Mutex>::type;
 
 template <class BoxType, bool IsSharedLock>
-using box_data_type = std::conditional_t<
-    std::is_const_v<BoxType> || IsSharedLock,
-    typename BoxType::data_type const, // 读锁和常量数据类型不允许修改
-    typename BoxType::data_type>;      // 独占锁、写锁、升级锁以及非常量数据类型都允许修改
+using box_data_type =
+    std::conditional_t<std::is_const_v<BoxType> || IsSharedLock,
+                       typename BoxType::data_type const, // 读锁和常量数据类型不允许修改
+                       typename BoxType::data_type>; // 独占锁、写锁、升级锁以及非常量数据类型都允许修改
 
 } // namespace detail
 
@@ -233,23 +230,17 @@ public:
     /**
      * @brief 构造函数
      */
-    explicit locked_ptr(BoxType* parent)
-        : m_lock(!parent ? lock_type{} : do_lock(parent->m_mutex))
-    {
-    }
+    explicit locked_ptr(BoxType* parent) : m_lock(!parent ? lock_type{} : do_lock(parent->m_mutex))
+    {}
 
-    explicit locked_ptr(lock_type lock) noexcept
-        : m_lock(std::move(lock))
-    {
-    }
+    explicit locked_ptr(lock_type lock) noexcept : m_lock(std::move(lock))
+    {}
 
     locked_ptr(const locked_ptr&)            = delete;
     locked_ptr& operator=(const locked_ptr&) = delete;
 
-    locked_ptr(locked_ptr&& rhs) noexcept
-        : m_lock(std::move(rhs.m_lock))
-    {
-    }
+    locked_ptr(locked_ptr&& rhs) noexcept : m_lock(std::move(rhs.m_lock))
+    {}
 
     locked_ptr& operator=(locked_ptr&& rhs) noexcept
     {
@@ -265,8 +256,7 @@ public:
     ~locked_ptr()
     {
         // 升级锁需要特殊的解锁方式
-        if constexpr (LockType == detail::lock_type::upgrade ||
-                      LockType == detail::lock_type::try_upgrade) {
+        if constexpr (LockType == detail::lock_type::upgrade || LockType == detail::lock_type::try_upgrade) {
             if (m_lock && m_lock.owns_lock()) {
                 // 直接调用 unlock() 让 unique_lock 管理，但先手动解锁升级锁
                 auto* mutex_ptr = m_lock.mutex();
@@ -346,8 +336,7 @@ public:
      * 将当前的升级锁升级为写锁。如果当前有其他读锁存在，会等待直到所有读锁释放。
      */
     template <detail::lock_type L = LockType>
-    std::enable_if_t<L == detail::lock_type::upgrade,
-                     locked_ptr<BoxType, detail::lock_type::unique>>
+    std::enable_if_t<L == detail::lock_type::upgrade, locked_ptr<BoxType, detail::lock_type::unique>>
     upgrade_to_wlock() &&
     {
         if (m_lock && m_lock.owns_lock()) {
@@ -368,8 +357,7 @@ public:
      * 尝试将当前的升级锁升级为写锁。如果当前有读锁存在，立即返回失败。
      */
     template <detail::lock_type L = LockType>
-    std::enable_if_t<L == detail::lock_type::upgrade,
-                     std::optional<locked_ptr<BoxType, detail::lock_type::unique>>>
+    std::enable_if_t<L == detail::lock_type::upgrade, std::optional<locked_ptr<BoxType, detail::lock_type::unique>>>
     try_upgrade_to_wlock() &&
     {
         if (m_lock && m_lock.owns_lock()) {
@@ -387,8 +375,7 @@ public:
      * @brief 超时升级为写锁 - 仅升级锁类型可用
      */
     template <typename Duration, detail::lock_type L = LockType>
-    std::enable_if_t<L == detail::lock_type::upgrade,
-                     std::optional<locked_ptr<BoxType, detail::lock_type::unique>>>
+    std::enable_if_t<L == detail::lock_type::upgrade, std::optional<locked_ptr<BoxType, detail::lock_type::unique>>>
     try_upgrade_to_wlock_for(const Duration& timeout) &&
     {
         if (m_lock && m_lock.owns_lock()) {
@@ -409,8 +396,7 @@ public:
      * @brief 降级为读锁 - 仅升级锁类型可用
      */
     template <detail::lock_type L = LockType>
-    std::enable_if_t<L == detail::lock_type::upgrade,
-                     locked_ptr<BoxType, detail::lock_type::shared>>
+    std::enable_if_t<L == detail::lock_type::upgrade, locked_ptr<BoxType, detail::lock_type::shared>>
     downgrade_to_rlock() &&
     {
         if (m_lock) {
@@ -426,8 +412,7 @@ public:
      * @brief 降级为读锁 - 仅写锁类型可用
      */
     template <detail::lock_type L = LockType>
-    std::enable_if_t<L == detail::lock_type::unique,
-                     locked_ptr<BoxType, detail::lock_type::shared>>
+    std::enable_if_t<L == detail::lock_type::unique, locked_ptr<BoxType, detail::lock_type::shared>>
     downgrade_to_rlock() &&
     {
         if (m_lock) {
@@ -443,8 +428,7 @@ public:
      * @brief 降级为升级锁 - 仅写锁类型可用
      */
     template <detail::lock_type L = LockType>
-    std::enable_if_t<L == detail::lock_type::unique,
-                     locked_ptr<BoxType, detail::lock_type::upgrade>>
+    std::enable_if_t<L == detail::lock_type::unique, locked_ptr<BoxType, detail::lock_type::upgrade>>
     downgrade_to_ulock() &&
     {
         if (m_lock) {
@@ -542,10 +526,7 @@ private:
     // 用于禁用拷贝构造和赋值的辅助类型
     class non_implemented_type;
 
-    using box_param_type = std::conditional_t<
-        std::is_copy_constructible_v<T>,
-        const mutex_box&,
-        non_implemented_type>;
+    using box_param_type = std::conditional_t<std::is_copy_constructible_v<T>, const mutex_box&, non_implemented_type>;
 
     using data_traits      = mc::traits::property_traits<T>;
     using data_param_type  = typename data_traits::param_type;
@@ -583,56 +564,41 @@ public:
      */
     /* implicit */ mutex_box(box_param_type rhs) /* may throw */
         : mutex_box(rhs.copy())
-    {
-    }
+    {}
 
     /**
      * @brief 移动构造函数
      */
-    mutex_box(mutex_box&& rhs) noexcept(has_move_ctor)
-        : mutex_box(std::move(rhs.m_data))
-    {
-    }
+    mutex_box(mutex_box&& rhs) noexcept(has_move_ctor) : mutex_box(std::move(rhs.m_data))
+    {}
 
     /**
      * @brief 从数据拷贝构造
      */
-    explicit mutex_box(const T& rhs) noexcept(has_copy_ctor)
-        : m_data(rhs)
-    {
-    }
+    explicit mutex_box(const T& rhs) noexcept(has_copy_ctor) : m_data(rhs)
+    {}
 
     /**
      * @brief 从数据移动构造
      */
-    explicit mutex_box(T&& rhs) noexcept(has_move_ctor)
-        : m_data(std::move(rhs))
-    {
-    }
+    explicit mutex_box(T&& rhs) noexcept(has_move_ctor) : m_data(std::move(rhs))
+    {}
 
     /**
      * @brief 原地构造
      */
     template <typename... Args>
-    explicit constexpr mutex_box(std::in_place_t, Args&&... args)
-        : m_data(std::forward<Args>(args)...)
-    {
-    }
+    explicit constexpr mutex_box(std::in_place_t, Args&&... args) : m_data(std::forward<Args>(args)...)
+    {}
 
     /**
      * @brief 分别构造数据和互斥锁
      */
     template <typename... DataArgs, typename... MutexArgs>
-    mutex_box(std::piecewise_construct_t,
-              std::tuple<DataArgs...>  data_args,
-              std::tuple<MutexArgs...> mutex_args)
-        : mutex_box{std::piecewise_construct,
-                    std::move(data_args),
-                    std::move(mutex_args),
-                    std::make_index_sequence<sizeof...(DataArgs)>{},
-                    std::make_index_sequence<sizeof...(MutexArgs)>{}}
-    {
-    }
+    mutex_box(std::piecewise_construct_t, std::tuple<DataArgs...> data_args, std::tuple<MutexArgs...> mutex_args)
+        : mutex_box{std::piecewise_construct, std::move(data_args), std::move(mutex_args),
+                    std::make_index_sequence<sizeof...(DataArgs)>{}, std::make_index_sequence<sizeof...(MutexArgs)>{}}
+    {}
 
     /**
      * @brief 拷贝赋值运算符
@@ -677,14 +643,12 @@ public:
     /**
      * @brief 获取写锁（独占锁）
      */
-    template <typename M                                 = Mutex,
-              std::enable_if_t<detail::has_lock<M>, int> = 0>
+    template <typename M = Mutex, std::enable_if_t<detail::has_lock<M>, int> = 0>
     auto wlock()
     {
         return w_locked_ptr(this);
     }
-    template <typename M                                 = Mutex,
-              std::enable_if_t<detail::has_lock<M>, int> = 0>
+    template <typename M = Mutex, std::enable_if_t<detail::has_lock<M>, int> = 0>
     auto wlock() const
     {
         return const_w_locked_ptr(this);
@@ -693,14 +657,12 @@ public:
     /**
      * @brief 尝试获取写锁
      */
-    template <typename M                                 = Mutex,
-              std::enable_if_t<detail::has_lock<M>, int> = 0>
+    template <typename M = Mutex, std::enable_if_t<detail::has_lock<M>, int> = 0>
     auto try_wlock()
     {
         return try_w_locked_ptr{this};
     }
-    template <typename M                                 = Mutex,
-              std::enable_if_t<detail::has_lock<M>, int> = 0>
+    template <typename M = Mutex, std::enable_if_t<detail::has_lock<M>, int> = 0>
     auto try_wlock() const
     {
         return const_try_w_locked_ptr{this};
@@ -709,14 +671,12 @@ public:
     /**
      * @brief 通用锁定方法（根据互斥锁能力选择写锁）
      */
-    template <typename M                                 = Mutex,
-              std::enable_if_t<detail::has_lock<M>, int> = 0>
+    template <typename M = Mutex, std::enable_if_t<detail::has_lock<M>, int> = 0>
     auto lock()
     {
         return wlock<M>();
     }
-    template <typename M                                 = Mutex,
-              std::enable_if_t<detail::has_lock<M>, int> = 0>
+    template <typename M = Mutex, std::enable_if_t<detail::has_lock<M>, int> = 0>
     auto lock() const
     {
         return wlock<M>();
@@ -725,14 +685,12 @@ public:
     /**
      * @brief 通用尝试锁定方法
      */
-    template <typename M                                 = Mutex,
-              std::enable_if_t<detail::has_lock<M>, int> = 0>
+    template <typename M = Mutex, std::enable_if_t<detail::has_lock<M>, int> = 0>
     auto try_lock()
     {
         return try_wlock<M>();
     }
-    template <typename M                                 = Mutex,
-              std::enable_if_t<detail::has_lock<M>, int> = 0>
+    template <typename M = Mutex, std::enable_if_t<detail::has_lock<M>, int> = 0>
     auto try_lock() const
     {
         return try_wlock<M>();
@@ -741,14 +699,12 @@ public:
     /**
      * @brief 在写锁保护下执行函数
      */
-    template <class Function, typename M = Mutex,
-              std::enable_if_t<detail::has_lock<M>, int> = 0>
+    template <class Function, typename M = Mutex, std::enable_if_t<detail::has_lock<M>, int> = 0>
     auto with_wlock(Function&& function)
     {
         return function(*wlock<M>());
     }
-    template <class Function, typename M = Mutex,
-              std::enable_if_t<detail::has_lock<M>, int> = 0>
+    template <class Function, typename M = Mutex, std::enable_if_t<detail::has_lock<M>, int> = 0>
     auto with_wlock(Function&& function) const
     {
         return function(*wlock<M>());
@@ -757,14 +713,12 @@ public:
     /**
      * @brief 在写锁保护下执行函数（传递locked_ptr）
      */
-    template <class Function, typename M = Mutex,
-              std::enable_if_t<detail::has_lock<M>, int> = 0>
+    template <class Function, typename M = Mutex, std::enable_if_t<detail::has_lock<M>, int> = 0>
     auto with_wlock_ptr(Function&& function)
     {
         return function(wlock<M>());
     }
-    template <class Function, typename M = Mutex,
-              std::enable_if_t<detail::has_lock<M>, int> = 0>
+    template <class Function, typename M = Mutex, std::enable_if_t<detail::has_lock<M>, int> = 0>
     auto with_wlock_ptr(Function&& function) const
     {
         return function(wlock<M>());
@@ -773,14 +727,12 @@ public:
     /**
      * @brief 在锁保护下执行函数
      */
-    template <class Function, typename M = Mutex,
-              std::enable_if_t<detail::has_lock<M>, int> = 0>
+    template <class Function, typename M = Mutex, std::enable_if_t<detail::has_lock<M>, int> = 0>
     auto with_lock(Function&& function)
     {
         return function(*lock<M>());
     }
-    template <class Function, typename M = Mutex,
-              std::enable_if_t<detail::has_lock<M>, int> = 0>
+    template <class Function, typename M = Mutex, std::enable_if_t<detail::has_lock<M>, int> = 0>
     auto with_lock(Function&& function) const
     {
         return function(*lock<M>());
@@ -789,14 +741,12 @@ public:
     /**
      * @brief 在锁保护下执行函数（传递locked_ptr）
      */
-    template <class Function, typename M = Mutex,
-              std::enable_if_t<detail::has_lock<M>, int> = 0>
+    template <class Function, typename M = Mutex, std::enable_if_t<detail::has_lock<M>, int> = 0>
     auto with_lock_ptr(Function&& function)
     {
         return function(lock<M>());
     }
-    template <class Function, typename M = Mutex,
-              std::enable_if_t<detail::has_lock<M>, int> = 0>
+    template <class Function, typename M = Mutex, std::enable_if_t<detail::has_lock<M>, int> = 0>
     auto with_lock_ptr(Function&& function) const
     {
         return function(lock<M>());
@@ -805,15 +755,13 @@ public:
     /**
      * @brief 获取读锁（共享锁）- 仅当互斥锁支持时可用
      */
-    template <typename M                                   = Mutex,
-              std::enable_if_t<detail::has_shared<M>, int> = 0>
+    template <typename M = Mutex, std::enable_if_t<detail::has_shared<M>, int> = 0>
     auto rlock()
     {
         return r_locked_ptr(this);
     }
 
-    template <typename M                                   = Mutex,
-              std::enable_if_t<detail::has_shared<M>, int> = 0>
+    template <typename M = Mutex, std::enable_if_t<detail::has_shared<M>, int> = 0>
     auto rlock() const
     {
         return const_r_locked_ptr(this);
@@ -822,15 +770,13 @@ public:
     /**
      * @brief 尝试获取读锁 - 仅当互斥锁支持时可用
      */
-    template <typename M                                   = Mutex,
-              std::enable_if_t<detail::has_shared<M>, int> = 0>
+    template <typename M = Mutex, std::enable_if_t<detail::has_shared<M>, int> = 0>
     auto try_rlock()
     {
         return try_r_locked_ptr(this);
     }
 
-    template <typename M                                   = Mutex,
-              std::enable_if_t<detail::has_shared<M>, int> = 0>
+    template <typename M = Mutex, std::enable_if_t<detail::has_shared<M>, int> = 0>
     auto try_rlock() const
     {
         return const_try_r_locked_ptr(this);
@@ -914,8 +860,7 @@ public:
     /**
      * @brief 在读锁保护下执行函数 - 仅当互斥锁支持时可用
      */
-    template <class Function, typename M = Mutex,
-              std::enable_if_t<detail::has_shared<M>, int> = 0>
+    template <class Function, typename M = Mutex, std::enable_if_t<detail::has_shared<M>, int> = 0>
     auto with_rlock(Function&& function) const
     {
         return function(*rlock<M>());
@@ -924,15 +869,13 @@ public:
     /**
      * @brief 在读锁保护下执行函数（传递locked_ptr）- 仅当互斥锁支持时可用
      */
-    template <class Function, typename M = Mutex,
-              std::enable_if_t<detail::has_shared<M>, int> = 0>
+    template <class Function, typename M = Mutex, std::enable_if_t<detail::has_shared<M>, int> = 0>
     auto with_rlock_ptr(Function&& function)
     {
         return function(rlock<M>());
     }
 
-    template <class Function, typename M = Mutex,
-              std::enable_if_t<detail::has_shared<M>, int> = 0>
+    template <class Function, typename M = Mutex, std::enable_if_t<detail::has_shared<M>, int> = 0>
     auto with_rlock_ptr(Function&& function) const
     {
         return function(rlock<M>());
@@ -944,15 +887,13 @@ public:
      * 升级锁允许持有者稍后升级为写锁，避免了多个读锁同时升级的死锁问题。
      * 同一时间只能有一个线程持有升级锁，但可以与读锁共存。
      */
-    template <typename M                                    = Mutex,
-              std::enable_if_t<detail::has_upgrade<M>, int> = 0>
+    template <typename M = Mutex, std::enable_if_t<detail::has_upgrade<M>, int> = 0>
     auto ulock()
     {
         return u_locked_ptr(this);
     }
 
-    template <typename M                                    = Mutex,
-              std::enable_if_t<detail::has_upgrade<M>, int> = 0>
+    template <typename M = Mutex, std::enable_if_t<detail::has_upgrade<M>, int> = 0>
     auto ulock() const
     {
         return const_u_locked_ptr(this);
@@ -961,15 +902,13 @@ public:
     /**
      * @brief 尝试获取升级锁 - 仅当互斥锁支持时可用
      */
-    template <typename M                                    = Mutex,
-              std::enable_if_t<detail::has_upgrade<M>, int> = 0>
+    template <typename M = Mutex, std::enable_if_t<detail::has_upgrade<M>, int> = 0>
     auto try_ulock()
     {
         return try_u_locked_ptr(this);
     }
 
-    template <typename M                                    = Mutex,
-              std::enable_if_t<detail::has_upgrade<M>, int> = 0>
+    template <typename M = Mutex, std::enable_if_t<detail::has_upgrade<M>, int> = 0>
     auto try_ulock() const
     {
         return const_try_u_locked_ptr(this);
@@ -989,8 +928,7 @@ public:
             lock = std::unique_lock<M>(m_mutex, std::adopt_lock);
             return ::mc::sync::locked_ptr<mutex_box, detail::lock_type::upgrade>(std::move(lock));
         }
-        return ::mc::sync::locked_ptr<mutex_box, detail::lock_type::upgrade>(
-            std::unique_lock<M>{}); // 空锁
+        return ::mc::sync::locked_ptr<mutex_box, detail::lock_type::upgrade>(std::unique_lock<M>{}); // 空锁
     }
 
     template <typename Duration, typename M = Mutex,
@@ -1004,22 +942,19 @@ public:
             lock = std::unique_lock<M>(m_mutex, std::adopt_lock);
             return ::mc::sync::locked_ptr<const mutex_box, detail::lock_type::upgrade>(std::move(lock));
         }
-        return ::mc::sync::locked_ptr<const mutex_box, detail::lock_type::upgrade>(
-            std::unique_lock<M>{}); // 空锁
+        return ::mc::sync::locked_ptr<const mutex_box, detail::lock_type::upgrade>(std::unique_lock<M>{}); // 空锁
     }
 
     /**
      * @brief 在升级锁保护下执行函数 - 仅当互斥锁支持时可用
      */
-    template <class Function, typename M = Mutex,
-              std::enable_if_t<detail::has_upgrade<M>, int> = 0>
+    template <class Function, typename M = Mutex, std::enable_if_t<detail::has_upgrade<M>, int> = 0>
     auto with_ulock(Function&& function)
     {
         return function(*ulock<M>());
     }
 
-    template <class Function, typename M = Mutex,
-              std::enable_if_t<detail::has_upgrade<M>, int> = 0>
+    template <class Function, typename M = Mutex, std::enable_if_t<detail::has_upgrade<M>, int> = 0>
     auto with_ulock(Function&& function) const
     {
         return function(*ulock<M>());
@@ -1028,15 +963,13 @@ public:
     /**
      * @brief 在升级锁保护下执行函数（传递locked_ptr）- 仅当互斥锁支持时可用
      */
-    template <class Function, typename M = Mutex,
-              std::enable_if_t<detail::has_upgrade<M>, int> = 0>
+    template <class Function, typename M = Mutex, std::enable_if_t<detail::has_upgrade<M>, int> = 0>
     auto with_ulock_ptr(Function&& function)
     {
         return function(ulock<M>());
     }
 
-    template <class Function, typename M = Mutex,
-              std::enable_if_t<detail::has_upgrade<M>, int> = 0>
+    template <class Function, typename M = Mutex, std::enable_if_t<detail::has_upgrade<M>, int> = 0>
     auto with_ulock_ptr(Function&& function) const
     {
         return function(ulock<M>());
@@ -1131,17 +1064,11 @@ private:
     template <typename BoxType, detail::lock_type LockType>
     friend class ::mc::sync::locked_ptr;
 
-    template <typename... DataArgs, typename... MutexArgs,
-              std::size_t... IndicesOne, std::size_t... IndicesTwo>
-    mutex_box(std::piecewise_construct_t,
-              std::tuple<DataArgs...>  data_args,
-              std::tuple<MutexArgs...> mutex_args,
-              std::index_sequence<IndicesOne...>,
-              std::index_sequence<IndicesTwo...>)
-        : m_data{std::get<IndicesOne>(std::move(data_args))...},
-          m_mutex{std::get<IndicesTwo>(std::move(mutex_args))...}
-    {
-    }
+    template <typename... DataArgs, typename... MutexArgs, std::size_t... IndicesOne, std::size_t... IndicesTwo>
+    mutex_box(std::piecewise_construct_t, std::tuple<DataArgs...> data_args, std::tuple<MutexArgs...> mutex_args,
+              std::index_sequence<IndicesOne...>, std::index_sequence<IndicesTwo...>)
+        : m_data{std::get<IndicesOne>(std::move(data_args))...}, m_mutex{std::get<IndicesTwo>(std::move(mutex_args))...}
+    {}
 
     // 模拟成员布局用于标准布局的 offsetof 计算
     struct simul_t {
@@ -1157,8 +1084,7 @@ private:
 
     static mutex_box* to_box_ptr(void* mutex)
     {
-        static_assert(
-            sizeof(simul_t) == sizeof(mutex_box) && alignof(simul_t) == alignof(mutex_box), "mismatch");
+        static_assert(sizeof(simul_t) == sizeof(mutex_box) && alignof(simul_t) == alignof(mutex_box), "mismatch");
         auto       off = offsetof(simul_t, m_mutex);
         const auto raw = reinterpret_cast<char*>(mutex);
         return reinterpret_cast<mutex_box*>(raw - (raw ? off : 0));
@@ -1190,9 +1116,7 @@ auto lock_pair(Box1& box1, Box2& box2)
 
     std::lock(lock1, lock2);
 
-    return std::make_pair(
-        typename Box1::w_locked_ptr(std::move(lock1)),
-        typename Box2::w_locked_ptr(std::move(lock2)));
+    return std::make_pair(typename Box1::w_locked_ptr(std::move(lock1)), typename Box2::w_locked_ptr(std::move(lock2)));
 }
 
 /**
@@ -1214,16 +1138,15 @@ auto lock(Boxes&... boxes)
 {
     static_assert(sizeof...(Boxes) > 0, "至少需要一个 mutex_box");
 
-    auto locks = std::make_tuple(
-        std::unique_lock<typename Boxes::mutex_type>(boxes.unsafe_get_mutex(), std::defer_lock)...);
+    auto locks =
+        std::make_tuple(std::unique_lock<typename Boxes::mutex_type>(boxes.unsafe_get_mutex(), std::defer_lock)...);
 
     std::apply([](auto&... lock_refs) {
         std::lock(lock_refs...);
     }, locks);
 
     return std::apply([](auto&&... lock_refs) {
-        return std::make_tuple(
-            typename Boxes::w_locked_ptr(std::move(lock_refs))...);
+        return std::make_tuple(typename Boxes::w_locked_ptr(std::move(lock_refs))...);
     }, std::move(locks));
 }
 } // namespace mc::sync

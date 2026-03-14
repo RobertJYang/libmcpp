@@ -66,8 +66,7 @@ public:
 
 class QueryTestObjectB : public mc::engine::object<QueryTestObjectB> {
 public:
-    MC_OBJECT(QueryTestObjectB, "QueryTestObjectB", "/org/openubmc/query_test_object_b",
-              (QueryTestInterfaceA))
+    MC_OBJECT(QueryTestObjectB, "QueryTestObjectB", "/org/openubmc/query_test_object_b", (QueryTestInterfaceA))
 
     void init()
     {
@@ -79,8 +78,7 @@ public:
 
 class QueryTestObjectC : public mc::engine::object<QueryTestObjectC> {
 public:
-    MC_OBJECT(QueryTestObjectC, "QueryTestObjectC", "/org/openubmc/query_test_object_c",
-              (QueryTestInterfaceC))
+    MC_OBJECT(QueryTestObjectC, "QueryTestObjectC", "/org/openubmc/query_test_object_c", (QueryTestInterfaceC))
 
     void init()
     {
@@ -93,8 +91,8 @@ public:
 // 子对象用于测试路径查询
 class QueryTestObjectChild : public mc::engine::object<QueryTestObjectChild> {
 public:
-    MC_OBJECT(QueryTestObjectChild, "QueryTestObjectChild",
-              "/org/openubmc/query_test_object_a/child", (QueryTestInterfaceA))
+    MC_OBJECT(QueryTestObjectChild, "QueryTestObjectChild", "/org/openubmc/query_test_object_a/child",
+              (QueryTestInterfaceA))
 
     void init()
     {
@@ -115,10 +113,8 @@ MC_REFLECT(QueryTestObjectChild, ((m_iface_a, "InterfaceA")))
 
 // 测试服务
 struct query_test_service_1 : public mc::engine::service {
-    query_test_service_1()
-        : mc::engine::service("org.openubmc.query_test_service_1")
-    {
-    }
+    query_test_service_1() : mc::engine::service("org.openubmc.query_test_service_1")
+    {}
 
     bool init(mc::dict args = {}) override
     {
@@ -150,10 +146,8 @@ struct query_test_service_1 : public mc::engine::service {
 };
 
 struct query_test_service_2 : public mc::engine::service {
-    query_test_service_2()
-        : mc::engine::service("org.openubmc.query_test_service_2")
-    {
-    }
+    query_test_service_2() : mc::engine::service("org.openubmc.query_test_service_2")
+    {}
 
     bool init(mc::dict args = {}) override
     {
@@ -218,11 +212,11 @@ protected:
 };
 
 // 共享内存/MDB 未填充时（如 ENABLE_CONAN_COMPILE=0、mock 或 stub 构建）跳过依赖预置数据的用例
-#define SKIP_IF_SHM_NOT_POPULATED()                                                      \
-    do {                                                                                 \
-        if (mc::dbus::shm_tree::get_mdb_service_names().empty()) {                       \
-            GTEST_SKIP() << "Shared memory/MDB not populated, skip test requiring data"; \
-        }                                                                                \
+#define SKIP_IF_SHM_NOT_POPULATED()                                                                                    \
+    do {                                                                                                               \
+        if (mc::dbus::shm_tree::get_mdb_service_names().empty()) {                                                     \
+            GTEST_SKIP() << "Shared memory/MDB not populated, skip test requiring data";                               \
+        }                                                                                                              \
     } while (0)
 
 // ========== call_shm_get_property 测试 ==========
@@ -230,9 +224,9 @@ TEST_F(ShmTreeQueryTest, call_shm_get_property_success)
 {
     std::optional<mc::variant> result;
     try {
-        result = mc::dbus::shm_tree::call_shm_get_property(
-            "org.openubmc.query_test_service_1", "/org/openubmc/query_test_object_a",
-            "org.openubmc.query_test_interface_a", "Prop1");
+        result = mc::dbus::shm_tree::call_shm_get_property("org.openubmc.query_test_service_1",
+                                                           "/org/openubmc/query_test_object_a",
+                                                           "org.openubmc.query_test_interface_a", "Prop1");
     } catch (const std::exception& e) {
         if (std::string(e.what()).find("failed to find") != std::string::npos) {
             GTEST_SKIP() << "SHM not populated: " << e.what();
@@ -247,9 +241,9 @@ TEST_F(ShmTreeQueryTest, call_shm_get_property_string_value)
 {
     std::optional<mc::variant> result;
     try {
-        result = mc::dbus::shm_tree::call_shm_get_property(
-            "org.openubmc.query_test_service_1", "/org/openubmc/query_test_object_a",
-            "org.openubmc.query_test_interface_a", "Prop2");
+        result = mc::dbus::shm_tree::call_shm_get_property("org.openubmc.query_test_service_1",
+                                                           "/org/openubmc/query_test_object_a",
+                                                           "org.openubmc.query_test_interface_a", "Prop2");
     } catch (const std::exception& e) {
         if (std::string(e.what()).find("failed to find") != std::string::npos) {
             GTEST_SKIP() << "SHM not populated: " << e.what();
@@ -264,9 +258,9 @@ TEST_F(ShmTreeQueryTest, call_shm_get_property_bool_value)
 {
     std::optional<mc::variant> result;
     try {
-        result = mc::dbus::shm_tree::call_shm_get_property(
-            "org.openubmc.query_test_service_1", "/org/openubmc/query_test_object_a",
-            "org.openubmc.query_test_interface_a", "Prop3");
+        result = mc::dbus::shm_tree::call_shm_get_property("org.openubmc.query_test_service_1",
+                                                           "/org/openubmc/query_test_object_a",
+                                                           "org.openubmc.query_test_interface_a", "Prop3");
     } catch (const std::exception& e) {
         if (std::string(e.what()).find("failed to find") != std::string::npos) {
             GTEST_SKIP() << "SHM not populated: " << e.what();
@@ -280,9 +274,9 @@ TEST_F(ShmTreeQueryTest, call_shm_get_property_bool_value)
 TEST_F(ShmTreeQueryTest, call_shm_get_property_not_found)
 {
     try {
-        (void)mc::dbus::shm_tree::call_shm_get_property(
-            "org.openubmc.query_test_service_1", "/org/openubmc/query_test_object_a",
-            "org.openubmc.query_test_interface_a", "NonExistentProp");
+        (void)mc::dbus::shm_tree::call_shm_get_property("org.openubmc.query_test_service_1",
+                                                        "/org/openubmc/query_test_object_a",
+                                                        "org.openubmc.query_test_interface_a", "NonExistentProp");
     } catch (const std::exception& e) {
         if (std::string(e.what()).find("failed to find") != std::string::npos) {
             GTEST_SKIP() << "SHM not populated: " << e.what();
@@ -294,9 +288,8 @@ TEST_F(ShmTreeQueryTest, call_shm_get_property_not_found)
 TEST_F(ShmTreeQueryTest, call_shm_get_property_invalid_path)
 {
     try {
-        (void)mc::dbus::shm_tree::call_shm_get_property(
-            "org.openubmc.query_test_service_1", "/invalid/path",
-            "org.openubmc.query_test_interface_a", "Prop1");
+        (void)mc::dbus::shm_tree::call_shm_get_property("org.openubmc.query_test_service_1", "/invalid/path",
+                                                        "org.openubmc.query_test_interface_a", "Prop1");
     } catch (const std::exception& e) {
         if (std::string(e.what()).find("failed to find") != std::string::npos) {
             GTEST_SKIP() << "SHM not populated: " << e.what();
@@ -309,9 +302,9 @@ TEST_F(ShmTreeQueryTest, call_shm_get_property_invalid_path)
 TEST_F(ShmTreeQueryTest, call_shm_get_all_properties_success)
 {
     SKIP_IF_SHM_NOT_POPULATED();
-    auto result = mc::dbus::shm_tree::call_shm_get_all_properties(
-        "org.openubmc.query_test_service_1", "/org/openubmc/query_test_object_a",
-        "org.openubmc.query_test_interface_a");
+    auto result = mc::dbus::shm_tree::call_shm_get_all_properties("org.openubmc.query_test_service_1",
+                                                                  "/org/openubmc/query_test_object_a",
+                                                                  "org.openubmc.query_test_interface_a");
     ASSERT_TRUE(result.has_value());
     auto props = result.value();
     ASSERT_TRUE(props.contains("Prop1"));
@@ -325,9 +318,9 @@ TEST_F(ShmTreeQueryTest, call_shm_get_all_properties_success)
 TEST_F(ShmTreeQueryTest, call_shm_get_all_properties_interface_b)
 {
     SKIP_IF_SHM_NOT_POPULATED();
-    auto result = mc::dbus::shm_tree::call_shm_get_all_properties(
-        "org.openubmc.query_test_service_1", "/org/openubmc/query_test_object_a",
-        "org.openubmc.query_test_interface_b");
+    auto result = mc::dbus::shm_tree::call_shm_get_all_properties("org.openubmc.query_test_service_1",
+                                                                  "/org/openubmc/query_test_object_a",
+                                                                  "org.openubmc.query_test_interface_b");
     ASSERT_TRUE(result.has_value());
     auto props = result.value();
     ASSERT_TRUE(props.contains("Count"));
@@ -339,8 +332,7 @@ TEST_F(ShmTreeQueryTest, call_shm_get_all_properties_interface_b)
 TEST_F(ShmTreeQueryTest, call_shm_get_all_properties_invalid_interface)
 {
     auto result = mc::dbus::shm_tree::call_shm_get_all_properties(
-        "org.openubmc.query_test_service_1", "/org/openubmc/query_test_object_a",
-        "org.openubmc.invalid_interface");
+        "org.openubmc.query_test_service_1", "/org/openubmc/query_test_object_a", "org.openubmc.invalid_interface");
     // 接口不存在时可能返回 nullopt
 }
 
@@ -353,8 +345,8 @@ TEST_F(ShmTreeQueryTest, call_shm_get_properties_by_names_success)
     prop_names.push_back(mc::variant("Prop2"));
 
     auto result = mc::dbus::shm_tree::call_shm_get_properties_by_names(
-        "org.openubmc.query_test_service_1", "/org/openubmc/query_test_object_a",
-        "org.openubmc.query_test_interface_a", prop_names);
+        "org.openubmc.query_test_service_1", "/org/openubmc/query_test_object_a", "org.openubmc.query_test_interface_a",
+        prop_names);
     ASSERT_TRUE(result.has_value());
     ASSERT_EQ(result->size(), 2U);
 
@@ -375,8 +367,8 @@ TEST_F(ShmTreeQueryTest, call_shm_get_properties_by_names_partial)
     prop_names.push_back(mc::variant("NonExistentProp"));
 
     auto result = mc::dbus::shm_tree::call_shm_get_properties_by_names(
-        "org.openubmc.query_test_service_1", "/org/openubmc/query_test_object_a",
-        "org.openubmc.query_test_interface_a", prop_names);
+        "org.openubmc.query_test_service_1", "/org/openubmc/query_test_object_a", "org.openubmc.query_test_interface_a",
+        prop_names);
     // 部分属性不存在时，可能返回 nullopt 或包含错误信息
 }
 
@@ -387,8 +379,7 @@ TEST_F(ShmTreeQueryTest, get_mdb_object_success)
     mc::variants interfaces;
     interfaces.push_back(mc::variant("org.openubmc.query_test_interface_a"));
 
-    auto result = mc::dbus::shm_tree::get_mdb_object(
-        "/org/openubmc/query_test_object_a", interfaces);
+    auto result = mc::dbus::shm_tree::get_mdb_object("/org/openubmc/query_test_object_a", interfaces);
     ASSERT_TRUE(result.has_value());
     auto result_dict = result.value();
     ASSERT_FALSE(result_dict.empty());
@@ -401,8 +392,7 @@ TEST_F(ShmTreeQueryTest, get_mdb_object_multiple_interfaces)
     interfaces.push_back(mc::variant("org.openubmc.query_test_interface_a"));
     interfaces.push_back(mc::variant("org.openubmc.query_test_interface_b"));
 
-    auto result = mc::dbus::shm_tree::get_mdb_object(
-        "/org/openubmc/query_test_object_a", interfaces);
+    auto result = mc::dbus::shm_tree::get_mdb_object("/org/openubmc/query_test_object_a", interfaces);
     ASSERT_TRUE(result.has_value());
 }
 
@@ -420,8 +410,8 @@ TEST_F(ShmTreeQueryTest, get_mdb_sub_paths_success)
 {
     mc::variants interfaces; // 空数组表示不过滤接口
 
-    auto result = mc::dbus::shm_tree::get_mdb_sub_paths(
-        "/org/openubmc/query_test_object_a", 1, interfaces, 0, 0, false);
+    auto result =
+        mc::dbus::shm_tree::get_mdb_sub_paths("/org/openubmc/query_test_object_a", 1, interfaces, 0, 0, false);
     ASSERT_TRUE(result.has_value());
     // 应该包含子路径
 }
@@ -430,8 +420,7 @@ TEST_F(ShmTreeQueryTest, get_mdb_sub_paths_with_depth)
 {
     mc::variants interfaces;
 
-    auto result = mc::dbus::shm_tree::get_mdb_sub_paths(
-        "/org/openubmc", 2, interfaces, 0, 0, false);
+    auto result = mc::dbus::shm_tree::get_mdb_sub_paths("/org/openubmc", 2, interfaces, 0, 0, false);
     ASSERT_TRUE(result.has_value());
 }
 
@@ -439,8 +428,7 @@ TEST_F(ShmTreeQueryTest, get_mdb_sub_paths_with_paging)
 {
     mc::variants interfaces;
 
-    auto result = mc::dbus::shm_tree::get_mdb_sub_paths(
-        "/org/openubmc", 2, interfaces, 0, 1, false);
+    auto result = mc::dbus::shm_tree::get_mdb_sub_paths("/org/openubmc", 2, interfaces, 0, 1, false);
     ASSERT_TRUE(result.has_value());
     ASSERT_LE(result->size(), 1U);
 }
@@ -450,8 +438,7 @@ TEST_F(ShmTreeQueryTest, get_mdb_sub_paths_with_interface_filter)
     mc::variants interfaces;
     interfaces.push_back(mc::variant("org.openubmc.query_test_interface_a"));
 
-    auto result = mc::dbus::shm_tree::get_mdb_sub_paths(
-        "/org/openubmc", 2, interfaces, 0, 0, false);
+    auto result = mc::dbus::shm_tree::get_mdb_sub_paths("/org/openubmc", 2, interfaces, 0, 0, false);
     ASSERT_TRUE(result.has_value());
 }
 
@@ -459,8 +446,7 @@ TEST_F(ShmTreeQueryTest, get_mdb_sub_paths_with_interface_filter)
 TEST_F(ShmTreeQueryTest, is_valid_mdb_path_valid)
 {
     SKIP_IF_SHM_NOT_POPULATED();
-    bool result = mc::dbus::shm_tree::is_valid_mdb_path(
-        "/org/openubmc/query_test_object_a", false);
+    bool result = mc::dbus::shm_tree::is_valid_mdb_path("/org/openubmc/query_test_object_a", false);
     ASSERT_TRUE(result);
 }
 
@@ -472,8 +458,7 @@ TEST_F(ShmTreeQueryTest, is_valid_mdb_path_invalid)
 
 TEST_F(ShmTreeQueryTest, is_valid_mdb_path_ignore_case)
 {
-    bool result = mc::dbus::shm_tree::is_valid_mdb_path(
-        "/ORG/OPENUBMC/QUERY_TEST_OBJECT_A", true);
+    bool result = mc::dbus::shm_tree::is_valid_mdb_path("/ORG/OPENUBMC/QUERY_TEST_OBJECT_A", true);
     // 忽略大小写时应该能找到
 }
 
@@ -481,15 +466,13 @@ TEST_F(ShmTreeQueryTest, is_valid_mdb_path_ignore_case)
 TEST_F(ShmTreeQueryTest, get_mdb_interface_owners_success)
 {
     SKIP_IF_SHM_NOT_POPULATED();
-    auto result = mc::dbus::shm_tree::get_mdb_interface_owners(
-        "org.openubmc.query_test_interface_a");
+    auto result = mc::dbus::shm_tree::get_mdb_interface_owners("org.openubmc.query_test_interface_a");
     ASSERT_FALSE(result.empty());
 }
 
 TEST_F(ShmTreeQueryTest, get_mdb_interface_owners_not_found)
 {
-    auto result = mc::dbus::shm_tree::get_mdb_interface_owners(
-        "org.openubmc.non_existent_interface");
+    auto result = mc::dbus::shm_tree::get_mdb_interface_owners("org.openubmc.non_existent_interface");
     // 接口不存在时可能返回空数组
 }
 
@@ -508,8 +491,7 @@ TEST_F(ShmTreeQueryTest, get_mdb_path_success)
     filter_dict["Prop1"] = mc::variant(100);
 
     std::string filter_json = mc::json::json_encode(mc::variant(filter_dict));
-    auto        result      = mc::dbus::shm_tree::get_mdb_path(
-        "org.openubmc.query_test_interface_a", filter_json, false);
+    auto        result = mc::dbus::shm_tree::get_mdb_path("org.openubmc.query_test_interface_a", filter_json, false);
     ASSERT_EQ(result.size(), 2U);
     // 验证返回的路径和服务名
 }
@@ -519,8 +501,7 @@ TEST_F(ShmTreeQueryTest, get_mdb_path_impl_success)
     mc::dict filter_dict;
     filter_dict["Prop1"] = mc::variant(100);
 
-    auto result = mc::dbus::shm_tree::get_mdb_path_impl(
-        "org.openubmc.query_test_interface_a", filter_dict, false);
+    auto result = mc::dbus::shm_tree::get_mdb_path_impl("org.openubmc.query_test_interface_a", filter_dict, false);
     ASSERT_EQ(result.size(), 2U);
 }
 
@@ -530,8 +511,7 @@ TEST_F(ShmTreeQueryTest, get_mdb_path_not_found)
     filter_dict["Prop1"] = mc::variant(99999); // 不存在的值
 
     std::string filter_json = mc::json::json_encode(mc::variant(filter_dict));
-    auto        result      = mc::dbus::shm_tree::get_mdb_path(
-        "org.openubmc.query_test_interface_a", filter_json, false);
+    auto        result = mc::dbus::shm_tree::get_mdb_path("org.openubmc.query_test_interface_a", filter_json, false);
     ASSERT_EQ(result.size(), 2U);
     // 未找到时应该返回 ["", ""]
     ASSERT_TRUE(result[0].as_string().empty());
@@ -544,8 +524,7 @@ TEST_F(ShmTreeQueryTest, get_mdb_path_ignore_case)
     filter_dict["Prop2"] = mc::variant("test_value");
 
     std::string filter_json = mc::json::json_encode(mc::variant(filter_dict));
-    auto        result      = mc::dbus::shm_tree::get_mdb_path(
-        "org.openubmc.query_test_interface_a", filter_json, true);
+    auto        result = mc::dbus::shm_tree::get_mdb_path("org.openubmc.query_test_interface_a", filter_json, true);
     ASSERT_EQ(result.size(), 2U);
 }
 
@@ -560,8 +539,7 @@ TEST_F(ShmTreeQueryTest, get_mdb_service_names_success)
 // ========== get_mdb_classes 测试 ==========
 TEST_F(ShmTreeQueryTest, get_mdb_classes_with_service)
 {
-    auto result = mc::dbus::shm_tree::get_mdb_classes(
-        "org.openubmc.query_test_service_1");
+    auto result = mc::dbus::shm_tree::get_mdb_classes("org.openubmc.query_test_service_1");
     // 验证返回的 class_name 列表
 }
 
@@ -588,15 +566,13 @@ TEST_F(ShmTreeQueryTest, get_mdb_object_owner_success)
 // ========== get_mdb_matched_objects 测试 ==========
 TEST_F(ShmTreeQueryTest, get_mdb_matched_objects_with_service)
 {
-    auto result = mc::dbus::shm_tree::get_mdb_matched_objects(
-        "org.openubmc.query_test_service_1", "");
+    auto result = mc::dbus::shm_tree::get_mdb_matched_objects("org.openubmc.query_test_service_1", "");
     // 验证返回的对象列表
 }
 
 TEST_F(ShmTreeQueryTest, get_mdb_matched_objects_with_pattern)
 {
-    auto result = mc::dbus::shm_tree::get_mdb_matched_objects(
-        "", "org.openubmc.query_test_interface_.*");
+    auto result = mc::dbus::shm_tree::get_mdb_matched_objects("", "org.openubmc.query_test_interface_.*");
     // 验证返回的对象列表
 }
 
@@ -606,8 +582,7 @@ TEST_F(ShmTreeQueryTest, get_mdb_sub_objects_success)
     mc::variants interfaces;
     interfaces.push_back(mc::variant("org.openubmc.query_test_interface_a"));
 
-    auto result = mc::dbus::shm_tree::get_mdb_sub_objects(
-        "/org/openubmc/query_test_object_a", 1, interfaces);
+    auto result = mc::dbus::shm_tree::get_mdb_sub_objects("/org/openubmc/query_test_object_a", 1, interfaces);
     ASSERT_TRUE(result.has_value());
     // 验证返回的路径映射关系
 }
@@ -618,8 +593,7 @@ TEST_F(ShmTreeQueryTest, get_mdb_parent_objects_success)
     mc::variants interfaces;
     interfaces.push_back(mc::variant("org.openubmc.query_test_interface_a"));
 
-    auto result = mc::dbus::shm_tree::get_mdb_parent_objects(
-        "/org/openubmc/query_test_object_a/child", interfaces);
+    auto result = mc::dbus::shm_tree::get_mdb_parent_objects("/org/openubmc/query_test_object_a/child", interfaces);
     ASSERT_TRUE(result.has_value());
     // 验证返回的父路径映射关系
 }

@@ -16,16 +16,13 @@
 class utils_test : public ::testing::Test {
 protected:
     utils_test()
-    {
-    }
+    {}
 
     void SetUp() override
-    {
-    }
+    {}
 
     void TearDown() override
-    {
-    }
+    {}
 };
 
 TEST_F(utils_test, test_is_valid_interface_name)

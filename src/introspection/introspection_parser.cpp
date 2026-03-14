@@ -79,7 +79,7 @@ void introspection_parser::parse_interface(const bp::ptree& pt, interface_info& 
 node_info introspection_parser::parse(const std::string& xml)
 {
     std::stringstream ss(xml);
-    bp::ptree pt;
+    bp::ptree         pt;
     bp::read_xml(ss, pt);
 
     node_info node;

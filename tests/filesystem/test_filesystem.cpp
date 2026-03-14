@@ -69,8 +69,7 @@ protected:
         // 在临时目录中创建一些测试文件
         if (!temp_dirs.empty()) {
             for (int i = 0; i < 2; ++i) {
-                std::string path =
-                    mc::filesystem::join(temp_dirs[0], "test_file_" + std::to_string(i) + ".txt");
+                std::string   path = mc::filesystem::join(temp_dirs[0], "test_file_" + std::to_string(i) + ".txt");
                 std::ofstream ofs(path);
                 ofs << "Nested test content " << i;
                 ofs.close();
@@ -301,8 +300,7 @@ TEST_F(FilesystemTest, FileOperations)
     EXPECT_FALSE(mc::filesystem::exists(moved_file));
 
     // 从临时文件列表中移除已删除的文件
-    temp_files.erase(std::remove(temp_files.begin(), temp_files.end(), moved_file),
-                     temp_files.end());
+    temp_files.erase(std::remove(temp_files.begin(), temp_files.end(), moved_file), temp_files.end());
 }
 
 // 复杂场景：完整的文件操作流程

@@ -107,12 +107,11 @@ error_message_registry error_message_parser::parse_from_string(std::string_view 
         }
 
         ilog("成功解析错误注册表: ${prefix}, 版本 ${version}, 消息数量 ${count}",
-             ("prefix", registry.registry_prefix)("version", registry.registry_version)(
-                 "count", registry.messages.size()));
+             ("prefix", registry.registry_prefix)("version", registry.registry_version)("count",
+                                                                                        registry.messages.size()));
 
     } catch (const mc::exception& e) {
-        MC_THROW(mc::parse_error_exception, "解析错误定义文件失败: ${error}",
-                 ("error", e.what()));
+        MC_THROW(mc::parse_error_exception, "解析错误定义文件失败: ${error}", ("error", e.what()));
     }
 
     return registry;
@@ -131,9 +130,8 @@ error_message_registry error_message_parser::parse_from_file(std::string_view fi
     return parse_from_string(*content_opt);
 }
 
-std::optional<error_message_definition> error_message_parser::find_message(
-    const error_message_registry& registry,
-    std::string_view              message_name)
+std::optional<error_message_definition> error_message_parser::find_message(const error_message_registry& registry,
+                                                                           std::string_view              message_name)
 {
     auto it = registry.messages.find(std::string(message_name));
     if (it == registry.messages.end()) {
@@ -143,8 +141,7 @@ std::optional<error_message_definition> error_message_parser::find_message(
     return it->second;
 }
 
-std::string error_message_parser::format_message(std::string_view template_msg,
-                                                 const mc::dict&  args)
+std::string error_message_parser::format_message(std::string_view template_msg, const mc::dict& args)
 {
     std::string result = std::string(template_msg);
 
@@ -153,7 +150,7 @@ std::string error_message_parser::format_message(std::string_view template_msg,
     static const std::regex placeholder_pattern("%(\\d+)");
 
     std::string output;
-    auto        it = std::sregex_iterator(result.begin(), result.end(), placeholder_pattern);
+    auto        it  = std::sregex_iterator(result.begin(), result.end(), placeholder_pattern);
     auto        end = std::sregex_iterator();
 
     size_t last_pos = 0;
@@ -163,8 +160,8 @@ std::string error_message_parser::format_message(std::string_view template_msg,
         output.append(result, last_pos, match.position() - last_pos);
 
         // 提取数字并转换为 key_index（%1 -> key 0, %2 -> key 1, etc.）
-        std::string num_str = match.str(1);
-        int         num     = std::stoi(num_str);
+        std::string num_str   = match.str(1);
+        int         num       = std::stoi(num_str);
         int         key_index = num - 1;
 
         if (args.contains(key_index)) {
@@ -199,13 +196,12 @@ std::string error_message_parser::format_message(std::string_view template_msg,
                     // 其他类型转换为字符串
                     value = mc::to_string(arg_value);
                     break;
-                }
+            }
 
             output += value;
         } else {
             // 占位符存在但没有对应参数，保留原样并记录警告
-            wlog("消息格式化缺少参数: 占位符 ${placeholder} 没有对应的参数值",
-                 ("placeholder", match.str()));
+            wlog("消息格式化缺少参数: 占位符 ${placeholder} 没有对应的参数值", ("placeholder", match.str()));
             output.append(match.str());
         }
 
@@ -220,8 +216,7 @@ std::string error_message_parser::format_message(std::string_view template_msg,
     return output;
 }
 
-std::string error_message_parser::format_message(const error_message_definition& def,
-                                                 const mc::dict&                 args)
+std::string error_message_parser::format_message(const error_message_definition& def, const mc::dict& args)
 {
     return format_message(def.message, args);
 }

@@ -28,8 +28,8 @@ protected:
     {
         TestBase::SetUp();
         std::string test_name = "test_allocator_" + std::to_string(getpid());
-        m_manager             = std::make_unique<shared_memory_manager>(
-            test_name, 64 * 1024, shared_memory_manager::REMOVE_ON_EXIT);
+        m_manager =
+            std::make_unique<shared_memory_manager>(test_name, 64 * 1024, shared_memory_manager::REMOVE_ON_EXIT);
         m_shm = m_manager->get_shared_memory();
         ASSERT_NE(m_shm, nullptr);
         m_allocator = &m_shm->get_allocator();
@@ -95,14 +95,10 @@ TEST_F(shared_memory_allocator_test, construct_destroy)
 {
     struct test_struct {
         int value;
-        test_struct()
-            : value(0)
-        {
-        }
-        test_struct(int v)
-            : value(v)
-        {
-        }
+        test_struct() : value(0)
+        {}
+        test_struct(int v) : value(v)
+        {}
     };
 
     void* mem = m_allocator->allocate(sizeof(test_struct));
@@ -120,10 +116,8 @@ TEST_F(shared_memory_allocator_test, create)
 {
     struct test_struct {
         int value;
-        test_struct(int v)
-            : value(v)
-        {
-        }
+        test_struct(int v) : value(v)
+        {}
     };
 
     test_struct* obj = m_allocator->create<test_struct>(100);
@@ -138,10 +132,8 @@ TEST_F(shared_memory_allocator_test, create_array)
 {
     struct test_struct {
         int value;
-        test_struct()
-            : value(0)
-        {
-        }
+        test_struct() : value(0)
+        {}
     };
 
     size_t       count = 5;

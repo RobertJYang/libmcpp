@@ -47,9 +47,8 @@ int convert_single_variant(::lua_State* L)
     auto    start_lua_to_variant = std::chrono::high_resolution_clock::now();
     variant v                    = mc::lua::lua_to_variant(L, 1);
     auto    end_lua_to_variant   = std::chrono::high_resolution_clock::now();
-    auto    lua_to_variant_time  = std::chrono::duration_cast<std::chrono::microseconds>(
-                                   end_lua_to_variant - start_lua_to_variant)
-                                   .count();
+    auto    lua_to_variant_time =
+        std::chrono::duration_cast<std::chrono::microseconds>(end_lua_to_variant - start_lua_to_variant).count();
 
     // lua_to_variant 只读取不修改栈，立即移除原始参数
     lua_remove(L, 1);
@@ -58,10 +57,9 @@ int convert_single_variant(::lua_State* L)
     // 开始计时：variant_to_lua
     auto start_variant_to_lua = std::chrono::high_resolution_clock::now();
     mc::lua::variant_to_lua(L, v);
-    auto end_variant_to_lua  = std::chrono::high_resolution_clock::now();
-    auto variant_to_lua_time = std::chrono::duration_cast<std::chrono::microseconds>(
-                                   end_variant_to_lua - start_variant_to_lua)
-                                   .count();
+    auto end_variant_to_lua = std::chrono::high_resolution_clock::now();
+    auto variant_to_lua_time =
+        std::chrono::duration_cast<std::chrono::microseconds>(end_variant_to_lua - start_variant_to_lua).count();
 
     // 栈：[转换后的值]
     // 推送两个耗时数值
@@ -89,9 +87,8 @@ int convert_multiple_variants(::lua_State* L, int arg_count)
     auto     start_lua_to_variants = std::chrono::high_resolution_clock::now();
     variants vs                    = mc::lua::lua_to_variants(L, 1, arg_count);
     auto     end_lua_to_variants   = std::chrono::high_resolution_clock::now();
-    auto     lua_to_variants_time  = std::chrono::duration_cast<std::chrono::microseconds>(
-                                    end_lua_to_variants - start_lua_to_variants)
-                                    .count();
+    auto     lua_to_variants_time =
+        std::chrono::duration_cast<std::chrono::microseconds>(end_lua_to_variants - start_lua_to_variants).count();
 
     // lua_to_variants 只读取不修改栈，立即移除所有原始参数
     for (int i = 0; i < arg_count; ++i) {
@@ -103,9 +100,8 @@ int convert_multiple_variants(::lua_State* L, int arg_count)
     auto start_variants_to_lua = std::chrono::high_resolution_clock::now();
     int  pushed_count          = mc::lua::variants_to_lua(L, vs);
     auto end_variants_to_lua   = std::chrono::high_resolution_clock::now();
-    auto variants_to_lua_time  = std::chrono::duration_cast<std::chrono::microseconds>(
-                                    end_variants_to_lua - start_variants_to_lua)
-                                    .count();
+    auto variants_to_lua_time =
+        std::chrono::duration_cast<std::chrono::microseconds>(end_variants_to_lua - start_variants_to_lua).count();
 
     // 将转换后的多个值收集到一个数组 table 中
     // 栈：[转换后的值1] [转换后的值2] ...
@@ -140,7 +136,6 @@ int convert_multiple_variants(::lua_State* L, int arg_count)
 
 // Lua C 模块导出函数必须使用 C 链接
 extern "C" {
-
 int convert_between_variant_lua(::lua_State* L)
 {
     if (!L) {

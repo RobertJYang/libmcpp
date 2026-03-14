@@ -144,8 +144,7 @@ TEST(ExceptionTest, FormattedMessageTest)
 
     // 测试复杂的格式化消息
     try {
-        MC_THROW(mc::invalid_arg_exception,
-                 "参数验证失败: ${param} 的值 ${value} 不在有效范围 [${min}, ${max}] 内",
+        MC_THROW(mc::invalid_arg_exception, "参数验证失败: ${param} 的值 ${value} 不在有效范围 [${min}, ${max}] 内",
                  ("param", "age")("value", "150")("min", "0")("max", "120"));
         FAIL() << "应该抛出异常";
     } catch (const mc::invalid_arg_exception& e) {
@@ -342,8 +341,7 @@ TEST(ExceptionTest, DynamicCopyAndRethrowTest)
 TEST(ExceptionTest, ThreadSafetyTest)
 {
     // 创建一个共享的异常对象
-    mc::exception shared_exception(mc::exception_code::unknow_exception_code, "thread_test",
-                                   "线程测试异常");
+    mc::exception shared_exception(mc::exception_code::unknow_exception_code, "thread_test", "线程测试异常");
 
     // 创建多个线程，每个线程都添加日志消息
     const int                num_threads     = 10;
@@ -355,9 +353,8 @@ TEST(ExceptionTest, ThreadSafetyTest)
         for (int j = 0; j < msgs_per_thread; ++j) {
             // 使用互斥锁保护共享对象
             std::lock_guard<std::mutex> lock(mutex);
-            shared_exception.append_log(
-                MC_LOG_MESSAGE(info, "线程 ${thread} 消息 ${msg}",
-                               ("thread", std::to_string(i))("msg", std::to_string(j))));
+            shared_exception.append_log(MC_LOG_MESSAGE(info, "线程 ${thread} 消息 ${msg}",
+                                                       ("thread", std::to_string(i))("msg", std::to_string(j))));
         }
     });
 
@@ -386,8 +383,7 @@ TEST(ExceptionTest, DISABLED_PerformanceTest)
     {
         auto start = std::chrono::high_resolution_clock::now();
         for (int i = 0; i < iterations; ++i) {
-            auto e = MC_MAKE_EXCEPTION(mc::timeout_exception, "Test message ${index}",
-                                       ("index", std::to_string(i)));
+            auto e = MC_MAKE_EXCEPTION(mc::timeout_exception, "Test message ${index}", ("index", std::to_string(i)));
             EXPECT_EQ(e.code(), mc::exception_code::timeout_exception_code);
         }
         auto end      = std::chrono::high_resolution_clock::now();
@@ -407,8 +403,7 @@ TEST(ExceptionTest, DISABLED_PerformanceTest)
         }
         auto end      = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-        std::cout << "抛出和捕获 " << iterations << " 个异常耗时: " << duration << " 毫秒"
-                  << std::endl;
+        std::cout << "抛出和捕获 " << iterations << " 个异常耗时: " << duration << " 毫秒" << std::endl;
     }
 }
 
@@ -544,9 +539,7 @@ TEST(ExceptionTest, dynamic_format_parameters)
 {
     // 使用命名参数作为动态宽度和精度
     try {
-        MC_THROW(mc::runtime_exception, "{value:{width}.{precision}f}",
-                 ("value", 3.14159),
-                 ("width", 10),
+        MC_THROW(mc::runtime_exception, "{value:{width}.{precision}f}", ("value", 3.14159), ("width", 10),
                  ("precision", 3));
     } catch (const mc::exception& e) {
         EXPECT_EQ(e.top_message(), "     3.142");
@@ -598,9 +591,7 @@ TEST(ExceptionTest, nested_braces)
 {
     // 命名参数中的嵌套大括号格式
     try {
-        MC_THROW(mc::runtime_exception, "{value:{width}.{precision}f}",
-                 ("value", 123.456),
-                 ("width", 12),
+        MC_THROW(mc::runtime_exception, "{value:{width}.{precision}f}", ("value", 123.456), ("width", 12),
                  ("precision", 2));
     } catch (const mc::exception& e) {
         EXPECT_EQ(e.top_message(), "      123.46");
@@ -639,8 +630,8 @@ TEST(ExceptionTest, ComplexExceptionMessageFormatting)
         MC_THROW(mc::runtime_exception,
                  "操作失败: 用户${user}在${time}尝试${action}, "
                  "参数: ${param1}=${value1}, ${param2}=${value2}",
-                 ("user", "admin")("time", "2024-01-01 12:00:00")("action", "update")(
-                     "param1", "id")("value1", 123)("param2", "status")("value2", "active"));
+                 ("user", "admin")("time", "2024-01-01 12:00:00")("action", "update")("param1", "id")("value1", 123)(
+                     "param2", "status")("value2", "active"));
     } catch (const mc::exception& e) {
         std::string msg = e.top_message();
         EXPECT_NE(msg.find("admin"), std::string::npos);
@@ -652,8 +643,7 @@ TEST(ExceptionTest, ComplexExceptionMessageFormatting)
 
     // 混合索引和命名参数
     try {
-        MC_THROW(mc::runtime_exception, "{0} {name} {1} {value}", "prefix", "suffix",
-                 ("name", "middle")("value", 42));
+        MC_THROW(mc::runtime_exception, "{0} {name} {1} {value}", "prefix", "suffix", ("name", "middle")("value", 42));
     } catch (const mc::exception& e) {
         std::string msg = e.top_message();
         EXPECT_NE(msg.find("prefix"), std::string::npos);
@@ -670,9 +660,8 @@ TEST(ExceptionTest, ComplexUnhandledExceptionWrapper)
     try {
         throw std::logic_error("逻辑错误");
     } catch (const std::exception& std_ex) {
-        mc::unhandled_exception unhandled(
-            MC_LOG_MESSAGE(error, "未处理的异常: ${error}", ("error", std_ex.what())),
-            std::current_exception());
+        mc::unhandled_exception unhandled(MC_LOG_MESSAGE(error, "未处理的异常: ${error}", ("error", std_ex.what())),
+                                          std::current_exception());
 
         EXPECT_EQ(unhandled.name(), "unhandled");
         EXPECT_EQ(unhandled.code(), mc::unhandled_exception_code);

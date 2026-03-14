@@ -19,14 +19,12 @@
 // 测试用的复杂对象
 class ctor_test_object : public mc::enable_shared_from_this<ctor_test_object> {
 public:
-    ctor_test_object()
-        : m_id(s_next_id++), m_data(std::make_unique<int>(42))
+    ctor_test_object() : m_id(s_next_id++), m_data(std::make_unique<int>(42))
     {
         ++s_construct_count;
     }
 
-    explicit ctor_test_object(int value)
-        : m_id(s_next_id++), m_data(std::make_unique<int>(value))
+    explicit ctor_test_object(int value) : m_id(s_next_id++), m_data(std::make_unique<int>(value))
     {
         ++s_construct_count;
     }
@@ -228,10 +226,7 @@ TEST_F(SharedPtrConstructTest, SharedFromThisStates)
 TEST_F(SharedPtrConstructTest, ExceptionSafety)
 {
     // 测试构造函数抛异常的情况
-    EXPECT_THROW({
-        mc::make_shared<exception_test_object>(true);
-    },
-                 std::runtime_error);
+    EXPECT_THROW({ mc::make_shared<exception_test_object>(true); }, std::runtime_error);
 
     // 确保没有内存泄漏
     EXPECT_EQ(exception_test_object::get_construct_count(), 0);

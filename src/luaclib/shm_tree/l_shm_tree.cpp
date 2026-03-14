@@ -419,7 +419,6 @@ static const luaL_Reg methods[] = {
 } // namespace mc
 
 extern "C" {
-
 __attribute__((visibility("default"))) int luaopen_lshm_tree(lua_State* L)
 {
     using namespace mc::dbus::lua;

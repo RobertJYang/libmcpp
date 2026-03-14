@@ -37,7 +37,8 @@ p_type sync_property_processor::get_property_type() const
     return p_type::sync;
 }
 
-void sync_property_processor::hook_sync_property(property_helper* property, const mc::expr::relate_property& relate_property)
+void sync_property_processor::hook_sync_property(property_helper*                 property,
+                                                 const mc::expr::relate_property& relate_property)
 {
     auto* target_object = property->find_related_object(relate_property.object_name);
     if (target_object == nullptr) {
@@ -49,7 +50,8 @@ void sync_property_processor::hook_sync_property(property_helper* property, cons
     // 同步属性不支持设置值
     property->ensure_extension_data();
     property->set_setter_function([property](const mc::variant& value) {
-        MC_THROW(mc::invalid_op_exception, "Setting sync property value is not allowed: ${name}", ("name", property->get_name()));
+        MC_THROW(mc::invalid_op_exception, "Setting sync property value is not allowed: ${name}",
+                 ("name", property->get_name()));
     });
 }
 
@@ -141,9 +143,8 @@ void sync_property_processor::process_sync_properties_for_object(property_helper
     setup_multi_sync_connection(property, *target_object, object_properties);
 }
 
-void sync_property_processor::setup_multi_sync_connection(property_helper* property,
-                                                          abstract_object& target_object,
-                                                          const mc::dict&  object_properties)
+void sync_property_processor::setup_multi_sync_connection(property_helper* property, abstract_object& target_object,
+                                                          const mc::dict& object_properties)
 {
     auto slot = target_object.property_changed().connect(
         [property, object_properties_copy = object_properties](const mc::variant& value, const property_base& prop) {
@@ -173,7 +174,8 @@ void sync_property_processor::setup_deferred_multi_sync_connection(property_help
     auto&       object_table     = service->get_object_table();
 
     auto slot = object_table.on_object_added.connect(
-        [this, property, full_object_name, object_properties_copy = object_properties](mc::core::object_base& base_object) {
+        [this, property, full_object_name,
+         object_properties_copy = object_properties](mc::core::object_base& base_object) {
         auto& object = static_cast<mc::engine::abstract_object&>(base_object);
         if (object.get_name() == full_object_name) {
             setup_multi_sync_connection(property, object, object_properties_copy);

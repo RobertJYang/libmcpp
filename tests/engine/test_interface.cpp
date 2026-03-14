@@ -22,10 +22,8 @@ public:
     MC_INTERFACE("org.test.TestInterface")
 
     TestInterface() = default;
-    TestInterface(int32_t value)
-        : m_value(value)
-    {
-    }
+    TestInterface(int32_t value) : m_value(value)
+    {}
 
     // 属性
     int32_t                  m_value   = 0;
@@ -121,23 +119,19 @@ public:
 } // namespace
 
 // 反射所有属性、方法和信号
-MC_REFLECT(
-    TestInterface,
-    ((m_value, "value"))((m_name, "name"))((m_status, "status"))((m_enabled, "enabled"))(
-        (m_logs, "logs"))((add, "Add"))((subtract, "Subtract"))((set_name, "SetName"))((get_name,
-                                                                                        "GetName"))(
-        (reset, "Reset"))((set_enabled, "SetEnabled"))((log, "Log"))((clear_logs, "ClearLogs"))(
-        value_changed)(name_changed)(status_changed)(reset_signal)(enabled_changed)(log_added)(log_cleared))
+MC_REFLECT(TestInterface,
+           ((m_value, "value"))((m_name, "name"))((m_status, "status"))((m_enabled, "enabled"))((m_logs, "logs"))(
+               (add, "Add"))((subtract, "Subtract"))((set_name, "SetName"))((get_name, "GetName"))((reset, "Reset"))(
+               (set_enabled, "SetEnabled"))((log, "Log"))((clear_logs, "ClearLogs"))(
+               value_changed)(name_changed)(status_changed)(reset_signal)(enabled_changed)(log_added)(log_cleared))
 
 class interface_test : public mc::test::TestBase {
 protected:
     TestInterface                   obj;
     mc::engine::abstract_interface* iface;
 
-    interface_test()
-        : obj(10)
-    {
-    }
+    interface_test() : obj(10)
+    {}
 
     void SetUp() override
     {
@@ -145,8 +139,7 @@ protected:
     }
 
     void TearDown() override
-    {
-    }
+    {}
 };
 
 TEST_F(interface_test, test_interface)

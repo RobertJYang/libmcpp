@@ -82,10 +82,8 @@ struct chrono_format_spec {
     numeric_system   num_sys       = numeric_system::standard; // 数字系统
 
     constexpr chrono_format_spec() = default;
-    constexpr chrono_format_spec(chrono_spec_type t, char c)
-        : type(t), original_char(c)
-    {
-    }
+    constexpr chrono_format_spec(chrono_spec_type t, char c) : type(t), original_char(c)
+    {}
 };
 
 // 获取时间单位字符串
@@ -249,12 +247,10 @@ struct chrono_format_checker : chrono_format_handler<chrono_format_checker<IsCom
 
     constexpr chrono_format_checker(bool is_duration = false, bool has_precision = false)
         : has_precision_integral(has_precision), is_duration_formatter(is_duration)
-    {
-    }
+    {}
 
     constexpr void on_text(std::string_view)
-    {
-    }
+    {}
 
     constexpr void on_year(numeric_system, pad_type)
     {
@@ -285,17 +281,13 @@ struct chrono_format_checker : chrono_format_handler<chrono_format_checker<IsCom
         }
     }
     constexpr void on_hour_24(numeric_system, pad_type)
-    {
-    }
+    {}
     constexpr void on_hour_12(numeric_system, pad_type)
-    {
-    }
+    {}
     constexpr void on_minute(numeric_system, pad_type)
-    {
-    }
+    {}
     constexpr void on_second(numeric_system, pad_type)
-    {
-    }
+    {}
 
     constexpr void on_datetime(numeric_system)
     {
@@ -312,14 +304,11 @@ struct chrono_format_checker : chrono_format_handler<chrono_format_checker<IsCom
         }
     }
     constexpr void on_iso_time()
-    {
-    }
+    {}
     constexpr void on_12_hour_time()
-    {
-    }
+    {}
     constexpr void on_24_hour_time()
-    {
-    }
+    {}
 
     constexpr void on_duration_value()
     {
@@ -342,8 +331,7 @@ struct chrono_format_checker : chrono_format_handler<chrono_format_checker<IsCom
     }
 
     constexpr void on_am_pm()
-    {
-    }
+    {}
     constexpr void on_timezone_offset(numeric_system)
     {
         if (is_duration_formatter) {
@@ -555,8 +543,7 @@ struct formatter<std::chrono::duration<Rep, Period>> {
 private:
     struct custom_spec {
         constexpr custom_spec()
-        {
-        }
+        {}
 
         std::string_view format_str;
         int              precision     = -1;
@@ -595,9 +582,8 @@ public:
 
         // 验证格式字符串
         if (!custom.format_str.empty()) {
-            detail::chrono_format_checker<IsCompileTime> checker(
-                true,
-                custom.has_precision && !std::is_floating_point_v<Rep>);
+            detail::chrono_format_checker<IsCompileTime> checker(true, custom.has_precision &&
+                                                                           !std::is_floating_point_v<Rep>);
             detail::parse_chrono_format(custom.format_str, checker);
             if (!checker.is_valid()) {
                 if constexpr (!IsCompileTime) {
@@ -618,8 +604,7 @@ public:
 
     // format 方法，执行格式化
     template <typename Context>
-    void format(const std::chrono::duration<Rep, Period>& d,
-                Context& ctx, const format_spec& spec) const;
+    void format(const std::chrono::duration<Rep, Period>& d, Context& ctx, const format_spec& spec) const;
 };
 
 // time_point 的格式化器特化
@@ -628,8 +613,7 @@ struct formatter<std::chrono::time_point<Clock, Duration>> {
 private:
     struct custom_spec {
         constexpr custom_spec()
-        {
-        }
+        {}
 
         std::string_view format_str;
     };
@@ -665,8 +649,7 @@ public:
 
     // format 方法，执行格式化
     template <typename Context>
-    void format(const std::chrono::time_point<Clock, Duration>& tp,
-                Context& ctx, const format_spec& spec) const;
+    void format(const std::chrono::time_point<Clock, Duration>& tp, Context& ctx, const format_spec& spec) const;
 };
 
 } // namespace mc::fmt

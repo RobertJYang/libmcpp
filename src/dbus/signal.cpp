@@ -61,17 +61,18 @@ void send_signal(connection& conn, message& signal)
     free(raw_data);
     auto end      = std::chrono::steady_clock::now();
     auto duration = end - start;
-    dlog("dbus send message cost '${time}' microseconds", ("time", std::chrono::duration_cast<std::chrono::microseconds>(duration)));
+    dlog("dbus send message cost '${time}' microseconds",
+         ("time", std::chrono::duration_cast<std::chrono::microseconds>(duration)));
 }
 
-void emit_properties_changed(connection& conn, engine::abstract_object& obj,
-                             const engine::property_base& prop, const variant& value)
+void emit_properties_changed(connection& conn, engine::abstract_object& obj, const engine::property_base& prop,
+                             const variant& value)
 {
     auto iface     = prop.get_interface()->get_interface_name();
     auto prop_name = prop.get_name();
-    auto signal    = mc::dbus::message::new_signal(obj.get_object_path(), "org.freedesktop.DBus.Properties",
-                                                   "PropertiesChanged");
-    auto writer    = signal.writer();
+    auto signal =
+        mc::dbus::message::new_signal(obj.get_object_path(), "org.freedesktop.DBus.Properties", "PropertiesChanged");
+    auto writer = signal.writer();
     writer << iface;
     writer.write_container("a{sv}", [&](message_writer& writer, auto) {
         if ((prop.get_flags() & SD_BUS_VTABLE_PROPERTY_EMITS_INVALIDATION) == 0) {
@@ -88,8 +89,8 @@ void emit_properties_changed(connection& conn, engine::abstract_object& obj,
 
 void emit_interfaces_added(connection& conn, const engine::abstract_object& obj)
 {
-    auto signal = mc::dbus::message::new_signal(
-        obj.get_object_path(), "org.freedesktop.DBus.ObjectManager", "InterfacesAdded");
+    auto signal =
+        mc::dbus::message::new_signal(obj.get_object_path(), "org.freedesktop.DBus.ObjectManager", "InterfacesAdded");
     auto writer = signal.writer();
     writer.write_path(obj.get_object_path(), false);
     writer.write_variant("a{sa{sv}}", obj.get_all_properties({}, mc::engine::property_options::memory), 0);
@@ -98,8 +99,8 @@ void emit_interfaces_added(connection& conn, const engine::abstract_object& obj)
 
 void emit_interfaces_removed(connection& conn, const engine::abstract_object& obj)
 {
-    auto signal = mc::dbus::message::new_signal(
-        obj.get_object_path(), "org.freedesktop.DBus.ObjectManager", "InterfacesRemoved");
+    auto signal =
+        mc::dbus::message::new_signal(obj.get_object_path(), "org.freedesktop.DBus.ObjectManager", "InterfacesRemoved");
     auto writer = signal.writer();
     writer.write_path(obj.get_object_path(), false);
     writer.write_container("as", [&](message_writer& writer, auto) {

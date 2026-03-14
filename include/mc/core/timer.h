@@ -79,8 +79,7 @@ public:
     mc::signal<void()> timeout;
 
     template <typename Object, typename BaseObject = Object>
-    static timer_ptr single_shot(mc::milliseconds msec, mc::shared_ptr<Object>& receiver,
-                                 void (BaseObject::*method)())
+    static timer_ptr single_shot(mc::milliseconds msec, mc::shared_ptr<Object>& receiver, void (BaseObject::*method)())
     {
         if (!receiver || !method) {
             return {};
@@ -95,8 +94,7 @@ public:
         });
     }
     template <typename Object, typename BaseObject = Object>
-    static timer_ptr single_shot(mc::milliseconds msec, Object* receiver,
-                                 void (BaseObject::*method)())
+    static timer_ptr single_shot(mc::milliseconds msec, Object* receiver, void (BaseObject::*method)())
     {
         if (!receiver || !method) {
             return {};
@@ -107,13 +105,11 @@ public:
     static timer_ptr single_shot(mc::milliseconds msec, std::function<void()> functor);
 
     template <typename Object>
-    static timer_ptr single_shot(mc::milliseconds msec, mc::shared_ptr<Object>& context,
-                                 std::function<void()> functor)
+    static timer_ptr single_shot(mc::milliseconds msec, mc::shared_ptr<Object>& context, std::function<void()> functor)
     {
         return single_shot(msec, context.get(), std::move(functor));
     }
-    static timer_ptr single_shot(mc::milliseconds msec, object* context,
-                                 std::function<void()> functor);
+    static timer_ptr single_shot(mc::milliseconds msec, object* context, std::function<void()> functor);
 
 private:
     bool check_active() const;

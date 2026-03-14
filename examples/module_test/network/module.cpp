@@ -15,18 +15,13 @@
 #include <iostream>
 
 // 导出网络状态枚举到模块
-MC_MODULE_REFLECT_ENUM(mc_network,
-                       mc::network::connection_status,
-                       (DISCONNECTED)(CONNECTING)(CONNECTED)(ERROR))
+MC_MODULE_REFLECT_ENUM(mc_network, mc::network::connection_status, (DISCONNECTED)(CONNECTING)(CONNECTED)(ERROR))
 
 // 导出协议类型枚举到模块
-MC_MODULE_REFLECT_ENUM(mc_network,
-                       mc::network::protocol_type,
-                       (TCP)(UDP)(HTTP)(HTTPS))
+MC_MODULE_REFLECT_ENUM(mc_network, mc::network::protocol_type, (TCP)(UDP)(HTTP)(HTTPS))
 
 // 导出网络客户端类到模块
-MC_MODULE_REFLECT(mc_network,
-                  mc::network::network_client,
+MC_MODULE_REFLECT(mc_network, mc::network::network_client,
                   ((connect, "connect"))           // 连接
                   ((disconnect, "disconnect"))     // 断开连接
                   ((send_data, "sendData"))        // 发送数据

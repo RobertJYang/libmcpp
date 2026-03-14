@@ -544,12 +544,9 @@ TEST_F(VariantComparisonTest, BoundaryValueComparison)
     EXPECT_FALSE(v_nan > 0.0);
 
     // 边界值相等测试
-    EXPECT_TRUE(variant(std::numeric_limits<int64_t>::max()) ==
-                std::numeric_limits<int64_t>::max());
-    EXPECT_TRUE(variant(std::numeric_limits<int64_t>::min()) ==
-                std::numeric_limits<int64_t>::min());
-    EXPECT_TRUE(variant(std::numeric_limits<uint64_t>::max()) ==
-                std::numeric_limits<uint64_t>::max());
+    EXPECT_TRUE(variant(std::numeric_limits<int64_t>::max()) == std::numeric_limits<int64_t>::max());
+    EXPECT_TRUE(variant(std::numeric_limits<int64_t>::min()) == std::numeric_limits<int64_t>::min());
+    EXPECT_TRUE(variant(std::numeric_limits<uint64_t>::max()) == std::numeric_limits<uint64_t>::max());
 }
 
 /**

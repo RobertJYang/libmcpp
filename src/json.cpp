@@ -30,8 +30,7 @@ namespace json {
 // 用于JSON编码的辅助类
 class encoder {
 public:
-    explicit encoder(
-        const json_encode_options& options = json_encode_options::default_encode_options)
+    explicit encoder(const json_encode_options& options = json_encode_options::default_encode_options)
         : m_stream(), m_options(options), m_current_depth(0)
     {
         // 规范化选项值
@@ -77,8 +76,7 @@ public:
     void add_indent()
     {
         if (m_options.pretty_print) {
-            m_stream << '\n'
-                     << std::string(m_current_depth * m_options.indent_size, ' ');
+            m_stream << '\n' << std::string(m_current_depth * m_options.indent_size, ' ');
         }
     }
 
@@ -256,8 +254,8 @@ private:
 // 用于JSON解码的辅助类
 class decoder {
 public:
-    explicit decoder(std::string_view json, const json_decode_options& options =
-                                                json_decode_options::default_decode_options)
+    explicit decoder(std::string_view           json,
+                     const json_decode_options& options = json_decode_options::default_decode_options)
         : m_input(json), m_pos(0), m_options(options), m_current_depth(0)
     {
         m_options.normalize();

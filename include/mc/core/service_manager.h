@@ -95,8 +95,7 @@ private:
                                  supervisor_manager& supervisor_mgr, service_factory& factory);
 
     // 拓扑排序，返回服务名称列表
-    std::vector<std::string>
-    topological_sort(const std::unordered_map<std::string, service_node>& graph);
+    std::vector<std::string> topological_sort(const std::unordered_map<std::string, service_node>& graph);
 };
 
 } // namespace mc::core

@@ -24,12 +24,14 @@ struct skynet_context;
 
 namespace mc::dbus::lua {
 
-constexpr int PTYPE_TAG_DONTCOPY        = 0x10000;
-constexpr int PTYPE_SIGNAL_PROCESS      = 223;
-using t_skynet_current_handle           = uint32_t (*)(void);
-using t_skynet_send                     = int (*)(skynet_context* context, uint32_t source, uint32_t destination, int type, int session, void* msg, size_t sz);
-using t_skynet_send_with_priority       = int (*)(skynet_context* context, uint32_t source, uint32_t destination, int type, int session, void* msg, size_t sz, uint8_t priority);
-using t_skynet_error                    = void (*)(skynet_context* context, const char* msg, ...);
+constexpr int PTYPE_TAG_DONTCOPY   = 0x10000;
+constexpr int PTYPE_SIGNAL_PROCESS = 223;
+using t_skynet_current_handle      = uint32_t (*)(void);
+using t_skynet_send = int (*)(skynet_context* context, uint32_t source, uint32_t destination, int type, int session,
+                              void* msg, size_t sz);
+using t_skynet_send_with_priority = int (*)(skynet_context* context, uint32_t source, uint32_t destination, int type,
+                                            int session, void* msg, size_t sz, uint8_t priority);
+using t_skynet_error              = void (*)(skynet_context* context, const char* msg, ...);
 using t_skynet_context_message_dispatch = message_queue* (*)(skynet_monitor*, message_queue*, int);
 using t_skynet_monitor_new              = skynet_monitor* (*)(void);
 using t_skynet_globalmq_push            = void (*)(message_queue*);

@@ -76,8 +76,7 @@ template <typename T, typename = void>
 struct has_reflectable : std::false_type {};
 
 template <typename T>
-struct has_reflectable<
-    T, std::enable_if_t<std::is_same_v<typename T::is_reflectable, std::true_type>, void>>
+struct has_reflectable<T, std::enable_if_t<std::is_same_v<typename T::is_reflectable, std::true_type>, void>>
     : std::true_type {};
 
 } // namespace detail
@@ -90,8 +89,7 @@ struct has_reflectable<
 template <typename T>
 constexpr bool is_reflectable()
 {
-    return reflectable<std::decay_t<T>>::is_defined::value ||
-           detail::has_reflectable<T>::value;
+    return reflectable<std::decay_t<T>>::is_defined::value || detail::has_reflectable<T>::value;
 }
 
 /**
@@ -148,8 +146,7 @@ constexpr inline bool is_valid_type_name(std::string_view name)
     }
 
     // 不能以分隔符开头或结尾
-    if (name[0] == '.' || name[0] == ':' ||
-        name[name.size() - 1] == '.' || name[name.size() - 1] == ':') {
+    if (name[0] == '.' || name[0] == ':' || name[name.size() - 1] == '.' || name[name.size() - 1] == ':') {
         return false;
     }
 
@@ -229,10 +226,7 @@ template <typename T, typename = void>
 struct has_reflect_namespace : std::false_type {};
 
 template <typename T>
-struct has_reflect_namespace<
-    T,
-    std::enable_if_t<
-        !std::is_same_v<typename reflect_namespace<T>::type, void>>>
+struct has_reflect_namespace<T, std::enable_if_t<!std::is_same_v<typename reflect_namespace<T>::type, void>>>
     : std::true_type {};
 
 /**
@@ -462,25 +456,25 @@ using reflection_metadata_wptr = mc::weak_ptr<reflection_base>;
 /**
  * @brief 定义类的反射信息
  */
-#define MC_GLOBAL_REFLECTABLE(name, TYPE)                              \
-    template <>                                                        \
-    struct mc::reflect::reflectable<TYPE> {                            \
-        using is_defined = std::true_type;                             \
-        using is_enum    = std::conditional_t<                         \
-               std::is_enum_v<TYPE>, std::true_type, std::false_type>; \
-        constexpr static std::string_view reflect_name = name;         \
+#define MC_GLOBAL_REFLECTABLE(name, TYPE)                                                                              \
+    template <>                                                                                                        \
+    struct mc::reflect::reflectable<TYPE> {                                                                            \
+        using is_defined = std::true_type;                                                                             \
+        using is_enum    = std::conditional_t<std::is_enum_v<TYPE>, std::true_type, std::false_type>;                  \
+        constexpr static std::string_view reflect_name = name;                                                         \
     };
 
-#define MC_CLASS_REFLECTABLE(name)              \
-    using is_reflectable = std::true_type;      \
-    template <typename, typename>               \
-    friend struct mc::reflect::reflector;       \
-    template <typename>                         \
-    friend struct mc::reflect::static_metadata; \
+#define MC_CLASS_REFLECTABLE(name)                                                                                     \
+    using is_reflectable = std::true_type;                                                                             \
+    template <typename, typename>                                                                                      \
+    friend struct mc::reflect::reflector;                                                                              \
+    template <typename>                                                                                                \
+    friend struct mc::reflect::static_metadata;                                                                        \
     constexpr static std::string_view reflect_name = name;
 
 // 声明类型或者枚举是可反射的
-// @param name 反射名称，用于在反射系统中标识类型或者枚举，支持多级命名空间，以 . 或 :: 分隔，例如：mc.devices.TemperatureSensor
+// @param name 反射名称，用于在反射系统中标识类型或者枚举，支持多级命名空间，以 . 或 ::
+// 分隔，例如：mc.devices.TemperatureSensor
 // @param ... 枚举类型
 // @note 为了使用方便，我们支持在类内部添加 MC_REFLECTABLE 或在全局命名空间 MC_REFLECTABLE 来标记该类支持反射。
 // 例如：
@@ -498,9 +492,9 @@ using reflection_metadata_wptr = mc::weak_ptr<reflection_base>;
 // 我们通过识别 MC_REFLECTABLE 的参数个数来决定是全局反射还是类内反射，这样可以避免再增加一个宏名称，
 // 如果 ... 可变参数大于一个参数，则表示是全局反射，否则表示是类内反射。
 // 建议在反射系统中的名称保持与C++中的命名空间一致，避免混淆，为此反射系统中也支持 :: 分隔的命名空间。
-#define MC_REFLECTABLE(...)                                                \
-    BOOST_PP_IIF(BOOST_PP_GREATER(BOOST_PP_VARIADIC_SIZE(__VA_ARGS__), 1), \
-                 MC_GLOBAL_REFLECTABLE, MC_CLASS_REFLECTABLE)              \
+#define MC_REFLECTABLE(...)                                                                                            \
+    BOOST_PP_IIF(BOOST_PP_GREATER(BOOST_PP_VARIADIC_SIZE(__VA_ARGS__), 1), MC_GLOBAL_REFLECTABLE,                      \
+                 MC_CLASS_REFLECTABLE)                                                                                 \
     (__VA_ARGS__)
 
 } // namespace mc::reflect

@@ -39,11 +39,9 @@ private:
 class SharedPtrThreadSafetyTest : public ::testing::Test {
 protected:
     void SetUp() override
-    {
-    }
+    {}
     void TearDown() override
-    {
-    }
+    {}
 };
 
 // 测试在多线程环境下 try_add_ref 与 release_ref 的竞争条件

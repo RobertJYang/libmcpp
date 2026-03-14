@@ -19,10 +19,8 @@ namespace mc::core {
 struct timer::timer_impl {
     using timer_type = mc::runtime::steady_timer;
 
-    timer_impl(mc::runtime::thread_pool::executor_type executor)
-        : m_timer(executor)
-    {
-    }
+    timer_impl(mc::runtime::thread_pool::executor_type executor) : m_timer(executor)
+    {}
 
     ~timer_impl()
     {
@@ -54,10 +52,8 @@ void timer::timer_impl::start(mc::shared_ptr<timer> t)
     });
 }
 
-timer::timer(object* parent)
-    : object(parent)
-{
-}
+timer::timer(object* parent) : object(parent)
+{}
 
 timer::~timer()
 {
@@ -109,8 +105,7 @@ void timer::start(mc::milliseconds msec)
     m_interval = msec;
     if (!m_impl) {
         m_impl = std::make_unique<timer_impl>(
-            std::get<mc::runtime::thread_pool::executor_type>(
-                get_executor().get_executor()));
+            std::get<mc::runtime::thread_pool::executor_type>(get_executor().get_executor()));
     }
 
     m_impl->start(mc::static_pointer_cast<timer>(this->shared_from_this()));
@@ -135,8 +130,7 @@ timer_ptr timer::single_shot(mc::milliseconds msec, std::function<void()> functo
     return single_shot(msec, nullptr, std::move(functor));
 }
 
-timer_ptr timer::single_shot(mc::milliseconds msec, object* context,
-                             std::function<void()> functor)
+timer_ptr timer::single_shot(mc::milliseconds msec, object* context, std::function<void()> functor)
 {
     if (!functor) {
         return {};

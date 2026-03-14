@@ -52,9 +52,7 @@ static time_t portable_timegm(struct tm* tm)
 
 // 工具函数：解析ISO 8601日期时间字符串
 // 支持格式："2020-01-01T12:30:45" 或 "2020-01-01T12:30:45.123"
-static bool parse_iso_datetime(const std::string& iso_str,
-                               std::tm&           tm_result,
-                               int64_t&           milliseconds)
+static bool parse_iso_datetime(const std::string& iso_str, std::tm& tm_result, int64_t& milliseconds)
 {
     // 正则表达式匹配ISO 8601格式
     std::regex  iso_regex(R"((\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?Z?)");
@@ -110,7 +108,6 @@ time_point time_point::from_iso_string(const std::string& s)
 
         // 转换为time_t
         std::time_t time_secs = portable_timegm(&tm_result); // 使用自定义函数，假定输入是UTC时间
-
         if (time_secs == -1) {
             MC_THROW(mc::parse_error_exception, "无法转换时间: ${iso}", ("iso", s));
         }
@@ -218,7 +215,6 @@ std::string_view time_point::to_string() const
 
         // 获取时间点的毫秒数
         int64_t ms_since_epoch = time_since_epoch().count();
-
         if (ms_since_epoch < 0) {
             MC_THROW(mc::bad_cast_exception, "不支持负时间点转换为ISO字符串");
         }
@@ -267,7 +263,6 @@ time_point_sec time_point_sec::from_iso_string(const std::string& s)
 
         // 转换为time_t
         std::time_t time_secs = portable_timegm(&tm_result); // 使用自定义函数，假定输入是UTC时间
-
         if (time_secs == -1) {
             MC_THROW(mc::parse_error_exception, "无法转换时间: ${iso}", ("iso", s));
         }

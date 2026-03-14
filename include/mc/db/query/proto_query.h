@@ -41,10 +41,8 @@ namespace dsl {
  */
 class field_ref {
 public:
-    explicit field_ref(std::string_view name)
-        : m_name(name)
-    {
-    }
+    explicit field_ref(std::string_view name) : m_name(name)
+    {}
 
     const std::string& name() const
     {
@@ -67,10 +65,8 @@ template <typename Expr>
 struct query_expr : proto::extends<Expr, query_expr<Expr>, query_domain> {
     using base_type = proto::extends<Expr, query_expr<Expr>, query_domain>;
 
-    query_expr(const Expr& expr = Expr())
-        : base_type(expr)
-    {
-    }
+    query_expr(const Expr& expr = Expr()) : base_type(expr)
+    {}
 
     /**
      * 将表达式转换为条件对象
@@ -104,10 +100,8 @@ struct condition_context;
 
 class filed_expr {
 public:
-    explicit filed_expr(std::string_view name)
-        : m_field(name)
-    {
-    }
+    explicit filed_expr(std::string_view name) : m_field(name)
+    {}
     const field_ref& ref() const
     {
         return m_field;
@@ -301,9 +295,8 @@ struct condition_context : boost::proto::callable_context<condition_context> {
     };
 
     // 处理终结符 - 字段引用
-    condition
-    operator()(boost::proto::tag::terminal,
-               const query_expr<typename boost::proto::terminal<field_ref>::type>& expr) const
+    condition operator()(boost::proto::tag::terminal,
+                         const query_expr<typename boost::proto::terminal<field_ref>::type>& expr) const
     {
         throw std::runtime_error("不能直接计算字段引用");
     }
@@ -318,10 +311,10 @@ struct condition_context : boost::proto::callable_context<condition_context> {
 
     // 等于操作符
     template <typename LeftExpr, typename RightExpr>
-    condition operator()(boost::proto::tag::equal_to,
-                         const query_expr<boost::proto::exprns_::basic_expr<
-                             boost::proto::tagns_::tag::equal_to,
-                             boost::proto::argsns_::list2<LeftExpr, RightExpr>, 2>>& expr) const
+    condition operator()(
+        boost::proto::tag::equal_to,
+        const query_expr<boost::proto::exprns_::basic_expr<
+            boost::proto::tagns_::tag::equal_to, boost::proto::argsns_::list2<LeftExpr, RightExpr>, 2>>& expr) const
     {
         const auto&      left  = boost::proto::left(expr);
         const field_ref& fld   = boost::proto::value(left);
@@ -332,10 +325,10 @@ struct condition_context : boost::proto::callable_context<condition_context> {
 
     // 不等于操作符
     template <typename LeftExpr, typename RightExpr>
-    condition operator()(boost::proto::tag::not_equal_to,
-                         const query_expr<boost::proto::exprns_::basic_expr<
-                             boost::proto::tagns_::tag::not_equal_to,
-                             boost::proto::argsns_::list2<LeftExpr, RightExpr>, 2>>& expr) const
+    condition operator()(
+        boost::proto::tag::not_equal_to,
+        const query_expr<boost::proto::exprns_::basic_expr<
+            boost::proto::tagns_::tag::not_equal_to, boost::proto::argsns_::list2<LeftExpr, RightExpr>, 2>>& expr) const
     {
         const auto& left  = boost::proto::left(expr);
         const auto& right = boost::proto::right(expr);
@@ -347,10 +340,10 @@ struct condition_context : boost::proto::callable_context<condition_context> {
 
     // 大于操作符
     template <typename LeftExpr, typename RightExpr>
-    condition operator()(boost::proto::tag::greater,
-                         const query_expr<boost::proto::exprns_::basic_expr<
-                             boost::proto::tagns_::tag::greater,
-                             boost::proto::argsns_::list2<LeftExpr, RightExpr>, 2>>& expr) const
+    condition operator()(
+        boost::proto::tag::greater,
+        const query_expr<boost::proto::exprns_::basic_expr<
+            boost::proto::tagns_::tag::greater, boost::proto::argsns_::list2<LeftExpr, RightExpr>, 2>>& expr) const
     {
         const auto& left  = boost::proto::left(expr);
         const auto& right = boost::proto::right(expr);
@@ -362,10 +355,11 @@ struct condition_context : boost::proto::callable_context<condition_context> {
 
     // 大于等于操作符
     template <typename LeftExpr, typename RightExpr>
-    condition operator()(boost::proto::tag::greater_equal,
-                         const query_expr<boost::proto::exprns_::basic_expr<
-                             boost::proto::tagns_::tag::greater_equal,
-                             boost::proto::argsns_::list2<LeftExpr, RightExpr>, 2>>& expr) const
+    condition operator()(
+        boost::proto::tag::greater_equal,
+        const query_expr<boost::proto::exprns_::basic_expr<boost::proto::tagns_::tag::greater_equal,
+                                                           boost::proto::argsns_::list2<LeftExpr, RightExpr>, 2>>& expr)
+        const
     {
         const auto& left  = boost::proto::left(expr);
         const auto& right = boost::proto::right(expr);
@@ -377,11 +371,10 @@ struct condition_context : boost::proto::callable_context<condition_context> {
 
     // 小于操作符
     template <typename LeftExpr, typename RightExpr>
-    condition operator()(
-        boost::proto::tag::less,
-        const query_expr<boost::proto::exprns_::basic_expr<
-            boost::proto::tagns_::tag::less, boost::proto::argsns_::list2<LeftExpr, RightExpr>, 2>>&
-            expr) const
+    condition
+    operator()(boost::proto::tag::less,
+               const query_expr<boost::proto::exprns_::basic_expr<
+                   boost::proto::tagns_::tag::less, boost::proto::argsns_::list2<LeftExpr, RightExpr>, 2>>& expr) const
     {
         const auto& left  = boost::proto::left(expr);
         const auto& right = boost::proto::right(expr);
@@ -393,10 +386,10 @@ struct condition_context : boost::proto::callable_context<condition_context> {
 
     // 小于等于操作符
     template <typename LeftExpr, typename RightExpr>
-    condition operator()(boost::proto::tag::less_equal,
-                         const query_expr<boost::proto::exprns_::basic_expr<
-                             boost::proto::tagns_::tag::less_equal,
-                             boost::proto::argsns_::list2<LeftExpr, RightExpr>, 2>>& expr) const
+    condition operator()(
+        boost::proto::tag::less_equal,
+        const query_expr<boost::proto::exprns_::basic_expr<
+            boost::proto::tagns_::tag::less_equal, boost::proto::argsns_::list2<LeftExpr, RightExpr>, 2>>& expr) const
     {
         const auto& left  = boost::proto::left(expr);
         const auto& right = boost::proto::right(expr);
@@ -408,10 +401,10 @@ struct condition_context : boost::proto::callable_context<condition_context> {
 
     // 逻辑与操作符
     template <typename LeftExpr, typename RightExpr>
-    condition operator()(boost::proto::tag::logical_and,
-                         const query_expr<boost::proto::exprns_::basic_expr<
-                             boost::proto::tagns_::tag::logical_and,
-                             boost::proto::argsns_::list2<LeftExpr, RightExpr>, 2>>& expr) const
+    condition operator()(
+        boost::proto::tag::logical_and,
+        const query_expr<boost::proto::exprns_::basic_expr<
+            boost::proto::tagns_::tag::logical_and, boost::proto::argsns_::list2<LeftExpr, RightExpr>, 2>>& expr) const
     {
         condition left_cond  = boost::proto::left(expr).as_condition();
         condition right_cond = boost::proto::right(expr).as_condition();
@@ -420,10 +413,10 @@ struct condition_context : boost::proto::callable_context<condition_context> {
 
     // 逻辑或操作符
     template <typename LeftExpr, typename RightExpr>
-    condition operator()(boost::proto::tag::logical_or,
-                         const query_expr<boost::proto::exprns_::basic_expr<
-                             boost::proto::tagns_::tag::logical_or,
-                             boost::proto::argsns_::list2<LeftExpr, RightExpr>, 2>>& expr) const
+    condition operator()(
+        boost::proto::tag::logical_or,
+        const query_expr<boost::proto::exprns_::basic_expr<
+            boost::proto::tagns_::tag::logical_or, boost::proto::argsns_::list2<LeftExpr, RightExpr>, 2>>& expr) const
     {
         condition left_cond  = boost::proto::left(expr).as_condition();
         condition right_cond = boost::proto::right(expr).as_condition();
@@ -492,8 +485,7 @@ inline condition operator||(const condition& left, const condition& right)
 
 // 为 query_expr 与 condition 的混合场景提供逻辑重载，自动执行 to_condition
 template <typename LExpr, typename RExpr>
-inline condition operator&&(const dsl::query_expr<LExpr>& left,
-                            const dsl::query_expr<RExpr>& right)
+inline condition operator&&(const dsl::query_expr<LExpr>& left, const dsl::query_expr<RExpr>& right)
 {
     return dsl::operator&&(to_condition(left), to_condition(right));
 }
@@ -511,8 +503,7 @@ inline condition operator&&(const dsl::query_expr<RExpr>& left, const condition&
 }
 
 template <typename LExpr, typename RExpr>
-inline condition operator||(const dsl::query_expr<LExpr>& left,
-                            const dsl::query_expr<RExpr>& right)
+inline condition operator||(const dsl::query_expr<LExpr>& left, const dsl::query_expr<RExpr>& right)
 {
     return dsl::operator||(to_condition(left), to_condition(right));
 }

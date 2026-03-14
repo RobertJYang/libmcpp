@@ -17,30 +17,23 @@
 
 namespace mc {
 
-variant_reference::variant_reference(variant_type& var)
-    : m_holder(&var)
-{
-}
+variant_reference::variant_reference(variant_type& var) : m_holder(&var)
+{}
 
-variant_reference::variant_reference(variant_type&& var)
-    : m_holder(value_holder(std::move(var)))
-{
-}
+variant_reference::variant_reference(variant_type&& var) : m_holder(value_holder(std::move(var)))
+{}
 
 variant_reference::variant_reference(mc::shared_ptr<variant_extension_base> ext, std::size_t index)
     : m_holder(extension_accessor(std::move(ext), index))
-{
-}
+{}
 
 variant_reference::variant_reference(mc::shared_ptr<variant_extension_base> ext, std::string key)
     : m_holder(extension_accessor(std::move(ext), std::move(key)))
-{
-}
+{}
 
 variant_reference::variant_reference(variants cont, std::size_t index)
     : m_holder(variants_accessor(std::move(cont), index))
-{
-}
+{}
 
 variant_reference& variant_reference::operator=(variant_reference&& other) noexcept
 {

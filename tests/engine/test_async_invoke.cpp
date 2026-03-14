@@ -93,9 +93,11 @@ public:
     // 链式异步操作方法
     mc::result<int32_t> chain_method(int32_t value)
     {
-        return mc::delay(mc::milliseconds(50)).then([value]() {
+        return mc::delay(mc::milliseconds(50))
+            .then([value]() {
             return value + 1;
-        }).then([](int32_t v) {
+        })
+            .then([](int32_t v) {
             return mc::delay(mc::milliseconds(50)).then([v]() {
                 return v * 2;
             });
@@ -123,10 +125,8 @@ class AsyncObject : public mc::engine::object<AsyncObject> {
 public:
     MC_OBJECT(AsyncObject, "AsyncObject", "/org/test/AsyncObject", (AsyncInterface))
 
-    AsyncObject(mc::engine::core_object* parent = nullptr)
-        : mc::engine::object<AsyncObject>(parent)
-    {
-    }
+    AsyncObject(mc::engine::core_object* parent = nullptr) : mc::engine::object<AsyncObject>(parent)
+    {}
 
     AsyncInterface m_iface;
 };
@@ -134,21 +134,19 @@ public:
 } // namespace
 
 MC_REFLECT(AsyncInterface,
-           ((sync_method, "SyncMethod"))((async_method, "AsyncMethod"))(
-               (hybrid_method, "HybridMethod"))((error_method, "ErrorMethod"))((void_method, "VoidMethod"))(
-               (long_running_method, "LongRunningMethod"))((chain_method, "ChainMethod"))(
-               (parallel_method, "ParallelMethod"))((operation_completed, "OperationCompleted")))
+           ((sync_method, "SyncMethod"))((async_method, "AsyncMethod"))((hybrid_method, "HybridMethod"))(
+               (error_method, "ErrorMethod"))((void_method, "VoidMethod"))((long_running_method, "LongRunningMethod"))(
+               (chain_method, "ChainMethod"))((parallel_method, "ParallelMethod"))((operation_completed,
+                                                                                    "OperationCompleted")))
 MC_REFLECT(AsyncObject, ((m_iface, "async")))
 
 class async_invoke_test : public ::testing::Test {
 protected:
     void SetUp() override
-    {
-    }
+    {}
 
     void TearDown() override
-    {
-    }
+    {}
 
     AsyncObject                  obj;
     mc::engine::abstract_object& obj_base = obj;
@@ -193,7 +191,8 @@ TEST_F(async_invoke_test, test_error_handling)
 
     // 验证通过 mc::engine::error 返回错误（验证通过 catch_error 捕获错误）
     immediate_error = obj_base.async_invoke("ErrorMethod", {true, false});
-    immediate_error.catch_error([](const mc::exception& ex) -> mc::variant {
+    immediate_error
+        .catch_error([](const mc::exception& ex) -> mc::variant {
         EXPECT_EQ(ex.name(), "TestError");
         EXPECT_EQ(ex.top_message(), "immediate error");
         return {};
@@ -224,7 +223,8 @@ TEST_F(async_invoke_test, test_void_result)
     result = obj_base.async_invoke("VoidMethod", {false});
     EXPECT_TRUE(result.is_future() && !result.is_ready());
     bool async_completed = false;
-    result.then([&]() {
+    result
+        .then([&]() {
         async_completed = true;
     }).wait();
     EXPECT_TRUE(async_completed);
@@ -276,9 +276,7 @@ TEST_F(async_invoke_test, test_combined_operations)
     auto hybrid_result = obj_base.async_invoke("HybridMethod", {"test", false});
 
     // 等待所有操作完成
-    auto combined = mc::all(sync_result.as_future(),
-                            async_result.as_future(),
-                            hybrid_result.as_future());
+    auto combined = mc::all(sync_result.as_future(), async_result.as_future(), hybrid_result.as_future());
 
     auto [sync_value, async_value, hybrid_value] = combined.get();
 
@@ -291,9 +289,7 @@ TEST_F(async_invoke_test, test_combined_operations)
 TEST_F(async_invoke_test, test_signal_with_async)
 {
     std::string signal_value;
-    auto        conn = obj_base.connect(
-        "OperationCompleted",
-        [&](const mc::variants& args) -> mc::variant {
+    auto        conn = obj_base.connect("OperationCompleted", [&](const mc::variants& args) -> mc::variant {
         signal_value = args[0].as<std::string>();
         return {};
     });
@@ -301,7 +297,8 @@ TEST_F(async_invoke_test, test_signal_with_async)
     // 触发一个异步操作，完成时会发出信号
     auto result              = obj_base.async_invoke("HybridMethod", {"test", true});
     bool immediate_completed = false;
-    result.then([&](const std::string& val) {
+    result
+        .then([&](const std::string& val) {
         EXPECT_EQ(signal_value, "immediate:test");
         immediate_completed = true;
     }).wait();
@@ -310,7 +307,8 @@ TEST_F(async_invoke_test, test_signal_with_async)
     // 触发一个异步操作，完成时会发出信号
     result                 = obj_base.async_invoke("HybridMethod", {"test", false});
     bool delayed_completed = false;
-    result.then([&](const std::string& val) {
+    result
+        .then([&](const std::string& val) {
         EXPECT_EQ(signal_value, "delayed:test");
         delayed_completed = true;
     }).wait();

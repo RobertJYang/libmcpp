@@ -24,15 +24,11 @@ namespace test {
 // 用于测试的简单类
 class test_class {
 public:
-    test_class()
-        : m_value(0), m_is_destroyed(nullptr)
-    {
-    }
+    test_class() : m_value(0), m_is_destroyed(nullptr)
+    {}
 
-    test_class(int value, bool* is_destroyed = nullptr)
-        : m_value(value), m_is_destroyed(is_destroyed)
-    {
-    }
+    test_class(int value, bool* is_destroyed = nullptr) : m_value(value), m_is_destroyed(is_destroyed)
+    {}
 
     ~test_class()
     {
@@ -75,10 +71,8 @@ struct order_tag2 {};
 
 class order_test_class {
 public:
-    order_test_class(int id, std::vector<int>* order)
-        : m_id(id), m_order(order)
-    {
-    }
+    order_test_class(int id, std::vector<int>* order) : m_id(id), m_order(order)
+    {}
 
     ~order_test_class()
     {
@@ -94,10 +88,8 @@ private:
 
 class destroy_test_class {
 public:
-    explicit destroy_test_class(bool* destroyed)
-        : m_destroyed(destroyed)
-    {
-    }
+    explicit destroy_test_class(bool* destroyed) : m_destroyed(destroyed)
+    {}
 
     ~destroy_test_class()
     {
@@ -112,10 +104,8 @@ private:
 
 class leaky_test_class {
 public:
-    explicit leaky_test_class(bool* destroyed)
-        : m_destroyed(destroyed)
-    {
-    }
+    explicit leaky_test_class(bool* destroyed) : m_destroyed(destroyed)
+    {}
 
     ~leaky_test_class()
     {
@@ -481,8 +471,7 @@ class exception_test_class {
 public:
     explicit exception_test_class(bool throw_std_exception, bool throw_unknown)
         : m_throw_std_exception(throw_std_exception), m_throw_unknown(throw_unknown)
-    {
-    }
+    {}
 
     ~exception_test_class() noexcept(false)
     {

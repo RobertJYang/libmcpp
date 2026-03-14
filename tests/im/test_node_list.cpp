@@ -36,14 +36,11 @@ public:
     };
 
     test_allocator()
-    {
-    }
+    {}
 
     template <typename U>
-    test_allocator(const test_allocator<U>& other)
-        : base(other)
-    {
-    }
+    test_allocator(const test_allocator<U>& other) : base(other)
+    {}
 
     pointer allocate(size_type n)
     {
@@ -429,10 +426,8 @@ TEST_F(NodeListTest, CustomAllocator)
     using custom_node_type = node<custom_config>;
 
     {
-        auto node0 =
-            mc::allocate_shared<custom_node_type>(alloc, reinterpret_cast<void*>(static_cast<intptr_t>(0)));
-        auto node1 =
-            mc::allocate_shared<custom_node_type>(alloc, reinterpret_cast<void*>(static_cast<intptr_t>(1)));
+        auto node0 = mc::allocate_shared<custom_node_type>(alloc, reinterpret_cast<void*>(static_cast<intptr_t>(0)));
+        auto node1 = mc::allocate_shared<custom_node_type>(alloc, reinterpret_cast<void*>(static_cast<intptr_t>(1)));
 
         typename custom_node_type::list_type list;
 

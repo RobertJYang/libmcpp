@@ -51,13 +51,11 @@ void throw_bad_enum_cast(const char* value, const char* enum_type)
  * @param expect_count 期望的参数数量
  * @param actual_count 实际的参数数量
  */
-void throw_method_arg_not_enough(std::string_view method_name, size_t expect_count,
-                                 size_t actual_count)
+void throw_method_arg_not_enough(std::string_view method_name, size_t expect_count, size_t actual_count)
 {
-    MC_THROW(
-        mc::bad_function_call_exception,
-        "调用方法 ${method_name} 参数不足，需要 ${expect_count} 个，实际提供 ${actual_count} 个",
-        ("method_name", method_name)("expect_count", expect_count)("actual_count", actual_count));
+    MC_THROW(mc::bad_function_call_exception,
+             "调用方法 ${method_name} 参数不足，需要 ${expect_count} 个，实际提供 ${actual_count} 个",
+             ("method_name", method_name)("expect_count", expect_count)("actual_count", actual_count));
 }
 
 /**
@@ -67,8 +65,7 @@ void throw_method_arg_not_enough(std::string_view method_name, size_t expect_cou
  */
 void throw_method_not_exist(std::string_view method_name)
 {
-    MC_THROW(mc::bad_function_call_exception, "调用不存在的方法 ${method_name}",
-             ("method_name", method_name));
+    MC_THROW(mc::bad_function_call_exception, "调用不存在的方法 ${method_name}", ("method_name", method_name));
 }
 
 /**
@@ -85,8 +82,7 @@ void throw_variant_cast(const char* type, const char* variant_type)
 
 void throw_not_enum_type(std::string_view type_name)
 {
-    MC_THROW(mc::bad_type_exception, "类型不是枚举类型: ${type_name}",
-             ("type_name", type_name));
+    MC_THROW(mc::bad_type_exception, "类型不是枚举类型: ${type_name}", ("type_name", type_name));
 }
 
 void throw_enum_value_not_found(std::string_view type_name, std::string_view value_name)
@@ -103,8 +99,7 @@ void throw_enum_value_not_found(std::string_view type_name, uint64_t value)
 
 void throw_enum_not_support_create_object(std::string_view type_name)
 {
-    MC_THROW(mc::bad_type_exception, "枚举类型不支持创建对象实例: ${type_name}",
-             ("type_name", type_name));
+    MC_THROW(mc::bad_type_exception, "枚举类型不支持创建对象实例: ${type_name}", ("type_name", type_name));
 }
 
 } // namespace mc::reflect

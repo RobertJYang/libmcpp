@@ -36,10 +36,8 @@ void safe_invoke(F&& callback)
 using callback_type = std::function<void()>;
 
 struct callback_node : public mc::noncopyable {
-    explicit callback_node(callback_type callback)
-        : m_callback(std::move(callback))
-    {
-    }
+    explicit callback_node(callback_type callback) : m_callback(std::move(callback))
+    {}
 
     callback_type                  m_callback;
     std::unique_ptr<callback_node> m_next;

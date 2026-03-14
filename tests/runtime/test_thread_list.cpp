@@ -26,12 +26,10 @@ namespace {
 class ThreadListTest : public ::testing::Test {
 protected:
     void SetUp() override
-    {
-    }
+    {}
 
     void TearDown() override
-    {
-    }
+    {}
 };
 
 } // namespace

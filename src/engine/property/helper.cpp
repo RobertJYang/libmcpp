@@ -23,8 +23,7 @@ abstract_object* property_helper::find_related_object(const std::string& object_
     auto position = get_object()->get_position();
     auto service  = mc::expr::func_collection::get_instance().get_service(position);
     if (service == nullptr) {
-        elog("Service not found for position: ${position}",
-             ("position", std::string(position)));
+        elog("Service not found for position: ${position}", ("position", std::string(position)));
         return nullptr;
     }
 
@@ -64,8 +63,7 @@ mc::variant property_helper::call_function_with_result(const detail::func_data* 
         }
         return result;
     } catch (const std::exception& e) {
-        elog("Function call exception for property: ${name}, error: ${error}",
-             ("name", get_name())("error", e.what()));
+        elog("Function call exception for property: ${name}, error: ${error}", ("name", get_name())("error", e.what()));
         return mc::variant();
     }
 }
@@ -104,8 +102,10 @@ void property_helper::set_relate_property(const mc::expr::relate_property& relat
     if (!relate_property.interface.empty()) {
         auto interface_obj = target_object->get_interface(relate_property.interface);
         if (interface_obj == nullptr) {
-            MC_THROW(mc::invalid_op_exception, "set_relate_property ${name} failed: Interface not found: ${interface} in object: ${object_name}",
-                     ("name", get_name())("interface", relate_property.interface)("object_name", relate_property.object_name));
+            MC_THROW(mc::invalid_op_exception,
+                     "set_relate_property ${name} failed: Interface not found: ${interface} in object: ${object_name}",
+                     ("name", get_name())("interface", relate_property.interface)("object_name",
+                                                                                  relate_property.object_name));
         }
         interface_obj->set_property(relate_property.property_name, value);
     } else {
@@ -114,8 +114,7 @@ void property_helper::set_relate_property(const mc::expr::relate_property& relat
     }
 }
 
-void property_helper::connect_property_listener(abstract_object&      target_object,
-                                                const std::string&    property_name,
+void property_helper::connect_property_listener(abstract_object& target_object, const std::string& property_name,
                                                 std::function<void()> callback)
 {
     target_object.property_changed().connect(

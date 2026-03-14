@@ -42,10 +42,8 @@ enum class parser_error {
 };
 
 struct parser_result {
-    constexpr parser_result(const char* start)
-        : start_ptr(start)
-    {
-    }
+    constexpr parser_result(const char* start) : start_ptr(start)
+    {}
 
     static constexpr parser_result failed(const char*& ptr, parser_error err, size_t skip_chars = 1)
     {
@@ -156,8 +154,8 @@ constexpr parser_result parse_placeholder_content(Context& ctx, const char* ptr,
 // 解析 ${name} 或 ${name:format} 语法的占位符
 // 返回占位符后的第一个字符的指针和占位符的内容
 template <typename Context>
-constexpr parser_result parse_named_placeholder(
-    Context& ctx, const char* ptr, const char* end, string_view& name, const char*& format_start)
+constexpr parser_result parse_named_placeholder(Context& ctx, const char* ptr, const char* end, string_view& name,
+                                                const char*& format_start)
 {
     const char*   original_ptr = ptr; // 保存原始指针，包含 $
     parser_result result(ptr);
@@ -217,8 +215,8 @@ constexpr size_t parse_index(Context& ctx, string_view index_str)
 // 智能解析占位符，支持索引参数和命名参数
 // {}, {123}, {name} 等格式
 template <typename Context>
-constexpr parser_result parse_smart_placeholder(Context& ctx, const char* ptr, const char* end,
-                                                size_t& index, std::string_view& name, const char*& format_start)
+constexpr parser_result parse_smart_placeholder(Context& ctx, const char* ptr, const char* end, size_t& index,
+                                                std::string_view& name, const char*& format_start)
 {
     std::string_view content;
     parser_result    result = parse_placeholder_content(ctx, ptr, end, content, format_start);
@@ -252,8 +250,8 @@ constexpr parser_result parse_smart_placeholder(Context& ctx, const char* ptr, c
 
 // 保持向后兼容的 parse_index_placeholder 函数
 template <typename Context>
-constexpr parser_result parse_index_placeholder(Context& ctx, const char* ptr, const char* end,
-                                                size_t& index, const char*& format_start)
+constexpr parser_result parse_index_placeholder(Context& ctx, const char* ptr, const char* end, size_t& index,
+                                                const char*& format_start)
 {
     std::string_view name;
     return parse_smart_placeholder(ctx, ptr, end, index, name, format_start);

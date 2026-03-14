@@ -243,11 +243,9 @@ private:
     std::vector<std::shared_ptr<db_resource>> m_resources;
 
     // 按资源ID分组的资源链表
-    using resource_map = mc::intrusive::unordered_set<
-        db_resource,
-        mc::intrusive::hash<resource_hash>,
-        mc::intrusive::equal<resource_equal>,
-        mc::intrusive::constant_time_size<true>>;
+    using resource_map =
+        mc::intrusive::unordered_set<db_resource, mc::intrusive::hash<resource_hash>,
+                                     mc::intrusive::equal<resource_equal>, mc::intrusive::constant_time_size<true>>;
     resource_map              m_resource_map;
     resource_map::bucket_type m_buckets[MC_DB_BUCKET_COUNT];
 

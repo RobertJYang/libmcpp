@@ -345,8 +345,7 @@ public:
             append_float32(val);
         } else if constexpr (std::is_same<T, double>::value) {
             append_float64(val);
-        } else if constexpr (std::is_same<T, std::string>::value ||
-                             std::is_same<T, std::string_view>::value) {
+        } else if constexpr (std::is_same<T, std::string>::value || std::is_same<T, std::string_view>::value) {
             append_string(val);
         } else if constexpr (std::is_same<T, const char*>::value) {
             append_string(val);
@@ -357,8 +356,7 @@ public:
             if constexpr (has_val_method<T>::value) {
                 append_value(val.val());
             } else {
-                MC_THROW(mc::invalid_arg_exception, "不支持的key类型[${type}]",
-                         ("type", typeid(T).name()));
+                MC_THROW(mc::invalid_arg_exception, "不支持的key类型[${type}]", ("type", typeid(T).name()));
             }
         }
     }
@@ -390,8 +388,7 @@ public:
             write_float32(val);
         } else if constexpr (std::is_same<T, double>::value) {
             write_float64(val);
-        } else if constexpr (std::is_same<T, std::string>::value ||
-                             std::is_same<T, std::string_view>::value) {
+        } else if constexpr (std::is_same<T, std::string>::value || std::is_same<T, std::string_view>::value) {
             write_string(val);
         } else if constexpr (std::is_same<T, const char*>::value) {
             write_string(val);
@@ -402,8 +399,7 @@ public:
             if constexpr (has_val_method<T>::value) {
                 write_value(val.val());
             } else {
-                MC_THROW(mc::invalid_arg_exception, "不支持的key类型[${type}]",
-                         ("type", typeid(T).name()));
+                MC_THROW(mc::invalid_arg_exception, "不支持的key类型[${type}]", ("type", typeid(T).name()));
             }
         }
     }
@@ -548,8 +544,7 @@ private:
     bool write_head(size_t n)
     {
         if (m_key_num >= m_key_count) {
-            MC_THROW(mc::invalid_arg_exception, "超出给定Key数量[${count}]",
-                     ("count", m_key_count));
+            MC_THROW(mc::invalid_arg_exception, "超出给定Key数量[${count}]", ("count", m_key_count));
             return false;
         }
         if (m_key_count > 1) {

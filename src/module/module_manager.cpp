@@ -28,14 +28,11 @@ using impl_ptr        = mc::shared_ptr<module_manager_impl>;
 
 class factory_module : public module_base {
 public:
-    factory_module(std::string_view name, factory_ptr factory)
-        : m_name(name), m_factory(factory)
-    {
-    }
+    factory_module(std::string_view name, factory_ptr factory) : m_name(name), m_factory(factory)
+    {}
 
     ~factory_module() override
-    {
-    }
+    {}
 
     std::string_view name() const override
     {
@@ -59,10 +56,8 @@ protected:
 
 class library_module : public factory_module {
 public:
-    library_module(std::string_view name, factory_ptr factory)
-        : factory_module(name, factory)
-    {
-    }
+    library_module(std::string_view name, factory_ptr factory) : factory_module(name, factory)
+    {}
 
     ~library_module() override;
 
@@ -111,10 +106,7 @@ public:
 
     module_ptr load_module_from_factory(std::string_view module_name);
     module_ptr load_module_form_library(std::string_view module_name);
-    module_ptr add_library(std::string_view module_name,
-                           library_info_ptr info,
-                           bool&            is_reused,
-                           data_t&          data);
+    module_ptr add_library(std::string_view module_name, library_info_ptr info, bool& is_reused, data_t& data);
 
     mc::mutex_box<data_t> m_data;
     module_loader         m_loader;
@@ -165,8 +157,7 @@ void module_manager_impl::close_handle(const library_info& info, bool need_unloa
             m_loader.get_load_lib_func().unload(info.handle);
         }
     } catch (const std::exception& e) {
-        elog("failed unload dynamic module: ${name} - ${error}",
-             ("name", info.path)("error", e.what()));
+        elog("failed unload dynamic module: ${name} - ${error}", ("name", info.path)("error", e.what()));
     }
 }
 
@@ -237,16 +228,13 @@ module_ptr module_manager_impl::load_module_from_factory(std::string_view module
     try {
         return mc::make_shared<factory_module>(module_name, factory);
     } catch (const std::exception& e) {
-        elog("failed load module: ${name} - ${error}",
-             ("name", module_name)("error", e.what()));
+        elog("failed load module: ${name} - ${error}", ("name", module_name)("error", e.what()));
         return nullptr;
     }
 }
 
-module_ptr module_manager_impl::add_library(std::string_view module_name,
-                                            library_info_ptr info,
-                                            bool&            is_reused,
-                                            data_t&          data)
+module_ptr module_manager_impl::add_library(std::string_view module_name, library_info_ptr info, bool& is_reused,
+                                            data_t& data)
 {
     auto it = data.handles.find(module_name);
     if (it != data.handles.end()) {
@@ -338,14 +326,11 @@ void module_manager_impl::remove_library(std::string_view module_name, lock_ptr_
 /*                                  module_manager                            */
 /* -------------------------------------------------------------------------- */
 
-module_manager::module_manager()
-    : m_impl(mc::make_shared<module_manager_impl>())
-{
-}
+module_manager::module_manager() : m_impl(mc::make_shared<module_manager_impl>())
+{}
 
 module_manager::~module_manager()
-{
-}
+{}
 
 module_manager& module_manager::instance()
 {

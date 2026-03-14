@@ -20,8 +20,7 @@ using namespace mc::dbus;
 // 测试 match_rule::new_signal
 TEST(MatchRuleTest, NewSignal)
 {
-    auto rule = match_rule::new_signal("PropertiesChanged",
-                                       "org.freedesktop.DBus.Properties");
+    auto rule = match_rule::new_signal("PropertiesChanged", "org.freedesktop.DBus.Properties");
     // 验证规则创建成功（不抛出异常）
     EXPECT_NO_THROW(rule.as_string());
 }
@@ -29,8 +28,7 @@ TEST(MatchRuleTest, NewSignal)
 // 测试 match_rule::with_interface
 TEST(MatchRuleTest, WithInterface)
 {
-    auto rule = match_rule::new_signal("PropertiesChanged",
-                                       "org.freedesktop.DBus.Properties");
+    auto rule = match_rule::new_signal("PropertiesChanged", "org.freedesktop.DBus.Properties");
     rule.with_interface("org.test.Connection");
     // 验证操作成功（不抛出异常）
     EXPECT_NO_THROW(rule.as_string());
@@ -39,8 +37,7 @@ TEST(MatchRuleTest, WithInterface)
 // 测试 match_rule::with_member
 TEST(MatchRuleTest, WithMember)
 {
-    auto rule = match_rule::new_signal("PropertiesChanged",
-                                       "org.freedesktop.DBus.Properties");
+    auto rule = match_rule::new_signal("PropertiesChanged", "org.freedesktop.DBus.Properties");
     rule.with_member("TestMember");
     // 验证操作成功（不抛出异常）
     EXPECT_NO_THROW(rule.as_string());
@@ -49,8 +46,7 @@ TEST(MatchRuleTest, WithMember)
 // 测试 match_rule::with_path
 TEST(MatchRuleTest, WithPath)
 {
-    auto rule = match_rule::new_signal("PropertiesChanged",
-                                       "org.freedesktop.DBus.Properties");
+    auto rule = match_rule::new_signal("PropertiesChanged", "org.freedesktop.DBus.Properties");
     rule.with_path("/org/test/Connection");
     // 验证操作成功（不抛出异常）
     EXPECT_NO_THROW(rule.as_string());
@@ -59,8 +55,7 @@ TEST(MatchRuleTest, WithPath)
 // 测试 match_rule::with_path 传入非法路径
 TEST(MatchRuleTest, WithPathInvalid)
 {
-    auto rule = match_rule::new_signal("PropertiesChanged",
-                                       "org.freedesktop.DBus.Properties");
+    auto rule = match_rule::new_signal("PropertiesChanged", "org.freedesktop.DBus.Properties");
     // 非法路径缺少前导斜杠，应该抛出异常
     EXPECT_THROW(rule.with_path("org/test/Connection"), mc::invalid_arg_exception);
     // 空字符串同样非法
@@ -70,8 +65,7 @@ TEST(MatchRuleTest, WithPathInvalid)
 // 测试 match_rule::with_path_namespace
 TEST(MatchRuleTest, WithPathNamespace)
 {
-    auto rule = match_rule::new_signal("PropertiesChanged",
-                                       "org.freedesktop.DBus.Properties");
+    auto rule = match_rule::new_signal("PropertiesChanged", "org.freedesktop.DBus.Properties");
     rule.with_path_namespace("/org/test");
     // 验证操作成功（不抛出异常）
     EXPECT_NO_THROW(rule.as_string());
@@ -80,8 +74,7 @@ TEST(MatchRuleTest, WithPathNamespace)
 // 测试 match_rule::with_path_namespace 传入非法路径前缀
 TEST(MatchRuleTest, WithPathNamespaceInvalid)
 {
-    auto rule = match_rule::new_signal("PropertiesChanged",
-                                       "org.freedesktop.DBus.Properties");
+    auto rule = match_rule::new_signal("PropertiesChanged", "org.freedesktop.DBus.Properties");
     // 缺少前导斜杠的 namespace 需要抛出异常
     EXPECT_THROW(rule.with_path_namespace("org/test"), mc::invalid_arg_exception);
     // 包含空格的路径前缀同样非法
@@ -91,8 +84,7 @@ TEST(MatchRuleTest, WithPathNamespaceInvalid)
 // 测试 match_rule::with_sender
 TEST(MatchRuleTest, WithSender)
 {
-    auto rule = match_rule::new_signal("PropertiesChanged",
-                                       "org.freedesktop.DBus.Properties");
+    auto rule = match_rule::new_signal("PropertiesChanged", "org.freedesktop.DBus.Properties");
     rule.with_sender("org.test.Connection");
     // 验证操作成功（不抛出异常）
     EXPECT_NO_THROW(rule.as_string());
@@ -101,8 +93,7 @@ TEST(MatchRuleTest, WithSender)
 // 测试 match_rule::with_destination
 TEST(MatchRuleTest, WithDestination)
 {
-    auto rule = match_rule::new_signal("PropertiesChanged",
-                                       "org.freedesktop.DBus.Properties");
+    auto rule = match_rule::new_signal("PropertiesChanged", "org.freedesktop.DBus.Properties");
     rule.with_destination("org.test.Connection");
     // 验证操作成功（不抛出异常）
     EXPECT_NO_THROW(rule.as_string());
@@ -111,8 +102,7 @@ TEST(MatchRuleTest, WithDestination)
 // 测试 match_rule::clone
 TEST(MatchRuleTest, Clone)
 {
-    auto rule1 = match_rule::new_signal("PropertiesChanged",
-                                        "org.freedesktop.DBus.Properties");
+    auto rule1 = match_rule::new_signal("PropertiesChanged", "org.freedesktop.DBus.Properties");
     rule1.with_path("/org/test/Connection");
     rule1.with_sender("org.test.Connection");
 
@@ -131,8 +121,7 @@ TEST(MatchRuleTest, Clone)
 TEST(MatchTest, AddAndRemoveRule)
 {
     match m;
-    auto  rule = match_rule::new_signal("PropertiesChanged",
-                                        "org.freedesktop.DBus.Properties");
+    auto  rule = match_rule::new_signal("PropertiesChanged", "org.freedesktop.DBus.Properties");
 
     uint64_t rule_id         = 1;
     bool     callback_called = false;
@@ -155,8 +144,7 @@ TEST(MatchTest, AddAndRemoveRule)
 TEST(MatchTest, RunMsg)
 {
     match m;
-    auto  rule = match_rule::new_signal("PropertiesChanged",
-                                        "org.freedesktop.DBus.Properties");
+    auto  rule = match_rule::new_signal("PropertiesChanged", "org.freedesktop.DBus.Properties");
 
     uint64_t rule_id         = 1;
     bool     callback_called = false;
@@ -168,9 +156,7 @@ TEST(MatchTest, RunMsg)
     m.add_rule(rule, std::move(cb), rule_id);
 
     // 创建一个测试消息
-    auto msg = message::new_signal("/org/test/Connection",
-                                   "org.freedesktop.DBus.Properties",
-                                   "PropertiesChanged");
+    auto msg = message::new_signal("/org/test/Connection", "org.freedesktop.DBus.Properties", "PropertiesChanged");
 
     // run_msg 应该能够运行匹配的规则
     bool result = m.run_msg(msg.get_dbus_message());
@@ -182,8 +168,7 @@ TEST(MatchTest, RunMsg)
 TEST(MatchTest, TestMatch)
 {
     match m;
-    auto  rule = match_rule::new_signal("PropertiesChanged",
-                                        "org.freedesktop.DBus.Properties");
+    auto  rule = match_rule::new_signal("PropertiesChanged", "org.freedesktop.DBus.Properties");
 
     uint64_t rule_id         = 1;
     bool     callback_called = false;
@@ -195,9 +180,7 @@ TEST(MatchTest, TestMatch)
     m.add_rule(rule, std::move(cb), rule_id);
 
     // 创建一个测试消息
-    auto msg = message::new_signal("/org/test/Connection",
-                                   "org.freedesktop.DBus.Properties",
-                                   "PropertiesChanged");
+    auto msg = message::new_signal("/org/test/Connection", "org.freedesktop.DBus.Properties", "PropertiesChanged");
 
     // test_match 应该测试匹配但不执行回调
     bool result = m.test_match(msg.get_dbus_message());
@@ -211,12 +194,11 @@ TEST(MatchTest, TestMatch)
 // 注意：在 mock 实现中，test_match 总是返回 true，无法测试不匹配的情况
 TEST(MatchTest, TestMatchNoMatch)
 {
-#if (defined(BUILD_TYPE) && defined(BUILD_TYPE_DT) && BUILD_TYPE != BUILD_TYPE_DT) || \
+#if (defined(BUILD_TYPE) && defined(BUILD_TYPE_DT) && BUILD_TYPE != BUILD_TYPE_DT) ||                                  \
     (defined(ENABLE_CONAN_COMPILE) && ENABLE_CONAN_COMPILE == 1)
     // 实际实现中测试
     match m;
-    auto  rule = match_rule::new_signal("InterfacesAdded",
-                                        "org.freedesktop.DBus.ObjectManager");
+    auto  rule = match_rule::new_signal("InterfacesAdded", "org.freedesktop.DBus.ObjectManager");
 
     uint64_t   rule_id = 1;
     match_cb_t cb      = [](message& msg) {
@@ -225,9 +207,7 @@ TEST(MatchTest, TestMatchNoMatch)
     m.add_rule(rule, std::move(cb), rule_id);
 
     // 创建一个不匹配的消息
-    auto msg = message::new_signal("/org/test/Connection",
-                                   "org.freedesktop.DBus.Properties",
-                                   "PropertiesChanged");
+    auto msg = message::new_signal("/org/test/Connection", "org.freedesktop.DBus.Properties", "PropertiesChanged");
 
     // test_match 应该返回 false（不匹配）
     bool result = m.test_match(msg.get_dbus_message());
@@ -242,12 +222,11 @@ TEST(MatchTest, TestMatchNoMatch)
 // 注意：在 mock 实现中，run() 不会调用回调，所以异常处理分支无法测试
 TEST(MatchTest, AddRuleExceptionHandling)
 {
-#if (defined(BUILD_TYPE) && defined(BUILD_TYPE_DT) && BUILD_TYPE != BUILD_TYPE_DT) || \
+#if (defined(BUILD_TYPE) && defined(BUILD_TYPE_DT) && BUILD_TYPE != BUILD_TYPE_DT) ||                                  \
     (defined(ENABLE_CONAN_COMPILE) && ENABLE_CONAN_COMPILE == 1)
     // 实际实现中测试
     match m;
-    auto  rule = match_rule::new_signal("PropertiesChanged",
-                                        "org.freedesktop.DBus.Properties");
+    auto  rule = match_rule::new_signal("PropertiesChanged", "org.freedesktop.DBus.Properties");
 
     uint64_t rule_id          = 1;
     bool     exception_caught = false;
@@ -261,9 +240,7 @@ TEST(MatchTest, AddRuleExceptionHandling)
     m.add_rule(rule, std::move(cb), rule_id);
 
     // 创建一个测试消息
-    auto msg = message::new_signal("/org/test/Connection",
-                                   "org.freedesktop.DBus.Properties",
-                                   "PropertiesChanged");
+    auto msg = message::new_signal("/org/test/Connection", "org.freedesktop.DBus.Properties", "PropertiesChanged");
 
     // run_msg 应该捕获异常并继续执行
     EXPECT_NO_THROW(m.run_msg(msg.get_dbus_message()));
@@ -278,8 +255,7 @@ TEST(MatchTest, AddRuleExceptionHandling)
 TEST(MatchTest, RemoveRuleNotConnected)
 {
     match m;
-    auto  rule = match_rule::new_signal("PropertiesChanged",
-                                        "org.freedesktop.DBus.Properties");
+    auto  rule = match_rule::new_signal("PropertiesChanged", "org.freedesktop.DBus.Properties");
 
     uint64_t   rule_id = 1;
     match_cb_t cb      = [](message& msg) {
@@ -297,10 +273,8 @@ TEST(MatchTest, MultipleRules)
 {
     match m;
 
-    auto rule1 = match_rule::new_signal("PropertiesChanged",
-                                        "org.freedesktop.DBus.Properties");
-    auto rule2 = match_rule::new_signal("InterfacesAdded",
-                                        "org.freedesktop.DBus.ObjectManager");
+    auto rule1 = match_rule::new_signal("PropertiesChanged", "org.freedesktop.DBus.Properties");
+    auto rule2 = match_rule::new_signal("InterfacesAdded", "org.freedesktop.DBus.ObjectManager");
 
     uint64_t rule1_id = 1;
     uint64_t rule2_id = 2;
@@ -329,8 +303,7 @@ TEST(MatchTest, MultipleRules)
 // 测试 match_rule::with_type
 TEST(MatchRuleTest, WithType)
 {
-    auto rule = match_rule::new_signal("PropertiesChanged",
-                                       "org.freedesktop.DBus.Properties");
+    auto rule = match_rule::new_signal("PropertiesChanged", "org.freedesktop.DBus.Properties");
     rule.with_type(DBus::Match::MessageType::signal);
     // 验证操作成功（不抛出异常）
     EXPECT_NO_THROW(rule.as_string());
@@ -339,8 +312,7 @@ TEST(MatchRuleTest, WithType)
 // 测试 match_rule::clone 中的 path_namespace 分支
 TEST(MatchRuleTest, CloneWithPathNamespace)
 {
-    auto rule1 = match_rule::new_signal("PropertiesChanged",
-                                        "org.freedesktop.DBus.Properties");
+    auto rule1 = match_rule::new_signal("PropertiesChanged", "org.freedesktop.DBus.Properties");
     rule1.with_path_namespace("/org/test");
     rule1.with_sender("org.test.Connection");
     rule1.with_destination("org.test.Connection");
@@ -357,8 +329,7 @@ TEST(MatchRuleTest, CloneWithPathNamespace)
 // 测试 match_rule::clone 中的 path 分支（非 path_namespace）
 TEST(MatchRuleTest, CloneWithPath)
 {
-    auto rule1 = match_rule::new_signal("PropertiesChanged",
-                                        "org.freedesktop.DBus.Properties");
+    auto rule1 = match_rule::new_signal("PropertiesChanged", "org.freedesktop.DBus.Properties");
     rule1.with_path("/org/test/Connection");
     rule1.with_sender("org.test.Connection");
 
@@ -373,29 +344,21 @@ TEST(MatchRuleTest, CloneWithPath)
 // 测试 match_rule 构造函数错误路径（无效的 member）
 TEST(MatchRuleTest, InvalidMember)
 {
-    EXPECT_THROW(
-        {
-            match_rule rule = match_rule::new_signal("123invalid",
-                                                     "org.freedesktop.DBus.Properties");
-        },
-        mc::invalid_arg_exception);
+    EXPECT_THROW({ match_rule rule = match_rule::new_signal("123invalid", "org.freedesktop.DBus.Properties"); },
+                 mc::invalid_arg_exception);
 }
 
 // 测试 match_rule 构造函数错误路径（无效的 interface）
 TEST(MatchRuleTest, InvalidInterface)
 {
-    EXPECT_THROW(
-        {
-            match_rule rule = match_rule::new_signal("PropertiesChanged", "invalid");
-        },
-        mc::invalid_arg_exception);
+    EXPECT_THROW({ match_rule rule = match_rule::new_signal("PropertiesChanged", "invalid"); },
+                 mc::invalid_arg_exception);
 }
 
 // 测试 match_rule 构造函数错误路径（无效的 path）
 TEST(MatchRuleTest, InvalidPath)
 {
-    auto rule = match_rule::new_signal("PropertiesChanged",
-                                       "org.freedesktop.DBus.Properties");
+    auto rule = match_rule::new_signal("PropertiesChanged", "org.freedesktop.DBus.Properties");
     // dbus_validate_path 会验证路径，无效路径会抛出异常
     EXPECT_THROW(rule.with_path("invalid path"), mc::invalid_arg_exception);
 }
@@ -403,27 +366,23 @@ TEST(MatchRuleTest, InvalidPath)
 // 测试 match_rule 构造函数错误路径（无效的 sender）
 TEST(MatchRuleTest, InvalidSender)
 {
-    auto rule = match_rule::new_signal("PropertiesChanged",
-                                       "org.freedesktop.DBus.Properties");
+    auto rule = match_rule::new_signal("PropertiesChanged", "org.freedesktop.DBus.Properties");
     EXPECT_THROW(rule.with_sender("invalid"), mc::invalid_arg_exception);
 }
 
 // 测试 match_rule 构造函数错误路径（无效的 destination）
 TEST(MatchRuleTest, InvalidDestination)
 {
-    auto rule = match_rule::new_signal("PropertiesChanged",
-                                       "org.freedesktop.DBus.Properties");
+    auto rule = match_rule::new_signal("PropertiesChanged", "org.freedesktop.DBus.Properties");
     EXPECT_THROW(rule.with_destination("invalid"), mc::invalid_arg_exception);
 }
 
 // 测试常量值
 TEST(MatchTest, Constants)
 {
-    EXPECT_EQ(std::string(DBUS_PROPERTIES_INTERFACE),
-              "org.freedesktop.DBus.Properties");
+    EXPECT_EQ(std::string(DBUS_PROPERTIES_INTERFACE), "org.freedesktop.DBus.Properties");
     EXPECT_EQ(std::string(PROPERTIES_CHANGED_MEMBER), "PropertiesChanged");
-    EXPECT_EQ(std::string(DBUS_OBJECT_MANAGER_INTERFACE),
-              "org.freedesktop.DBus.ObjectManager");
+    EXPECT_EQ(std::string(DBUS_OBJECT_MANAGER_INTERFACE), "org.freedesktop.DBus.ObjectManager");
     EXPECT_EQ(std::string(INTERFACES_ADDED_MEMBER), "InterfacesAdded");
     EXPECT_EQ(std::string(INTERFACES_REMOVED_MEMBER), "InterfacesRemoved");
 }
@@ -431,16 +390,14 @@ TEST(MatchTest, Constants)
 // 测试获取member
 TEST(MatchTest, GetMember)
 {
-    auto rule = match_rule::new_signal("PropertiesChanged",
-                                       "org.freedesktop.DBus.Properties");
+    auto rule = match_rule::new_signal("PropertiesChanged", "org.freedesktop.DBus.Properties");
     EXPECT_EQ(rule.member(), "PropertiesChanged");
 }
 
 // 测试获取path
 TEST(MatchTest, GetPath)
 {
-    auto rule = match_rule::new_signal("PropertiesChanged",
-                                       "org.freedesktop.DBus.Properties");
+    auto rule = match_rule::new_signal("PropertiesChanged", "org.freedesktop.DBus.Properties");
     rule.with_path("/org/freedesktop/DBus");
     EXPECT_EQ(rule.path(), "/org/freedesktop/DBus");
     EXPECT_EQ(rule.path_namespace(), "");
@@ -449,8 +406,7 @@ TEST(MatchTest, GetPath)
 // 测试获取path_namespace
 TEST(MatchTest, GetPathNameSpace)
 {
-    auto rule = match_rule::new_signal("PropertiesChanged",
-                                       "org.freedesktop.DBus.Properties");
+    auto rule = match_rule::new_signal("PropertiesChanged", "org.freedesktop.DBus.Properties");
     rule.with_path_namespace("/org/freedesktop/DBus");
     EXPECT_EQ(rule.path_namespace(), "/org/freedesktop/DBus");
     EXPECT_EQ(rule.path(), "");
@@ -459,8 +415,7 @@ TEST(MatchTest, GetPathNameSpace)
 // 测试判断path_namespace
 TEST(MatchTest, JudgePathNameSpace)
 {
-    auto rule = match_rule::new_signal("PropertiesChanged",
-                                       "org.freedesktop.DBus.Properties");
+    auto rule = match_rule::new_signal("PropertiesChanged", "org.freedesktop.DBus.Properties");
     rule.with_path("/org/freedesktop/DBus");
     EXPECT_FALSE(rule.is_path_namespace());
     rule.with_path_namespace("/org/freedesktop/DBus");

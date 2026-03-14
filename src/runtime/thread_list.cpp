@@ -16,15 +16,11 @@ namespace mc::runtime {
 
 /* ------------------------ thread_node ----------------------- */
 
-thread_node::thread_node(std::function<void()> func)
-    : m_thread(std::move(func))
-{
-}
+thread_node::thread_node(std::function<void()> func) : m_thread(std::move(func))
+{}
 
-thread_node::thread_node(thread_node&& other) noexcept
-    : m_thread(std::move(other.m_thread))
-{
-}
+thread_node::thread_node(thread_node&& other) noexcept : m_thread(std::move(other.m_thread))
+{}
 
 thread_node::~thread_node()
 {

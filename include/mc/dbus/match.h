@@ -18,7 +18,7 @@
 
 #define BUILD_TYPE_DT (0x0a)
 
-#if (defined(BUILD_TYPE) && defined(BUILD_TYPE_DT) && BUILD_TYPE != BUILD_TYPE_DT) || \
+#if (defined(BUILD_TYPE) && defined(BUILD_TYPE_DT) && BUILD_TYPE != BUILD_TYPE_DT) ||                                  \
     (defined(ENABLE_CONAN_COMPILE) && ENABLE_CONAN_COMPILE == 1)
 #include "shmlock/shmlock_manager.h"
 #include <dbus/match/matchs.h>
@@ -44,8 +44,7 @@ static uint16_t           g_lock_service_id           = 0;
 
 class shm_lock {
 public:
-    shm_lock()
-        : m_shm(shm::shared_memory::get_instance()), m_locked(false)
+    shm_lock() : m_shm(shm::shared_memory::get_instance()), m_locked(false)
     {
         lock();
     }
@@ -235,8 +234,7 @@ public:
      * @param member [in] 成员名称
      * @param interface [in] 接口名称
      */
-    match_rule(DBus::Match::MessageType type, const std::string_view& member,
-               const std::string_view& interface);
+    match_rule(DBus::Match::MessageType type, const std::string_view& member, const std::string_view& interface);
 
     /**
      * @brief 创建信号匹配规则

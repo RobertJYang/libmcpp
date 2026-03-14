@@ -195,10 +195,8 @@ public:
      * 构造函数
      * @param f 函数对象
      */
-    explicit functor_key(const Functor& f = Functor())
-        : m_functor(f)
-    {
-    }
+    explicit functor_key(const Functor& f = Functor()) : m_functor(f)
+    {}
 
     /**
      * 提取键值
@@ -275,10 +273,8 @@ public:
      * 构造函数
      * @param extractors 键提取器实例
      */
-    composite_key(Extractors... extractors)
-        : m_extractors(std::move(extractors)...)
-    {
-    }
+    composite_key(Extractors... extractors) : m_extractors(std::move(extractors)...)
+    {}
 
     key_type operator()(const object_type& obj) const
     {
@@ -292,8 +288,7 @@ public:
      * @param key 键缓冲区
      * @param obj 对象
      */
-    void
-    extract_key(mdb_key& key, const object_type& obj) const
+    void extract_key(mdb_key& key, const object_type& obj) const
     {
         extract_key_impl(key, obj, std::index_sequence_for<Extractors...>());
     }
@@ -367,8 +362,7 @@ private:
      * @param indices 编译期索引序列
      */
     template <size_t... Indices>
-    void extract_key_impl(mdb_key& key, const object_type& obj,
-                          std::index_sequence<Indices...>) const
+    void extract_key_impl(mdb_key& key, const object_type& obj, std::index_sequence<Indices...>) const
     {
         (std::get<Indices>(m_extractors).extract_key(key, obj), ...);
     }
@@ -379,8 +373,7 @@ private:
      * @param indices 编译期索引序列
      */
     template <size_t... I>
-    static void get_field_names_impl(std::vector<std::string>& names,
-                                     std::index_sequence<I...>)
+    static void get_field_names_impl(std::vector<std::string>& names, std::index_sequence<I...>)
     {
         (append_field_names<I>(names), ...);
     }

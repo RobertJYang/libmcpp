@@ -84,7 +84,6 @@ bool is_lua_array(::lua_State* L, int index)
 
     // 获取 table 的大小
     lua_Integer array_size = get_lua_table_length(L, abs_index);
-
     if (array_size == 0) {
         // 空 table，检查是否有非整数键
         lua_pushnil(L);
@@ -212,8 +211,7 @@ int variant_to_lua(::lua_State* L, const variant& v)
 
         return 1;
     } catch (const mc::exception& e) {
-        MC_THROW(mc::exception, "failed to convert variant to Lua: ${error}",
-                 ("error", e.what()));
+        MC_THROW(mc::exception, "failed to convert variant to Lua: ${error}", ("error", e.what()));
     }
 }
 
@@ -229,8 +227,7 @@ int variants_to_lua(::lua_State* L, const variants& vs)
         }
         return static_cast<int>(vs.size());
     } catch (const mc::exception& e) {
-        MC_THROW(mc::exception, "failed to convert variants to Lua: ${error}",
-                 ("error", e.what()));
+        MC_THROW(mc::exception, "failed to convert variants to Lua: ${error}", ("error", e.what()));
     }
 }
 
@@ -243,8 +240,7 @@ variant lua_to_variant(::lua_State* L, int index)
     // 规范化索引（转换为正数）
     int abs_index = (index < 0) ? lua_gettop(L) + index + 1 : index;
     if (abs_index < 1 || abs_index > lua_gettop(L)) {
-        MC_THROW(mc::exception, "invalid Lua stack index: ${index}",
-                 ("index", index));
+        MC_THROW(mc::exception, "invalid Lua stack index: ${index}", ("index", index));
     }
 
     try {
@@ -315,12 +311,10 @@ variant lua_to_variant(::lua_State* L, int index)
             }
 
             default:
-                MC_THROW(mc::exception, "unsupported Lua type: ${type}",
-                        ("type", lua_typename(L, type)));
+                MC_THROW(mc::exception, "unsupported Lua type: ${type}", ("type", lua_typename(L, type)));
         }
     } catch (const mc::exception& e) {
-        MC_THROW(mc::exception, "failed to convert Lua value to variant: ${error}",
-                 ("error", e.what()));
+        MC_THROW(mc::exception, "failed to convert Lua value to variant: ${error}", ("error", e.what()));
     }
 }
 
@@ -333,8 +327,7 @@ variants lua_to_variants(::lua_State* L, int start_index, int count)
     // 规范化起始索引
     int abs_start = (start_index < 0) ? lua_gettop(L) + start_index + 1 : start_index;
     if (abs_start < 1 || abs_start > lua_gettop(L)) {
-        MC_THROW(mc::exception, "invalid Lua stack start index: ${index}",
-                 ("index", start_index));
+        MC_THROW(mc::exception, "invalid Lua stack start index: ${index}", ("index", start_index));
     }
 
     try {
@@ -360,8 +353,7 @@ variants lua_to_variants(::lua_State* L, int start_index, int count)
 
         return vs;
     } catch (const mc::exception& e) {
-        MC_THROW(mc::exception, "failed to convert Lua values to variants: ${error}",
-                 ("error", e.what()));
+        MC_THROW(mc::exception, "failed to convert Lua values to variants: ${error}", ("error", e.what()));
     }
 }
 

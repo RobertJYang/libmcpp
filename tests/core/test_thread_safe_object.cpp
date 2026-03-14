@@ -537,18 +537,12 @@ TEST_F(ThreadSafeObjectTest, DisconnectAll)
     int  call_count1    = 0;
     bool sig2_triggered = false;
 
-    auto conn1 = obj->connect(
-        sig1,
-        [&call_count1](int) {
+    auto conn1 = obj->connect(sig1, [&call_count1](int) {
         ++call_count1;
-    },
-        mc::core::connection_type::Direct);
-    auto conn2 = obj->connect(
-        sig2,
-        [&sig2_triggered](const std::string&) {
+    }, mc::core::connection_type::Direct);
+    auto conn2 = obj->connect(sig2, [&sig2_triggered](const std::string&) {
         sig2_triggered = true;
-    },
-        mc::core::connection_type::Direct);
+    }, mc::core::connection_type::Direct);
 
     // 断开 sig1 的连接（通过连接 ID）
     obj->disconnect(conn1);

@@ -57,10 +57,8 @@ public:
 
     using executor_work_guard = boost::asio::executor_work_guard<io_context::executor_type>;
     struct shard_t {
-        explicit shard_t(thread_pool& pool_) noexcept
-            : pool(pool_)
-        {
-        }
+        explicit shard_t(thread_pool& pool_) noexcept : pool(pool_)
+        {}
 
         thread_pool&                         pool; // 所属线程池
         std::unique_ptr<io_context>          ctx;
@@ -75,10 +73,8 @@ public:
 
     class executor_type {
     public:
-        executor_type(thread_pool& ctx) noexcept
-            : m_context(&ctx)
-        {
-        }
+        executor_type(thread_pool& ctx) noexcept : m_context(&ctx)
+        {}
         executor_type(const executor_type&) = default;
 
         executor_type& operator=(const executor_type&) = default;
@@ -106,18 +102,16 @@ public:
             // 1: 优先在当前线程执行
             auto* current_shard = thread_pool::get_current_shard();
             if (current_shard && &current_shard->pool == m_context) {
-                boost::asio::dispatch(
-                    current_shard->ctx->get_executor(),
-                    boost::asio::bind_allocator(a, std::forward<Function>(f)));
+                boost::asio::dispatch(current_shard->ctx->get_executor(),
+                                      boost::asio::bind_allocator(a, std::forward<Function>(f)));
                 return;
             }
 
             // 2: 尝试直接将任务提交给空闲 Worker
             if (m_context->m_pending_tasks.load(std::memory_order_relaxed) == 0) {
                 if (auto* shard = m_context->acquire_idle_worker()) {
-                    boost::asio::dispatch(
-                        shard->ctx->get_executor(),
-                        boost::asio::bind_allocator(a, std::forward<Function>(f)));
+                    boost::asio::dispatch(shard->ctx->get_executor(),
+                                          boost::asio::bind_allocator(a, std::forward<Function>(f)));
                     return;
                 }
             }
@@ -142,9 +136,8 @@ public:
                 // 2: 没有空闲 Worker，但如果当前线程在某个 shard 上，投递到当前 shard
                 auto* current_shard = thread_pool::get_current_shard();
                 if (current_shard && &current_shard->pool == m_context) {
-                    boost::asio::post(
-                        current_shard->ctx->get_executor(),
-                        boost::asio::bind_allocator(a, std::forward<Function>(f)));
+                    boost::asio::post(current_shard->ctx->get_executor(),
+                                      boost::asio::bind_allocator(a, std::forward<Function>(f)));
                     return;
                 }
             }
@@ -159,18 +152,16 @@ public:
             // 1: 优先在当前线程执行
             auto* current_shard = thread_pool::get_current_shard();
             if (current_shard && &current_shard->pool == m_context) {
-                boost::asio::defer(
-                    current_shard->ctx->get_executor(),
-                    boost::asio::bind_allocator(a, std::forward<Function>(f)));
+                boost::asio::defer(current_shard->ctx->get_executor(),
+                                   boost::asio::bind_allocator(a, std::forward<Function>(f)));
                 return;
             }
 
             // 2: 尝试直接将任务提交给空闲 Worker
             if (m_context->m_pending_tasks.load(std::memory_order_relaxed) == 0) {
                 if (auto* shard = m_context->acquire_idle_worker()) {
-                    boost::asio::post(
-                        shard->ctx->get_executor(),
-                        boost::asio::bind_allocator(a, std::forward<Function>(f)));
+                    boost::asio::post(shard->ctx->get_executor(),
+                                      boost::asio::bind_allocator(a, std::forward<Function>(f)));
                     return;
                 }
             }
@@ -203,7 +194,8 @@ public:
             if (auto* current = thread_pool::get_current_shard()) {
                 return current->ctx->get_executor();
             }
-            return m_context->get_shard(m_context->m_wake_idx.fetch_add(1, std::memory_order_relaxed) % m_context->shard_count())
+            return m_context
+                ->get_shard(m_context->m_wake_idx.fetch_add(1, std::memory_order_relaxed) % m_context->shard_count())
                 .get_executor();
         }
 
@@ -212,7 +204,8 @@ public:
             if (auto* current = thread_pool::get_current_shard()) {
                 return current->ctx->get_executor();
             }
-            return m_context->get_shard(m_context->m_wake_idx.fetch_add(1, std::memory_order_relaxed) % m_context->shard_count())
+            return m_context
+                ->get_shard(m_context->m_wake_idx.fetch_add(1, std::memory_order_relaxed) % m_context->shard_count())
                 .get_executor();
         }
 
@@ -232,10 +225,8 @@ public:
         template <typename Function, typename Allocator>
         void schedule_global(Function&& f, const Allocator& a, bool is_continuation) const
         {
-            using Op = boost::asio::detail::executor_op<
-                typename std::decay<Function>::type,
-                Allocator,
-                boost::asio::detail::scheduler_operation>;
+            using Op = boost::asio::detail::executor_op<typename std::decay<Function>::type, Allocator,
+                                                        boost::asio::detail::scheduler_operation>;
 
             typename Op::ptr p = {boost::asio::detail::addressof(a), Op::ptr::allocate(a), 0};
             p.p                = new (p.v) Op(std::forward<Function>(f), a);
@@ -270,8 +261,7 @@ public:
 
     class scoped_recursion_guard {
     public:
-        explicit scoped_recursion_guard(shard_t* shard)
-            : m_shard(shard)
+        explicit scoped_recursion_guard(shard_t* shard) : m_shard(shard)
         {
             if (m_shard->recursion_depth < MAX_RECURSION_DEPTH) {
                 m_shard->recursion_depth++;

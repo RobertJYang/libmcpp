@@ -113,9 +113,7 @@ void register_privilege_constants(lua_State* L)
 void register_privilege_functions(lua_State* L)
 {
     static const luaL_Reg privilege_funcs[] = {
-        {"get_privilege_str", l_get_privilege_str},
-        {"validate", l_validate},
-        {nullptr, nullptr}};
+        {"get_privilege_str", l_get_privilege_str}, {"validate", l_validate}, {nullptr, nullptr}};
 
     luaL_setfuncs(L, privilege_funcs, 0);
 }

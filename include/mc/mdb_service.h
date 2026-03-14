@@ -42,9 +42,7 @@ namespace mdb::service {
  * @param interfaces [in] 接口名称列表
  * @return 返回对象信息
  */
-MC_API mc::variant get_object(mc::dbus::sd_bus*   bus,
-                              std::string_view    path,
-                              const mc::variants& interfaces);
+MC_API mc::variant get_object(mc::dbus::sd_bus* bus, std::string_view path, const mc::variants& interfaces);
 
 /**
  * @brief 获取子对象
@@ -54,8 +52,8 @@ MC_API mc::variant get_object(mc::dbus::sd_bus*   bus,
  * @param interfaces [in] 接口名称列表
  * @return 返回子对象信息
  */
-MC_API mc::variant get_sub_objects(mc::dbus::sd_bus* bus, std::string_view path,
-                                   int32_t depth, const mc::variants& interfaces);
+MC_API mc::variant get_sub_objects(mc::dbus::sd_bus* bus, std::string_view path, int32_t depth,
+                                   const mc::variants& interfaces);
 
 /**
  * @brief 获取子路径
@@ -65,8 +63,8 @@ MC_API mc::variant get_sub_objects(mc::dbus::sd_bus* bus, std::string_view path,
  * @param interfaces [in] 接口名称列表
  * @return 返回子路径列表
  */
-MC_API mc::variant get_sub_paths(mc::dbus::sd_bus* bus, std::string_view path,
-                                 int32_t depth, const mc::variants& interfaces);
+MC_API mc::variant get_sub_paths(mc::dbus::sd_bus* bus, std::string_view path, int32_t depth,
+                                 const mc::variants& interfaces);
 
 /**
  * @brief 获取父对象
@@ -75,9 +73,7 @@ MC_API mc::variant get_sub_paths(mc::dbus::sd_bus* bus, std::string_view path,
  * @param interfaces [in] 接口名称列表
  * @return 返回父对象信息
  */
-MC_API mc::variant get_parent_objects(mc::dbus::sd_bus*   bus,
-                                      std::string_view    path,
-                                      const mc::variants& interfaces);
+MC_API mc::variant get_parent_objects(mc::dbus::sd_bus* bus, std::string_view path, const mc::variants& interfaces);
 
 /**
  * @brief 获取服务名称
@@ -103,8 +99,8 @@ MC_API mc::variant get_service_names(mc::dbus::sd_bus* bus);
  * @param enable_cache [in] 是否启用缓存
  * @return 返回路径
  */
-MC_API mc::variant get_path(mc::dbus::sd_bus* bus, std::string_view interface,
-                            std::string_view filter, bool ignore_case, bool enable_cache);
+MC_API mc::variant get_path(mc::dbus::sd_bus* bus, std::string_view interface, std::string_view filter,
+                            bool ignore_case, bool enable_cache);
 
 /**
  * @brief 获取接口拥有者列表
@@ -112,8 +108,7 @@ MC_API mc::variant get_path(mc::dbus::sd_bus* bus, std::string_view interface,
  * @param interface [in] 接口名称
  * @return 返回接口拥有者列表
  */
-MC_API mc::variant get_interface_owners(mc::dbus::sd_bus* bus,
-                                        std::string_view  interface);
+MC_API mc::variant get_interface_owners(mc::dbus::sd_bus* bus, std::string_view interface);
 
 /**
  * @brief 验证路径是否有效
@@ -122,8 +117,7 @@ MC_API mc::variant get_interface_owners(mc::dbus::sd_bus* bus,
  * @param ignore_case [in] 是否忽略大小写
  * @return 返回路径是否有效
  */
-MC_API mc::variant is_valid_path(mc::dbus::sd_bus* bus, std::string_view path,
-                                 bool ignore_case);
+MC_API mc::variant is_valid_path(mc::dbus::sd_bus* bus, std::string_view path, bool ignore_case);
 
 /**
  * @brief 分页获取子路径
@@ -135,9 +129,8 @@ MC_API mc::variant is_valid_path(mc::dbus::sd_bus* bus, std::string_view path,
  * @param top [in] 获取数量
  * @return 返回子路径列表
  */
-MC_API mc::variant get_sub_paths_paging(mc::dbus::sd_bus* bus, std::string_view path,
-                                        int32_t depth, const mc::variants& interfaces, int32_t skip,
-                                        int32_t top);
+MC_API mc::variant get_sub_paths_paging(mc::dbus::sd_bus* bus, std::string_view path, int32_t depth,
+                                        const mc::variants& interfaces, int32_t skip, int32_t top);
 
 /**
  * @brief 获取类列表
@@ -170,9 +163,8 @@ MC_API mc::variant get_object_owner(mc::dbus::sd_bus* bus, std::string_view obje
  * @param interface_pattern [in] 接口模式
  * @return 返回匹配的对象列表
  */
-MC_API mc::variant get_matched_objects(mc::dbus::sd_bus* bus,
-                                       std::string_view  object_name,
-                                       std::string_view  interface_pattern);
+MC_API mc::variant get_matched_objects(mc::dbus::sd_bus* bus, std::string_view object_name,
+                                       std::string_view interface_pattern);
 
 /**
  * @brief 获取追踪对象

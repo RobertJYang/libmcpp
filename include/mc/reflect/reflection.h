@@ -150,8 +150,7 @@ public:
      * @param base_class_name 基类名称
      * @return mc::variant 属性值，如果不存在返回mc::variant::null_type
      */
-    mc::variant get_property(const T& obj, std::string_view key,
-                             std::string_view base_class_name) const
+    mc::variant get_property(const T& obj, std::string_view key, std::string_view base_class_name) const
     {
         const auto* base_class_info = get_base_class_info(base_class_name);
         if (base_class_info) {
@@ -186,8 +185,7 @@ public:
      * @param args 方法参数
      * @return mc::variant 方法返回值，如果方法不存在则返回mc::variant::null_type
      */
-    mc::variant invoke_method(T& obj, std::string_view method_name,
-                              const mc::variants& args = {}) const
+    mc::variant invoke_method(T& obj, std::string_view method_name, const mc::variants& args = {}) const
     {
         const method_info_base<T>* method = get_method_info(method_name);
         if (method) {
@@ -207,8 +205,7 @@ public:
         throw_method_not_exist(method_name);
     }
 
-    async_result async_invoke_method(T& obj, std::string_view method_name,
-                                     const mc::variants& args = {}) const
+    async_result async_invoke_method(T& obj, std::string_view method_name, const mc::variants& args = {}) const
     {
         const method_info_base<T>* method = get_method_info(method_name);
         if (method) {
@@ -255,8 +252,7 @@ public:
      * @param value 属性值
      * @return bool 设置是否成功
      */
-    bool set_property(T& obj, std::string_view key, std::string_view base_class_name,
-                      const mc::variant& value) const
+    bool set_property(T& obj, std::string_view key, std::string_view base_class_name, const mc::variant& value) const
     {
         const auto* base_class_info = get_base_class_info(base_class_name);
         if (base_class_info) {
@@ -376,10 +372,8 @@ private:
         });
     }
 
-    reflection()
-        : m_data(reflector<T>::get_metadata())
-    {
-    }
+    reflection() : m_data(reflector<T>::get_metadata())
+    {}
 
     const struct_metadata& m_data;
 };
@@ -405,31 +399,26 @@ mc::variant base_class_info<C, BaseT>::get_value(const C& obj, std::string_view 
 }
 
 template <typename C, typename BaseT>
-void base_class_info<C, BaseT>::set_value(C& obj, std::string_view name,
-                                          const mc::variant& value) const
+void base_class_info<C, BaseT>::set_value(C& obj, std::string_view name, const mc::variant& value) const
 {
     get_reflection<BaseT>().set_property(get_object(obj), name, value);
 }
 
 template <typename C, typename BaseT>
-mc::variant base_class_info<C, BaseT>::invoke(C& obj, std::string_view name,
-                                              const mc::variants& args) const
+mc::variant base_class_info<C, BaseT>::invoke(C& obj, std::string_view name, const mc::variants& args) const
 {
     return get_reflection<BaseT>().invoke_method(get_object(obj), name, args);
 }
 
 template <typename C, typename BaseT>
-async_result base_class_info<C, BaseT>::async_invoke(C& obj, std::string_view name,
-                                                     const mc::variants& args) const
+async_result base_class_info<C, BaseT>::async_invoke(C& obj, std::string_view name, const mc::variants& args) const
 {
     return get_reflection<BaseT>().async_invoke_method(get_object(obj), name, args);
 }
 
 template <typename T>
-reflected_object_impl<T>::reflected_object_impl(std::shared_ptr<T> obj)
-    : m_obj(std::move(obj))
-{
-}
+reflected_object_impl<T>::reflected_object_impl(std::shared_ptr<T> obj) : m_obj(std::move(obj))
+{}
 
 template <typename T>
 type_id_type reflected_object_impl<T>::get_type_id() const

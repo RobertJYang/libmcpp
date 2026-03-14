@@ -43,9 +43,8 @@ static int l_check_integer(lua_State* L)
         const char* name         = luaL_checkstring(L, name_idx);
         int         need_convert = lua_toboolean(L, need_convert_idx);
         luaL_tolstring(L, val_idx, nullptr);
-        const char* val_str = lua_tostring(L, -1);
-        auto [final_name, final_val] =
-            validator::format_name_and_value(name, val_str ? val_str : "", need_convert);
+        const char* val_str          = lua_tostring(L, -1);
+        auto [final_name, final_val] = validator::format_name_and_value(name, val_str ? val_str : "", need_convert);
         return luaL_error(L,
                           "PropertyValueTypeError: The value %s for the property %s is of a different type than the "
                           "property can accept.",
@@ -57,9 +56,8 @@ static int l_check_integer(lua_State* L)
         const char* name         = luaL_checkstring(L, name_idx);
         int         need_convert = lua_toboolean(L, need_convert_idx);
         luaL_tolstring(L, val_idx, nullptr);
-        const char* val_str = lua_tostring(L, -1);
-        auto [final_name, final_val] =
-            validator::format_name_and_value(name, val_str ? val_str : "", need_convert);
+        const char* val_str          = lua_tostring(L, -1);
+        auto [final_name, final_val] = validator::format_name_and_value(name, val_str ? val_str : "", need_convert);
         return luaL_error(L,
                           "PropertyValueOutOfRange: The value '%s' for the property %s is not in the supported range "
                           "of acceptable values.",
@@ -100,9 +98,8 @@ static int ranges_impl(lua_State* L, bool allow_nil)
         const char* name         = luaL_checkstring(L, name_idx);
         int         need_convert = lua_toboolean(L, need_convert_idx);
         luaL_tolstring(L, val_idx, nullptr);
-        const char* val_str = lua_tostring(L, -1);
-        auto [final_name, final_val] =
-            validator::format_name_and_value(name, val_str ? val_str : "", need_convert);
+        const char* val_str          = lua_tostring(L, -1);
+        auto [final_name, final_val] = validator::format_name_and_value(name, val_str ? val_str : "", need_convert);
         return luaL_error(L,
                           "PropertyValueTypeError: The value %s for the property %s is of a different type than the "
                           "property can accept.",
@@ -114,9 +111,8 @@ static int ranges_impl(lua_State* L, bool allow_nil)
         const char* name         = luaL_checkstring(L, name_idx);
         int         need_convert = lua_toboolean(L, need_convert_idx);
         luaL_tolstring(L, val_idx, nullptr);
-        const char* val_str = lua_tostring(L, -1);
-        auto [final_name, final_val] =
-            validator::format_name_and_value(name, val_str ? val_str : "", need_convert);
+        const char* val_str          = lua_tostring(L, -1);
+        auto [final_name, final_val] = validator::format_name_and_value(name, val_str ? val_str : "", need_convert);
         return luaL_error(L,
                           "PropertyValueOutOfRange: The value '%s' for the property %s is not in the supported range "
                           "of acceptable values.",
@@ -169,9 +165,8 @@ static int lens_impl(lua_State* L, bool allow_nil)
         const char* name         = luaL_checkstring(L, name_idx);
         int         need_convert = lua_toboolean(L, need_convert_idx);
         luaL_tolstring(L, val_idx, nullptr);
-        const char* val_str = lua_tostring(L, -1);
-        auto [final_name, final_val] =
-            validator::format_name_and_value(name, val_str ? val_str : "", need_convert);
+        const char* val_str          = lua_tostring(L, -1);
+        auto [final_name, final_val] = validator::format_name_and_value(name, val_str ? val_str : "", need_convert);
         return luaL_error(L,
                           "PropertyValueTypeError: The value %s for the property %s is of a different type than the "
                           "property can accept.",
@@ -183,9 +178,8 @@ static int lens_impl(lua_State* L, bool allow_nil)
         const char* name         = luaL_checkstring(L, name_idx);
         int         need_convert = lua_toboolean(L, need_convert_idx);
         luaL_tolstring(L, val_idx, nullptr);
-        const char* val_str = lua_tostring(L, -1);
-        auto [final_name, final_val] =
-            validator::format_name_and_value(name, val_str ? val_str : "", need_convert);
+        const char* val_str          = lua_tostring(L, -1);
+        auto [final_name, final_val] = validator::format_name_and_value(name, val_str ? val_str : "", need_convert);
         return luaL_error(L,
                           "PropertyValueOutOfRange: The value '%s' for the property %s is not in the supported range "
                           "of acceptable values.",
@@ -241,9 +235,8 @@ static int regex_impl(lua_State* L, bool allow_nil)
         const char* name         = luaL_checkstring(L, name_idx);
         int         need_convert = lua_toboolean(L, need_convert_idx);
         luaL_tolstring(L, val_idx, nullptr);
-        const char* val_str = lua_tostring(L, -1);
-        auto [final_name, final_val] =
-            validator::format_name_and_value(name, val_str ? val_str : "", need_convert);
+        const char* val_str          = lua_tostring(L, -1);
+        auto [final_name, final_val] = validator::format_name_and_value(name, val_str ? val_str : "", need_convert);
         return luaL_error(L,
                           "PropertyValueTypeError: The value %s for the property %s is of a different type than the "
                           "property can accept.",
@@ -313,7 +306,6 @@ static const luaL_Reg methods[] = {{"check_integer", l_check_integer},
 } // namespace mc
 
 extern "C" {
-
 __attribute__((visibility("default"))) int luaopen_lvalidate(lua_State* L)
 {
     luaL_checkversion(L);

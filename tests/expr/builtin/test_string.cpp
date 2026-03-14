@@ -30,8 +30,7 @@ protected:
     }
 
     void TearDown() override
-    {
-    }
+    {}
 
     mc::expr::engine  engine;
     mc::expr::context m_context;
@@ -48,8 +47,7 @@ TEST_F(string_builtin_test, LengthFunction)
     EXPECT_EQ(engine.evaluate("length('hello')", m_context), 5);
 
     // 测试含有特殊字符的字符串
-    EXPECT_EQ(engine.evaluate("length('你好，世界')", m_context),
-              std::string_view("你好，世界").length());
+    EXPECT_EQ(engine.evaluate("length('你好，世界')", m_context), std::string_view("你好，世界").length());
 
     // 测试参数错误
     EXPECT_THROW(engine.evaluate("length()", m_context), mc::invalid_arg_exception);

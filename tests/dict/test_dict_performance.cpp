@@ -353,13 +353,11 @@ TEST(DictPerformanceTest, DISABLED_IteratorVsIndexPerformance)
 
     size_t sum_iterator = 0;
     for (const auto& entry : d) {
-        sum_iterator +=
-            entry.key.size() + (entry.value.is_integer() ? entry.value.as<int32_t>() : 0);
+        sum_iterator += entry.key.size() + (entry.value.is_integer() ? entry.value.as<int32_t>() : 0);
     }
 
-    auto end = std::chrono::high_resolution_clock::now();
-    auto iterator_duration =
-        std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+    auto end               = std::chrono::high_resolution_clock::now();
+    auto iterator_duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
 
     // 测量使用索引遍历的性能
     start = std::chrono::high_resolution_clock::now();
@@ -370,9 +368,8 @@ TEST(DictPerformanceTest, DISABLED_IteratorVsIndexPerformance)
         sum_index += entry.key.size() + (entry.value.is_integer() ? entry.value.as<int32_t>() : 0);
     }
 
-    end = std::chrono::high_resolution_clock::now();
-    auto index_duration =
-        std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+    end                 = std::chrono::high_resolution_clock::now();
+    auto index_duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
 
     // 输出性能结果
     std::cout << "Performance comparison for traversing " << count << " elements:" << std::endl;

@@ -22,10 +22,8 @@ namespace {
 
 class basic_service : public mc::core::service_base {
 public:
-    explicit basic_service(std::string name)
-        : mc::core::service_base(std::move(name))
-    {
-    }
+    explicit basic_service(std::string name) : mc::core::service_base(std::move(name))
+    {}
 
     bool init(mc::dict args) override
     {
@@ -51,11 +49,9 @@ public:
         void operator()(boost::program_options::options_description& cli,
                         boost::program_options::options_description& cfg) const
         {
-            cli.add_options()("sample", boost::program_options::value<int>()->default_value(42),
-                              "sample option");
+            cli.add_options()("sample", boost::program_options::value<int>()->default_value(42), "sample option");
             auto tmp_dir = mc::filesystem::temp_directory_path();
-            cfg.add_options()("path",
-                              boost::program_options::value<std::string>()->default_value(tmp_dir.string()),
+            cfg.add_options()("path", boost::program_options::value<std::string>()->default_value(tmp_dir.string()),
                               "config option");
         }
     };

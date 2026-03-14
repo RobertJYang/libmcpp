@@ -63,8 +63,8 @@ std::vector<std::string> get_sorted_dbus_children(DBusConnection* conn, const st
 }
 
 // 递归输出 DBus 对象树拓扑结构
-void dump_dbus_object_tree(std::ostream& os, DBusConnection* conn, const std::string& path,
-                           bool is_last, const std::string& prefix)
+void dump_dbus_object_tree(std::ostream& os, DBusConnection* conn, const std::string& path, bool is_last,
+                           const std::string& prefix)
 {
     // 输出当前节点路径
     os << prefix << (is_last ? "└─" : "├─") << path << "\n";
@@ -111,8 +111,7 @@ void dump_interface_properties(std::ostream& os, abstract_object* node, abstract
         props.emplace_back(std::string(prop_info->name), prop_info->get_signature(), value.to_string());
     });
 
-    std::sort(props.begin(), props.end(),
-              [](const auto& a, const auto& b) {
+    std::sort(props.begin(), props.end(), [](const auto& a, const auto& b) {
         return std::get<0>(a) < std::get<0>(b);
     });
 
@@ -142,8 +141,7 @@ void dump_single_object_properties(std::ostream& os, abstract_object* node)
 }
 
 // 递归输出对象属性（使用 DBus 遍历）
-void dump_object_properties(std::ostream& os, DBusConnection* conn, service* svc,
-                            const std::string& path)
+void dump_object_properties(std::ostream& os, DBusConnection* conn, service* svc, const std::string& path)
 {
     // 尝试从对象表中查找对象并输出属性
     auto& table  = svc->get_object_table();
@@ -217,13 +215,11 @@ std::string mc_config_manage_interface::export_config(std::map<std::string, std:
 
 void mc_config_manage_interface::import_config(std::map<std::string, std::string> context, std::string data,
                                                std::string type)
-{
-}
+{}
 
 void mc_config_manage_interface::recover(std::map<std::string, std::string> context,
                                          std::map<std::string, std::string> preserve_list)
-{
-}
+{}
 
 std::string mc_config_manage_interface::verify(std::map<std::string, std::string> context, std::string data)
 {
@@ -283,8 +279,7 @@ int32_t mc_reset_interface::action(std::map<std::string, std::string> context, s
 }
 
 void mc_reset_interface::cancel(std::map<std::string, std::string> context, std::string reset_type)
-{
-}
+{}
 
 // mc_debug_interface 析构函数实现
 mc_debug_interface::~mc_debug_interface()
@@ -334,7 +329,8 @@ void mc_debug_interface::attach_debug_console(std::map<std::string, std::string>
     auto appender = default_log.find_appender(DEFAULT_SOCKET_APPENDER_NAME);
     if (!appender) {
         mc::dict properties{{"path", socket_path}, {"hb_path", hb_socket_path}, {"module_name", MODULE_NAME}};
-        appender = appender_factory::instance().get_or_create_appender(DEFAULT_SOCKET_APPENDER_NAME, "socket", properties);
+        appender =
+            appender_factory::instance().get_or_create_appender(DEFAULT_SOCKET_APPENDER_NAME, "socket", properties);
         if (!appender) {
             elog("attach debug console ${port} failed, create socket appender failed", ("port", port));
             return;
@@ -344,7 +340,8 @@ void mc_debug_interface::attach_debug_console(std::map<std::string, std::string>
 
     auto socket_appender_ptr = std::dynamic_pointer_cast<socket_appender>(appender);
     if (!socket_appender_ptr) {
-        MC_THROW(mc::runtime_exception, "attach debug console ${port} failed, create socket appender failed", ("port", port));
+        MC_THROW(mc::runtime_exception, "attach debug console ${port} failed, create socket appender failed",
+                 ("port", port));
     }
 
     if (socket_appender_ptr->is_connected()) {
@@ -451,14 +448,16 @@ void mc_debug_interface::set_dlog_level(std::map<std::string, std::string> conte
 
     if (lvl < mc::log::level::notice) {
         std::string_view hour_str = (effective_hours == 1) ? "hour" : "hours";
-        log_info                  = mc::string::concat(log_info, ", will set back to default level (notice) in ", std::to_string(effective_hours), " ", hour_str);
+        log_info                  = mc::string::concat(log_info, ", will set back to default level (notice) in ",
+                                                       std::to_string(effective_hours), " ", hour_str);
         set_log_level(lvl, log_info);
         this->m_dlog_level = level;
 
         // 使用成员变量
         m_dlog_level_timer = mc::core::timer::single_shot(mc::hours(effective_hours), [this]() {
             std::lock_guard<std::mutex> timer_lock(m_dlog_level_mutex);
-            set_log_level(mc::log::level::notice, std::string("Set debug log level back to default level (notice) successfully"));
+            set_log_level(mc::log::level::notice,
+                          std::string("Set debug log level back to default level (notice) successfully"));
             this->m_dlog_level = DEFAULT_DLOG_LEVEL;
             // 清理定时器引用，避免持有已完成的定时器对象
             m_dlog_level_timer.reset();
@@ -495,10 +494,8 @@ void mc_maintenance_interface::dlog_limit(std::map<std::string, std::string> con
         set_log_limit_env(true, std::move(log_info));
         return;
     }
-    log_info = mc::string::concat(
-        "Disable log limit successfully, will resume in ",
-        std::to_string(duration_mins),
-        duration_mins > 1 ? " mins" : " min");
+    log_info = mc::string::concat("Disable log limit successfully, will resume in ", std::to_string(duration_mins),
+                                  duration_mins > 1 ? " mins" : " min");
 
     set_log_limit_env(false, log_info);
     auto duration = mc::minutes(static_cast<int64_t>(duration_mins));
@@ -556,7 +553,8 @@ MC_REFLECT(mc::engine::mc_config_manage_interface,
 MC_REFLECT(mc::engine::mc_debug_interface,
            ((m_dlog_level, "DlogLevel"))((m_dlog_type, "DlogType"))((attach_debug_console, "AttachDebugConsole"))(
                (detach_debug_console, "DetachDebugConsole"))((dump, "Dump"))((set_dlog_level, "SetDlogLevel")))
-MC_REFLECT(mc::engine::mc_reboot_interface, ((prepare, "Prepare"))((process, "Process"))((action, "Action"))((cancel, "Cancel")))
+MC_REFLECT(mc::engine::mc_reboot_interface,
+           ((prepare, "Prepare"))((process, "Process"))((action, "Action"))((cancel, "Cancel")))
 MC_REFLECT(mc::engine::mc_reset_interface, ((prepare, "Prepare"))((action, "Action"))((cancel, "Cancel")))
 MC_REFLECT(mc::engine::mc_maintenance_interface, ((dlog_limit, "DlogLimit")))
 MC_REFLECT(

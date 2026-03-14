@@ -65,30 +65,24 @@ public:
     using args_type     = std::tuple<mc::traits::remove_cvref_t<Args>...>;
 
     // 静态断言确保返回类型可以转换为 mc::variant
-    static_assert(std::is_void_v<RetType> ||
-                      mc::is_variant_constructible_v<RetType> ||
-                      mc::is_variant_v<RetType>,
+    static_assert(std::is_void_v<RetType> || mc::is_variant_constructible_v<RetType> || mc::is_variant_v<RetType>,
                   "函数返回类型必须是 void 或者可以转换为 mc::variant");
 
     // 静态断言确保所有参数类型都可以从 mc::variant 转换
     static_assert(mc::all_variant_constructible_v<mc::traits::remove_cvref_t<Args>...>,
                   "参数类型必须可转换为 mc::variant");
 
-    simple_function(std::string name, function_type func)
-        : m_name(std::move(name)), m_func(std::move(func))
-    {
-    }
+    simple_function(std::string name, function_type func) : m_name(std::move(name)), m_func(std::move(func))
+    {}
 
     template <size_t... I>
     variant call_with_exact_args(const variants& args, std::index_sequence<I...>) const
     {
         if constexpr (std::is_void_v<RetType>) {
-            m_func(mc::detail::convert_arg<mc::traits::remove_cvref_t<Args>>(m_name.data(),
-                                                                             args[I])...);
+            m_func(mc::detail::convert_arg<mc::traits::remove_cvref_t<Args>>(m_name.data(), args[I])...);
             return {};
         } else {
-            return m_func(mc::detail::convert_arg<mc::traits::remove_cvref_t<Args>>(
-                m_name.data(), args[I])...);
+            return m_func(mc::detail::convert_arg<mc::traits::remove_cvref_t<Args>>(m_name.data(), args[I])...);
         }
     }
 

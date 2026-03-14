@@ -74,8 +74,7 @@ bool test_network_module()
         auto network_factory = network_module->get_factory();
         auto client_obj      = network_factory->try_create_object("NetworkClient");
         if (client_obj) {
-            auto connect_result = client_obj->invoke_method("connect",
-                                                            {mc::variant("127.0.0.1"), mc::variant(8080)});
+            auto connect_result = client_obj->invoke_method("connect", {mc::variant("127.0.0.1"), mc::variant(8080)});
             ilog("✓ network 模块连接测试: ${result}", ("result", connect_result.as<bool>()));
 
             auto host_result = client_obj->invoke_method("getHost", {});
@@ -112,8 +111,7 @@ bool test_protocol_module()
         auto protocol_factory = protocol_module->get_factory();
         auto handler_obj      = protocol_factory->try_create_object("ProtocolHandler");
         if (handler_obj) {
-            auto request_result = handler_obj->invoke_method("handleRequest",
-                                                             {mc::variant("test request")});
+            auto request_result = handler_obj->invoke_method("handleRequest", {mc::variant("test request")});
             ilog("✓ protocol 模块处理请求: ${result}", ("result", request_result.as<std::string>()));
 
             auto version_result = handler_obj->invoke_method("getVersionString", {});
@@ -150,15 +148,13 @@ bool test_database_module()
         auto database_factory = database_module->get_factory();
         auto db_obj           = database_factory->try_create_object("DbConnection");
         if (db_obj) {
-            auto connect_result = db_obj->invoke_method("connect",
-                                                        {mc::variant("localhost"), mc::variant("test_db")});
+            auto connect_result = db_obj->invoke_method("connect", {mc::variant("localhost"), mc::variant("test_db")});
             ilog("✓ database 模块连接测试: ${result}", ("result", connect_result.as<bool>()));
 
             auto db_name_result = db_obj->invoke_method("getDatabaseName", {});
             ilog("✓ 数据库名称: ${name}", ("name", db_name_result.as<std::string>()));
 
-            auto query_result = db_obj->invoke_method("executeQuery",
-                                                      {mc::variant("SELECT * FROM test")});
+            auto query_result = db_obj->invoke_method("executeQuery", {mc::variant("SELECT * FROM test")});
             // 获取查询结果的第一行
             auto results = query_result.as<std::vector<std::string>>();
             if (!results.empty()) {
@@ -230,17 +226,14 @@ bool test_two_phase_unload()
         ilog("=== 6.2 第一阶段：调用 unload() ===");
 
         // 显示引用计数状态
-        ilog("调用 unload() 前，devices_module_ref 引用计数: ${count}",
-             ("count", devices_module_ref.use_count()));
-        ilog("调用 unload() 前，network_module_ref 引用计数: ${count}",
-             ("count", network_module_ref.use_count()));
+        ilog("调用 unload() 前，devices_module_ref 引用计数: ${count}", ("count", devices_module_ref.use_count()));
+        ilog("调用 unload() 前，network_module_ref 引用计数: ${count}", ("count", network_module_ref.use_count()));
 
         ilog("调用 module_manager.unload('mc.devices')...");
         module_manager.unload("mc.devices");
 
         // 显示引用计数状态
-        ilog("调用 unload() 后，devices_module_ref 引用计数: ${count}",
-             ("count", devices_module_ref.use_count()));
+        ilog("调用 unload() 后，devices_module_ref 引用计数: ${count}", ("count", devices_module_ref.use_count()));
 
         // 验证模块管理器认为模块已卸载
         bool devices_still_loaded = module_manager.is_loaded("mc.devices");

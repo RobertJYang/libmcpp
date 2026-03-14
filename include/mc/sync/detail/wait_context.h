@@ -75,10 +75,8 @@ template <typename Duration, uint32_t SpinLimit, uint32_t YieldLimit>
 class wait_for_duration {
 public:
     explicit wait_for_duration(const Duration& timeout) noexcept
-        : m_timeout(timeout),
-          m_start_time(std::chrono::steady_clock::now())
-    {
-    }
+        : m_timeout(timeout), m_start_time(std::chrono::steady_clock::now())
+    {}
 
     /**
      * @brief 在原子变量上执行等待操作

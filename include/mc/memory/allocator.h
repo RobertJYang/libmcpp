@@ -148,15 +148,14 @@ private:
     template <typename D, typename = void>
     struct has_destroy_method_impl : std::false_type {};
     template <typename D>
-    struct has_destroy_method_impl<
-        D, std::void_t<decltype(std::declval<D&>().destroy(std::declval<T*>()))>>
+    struct has_destroy_method_impl<D, std::void_t<decltype(std::declval<D&>().destroy(std::declval<T*>()))>>
         : std::true_type {};
 
     template <typename D, typename = void>
     struct has_deallocate_method_impl : std::false_type {};
     template <typename D>
-    struct has_deallocate_method_impl<
-        D, std::void_t<decltype(std::declval<D&>().deallocate(std::declval<const void*>()))>>
+    struct has_deallocate_method_impl<D,
+                                      std::void_t<decltype(std::declval<D&>().deallocate(std::declval<const void*>()))>>
         : std::true_type {};
 
 public:

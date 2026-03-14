@@ -57,8 +57,7 @@ struct format_spec {
     char             custom_spec[128]   = {0};        // 自定义格式
 
     constexpr format_spec()
-    {
-    }
+    {}
 
     template <typename CustomSpec>
     CustomSpec& get_custom_spec()
@@ -82,8 +81,7 @@ struct format_spec {
     void set_custom_spec(const CustomSpec& spec)
     {
         static_assert(sizeof(CustomSpec) <= sizeof(custom_spec), "CustomSpec is too large");
-        static_assert(std::is_trivially_copyable_v<CustomSpec>,
-                      "CustomSpec must be trivially copyable");
+        static_assert(std::is_trivially_copyable_v<CustomSpec>, "CustomSpec must be trivially copyable");
 
         custom_spec_in_use = true;
         new (custom_spec) CustomSpec();
@@ -94,14 +92,10 @@ struct format_spec {
     {
         if (ptr + 1 < end && (ptr[1] == '<' || ptr[1] == '>' || ptr[1] == '^')) {
             fill      = *ptr;
-            alignment = ptr[1] == '<'   ? align::left
-                        : ptr[1] == '>' ? align::right
-                                        : align::center;
+            alignment = ptr[1] == '<' ? align::left : ptr[1] == '>' ? align::right : align::center;
             ptr += 2;
         } else if (ptr < end && (*ptr == '<' || *ptr == '>' || *ptr == '^')) {
-            alignment = *ptr == '<'   ? align::left
-                        : *ptr == '>' ? align::right
-                                      : align::center;
+            alignment = *ptr == '<' ? align::left : *ptr == '>' ? align::right : align::center;
             ++ptr;
         }
 
@@ -245,12 +239,8 @@ struct format_spec {
             return ptr;
         }
 
-        if (!parse_alignment_and_fill(ptr, end) ||
-            !parse_sign(ptr, end) ||
-            !parse_alternate(ptr, end) ||
-            !parse_zero_pad(ptr, end) ||
-            !parse_width(ptr, end) ||
-            !parse_precision(ptr, end) ||
+        if (!parse_alignment_and_fill(ptr, end) || !parse_sign(ptr, end) || !parse_alternate(ptr, end) ||
+            !parse_zero_pad(ptr, end) || !parse_width(ptr, end) || !parse_precision(ptr, end) ||
             !parse_type(ptr, end)) {
             return nullptr;
         }

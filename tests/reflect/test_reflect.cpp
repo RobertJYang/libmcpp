@@ -29,15 +29,9 @@
 
 namespace test_reflect {
 // 测试用的颜色枚举
-enum class test_color {
-    RED,
-    GREEN,
-    BLUE
-};
+enum class test_color { RED, GREEN, BLUE };
 
-enum class test_normal_color { NORMAL_RED,
-                               NORMAL_GREEN,
-                               NORMAL_BLUE };
+enum class test_normal_color { NORMAL_RED, NORMAL_GREEN, NORMAL_BLUE };
 
 // 测试类
 class test_person {
@@ -48,14 +42,10 @@ public:
     int         m_age;
     bool        m_is_male;
 
-    test_person()
-        : m_name(""), m_age(0), m_is_male(false)
-    {
-    }
-    test_person(const std::string& name, int age, bool is_male)
-        : m_name(name), m_age(age), m_is_male(is_male)
-    {
-    }
+    test_person() : m_name(""), m_age(0), m_is_male(false)
+    {}
+    test_person(const std::string& name, int age, bool is_male) : m_name(name), m_age(age), m_is_male(is_male)
+    {}
 
     bool operator==(const test_person& other) const
     {
@@ -83,19 +73,16 @@ public:
 MC_REFLECTABLE("test_reflect.test_color", test_reflect::test_color);
 
 // 重命名类名和枚举名
-MC_REFLECT_ENUM(test_reflect::test_color,
-                (BLUE)(RED)(GREEN))
+MC_REFLECT_ENUM(test_reflect::test_color, (BLUE)(RED)(GREEN))
 MC_REFLECT(test_reflect::test_person,
-           (m_name)(m_age)(m_is_male)(MC_COMPUTED_PROPERTY("id", get_id, set_id))(
-               MC_COMPUTED_PROPERTY("readonly_id", get_id)))
+           (m_name)(m_age)(m_is_male)(MC_COMPUTED_PROPERTY("id", get_id, set_id))(MC_COMPUTED_PROPERTY("readonly_id",
+                                                                                                       get_id)))
 
 template <typename C>
 struct property_info_base_test {
     std::string_view name;
-    constexpr property_info_base_test(std::string_view n)
-        : name(n)
-    {
-    }
+    constexpr property_info_base_test(std::string_view n) : name(n)
+    {}
 
     virtual std::type_index typeinfo() const = 0;
 };
@@ -108,10 +95,8 @@ struct property_info_test : public property_info_base_test<C> {
 
     M BaseT::*member_ptr;
 
-    constexpr property_info_test(std::string_view n, M BaseT::*ptr)
-        : property_info_base_test<C>(n), member_ptr(ptr)
-    {
-    }
+    constexpr property_info_test(std::string_view n, M BaseT::*ptr) : property_info_base_test<C>(n), member_ptr(ptr)
+    {}
 
     virtual std::type_index typeinfo() const override
     {
@@ -124,10 +109,8 @@ namespace test_reflect {
 template <typename T>
 class member_visitor {
 public:
-    explicit member_visitor(const T& obj)
-        : m_obj(obj)
-    {
-    }
+    explicit member_visitor(const T& obj) : m_obj(obj)
+    {}
 
     template <typename Getter, typename Setter>
     void operator()(std::string_view name, Getter&& getter, Setter&& setter) const
@@ -153,8 +136,7 @@ TEST(ReflectTest, ClassReflection)
     EXPECT_FALSE(mc::reflect::is_enum<test_person>());
 
     // 获取类型名称，test_person 重命名，不需要命名空间
-    EXPECT_EQ(mc::reflect::reflector<test_person>::get_name(),
-              "test_person");
+    EXPECT_EQ(mc::reflect::reflector<test_person>::get_name(), "test_person");
 
     // 转换为变体
     mc::variant var(p);
@@ -410,14 +392,10 @@ TEST(ReflectTest, ComplexNestedStructure)
     // 使用初始化列表构造复杂嵌套结构
     mc::dict root{{"name", "复杂结构"},
                   {"value", 42},
-                  {"level1",
-                   mc::dict{
-                       {"key1", "value1"},
-                       {"level2",
-                        mc::dict{
-                            {"nested", true},
-                            {"color", test_color::BLUE},
-                            {"person", test_person("张三", 30, true)}}}}}};
+                  {"level1", mc::dict{{"key1", "value1"},
+                                      {"level2", mc::dict{{"nested", true},
+                                                          {"color", test_color::BLUE},
+                                                          {"person", test_person("张三", 30, true)}}}}}};
 
     // 转换为变体
     mc::variant var = root;

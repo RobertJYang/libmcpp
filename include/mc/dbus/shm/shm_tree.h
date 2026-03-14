@@ -32,8 +32,7 @@ public:
      * @param service_name [in] 服务名称
      * @param unique_name [in] 唯一名称
      */
-    shm_tree(std::string_view harbor_name, std::string_view service_name,
-             std::string_view unique_name);
+    shm_tree(std::string_view harbor_name, std::string_view service_name, std::string_view unique_name);
 
     /**
      * @brief 注册对象
@@ -62,7 +61,8 @@ public:
      * @param params [in] 方法调用参数
      * @return 返回方法调用结果，超时或失败返回nullopt
      */
-    static std::optional<mc::variants> timeout_call_with_sender(mc::milliseconds timeout, std::string_view sender, const method_call_params& params);
+    static std::optional<mc::variants> timeout_call_with_sender(mc::milliseconds timeout, std::string_view sender,
+                                                                const method_call_params& params);
 
     /**
      * @brief 获取属性
@@ -72,8 +72,8 @@ public:
      * @param property [in] 属性名称
      * @return 返回属性值
      */
-    static variant get_property(std::string_view service_name, std::string_view path,
-                                std::string_view interface, std::string_view property);
+    static variant get_property(std::string_view service_name, std::string_view path, std::string_view interface,
+                                std::string_view property);
 
     /**
      * @brief 通过共享内存获取单个属性值（快速路径）
@@ -83,8 +83,7 @@ public:
      * @param property_name [in] 属性名称
      * @return 返回属性值，失败返回 std::nullopt
      */
-    static std::optional<variant> call_shm_get_property(std::string_view service_name,
-                                                        std::string_view path,
+    static std::optional<variant> call_shm_get_property(std::string_view service_name, std::string_view path,
                                                         std::string_view interface_name,
                                                         std::string_view property_name);
 
@@ -95,8 +94,7 @@ public:
      * @param interface_name [in] 接口名称
      * @return 返回属性字典 {"prop1": value1, "prop2": value2, ...}，失败返回 std::nullopt
      */
-    static std::optional<dict> call_shm_get_all_properties(std::string_view service_name,
-                                                           std::string_view path,
+    static std::optional<dict> call_shm_get_all_properties(std::string_view service_name, std::string_view path,
                                                            std::string_view interface_name);
 
     /**
@@ -110,9 +108,10 @@ public:
      *         - [1]: RPC 调用过程中的错误信息 {"prop3": "error_message", ...}
      *         失败时返回 std::nullopt
      */
-    static std::optional<variants> call_shm_get_properties_by_names(
-        std::string_view service_name, std::string_view path, std::string_view interface_name,
-        const variants& prop_names);
+    static std::optional<variants> call_shm_get_properties_by_names(std::string_view service_name,
+                                                                    std::string_view path,
+                                                                    std::string_view interface_name,
+                                                                    const variants&  prop_names);
 
     /**
      * @brief 设置属性
@@ -122,9 +121,8 @@ public:
      * @param property [in] 属性名称
      * @param value [in] 属性值
      */
-    static void set_property(std::string_view service_name, std::string_view path,
-                             std::string_view interface, std::string_view property,
-                             const variant& value);
+    static void set_property(std::string_view service_name, std::string_view path, std::string_view interface,
+                             std::string_view property, const variant& value);
 
     /**
      * @brief 设置属性内部实现
@@ -173,9 +171,8 @@ public:
      * @param ignore_case [in] 是否忽略路径大小写
      * @return 返回路径数组，对象不存在时返回 std::nullopt
      */
-    static std::optional<variants> get_mdb_sub_paths(std::string_view path, uint32_t depth,
-                                                     const variants& interfaces, uint32_t skip = 0,
-                                                     uint32_t top = 0, bool ignore_case = false);
+    static std::optional<variants> get_mdb_sub_paths(std::string_view path, uint32_t depth, const variants& interfaces,
+                                                     uint32_t skip = 0, uint32_t top = 0, bool ignore_case = false);
 
     /**
      * @brief 检查路径是否有效（对象是否存在）
@@ -206,8 +203,7 @@ public:
      * @param ignore_case [in] 是否忽略字符串大小写
      * @return 返回数组：[path, service_name]；未找到时返回 ["", ""]
      */
-    static variants get_mdb_path(std::string_view interface_name, std::string_view filter_json,
-                                 bool ignore_case);
+    static variants get_mdb_path(std::string_view interface_name, std::string_view filter_json, bool ignore_case);
 
     /**
      * @brief 根据接口名与属性过滤条件查询第一个匹配对象的路径和服务名（内部实现）
@@ -216,8 +212,7 @@ public:
      * @param ignore_case [in] 是否忽略字符串大小写
      * @return 返回数组：[path, service_name]；未找到时返回 ["", ""]
      */
-    static variants get_mdb_path_impl(std::string_view interface_name, const dict& filter_dict,
-                                      bool ignore_case);
+    static variants get_mdb_path_impl(std::string_view interface_name, const dict& filter_dict, bool ignore_case);
 
     /**
      * @brief 获取所有服务的 well-known 名称列表
@@ -252,8 +247,7 @@ public:
      * @param iface_pattern [in] 接口名称正则表达式；为空表示匹配所有接口
      * @return 返回数组：[[obj_name, path, [iface...]], ...]
      */
-    static variants get_mdb_matched_objects(std::string_view service_name,
-                                            std::string_view iface_pattern);
+    static variants get_mdb_matched_objects(std::string_view service_name, std::string_view iface_pattern);
 
     /**
      * @brief 根据路径/深度查询子对象的接口映射关系
@@ -262,8 +256,7 @@ public:
      * @param interfaces [in] 接口过滤列表（为空则记录所有接口）
      * @return 返回路径映射关系，失败返回nullopt
      */
-    static std::optional<dict> get_mdb_sub_objects(std::string_view path, uint32_t depth,
-                                                   const variants& interfaces);
+    static std::optional<dict> get_mdb_sub_objects(std::string_view path, uint32_t depth, const variants& interfaces);
 
     /**
      * @brief 查询父路径链上的对象接口映射关系
@@ -271,8 +264,7 @@ public:
      * @param interfaces [in] 接口过滤列表（为空则记录所有接口）
      * @return 返回父路径映射关系，失败返回nullopt
      */
-    static std::optional<dict> get_mdb_parent_objects(std::string_view path,
-                                                      const variants&  interfaces);
+    static std::optional<dict> get_mdb_parent_objects(std::string_view path, const variants& interfaces);
 
     /**
      * @brief 查询资源协作接口信息
@@ -305,8 +297,7 @@ struct MC_API shm_obj_visitor : mc::engine::metadata_visitor {
      */
     shm_obj_visitor(shm::object& shm_obj, const mc::engine::abstract_object& obj)
         : m_obj(obj), m_shm_ins(shm::shared_memory::get_instance()), m_shm_obj(shm_obj)
-    {
-    }
+    {}
 
     /**
      * @brief 处理接口开始
@@ -327,8 +318,7 @@ struct MC_API shm_obj_visitor : mc::engine::metadata_visitor {
      * @param iface [in] 接口元数据
      */
     void handle_interface_end(const mc::engine::interface_metadata& iface) override
-    {
-    }
+    {}
 
     /**
      * @brief 处理属性

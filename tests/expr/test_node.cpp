@@ -22,12 +22,10 @@ namespace {
 class node_test : public ::testing::Test {
 protected:
     void SetUp() override
-    {
-    }
+    {}
 
     void TearDown() override
-    {
-    }
+    {}
 
     mc::expr::context ctx;
 };
@@ -124,7 +122,9 @@ TEST_F(node_test, binary_op_arithmetic)
     // 测试浮点数除法
     auto left_double  = mc::expr::make_literal(10.0);
     auto right_double = mc::expr::make_literal(3.0);
-    EXPECT_DOUBLE_EQ(mc::expr::make_binary_op(mc::expr::operator_type::div, left_double, right_double)->evaluate(ctx).as_double(), 10.0 / 3.0);
+    EXPECT_DOUBLE_EQ(
+        mc::expr::make_binary_op(mc::expr::operator_type::div, left_double, right_double)->evaluate(ctx).as_double(),
+        10.0 / 3.0);
 }
 
 // 测试 binary_op_node - 比较运算符

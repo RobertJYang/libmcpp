@@ -27,8 +27,7 @@
 class memory_appender : public mc::log::appender {
 public:
     memory_appender()
-    {
-    }
+    {}
 
     bool init(const mc::variant& args) override
     {
@@ -140,8 +139,7 @@ TEST_F(LogTest, StructuredLogging)
     m_test_logger.set_level(mc::log::level::trace);
 
     // 使用结构化日志宏
-    mc_ilog(m_test_logger, "用户 ${user} 登录成功，IP: ${ip}",
-            ("user", "admin")("ip", "192.168.1.1"));
+    mc_ilog(m_test_logger, "用户 ${user} 登录成功，IP: ${ip}", ("user", "admin")("ip", "192.168.1.1"));
 
     // 检查日志消息
     const auto& messages = m_memory_appender->get_messages();
@@ -267,9 +265,8 @@ TEST_F(LogTest, message_without_attrs_unchanged)
 {
     m_test_logger.set_level(mc::log::level::info);
 
-    mc::log::message log_msg(mc::log::level::info,
-                             mc::log::context(__FILE__, __FUNCTION__, __LINE__),
-                             "no attrs", mc::dict{});
+    mc::log::message log_msg(mc::log::level::info, mc::log::context(__FILE__, __FUNCTION__, __LINE__), "no attrs",
+                             mc::dict{});
     m_test_logger.log(log_msg);
 
     const auto& messages = m_memory_appender->get_messages();
@@ -372,10 +369,8 @@ TEST_F(LogTest, GlobalLogMacros)
 TEST_F(LogTest, ComplexDataLogging)
 {
     // 创建复杂数据
-    mc::dict user_info = mc::dict({{"id", 12345},
-                                   {"name", "张三"},
-                                   {"roles", mc::variants{"admin", "user"}},
-                                   {"active", true}});
+    mc::dict user_info =
+        mc::dict({{"id", 12345}, {"name", "张三"}, {"roles", mc::variants{"admin", "user"}}, {"active", true}});
 
     // 记录包含复杂数据的日志
     mc_ilog(m_test_logger, "用户信息: ${info}", ("info", user_info));
@@ -448,10 +443,7 @@ TEST_F(LogTest, format_specifications)
 TEST_F(LogTest, dynamic_format_parameters)
 {
     // 使用命名参数作为动态宽度和精度
-    mc_ilog(m_test_logger, "{value:{width}.{precision}f}",
-            ("value", 3.14159),
-            ("width", 10),
-            ("precision", 3));
+    mc_ilog(m_test_logger, "{value:{width}.{precision}f}", ("value", 3.14159), ("width", 10), ("precision", 3));
     EXPECT_EQ(get_last_message(), "     3.142");
 
     // 混合索引和命名参数的动态格式
@@ -484,10 +476,7 @@ TEST_F(LogTest, edge_cases)
 TEST_F(LogTest, nested_braces)
 {
     // 命名参数中的嵌套大括号格式
-    mc_ilog(m_test_logger, "{value:{width}.{precision}f}",
-            ("value", 123.456),
-            ("width", 12),
-            ("precision", 2));
+    mc_ilog(m_test_logger, "{value:{width}.{precision}f}", ("value", 123.456), ("width", 12), ("precision", 2));
     EXPECT_EQ(get_last_message(), "      123.46");
 
     // 索引参数中的嵌套大括号格式

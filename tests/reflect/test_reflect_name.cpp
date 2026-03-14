@@ -37,10 +37,8 @@ struct product {
 };
 } // namespace test_reflect_name
 
-MC_REFLECT(test_reflect_name::user,
-           ((m_id, "ID"))((m_name, "姓名"))((m_age, "年龄")))
-MC_REFLECT(test_reflect_name::product,
-           (m_id)((m_name, "产品名称"))(m_price)((m_stock, "库存")))
+MC_REFLECT(test_reflect_name::user, ((m_id, "ID"))((m_name, "姓名"))((m_age, "年龄")))
+MC_REFLECT(test_reflect_name::product, (m_id)((m_name, "产品名称"))(m_price)((m_stock, "库存")))
 
 namespace test_reflect_name {
 
@@ -124,10 +122,8 @@ TEST(reflect_custom_name_test, mixed_names)
     // 检查成员名称
     ASSERT_EQ(member_names.size(), 4);
     ASSERT_TRUE(std::find(member_names.begin(), member_names.end(), "m_id") != member_names.end());
-    ASSERT_TRUE(std::find(member_names.begin(), member_names.end(), "产品名称") !=
-                member_names.end());
-    ASSERT_TRUE(std::find(member_names.begin(), member_names.end(), "m_price") !=
-                member_names.end());
+    ASSERT_TRUE(std::find(member_names.begin(), member_names.end(), "产品名称") != member_names.end());
+    ASSERT_TRUE(std::find(member_names.begin(), member_names.end(), "m_price") != member_names.end());
     ASSERT_TRUE(std::find(member_names.begin(), member_names.end(), "库存") != member_names.end());
 }
 
@@ -135,10 +131,8 @@ TEST(reflect_custom_name_test, mixed_names)
 TEST(reflect_custom_name_test, reflection_utils)
 {
     // 测试类型名称获取
-    ASSERT_EQ(mc::reflect::get_type_name<user>(),
-              "test_reflect_name.user");
-    ASSERT_EQ(mc::reflect::get_type_name<product>(),
-              "test_reflect_name.product");
+    ASSERT_EQ(mc::reflect::get_type_name<user>(), "test_reflect_name.user");
+    ASSERT_EQ(mc::reflect::get_type_name<product>(), "test_reflect_name.product");
 
     // 测试类型是否可反射
     ASSERT_TRUE(mc::reflect::is_reflectable<user>());

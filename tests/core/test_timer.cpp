@@ -19,14 +19,11 @@
 namespace {
 
 struct timer_service : public mc::core::service_base {
-    timer_service()
-        : mc::core::service_base("org.openubmc.test_service")
-    {
-    }
+    timer_service() : mc::core::service_base("org.openubmc.test_service")
+    {}
 
     ~timer_service() override
-    {
-    }
+    {}
 
     void test_single_shot()
     {
@@ -92,8 +89,7 @@ TEST_F(timer_test, test_periodic_timer)
 // 测试取消定时器
 TEST_F(timer_test, test_cancel_timer)
 {
-    auto timer = mc::core::timer::single_shot(mc::milliseconds(100), service,
-                                              &timer_service::test_single_shot);
+    auto timer = mc::core::timer::single_shot(mc::milliseconds(100), service, &timer_service::test_single_shot);
     timer->stop();
 
     auto future = service->m_is_called.get_future();

@@ -30,16 +30,16 @@ using split_iterator = mc::string::split_iterator;
 
 #ifndef MC_MODULE_PATH
 #if defined(__APPLE__)
-#define MC_MODULE_PATH   \
-    "./?.dylib;"         \
-    "./?/init.dylib;"    \
-    "./modules/?.dylib;" \
+#define MC_MODULE_PATH                                                                                                 \
+    "./?.dylib;"                                                                                                       \
+    "./?/init.dylib;"                                                                                                  \
+    "./modules/?.dylib;"                                                                                               \
     "./modules/?/init.dylib;"
 #else
-#define MC_MODULE_PATH \
-    "./?.so;"          \
-    "./?/init.so;"     \
-    "./modules/?.so;"  \
+#define MC_MODULE_PATH                                                                                                 \
+    "./?.so;"                                                                                                          \
+    "./?/init.so;"                                                                                                     \
+    "./modules/?.so;"                                                                                                  \
     "./modules/?/init.so;"
 #endif
 #endif
@@ -174,10 +174,8 @@ bool module_loader::is_readable(const fs::path& path) const
     }
 }
 
-bool module_loader::load_path(const fs::path&    lib_path,
-                              const std::string& export_name,
-                              const std::string& template_path,
-                              load_callback      callback) const
+bool module_loader::load_path(const fs::path& lib_path, const std::string& export_name,
+                              const std::string& template_path, load_callback callback) const
 {
     // 构建完整路径
     std::string actual_path = template_path;
@@ -224,8 +222,7 @@ bool module_loader::load_path(const fs::path&    lib_path,
             return true;
         }
     } catch (const std::exception& e) {
-        elog("load module failed: ${path} - ${error}",
-             ("path", actual_path)("error", e.what()));
+        elog("load module failed: ${path} - ${error}", ("path", actual_path)("error", e.what()));
     }
 
     // 如果加载失败，则卸载动态库
@@ -233,8 +230,7 @@ bool module_loader::load_path(const fs::path&    lib_path,
     return false;
 }
 
-bool module_loader::load_module(std::string_view module_name,
-                                load_callback    callback) const
+bool module_loader::load_module(std::string_view module_name, load_callback callback) const
 {
     fs::path    base_path;
     std::string export_name = make_lib_name(module_name);

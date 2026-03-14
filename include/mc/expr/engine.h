@@ -96,8 +96,7 @@ public:
      * @param parent 父级上下文指针，如果为空则使用全局上下文
      * @return 上下文对象
      */
-    object_context make_context(mc::engine::abstract_object* object,
-                                context_base*                parent = nullptr) const;
+    object_context make_context(mc::engine::abstract_object* object, context_base* parent = nullptr) const;
 
 private:
     struct impl;

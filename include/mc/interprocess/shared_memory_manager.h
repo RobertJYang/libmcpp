@@ -44,9 +44,7 @@ public:
      * @param size 共享内存大小，如果小于最小值会使用最小值
      * @param opts 选项组合，可使用位或运算组合多个选项
      */
-    shared_memory_manager(const std::string& base_name,
-                          size_t             size = 0,
-                          uint32_t           opts = REMOVE_ON_EXIT);
+    shared_memory_manager(const std::string& base_name, size_t size = 0, uint32_t opts = REMOVE_ON_EXIT);
 
     /**
      * @brief 析构函数，自动清理资源

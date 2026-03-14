@@ -29,21 +29,17 @@ namespace detail {
 
 struct dbus_call {
     dbus_call() = default;
-    dbus_call(mc::dbus::message request)
-        : request(std::move(request))
-    {
-    }
+    dbus_call(mc::dbus::message request) : request(std::move(request))
+    {}
 
     mc::dbus::message request;
     mc::dbus::message response;
 };
 
 struct variants_call {
-    variants_call(const mc::variants& a, std::string_view interface_name,
-                  std::string_view method_name)
+    variants_call(const mc::variants& a, std::string_view interface_name, std::string_view method_name)
         : args(&a), interface_name(interface_name), method_name(method_name)
-    {
-    }
+    {}
 
     const mc::variants* args;
     mc::variant         result;
@@ -61,7 +57,7 @@ using call_info = std::variant<dbus_call, variants_call>;
 enum class handler_status {
     accepted, // 已接受（默认行为，消息路由到处理者即已接受）
     ignored,  // 忽略（消息路由到处理者后，处理者主动忽略，消息路由到下一个处理者）
-    error,    // 错误（消息路由到处理者后，主动调用 MC_REPLY_ERROR_AND_THROW 抛出错误，或用 MC_THROW 抛出错误）
+    error, // 错误（消息路由到处理者后，主动调用 MC_REPLY_ERROR_AND_THROW 抛出错误，或用 MC_THROW 抛出错误）
 };
 
 class MC_API context {
@@ -125,17 +121,14 @@ using context_stack = detail::call_stack<service, context>;
 // 1. 这里的错误参数必须是一个已经注册到错误引擎的错误名称，或者是一个 error_info 结构表示的消息
 // 2. 我们不建议在调用上下文中返回任意错误消息，这不利于错误消息的统一管理
 // 3. 这里仅仅将错误设置到上下文中，函数还是需要正常返回
-#define MC_REPLY_ERROR_1(err) \
-    mc::engine::context::get_current_context().report_error(err)
-#define MC_REPLY_ERROR_2(err, ...)                                                              \
-    mc::engine::context::get_current_context()                                                  \
-        .report_error(err,                                                                      \
-                      mc::log::detail::make_args(                                               \
-                          BOOST_PP_SEQ_FOR_EACH(MC_FORMAT_CHECK_ARG, MC_FORMAT_APPLY_ARG_NAMED, \
-                                                BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)) std::monostate{}))
-#define MC_REPLY_ERROR(...)                                                                  \
-    BOOST_PP_IIF(BOOST_PP_GREATER(BOOST_PP_VARIADIC_SIZE(__VA_ARGS__), 1), MC_REPLY_ERROR_2, \
-                 MC_REPLY_ERROR_1)                                                           \
+#define MC_REPLY_ERROR_1(err) mc::engine::context::get_current_context().report_error(err)
+#define MC_REPLY_ERROR_2(err, ...)                                                                                     \
+    mc::engine::context::get_current_context().report_error(                                                           \
+        err,                                                                                                           \
+        mc::log::detail::make_args(BOOST_PP_SEQ_FOR_EACH(MC_FORMAT_CHECK_ARG, MC_FORMAT_APPLY_ARG_NAMED,               \
+                                                         BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)) std::monostate{}))
+#define MC_REPLY_ERROR(...)                                                                                            \
+    BOOST_PP_IIF(BOOST_PP_GREATER(BOOST_PP_VARIADIC_SIZE(__VA_ARGS__), 1), MC_REPLY_ERROR_2, MC_REPLY_ERROR_1)         \
     (__VA_ARGS__)
 
 // MC_REPLY_ERROR_AND_THROW: 抛出错误并立即结束当前调用
@@ -148,20 +141,17 @@ using context_stack = detail::call_stack<service, context>;
 // 3. 这里会抛出异常，相比 MC_REPLY_ERROR 开销更大，使用这个宏的唯一理由是函数正常返回时某些方法
 // 返回值难以构造或构造成本过高，可以利用这个机制快速返回并路由到下一个处理者，否则应该使用 MC_REPLY_ERROR
 // 并正常返回
-#define MC_REPLY_ERROR_AND_THROW_1(err) \
-    mc::engine::context::throw_error(err)
-#define MC_REPLY_ERROR_AND_THROW_2(err, ...) \
-    mc::engine::context::throw_error(err, mc::dict() __VA_ARGS__)
-#define MC_REPLY_ERROR_AND_THROW(...)                                                                  \
-    BOOST_PP_IIF(BOOST_PP_GREATER(BOOST_PP_VARIADIC_SIZE(__VA_ARGS__), 1), MC_REPLY_ERROR_AND_THROW_2, \
-                 MC_REPLY_ERROR_AND_THROW_1)                                                           \
+#define MC_REPLY_ERROR_AND_THROW_1(err)      mc::engine::context::throw_error(err)
+#define MC_REPLY_ERROR_AND_THROW_2(err, ...) mc::engine::context::throw_error(err, mc::dict() __VA_ARGS__)
+#define MC_REPLY_ERROR_AND_THROW(...)                                                                                  \
+    BOOST_PP_IIF(BOOST_PP_GREATER(BOOST_PP_VARIADIC_SIZE(__VA_ARGS__), 1), MC_REPLY_ERROR_AND_THROW_2,                 \
+                 MC_REPLY_ERROR_AND_THROW_1)                                                                           \
     (__VA_ARGS__)
 
 // MC_IGNORE: 忽略当前请求，消息分发机制会继续路由到下一个处理者
 //
 // 这个宏仅仅标记调用上下文忽略当前请求，函数还是需要正常返回
-#define MC_IGNORE() \
-    mc::engine::context::get_current_context().ignore()
+#define MC_IGNORE() mc::engine::context::get_current_context().ignore()
 
 // MC_IGNORE_AND_THROW: 忽略当前请求并抛出异常，消息分发机制会继续路由到下一个处理者
 //
@@ -169,8 +159,8 @@ using context_stack = detail::call_stack<service, context>;
 // 注意：抛出异常的开销远高于函数正常返回，使用这个宏的唯一理由是某些方法返回值难以构造
 // 或构造成本过高，可以利用这个机制可以快速返回并路由到下一个处理者，否则应该使用 MC_IGNORE
 // 并正常返回
-#define MC_IGNORE_AND_THROW() \
-    MC_IGNORE();              \
+#define MC_IGNORE_AND_THROW()                                                                                          \
+    MC_IGNORE();                                                                                                       \
     MC_THROW(mc::method_call_exception, "ignore method call");
 
 } // namespace mc::engine

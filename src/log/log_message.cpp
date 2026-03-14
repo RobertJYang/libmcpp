@@ -24,44 +24,22 @@
 namespace mc::log {
 
 message::message(level lvl, std::string msg, context ctx, mc::dict args, mc::dict attrs)
-    : m_level(lvl),
-      m_category(log_category::debug),
-      m_message(std::move(msg)),
-      m_context(std::move(ctx)),
-      m_timestamp(std::chrono::system_clock::now()),
-      m_args(std::move(args)),
-      m_attrs(std::move(attrs)),
-      m_format(),
-      m_thread_id(mc::get_thread_id()),
-      m_formatted(true),
-      m_attrs_appended(false),
-      m_system_id_appended(false),
+    : m_level(lvl), m_category(log_category::debug), m_message(std::move(msg)), m_context(std::move(ctx)),
+      m_timestamp(std::chrono::system_clock::now()), m_args(std::move(args)), m_attrs(std::move(attrs)), m_format(),
+      m_thread_id(mc::get_thread_id()), m_formatted(true), m_attrs_appended(false), m_system_id_appended(false),
       m_period_appended(false)
-{
-}
+{}
 
-message::message(level lvl, context ctx, std::string fmt_template,
-                 mc::dict args, mc::dict attrs)
-    : m_level(lvl),
-      m_category(log_category::debug),
-      m_message(""), // 初始为空，将在需要时格式化
-      m_context(std::move(ctx)),
-      m_timestamp(std::chrono::system_clock::now()),
-      m_args(std::move(args)),
-      m_attrs(std::move(attrs)),
-      m_format(std::move(fmt_template)),
-      m_thread_id(mc::get_thread_id()),
-      m_formatted(false),
-      m_attrs_appended(false),
-      m_system_id_appended(false),
-      m_period_appended(false)
-{
-}
+message::message(level lvl, context ctx, std::string fmt_template, mc::dict args, mc::dict attrs)
+    : m_level(lvl), m_category(log_category::debug), m_message(""), // 初始为空，将在需要时格式化
+      m_context(std::move(ctx)), m_timestamp(std::chrono::system_clock::now()), m_args(std::move(args)),
+      m_attrs(std::move(attrs)), m_format(std::move(fmt_template)), m_thread_id(mc::get_thread_id()),
+      m_formatted(false), m_attrs_appended(false), m_system_id_appended(false), m_period_appended(false)
+{}
 
 namespace {
 // 递归将 variant 按 key=value 风格追加（嵌套 dict 输出为 key={ ... }，与顶层 attrs 一致）
-void append_attr_value(mc::fmt::format_context& ctx, const mc::variant& v,
-                       const mc::fmt::detail::format_spec& spec)
+void append_attr_value(mc::fmt::format_context& ctx, const mc::variant& v, const mc::fmt::detail::format_spec& spec)
 {
     if (v.is_object()) {
         const mc::dict& d = v.get_object();
@@ -87,7 +65,7 @@ void append_attrs_key_value(std::string& result, const mc::dict& attrs)
     if (attrs.empty()) {
         return; // 提前返回，避免不必要的操作
     }
-    mc::fmt::format_context ctx(result);
+    mc::fmt::format_context      ctx(result);
     mc::fmt::detail::format_spec spec{};
     for (const auto& e : attrs) {
         ctx.append(' ');
@@ -107,17 +85,16 @@ const std::string& message::get_message() const
     }
 
     // 检查并添加 system_id 前缀
-    if (m_args.contains("system_id") && !m_system_id_appended &&
-        m_args["system_id"].is_integer()) {
-        int system_id = m_args["system_id"].as<int>();
-        m_message = "[System" + std::to_string(system_id) + "]" + m_message;
+    if (m_args.contains("system_id") && !m_system_id_appended && m_args["system_id"].is_integer()) {
+        int system_id        = m_args["system_id"].as<int>();
+        m_message            = "[System" + std::to_string(system_id) + "]" + m_message;
         m_system_id_appended = true;
     }
 
     // 检查并添加 period 后缀
     if (m_args.contains("period") && !m_period_appended && m_args["period"].is_integer()) {
-        int period = m_args["period"].as<int>();
-        m_message = m_message + " [period:" + std::to_string(period) + "(s)]";
+        int period        = m_args["period"].as<int>();
+        m_message         = m_message + " [period:" + std::to_string(period) + "(s)]";
         m_period_appended = true;
     }
 
@@ -193,7 +170,7 @@ mc::dict message::to_structured_data() const
     mc::dict result;
 
     // 基本元数据
-    result["level"] = static_cast<int>(m_level);
+    result["level"]    = static_cast<int>(m_level);
     result["category"] = static_cast<int>(m_category);
 
     // 上下文信息

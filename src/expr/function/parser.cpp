@@ -45,8 +45,7 @@ mc::variant parse_value(const std::string& value)
 
     int64_t int_result;
     if (mc::string::try_to_number(value, int_result)) {
-        if (int_result >= std::numeric_limits<int32_t>::min() &&
-            int_result <= std::numeric_limits<int32_t>::max()) {
+        if (int_result >= std::numeric_limits<int32_t>::min() && int_result <= std::numeric_limits<int32_t>::max()) {
             return variant(static_cast<int32_t>(int_result));
         }
         return variant(int_result);
@@ -85,12 +84,10 @@ std::pair<std::string, std::string> func_parser::parse_dotted_property(const std
 }
 
 // 通用属性解析函数
-relate_property func_parser::parse_property_with_type(const std::string&          input,
-                                                      const property_type_config& config)
+relate_property func_parser::parse_property_with_type(const std::string& input, const property_type_config& config)
 {
     // 验证前缀格式
-    if (input.length() < config.prefix.length() ||
-        input.substr(0, config.prefix.length()) != config.prefix) {
+    if (input.length() < config.prefix.length() || input.substr(0, config.prefix.length()) != config.prefix) {
         MC_THROW(mc::invalid_arg_exception, "${error_prefix}Property format invalid: ${input}",
                  ("error_prefix", config.error_message_prefix)("input", input));
     }
@@ -185,7 +182,8 @@ relate_object func_parser::parse_ref_object(const std::string& input)
 
     // 验证对象名不为空且只包含字母、数字和下划线
     if (object_name.empty() || !std::regex_match(object_name, std::regex(R"([A-Za-z_][A-Za-z0-9_]*)"))) {
-        MC_THROW(mc::invalid_arg_exception, "Reference object name format invalid: ${object_name}", ("object_name", object_name));
+        MC_THROW(mc::invalid_arg_exception, "Reference object name format invalid: ${object_name}",
+                 ("object_name", object_name));
     }
 
     // 构造结果
@@ -252,13 +250,11 @@ func_call func_parser::parse_function_call(const std::string& input)
             break;
         }
         size_t name_start = pos;
-        while (pos < params_str.length() &&
-               (std::isalnum(params_str[pos]) || params_str[pos] == '_')) {
+        while (pos < params_str.length() && (std::isalnum(params_str[pos]) || params_str[pos] == '_')) {
             ++pos;
         }
         std::string param_name = params_str.substr(name_start, pos - name_start);
-        while (pos < params_str.length() &&
-               (std::isspace(params_str[pos]) || params_str[pos] == ':')) {
+        while (pos < params_str.length() && (std::isspace(params_str[pos]) || params_str[pos] == ':')) {
             ++pos;
         }
         if (pos >= params_str.length()) {
@@ -304,8 +300,7 @@ func_call func_parser::parse_function_call(const std::string& input)
             param_value = params_str.substr(value_start, pos - value_start);
         }
         if (param_value[0] == '"') {
-            result.params[param_name] =
-                mc::variant(param_value.substr(1, param_value.length() - 2));
+            result.params[param_name] = mc::variant(param_value.substr(1, param_value.length() - 2));
         } else if (param_value == "true" || param_value == "false") {
             result.params[param_name] = mc::variant(param_value == "true");
         } else if (param_value[0] == '$') {
@@ -327,9 +322,7 @@ func_call func_parser::parse_function_call(const std::string& input)
             } else {
                 result.params[param_name] = mc::variant(parse_ref_object(param_value));
             }
-        } else if (std::regex_match(
-                       param_value,
-                       std::regex(R"([A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*)"))) {
+        } else if (std::regex_match(param_value, std::regex(R"([A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*)"))) {
             result.params[param_name] = mc::variant(parse_property(param_value));
         } else {
             // 尝试使用 parse_value 解析参数值（支持科学计数法、以点开头的浮点数等）
@@ -339,11 +332,12 @@ func_call func_parser::parse_function_call(const std::string& input)
                 result.params[param_name] = parsed_value;
             } else {
                 // 如果返回的是字符串，说明无法解析为数字，继续尝试其他格式或抛出异常
-                MC_THROW(mc::invalid_arg_exception, "Invalid parameter value: ${param_value}", ("param_value", param_value));
+                MC_THROW(mc::invalid_arg_exception, "Invalid parameter value: ${param_value}",
+                         ("param_value", param_value));
             }
         }
-        while (pos < params_str.length() && (std::isspace(params_str[pos]) ||
-                                             params_str[pos] == ',' || params_str[pos] == ')')) {
+        while (pos < params_str.length() &&
+               (std::isspace(params_str[pos]) || params_str[pos] == ',' || params_str[pos] == ')')) {
             ++pos;
         }
     }
@@ -392,5 +386,6 @@ bool param_value_comparator::compare_dicts(const mc::dict& a, const mc::dict& b)
 
 } // namespace mc::expr
 
-MC_REFLECT(mc::expr::relate_property, ((type, "type"))((object_name, "object_name"))((property_name, "property_name"))((full_name, "full_name"))((interface, "interface")));
+MC_REFLECT(mc::expr::relate_property, ((type, "type"))((object_name, "object_name"))((property_name, "property_name"))(
+                                          (full_name, "full_name"))((interface, "interface")));
 MC_REFLECT(mc::expr::relate_object, ((type, "type"))((object_name, "object_name"))((full_name, "full_name")));

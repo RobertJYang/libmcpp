@@ -20,8 +20,7 @@ namespace mc::expr {
 namespace {
 void ensure_numeric(std::string_view name, const mc::variant& value)
 {
-    MC_ASSERT_THROW(value.is_numeric(), mc::invalid_arg_exception, "${name} 参数必须是数值类型",
-                    ("name", name));
+    MC_ASSERT_THROW(value.is_numeric(), mc::invalid_arg_exception, "${name} 参数必须是数值类型", ("name", name));
 }
 } // namespace
 

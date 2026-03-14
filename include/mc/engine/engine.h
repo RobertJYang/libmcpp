@@ -43,8 +43,7 @@ public:
         }
 
         auto new_table = std::make_shared<Table>(table_name);
-        MC_ASSERT(register_table(new_table), "注册表 ${table_name} 失败",
-                  ("table_name", table_name));
+        MC_ASSERT(register_table(new_table), "注册表 ${table_name} 失败", ("table_name", table_name));
         return new_table;
     }
 

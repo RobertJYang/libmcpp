@@ -93,15 +93,15 @@ class MC_API dynamic_object : public mc::engine::object_impl {
 public:
     dynamic_object(mc::core::object* parent = nullptr);
 
-    mc::variant                  get_property(std::string_view property_name, std::string_view interface_name,
-                                              int options = 0) const override;
-    bool                         set_property(std::string_view property_name, const mc::variant& value,
-                                              std::string_view interface_name) override;
-    mc::dict                     get_all_properties(std::string_view interface_name = {}, int options = 0) const override;
-    bool                         has_property(std::string_view property_name, std::string_view interface_name) const override;
+    mc::variant get_property(std::string_view property_name, std::string_view interface_name,
+                             int options = 0) const override;
+    bool        set_property(std::string_view property_name, const mc::variant& value,
+                             std::string_view interface_name) override;
+    mc::dict    get_all_properties(std::string_view interface_name = {}, int options = 0) const override;
+    bool        has_property(std::string_view property_name, std::string_view interface_name) const override;
     std::tuple<int, mc::variant> try_get_property(std::string_view property_name,
                                                   std::string_view interface_name) const;
-    int                          try_set_property(std::string_view property_name, const mc::variant& value, std::string_view interface_name);
+    int try_set_property(std::string_view property_name, const mc::variant& value, std::string_view interface_name);
 
     void                              add_interface(mc::shared_ptr<dynamic_interface>);
     mc::shared_ptr<dynamic_interface> get_interface(std::string intf_name) const;

@@ -96,8 +96,8 @@ bool is_relate_property(const mc::variant& value)
     auto full_it = dict.find("full_name");
     auto intf_it = dict.find("interface");
 
-    if (type_it == dict.end() || obj_it == dict.end() || prop_it == dict.end() ||
-        full_it == dict.end() || intf_it == dict.end()) {
+    if (type_it == dict.end() || obj_it == dict.end() || prop_it == dict.end() || full_it == dict.end() ||
+        intf_it == dict.end()) {
         return false;
     }
 
@@ -173,8 +173,7 @@ mc::variant handle_relate_property(const mc::variant& prop_value, const std::str
 }
 
 // 处理单个参数的变量注册
-void handle_parameter_registration(mc::expr::context& ctx, const std::string& key,
-                                   const mc::variant&      param_value,
+void handle_parameter_registration(mc::expr::context& ctx, const std::string& key, const mc::variant& param_value,
                                    const std::string_view& position)
 {
     if (is_function_call(param_value)) {

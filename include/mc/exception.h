@@ -89,8 +89,7 @@ public:
      * @param name_value 异常名称
      * @param what_value 异常描述
      */
-    exception(int64_t            code       = unknow_exception_code,
-              const std::string& name_value = "unknow_exception",
+    exception(int64_t code = unknow_exception_code, const std::string& name_value = "unknow_exception",
               const std::string& what_value = "未指定异常");
 
     /**
@@ -102,8 +101,7 @@ public:
      * @param what_value 异常描述
      */
     exception(mc::log::message&& msg, int64_t code = unknow_exception_code,
-              const std::string& name_value = "unknow_exception",
-              const std::string& what_value = "未指定异常");
+              const std::string& name_value = "unknow_exception", const std::string& what_value = "未指定异常");
 
     /**
      * @brief 带多条日志消息的构造函数
@@ -114,8 +112,7 @@ public:
      * @param what_value 异常描述
      */
     exception(mc::log::messages&& msgs, int64_t code = unknow_exception_code,
-              const std::string& name_value = "exception",
-              const std::string& what_value = "未指定异常");
+              const std::string& name_value = "exception", const std::string& what_value = "未指定异常");
 
     /**
      * @brief 带多条日志消息的构造函数（常量引用版本）
@@ -126,8 +123,7 @@ public:
      * @param what_value 异常描述
      */
     exception(const mc::log::messages& msgs, int64_t code = unknow_exception_code,
-              const std::string& name_value = "exception",
-              const std::string& what_value = "未指定异常");
+              const std::string& name_value = "exception", const std::string& what_value = "未指定异常");
 
     // 复制构造函数
     exception(const exception& e);
@@ -202,47 +198,42 @@ using exception_ptr = std::shared_ptr<exception>;
  * // 在代码中使用
  * MC_THROW(timeout_exception, "连接超时");
  */
-#define MC_DECLARE_EXCEPTION_CLASS_BASE(class_name, code_enum_value, class_name_str, base_class)      \
-    class MC_API class_name : public base_class {                                                     \
-    public:                                                                                           \
-        enum code_enum { code_value = code_enum_value };                                              \
-        class_name(mc::log::message&& msg = mc::log::message(mc::log::level::error, class_name_str)); \
-        class_name(const class_name& e);                                                              \
-        class_name(class_name&& e);                                                                   \
-        explicit class_name(const base_class& e);                                                     \
-        virtual std::shared_ptr<mc::exception> dynamic_copy_exception() const override;               \
-        virtual void                           dynamic_rethrow_exception() const override;            \
+#define MC_DECLARE_EXCEPTION_CLASS_BASE(class_name, code_enum_value, class_name_str, base_class)                       \
+    class MC_API class_name : public base_class {                                                                      \
+    public:                                                                                                            \
+        enum code_enum { code_value = code_enum_value };                                                               \
+        class_name(mc::log::message&& msg = mc::log::message(mc::log::level::error, class_name_str));                  \
+        class_name(const class_name& e);                                                                               \
+        class_name(class_name&& e);                                                                                    \
+        explicit class_name(const base_class& e);                                                                      \
+        virtual std::shared_ptr<mc::exception> dynamic_copy_exception() const override;                                \
+        virtual void                           dynamic_rethrow_exception() const override;                             \
     };
 
 // 实现宏：只生成实现，供源文件使用
-#define MC_IMPLEMENT_EXCEPTION_CLASS_BASE(class_name, code_enum_value, default_msg, class_name_str, base_class) \
-    class_name::class_name(mc::log::message&& msg)                                                              \
-        : base_class(std::move(msg), code_enum_value, class_name_str, default_msg)                              \
-    {                                                                                                           \
-    }                                                                                                           \
-    class_name::class_name(const class_name& e) : base_class(e)                                                 \
-    {                                                                                                           \
-    }                                                                                                           \
-    class_name::class_name(class_name&& e) : base_class(std::move(e))                                           \
-    {                                                                                                           \
-    }                                                                                                           \
-    class_name::class_name(const base_class& e)                                                                 \
-        : base_class(code_enum_value, class_name_str, default_msg)                                              \
-    {                                                                                                           \
-    }                                                                                                           \
-    std::shared_ptr<mc::exception> class_name::dynamic_copy_exception() const                                   \
-    {                                                                                                           \
-        return std::make_shared<class_name>(*this);                                                             \
-    }                                                                                                           \
-    void class_name::dynamic_rethrow_exception() const                                                          \
-    {                                                                                                           \
-        throw *this;                                                                                            \
+#define MC_IMPLEMENT_EXCEPTION_CLASS_BASE(class_name, code_enum_value, default_msg, class_name_str, base_class)        \
+    class_name::class_name(mc::log::message&& msg)                                                                     \
+        : base_class(std::move(msg), code_enum_value, class_name_str, default_msg)                                     \
+    {}                                                                                                                 \
+    class_name::class_name(const class_name& e) : base_class(e)                                                        \
+    {}                                                                                                                 \
+    class_name::class_name(class_name&& e) : base_class(std::move(e))                                                  \
+    {}                                                                                                                 \
+    class_name::class_name(const base_class& e) : base_class(code_enum_value, class_name_str, default_msg)             \
+    {}                                                                                                                 \
+    std::shared_ptr<mc::exception> class_name::dynamic_copy_exception() const                                          \
+    {                                                                                                                  \
+        return std::make_shared<class_name>(*this);                                                                    \
+    }                                                                                                                  \
+    void class_name::dynamic_rethrow_exception() const                                                                 \
+    {                                                                                                                  \
+        throw *this;                                                                                                   \
     }
 
-#define MC_DECLARE_EXCEPTION_CLASS(class_name, code_enum_value, default_msg, class_name_str) \
+#define MC_DECLARE_EXCEPTION_CLASS(class_name, code_enum_value, default_msg, class_name_str)                           \
     MC_DECLARE_EXCEPTION_CLASS_BASE(class_name, code_enum_value, class_name_str, exception)
 
-#define MC_IMPLEMENT_EXCEPTION_CLASS(class_name, code_enum_value, default_msg, class_name_str) \
+#define MC_IMPLEMENT_EXCEPTION_CLASS(class_name, code_enum_value, default_msg, class_name_str)                         \
     MC_IMPLEMENT_EXCEPTION_CLASS_BASE(class_name, code_enum_value, default_msg, class_name_str, exception)
 
 /**
@@ -286,8 +277,7 @@ public:
     };
 
     // 构造函数
-    explicit std_exception_wrapper(mc::log::message&& msg,
-                                   std::exception_ptr e          = std::current_exception(),
+    explicit std_exception_wrapper(mc::log::message&& msg, std::exception_ptr e = std::current_exception(),
                                    const std::string& name_value = "exception",
                                    const std::string& what_value = "未指定异常");
 
@@ -328,9 +318,7 @@ public:
      * @param args 结构化参数（使用数字键 0, 1, 2...）
      * @param code 异常代码
      */
-    error_exception(const char*     error_name,
-                    const mc::dict& args,
-                    int64_t         code = error_engine_exception_code);
+    error_exception(const char* error_name, const mc::dict& args, int64_t code = error_engine_exception_code);
 
     /**
      * @brief 构造函数（带JSON序列化的error对象）
@@ -339,9 +327,7 @@ public:
      * @param error_json error对象的JSON序列化字符串
      * @param code 异常代码
      */
-    error_exception(const char*        error_name,
-                    const std::string& error_json,
-                    int64_t            code = error_engine_exception_code);
+    error_exception(const char* error_name, const std::string& error_json, int64_t code = error_engine_exception_code);
 
     /**
      * @brief 构造函数（带日志消息，用于MC_THROW_ERROR_WITH_MESSAGE宏）
@@ -350,9 +336,7 @@ public:
      * @param message 日志消息
      * @param code 异常代码
      */
-    error_exception(const char*        error_name,
-                    mc::log::message&& message,
-                    int64_t            code = error_engine_exception_code);
+    error_exception(const char* error_name, mc::log::message&& message, int64_t code = error_engine_exception_code);
 
     /**
      * @brief 获取结构化参数
@@ -395,38 +379,40 @@ private:
 };
 
 // 标准异常类定义
-#define MC_STD_EXCEPTION_CLASS(macro)                                                                                     \
-    macro(timeout_exception, timeout_exception_code, "操作超时", "timeout");                                              \
-    macro(file_not_found_exception, file_not_found_exception_code, "文件未找到", "file_not_found");                       \
-    macro(parse_error_exception, parse_error_exception_code, "解析错误", "parse_error");                                  \
-    macro(invalid_arg_exception, invalid_arg_exception_code, "无效参数", "invalid_arg");                                  \
-    macro(key_not_found_exception, key_not_found_exception_code, "键未找到", "key_not_found");                            \
-    macro(assert_exception, assert_exception_code, "断言失败", "assert");                                                 \
-    macro(bad_cast_exception, bad_cast_exception_code, "类型转换错误", "bad_cast");                                       \
-    macro(out_of_range_exception, out_of_range_exception_code, "索引越界", "out_of_range");                               \
-    macro(canceled_exception, canceled_exception_code, "操作已取消", "canceled");                                         \
-    macro(eof_exception, eof_exception_code, "文件结束", "eof");                                                          \
-    macro(system_exception, system_error_code, "系统错误", "system");                                                     \
-    macro(invalid_op_exception, invalid_op_exception_code, "无效操作", "invalid_operation");                              \
-    macro(null_optional_exception, null_optional_code, "访问空可选值", "null_optional");                                  \
-    macro(overflow_exception, overflow_code, "数值溢出", "overflow");                                                     \
-    macro(underflow_exception, underflow_code, "数值下溢", "underflow");                                                  \
-    macro(divide_by_zero_exception, divide_by_zero_code, "除零错误", "divide_by_zero");                                   \
-    macro(file_open_exception, file_not_found_exception_code, "无法打开文件", "file_open");                               \
-    macro(not_implemented_exception, not_implemented_exception_code, "未实现", "not_implemented");                        \
-    macro(bad_function_call_exception, bad_function_call_code, "函数调用错误", "bad_function_call");                      \
-    macro(bad_alloc_exception, bad_alloc_code, "内存分配错误", "bad_alloc");                                              \
-    macro(busy_exception, busy_exception_code, "繁忙", "busy");                                                           \
-    macro(method_call_exception, method_call_exception_code, "方法调用错误", "method_call");                              \
-    macro(bad_property_exception, bad_property_exception_code, "属性错误", "bad_property");                               \
-    macro(bad_method_exception, bad_method_exception_code, "方法错误", "bad_method");                                     \
-    macro(bad_type_exception, bad_type_exception_code, "类型错误", "bad_type");                                           \
-    macro(not_found_exception, not_found_exception_code, "未找到", "not_found");                                          \
-    macro(invalid_argument_exception, invalid_argument_exception_code, "无效参数", "invalid_argument");                   \
-    macro(runtime_exception, runtime_exception_code, "运行时错误", "runtime");                                            \
-    macro(format_error, format_error_code, "格式化错误", "format_error");                                                 \
-    macro(insufficient_privilege_exception, insufficient_privilege_exception_code, "权限不足", "insufficient_privilege"); \
-    macro(password_changed_required_exception, password_changed_required_exception_code, "需要修改密码", "password_changed_required");
+#define MC_STD_EXCEPTION_CLASS(macro)                                                                                  \
+    macro(timeout_exception, timeout_exception_code, "操作超时", "timeout");                                           \
+    macro(file_not_found_exception, file_not_found_exception_code, "文件未找到", "file_not_found");                    \
+    macro(parse_error_exception, parse_error_exception_code, "解析错误", "parse_error");                               \
+    macro(invalid_arg_exception, invalid_arg_exception_code, "无效参数", "invalid_arg");                               \
+    macro(key_not_found_exception, key_not_found_exception_code, "键未找到", "key_not_found");                         \
+    macro(assert_exception, assert_exception_code, "断言失败", "assert");                                              \
+    macro(bad_cast_exception, bad_cast_exception_code, "类型转换错误", "bad_cast");                                    \
+    macro(out_of_range_exception, out_of_range_exception_code, "索引越界", "out_of_range");                            \
+    macro(canceled_exception, canceled_exception_code, "操作已取消", "canceled");                                      \
+    macro(eof_exception, eof_exception_code, "文件结束", "eof");                                                       \
+    macro(system_exception, system_error_code, "系统错误", "system");                                                  \
+    macro(invalid_op_exception, invalid_op_exception_code, "无效操作", "invalid_operation");                           \
+    macro(null_optional_exception, null_optional_code, "访问空可选值", "null_optional");                               \
+    macro(overflow_exception, overflow_code, "数值溢出", "overflow");                                                  \
+    macro(underflow_exception, underflow_code, "数值下溢", "underflow");                                               \
+    macro(divide_by_zero_exception, divide_by_zero_code, "除零错误", "divide_by_zero");                                \
+    macro(file_open_exception, file_not_found_exception_code, "无法打开文件", "file_open");                            \
+    macro(not_implemented_exception, not_implemented_exception_code, "未实现", "not_implemented");                     \
+    macro(bad_function_call_exception, bad_function_call_code, "函数调用错误", "bad_function_call");                   \
+    macro(bad_alloc_exception, bad_alloc_code, "内存分配错误", "bad_alloc");                                           \
+    macro(busy_exception, busy_exception_code, "繁忙", "busy");                                                        \
+    macro(method_call_exception, method_call_exception_code, "方法调用错误", "method_call");                           \
+    macro(bad_property_exception, bad_property_exception_code, "属性错误", "bad_property");                            \
+    macro(bad_method_exception, bad_method_exception_code, "方法错误", "bad_method");                                  \
+    macro(bad_type_exception, bad_type_exception_code, "类型错误", "bad_type");                                        \
+    macro(not_found_exception, not_found_exception_code, "未找到", "not_found");                                       \
+    macro(invalid_argument_exception, invalid_argument_exception_code, "无效参数", "invalid_argument");                \
+    macro(runtime_exception, runtime_exception_code, "运行时错误", "runtime");                                         \
+    macro(format_error, format_error_code, "格式化错误", "format_error");                                              \
+    macro(insufficient_privilege_exception, insufficient_privilege_exception_code, "权限不足",                         \
+          "insufficient_privilege");                                                                                   \
+    macro(password_changed_required_exception, password_changed_required_exception_code, "需要修改密码",               \
+          "password_changed_required");
 
 MC_STD_EXCEPTION_CLASS(MC_DECLARE_EXCEPTION_CLASS)
 
@@ -435,33 +421,31 @@ MC_STD_EXCEPTION_CLASS(MC_DECLARE_EXCEPTION_CLASS)
  *
  * 构造指定类型的异常
  */
-#define MC_MAKE_EXCEPTION(EXCEPTION, ...) \
-    EXCEPTION(MC_LOG_MESSAGE(error, __VA_ARGS__))
+#define MC_MAKE_EXCEPTION(EXCEPTION, ...) EXCEPTION(MC_LOG_MESSAGE(error, __VA_ARGS__))
 
 /**
  * @brief 构造异常宏
  *
  * 构造指定类型的异常
  */
-#define MC_MAKE_EXCEPTION_UNSAFE(EXCEPTION, ...) \
-    EXCEPTION(MC_LOG_MESSAGE_UNSAFE(error, __VA_ARGS__))
+#define MC_MAKE_EXCEPTION_UNSAFE(EXCEPTION, ...) EXCEPTION(MC_LOG_MESSAGE_UNSAFE(error, __VA_ARGS__))
 
 /**
  * @brief 断言宏
  *
  * 如果条件为假，则抛出断言异常
  */
-#define MC_ASSERT(CONDITION, ...)                                       \
-    do {                                                                \
-        if (!(CONDITION)) {                                             \
-            throw MC_MAKE_EXCEPTION(mc::assert_exception, __VA_ARGS__); \
-        }                                                               \
+#define MC_ASSERT(CONDITION, ...)                                                                                      \
+    do {                                                                                                               \
+        if (!(CONDITION)) {                                                                                            \
+            throw MC_MAKE_EXCEPTION(mc::assert_exception, __VA_ARGS__);                                                \
+        }                                                                                                              \
     } while (0)
-#define MC_ASSERT_UNSAFE(CONDITION, ...)                                       \
-    do {                                                                       \
-        if (!(CONDITION)) {                                                    \
-            throw MC_MAKE_EXCEPTION_UNSAFE(mc::assert_exception, __VA_ARGS__); \
-        }                                                                      \
+#define MC_ASSERT_UNSAFE(CONDITION, ...)                                                                               \
+    do {                                                                                                               \
+        if (!(CONDITION)) {                                                                                            \
+            throw MC_MAKE_EXCEPTION_UNSAFE(mc::assert_exception, __VA_ARGS__);                                         \
+        }                                                                                                              \
     } while (0)
 
 /**
@@ -469,18 +453,18 @@ MC_STD_EXCEPTION_CLASS(MC_DECLARE_EXCEPTION_CLASS)
  *
  * 如果条件为假，则抛出指定异常
  */
-#define MC_ASSERT_THROW(CONDITION, EXCEPTION, ...)           \
-    do {                                                     \
-        if (!(CONDITION)) {                                  \
-            throw MC_MAKE_EXCEPTION(EXCEPTION, __VA_ARGS__); \
-        }                                                    \
+#define MC_ASSERT_THROW(CONDITION, EXCEPTION, ...)                                                                     \
+    do {                                                                                                               \
+        if (!(CONDITION)) {                                                                                            \
+            throw MC_MAKE_EXCEPTION(EXCEPTION, __VA_ARGS__);                                                           \
+        }                                                                                                              \
     } while (0)
 
-#define MC_ASSERT_THROW_UNSAFE(CONDITION, EXCEPTION, ...)           \
-    do {                                                            \
-        if (!(CONDITION)) {                                         \
-            throw MC_MAKE_EXCEPTION_UNSAFE(EXCEPTION, __VA_ARGS__); \
-        }                                                           \
+#define MC_ASSERT_THROW_UNSAFE(CONDITION, EXCEPTION, ...)                                                              \
+    do {                                                                                                               \
+        if (!(CONDITION)) {                                                                                            \
+            throw MC_MAKE_EXCEPTION_UNSAFE(EXCEPTION, __VA_ARGS__);                                                    \
+        }                                                                                                              \
     } while (0)
 
 /**
@@ -488,27 +472,25 @@ MC_STD_EXCEPTION_CLASS(MC_DECLARE_EXCEPTION_CLASS)
  *
  * 抛出指定类型的异常
  */
-#define MC_THROW(EXCEPTION_TYPE, ...) \
-    throw MC_MAKE_EXCEPTION(EXCEPTION_TYPE, __VA_ARGS__)
+#define MC_THROW(EXCEPTION_TYPE, ...) throw MC_MAKE_EXCEPTION(EXCEPTION_TYPE, __VA_ARGS__)
 
-#define MC_THROW_UNSAFE(EXCEPTION_TYPE, ...) \
-    throw MC_MAKE_EXCEPTION_UNSAFE(EXCEPTION_TYPE, __VA_ARGS__)
+#define MC_THROW_UNSAFE(EXCEPTION_TYPE, ...) throw MC_MAKE_EXCEPTION_UNSAFE(EXCEPTION_TYPE, __VA_ARGS__)
 
 /**
  * @brief 捕获并重新抛出异常宏
  *
  * 捕获异常并添加上下文信息后重新抛出
  */
-#define MC_RETHROW_EXCEPTION(EXCEPTION, ...)                      \
-    do {                                                          \
-        EXCEPTION.append_log(MC_LOG_MESSAGE(error, __VA_ARGS__)); \
-        throw EXCEPTION;                                          \
+#define MC_RETHROW_EXCEPTION(EXCEPTION, ...)                                                                           \
+    do {                                                                                                               \
+        EXCEPTION.append_log(MC_LOG_MESSAGE(error, __VA_ARGS__));                                                      \
+        throw EXCEPTION;                                                                                               \
     } while (0)
 
-#define MC_RETHROW_EXCEPTION_UNSAFE(EXCEPTION, ...)                      \
-    do {                                                                 \
-        EXCEPTION.append_log(MC_LOG_MESSAGE_UNSAFE(error, __VA_ARGS__)); \
-        throw EXCEPTION;                                                 \
+#define MC_RETHROW_EXCEPTION_UNSAFE(EXCEPTION, ...)                                                                    \
+    do {                                                                                                               \
+        EXCEPTION.append_log(MC_LOG_MESSAGE_UNSAFE(error, __VA_ARGS__));                                               \
+        throw EXCEPTION;                                                                                               \
     } while (0)
 
 /**
@@ -516,15 +498,15 @@ MC_STD_EXCEPTION_CLASS(MC_DECLARE_EXCEPTION_CLASS)
  *
  * 捕获标准异常并包装为MC异常
  */
-#define MC_CAPTURE_AND_WRAP_EXCEPTION(...)                                   \
-    catch (const std::exception& e)                                          \
-    {                                                                        \
-        throw mc::std_exception_wrapper(MC_LOG_MESSAGE(error, __VA_ARGS__)); \
+#define MC_CAPTURE_AND_WRAP_EXCEPTION(...)                                                                             \
+    catch (const std::exception& e)                                                                                    \
+    {                                                                                                                  \
+        throw mc::std_exception_wrapper(MC_LOG_MESSAGE(error, __VA_ARGS__));                                           \
     }
-#define MC_CAPTURE_AND_WRAP_EXCEPTION_UNSAFE(...)                                   \
-    catch (const std::exception& e)                                                 \
-    {                                                                               \
-        throw mc::std_exception_wrapper(MC_LOG_MESSAGE_UNSAFE(error, __VA_ARGS__)); \
+#define MC_CAPTURE_AND_WRAP_EXCEPTION_UNSAFE(...)                                                                      \
+    catch (const std::exception& e)                                                                                    \
+    {                                                                                                                  \
+        throw mc::std_exception_wrapper(MC_LOG_MESSAGE_UNSAFE(error, __VA_ARGS__));                                    \
     }
 
 /**
@@ -542,10 +524,8 @@ MC_STD_EXCEPTION_CLASS(MC_DECLARE_EXCEPTION_CLASS)
  * // 多参数
  * MC_THROW_ERROR("PropertyValueOutOfRange", {0, "100"}, {1, "Threshold"});
  */
-#define MC_THROW_ERROR(error_name, ...)              \
-    throw mc::error_exception(error_name,            \
-                              mc::dict{__VA_ARGS__}, \
-                              error_engine_exception_code)
+#define MC_THROW_ERROR(error_name, ...)                                                                                \
+    throw mc::error_exception(error_name, mc::dict{__VA_ARGS__}, error_engine_exception_code)
 
 /**
  * @brief 抛出带有错误消息的异常宏
@@ -559,10 +539,8 @@ MC_STD_EXCEPTION_CLASS(MC_DECLARE_EXCEPTION_CLASS)
  * @example
  * MC_THROW_ERROR_WITH_MESSAGE("DBusMethodCallFailed", "Timeout", {0, "org.freedesktop.DBus.Error.Timeout"});
  */
-#define MC_THROW_ERROR_WITH_MESSAGE(error_name, log_msg, ...) \
-    throw mc::error_exception(error_name,                     \
-                              std::move(log_msg),             \
-                              error_engine_exception_code)
+#define MC_THROW_ERROR_WITH_MESSAGE(error_name, log_msg, ...)                                                          \
+    throw mc::error_exception(error_name, std::move(log_msg), error_engine_exception_code)
 
 } // namespace mc
 

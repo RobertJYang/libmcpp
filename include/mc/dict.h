@@ -41,8 +41,8 @@ dict::dict(InputIt first, InputIt last)
 }
 
 template <typename InputIt>
-auto dict::insert(InputIt first, InputIt last) -> std::enable_if_t<
-                                                   std::is_convertible_v<typename std::iterator_traits<InputIt>::value_type, entry>>
+auto dict::insert(InputIt first, InputIt last)
+    -> std::enable_if_t<std::is_convertible_v<typename std::iterator_traits<InputIt>::value_type, entry>>
 {
     for (; first != last; ++first) {
         insert(*first);
@@ -51,10 +51,8 @@ auto dict::insert(InputIt first, InputIt last) -> std::enable_if_t<
 
 template <typename InputIt>
 auto dict::insert(InputIt first, InputIt last)
-    -> std::enable_if_t<is_variant_constructible_v<
-                            typename std::iterator_traits<InputIt>::value_type::first_type> &&
-                        is_variant_constructible_v<
-                            typename std::iterator_traits<InputIt>::value_type::second_type>>
+    -> std::enable_if_t<is_variant_constructible_v<typename std::iterator_traits<InputIt>::value_type::first_type> &&
+                        is_variant_constructible_v<typename std::iterator_traits<InputIt>::value_type::second_type>>
 {
     for (; first != last; ++first) {
         insert(first->first, first->second);

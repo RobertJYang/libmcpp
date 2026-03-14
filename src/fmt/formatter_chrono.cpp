@@ -9,9 +9,9 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
+#include "securec.h"
 #include <mc/fmt/format.h>
 #include <mc/fmt/formatter_chrono.h>
-#include "securec.h"
 
 namespace mc::fmt::detail {
 
@@ -43,8 +43,7 @@ void format_float(std::string& out, double value, int precision, bool has_precis
 
 duration_format_handler_base::duration_format_handler_base(std::string& output, int precision, bool has_precision)
     : m_output(output), m_precision(precision), m_has_precision(has_precision)
-{
-}
+{}
 
 void duration_format_handler_base::on_text(std::string_view text)
 {
@@ -179,10 +178,8 @@ void duration_format_handler_base::on_incomplete_spec()
     // 在实际格式化时不需要做任何操作，错误检查在编译期完成
 }
 
-time_point_format_handler_base::time_point_format_handler_base(std::string& output)
-    : m_output(output)
-{
-}
+time_point_format_handler_base::time_point_format_handler_base(std::string& output) : m_output(output)
+{}
 
 void time_point_format_handler_base::on_text(std::string_view text)
 {
@@ -307,8 +304,7 @@ void time_point_format_handler_base::on_duration_unit()
     // time_point 不支持 duration 单位
 }
 // 平台判断宏
-#if defined(__APPLE__) || defined(__FreeBSD__) ||  \
-    defined(__NetBSD__) || defined(__OpenBSD__) || \
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) ||                       \
     (defined(__linux__) && defined(__GLIBC__))
 #define MC_HAS_TM_GMTOFF 1
 #else

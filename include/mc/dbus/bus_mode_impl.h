@@ -165,8 +165,8 @@ public:
      * @return 返回值列表
      */
     virtual variants timeout_call(int timeout_ms, const std::string& service, const std::string& path,
-                                  const std::string& interface, const std::string& method,
-                                  const std::string& signature, variants&& args) = 0;
+                                  const std::string& interface, const std::string& method, const std::string& signature,
+                                  variants&& args) = 0;
 
     /**
      * @brief 异步调用 D-Bus 方法（非阻塞模式）
@@ -195,8 +195,8 @@ public:
      */
     virtual std::tuple<std::optional<std::string>, variants>
     async_timeout_call(int timeout_ms, const std::string& service, const std::string& path,
-                       const std::string& interface, const std::string& method,
-                       const std::string& signature, variants&& args) = 0;
+                       const std::string& interface, const std::string& method, const std::string& signature,
+                       variants&& args) = 0;
 
     /**
      * @brief 通过共享内存的异步调用（非阻塞模式）
@@ -211,8 +211,8 @@ public:
      */
     virtual std::tuple<std::optional<std::string>, variants>
     async_shm_timeout_call(int timeout_ms, const std::string& service, const std::string& path,
-                           const std::string& interface, const std::string& method,
-                           const std::string& signature, variants&& args) = 0;
+                           const std::string& interface, const std::string& method, const std::string& signature,
+                           variants&& args) = 0;
 };
 
 /**
@@ -242,22 +242,22 @@ public:
                   const std::string& method, const std::string& signature, variants&& args) override;
 
     variants timeout_call(int timeout_ms, const std::string& service, const std::string& path,
-                          const std::string& interface, const std::string& method,
-                          const std::string& signature, variants&& args) override;
+                          const std::string& interface, const std::string& method, const std::string& signature,
+                          variants&& args) override;
 
-    std::tuple<std::optional<std::string>, variants>
-    async_call(const std::string& service, const std::string& path, const std::string& interface,
-               const std::string& method, const std::string& signature, variants&& args) override;
+    std::tuple<std::optional<std::string>, variants> async_call(const std::string& service, const std::string& path,
+                                                                const std::string& interface, const std::string& method,
+                                                                const std::string& signature, variants&& args) override;
 
     std::tuple<std::optional<std::string>, variants>
     async_timeout_call(int timeout_ms, const std::string& service, const std::string& path,
-                       const std::string& interface, const std::string& method,
-                       const std::string& signature, variants&& args) override;
+                       const std::string& interface, const std::string& method, const std::string& signature,
+                       variants&& args) override;
 
     std::tuple<std::optional<std::string>, variants>
     async_shm_timeout_call(int timeout_ms, const std::string& service, const std::string& path,
-                           const std::string& interface, const std::string& method,
-                           const std::string& signature, variants&& args) override;
+                           const std::string& interface, const std::string& method, const std::string& signature,
+                           variants&& args) override;
 };
 
 /**
@@ -289,22 +289,22 @@ public:
                   const std::string& method, const std::string& signature, variants&& args) override;
 
     variants timeout_call(int timeout_ms, const std::string& service, const std::string& path,
-                          const std::string& interface, const std::string& method,
-                          const std::string& signature, variants&& args) override;
+                          const std::string& interface, const std::string& method, const std::string& signature,
+                          variants&& args) override;
 
-    std::tuple<std::optional<std::string>, variants>
-    async_call(const std::string& service, const std::string& path, const std::string& interface,
-               const std::string& method, const std::string& signature, variants&& args) override;
+    std::tuple<std::optional<std::string>, variants> async_call(const std::string& service, const std::string& path,
+                                                                const std::string& interface, const std::string& method,
+                                                                const std::string& signature, variants&& args) override;
 
     std::tuple<std::optional<std::string>, variants>
     async_timeout_call(int timeout_ms, const std::string& service, const std::string& path,
-                       const std::string& interface, const std::string& method,
-                       const std::string& signature, variants&& args) override;
+                       const std::string& interface, const std::string& method, const std::string& signature,
+                       variants&& args) override;
 
     std::tuple<std::optional<std::string>, variants>
     async_shm_timeout_call(int timeout_ms, const std::string& service, const std::string& path,
-                           const std::string& interface, const std::string& method,
-                           const std::string& signature, variants&& args) override;
+                           const std::string& interface, const std::string& method, const std::string& signature,
+                           variants&& args) override;
 
 private:
     shm_tree* m_shm_tree{nullptr};

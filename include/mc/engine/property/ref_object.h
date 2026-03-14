@@ -44,7 +44,8 @@ public:
     void set_property(const std::string_view property_name, const mc::variant& value) const;
 
     // 设置被引用对象的接口属性
-    void set_property(const std::string_view interface_name, const std::string_view property_name, const mc::variant& value) const;
+    void set_property(const std::string_view interface_name, const std::string_view property_name,
+                      const mc::variant& value) const;
 
     invoke_result invoke(std::string_view method_name, const mc::variants& args);
 
@@ -52,7 +53,8 @@ public:
 
     async_result async_invoke(std::string_view method_name, const mc::variants& args = {});
 
-    async_result async_invoke(const std::string& interface_name, std::string_view method_name, const mc::variants& args = {});
+    async_result async_invoke(const std::string& interface_name, std::string_view method_name,
+                              const mc::variants& args = {});
 
     // 获取对象名称
     const std::string& get_object_name() const;

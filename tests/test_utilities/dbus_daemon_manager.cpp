@@ -32,8 +32,7 @@
 namespace mc::test {
 
 dbus_daemon_manager::dbus_daemon_manager()
-{
-}
+{}
 
 dbus_daemon_manager::~dbus_daemon_manager()
 {
@@ -111,14 +110,12 @@ bool dbus_daemon_manager::start()
             if (!m_dbus_address.empty() && m_dbus_address.back() == '\n') {
                 m_dbus_address.pop_back();
             }
-            ilog("设置环境变量 \nexport DBUS_SESSION_BUS_ADDRESS=${address}",
-                 ("address", m_dbus_address));
+            ilog("设置环境变量 \nexport DBUS_SESSION_BUS_ADDRESS=${address}", ("address", m_dbus_address));
             setenv("DBUS_SESSION_BUS_ADDRESS", m_dbus_address.c_str(), 1);
         } else {
             // 读取失败，使用默认地址
             m_dbus_address = "unix:path=" + m_socket_path.string();
-            wlog("无法从 dbus-daemon 读取地址，使用默认地址: ${address}",
-                 ("address", m_dbus_address));
+            wlog("无法从 dbus-daemon 读取地址，使用默认地址: ${address}", ("address", m_dbus_address));
             setenv("DBUS_SESSION_BUS_ADDRESS", m_dbus_address.c_str(), 1);
         }
 
@@ -271,8 +268,7 @@ std::vector<mc::filesystem::path> dbus_daemon_manager::scan_dbus_test_dirs()
 }
 
 // 创建 DBus 连接
-DBusConnection* dbus_daemon_manager::create_dbus_connection(const std::string& address,
-                                                            DBusError* error, int retry,
+DBusConnection* dbus_daemon_manager::create_dbus_connection(const std::string& address, DBusError* error, int retry,
                                                             int max_retries)
 {
     dbus_error_init(error);
@@ -288,8 +284,7 @@ DBusConnection* dbus_daemon_manager::create_dbus_connection(const std::string& a
 }
 
 // 注册到 DBus 总线
-bool dbus_daemon_manager::register_to_bus(DBusConnection* conn, DBusError* error,
-                                          const std::string& socket_path)
+bool dbus_daemon_manager::register_to_bus(DBusConnection* conn, DBusError* error, const std::string& socket_path)
 {
     dbus_error_init(error);
     if (dbus_bus_register(conn, error)) {
@@ -297,8 +292,7 @@ bool dbus_daemon_manager::register_to_bus(DBusConnection* conn, DBusError* error
     }
 
     if (dbus_error_is_set(error)) {
-        wlog("连接到 DBus 总线失败: ${path}, 错误: ${error}",
-             ("path", socket_path)("error", error->message));
+        wlog("连接到 DBus 总线失败: ${path}, 错误: ${error}", ("path", socket_path)("error", error->message));
         dbus_error_free(error);
     } else {
         wlog("连接到 DBus 总线失败: ${path}", ("path", socket_path));

@@ -28,10 +28,8 @@ builtin& builtin::get_instance()
     return instance;
 }
 
-builtin::builtin()
-    : m_impl(std::make_unique<impl>())
-{
-}
+builtin::builtin() : m_impl(std::make_unique<impl>())
+{}
 
 builtin::~builtin() = default;
 

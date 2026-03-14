@@ -24,12 +24,10 @@ using namespace mc;
 class mdb_validator_test : public ::testing::Test {
 protected:
     void SetUp() override
-    {
-    }
+    {}
 
     void TearDown() override
-    {
-    }
+    {}
 };
 
 // 测试整数类型验证 - uint8
@@ -69,8 +67,9 @@ TEST_F(mdb_validator_test, check_uint32_valid)
 {
     EXPECT_NO_THROW(mdb_validator::check("test", "u", variant(static_cast<uint32_t>(0))));
     EXPECT_NO_THROW(mdb_validator::check("test", "u", variant(static_cast<uint32_t>(4294967295U))));
-    EXPECT_NO_THROW(mdb_validator::check("test", "u", variant(static_cast<int32_t>(1))));          // int32 转 uint32
-    EXPECT_NO_THROW(mdb_validator::check("test", "u", variant(static_cast<int32_t>(2147483647)))); // int32 最大值转 uint32
+    EXPECT_NO_THROW(mdb_validator::check("test", "u", variant(static_cast<int32_t>(1)))); // int32 转 uint32
+    EXPECT_NO_THROW(
+        mdb_validator::check("test", "u", variant(static_cast<int32_t>(2147483647)))); // int32 最大值转 uint32
 }
 
 TEST_F(mdb_validator_test, check_uint32_invalid)
@@ -252,5 +251,6 @@ TEST_F(mdb_validator_test, check_method_args_invalid_type)
 TEST_F(mdb_validator_test, check_method_args_not_array)
 {
     // 参数不是数组
-    EXPECT_THROW(mdb_validator::check_method_args("test_method", "i", variant(static_cast<int32_t>(1))), std::runtime_error);
+    EXPECT_THROW(mdb_validator::check_method_args("test_method", "i", variant(static_cast<int32_t>(1))),
+                 std::runtime_error);
 }

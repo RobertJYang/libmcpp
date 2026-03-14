@@ -156,8 +156,7 @@ TEST_F(shared_memory_manager_test, default_size)
 {
     std::string test_name = get_test_shm_name();
 
-    shared_memory_manager manager(test_name, 0,
-                                  shared_memory_manager::REMOVE_ON_EXIT);
+    shared_memory_manager manager(test_name, 0, shared_memory_manager::REMOVE_ON_EXIT);
     auto                  shm = manager.get_shared_memory();
     ASSERT_NE(shm, nullptr);
     EXPECT_TRUE(shm->is_valid());
@@ -182,8 +181,7 @@ TEST_F(shared_memory_manager_test, RemoveIfExistsWithExistingShm)
     // 使用 REMOVE_IF_EXISTS 选项创建管理器
     // 这应该会删除已存在的共享内存并输出日志
     shared_memory_manager manager2(test_name, size,
-                                   shared_memory_manager::REMOVE_ON_EXIT |
-                                       shared_memory_manager::REMOVE_IF_EXISTS);
+                                   shared_memory_manager::REMOVE_ON_EXIT | shared_memory_manager::REMOVE_IF_EXISTS);
     auto                  shm2 = manager2.get_shared_memory();
     ASSERT_NE(shm2, nullptr);
     EXPECT_TRUE(shm2->is_valid());

@@ -18,8 +18,7 @@
 
 namespace mc::core {
 
-connection_id_type connection_manager::add_connection(signal_type sig, mc::connection_type conn,
-                                                      connection_id_type id)
+connection_id_type connection_manager::add_connection(signal_type sig, mc::connection_type conn, connection_id_type id)
 {
     if (id == INVALID_CONNECTION_ID) {
         id = new_id();

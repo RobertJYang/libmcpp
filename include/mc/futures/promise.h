@@ -21,8 +21,7 @@ class Future;
 
 namespace detail {
 template <typename T>
-constexpr bool is_executor_v = boost::asio::is_executor<T>::value ||
-                               std::is_same_v<T, boost::asio::any_io_executor>;
+constexpr bool is_executor_v = boost::asio::is_executor<T>::value || std::is_same_v<T, boost::asio::any_io_executor>;
 
 template <typename T, typename = void>
 struct is_execution_context : std::false_type {};
@@ -48,10 +47,8 @@ public:
     Promise() = default;
     template <typename Executor, std::enable_if_t<detail::is_executor_v<Executor>, int> = 0>
     explicit Promise(Executor&& executor);
-    explicit Promise(any_promise&& future)
-        : any_promise(std::forward<any_promise>(future))
-    {
-    }
+    explicit Promise(any_promise&& future) : any_promise(std::forward<any_promise>(future))
+    {}
 
     Promise(const Promise&)                = default;
     Promise& operator=(const Promise&)     = default;
@@ -59,13 +56,11 @@ public:
     Promise& operator=(Promise&&) noexcept = default;
 
     // 设置值（非 void 类型：要求 1 个参数且类型可转换）
-    template <typename... Args,
-              std::enable_if_t<!std::is_void_v<T> && sizeof...(Args) == 1, int> = 0>
+    template <typename... Args, std::enable_if_t<!std::is_void_v<T> && sizeof...(Args) == 1, int> = 0>
     void set_value(Args&&... args);
 
     // 设置值（void 类型：要求 0 个参数）
-    template <typename... Args,
-              std::enable_if_t<std::is_void_v<T> && sizeof...(Args) == 0, int> = 0>
+    template <typename... Args, std::enable_if_t<std::is_void_v<T> && sizeof...(Args) == 0, int> = 0>
     void set_value(Args&&...)
     {
         any_promise::set_value();

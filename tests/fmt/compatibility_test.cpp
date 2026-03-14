@@ -130,8 +130,7 @@ TEST(compatibility_test, remove_trailing_zeros)
 // 综合格式化测试
 TEST(compatibility_test, complex_formatting)
 {
-    EXPECT_EQ(format("{:0.7f}:{:03}:{:+g}:{}:{}:{}",
-                     1.234, 42, 3.13, "str", reinterpret_cast<void*>(1000), 'x'),
+    EXPECT_EQ(format("{:0.7f}:{:03}:{:+g}:{}:{}:{}", 1.234, 42, 3.13, "str", reinterpret_cast<void*>(1000), 'x'),
               "1.2340000:042:+3.13:str:0x3e8:x");
 }
 
@@ -311,9 +310,12 @@ TEST(compatibility_test, integer_format_types)
     EXPECT_EQ(format("{}", 0ll), "0");
 
     // 极值
-    EXPECT_EQ(format("{}", static_cast<int>(numeric_limits<short>::max())), std::to_string(numeric_limits<short>::max()));
-    EXPECT_EQ(format("{}", static_cast<int>(numeric_limits<short>::min())), std::to_string(numeric_limits<short>::min()));
-    EXPECT_EQ(format("{}", static_cast<unsigned int>(numeric_limits<unsigned short>::max())), std::to_string(numeric_limits<unsigned short>::max()));
+    EXPECT_EQ(format("{}", static_cast<int>(numeric_limits<short>::max())),
+              std::to_string(numeric_limits<short>::max()));
+    EXPECT_EQ(format("{}", static_cast<int>(numeric_limits<short>::min())),
+              std::to_string(numeric_limits<short>::min()));
+    EXPECT_EQ(format("{}", static_cast<unsigned int>(numeric_limits<unsigned short>::max())),
+              std::to_string(numeric_limits<unsigned short>::max()));
     EXPECT_EQ(format("{}", numeric_limits<int>::max()), std::to_string(numeric_limits<int>::max()));
     EXPECT_EQ(format("{}", numeric_limits<int>::min()), std::to_string(numeric_limits<int>::min()));
     EXPECT_EQ(format("{}", numeric_limits<unsigned int>::max()), std::to_string(numeric_limits<unsigned int>::max()));
@@ -322,7 +324,8 @@ TEST(compatibility_test, integer_format_types)
     EXPECT_EQ(format("{}", numeric_limits<unsigned long>::max()), std::to_string(numeric_limits<unsigned long>::max()));
     EXPECT_EQ(format("{}", numeric_limits<long long>::max()), std::to_string(numeric_limits<long long>::max()));
     EXPECT_EQ(format("{}", numeric_limits<long long>::min()), std::to_string(numeric_limits<long long>::min()));
-    EXPECT_EQ(format("{}", numeric_limits<unsigned long long>::max()), std::to_string(numeric_limits<unsigned long long>::max()));
+    EXPECT_EQ(format("{}", numeric_limits<unsigned long long>::max()),
+              std::to_string(numeric_limits<unsigned long long>::max()));
 
     // 填充、对齐、符号
     EXPECT_EQ(format("{:06d}", static_cast<int>(12)), "000012");

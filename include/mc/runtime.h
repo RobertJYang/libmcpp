@@ -33,8 +33,8 @@ constexpr auto work_executor = work_executor_tag{};
 
 namespace detail {
 template <typename ExecutorTag>
-inline constexpr bool is_executor_tag = std::is_same_v<ExecutorTag, io_executor_tag> ||
-                                        std::is_same_v<ExecutorTag, work_executor_tag>;
+inline constexpr bool is_executor_tag =
+    std::is_same_v<ExecutorTag, io_executor_tag> || std::is_same_v<ExecutorTag, work_executor_tag>;
 }
 
 /**
@@ -149,12 +149,9 @@ inline auto make_work_strand()
 
 template <typename Executor>
 using basic_timer = boost::asio::basic_waitable_timer<
-    std::chrono::steady_clock,
-    boost::asio::wait_traits<std::chrono::steady_clock>,
-    std::conditional_t<
-        std::is_convertible_v<Executor, boost::asio::io_context::executor_type>,
-        boost::asio::io_context::executor_type,
-        boost::asio::any_io_executor>>;
+    std::chrono::steady_clock, boost::asio::wait_traits<std::chrono::steady_clock>,
+    std::conditional_t<std::is_convertible_v<Executor, boost::asio::io_context::executor_type>,
+                       boost::asio::io_context::executor_type, boost::asio::any_io_executor>>;
 using steady_timer = basic_timer<boost::asio::io_context::executor_type>;
 } // namespace mc::runtime
 

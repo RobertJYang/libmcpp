@@ -51,10 +51,8 @@ public:
      *
      * @param table 表引用
      */
-    explicit table_query(TableType& table)
-        : m_table(table)
-    {
-    }
+    explicit table_query(TableType& table) : m_table(table)
+    {}
 
     /**
      * 获取表元数据
@@ -149,8 +147,7 @@ public:
      * @param handler 处理函数，返回false表示停止查询
      * @return 是否查询完成
      */
-    template <typename Handler,
-              typename = std::enable_if_t<std::is_invocable_r_v<bool, Handler, object_type&>>>
+    template <typename Handler, typename = std::enable_if_t<std::is_invocable_r_v<bool, Handler, object_type&>>>
     bool query(const query_builder& builder, Handler&& handler)
     {
         query_impl(builder, std::forward<Handler>(handler));
@@ -223,8 +220,7 @@ private:
      * @return 是否成功
      */
     template <typename Handler>
-    bool query_by_exact_match(const query_builder& builder, const query_plan& plan,
-                              Handler&& handler)
+    bool query_by_exact_match(const query_builder& builder, const query_plan& plan, Handler&& handler)
     {
         // 直接使用索引ID
         size_t index_id = plan.index_id;
@@ -255,15 +251,13 @@ private:
      */
     template <typename Handler>
     bool query_by_single_value(const query_builder& builder, size_t index_id,
-                               const std::vector<std::string_view>& fields,
-                               const mc::variant& value, Handler&& handler)
+                               const std::vector<std::string_view>& fields, const mc::variant& value, Handler&& handler)
     {
         std::string_view field_name          = fields.empty() ? std::string_view() : fields[0];
         bool             is_non_unique_field = is_field_non_unique(field_name);
 
         if (is_non_unique_field) {
-            return query_by_non_unique_index(builder, index_id, value,
-                                             std::forward<Handler>(handler));
+            return query_by_non_unique_index(builder, index_id, value, std::forward<Handler>(handler));
         } else {
             return query_by_unique_index(builder, index_id, value, std::forward<Handler>(handler));
         }
@@ -279,8 +273,8 @@ private:
      * @return 是否中断查询/是否成功
      */
     template <typename Handler>
-    bool query_by_non_unique_index(const query_builder& builder, size_t index_id,
-                                   const mc::variant& value, bool& found, Handler&& handler)
+    bool query_by_non_unique_index(const query_builder& builder, size_t index_id, const mc::variant& value, bool& found,
+                                   Handler&& handler)
     {
         // 对于非唯一字段，使用索引范围查询
         auto begin_it = m_table.lower_bound_by_index(index_id, value);
@@ -317,8 +311,8 @@ private:
      * 使用非唯一索引查询（单值查询简化接口）
      */
     template <typename Handler>
-    bool query_by_non_unique_index(const query_builder& builder, size_t index_id,
-                                   const mc::variant& value, Handler&& handler)
+    bool query_by_non_unique_index(const query_builder& builder, size_t index_id, const mc::variant& value,
+                                   Handler&& handler)
     {
         bool found = false;
         query_by_non_unique_index(builder, index_id, value, found, std::forward<Handler>(handler));
@@ -335,8 +329,8 @@ private:
      * @return 是否中断查询
      */
     template <typename Handler>
-    bool query_by_unique_index(const query_builder& builder, size_t index_id,
-                               const mc::variant& value, bool& found, Handler&& handler)
+    bool query_by_unique_index(const query_builder& builder, size_t index_id, const mc::variant& value, bool& found,
+                               Handler&& handler)
     {
         // 执行唯一索引查找
         auto result = m_table.find_by_index(index_id, value);
@@ -358,8 +352,8 @@ private:
      * 使用唯一索引查询（单值查询简化接口）
      */
     template <typename Handler>
-    bool query_by_unique_index(const query_builder& builder, size_t index_id,
-                               const mc::variant& value, Handler&& handler)
+    bool query_by_unique_index(const query_builder& builder, size_t index_id, const mc::variant& value,
+                               Handler&& handler)
     {
         bool found = false;
         query_by_unique_index(builder, index_id, value, found, std::forward<Handler>(handler));
@@ -377,8 +371,8 @@ private:
      */
     template <typename Handler>
     bool query_by_multiple_values(const query_builder& builder, size_t index_id,
-                                  const std::vector<std::string_view>& fields,
-                                  const mc::variants& values, Handler&& handler)
+                                  const std::vector<std::string_view>& fields, const mc::variants& values,
+                                  Handler&& handler)
     {
         std::string_view field_name          = fields.empty() ? std::string_view() : fields[0];
         bool             is_non_unique_field = is_field_non_unique(field_name);
@@ -386,13 +380,11 @@ private:
         bool found = false;
         for (const auto& value : values) {
             if (is_non_unique_field) {
-                if (query_by_non_unique_index(builder, index_id, value, found,
-                                              std::forward<Handler>(handler))) {
+                if (query_by_non_unique_index(builder, index_id, value, found, std::forward<Handler>(handler))) {
                     return true;
                 }
             } else {
-                if (query_by_unique_index(builder, index_id, value, found,
-                                          std::forward<Handler>(handler))) {
+                if (query_by_unique_index(builder, index_id, value, found, std::forward<Handler>(handler))) {
                     return true;
                 }
             }
@@ -471,8 +463,7 @@ private:
      * @return 是否找到匹配对象
      */
     template <typename Handler>
-    bool iterate_range(const query_builder& builder, raw_iterator begin_it, raw_iterator end_it,
-                       Handler&& handler)
+    bool iterate_range(const query_builder& builder, raw_iterator begin_it, raw_iterator end_it, Handler&& handler)
     {
         bool   found = false;
         size_t count = 0;
@@ -510,8 +501,7 @@ private:
      * @return 是否成功
      */
     template <typename Handler>
-    bool query_by_composite_key(const query_builder& builder, const query_plan& plan,
-                                Handler&& handler)
+    bool query_by_composite_key(const query_builder& builder, const query_plan& plan, Handler&& handler)
     {
         // 复合键查询实现
         // 此处需要结合具体索引类型进行实现
@@ -608,12 +598,11 @@ private:
      * @param handler 结果处理函数
      */
     template <typename Handler>
-    void execute_query_plan(const query_builder& builder, const query_plan& plan,
-                            Handler&& handler)
+    void execute_query_plan(const query_builder& builder, const query_plan& plan, Handler&& handler)
     {
         // 根据查询计划执行查询
-        bool use_index = plan.plan_type != query_plan_type::full_scan &&
-                         plan.plan_type != query_plan_type::empty_result;
+        bool use_index =
+            plan.plan_type != query_plan_type::full_scan && plan.plan_type != query_plan_type::empty_result;
 
         if (use_index) {
             query_by_index(builder, plan, std::forward<Handler>(handler));

@@ -31,8 +31,7 @@ class property_access_node : public node {
 public:
     property_access_node(node_ptr object, std::string property)
         : m_object(std::move(object)), m_property(std::move(property))
-    {
-    }
+    {}
 
     node_type get_type() const override
     {

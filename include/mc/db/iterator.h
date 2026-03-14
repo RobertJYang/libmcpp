@@ -21,8 +21,7 @@
 namespace mc::db {
 
 // 前向声明
-template <typename ObjectType, typename KeyExtractor, bool IsUnique, typename Tag,
-          typename Allocator>
+template <typename ObjectType, typename KeyExtractor, bool IsUnique, typename Tag, typename Allocator>
 class index;
 
 /**
@@ -51,10 +50,8 @@ public:
      * @param prefix_len 前缀长度
      * @param key_field_count 键字段数量
      */
-    explicit iterator(raw_iterator it = raw_iterator(), size_t prefix_len = 0,
-                      size_t key_field_count = 0)
-        : m_iterator(it), m_prefix_len(prefix_len), m_key_field_count(key_field_count),
-          m_is_end(it == raw_iterator())
+    explicit iterator(raw_iterator it = raw_iterator(), size_t prefix_len = 0, size_t key_field_count = 0)
+        : m_iterator(it), m_prefix_len(prefix_len), m_key_field_count(key_field_count), m_is_end(it == raw_iterator())
     {
         if (!do_next()) {
             m_is_end = true;

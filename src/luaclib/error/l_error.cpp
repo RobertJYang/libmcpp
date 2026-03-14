@@ -143,17 +143,14 @@ static std::string convert_format_placeholders(std::string_view format)
                 // %1, %2, %3... → {n-1}
                 result += "{" + std::to_string(spec - '0' - 1) + "}";
                 pos = percent_pos + 2;
-            } else if (spec == 's' || spec == 'd' || spec == 'i' || spec == 'f' ||
-                       spec == 'x' || spec == 'X' || spec == 'c' || spec == 'p' ||
-                       spec == 'u' || spec == 'l' || spec == 'L') {
+            } else if (spec == 's' || spec == 'd' || spec == 'i' || spec == 'f' || spec == 'x' || spec == 'X' ||
+                       spec == 'c' || spec == 'p' || spec == 'u' || spec == 'l' || spec == 'L') {
                 // %s, %d, %f 等占位符 → {n}
                 // 处理 %ld, %lld 等形式
                 size_t skip = 2;
                 if (percent_pos + 2 < format.length() &&
-                    (format[percent_pos + 2] == 'd' ||
-                     format[percent_pos + 2] == 'i' ||
-                     format[percent_pos + 2] == 'u' ||
-                     format[percent_pos + 2] == 'x' ||
+                    (format[percent_pos + 2] == 'd' || format[percent_pos + 2] == 'i' ||
+                     format[percent_pos + 2] == 'u' || format[percent_pos + 2] == 'x' ||
                      format[percent_pos + 2] == 'X')) {
                     skip = 3;
                 }
@@ -311,7 +308,6 @@ int error_new_message_error(lua_State* L)
         // key 在 -2，value 在 -1
         if (lua_isstring(L, -2)) {
             std::string key = lua_tostring(L, -2);
-
             // 只复制额外字段（排除 name, format, params, registry_prefix）
             if (key != "name" && key != "format" && key != "params" && key != "registry_prefix") {
                 lua_pushvalue(L, -2); // key
@@ -333,7 +329,6 @@ int error_new_message_error(lua_State* L)
 int error_tostring(lua_State* L)
 {
     auto wrapper = check_error(L);
-
     if (!wrapper->err) {
         lua_pushstring(L, "no error");
         return 1;
@@ -347,7 +342,6 @@ int error_tostring(lua_State* L)
 int error_args(lua_State* L)
 {
     auto wrapper = check_error(L);
-
     if (!wrapper->err) {
         lua_newtable(L);
         return 1;
@@ -360,7 +354,6 @@ int error_args(lua_State* L)
 int error_traceback(lua_State* L)
 {
     auto wrapper = check_error(L);
-
     if (!wrapper->err) {
         lua_pushnil(L);
         return 1;
@@ -378,7 +371,6 @@ int error_traceback(lua_State* L)
 int error_post_process(lua_State* L)
 {
     auto wrapper = check_error(L);
-
     if (!wrapper->err) {
         lua_pushnil(L);
         return 1;
@@ -405,7 +397,6 @@ int error_post_process(lua_State* L)
 int error_raise(lua_State* L)
 {
     auto wrapper = check_error(L);
-
     if (!wrapper->err) {
         lua_pushnil(L);
         return 1;
@@ -432,7 +423,6 @@ int error_raise(lua_State* L)
 int error_encode(lua_State* L)
 {
     auto wrapper = check_error(L);
-
     if (!wrapper->err) {
         lua_pushnil(L);
         return 1;
@@ -467,7 +457,6 @@ int error_index(lua_State* L)
     }
 
     auto wrapper = check_error(L, 1);
-
     if (!wrapper->err) {
         lua_pushnil(L);
         return 1;
@@ -544,7 +533,6 @@ int error_newindex(lua_State* L)
     }
 
     auto wrapper = check_error(L, 1);
-
     if (!wrapper->err) {
         return 0;
     }
@@ -645,8 +633,7 @@ int converter_load_registries_from_string(lua_State* L)
     const char* custom_json = luaL_checkstring(L, 2);
 
     try {
-        mc::error_message_converter::get_instance().load_registries_from_string(base_json,
-                                                                                custom_json);
+        mc::error_message_converter::get_instance().load_registries_from_string(base_json, custom_json);
         lua_pushboolean(L, 1);
         return 1;
     } catch (const std::exception& e) {
@@ -659,14 +646,12 @@ int converter_load_registries_from_string(lua_State* L)
 int converter_convert(lua_State* L)
 {
     auto wrapper = check_error(L, 1);
-
     if (!wrapper->err) {
         lua_pushnil(L);
         return 1;
     }
 
-    mc::standard_error_message std_msg =
-        mc::error_message_converter::get_instance().convert(*wrapper->err);
+    mc::standard_error_message std_msg = mc::error_message_converter::get_instance().convert(*wrapper->err);
 
     push_standard_message(L, std_msg);
     return 1;
@@ -675,7 +660,6 @@ int converter_convert(lua_State* L)
 int converter_convert_to_dict(lua_State* L)
 {
     auto wrapper = check_error(L, 1);
-
     if (!wrapper->err) {
         lua_pushnil(L);
         return 1;
@@ -711,8 +695,7 @@ void register_converter_metatable(lua_State* L)
     luaL_newmetatable(L, ERROR_CONVERTER_METATABLE);
 
     static const luaL_Reg methods[] = {{"load_registries", converter_load_registries},
-                                       {"load_registries_from_string",
-                                        converter_load_registries_from_string},
+                                       {"load_registries_from_string", converter_load_registries_from_string},
                                        {"convert", converter_convert},
                                        {"convert_to_dict", converter_convert_to_dict},
                                        {nullptr, nullptr}};
@@ -876,10 +859,8 @@ int compat_print_log(lua_State* L)
 
     // 构建格式化字符串：file3:line3 > file2:line2 > file1:line1: format
     std::ostringstream location_format;
-    location_format << file_names[2] << ":" << line_nums[2] << " > "
-                    << file_names[1] << ":" << line_nums[1] << " > "
-                    << file_names[0] << ":" << line_nums[0] << ": "
-                    << format;
+    location_format << file_names[2] << ":" << line_nums[2] << " > " << file_names[1] << ":" << line_nums[1] << " > "
+                    << file_names[0] << ":" << line_nums[0] << ": " << format;
 
     std::string format_str = location_format.str();
 
@@ -911,7 +892,6 @@ int compat_print_log(lua_State* L)
     // 处理可变参数并格式化消息
     std::string formatted_msg;
     int         n_args = lua_gettop(L);
-
     if (n_args > 2) {
         // 收集可变参数到 dict（使用数字索引 0, 1, 2, ...）
         mc::dict args;

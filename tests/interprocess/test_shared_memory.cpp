@@ -42,10 +42,8 @@ protected:
 
 class shared_memory_guard {
 public:
-    explicit shared_memory_guard(std::string name)
-        : m_name(std::move(name))
-    {
-    }
+    explicit shared_memory_guard(std::string name) : m_name(std::move(name))
+    {}
 
     ~shared_memory_guard()
     {

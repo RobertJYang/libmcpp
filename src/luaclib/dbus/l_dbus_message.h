@@ -29,10 +29,8 @@ struct message_wrapper {
     mc::dbus::message msg;
 
     message_wrapper() = default;
-    explicit message_wrapper(mc::dbus::message&& m)
-        : msg(std::move(m))
-    {
-    }
+    explicit message_wrapper(mc::dbus::message&& m) : msg(std::move(m))
+    {}
 };
 
 // 检查并获取 message userdata

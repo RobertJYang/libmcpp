@@ -23,8 +23,7 @@ using namespace mc;
 class ErrorEngineTest : public ::testing::Test {
 protected:
     void SetUp() override
-    {
-    }
+    {}
 
     void TearDown() override
     {

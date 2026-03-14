@@ -55,8 +55,7 @@ std::string object_method_call_node::to_string() const
 
 node_ptr make_object_method_call(node_ptr object, const std::string& method_name, node_ptrs args)
 {
-    return std::make_shared<object_method_call_node>(std::move(object), method_name,
-                                                     std::move(args));
+    return std::make_shared<object_method_call_node>(std::move(object), method_name, std::move(args));
 }
 
 } // namespace mc::expr

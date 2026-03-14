@@ -29,8 +29,7 @@ class binary_op_node : public node {
 public:
     binary_op_node(operator_type op, node_ptr left, node_ptr right)
         : m_operator(op), m_left(std::move(left)), m_right(std::move(right))
-    {
-    }
+    {}
 
     node_type get_type() const override
     {

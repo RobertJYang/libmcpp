@@ -40,8 +40,7 @@ public:
      * @param unique_name [in] 唯一名称
      * @param service_name [in] 服务名称
      */
-    virtual void on_request_name(connection& conn, const std::string& unique_name,
-                                 const std::string& service_name) = 0;
+    virtual void on_request_name(connection& conn, const std::string& unique_name, const std::string& service_name) = 0;
 
     /**
      * @brief 添加匹配规则
@@ -73,8 +72,7 @@ public:
      * @param step_ms [in] 每次等待步长（毫秒）
      * @return 条件是否满足
      */
-    virtual bool run_until(connection& conn, std::function<bool()> condition,
-                           int total_timeout_ms, int step_ms) = 0;
+    virtual bool run_until(connection& conn, std::function<bool()> condition, int total_timeout_ms, int step_ms) = 0;
 
     /**
      * @brief 发送信号
@@ -101,8 +99,8 @@ public:
      * @return 返回值列表
      */
     virtual variants call(connection& conn, const std::string& service, const std::string& path,
-                          const std::string& interface, const std::string& method,
-                          const std::string& signature, variants&& args) = 0;
+                          const std::string& interface, const std::string& method, const std::string& signature,
+                          variants&& args) = 0;
 
     /**
      * @brief 带超时的同步调用 D-Bus 方法（阻塞模式）
@@ -116,9 +114,8 @@ public:
      * @param args [in] 参数列表
      * @return 返回值列表
      */
-    virtual variants timeout_call(connection& conn, int timeout_ms, const std::string& service,
-                                  const std::string& path, const std::string& interface,
-                                  const std::string& method, const std::string& signature,
+    virtual variants timeout_call(connection& conn, int timeout_ms, const std::string& service, const std::string& path,
+                                  const std::string& interface, const std::string& method, const std::string& signature,
                                   variants&& args) = 0;
 
     /**
@@ -133,9 +130,8 @@ public:
      * @return (error, result) 错误信息和返回值
      */
     virtual std::tuple<std::optional<std::string>, variants>
-    async_call(connection& conn, const std::string& service, const std::string& path,
-               const std::string& interface, const std::string& method,
-               const std::string& signature, variants&& args) = 0;
+    async_call(connection& conn, const std::string& service, const std::string& path, const std::string& interface,
+               const std::string& method, const std::string& signature, variants&& args) = 0;
 
     /**
      * @brief 带超时的异步调用 D-Bus 方法（非阻塞模式）
@@ -150,9 +146,9 @@ public:
      * @return (error, result) 错误信息和返回值
      */
     virtual std::tuple<std::optional<std::string>, variants>
-    async_timeout_call(connection& conn, int timeout_ms, const std::string& service,
-                       const std::string& path, const std::string& interface,
-                       const std::string& method, const std::string& signature, variants&& args) = 0;
+    async_timeout_call(connection& conn, int timeout_ms, const std::string& service, const std::string& path,
+                       const std::string& interface, const std::string& method, const std::string& signature,
+                       variants&& args) = 0;
 
     /**
      * @brief 通过共享内存的异步调用（非阻塞模式）
@@ -167,9 +163,9 @@ public:
      * @return (error, result) 错误信息和返回值
      */
     virtual std::tuple<std::optional<std::string>, variants>
-    async_shm_timeout_call(connection& conn, int timeout_ms, const std::string& service,
-                           const std::string& path, const std::string& interface,
-                           const std::string& method, const std::string& signature, variants&& args) = 0;
+    async_shm_timeout_call(connection& conn, int timeout_ms, const std::string& service, const std::string& path,
+                           const std::string& interface, const std::string& method, const std::string& signature,
+                           variants&& args) = 0;
 };
 
 /**
@@ -177,8 +173,7 @@ public:
  */
 class blocking_bus_impl : public bus_mode_impl {
 public:
-    void on_request_name(connection& conn, const std::string& unique_name,
-                         const std::string& service_name) override;
+    void on_request_name(connection& conn, const std::string& unique_name, const std::string& service_name) override;
 
     uint64_t add_match(match_rule& rule, match_cb_t&& cb) override;
 
@@ -186,36 +181,33 @@ public:
 
     bool run_once(connection& conn, int timeout_ms) override;
 
-    bool run_until(connection& conn, std::function<bool()> condition,
-                   int total_timeout_ms, int step_ms) override;
+    bool run_until(connection& conn, std::function<bool()> condition, int total_timeout_ms, int step_ms) override;
 
     void notify_signal(connection& conn, message& msg) override;
 
     shm_tree* get_shm_tree() override;
 
-    variants call(connection& conn, const std::string& service, const std::string& path,
-                  const std::string& interface, const std::string& method,
-                  const std::string& signature, variants&& args) override;
+    variants call(connection& conn, const std::string& service, const std::string& path, const std::string& interface,
+                  const std::string& method, const std::string& signature, variants&& args) override;
 
-    variants timeout_call(connection& conn, int timeout_ms, const std::string& service,
-                          const std::string& path, const std::string& interface,
-                          const std::string& method, const std::string& signature,
+    variants timeout_call(connection& conn, int timeout_ms, const std::string& service, const std::string& path,
+                          const std::string& interface, const std::string& method, const std::string& signature,
                           variants&& args) override;
 
-    std::tuple<std::optional<std::string>, variants>
-    async_call(connection& conn, const std::string& service, const std::string& path,
-               const std::string& interface, const std::string& method,
-               const std::string& signature, variants&& args) override;
+    std::tuple<std::optional<std::string>, variants> async_call(connection& conn, const std::string& service,
+                                                                const std::string& path, const std::string& interface,
+                                                                const std::string& method, const std::string& signature,
+                                                                variants&& args) override;
 
     std::tuple<std::optional<std::string>, variants>
-    async_timeout_call(connection& conn, int timeout_ms, const std::string& service,
-                       const std::string& path, const std::string& interface,
-                       const std::string& method, const std::string& signature, variants&& args) override;
+    async_timeout_call(connection& conn, int timeout_ms, const std::string& service, const std::string& path,
+                       const std::string& interface, const std::string& method, const std::string& signature,
+                       variants&& args) override;
 
     std::tuple<std::optional<std::string>, variants>
-    async_shm_timeout_call(connection& conn, int timeout_ms, const std::string& service,
-                           const std::string& path, const std::string& interface,
-                           const std::string& method, const std::string& signature, variants&& args) override;
+    async_shm_timeout_call(connection& conn, int timeout_ms, const std::string& service, const std::string& path,
+                           const std::string& interface, const std::string& method, const std::string& signature,
+                           variants&& args) override;
 };
 
 /**
@@ -225,8 +217,7 @@ class nonblocking_bus_impl : public bus_mode_impl {
 public:
     ~nonblocking_bus_impl() override;
 
-    void on_request_name(connection& conn, const std::string& unique_name,
-                         const std::string& service_name) override;
+    void on_request_name(connection& conn, const std::string& unique_name, const std::string& service_name) override;
 
     uint64_t add_match(match_rule& rule, match_cb_t&& cb) override;
 
@@ -234,36 +225,33 @@ public:
 
     bool run_once(connection& conn, int timeout_ms) override;
 
-    bool run_until(connection& conn, std::function<bool()> condition,
-                   int total_timeout_ms, int step_ms) override;
+    bool run_until(connection& conn, std::function<bool()> condition, int total_timeout_ms, int step_ms) override;
 
     void notify_signal(connection& conn, message& msg) override;
 
     shm_tree* get_shm_tree() override;
 
-    variants call(connection& conn, const std::string& service, const std::string& path,
-                  const std::string& interface, const std::string& method,
-                  const std::string& signature, variants&& args) override;
+    variants call(connection& conn, const std::string& service, const std::string& path, const std::string& interface,
+                  const std::string& method, const std::string& signature, variants&& args) override;
 
-    variants timeout_call(connection& conn, int timeout_ms, const std::string& service,
-                          const std::string& path, const std::string& interface,
-                          const std::string& method, const std::string& signature,
+    variants timeout_call(connection& conn, int timeout_ms, const std::string& service, const std::string& path,
+                          const std::string& interface, const std::string& method, const std::string& signature,
                           variants&& args) override;
 
-    std::tuple<std::optional<std::string>, variants>
-    async_call(connection& conn, const std::string& service, const std::string& path,
-               const std::string& interface, const std::string& method,
-               const std::string& signature, variants&& args) override;
+    std::tuple<std::optional<std::string>, variants> async_call(connection& conn, const std::string& service,
+                                                                const std::string& path, const std::string& interface,
+                                                                const std::string& method, const std::string& signature,
+                                                                variants&& args) override;
 
     std::tuple<std::optional<std::string>, variants>
-    async_timeout_call(connection& conn, int timeout_ms, const std::string& service,
-                       const std::string& path, const std::string& interface,
-                       const std::string& method, const std::string& signature, variants&& args) override;
+    async_timeout_call(connection& conn, int timeout_ms, const std::string& service, const std::string& path,
+                       const std::string& interface, const std::string& method, const std::string& signature,
+                       variants&& args) override;
 
     std::tuple<std::optional<std::string>, variants>
-    async_shm_timeout_call(connection& conn, int timeout_ms, const std::string& service,
-                           const std::string& path, const std::string& interface,
-                           const std::string& method, const std::string& signature, variants&& args) override;
+    async_shm_timeout_call(connection& conn, int timeout_ms, const std::string& service, const std::string& path,
+                           const std::string& interface, const std::string& method, const std::string& signature,
+                           variants&& args) override;
 
 private:
     shm_tree* m_shm_tree{nullptr};

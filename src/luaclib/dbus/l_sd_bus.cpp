@@ -12,10 +12,10 @@
 
 #include "l_sd_bus.h"
 #include "../utils/variant_utils.h"
+#include "inner/l_object.h"
 #include "l_dbus_common.h"
 #include "l_dbus_message.h"
 #include "l_skynet_syms.h"
-#include "inner/l_object.h"
 #include <mc/dbus/bus_mode_impl.h>
 #include <mc/dbus/message.h>
 #include <mc/dbus/sd_bus.h>
@@ -27,13 +27,12 @@ namespace mc::dbus::lua {
 
 // sd_bus 包装器 - 使用 shared_ptr 管理生命周期
 struct sd_bus_wrapper {
-    std::shared_ptr<mc::dbus::sd_bus> bus;     // 使用 shared_ptr 避免悬挂指针
-    std::shared_ptr<mc::io_context>   io_ctx;  // 共享的 io_context
+    std::shared_ptr<mc::dbus::sd_bus> bus;    // 使用 shared_ptr 避免悬挂指针
+    std::shared_ptr<mc::io_context>   io_ctx; // 共享的 io_context
 
     sd_bus_wrapper(std::shared_ptr<mc::dbus::sd_bus> b, std::shared_ptr<mc::io_context> ctx)
         : bus(std::move(b)), io_ctx(std::move(ctx))
-    {
-    }
+    {}
 };
 
 // 辅助函数：获取 sd_bus_wrapper
@@ -137,10 +136,9 @@ static int sd_bus_add_match(lua_State* L)
             uint32_t       data_high = data >> N;
             uint32_t       source    = (data_high << 16) | callback_id;
             std::size_t    sz        = data & ~(std::size_t(0xFFFF) << N);
-            skynet.skynet_send_with_priority(nullptr, source, rule_id,
-                                                      PTYPE_SIGNAL_PROCESS | PTYPE_TAG_DONTCOPY, 0, 0, sz, 0);
+            skynet.skynet_send_with_priority(nullptr, source, rule_id, PTYPE_SIGNAL_PROCESS | PTYPE_TAG_DONTCOPY, 0, 0,
+                                                      sz, 0);
         });
-
         if (rule_id == 0) {
             lua_pushboolean(L, false);
             lua_pushstring(L, "add_match failed");
@@ -201,9 +199,9 @@ static int sd_bus_index(lua_State* L)
             auto* sd_wrapper = get_sd_bus_wrapper(L, 1);
 
             // 创建借用模式的 dbus_wrapper
-            void*         userdata  = lua_newuserdata(L, sizeof(dbus_wrapper));
-            dbus_wrapper* dbus_wrap = new (userdata)
-                dbus_wrapper(sd_wrapper->bus->get_bus_mode_impl(), sd_wrapper->io_ctx);
+            void*         userdata = lua_newuserdata(L, sizeof(dbus_wrapper));
+            dbus_wrapper* dbus_wrap =
+                new (userdata) dbus_wrapper(sd_wrapper->bus->get_bus_mode_impl(), sd_wrapper->io_ctx);
 
             // 设置对应的 metatable (blocking 或 nonblocking)
             if (sd_wrapper->bus->is_blocking()) {
@@ -275,19 +273,16 @@ static int sd_bus_call_shm_get_property(lua_State* L)
 // ==================== sd_bus 方法 ====================
 
 // 方法表
-static const luaL_Reg sd_bus_methods[] = {
-    {"request_name", sd_bus_request_name},
-    {"add_match", sd_bus_add_match},
-    {"remove_match", sd_bus_remove_match},
-    {"register_object", sd_bus_register_object},
-    {"unregister_object", sd_bus_unregister_object},
-    {"call_shm_get_property", sd_bus_call_shm_get_property},
-    {nullptr, nullptr}};
+static const luaL_Reg sd_bus_methods[] = {{"request_name", sd_bus_request_name},
+                                          {"add_match", sd_bus_add_match},
+                                          {"remove_match", sd_bus_remove_match},
+                                          {"register_object", sd_bus_register_object},
+                                          {"unregister_object", sd_bus_unregister_object},
+                                          {"call_shm_get_property", sd_bus_call_shm_get_property},
+                                          {nullptr, nullptr}};
 
 // 模块函数表
-static const luaL_Reg sd_bus_module_funcs[] = {
-    {"open_user", sd_bus_open_user},
-    {nullptr, nullptr}};
+static const luaL_Reg sd_bus_module_funcs[] = {{"open_user", sd_bus_open_user}, {nullptr, nullptr}};
 
 void register_sd_bus_metatable(lua_State* L)
 {

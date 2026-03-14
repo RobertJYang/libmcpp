@@ -16,25 +16,17 @@
 
 namespace mc::runtime {
 
-any_executor::any_executor()
-    : m_executor(immediate_executor())
-{
-}
+any_executor::any_executor() : m_executor(immediate_executor())
+{}
 
-any_executor::any_executor(thread_pool::executor_type executor)
-    : m_executor(std::move(executor))
-{
-}
+any_executor::any_executor(thread_pool::executor_type executor) : m_executor(std::move(executor))
+{}
 
-any_executor::any_executor(runtime_strand executor)
-    : m_executor(std::move(executor))
-{
-}
+any_executor::any_executor(runtime_strand executor) : m_executor(std::move(executor))
+{}
 
-any_executor::any_executor(runtime::executor executor)
-    : m_executor(std::move(executor))
-{
-}
+any_executor::any_executor(runtime::executor executor) : m_executor(std::move(executor))
+{}
 
 bool any_executor::valid() const noexcept
 {

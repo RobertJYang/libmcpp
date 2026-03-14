@@ -48,10 +48,8 @@ template <typename T, typename = void>
 struct is_container : std::false_type {};
 
 template <typename T>
-struct is_container<T,
-                    std::void_t<decltype(std::declval<T>().begin()),
-                                decltype(std::declval<T>().end()),
-                                typename T::value_type>>
+struct is_container<
+    T, std::void_t<decltype(std::declval<T>().begin()), decltype(std::declval<T>().end()), typename T::value_type>>
     : std::true_type {};
 
 template <>
@@ -70,9 +68,7 @@ template <typename T, typename = void>
 struct is_set : std::false_type {};
 
 template <typename T>
-struct is_set<T,
-              std::void_t<typename T::key_type, typename T::value_type>>
-    : std::true_type {};
+struct is_set<T, std::void_t<typename T::key_type, typename T::value_type>> : std::true_type {};
 
 // 递归格式化元素，string 类型加双引号，char 类型加单引号，其他类型直接递归
 template <typename Context, typename T>
@@ -227,9 +223,7 @@ void format_tuple_impl(const Tuple& t, Context& ctx, const format_spec& spec, st
     ctx.append('(');
     std::size_t n = 0;
     (void)std::initializer_list<int>{
-        (n++ ? (ctx.append(","), 0) : 0,
-         detail::format_elem(ctx, std::get<I>(t), spec),
-         0)...};
+        (n++ ? (ctx.append(","), 0) : 0, detail::format_elem(ctx, std::get<I>(t), spec), 0)...};
     ctx.append(')');
 }
 

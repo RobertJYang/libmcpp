@@ -27,48 +27,40 @@ template <typename T, typename = void>
 struct has_formatter : std::false_type {};
 
 template <typename T>
-struct has_formatter<T,
-                     std::void_t<decltype(&mc::fmt::formatter<T>::template format<format_context>)>>
+struct has_formatter<T, std::void_t<decltype(&mc::fmt::formatter<T>::template format<format_context>)>>
     : std::true_type {};
 
 template <typename T, typename = void>
 struct has_parse : std::false_type {};
 
 template <typename T>
-struct has_parse<T, std::void_t<decltype(&mc::fmt::formatter<T>::template parse<false>)>>
-    : std::true_type {};
+struct has_parse<T, std::void_t<decltype(&mc::fmt::formatter<T>::template parse<false>)>> : std::true_type {};
 
 template <typename T, typename = void>
 struct has_get_value : std::false_type {};
 
 template <typename T>
-struct has_get_value<T, std::void_t<decltype(&mc::fmt::formatter<T>::get_value)>>
-    : std::true_type {};
+struct has_get_value<T, std::void_t<decltype(&mc::fmt::formatter<T>::get_value)>> : std::true_type {};
 
 template <typename T, typename = void>
 struct is_basic_formatter : std::false_type {};
 
 template <typename T>
-struct is_basic_formatter<T, std::enable_if_t<mc::fmt::formatter<T>::is_basic_type>>
-    : std::true_type {};
+struct is_basic_formatter<T, std::enable_if_t<mc::fmt::formatter<T>::is_basic_type>> : std::true_type {};
 
 template <typename T>
 constexpr bool is_basic_formatter_v = is_basic_formatter<T>::value;
 
 template <typename T>
 struct is_char
-    : std::integral_constant<
-          bool,
-          std::is_same_v<std::remove_cv_t<std::remove_reference_t<T>>, char> ||
-              std::is_same_v<std::remove_cv_t<std::remove_reference_t<T>>, signed char>> {};
+    : std::integral_constant<bool, std::is_same_v<std::remove_cv_t<std::remove_reference_t<T>>, char> ||
+                                       std::is_same_v<std::remove_cv_t<std::remove_reference_t<T>>, signed char>> {};
 
 template <typename T>
 struct is_integer
-    : std::integral_constant<
-          bool,
-          std::is_integral_v<std::remove_cv_t<std::remove_reference_t<T>>> &&
-              !std::is_same_v<std::remove_cv_t<std::remove_reference_t<T>>, bool> &&
-              !is_char<T>::value> {};
+    : std::integral_constant<bool, std::is_integral_v<std::remove_cv_t<std::remove_reference_t<T>>> &&
+                                       !std::is_same_v<std::remove_cv_t<std::remove_reference_t<T>>, bool> &&
+                                       !is_char<T>::value> {};
 
 template <typename T>
 constexpr bool has_formatter_v = has_formatter<T>::value;
@@ -84,10 +76,8 @@ constexpr bool is_integer_v = is_integer<T>::value;
 
 template <typename T>
 constexpr bool is_string_v =
-    std::is_same_v<std::decay_t<T>, std::string> ||
-    std::is_same_v<std::decay_t<T>, std::string_view> ||
-    std::is_same_v<std::decay_t<T>, const char*> ||
-    std::is_same_v<std::decay_t<T>, char*>;
+    std::is_same_v<std::decay_t<T>, std::string> || std::is_same_v<std::decay_t<T>, std::string_view> ||
+    std::is_same_v<std::decay_t<T>, const char*> || std::is_same_v<std::decay_t<T>, char*>;
 
 constexpr bool isdigit(char c)
 {

@@ -41,13 +41,12 @@ struct future_value_type<T, std::enable_if_t<mc::futures::detail::is_future_v<T>
 };
 
 template <typename T, typename F, typename P, typename = void>
-struct result_traits : std::false_type {
-};
+struct result_traits : std::false_type {};
 
 template <typename T, typename F, typename P>
-struct result_traits<
-    T, F, P,
-    std::void_t<decltype(mc::futures::detail::invoke_func<T>(std::declval<F>(), std::declval<P>()))>> : std::true_type {
+struct result_traits<T, F, P,
+                     std::void_t<decltype(mc::futures::detail::invoke_func<T>(std::declval<F>(), std::declval<P>()))>>
+    : std::true_type {
     using call_result_type = decltype(mc::futures::detail::invoke_func<T>(std::declval<F>(), std::declval<P>()));
 
     static constexpr bool is_future = mc::futures::detail::is_future_v<call_result_type>;
@@ -59,8 +58,7 @@ struct result_traits<
 
 template <typename T = mc::variant>
 class result {
-    static_assert(!mc::futures::detail::is_future_v<T>,
-                  "T must be constructible to variant or void");
+    static_assert(!mc::futures::detail::is_future_v<T>, "T must be constructible to variant or void");
     using property_traits = mc::traits::property_traits<T>;
 
     using value_type  = mc::futures::detail::state_tt<typename property_traits::value_type>;
@@ -103,61 +101,48 @@ public:
     }
 
     result(mc::error_ptr err)
-        : m_future(mc::reject<value_type>(detail::make_method_call_exception(
-              err && err->is_set() ? err : detail::get_default_error())))
-    {
-    }
+        : m_future(mc::reject<value_type>(
+              detail::make_method_call_exception(err && err->is_set() ? err : detail::get_default_error())))
+    {}
 
     // 构造通过 mc::future<value_type> 类型返回的结果
     template <typename FutureType,
-              std::enable_if_t<
-                  mc::futures::detail::is_future_v<std::decay_t<FutureType>> &&
-                      !std::is_same_v<typename std::decay_t<FutureType>::value_type, mc::error_ptr>,
-                  int> = 0>
-    result(FutureType&& v)
-        : m_future(std::forward<FutureType>(v).template as_future<value_type>())
-    {
-    }
+              std::enable_if_t<mc::futures::detail::is_future_v<std::decay_t<FutureType>> &&
+                                   !std::is_same_v<typename std::decay_t<FutureType>::value_type, mc::error_ptr>,
+                               int> = 0>
+    result(FutureType&& v) : m_future(std::forward<FutureType>(v).template as_future<value_type>())
+    {}
 
     // 构造通过 mc::future<mc::error_ptr> 类型返回的结果
     template <typename FutureType,
-              std::enable_if_t<
-                  mc::futures::detail::is_future_v<std::decay_t<FutureType>> &&
-                      std::is_same_v<typename std::decay_t<FutureType>::value_type, mc::error_ptr>,
-                  int> = 0>
+              std::enable_if_t<mc::futures::detail::is_future_v<std::decay_t<FutureType>> &&
+                                   std::is_same_v<typename std::decay_t<FutureType>::value_type, mc::error_ptr>,
+                               int> = 0>
     result(FutureType&& v)
         : m_future(std::forward<FutureType>(v)
                        .then([](auto&& v) -> value_type {
                            detail::throw_method_call_exception(v);
                        })
                        .template as_future<value_type>())
-    {
-    }
+    {}
 
     // 从其他 result<OtherT> 类型构造
     template <typename OtherT, std::enable_if_t<!std::is_same_v<value_type, OtherT>, int> = 0>
-    result(result<OtherT>&& other)
-        : m_future(std::move(other.m_future).template as_future<value_type>())
-    {
-    }
+    result(result<OtherT>&& other) : m_future(std::move(other.m_future).template as_future<value_type>())
+    {}
 
-    result(const mc::exception& ex)
-        : result(mc::error::from_exception(ex))
-    {
-    }
+    result(const mc::exception& ex) : result(mc::error::from_exception(ex))
+    {}
 
     // 处理类型到 result<mc::variant> 的转换
     template <typename U>
-    explicit result(U value, std::enable_if_t<
-                                 std::is_same_v<T, mc::variant> &&
-                                     mc::is_variant_constructible_v<U> &&
-                                     !std::is_same_v<std::decay_t<U>, mc::exception> &&
-                                     !std::is_same_v<std::decay_t<U>, mc::error_ptr> &&
-                                     !mc::futures::detail::is_future_v<std::decay_t<U>>,
-                                 int> = 0)
+    explicit result(U value, std::enable_if_t<std::is_same_v<T, mc::variant> && mc::is_variant_constructible_v<U> &&
+                                                  !std::is_same_v<std::decay_t<U>, mc::exception> &&
+                                                  !std::is_same_v<std::decay_t<U>, mc::error_ptr> &&
+                                                  !mc::futures::detail::is_future_v<std::decay_t<U>>,
+                                              int> = 0)
         : m_future(mc::resolve<value_type>(mc::variant(value)))
-    {
-    }
+    {}
 
     // 不允许拷贝
     result(const result& other)            = delete;
@@ -279,18 +264,16 @@ public:
      */
     template <typename F>
     auto then(F&& func, launch policy = launch::async, std::optional<mc::any_executor> executor = std::nullopt)
-        -> std::enable_if_t<
-            detail::result_traits<T, F, param_type>::value,
-            typename detail::result_traits<T, F, param_type>::future_type>
+        -> std::enable_if_t<detail::result_traits<T, F, param_type>::value,
+                            typename detail::result_traits<T, F, param_type>::future_type>
     {
         return m_future.then(std::forward<F>(func), policy, executor);
     }
 
     template <typename F>
     auto catch_error(F&& func, launch policy = launch::async, std::optional<mc::any_executor> executor = std::nullopt)
-        -> std::enable_if_t<
-            detail::result_traits<T, F, const mc::exception&>::value,
-            typename detail::result_traits<T, F, const mc::exception&>::future_type>
+        -> std::enable_if_t<detail::result_traits<T, F, const mc::exception&>::value,
+                            typename detail::result_traits<T, F, const mc::exception&>::future_type>
     {
         return m_future.catch_error(std::forward<F>(func), policy, executor);
     }
@@ -351,9 +334,7 @@ using async_result = result<mc::variant>;
 // 一些辅助函数，用于简化 result 的创建
 template <typename T>
 auto make_result(T&& value)
-    -> std::enable_if_t<
-        !mc::futures::detail::is_future_v<T>,
-        result<mc::futures::detail::state_tt<T>>>
+    -> std::enable_if_t<!mc::futures::detail::is_future_v<T>, result<mc::futures::detail::state_tt<T>>>
 {
     return result<mc::futures::detail::state_tt<T>>(std::forward<T>(value));
 }
@@ -385,15 +366,13 @@ auto make_result(mc::error_ptr&& err)
 // mc::reflect 反射系统要求函数返回值必须可转换成 mc::variant
 // 所以这里对 mc::future 和 mc::result 类型特化 to_variant 和 from_variant 函数
 
-template <typename FutureType,
-          std::enable_if_t<mc::futures::detail::is_future_v<FutureType>, int> = 0>
+template <typename FutureType, std::enable_if_t<mc::futures::detail::is_future_v<FutureType>, int> = 0>
 inline void to_variant(const FutureType& obj, mc::variant& v)
 {
     v = mc::variant(obj.get()); // 阻塞等待直到 future 就绪
 }
 
-template <typename FutureType,
-          std::enable_if_t<mc::futures::detail::is_future_v<FutureType>, int> = 0>
+template <typename FutureType, std::enable_if_t<mc::futures::detail::is_future_v<FutureType>, int> = 0>
 inline void from_variant(const mc::variant& v, FutureType& obj)
 {
     obj = mc::resolve(v);
@@ -436,8 +415,7 @@ namespace reflect::detail {
 // 特化 signature_helper，用于获取 future 和 result 的返回值类型
 
 template <typename FutureType>
-struct signature_helper<FutureType,
-                        std::enable_if_t<mc::futures::detail::is_future_v<FutureType>>> {
+struct signature_helper<FutureType, std::enable_if_t<mc::futures::detail::is_future_v<FutureType>>> {
     static void apply(std::string& sig)
     {
         sig = mc::reflect::detail::get_signature<typename FutureType::value_type>();

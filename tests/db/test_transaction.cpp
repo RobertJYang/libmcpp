@@ -34,14 +34,11 @@ class user : public mdb::object_base {
 public:
     user() = default;
 
-    user(std::string name, int age)
-        : m_name(std::move(name)), m_age(age)
-    {
-    }
+    user(std::string name, int age) : m_name(std::move(name)), m_age(age)
+    {}
 
     ~user() override
-    {
-    }
+    {}
 
     const std::string& name() const
     {
@@ -58,10 +55,10 @@ public:
 };
 
 // 使用限定命名空间访问
-using user_table = mdb::table<
-    user, mdb::indexed_by<mdb::ordered_unique<&user::m_name>,
-                          mdb::ordered_non_unique<&user::get_age, by_age::tag>,
-                          mdb::ordered_non_unique<&user::m_name, &user::m_age, by_name_age::tag>>>;
+using user_table =
+    mdb::table<user,
+               mdb::indexed_by<mdb::ordered_unique<&user::m_name>, mdb::ordered_non_unique<&user::get_age, by_age::tag>,
+                               mdb::ordered_non_unique<&user::m_name, &user::m_age, by_name_age::tag>>>;
 
 } // namespace
 
@@ -726,8 +723,7 @@ TEST_F(transaction_test, MergeBackVariousBranches)
     // 创建一个自定义 resource，用于测试 merge_back
     class test_resource : public mdb::db_resource {
     public:
-        test_resource(uint64_t id, int32_t sp_id)
-            : m_id(id), m_sp_id(sp_id)
+        test_resource(uint64_t id, int32_t sp_id) : m_id(id), m_sp_id(sp_id)
         {
             m_savepoint_id = sp_id;
         }

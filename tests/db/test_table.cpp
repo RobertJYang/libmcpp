@@ -34,14 +34,11 @@ public:
 
     user() = default;
 
-    user(std::string name, int age, double score = 0.0)
-        : m_name(std::move(name)), m_age(age), m_score(score)
-    {
-    }
+    user(std::string name, int age, double score = 0.0) : m_name(std::move(name)), m_age(age), m_score(score)
+    {}
 
     ~user() override
-    {
-    }
+    {}
 
     const std::string& name() const
     {
@@ -67,10 +64,10 @@ public:
 MC_REFLECT(user, ((m_name, "name"))((m_age, "age"))((m_score, "score")))
 
 namespace {
-using user_table = mdb::table<
-    user, mdb::indexed_by<mdb::ordered_unique<&user::m_name>,
-                          mdb::ordered_non_unique<&user::get_age, by_age::tag>,
-                          mdb::ordered_non_unique<&user::m_name, &user::m_age, by_name_age::tag>>>;
+using user_table =
+    mdb::table<user,
+               mdb::indexed_by<mdb::ordered_unique<&user::m_name>, mdb::ordered_non_unique<&user::get_age, by_age::tag>,
+                               mdb::ordered_non_unique<&user::m_name, &user::m_age, by_name_age::tag>>>;
 
 // 拿到表的字段，可用于后续构造查询语句
 auto field_name  = mc::db::field(&user::m_name);
@@ -80,12 +77,10 @@ auto field_score = mc::db::field(&user::m_score);
 class table_test : public ::testing::Test {
 protected:
     void SetUp() override
-    {
-    }
+    {}
 
     void TearDown() override
-    {
-    }
+    {}
 };
 } // namespace
 
@@ -329,8 +324,7 @@ TEST_F(table_test, advanced_query)
 
     // 复合条件查询（AND和OR组合）
     {
-        auto results = users.query((field_age < 30 && field_score > 80.0) ||
-                                   (field_age > 35 && field_score < 90.0));
+        auto results = users.query((field_age < 30 && field_score > 80.0) || (field_age > 35 && field_score < 90.0));
         EXPECT_EQ(results.size(), 2); // 应该匹配张三和钱七
 
         // 排序结果以便于测试
@@ -520,9 +514,7 @@ TEST_F(table_test, index_name)
 
 TEST_F(table_test, index_name_composite)
 {
-    using user_table_1 = mdb::table<
-        user, mdb::indexed_by<
-                  mdb::ordered_unique<&user::m_name, &user::get_age>>>;
+    using user_table_1 = mdb::table<user, mdb::indexed_by<mdb::ordered_unique<&user::m_name, &user::get_age>>>;
     user_table_1 users;
 
     // 0: user::m_name 有反射信息

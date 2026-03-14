@@ -54,18 +54,13 @@ public:
 
     // param_type 版本的构造函数
     template <typename U = T, std::enable_if_t<std::is_convertible_v<U, T>, int> = 0>
-    explicit property(param_type value)
-        : m_value(value)
-    {
-    }
+    explicit property(param_type value) : m_value(value)
+    {}
 
     // rvalue_type 版本的构造函数（仅对非基础类型启用）
-    template <typename U                                                                            = T,
-              std::enable_if_t<std::is_convertible_v<U, T> && !property_traits::is_basic_type, int> = 0>
-    explicit property(rvalue_type value)
-        : m_value(std::move(value))
-    {
-    }
+    template <typename U = T, std::enable_if_t<std::is_convertible_v<U, T> && !property_traits::is_basic_type, int> = 0>
+    explicit property(rvalue_type value) : m_value(std::move(value))
+    {}
 
     // 赋值操作符 - param_type 版本
     property_type& operator=(param_type new_value)
@@ -200,15 +195,13 @@ public:
     }
 
     template <typename U>
-    auto operator==(const U& v) const
-        -> std::enable_if_t<!std::is_base_of_v<property_base, U>, bool>
+    auto operator==(const U& v) const -> std::enable_if_t<!std::is_base_of_v<property_base, U>, bool>
     {
         return is_equal(v);
     }
 
     template <typename U>
-    auto operator!=(const U& v) const
-        -> std::enable_if_t<!std::is_base_of_v<property_base, U>, bool>
+    auto operator!=(const U& v) const -> std::enable_if_t<!std::is_base_of_v<property_base, U>, bool>
     {
         return !(*this == v);
     }
@@ -226,15 +219,15 @@ public:
     }
 
     template <typename U>
-    friend auto operator==(const U& v, const property_type& p)
-        -> std::enable_if_t<!std::is_base_of_v<property_base, U>, bool>
+    friend auto operator==(const U&             v,
+                           const property_type& p) -> std::enable_if_t<!std::is_base_of_v<property_base, U>, bool>
     {
         return p == v;
     }
 
     template <typename U>
-    friend auto operator!=(const U& v, const property_type& p)
-        -> std::enable_if_t<!std::is_base_of_v<property_base, U>, bool>
+    friend auto operator!=(const U&             v,
+                           const property_type& p) -> std::enable_if_t<!std::is_base_of_v<property_base, U>, bool>
     {
         return !(p == v);
     }
@@ -608,8 +601,7 @@ protected:
                 from_variant(result, value);
                 set_value_impl(value, true);
             } catch (const std::exception& e) {
-                dlog("property ${name} getter call failed, error: ${error}",
-                     ("name", get_name())("error", e.what()));
+                dlog("property ${name} getter call failed, error: ${error}", ("name", get_name())("error", e.what()));
             }
         } else if (m_extension_data->outsider_getter) {
             try {

@@ -48,7 +48,8 @@ void ref_object_processor::process_ref_object_from_variant(property_helper* prop
 
     property->ensure_extension_data();
     property->set_setter_function([property](const mc::variant& value) {
-        MC_THROW(mc::invalid_op_exception, "Setting reference object property value is not allowed: ${name}", ("name", property->get_name()));
+        MC_THROW(mc::invalid_op_exception, "Setting reference object property value is not allowed: ${name}",
+                 ("name", property->get_name()));
     });
 
     // 初始化引用对象缓存

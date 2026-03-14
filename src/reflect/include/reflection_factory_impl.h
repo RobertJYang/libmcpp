@@ -45,13 +45,12 @@ public:
     explicit impl(std::string_view factory_name, std::string_view factory_type_name, bool is_global);
     ~impl();
 
-    type_id_type register_type(
-        std::string_view type_name, type_id_type type_id, metadata_creator&& creator);
+    type_id_type register_type(std::string_view type_name, type_id_type type_id, metadata_creator&& creator);
     type_id_type unregister_type(std::string_view type_name);
 
-    std::pair<factory_id_type, factory_ptr> register_factory(
-        std::string_view module_name, factory_id_type factory_id, factory_ptr factory);
-    factory_id_type unregister_factory(std::string_view factory_name);
+    std::pair<factory_id_type, factory_ptr> register_factory(std::string_view module_name, factory_id_type factory_id,
+                                                             factory_ptr factory);
+    factory_id_type                         unregister_factory(std::string_view factory_name);
 
     reflection_metadata_ptr get_metadata_by_id(type_id_type global_id, const data_t& data);
     reflection_metadata_ptr get_local_metadata_by_id(local_type_id_type type_id, const data_t& data);
@@ -61,8 +60,7 @@ public:
 
     factory_ptr get_factory_by_name(std::string_view module_name, const data_t& data);
     factory_ptr get_factory_by_id(factory_id_type factory_id, const data_t& data);
-    void        collect_factory_names(
-               std::string_view path, std::vector<std::string>& names, const data_t& data) const;
+    void        collect_factory_names(std::string_view path, std::vector<std::string>& names, const data_t& data) const;
 
     void get_registered_types(const data_t& data, std::vector<std::string>& types) const;
 

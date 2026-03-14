@@ -42,14 +42,12 @@ public:
 
     // 默认构造函数
     tracking_allocator() noexcept
-    {
-    }
+    {}
 
     // 拷贝构造函数
     template <typename U>
     tracking_allocator(const tracking_allocator<U>&) noexcept
-    {
-    }
+    {}
 
     // 析构函数
     ~tracking_allocator() = default;
@@ -124,14 +122,10 @@ struct test_value {
     std::string text;
     int         number;
 
-    test_value()
-        : text(), number(0)
-    {
-    }
-    test_value(const std::string& t, int n)
-        : text(t), number(n)
-    {
-    }
+    test_value() : text(), number(0)
+    {}
+    test_value(const std::string& t, int n) : text(t), number(n)
+    {}
 
     bool operator==(const test_value& other) const
     {
@@ -188,8 +182,7 @@ TEST(CustomAllocatorTest, BasicTrackingAllocator)
     }
 
     // 验证所有内存都已释放
-    EXPECT_EQ(tracking_allocator<int>::get_allocation_count(),
-              tracking_allocator<int>::get_deallocation_count());
+    EXPECT_EQ(tracking_allocator<int>::get_allocation_count(), tracking_allocator<int>::get_deallocation_count());
 }
 
 // 测试用例：事务操作和分配跟踪
@@ -280,8 +273,7 @@ TEST(CustomAllocatorTest, SavePointAllocation)
     EXPECT_EQ(tree.size(), 2);
 
     // 验证回滚后内存分配情况
-    EXPECT_GE(tracking_allocator<int>::get_deallocation_count(),
-              pre_rollback_alloc_count - initial_alloc_count);
+    EXPECT_GE(tracking_allocator<int>::get_deallocation_count(), pre_rollback_alloc_count - initial_alloc_count);
 }
 
 // 测试用例：大量数据与内存分配性能

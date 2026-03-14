@@ -46,8 +46,7 @@ protected:
     }
 
     void SetUp() override
-    {
-    }
+    {}
 
     static std::shared_ptr<mc::runtime::thread_pool> s_io_context;
 };
@@ -60,8 +59,8 @@ TEST_F(dispatch_test, test_connection_dispatch)
     EXPECT_TRUE(conn.start());
     ASSERT_TRUE(conn.is_connected());
     EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Dispatch"));
-    auto msg   = message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
-                                          "org.freedesktop.DBus", "ListNames");
+    auto msg =
+        message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "ListNames");
     auto reply = conn.send_with_reply(std::move(msg), mc::milliseconds(1000));
     EXPECT_TRUE(reply.is_valid());
     conn.dispatch();
@@ -74,8 +73,8 @@ TEST_F(dispatch_test, test_watch_timeout_via_connection)
     EXPECT_TRUE(conn.start());
     ASSERT_TRUE(conn.is_connected());
     for (int i = 0; i < 3; ++i) {
-        auto msg   = message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
-                                              "org.freedesktop.DBus", "ListNames");
+        auto msg   = message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus",
+                                              "ListNames");
         auto reply = conn.send_with_reply(std::move(msg), mc::milliseconds(1000));
         EXPECT_TRUE(reply.is_valid());
     }
@@ -87,8 +86,8 @@ TEST_F(dispatch_test, test_watch_timeout_stop_on_disconnect)
     auto conn = connection::open_session_bus(*s_io_context);
     EXPECT_TRUE(conn.start());
     ASSERT_TRUE(conn.is_connected());
-    auto msg = message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
-                                        "org.freedesktop.DBus", "ListNames");
+    auto msg =
+        message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "ListNames");
     conn.async_send_with_reply(std::move(msg), mc::milliseconds(1000));
     conn.disconnect();
     EXPECT_FALSE(conn.is_connected());
@@ -100,8 +99,8 @@ TEST_F(dispatch_test, test_async_send_with_reply)
     EXPECT_TRUE(conn.start());
     ASSERT_TRUE(conn.is_connected());
     EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Dispatch"));
-    auto msg    = message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
-                                           "org.freedesktop.DBus", "GetId");
+    auto msg =
+        message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "GetId");
     auto future = conn.async_send_with_reply(std::move(msg), mc::seconds(1));
     EXPECT_NE(future.wait_for(mc::seconds(2)), mc::future_status::timeout);
     EXPECT_TRUE(future.get().is_valid());
@@ -118,8 +117,8 @@ TEST_F(dispatch_test, test_multiple_concurrent_calls)
     const int                                num_calls = 5;
     std::vector<connection::future<message>> futures;
     for (int i = 0; i < num_calls; ++i) {
-        auto msg = message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
-                                            "org.freedesktop.DBus", "GetId");
+        auto msg =
+            message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "GetId");
         futures.push_back(conn.async_send_with_reply(std::move(msg), mc::seconds(1)));
     }
 
@@ -138,8 +137,8 @@ TEST_F(dispatch_test, test_dispatch_while_receiving)
     ASSERT_TRUE(conn.is_connected());
     EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Dispatch"));
 
-    auto msg    = message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
-                                           "org.freedesktop.DBus", "ListNames");
+    auto msg =
+        message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "ListNames");
     auto future = conn.async_send_with_reply(std::move(msg), mc::milliseconds(1000));
 
     std::thread dispatch_thread([&conn]() {
@@ -162,8 +161,8 @@ TEST_F(dispatch_test, test_pending_call_already_completed)
     ASSERT_TRUE(conn.is_connected());
     EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Dispatch"));
 
-    auto msg   = message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
-                                          "org.freedesktop.DBus", "GetId");
+    auto msg =
+        message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "GetId");
     auto reply = conn.send_with_reply(std::move(msg), mc::milliseconds(1000));
     EXPECT_TRUE(reply.is_valid());
 
@@ -177,12 +176,12 @@ TEST_F(dispatch_test, test_pending_call_move_operations)
     ASSERT_TRUE(conn.is_connected());
     EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Dispatch"));
 
-    auto msg1    = message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
-                                            "org.freedesktop.DBus", "GetId");
+    auto msg1 =
+        message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "GetId");
     auto future1 = conn.async_send_with_reply(std::move(msg1), mc::milliseconds(1000));
 
-    auto msg2    = message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
-                                            "org.freedesktop.DBus", "GetId");
+    auto msg2 =
+        message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "GetId");
     auto future2 = conn.async_send_with_reply(std::move(msg2), mc::milliseconds(1000));
 
     ASSERT_EQ(mc::all(future1, future2).wait_for(mc::milliseconds(2000)), mc::future_status::ready);
@@ -198,8 +197,8 @@ TEST_F(dispatch_test, test_pending_call_stop_before_reply)
     ASSERT_TRUE(conn.is_connected());
     EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Dispatch"));
 
-    auto msg    = message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
-                                           "org.freedesktop.DBus", "GetId");
+    auto msg =
+        message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "GetId");
     auto future = conn.async_send_with_reply(std::move(msg), mc::milliseconds(5000));
 
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -217,8 +216,8 @@ TEST_F(dispatch_test, test_timeout_handling)
     EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Dispatch"));
 
     for (int i = 0; i < 5; ++i) {
-        auto msg   = message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
-                                              "org.freedesktop.DBus", "GetId");
+        auto msg =
+            message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "GetId");
         auto reply = conn.send_with_reply(std::move(msg), mc::milliseconds(1000));
         EXPECT_TRUE(reply.is_valid());
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -234,8 +233,8 @@ TEST_F(dispatch_test, test_timeout_with_long_interval)
     ASSERT_TRUE(conn.is_connected());
     EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Dispatch"));
 
-    auto msg   = message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
-                                          "org.freedesktop.DBus", "ListNames");
+    auto msg =
+        message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "ListNames");
     auto reply = conn.send_with_reply(std::move(msg), mc::milliseconds(2000));
     EXPECT_TRUE(reply.is_valid());
 
@@ -292,8 +291,8 @@ TEST_F(dispatch_test, PendingCallImmediateReply)
     EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Dispatch"));
 
     // 创建一个已经完成的 pending_call
-    auto msg   = message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
-                                          "org.freedesktop.DBus", "GetId");
+    auto msg =
+        message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "GetId");
     auto reply = conn.send_with_reply(std::move(msg), mc::milliseconds(1000));
     EXPECT_TRUE(reply.is_valid());
 
@@ -320,8 +319,8 @@ TEST_F(dispatch_test, WatchReadableErrorLogged)
     // 通过正常操作触发 watch，错误日志分支很难直接测试
     // 因为需要模拟 Boost.Asio 在 async_wait 时返回非 operation_aborted 错误
     // 这个测试主要确保代码不会崩溃
-    auto msg   = message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
-                                          "org.freedesktop.DBus", "GetId");
+    auto msg =
+        message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "GetId");
     auto reply = conn.send_with_reply(std::move(msg), mc::milliseconds(1000));
     EXPECT_TRUE(reply.is_valid());
 
@@ -337,8 +336,8 @@ TEST_F(dispatch_test, WatchWritableInvoked)
     EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Dispatch"));
 
     // 通过 send_with_reply 触发写事件
-    auto msg   = message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
-                                          "org.freedesktop.DBus", "GetId");
+    auto msg =
+        message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "GetId");
     auto reply = conn.send_with_reply(std::move(msg), mc::milliseconds(1000));
     EXPECT_TRUE(reply.is_valid());
 
@@ -355,8 +354,8 @@ TEST_F(dispatch_test, HandleWatchReadyStopsWhenFalse)
 
     // 通过正常操作触发 watch，handle_watch_ready 返回 false 的分支很难直接测试
     // 这个测试主要确保代码不会崩溃
-    auto msg   = message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
-                                          "org.freedesktop.DBus", "GetId");
+    auto msg =
+        message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "GetId");
     auto reply = conn.send_with_reply(std::move(msg), mc::milliseconds(1000));
     EXPECT_TRUE(reply.is_valid());
 
@@ -374,8 +373,8 @@ TEST_F(dispatch_test, TimeoutErrorLogged)
     // 通过正常操作触发 timeout，错误日志分支很难直接测试
     // 因为需要模拟 boost::asio::error::fault 等错误
     // 这个测试主要确保代码不会崩溃
-    auto msg   = message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
-                                          "org.freedesktop.DBus", "GetId");
+    auto msg =
+        message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "GetId");
     auto reply = conn.send_with_reply(std::move(msg), mc::milliseconds(1000));
     EXPECT_TRUE(reply.is_valid());
 
@@ -391,8 +390,8 @@ TEST_F(dispatch_test, TimeoutHandlerInvoked)
     EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Dispatch"));
 
     // 通过正常操作触发 timeout，dbus_timeout_handle 会被调用
-    auto msg   = message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
-                                          "org.freedesktop.DBus", "GetId");
+    auto msg =
+        message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "GetId");
     auto reply = conn.send_with_reply(std::move(msg), mc::milliseconds(1000));
     EXPECT_TRUE(reply.is_valid());
 

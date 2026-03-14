@@ -56,8 +56,8 @@ dependency_sorter::sort_for_startup(const std::unordered_map<std::string, depend
     return result;
 }
 
-std::vector<std::string> dependency_sorter::sort_for_shutdown(
-    const std::unordered_map<std::string, dependency_node>& graph)
+std::vector<std::string>
+dependency_sorter::sort_for_shutdown(const std::unordered_map<std::string, dependency_node>& graph)
 {
     std::vector<std::string> result;
     std::queue<std::string>  queue;
@@ -97,8 +97,7 @@ std::vector<std::string> dependency_sorter::sort_for_shutdown(
     return result;
 }
 
-bool dependency_sorter::has_circular_dependency(
-    const std::unordered_map<std::string, dependency_node>& graph)
+bool dependency_sorter::has_circular_dependency(const std::unordered_map<std::string, dependency_node>& graph)
 {
     // 复制入度
     std::unordered_map<std::string, int> in_degrees;

@@ -18,26 +18,22 @@
 namespace mc::core {
 
 struct service_base::impl {
-    impl()
-        : m_state(service_state::stopped)
-    {
-    }
+    impl() : m_state(service_state::stopped)
+    {}
 
     std::string              m_name;
     std::vector<std::string> m_dependencies;
     service_state            m_state;
 };
 
-service_base::service_base(std::string name)
-    : m_base_impl(std::make_unique<impl>())
+service_base::service_base(std::string name) : m_base_impl(std::make_unique<impl>())
 {
     m_base_impl->m_name  = std::move(name);
     m_base_impl->m_state = service_state::stopped;
 }
 
 service_base::~service_base()
-{
-}
+{}
 
 void service_base::set_name(std::string name)
 {

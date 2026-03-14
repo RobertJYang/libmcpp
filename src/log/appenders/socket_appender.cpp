@@ -22,15 +22,11 @@
 namespace mc {
 namespace log {
 
-socket_appender::socket_appender()
-    : m_client(std::make_shared<socket_client>())
-{
-}
+socket_appender::socket_appender() : m_client(std::make_shared<socket_client>())
+{}
 
-socket_appender::socket_appender(std::shared_ptr<socket_client> shared_client)
-    : m_client(std::move(shared_client))
-{
-}
+socket_appender::socket_appender(std::shared_ptr<socket_client> shared_client) : m_client(std::move(shared_client))
+{}
 static std::string g_module_name{"Unknown"}; // 全局模块名称，所有 socket_appender 实例共享
 typedef const char* (*get_log_time_str_func_t)(int);
 static get_log_time_str_func_t get_log_time_str_ptr = nullptr;
@@ -83,9 +79,8 @@ void socket_appender::append(const message& msg)
 {
     // mdbctl 类别：显式调用 mdbctl_log 时输出，不受 m_type 限制
     // debug 类别：仅当 m_type 为 "local" 时输出
-    bool is_mdbctl = msg.get_category() == log_category::mdbctl;
-    bool is_debug_local =
-        msg.get_category() == log_category::debug && m_type == "local";
+    bool is_mdbctl      = msg.get_category() == log_category::mdbctl;
+    bool is_debug_local = msg.get_category() == log_category::debug && m_type == "local";
     if (!is_mdbctl && !is_debug_local) {
         return;
     }
@@ -106,7 +101,6 @@ void socket_appender::append(const message& msg)
         m_client->disconnect();
         return ensure_connected() && m_client->send(payload);
     };
-
     if (!do_send()) {
         return;
     }

@@ -84,11 +84,9 @@ public:
     JsonValue& operator=(const std::vector<bool>& value);
     JsonValue& operator=(const std::vector<std::string>& value);
     JsonValue& operator=(const std::vector<std::string_view>& value);
-    template <typename T,
-              typename std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<T, bool>, int> = 0>
+    template <typename T, typename std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<T, bool>, int> = 0>
     JsonValue& operator=(const std::vector<T>& value);
-    template <typename T,
-              typename std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<T, bool>, int> = 0>
+    template <typename T, typename std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<T, bool>, int> = 0>
     JsonValue& operator=(T value)
     {
         return *this = static_cast<int64_t>(value);
@@ -98,12 +96,9 @@ public:
     JsonValue(int64_t value);
     JsonValue(double value);
     // 支持其他整型（unsigned、long、long long 等）通过委托到 int64_t 构造
-    template <typename T,
-              typename std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<T, bool>, int> = 0>
-    JsonValue(T value)
-        : JsonValue(static_cast<int64_t>(value))
-    {
-    }
+    template <typename T, typename std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<T, bool>, int> = 0>
+    JsonValue(T value) : JsonValue(static_cast<int64_t>(value))
+    {}
     JsonValue(std::string_view value);
     /** @brief 支持从 C 字符串直接构造，便于书写 JsonValue v = "test"; 或 {1, 2, "test"} */
     JsonValue(const char* value);
@@ -116,8 +111,7 @@ public:
     explicit JsonValue(const std::vector<bool>& value);
     explicit JsonValue(const std::vector<std::string>& value);
     explicit JsonValue(const std::vector<std::string_view>& value);
-    template <typename T,
-              typename std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<T, bool>, int> = 0>
+    template <typename T, typename std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<T, bool>, int> = 0>
     explicit JsonValue(const std::vector<T>& value);
 
     // 工厂方法：创建不同类型的 JSON 节点
@@ -198,14 +192,12 @@ public:
         return !(*this == value);
     }
     // 其他整型委托到 int64_t 比较
-    template <typename T,
-              typename std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<T, bool>, int> = 0>
+    template <typename T, typename std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<T, bool>, int> = 0>
     bool operator==(T value) const
     {
         return *this == static_cast<int64_t>(value);
     }
-    template <typename T,
-              typename std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<T, bool>, int> = 0>
+    template <typename T, typename std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<T, bool>, int> = 0>
     bool operator!=(T value) const
     {
         return !(*this == value);
@@ -244,14 +236,12 @@ MC_API bool operator==(const std::string lhs, const JsonValue& rhs);
 MC_API bool operator!=(const std::string lhs, const JsonValue& rhs);
 MC_API bool operator==(const char* lhs, const JsonValue& rhs);
 MC_API bool operator!=(const char* lhs, const JsonValue& rhs);
-template <typename T,
-          typename std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<T, bool>, int> = 0>
+template <typename T, typename std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<T, bool>, int> = 0>
 bool operator==(T lhs, const JsonValue& rhs)
 {
     return rhs == static_cast<int64_t>(lhs);
 }
-template <typename T,
-          typename std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<T, bool>, int> = 0>
+template <typename T, typename std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<T, bool>, int> = 0>
 bool operator!=(T lhs, const JsonValue& rhs)
 {
     return !(rhs == lhs);
@@ -293,10 +283,8 @@ public:
         using pointer           = void;
         using reference         = JsonValue;
 
-        iterator(const JsonArray* array, uint32_t index)
-            : m_array(array), m_index(index)
-        {
-        }
+        iterator(const JsonArray* array, uint32_t index) : m_array(array), m_index(index)
+        {}
 
         JsonValue operator*() const
         {
@@ -428,8 +416,7 @@ public:
     /** 构造：父 Array（JsonValue）、索引、可选的当前元素值（默认空） */
     JsonArrayValue(JsonValue* parent_array, uint32_t index, JsonValue value = JsonValue())
         : JsonValue(value), m_parent(parent_array), m_index(index)
-    {
-    }
+    {}
 
     JsonArrayValue& operator=(const JsonValue& value);
     JsonArrayValue& operator=(int64_t value);
@@ -438,8 +425,7 @@ public:
     JsonArrayValue& operator=(std::string_view value);
     JsonArrayValue& operator=(const char* value);
     JsonArrayValue& operator=(const std::string& value);
-    template <typename T,
-              typename std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<T, bool>, int> = 0>
+    template <typename T, typename std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<T, bool>, int> = 0>
     JsonArrayValue& operator=(T value)
     {
         return *this = static_cast<int64_t>(value);
@@ -464,8 +450,7 @@ public:
     /** 构造：父 Object（JsonValue）、键、可选的当前元素值（默认空） */
     JsonObjectValue(JsonValue* parent_object, std::string_view key, JsonValue value = JsonValue())
         : JsonValue(value), m_parent(parent_object), m_key(key)
-    {
-    }
+    {}
 
     JsonObjectValue& operator=(const JsonValue& value);
     JsonObjectValue& operator=(int64_t value);
@@ -474,8 +459,7 @@ public:
     JsonObjectValue& operator=(std::string_view value);
     JsonObjectValue& operator=(const char* value);
     JsonObjectValue& operator=(const std::string& value);
-    template <typename T,
-              typename std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<T, bool>, int> = 0>
+    template <typename T, typename std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<T, bool>, int> = 0>
     JsonObjectValue& operator=(T value)
     {
         return *this = static_cast<int64_t>(value);

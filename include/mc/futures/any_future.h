@@ -29,9 +29,7 @@ template <typename T, typename = void>
 struct is_future : std::false_type {};
 
 template <typename T>
-struct is_future<T,
-                 std::void_t<typename mc::traits::remove_cvref_t<T>::is_future>>
-    : std::true_type {};
+struct is_future<T, std::void_t<typename mc::traits::remove_cvref_t<T>::is_future>> : std::true_type {};
 
 template <typename T>
 constexpr bool is_future_v = is_future<std::remove_cv_t<T>>::value;
@@ -98,13 +96,15 @@ public:
 
     static any_future delay(duration_type duration, executor_type executor);
 
-    void add_continuation(callback_type continuation, launch policy = launch::async, std::optional<mc::any_executor> executor = std::nullopt);
+    void add_continuation(callback_type continuation, launch policy = launch::async,
+                          std::optional<mc::any_executor> executor = std::nullopt);
 
 protected:
     void on_cancel(callback_type callback);
     void on_cancel(any_promise& other_promise);
     void on_cancel(any_future& other_future);
-    void finally(any_promise& promise, callback_type cleanup, launch policy = launch::async, std::optional<mc::any_executor> executor = std::nullopt);
+    void finally(any_promise& promise, callback_type cleanup, launch policy = launch::async,
+                 std::optional<mc::any_executor> executor = std::nullopt);
     void tap_error(std::function<void(const mc::exception&)> inspector, launch policy);
 
     state_base_ptr m_state;

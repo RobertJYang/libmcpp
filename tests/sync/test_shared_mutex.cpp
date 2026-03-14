@@ -67,8 +67,7 @@ struct heavy_reader_policy {
 } // namespace test_policies
 
 template <typename Mutex>
-class shared_mutex_test : public mc::test::TestBase {
-};
+class shared_mutex_test : public mc::test::TestBase {};
 
 using MutexTypes = ::testing::Types<mc::sync::shared_mutex, mc::sync::reader_priority_shared_mutex>;
 TYPED_TEST_SUITE(shared_mutex_test, MutexTypes);

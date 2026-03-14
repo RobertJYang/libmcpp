@@ -144,8 +144,7 @@ private:
      * @param error 错误信息
      * @return DBus 连接对象
      */
-    DBusConnection* create_dbus_connection(const std::string& address, DBusError* error, int retry,
-                                           int max_retries);
+    DBusConnection* create_dbus_connection(const std::string& address, DBusError* error, int retry, int max_retries);
 
     /**
      * @brief 注册到 DBus 总线

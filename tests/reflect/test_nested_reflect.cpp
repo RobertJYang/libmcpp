@@ -26,18 +26,10 @@
 
 namespace test_nested_reflect {
 // 测试用的状态枚举
-enum class test_status {
-    ACTIVE,
-    INACTIVE,
-    PENDING
-};
+enum class test_status { ACTIVE, INACTIVE, PENDING };
 
 // 测试用的权限枚举
-enum class test_permission {
-    READ,
-    WRITE,
-    EXECUTE
-};
+enum class test_permission { READ, WRITE, EXECUTE };
 
 // 测试用的地址类
 class test_address {
@@ -48,14 +40,11 @@ public:
     std::string m_street;
     int         m_number;
 
-    test_address()
-        : m_city(""), m_street(""), m_number(0)
-    {
-    }
+    test_address() : m_city(""), m_street(""), m_number(0)
+    {}
     test_address(const std::string& city, const std::string& street, int number)
         : m_city(city), m_street(street), m_number(number)
-    {
-    }
+    {}
 
     bool operator==(const test_address& other) const
     {
@@ -72,14 +61,11 @@ public:
     std::string  m_phone;
     test_address m_address; // 嵌套对象
 
-    test_contact()
-        : m_email(""), m_phone("")
-    {
-    }
+    test_contact() : m_email(""), m_phone("")
+    {}
     test_contact(const std::string& email, const std::string& phone, const test_address& address)
         : m_email(email), m_phone(phone), m_address(address)
-    {
-    }
+    {}
 
     bool operator==(const test_contact& other) const
     {
@@ -98,23 +84,17 @@ public:
     std::vector<test_permission>        m_permissions; // 枚举数组
     std::map<std::string, test_address> m_addresses;   // 键值对嵌套
 
-    test_user()
-        : m_username(""), m_status(test_status::INACTIVE)
-    {
-    }
+    test_user() : m_username(""), m_status(test_status::INACTIVE)
+    {}
     test_user(const std::string& username, const test_contact& contact, test_status status,
-              const std::vector<test_permission>&        permissions,
-              const std::map<std::string, test_address>& addresses)
-        : m_username(username), m_contact(contact), m_status(status), m_permissions(permissions),
-          m_addresses(addresses)
-    {
-    }
+              const std::vector<test_permission>& permissions, const std::map<std::string, test_address>& addresses)
+        : m_username(username), m_contact(contact), m_status(status), m_permissions(permissions), m_addresses(addresses)
+    {}
 
     bool operator==(const test_user& other) const
     {
-        return m_username == other.m_username && m_contact == other.m_contact &&
-               m_status == other.m_status && m_permissions == other.m_permissions &&
-               m_addresses == other.m_addresses;
+        return m_username == other.m_username && m_contact == other.m_contact && m_status == other.m_status &&
+               m_permissions == other.m_permissions && m_addresses == other.m_addresses;
     }
 };
 
@@ -123,16 +103,11 @@ public:
 MC_REFLECTABLE("test_nested_reflect.test_status", test_nested_reflect::test_status)
 MC_REFLECTABLE("test_nested_reflect.test_permission", test_nested_reflect::test_permission)
 
-MC_REFLECT_ENUM(test_nested_reflect::test_status,
-                (ACTIVE)(INACTIVE)(PENDING))
-MC_REFLECT_ENUM(test_nested_reflect::test_permission,
-                (READ)(WRITE)(EXECUTE))
-MC_REFLECT(test_nested_reflect::test_address,
-           (m_city)(m_street)(m_number))
-MC_REFLECT(test_nested_reflect::test_contact,
-           (m_email)(m_phone)(m_address))
-MC_REFLECT(test_nested_reflect::test_user,
-           (m_username)(m_contact)(m_status)(m_permissions)(m_addresses))
+MC_REFLECT_ENUM(test_nested_reflect::test_status, (ACTIVE)(INACTIVE)(PENDING))
+MC_REFLECT_ENUM(test_nested_reflect::test_permission, (READ)(WRITE)(EXECUTE))
+MC_REFLECT(test_nested_reflect::test_address, (m_city)(m_street)(m_number))
+MC_REFLECT(test_nested_reflect::test_contact, (m_email)(m_phone)(m_address))
+MC_REFLECT(test_nested_reflect::test_user, (m_username)(m_contact)(m_status)(m_permissions)(m_addresses))
 
 using namespace test_nested_reflect;
 
@@ -148,10 +123,8 @@ TEST(NestedReflectTest, NestedClassReflection)
     EXPECT_TRUE(mc::reflect::is_reflectable<test_contact>());
 
     // 获取类型名称
-    EXPECT_EQ(mc::reflect::reflector<test_address>::get_name(),
-              "test_nested_reflect.test_address");
-    EXPECT_EQ(mc::reflect::reflector<test_contact>::get_name(),
-              "test_nested_reflect.test_contact");
+    EXPECT_EQ(mc::reflect::reflector<test_address>::get_name(), "test_nested_reflect.test_address");
+    EXPECT_EQ(mc::reflect::reflector<test_contact>::get_name(), "test_nested_reflect.test_contact");
 
     // 转换为变体
     mc::variant var(contact);
@@ -234,8 +207,7 @@ TEST(NestedReflectTest, PartialNestedUpdate)
     // 使用初始化列表构造字典并更新对象
     mc::reflect::reflector<test_user>::from_variant(
         mc::dict{{"m_status", "ACTIVE"},
-                 {"m_contact",
-                  mc::dict{{"m_phone", "99999999999"}, {"m_address", mc::dict{{"m_city", "上海"}}}}}},
+                 {"m_contact", mc::dict{{"m_phone", "99999999999"}, {"m_address", mc::dict{{"m_city", "上海"}}}}}},
         user);
 
     // 检查更新后的对象
@@ -344,8 +316,7 @@ TEST(NestedReflectTest, NestedCollections)
                   {"permissions", mc::variants{"READ", "WRITE", "EXECUTE"}},
                   {"addresses",
                    mc::dict{{"home", mc::dict{{"m_city", "北京"}, {"m_street", "中关村"}, {"m_number", 123}}},
-                            {"work",
-                             mc::dict{{"m_city", "上海"}, {"m_street", "南京路"}, {"m_number", 456}}}}}}}};
+                            {"work", mc::dict{{"m_city", "上海"}, {"m_street", "南京路"}, {"m_number", 456}}}}}}}};
 
     // 从字典中提取数据
     const auto& user_info = complex_dict["user_info"];

@@ -104,56 +104,56 @@ inline logger mdbctl_logger()
 #define mdbctl_log(...)            mc_mdbctl_log(mc::log::mdbctl_logger(), __VA_ARGS__)
 
 // 运行日志宏（格式：时间、级别、日志内容，不含 trace、fatal）
-#define mc_running_dlog(LOGGER, ...) \
+#define mc_running_dlog(LOGGER, ...)                                                                                   \
     MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, mc::log::log_category::running, debug, __VA_ARGS__)
-#define mc_running_ilog(LOGGER, ...) \
+#define mc_running_ilog(LOGGER, ...)                                                                                   \
     MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, mc::log::log_category::running, info, __VA_ARGS__)
-#define mc_running_nlog(LOGGER, ...) \
+#define mc_running_nlog(LOGGER, ...)                                                                                   \
     MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, mc::log::log_category::running, notice, __VA_ARGS__)
-#define mc_running_wlog(LOGGER, ...) \
+#define mc_running_wlog(LOGGER, ...)                                                                                   \
     MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, mc::log::log_category::running, warn, __VA_ARGS__)
-#define mc_running_elog(LOGGER, ...) \
+#define mc_running_elog(LOGGER, ...)                                                                                   \
     MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, mc::log::log_category::running, error, __VA_ARGS__)
 
 // 维护日志宏（格式：LOGGER, error_code, message，错误码为空时仅输出时间、级别、内容，不含 trace、fatal）
-#define mc_maintenance_dlog(LOGGER, error_code, ...)                                \
-    MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, mc::log::log_category::maintenance, \
-                                        debug, __VA_ARGS__, ("error_code", error_code))
-#define mc_maintenance_ilog(LOGGER, error_code, ...)                                \
-    MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, mc::log::log_category::maintenance, \
-                                        info, __VA_ARGS__, ("error_code", error_code))
-#define mc_maintenance_nlog(LOGGER, error_code, ...)                                \
-    MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, mc::log::log_category::maintenance, \
-                                        notice, __VA_ARGS__, ("error_code", error_code))
-#define mc_maintenance_wlog(LOGGER, error_code, ...)                                \
-    MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, mc::log::log_category::maintenance, \
-                                        warn, __VA_ARGS__, ("error_code", error_code))
-#define mc_maintenance_elog(LOGGER, error_code, ...)                                \
-    MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, mc::log::log_category::maintenance, \
-                                        error, __VA_ARGS__, ("error_code", error_code))
+#define mc_maintenance_dlog(LOGGER, error_code, ...)                                                                   \
+    MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, mc::log::log_category::maintenance, debug, __VA_ARGS__,                \
+                                        ("error_code", error_code))
+#define mc_maintenance_ilog(LOGGER, error_code, ...)                                                                   \
+    MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, mc::log::log_category::maintenance, info, __VA_ARGS__,                 \
+                                        ("error_code", error_code))
+#define mc_maintenance_nlog(LOGGER, error_code, ...)                                                                   \
+    MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, mc::log::log_category::maintenance, notice, __VA_ARGS__,               \
+                                        ("error_code", error_code))
+#define mc_maintenance_wlog(LOGGER, error_code, ...)                                                                   \
+    MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, mc::log::log_category::maintenance, warn, __VA_ARGS__,                 \
+                                        ("error_code", error_code))
+#define mc_maintenance_elog(LOGGER, error_code, ...)                                                                   \
+    MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, mc::log::log_category::maintenance, error, __VA_ARGS__,                \
+                                        ("error_code", error_code))
 
 // 安全日志宏（格式：时间、级别、日志内容，仅 message 参数，使用 info 级别）
-#define mc_security_log(LOGGER, ...) \
+#define mc_security_log(LOGGER, ...)                                                                                   \
     MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, mc::log::log_category::security, info, __VA_ARGS__)
 
 // 南向硬件流日志宏（输出到相关日志文件 LOG_LOCAL6，格式：时间 模块名 级别: 文件名(行数): 日志文本）
-#define mc_hw_stream_info(LOGGER, ...) \
+#define mc_hw_stream_info(LOGGER, ...)                                                                                 \
     MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, mc::log::log_category::hw_stream, info, __VA_ARGS__)
-#define mc_hw_stream_warn(LOGGER, ...) \
+#define mc_hw_stream_warn(LOGGER, ...)                                                                                 \
     MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, mc::log::log_category::hw_stream, warn, __VA_ARGS__)
-#define mc_hw_stream_notice(LOGGER, ...) \
+#define mc_hw_stream_notice(LOGGER, ...)                                                                               \
     MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, mc::log::log_category::hw_stream, notice, __VA_ARGS__)
-#define mc_hw_stream_error(LOGGER, ...) \
+#define mc_hw_stream_error(LOGGER, ...)                                                                                \
     MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, mc::log::log_category::hw_stream, error, __VA_ARGS__)
 
 // mc 流日志宏（输出到相关日志文件 LOG_LOCAL5，格式与 hw_stream 相同）
-#define mc_mc_stream_info(LOGGER, ...) \
+#define mc_mc_stream_info(LOGGER, ...)                                                                                 \
     MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, mc::log::log_category::mc_stream, info, __VA_ARGS__)
-#define mc_mc_stream_warn(LOGGER, ...) \
+#define mc_mc_stream_warn(LOGGER, ...)                                                                                 \
     MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, mc::log::log_category::mc_stream, warn, __VA_ARGS__)
-#define mc_mc_stream_notice(LOGGER, ...) \
+#define mc_mc_stream_notice(LOGGER, ...)                                                                               \
     MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, mc::log::log_category::mc_stream, notice, __VA_ARGS__)
-#define mc_mc_stream_error(LOGGER, ...) \
+#define mc_mc_stream_error(LOGGER, ...)                                                                                \
     MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, mc::log::log_category::mc_stream, error, __VA_ARGS__)
 
 // 使用默认日志记录器的全局日志宏

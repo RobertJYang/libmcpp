@@ -16,10 +16,8 @@
 
 namespace mc::expr {
 
-parser::parser(std::vector<token> tokens)
-    : m_tokens(std::move(tokens)), m_current(0)
-{
-}
+parser::parser(std::vector<token> tokens) : m_tokens(std::move(tokens)), m_current(0)
+{}
 
 bool parser::match(std::initializer_list<token_type> types)
 {
@@ -170,10 +168,9 @@ node_ptr parser::shift()
     auto expr = equality();
 
     while (match({token_type::lshift, token_type::rshift})) {
-        operator_type op =
-            previous().type == token_type::lshift ? operator_type::lshift : operator_type::rshift;
-        auto right = equality();
-        expr       = make_binary_op(op, expr, right);
+        operator_type op    = previous().type == token_type::lshift ? operator_type::lshift : operator_type::rshift;
+        auto          right = equality();
+        expr                = make_binary_op(op, expr, right);
     }
 
     return expr;
@@ -185,10 +182,9 @@ node_ptr parser::equality()
     auto expr = comparison();
 
     while (match({token_type::equals, token_type::not_equals})) {
-        operator_type op =
-            previous().type == token_type::equals ? operator_type::eq : operator_type::ne;
-        auto right = comparison();
-        expr       = make_binary_op(op, expr, right);
+        operator_type op    = previous().type == token_type::equals ? operator_type::eq : operator_type::ne;
+        auto          right = comparison();
+        expr                = make_binary_op(op, expr, right);
     }
 
     return expr;
@@ -199,8 +195,7 @@ node_ptr parser::comparison()
 {
     auto expr = term();
 
-    while (match({token_type::less, token_type::less_equals, token_type::greater,
-                  token_type::greater_equals})) {
+    while (match({token_type::less, token_type::less_equals, token_type::greater, token_type::greater_equals})) {
         operator_type op;
         switch (previous().type) {
             case token_type::less:
@@ -252,8 +247,7 @@ node_ptr parser::term()
     // 2. while循环处理连续的加减运算
     while (match({token_type::plus, token_type::minus})) {
         // 3. 三元运算符：condition ? value_if_true : value_if_false
-        operator_type op =
-            previous().type == token_type::plus ? operator_type::add : operator_type::sub;
+        operator_type op = previous().type == token_type::plus ? operator_type::add : operator_type::sub;
 
         // 4. 解析右操作数
         auto right = factor();
@@ -445,8 +439,7 @@ node_ptr parser::parse_template_string()
             text_parts.push_back(previous().literal.as_string());
             break;
         } else {
-            MC_THROW(parse_error_exception,
-                     "表达式解析错误: 期望模板字符串中间部分或结束部分");
+            MC_THROW(parse_error_exception, "表达式解析错误: 期望模板字符串中间部分或结束部分");
         }
     }
 

@@ -40,10 +40,10 @@ protected:
         TestBase::SetUp();
 
         // 创建共享内存管理器
-        m_shm_manager = std::make_unique<shared_memory_manager>(
-            "test_shared_mutex_memory",
-            32 * 1024, // 32KB足够测试用
-            shared_memory_manager::REMOVE_ON_EXIT | shared_memory_manager::REMOVE_IF_EXISTS);
+        m_shm_manager = std::make_unique<shared_memory_manager>("test_shared_mutex_memory",
+                                                                32 * 1024, // 32KB足够测试用
+                                                                shared_memory_manager::REMOVE_ON_EXIT |
+                                                                    shared_memory_manager::REMOVE_IF_EXISTS);
 
         // 获取共享内存
         m_shm = m_shm_manager->get_shared_memory();
@@ -776,7 +776,8 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexAggressiveCleanupReaderCountUpdate)
     m_ipc_shared_mutex->unlock_shared();
 }
 
-// 测试 ipc_shared_mutex 的 try_lock_shared 中 m_writer_pid != 0 && m_writer_pid != pid 且 is_writer_alive 返回 false 的分支
+// 测试 ipc_shared_mutex 的 try_lock_shared 中 m_writer_pid != 0 && m_writer_pid != pid 且 is_writer_alive 返回 false
+// 的分支
 TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockSharedDeadWriter)
 {
     // 获取写锁

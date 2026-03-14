@@ -24,16 +24,13 @@ namespace {
 class expr_test : public ::testing::Test {
 protected:
     expr_test()
-    {
-    }
+    {}
 
     void SetUp() override
-    {
-    }
+    {}
 
     void TearDown() override
-    {
-    }
+    {}
 
     mc::expr::engine engine;
 };
@@ -285,16 +282,13 @@ TEST_F(expr_test, TemplateStrings)
     EXPECT_EQ(engine.evaluate("\"Next year: ${age + 1}\"", ctx), "Next year: 31");
 
     // 使用条件表达式
-    EXPECT_EQ(engine.evaluate("\"Status: ${age >= 18 ? 'adult' : 'minor'}\"", ctx),
-              "Status: adult");
+    EXPECT_EQ(engine.evaluate("\"Status: ${age >= 18 ? 'adult' : 'minor'}\"", ctx), "Status: adult");
 
     // 嵌套表达式（字符串拼接）
-    EXPECT_EQ(engine.evaluate("\"${name + ' says: \"Hi ' + name + '!\"'}\"", ctx),
-              "Alice says: \"Hi Alice!\"");
+    EXPECT_EQ(engine.evaluate("\"${name + ' says: \"Hi ' + name + '!\"'}\"", ctx), "Alice says: \"Hi Alice!\"");
 
     // 复杂表达式组合
-    EXPECT_EQ(engine.evaluate("\"${1 + 2} plus ${3 + 4} equals ${(1 + 2) + (3 + 4)}\"", ctx),
-              "3 plus 7 equals 10");
+    EXPECT_EQ(engine.evaluate("\"${1 + 2} plus ${3 + 4} equals ${(1 + 2) + (3 + 4)}\"", ctx), "3 plus 7 equals 10");
 
     // 布尔值
     EXPECT_EQ(engine.evaluate("\"Is adult: ${age >= 18}\"", ctx), "Is adult: true");

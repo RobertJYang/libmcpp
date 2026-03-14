@@ -30,8 +30,7 @@ protected:
     }
 
     void TearDown() override
-    {
-    }
+    {}
 
     mc::expr::engine  engine;
     mc::expr::context m_context;

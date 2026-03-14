@@ -155,7 +155,7 @@ void write_double_value(std::ostream& os, std::string& out, char type_char, int 
         case 'e':
         case 'E': {
             os << std::scientific << (type_char == 'E' ? std::uppercase : std::nouppercase)
-            << std::setprecision(precision) << abs_val;
+               << std::setprecision(precision) << abs_val;
             break;
         }
         case 'g':
@@ -174,7 +174,7 @@ void write_double_value(std::ostream& os, std::string& out, char type_char, int 
         case 'A': {
             auto start_pos = out.size();
             os << std::hexfloat << (type_char == 'A' ? std::uppercase : std::nouppercase)
-            << std::setprecision(precision) << abs_val;
+               << std::setprecision(precision) << abs_val;
             remove_hex_prefix(out, start_pos);
             break;
         }
@@ -452,8 +452,7 @@ void format_parser::format_arg(format_context& ctx, const detail::format_arg& ar
             mc::fmt::detail::format_double(ctx, value, spec);
         } else if constexpr (mc::fmt::detail::is_char<T>::value) {
             format_parser::format_char(ctx, static_cast<char>(value), spec);
-        } else if constexpr (std::is_same_v<T, string_view> ||
-                             std::is_same_v<T, const char*>) {
+        } else if constexpr (std::is_same_v<T, string_view> || std::is_same_v<T, const char*>) {
             format_parser::format_string(ctx, value, spec);
         } else if constexpr (std::is_same_v<T, const void*>) {
             format_parser::format_pointer(ctx, value, spec);

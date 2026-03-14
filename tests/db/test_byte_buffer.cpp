@@ -16,8 +16,7 @@
 
 namespace {
 
-class byte_buffer_test : public mc::test::TestBase {
-};
+class byte_buffer_test : public mc::test::TestBase {};
 
 // 测试 try_grow_by_reslice - 在容量内返回 true
 TEST_F(byte_buffer_test, TryGrowByReslice)

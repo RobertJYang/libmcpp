@@ -23,8 +23,7 @@
 namespace mc {
 
 variants::variants()
-{
-}
+{}
 
 variants::variants(const mc::variant& other)
 {
@@ -40,17 +39,14 @@ variants::variants(const std::allocator<char>& alloc)
     MC_UNUSED(alloc);
 }
 
-variants::variants(const variants& other, const std::allocator<char>& alloc)
-    : variants(other)
+variants::variants(const variants& other, const std::allocator<char>& alloc) : variants(other)
 {
     // 忽略分配器参数，因为 variants 不使用分配器
     MC_UNUSED(alloc);
 }
 
-variants::variants(mc::shared_ptr<i_variants> data)
-    : m_data(std::move(data))
-{
-}
+variants::variants(mc::shared_ptr<i_variants> data) : m_data(std::move(data))
+{}
 
 void variants::ensure_data()
 {
@@ -351,15 +347,11 @@ variant variants::back() const
 }
 
 // variants_iterator 实现
-variants_iterator::variants_iterator()
-    : m_data(nullptr), m_index(0)
-{
-}
+variants_iterator::variants_iterator() : m_data(nullptr), m_index(0)
+{}
 
-variants_iterator::variants_iterator(mc::shared_ptr<i_variants> data, size_t index)
-    : m_data(data), m_index(index)
-{
-}
+variants_iterator::variants_iterator(mc::shared_ptr<i_variants> data, size_t index) : m_data(data), m_index(index)
+{}
 
 variants_iterator& variants_iterator::operator++()
 {
@@ -465,20 +457,16 @@ bool variants_iterator::operator>=(const variants_iterator& other) const
 }
 
 // variants_const_iterator 实现
-variants_const_iterator::variants_const_iterator()
-    : m_data(nullptr), m_index(0)
-{
-}
+variants_const_iterator::variants_const_iterator() : m_data(nullptr), m_index(0)
+{}
 
 variants_const_iterator::variants_const_iterator(mc::shared_ptr<i_variants> data, size_t index)
     : m_data(data), m_index(index)
-{
-}
+{}
 
 variants_const_iterator::variants_const_iterator(const variants_iterator& other)
     : m_data(other.m_data), m_index(other.m_index)
-{
-}
+{}
 
 variants_const_iterator& variants_const_iterator::operator++()
 {
@@ -675,12 +663,16 @@ void variants::insert(size_t pos, InputIt first, InputIt last)
 }
 
 // 显式实例化常用的模板版本
-template void MC_API variants::insert<variants_const_iterator>(size_t pos, variants_const_iterator first, variants_const_iterator last);
+template void MC_API variants::insert<variants_const_iterator>(size_t pos, variants_const_iterator first,
+                                                               variants_const_iterator last);
 template void MC_API variants::insert<variants_iterator>(size_t pos, variants_iterator first, variants_iterator last);
 
 // 迭代器版本的 insert 显式实例化
-template variants_iterator MC_API variants::insert<variants_const_iterator>(variants_iterator pos, variants_const_iterator first, variants_const_iterator last);
-template variants_iterator MC_API variants::insert<variants_iterator>(variants_iterator pos, variants_iterator first, variants_iterator last);
+template variants_iterator MC_API variants::insert<variants_const_iterator>(variants_iterator       pos,
+                                                                            variants_const_iterator first,
+                                                                            variants_const_iterator last);
+template variants_iterator MC_API variants::insert<variants_iterator>(variants_iterator pos, variants_iterator first,
+                                                                      variants_iterator last);
 
 // variants 迭代器方法实现
 variants_const_iterator variants::begin() const

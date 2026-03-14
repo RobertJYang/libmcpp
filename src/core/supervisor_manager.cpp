@@ -19,8 +19,7 @@
 namespace mc::core {
 
 supervisor_manager::supervisor_manager()
-{
-}
+{}
 
 supervisor_manager::~supervisor_manager()
 {
@@ -65,8 +64,7 @@ supervisor_ptr supervisor_manager::create_supervisor(const config::supervisor_co
         m_supervisors[config.meta.name] = supervisor;
         return supervisor;
     } catch (const std::exception& e) {
-        elog("error: create supervisor '${name}' failed: ${error}",
-             ("name", config.meta.name)("error", e.what()));
+        elog("error: create supervisor '${name}' failed: ${error}", ("name", config.meta.name)("error", e.what()));
         return nullptr;
     }
 }
@@ -114,8 +112,7 @@ bool supervisor_manager::start_supervisors()
                 success = false;
             }
         } catch (const std::exception& e) {
-            elog("error: start supervisor '${name}' failed: ${error}",
-                 ("name", name)("error", e.what()));
+            elog("error: start supervisor '${name}' failed: ${error}", ("name", name)("error", e.what()));
             success = false;
         }
     }
@@ -136,8 +133,7 @@ bool supervisor_manager::stop_supervisors()
                 success = false;
             }
         } catch (const std::exception& e) {
-            elog("error: stop supervisor '${name}' failed: ${error}",
-                 ("name", name)("error", e.what()));
+            elog("error: stop supervisor '${name}' failed: ${error}", ("name", name)("error", e.what()));
             success = false;
         }
     }
@@ -145,8 +141,7 @@ bool supervisor_manager::stop_supervisors()
     return success;
 }
 
-bool supervisor_manager::initialize_from_configs(
-    const std::vector<config::supervisor_config>& configs)
+bool supervisor_manager::initialize_from_configs(const std::vector<config::supervisor_config>& configs)
 {
     for (const auto& sup_config : configs) {
         auto supervisor = std::make_shared<default_supervisor>();

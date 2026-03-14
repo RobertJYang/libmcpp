@@ -18,10 +18,8 @@
 
 namespace mc::core {
 
-default_supervisor::default_supervisor()
-    : m_started(false)
-{
-}
+default_supervisor::default_supervisor() : m_started(false)
+{}
 
 bool default_supervisor::init(const config::supervisor_config& config)
 {
@@ -36,8 +34,8 @@ bool default_supervisor::init(const config::supervisor_config& config)
     m_restart_window_seconds = config.restart_window_seconds;
 
     ilog("init supervisor: ${name}, strategy: ${strategy}, max_restarts: ${max_restarts}, restart_window: ${window}s",
-         ("name", m_name)("strategy", get_strategy_name(m_strategy))("max_restarts",
-                                                                     m_max_restarts)("window", m_restart_window_seconds));
+         ("name", m_name)("strategy", get_strategy_name(m_strategy))("max_restarts", m_max_restarts)(
+             "window", m_restart_window_seconds));
 
     return true;
 }
@@ -65,8 +63,8 @@ bool default_supervisor::start()
     };
 
     try {
-        auto graph = core::internal::dependency_sorter::build_dependency_graph<service_base_ptr>(
-            m_services, get_dependencies);
+        auto graph =
+            core::internal::dependency_sorter::build_dependency_graph<service_base_ptr>(m_services, get_dependencies);
         auto start_order = core::internal::dependency_sorter::sort_for_startup(graph);
 
         // 按顺序启动服务
@@ -298,8 +296,8 @@ bool default_supervisor::restart_dependent_services(const std::string& service_n
     };
 
     try {
-        auto graph = core::internal::dependency_sorter::build_dependency_graph<service_base_ptr>(
-            m_services, get_dependencies);
+        auto graph =
+            core::internal::dependency_sorter::build_dependency_graph<service_base_ptr>(m_services, get_dependencies);
 
         // 获取所有受影响的服务（直接和间接依赖）
         std::unordered_set<std::string> affected_services;
@@ -327,9 +325,9 @@ bool default_supervisor::restart_dependent_services(const std::string& service_n
 }
 
 // 收集所有依赖于指定服务的服务（包括间接依赖）
-void default_supervisor::collect_dependent_services(
-    const std::unordered_map<std::string, dependency_node>& graph, const std::string& service_name,
-    std::unordered_set<std::string>& affected_services)
+void default_supervisor::collect_dependent_services(const std::unordered_map<std::string, dependency_node>& graph,
+                                                    const std::string&               service_name,
+                                                    std::unordered_set<std::string>& affected_services)
 {
     if (affected_services.find(service_name) != affected_services.end()) {
         return; // 已处理过此服务
@@ -434,8 +432,8 @@ std::vector<std::string> default_supervisor::get_service_stop_order_internal() c
     };
 
     // 使用dependency_sorter构建依赖图
-    auto graph = core::internal::dependency_sorter::build_dependency_graph<service_base_ptr>(
-        m_services, get_dependencies);
+    auto graph =
+        core::internal::dependency_sorter::build_dependency_graph<service_base_ptr>(m_services, get_dependencies);
 
     // 获取停止顺序（按照被依赖关系的拓扑排序）
     try {

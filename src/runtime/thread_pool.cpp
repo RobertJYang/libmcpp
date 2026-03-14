@@ -69,7 +69,8 @@ std::string make_thread_name(const std::string& base_name, std::size_t index)
 } // namespace
 
 thread_pool::thread_pool(std::size_t num_threads, const std::string& name)
-    : boost::asio::execution_context(), m_scheduler(get_or_create_scheduler(*this)), m_num_threads(num_threads), m_name(name)
+    : boost::asio::execution_context(), m_scheduler(get_or_create_scheduler(*this)), m_num_threads(num_threads),
+      m_name(name)
 {
     MC_ASSERT_THROW(m_num_threads < NULL_INDEX, mc::runtime_exception, "线程数不能超过 {}", NULL_INDEX - 1);
 
@@ -136,10 +137,8 @@ void thread_pool::push_idle(shard_t* shard)
         // 增加 Tag（高48位）+ 设置新 Index（低16位）
         uint64_t new_tag = (old_head & ~INDEX_MASK) + TAG_INCREMENT;
         new_head         = new_tag | shard->id;
-
-    } while (!m_idle_head.compare_exchange_weak(old_head, new_head,
-                                                std::memory_order_release,
-                                                std::memory_order_relaxed));
+    } while (
+        !m_idle_head.compare_exchange_weak(old_head, new_head, std::memory_order_release, std::memory_order_relaxed));
 }
 
 bool thread_pool::has_work(shard_t* shard)
@@ -207,16 +206,14 @@ thread_pool::shard_t* thread_pool::acquire_idle_worker()
         uint64_t new_tag  = (old_head & ~INDEX_MASK) + TAG_INCREMENT;
         uint64_t new_head = new_tag | next_index;
 
-        if (m_idle_head.compare_exchange_weak(old_head, new_head,
-                                              std::memory_order_acquire,
+        if (m_idle_head.compare_exchange_weak(old_head, new_head, std::memory_order_acquire,
                                               std::memory_order_acquire)) {
             // 标记为不在栈中
             node->in_stack.store(false, std::memory_order_release);
 
             // 尝试通知：Idle -> Notified
             State expected = State::Idle;
-            if (node->state.compare_exchange_strong(expected, State::Notified,
-                                                    std::memory_order_release,
+            if (node->state.compare_exchange_strong(expected, State::Notified, std::memory_order_release,
                                                     std::memory_order_relaxed)) {
                 // 成功抢占该 Worker。返回它以便调用者决定如何使用
                 return node;
@@ -230,8 +227,7 @@ thread_pool::shard_t* thread_pool::acquire_idle_worker()
 }
 
 static void empty_cb()
-{
-}
+{}
 
 void thread_pool::wake_up_workers()
 {
@@ -241,9 +237,8 @@ void thread_pool::wake_up_workers()
 
     // 尝试获取一个 Idle Worker
     if (auto* shard = acquire_idle_worker()) {
-        boost::asio::post(
-            shard->ctx->get_executor(),
-            boost::asio::bind_allocator(boost::asio::recycling_allocator<void>(), empty_cb));
+        boost::asio::post(shard->ctx->get_executor(),
+                          boost::asio::bind_allocator(boost::asio::recycling_allocator<void>(), empty_cb));
         return;
     }
 }
@@ -309,8 +304,8 @@ void thread_pool::run()
         if (t_current_shard != nullptr && &t_current_shard->pool == this) {
             shard = t_current_shard;
         } else {
-            MC_ASSERT_THROW(m_shards.size() < NULL_INDEX, mc::runtime_exception,
-                            "线程数不能超过 ${max}", ("max", NULL_INDEX - 1));
+            MC_ASSERT_THROW(m_shards.size() < NULL_INDEX, mc::runtime_exception, "线程数不能超过 ${max}",
+                            ("max", NULL_INDEX - 1));
 
             auto new_shard  = std::make_unique<shard_t>(*this);
             new_shard->ctx  = std::make_unique<io_context>();
@@ -334,8 +329,7 @@ void thread_pool::run()
     try {
         worker_loop(shard);
     } catch (const std::exception& e) {
-        elog("${name} 外部线程 shard ${idx} 异常: ${error}",
-             ("name", m_name)("idx", shard->id)("error", e.what()));
+        elog("${name} 外部线程 shard ${idx} 异常: ${error}", ("name", m_name)("idx", shard->id)("error", e.what()));
     }
     dlog("${name} 外部线程 shard ${idx} 结束", ("name", m_name)("idx", shard->id));
 

@@ -31,10 +31,8 @@ namespace mc {
 
 error::error() = default;
 
-error::error(const error_info& info)
-    : mc::enable_shared_from_this<error>(), error_info(info)
-{
-}
+error::error(const error_info& info) : mc::enable_shared_from_this<error>(), error_info(info)
+{}
 
 error::error(std::string_view name, std::string_view format, error_level level)
     : mc::enable_shared_from_this<error>(), error_info(name, format, level)
@@ -48,8 +46,7 @@ error::error(std::string_view name, std::string_view format, error_level level)
 }
 
 error::error(const error& other)
-    : mc::enable_shared_from_this<error>(other),
-      error_info(other.m_name_storage, other.m_format_storage, other.level),
+    : mc::enable_shared_from_this<error>(other), error_info(other.m_name_storage, other.m_format_storage, other.level),
       m_name_storage(other.m_name_storage), m_format_storage(other.m_format_storage)
 {
     this->args = other.args;
@@ -184,7 +181,7 @@ std::string error::get_message() const
     std::string formatted;
     // 检测是否包含 %数字 占位符
     static const std::regex placeholder_pattern("%(\\d+)");
-    bool                    has_percent_placeholder = std::regex_search(format_to_use.begin(), format_to_use.end(), placeholder_pattern);
+    bool has_percent_placeholder = std::regex_search(format_to_use.begin(), format_to_use.end(), placeholder_pattern);
 
     if (from_registry || has_percent_placeholder) {
         // 从错误引擎查找到的，或者包含 %数字 占位符的，使用 error_message_parser 格式化（支持 %1, %2 等占位符）
@@ -207,12 +204,14 @@ void error::set_level(error_level level)
     this->level = level;
 }
 
-void error::set_name(std::string_view name) {
+void error::set_name(std::string_view name)
+{
     m_name_storage = name;
     this->name     = m_name_storage;
 }
 
-void error::set_format(std::string_view format) {
+void error::set_format(std::string_view format)
+{
     m_format_storage = format;
     this->format     = m_format_storage;
 }
@@ -258,8 +257,7 @@ std::string error::to_string() const
 
     // 如果有调用栈信息，追加显示
     if (!m_traceback.empty()) {
-        oss << "\n"
-            << m_traceback;
+        oss << "\n" << m_traceback;
     }
 
     return oss.str();
@@ -311,16 +309,12 @@ bool error::operator!=(const error& other) const
 
 mc::log::message error::to_log_message() const
 {
-    return mc::log::message(
-        this->level,
-        mc::log::context("", std::string(this->name), 0),
-        std::string(this->format),
-        this->args);
+    return mc::log::message(this->level, mc::log::context("", std::string(this->name), 0), std::string(this->format),
+                            this->args);
 }
 
 error_with_owner::error_with_owner()
-{
-}
+{}
 
 error_with_owner::error_with_owner(std::string name, std::string format)
     : m_name_owner(std::move(name)), m_format_owner(std::move(format))
@@ -512,8 +506,7 @@ std::string error::encode(const mc::json::json_encode_options& options) const
 /**
  * @brief 从 JSON 反序列化(静态方法)
  */
-mc::shared_ptr<error> error::decode(std::string_view                     json,
-                                    const mc::json::json_decode_options& options)
+mc::shared_ptr<error> error::decode(std::string_view json, const mc::json::json_decode_options& options)
 {
     // 解析 JSON 字符串
     mc::variant var = mc::json::json_decode(json, options);

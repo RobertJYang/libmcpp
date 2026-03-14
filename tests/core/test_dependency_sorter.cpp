@@ -48,8 +48,7 @@ TEST_F(dependency_sorter_test, build_dependency_graph_simple)
         {"C", {"C", {"B"}}},
     };
 
-    auto graph = dependency_sorter::build_dependency_graph<test_item>(
-        items, [](const test_item& item) {
+    auto graph = dependency_sorter::build_dependency_graph<test_item>(items, [](const test_item& item) {
         return item.dependencies;
     });
 
@@ -213,8 +212,7 @@ TEST_F(dependency_sorter_test, build_dependency_graph_with_external_dependency)
         {"C", {"C", {"B"}}}, // C 依赖 B
     };
 
-    auto graph = dependency_sorter::build_dependency_graph<test_item>(
-        items, [](const test_item& item) {
+    auto graph = dependency_sorter::build_dependency_graph<test_item>(items, [](const test_item& item) {
         return item.dependencies;
     });
 

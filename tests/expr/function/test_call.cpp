@@ -83,8 +83,7 @@ TEST(FunctionCallTest, GetRelatePropertiesBasic)
     relate_prop_dict["full_name"]     = "CPU.Temperature";
     relate_prop_dict["interface"]     = ""; // 添加interface字段
 
-    mc::dict args = {
-        {"prop_param", relate_prop_dict}};
+    mc::dict args = {{"prop_param", relate_prop_dict}};
 
     func test_func("prop_param", args);
     functions.insert("$Func_Test", mc::variant(test_func));
@@ -122,9 +121,7 @@ TEST(FunctionCallTest, GetRelatePropertiesWithInterface)
     traditional_prop_dict["interface"]     = ""; // 传统语法接口为空
     traditional_prop_dict["full_name"]     = "#/CPU.Usage";
 
-    mc::dict args = {
-        {"interface_prop", interface_prop_dict},
-        {"traditional_prop", traditional_prop_dict}};
+    mc::dict args = {{"interface_prop", interface_prop_dict}, {"traditional_prop", traditional_prop_dict}};
 
     func test_func("interface_prop + traditional_prop", args);
     functions.insert("$Func_Test", mc::variant(test_func));
@@ -176,9 +173,7 @@ TEST(FunctionCallTest, GetRelatePropertiesMixedSyntax)
     old_syntax_dict["full_name"]     = "#/Memory.Usage";
 
     mc::dict args = {
-        {"normal_param", mc::variant("value")},
-        {"new_syntax", new_syntax_dict},
-        {"old_syntax", old_syntax_dict}};
+        {"normal_param", mc::variant("value")}, {"new_syntax", new_syntax_dict}, {"old_syntax", old_syntax_dict}};
 
     func test_func("normal_param + new_syntax + old_syntax", args);
     functions.insert("$Func_Test", mc::variant(test_func));
@@ -250,16 +245,14 @@ TEST(FunctionCallTest, GetRelatePropertiesNested)
     nested_func_dict["params"]        = nested_params;
 
     // 创建内部函数
-    mc::dict inner_args = {
-        {"nested_prop", nested_prop_dict}};
-    func inner_func("nested_prop", inner_args);
+    mc::dict inner_args = {{"nested_prop", nested_prop_dict}};
+    func     inner_func("nested_prop", inner_args);
     functions.insert("inner_func", mc::variant(inner_func));
     func_collection::get_instance().add("01", nullptr, functions);
 
     // 创建外部函数
-    mc::dict outer_args = {
-        {"outer_param", mc::variant("default")}};
-    func outer_func("outer_param", outer_args);
+    mc::dict outer_args = {{"outer_param", mc::variant("default")}};
+    func     outer_func("outer_param", outer_args);
 
     // 测试参数 - 传入嵌套函数调用
     mc::dict params;
@@ -293,10 +286,7 @@ TEST(FunctionCallTest, GetRelatePropertiesMixed)
     prop2_dict["full_name"]     = "GPU.Load";
     prop2_dict["interface"]     = ""; // 添加interface字段
 
-    mc::dict args = {
-        {"normal_param", mc::variant("value")},
-        {"prop1", prop1_dict},
-        {"prop2", prop2_dict}};
+    mc::dict args = {{"normal_param", mc::variant("value")}, {"prop1", prop1_dict}, {"prop2", prop2_dict}};
 
     func test_func("normal_param + prop1 + prop2", args);
     functions.insert("$Func_Test", mc::variant(test_func));
@@ -322,9 +312,7 @@ TEST(FunctionCallTest, GetRelatePropertiesEmpty)
     mc::dict functions;
 
     // 创建不包含任何 relate_property 的函数
-    mc::dict args = {
-        {"param1", mc::variant("value1")},
-        {"param2", mc::variant(42)}};
+    mc::dict args = {{"param1", mc::variant("value1")}, {"param2", mc::variant(42)}};
 
     func test_func("param1 + param2", args);
     functions.insert("$Func_Test", mc::variant(test_func));
@@ -464,9 +452,7 @@ TEST(FunctionCallTest, ComplexNestedScenario)
     outer_prop["full_name"]     = "CPU.Temperature";
     outer_prop["interface"]     = ""; // 添加interface字段
 
-    mc::dict outer_args = {
-        {"cpu_param", outer_prop},
-        {"nested_call", mc::variant("default")}};
+    mc::dict outer_args = {{"cpu_param", outer_prop}, {"nested_call", mc::variant("default")}};
 
     func outer_func("cpu_param + nested_call", outer_args);
     functions.insert("$Func_Test", mc::variant(outer_func));
@@ -504,9 +490,7 @@ TEST(FunctionCallTest, ErrorHandlingAndEdgeCases)
 
     // 测试只有普通参数的函数
     mc::dict normal_args = {
-        {"param1", mc::variant("value1")},
-        {"param2", mc::variant(42)},
-        {"param3", mc::variant(true)}};
+        {"param1", mc::variant("value1")}, {"param2", mc::variant(42)}, {"param3", mc::variant(true)}};
     func normal_func("param1 + param2 + param3", normal_args);
     functions.clear();
     functions.insert("$Func_Normal", mc::variant(normal_func));
@@ -540,17 +524,15 @@ TEST(FunctionCallValidationTest, ValidateArgsThrowsWhenNoArguments)
 
 TEST_F(FunctionCallFixture, NestedFunctionParameterTriggersHandleFunctionCall)
 {
-    mc::dict inner_args = {
-        {"value", mc::variant("default")}};
-    func inner_func("'inner:' + value", inner_args);
+    mc::dict inner_args = {{"value", mc::variant("default")}};
+    func     inner_func("'inner:' + value", inner_args);
 
     mc::dict registered_functions;
     registered_functions.insert("$Func_Inner", mc::variant(inner_func));
     func_collection::get_instance().add("slotA", nullptr, registered_functions);
 
-    mc::dict outer_args = {
-        {"nested_result", mc::variant("fallback")}};
-    func outer_func("'outer:' + nested_result", outer_args);
+    mc::dict outer_args = {{"nested_result", mc::variant("fallback")}};
+    func     outer_func("'outer:' + nested_result", outer_args);
 
     mc::dict nested_params;
     nested_params.insert("value", mc::variant("42"));
@@ -563,9 +545,8 @@ TEST_F(FunctionCallFixture, NestedFunctionParameterTriggersHandleFunctionCall)
 
 TEST_F(FunctionCallFixture, MissingNestedFunctionFallsBackSilently)
 {
-    mc::dict outer_args = {
-        {"missing_nested", mc::variant(0)}};
-    func outer_func("'static'", outer_args);
+    mc::dict outer_args = {{"missing_nested", mc::variant(0)}};
+    func     outer_func("'static'", outer_args);
 
     mc::dict nested_params;
     mc::dict call_params;

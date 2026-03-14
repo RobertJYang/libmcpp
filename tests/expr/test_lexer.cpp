@@ -17,8 +17,7 @@
 #include <mc/expr/token.h>
 
 // 辅助函数，用于验证词法分析器输出的token
-void verify_number_token(const std::string& expr, mc::variant expected_value,
-                         mc::type_id expected_type)
+void verify_number_token(const std::string& expr, mc::variant expected_value, mc::type_id expected_type)
 {
     mc::expr::lexer lexer(expr);
     auto            tokens = lexer.scan_tokens();
@@ -29,10 +28,8 @@ void verify_number_token(const std::string& expr, mc::variant expected_value,
     ASSERT_EQ(tokens[1].type, mc::expr::token_type::end_of_file);
 
     // 验证值和类型
-    ASSERT_EQ(tokens[0].literal.get_type(), expected_type)
-        << expr << "," << expected_value << "," << expected_type;
-    ASSERT_EQ(tokens[0].literal, expected_value)
-        << expr << "," << expected_value << "," << expected_type;
+    ASSERT_EQ(tokens[0].literal.get_type(), expected_type) << expr << "," << expected_value << "," << expected_type;
+    ASSERT_EQ(tokens[0].literal, expected_value) << expr << "," << expected_value << "," << expected_type;
 }
 
 // 测试十进制数字

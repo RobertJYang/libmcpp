@@ -56,13 +56,11 @@ private:
 
         extension_accessor(mc::shared_ptr<variant_extension_base> ext, std::size_t idx)
             : extension(std::move(ext)), key(idx)
-        {
-        }
+        {}
 
         extension_accessor(mc::shared_ptr<variant_extension_base> ext, std::string k)
             : extension(std::move(ext)), key(std::move(k))
-        {
-        }
+        {}
     };
 
     // 存储 variants 访问信息的结构
@@ -71,20 +69,16 @@ private:
         std::size_t                         index;
         mutable std::optional<variant_type> cached_value; // 缓存获取的值
 
-        variants_accessor(variants cont, std::size_t idx)
-            : container(std::move(cont)), index(idx)
-        {
-        }
+        variants_accessor(variants cont, std::size_t idx) : container(std::move(cont)), index(idx)
+        {}
     };
 
     // 存储临时值的结构（用于右值构造函数）
     struct value_holder {
         variant_type value;
 
-        value_holder(variant_type&& val)
-            : value(std::move(val))
-        {
-        }
+        value_holder(variant_type&& val) : value(std::move(val))
+        {}
     };
 
     std::variant<variant_type*, extension_accessor, variants_accessor, value_holder> m_holder;

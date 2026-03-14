@@ -25,8 +25,7 @@
 #include <vector>
 
 extern "C" MC_API void set_log_module_name(const char*)
-{
-}
+{}
 
 // 定义一个测试模块
 MC_MODULE(mc_test_module)
@@ -57,10 +56,7 @@ public:
 MC_BUILTIN_MODULE_IMPL(mc_test_module);
 
 // 导出测试类
-MC_MODULE_REFLECT(
-    mc_test_module,
-    mc::test_module::test_class,
-    ((set_value, "setValue"))((get_value, "getValue")))
+MC_MODULE_REFLECT(mc_test_module, mc::test_module::test_class, ((set_value, "setValue"))((get_value, "getValue")))
 
 namespace {
 
@@ -108,8 +104,7 @@ protected:
 
 class scoped_env_var {
 public:
-    scoped_env_var(const char* name, const char* value)
-        : m_name(name)
+    scoped_env_var(const char* name, const char* value) : m_name(name)
     {
         const char* original = std::getenv(name);
         if (original != nullptr) {
@@ -278,8 +273,7 @@ TEST_F(ModuleManagerTest, TestLoadedModulesList)
 
     // 检查列表
     auto loaded_modules = manager.loaded_modules();
-    bool found          = std::find(loaded_modules.begin(), loaded_modules.end(), "mc.test.module") !=
-                 loaded_modules.end();
+    bool found = std::find(loaded_modules.begin(), loaded_modules.end(), "mc.test.module") != loaded_modules.end();
     EXPECT_TRUE(found) << "已加载的模块应在列表中";
 
     // 卸载模块
@@ -287,8 +281,7 @@ TEST_F(ModuleManagerTest, TestLoadedModulesList)
 
     // 再次检查列表
     auto after_unload = manager.loaded_modules();
-    bool still_found  = std::find(after_unload.begin(), after_unload.end(), "mc.test.module") !=
-                       after_unload.end();
+    bool still_found  = std::find(after_unload.begin(), after_unload.end(), "mc.test.module") != after_unload.end();
     EXPECT_FALSE(still_found) << "卸载后模块不应在列表中";
 }
 
@@ -411,11 +404,9 @@ TEST_F(ModuleManagerTest, TestModuleManagerBasic)
     EXPECT_TRUE(is_loaded);
 
     // 测试已加载模块列表
-    auto loaded_modules    = manager.loaded_modules();
-    bool found_test_module = std::find(
-                                 loaded_modules.begin(),
-                                 loaded_modules.end(),
-                                 "mc.test.module") != loaded_modules.end();
+    auto loaded_modules = manager.loaded_modules();
+    bool found_test_module =
+        std::find(loaded_modules.begin(), loaded_modules.end(), "mc.test.module") != loaded_modules.end();
     EXPECT_TRUE(found_test_module);
 }
 
@@ -437,21 +428,18 @@ TEST_F(ModuleManagerTest, TestReflection)
     auto  direct_types   = direct_factory.get_registered_types();
 
     if (!std::any_of(direct_types.begin(), direct_types.end(), [](const std::string& name) {
-        return name == "mc.test.module.TestClass" || name == "TestClass" ||
-               name == "mc.test.module::TestClass";
+        return name == "mc.test.module.TestClass" || name == "TestClass" || name == "mc.test.module::TestClass";
     })) {
         direct_factory.register_type<mc::test_module::test_class>();
         direct_types = direct_factory.get_registered_types();
     }
 
     const auto is_target_type = [](const std::string& name) {
-        return name == "mc.test.module.TestClass" || name == "TestClass" ||
-               name == "mc.test.module::TestClass";
+        return name == "mc.test.module.TestClass" || name == "TestClass" || name == "mc.test.module::TestClass";
     };
-    const bool found_in_direct_factory =
-        std::any_of(direct_types.begin(), direct_types.end(), is_target_type);
-    ASSERT_TRUE(found_in_direct_factory)
-        << "类型未能注册到模块工厂, 已注册类型: " << mc::string::join(direct_types, ", ");
+    const bool found_in_direct_factory = std::any_of(direct_types.begin(), direct_types.end(), is_target_type);
+    ASSERT_TRUE(found_in_direct_factory) << "类型未能注册到模块工厂, 已注册类型: "
+                                         << mc::string::join(direct_types, ", ");
 
     // 确认两个工厂是同一个实例
     ASSERT_EQ(&direct_factory, factory_from_module) << "模块管理器返回的工厂与类型注册的工厂不是同一个实例";
@@ -619,8 +607,7 @@ TEST_F(ModuleManagerTest, TestConcurrentRequireAndUnload)
     t2.join();
 
     // 验证至少执行了一些迭代
-    EXPECT_GT(iterations.load(std::memory_order_acquire), 0)
-        << "工作线程应该至少执行一些迭代";
+    EXPECT_GT(iterations.load(std::memory_order_acquire), 0) << "工作线程应该至少执行一些迭代";
 
     // 验证最终状态
     auto module = manager.require("mc.test.module");

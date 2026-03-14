@@ -32,10 +32,8 @@ public:
     std::string              m_last_operation;
     std::vector<std::string> m_history;
 
-    Calculator()
-        : m_base_value(0)
-    {
-    }
+    Calculator() : m_base_value(0)
+    {}
 
     // 无参数方法
     int get_base() const
@@ -83,9 +81,7 @@ private:
 };
 
 // 反射Calculator类
-MC_REFLECT(
-    Calculator,
-    (m_base_value)(m_last_operation)(m_history)(get_base)(set_base)(add)(add3)(format_result))
+MC_REFLECT(Calculator, (m_base_value)(m_last_operation)(m_history)(get_base)(set_base)(add)(add3)(format_result))
 
 // 测试精确参数方法调用
 TEST(MethodCallTest, ExactArgsMethodCall)

@@ -87,7 +87,8 @@ TEST_F(FuturesTest, WaitOnWorker)
 TEST_F(FuturesTest, BasicErrorHandling)
 {
     auto promise = mc::make_promise<int>(get_io_context());
-    auto future  = promise.get_future().then([](int) {
+    auto future  = promise.get_future()
+                      .then([](int) {
         throw std::runtime_error("测试异常");
     }).catch_error([](const mc::exception& e) {
         EXPECT_EQ(e.code(), mc::std_exception_code);
@@ -144,7 +145,8 @@ TEST_F(FuturesTest, BasicTimeout)
 TEST_F(FuturesTest, SimpleChain)
 {
     auto promise = mc::make_promise<int>(get_io_context());
-    auto future  = promise.get_future().then([](int value) {
+    auto future  = promise.get_future()
+                      .then([](int value) {
         return value * 2;
     }).then([](int value) {
         return value + 1;
@@ -158,7 +160,8 @@ TEST_F(FuturesTest, SimpleChain)
 TEST_F(FuturesTest, ChainWithFutureReturn)
 {
     auto promise = mc::make_promise<int>(get_io_context());
-    auto future  = promise.get_future().then([&](int value) {
+    auto future  = promise.get_future()
+                      .then([&](int value) {
         if (value == 0) {
             return mc::resolve(2.0, get_io_context());
         }
@@ -178,7 +181,8 @@ TEST_F(FuturesTest, CatchErrorWithException)
 {
     int64_t code;
     auto    promise = mc::make_promise<int>(get_io_context());
-    auto    future  = promise.get_future().then([](int) {
+    auto    future  = promise.get_future()
+                      .then([](int) {
         throw std::runtime_error("测试异常");
         return 42;
     }).catch_error([&code](const mc::exception& e) {
@@ -195,9 +199,11 @@ TEST_F(FuturesTest, CatchErrorWithException)
 TEST_F(FuturesTest, CatchErrorWithoutException)
 {
     auto promise = mc::make_promise<int>(get_io_context());
-    auto future  = promise.get_future().then([](int value) {
+    auto future  = promise.get_future()
+                      .then([](int value) {
         return value * 2;
-    }).catch_error([](const mc::exception& e) {
+    })
+                      .catch_error([](const mc::exception& e) {
         return -1;
     }).then([](int value) {
         EXPECT_EQ(value, 42);
@@ -213,7 +219,8 @@ TEST_F(FuturesTest, CatchErrorVoidReturnWithException)
     auto promise = mc::make_promise<int>(get_io_context());
     bool caught  = false;
 
-    auto future = promise.get_future().then([](int) -> void {
+    auto future = promise.get_future()
+                      .then([](int) -> void {
         throw std::runtime_error("测试异常");
     }).catch_error([&caught](const mc::exception&) {
         caught = true;
@@ -230,7 +237,8 @@ TEST_F(FuturesTest, CatchErrorVoidReturnWithoutException)
     auto promise = mc::make_promise<int>(get_io_context());
     bool caught  = false;
 
-    auto future = promise.get_future().then([](int) -> void {
+    auto future = promise.get_future()
+                      .then([](int) -> void {
         // 正常执行，无返回值
     }).catch_error([&caught](const mc::exception&) {
         caught = true;
@@ -245,12 +253,14 @@ TEST_F(FuturesTest, CatchErrorVoidReturnWithoutException)
 TEST_F(FuturesTest, ErrorRecoveryWithIntValue)
 {
     auto promise = mc::make_promise<int>(get_io_context());
-    auto future  = promise.get_future().then([](int value) {
+    auto future  = promise.get_future()
+                      .then([](int value) {
         if (value == 0) {
             throw std::runtime_error("值不能为0");
         }
         return value * 2;
-    }).catch_error([](const mc::exception&) {
+    })
+                      .catch_error([](const mc::exception&) {
         return 10; // 恢复默认值
     }).then([](int value) {
         return value + 5;
@@ -264,9 +274,11 @@ TEST_F(FuturesTest, ErrorRecoveryWithIntValue)
 TEST_F(FuturesTest, ErrorRecoveryChain)
 {
     auto promise = mc::make_promise<int>(get_io_context());
-    auto future  = promise.get_future().then([](int value) {
+    auto future  = promise.get_future()
+                      .then([](int value) {
         return value * 2; // 正常情况
-    }).catch_error([](const mc::exception&) {
+    })
+                      .catch_error([](const mc::exception&) {
         throw std::runtime_error("恢复失败");
         return -1;
     }).catch_error([](const mc::exception&) {
@@ -464,8 +476,7 @@ TEST_F(FuturesTest, FutureCatchErrorOnReadyValue)
 }
 
 namespace {
-struct non_std_error {
-};
+struct non_std_error {};
 } // namespace
 
 // 测试 catch_error 处理未知异常分支
@@ -506,12 +517,10 @@ TEST_F(FuturesTest, FutureThenDispatchOnReadyState)
     promise.set_value(5);
 
     std::atomic<bool> executed{false};
-    auto              chained = future.then(
-        [&executed](int value) {
+    auto              chained = future.then([&executed](int value) {
         executed.store(true);
         return value + 1;
-    },
-        mc::launch::dispatch);
+    }, mc::launch::dispatch);
 
     EXPECT_EQ(chained.get(), 6);
     EXPECT_TRUE(executed.load());
@@ -577,7 +586,8 @@ TEST_F(FuturesTest, FutureTapOnReadyState)
     promise.set_value(30);
 
     std::atomic<int> observed{0};
-    future.tap([&observed](int value) {
+    future
+        .tap([&observed](int value) {
         observed.store(value);
     }).then([](auto&& result) {
         return result;
@@ -595,7 +605,8 @@ TEST_F(FuturesTest, FutureTapError)
     promise.set_exception(std::make_exception_ptr(std::runtime_error("test exception")));
 
     std::atomic<int> observed{0};
-    auto             tapped = future.tap_error([&observed](const mc::exception& ex) {
+    auto             tapped = future
+                      .tap_error([&observed](const mc::exception& ex) {
         observed.store(ex.code());
     }).then([](auto&& result) {
         // 由于 tap_error 本身不会链接到 future 调用链，在 tap_error 后面
@@ -614,7 +625,8 @@ TEST_F(FuturesTest, FinallyWithSuccess)
     bool cleanup_called = false;
 
     auto promise = mc::make_promise<int>(get_io_context());
-    auto future  = promise.get_future().then([](int value) {
+    auto future  = promise.get_future()
+                      .then([](int value) {
         return value * 2;
     }).finally([&cleanup_called]() {
         cleanup_called = true;
@@ -631,7 +643,8 @@ TEST_F(FuturesTest, FinallyWithException)
     bool cleanup_called = false;
 
     auto promise = mc::make_promise<int>(get_io_context());
-    auto future  = promise.get_future().then([](int) {
+    auto future  = promise.get_future()
+                      .then([](int) {
         throw std::runtime_error("测试异常");
         return 42;
     }).finally([&cleanup_called]() {
@@ -650,9 +663,11 @@ TEST_F(FuturesTest, TapWithSuccess)
     int observed_value = 0;
 
     auto promise = mc::make_promise<int>(get_io_context());
-    auto future  = promise.get_future().then([](int value) {
+    auto future  = promise.get_future()
+                      .then([](int value) {
         return value * 2;
-    }).tap([&observed_value](int value) {
+    })
+                      .tap([&observed_value](int value) {
         observed_value = value;
     }).then([](auto&& result) {
         // 由于 tap 本身不会链接到 future 调用链，在 tap 后面
@@ -673,10 +688,12 @@ TEST_F(FuturesTest, TapWithException)
     int observed_value = -1;
 
     auto promise = mc::make_promise<int>(get_io_context());
-    auto future  = promise.get_future().then([](int) {
+    auto future  = promise.get_future()
+                      .then([](int) {
         throw std::runtime_error("测试异常");
         return 42;
-    }).tap([&observed_value](int value) {
+    })
+                      .tap([&observed_value](int value) {
         observed_value = value; // 不应该被调用
     }).then([](auto&& result) {
         // 由于 tap 本身不会链接到 future 调用链，在 tap 后面
@@ -697,11 +714,8 @@ TEST_F(FuturesTest, AllWithSuccess)
     auto p2 = mc::make_promise<double>(get_io_context());
     auto p3 = mc::make_promise<std::string>(get_io_context());
 
-    auto all_future = mc::all(
-        p1.get_future(),
-        p2.get_future(),
-        p3.get_future(),
-        mc::delay() // 添加一个 mc::delay() 在末尾验证 void 类型的 future 也可以被组合
+    auto all_future = mc::all(p1.get_future(), p2.get_future(), p3.get_future(),
+                              mc::delay() // 添加一个 mc::delay() 在末尾验证 void 类型的 future 也可以被组合
     );
 
     p1.set_value(42);
@@ -709,7 +723,8 @@ TEST_F(FuturesTest, AllWithSuccess)
     p3.set_value("hello");
 
     // 顺带测试一下 any 的组合使用
-    auto result = mc::any(mc::delay(1ms), mc::delay(1s)).then([&all_future](auto&&) {
+    auto result = mc::any(mc::delay(1ms), mc::delay(1s))
+                      .then([&all_future](auto&&) {
         return all_future.get();
     }).get();
 
@@ -781,10 +796,8 @@ TEST_F(FuturesTest, AllCancelPropagation)
 
 TEST_F(FuturesTest, ContainerAllWithSuccess)
 {
-    std::vector promises = {
-        mc::make_promise<int>(get_io_context()),
-        mc::make_promise<int>(get_io_context()),
-        mc::make_promise<int>(get_io_context())};
+    std::vector promises = {mc::make_promise<int>(get_io_context()), mc::make_promise<int>(get_io_context()),
+                            mc::make_promise<int>(get_io_context())};
 
     std::vector<typename decltype(promises)::value_type::future_type> futures;
     futures.reserve(3);
@@ -805,10 +818,8 @@ TEST_F(FuturesTest, ContainerAllWithSuccess)
 // 任意一个子 future 抛出异常时，all 也会异常
 TEST_F(FuturesTest, ContainerAllWithException)
 {
-    std::vector promises = {
-        mc::make_promise<int>(get_io_context()),
-        mc::make_promise<int>(get_io_context()),
-        mc::make_promise<int>(get_io_context())};
+    std::vector promises = {mc::make_promise<int>(get_io_context()), mc::make_promise<int>(get_io_context()),
+                            mc::make_promise<int>(get_io_context())};
 
     std::vector<typename decltype(promises)::value_type::future_type> futures;
     futures.reserve(3);
@@ -830,10 +841,8 @@ TEST_F(FuturesTest, ContainerAllWithException)
 // 任意一个子 future 取消，all 也会取消
 TEST_F(FuturesTest, ContainerAllWithAnyFutureCancel)
 {
-    std::vector promises = {
-        mc::make_promise<int>(get_io_context()),
-        mc::make_promise<int>(get_io_context()),
-        mc::make_promise<int>(get_io_context())};
+    std::vector promises = {mc::make_promise<int>(get_io_context()), mc::make_promise<int>(get_io_context()),
+                            mc::make_promise<int>(get_io_context())};
 
     std::vector<typename decltype(promises)::value_type::future_type> futures;
     futures.reserve(3);
@@ -855,10 +864,8 @@ TEST_F(FuturesTest, ContainerAllWithAnyFutureCancel)
 
 TEST_F(FuturesTest, ContainerAllWithResultFutureCancel)
 {
-    std::vector promises = {
-        mc::make_promise<int>(get_io_context()),
-        mc::make_promise<int>(get_io_context()),
-        mc::make_promise<int>(get_io_context())};
+    std::vector promises = {mc::make_promise<int>(get_io_context()), mc::make_promise<int>(get_io_context()),
+                            mc::make_promise<int>(get_io_context())};
 
     std::vector<typename decltype(promises)::value_type::future_type> futures;
     futures.reserve(3);
@@ -1191,9 +1198,10 @@ TEST_F(FuturesTest, ExceptionInfoPreservationInCatchError)
     mc::exception_ptr ex;
 
     auto promise = mc::make_promise<int>(get_io_context());
-    auto future  = promise.get_future().then([](int value) -> int {
+    auto future  = promise.get_future()
+                      .then([](int value) -> int {
         MC_THROW(mc::timeout_exception, "测试超时: 期望${expected}ms, 实际${actual}ms",
-                  ("expected", 1000)("actual", 2000));
+                 ("expected", 1000)("actual", 2000));
         return value;
     }).catch_error([&](const mc::exception& e) -> int {
         ex = e.dynamic_copy_exception();
@@ -1212,7 +1220,8 @@ TEST_F(FuturesTest, CancelExceptionHandling)
 {
     auto promise      = mc::make_promise<int>(get_io_context());
     bool error_called = false;
-    auto future       = promise.get_future().then([](int value) -> int {
+    auto future       = promise.get_future()
+                      .then([](int value) -> int {
         // mc::canceled_exception 是特殊异常，等效于直接调用 promise.cancel()，
         // 不会触发 catch_error 回调
         MC_THROW(mc::canceled_exception, "用户取消: ${reason}", ("reason", "手动停止"));
@@ -1233,7 +1242,8 @@ TEST_F(FuturesTest, StdExceptionHandling)
     mc::exception_ptr ex;
 
     auto promise = mc::make_promise<int>(get_io_context());
-    auto future  = promise.get_future().then([](int) -> int {
+    auto future  = promise.get_future()
+                      .then([](int) -> int {
         throw std::invalid_argument("参数无效");
     }).catch_error([&](const mc::exception& e) -> int {
         ex = e.dynamic_copy_exception();
@@ -1493,10 +1503,8 @@ TEST_F(FuturesTest, AnyWithMixedExceptions)
 // 测试容器版本的 any
 TEST_F(FuturesTest, ContainerAnyWithSuccess)
 {
-    std::vector promises = {
-        mc::make_promise<int>(get_io_context()),
-        mc::make_promise<int>(get_io_context()),
-        mc::make_promise<int>(get_io_context())};
+    std::vector promises = {mc::make_promise<int>(get_io_context()), mc::make_promise<int>(get_io_context()),
+                            mc::make_promise<int>(get_io_context())};
 
     std::vector<typename decltype(promises)::value_type::future_type> futures;
     futures.reserve(3);
@@ -1611,24 +1619,33 @@ TEST_F(FuturesTest, CancelChainedNested)
     bool nested_canceled5 = false;
 
     auto promise = mc::make_promise<int>(mc::runtime::immediate_executor());
-    auto future  = promise.get_future().on_cancel([&]() {
+    auto future  = promise.get_future()
+                      .on_cancel([&]() {
         nested_canceled0 = true; // 外层: promise 操作返回的 future
     }).then([&](auto&& value) {
-        return mc::delay(100ms).on_cancel([&]() {
+        return mc::delay(100ms)
+            .on_cancel([&]() {
             nested_canceled1 = true; // 第一级: delay 操作返回的 future
-        }).then([]() {
+        })
+            .then([]() {
             return 42;
-        }).on_cancel([&]() {
+        })
+            .on_cancel([&]() {
             nested_canceled2 = true; // 第二级: then 操作返回的 future
-        }).catch_error([](auto&&) {
+        })
+            .catch_error([](auto&&) {
             return 42;
-        }).on_cancel([&]() {
+        })
+            .on_cancel([&]() {
             nested_canceled3 = true; // 第三级: catch_error 操作返回的 future
-        }).finally([]() {
+        })
+            .finally([]() {
             return 42;
-        }).on_cancel([&]() {
+        })
+            .on_cancel([&]() {
             nested_canceled4 = true; // 第四级: finally 操作返回的 future
-        }).tap([](auto&&) {
+        })
+            .tap([](auto&&) {
             return 42;
         }).on_cancel([&]() {
             nested_canceled5 = true; // 第五级: tap 操作返回的 future
@@ -1666,9 +1683,11 @@ TEST_F(FuturesTest, CancelInnerFuture)
             outer_future.cancel();
         });
 
-        return outer_future.on_cancel([&]() {
+        return outer_future
+            .on_cancel([&]() {
             inner_canceled1 = true;
-        }).then([](auto&&) {
+        })
+            .then([](auto&&) {
             return 42;
         }).on_cancel([&]() {
             inner_canceled2 = true;
@@ -2118,13 +2137,15 @@ TEST_F(FuturesTest, stress_temporary_then_chain)
         auto p = mc::make_promise<int>(get_io_context());
 
         // 创建一条包含临时 future 的链：外层 then 返回内层 future，随后在 catch_error 中收敛为值
-        auto result_future = p.get_future().then([this](int v) {
+        auto result_future = p.get_future()
+                                 .then([this](int v) {
             // 返回一个临时 future，立即就绪
             auto inner_p = mc::make_promise<int>(get_io_context());
             auto inner_f = inner_p.get_future();
             inner_p.set_value(v + 1);
             return inner_f; // 中间层 future 为临时对象
-        }).catch_error([](const mc::exception&) {
+        })
+                                 .catch_error([](const mc::exception&) {
             return -1; // 异常时返回默认值
         }).then([](int v) {
             return v * 2;
@@ -2144,14 +2165,13 @@ TEST_F(FuturesTest, stress_all_with_inline_temporaries)
         auto p2 = mc::make_promise<double>(get_io_context());
         auto p3 = mc::make_promise<std::string>(get_io_context());
 
-        auto f = mc::all(
-            p1.get_future().then([](int v) {
+        auto f = mc::all(p1.get_future().then([](int v) {
             return v + 1;
         }),
-            p2.get_future().then([](double v) {
+                         p2.get_future().then([](double v) {
             return v + 1.0;
         }),
-            p3.get_future().then([](std::string v) {
+                         p3.get_future().then([](std::string v) {
             return v + "!";
         }));
 
@@ -2174,11 +2194,10 @@ TEST_F(FuturesTest, stress_any_with_inline_temporaries)
         auto p2 = mc::make_promise<double>(get_io_context());
 
         // 第二个先完成，验证其他临时 future 取消路径
-        auto f = mc::any(
-            p1.get_future().then([](int v) {
+        auto f = mc::any(p1.get_future().then([](int v) {
             return v + 1;
         }),
-            p2.get_future().then([](double v) {
+                         p2.get_future().then([](double v) {
             return v + 1.0;
         }));
 
@@ -2376,7 +2395,7 @@ TEST_F(FuturesTest, test_empty_state_chaining)
     // 然后调用 catch_error 回调，并返回一个有效的 future
     std::atomic<bool>    catch_error_called{false};
     std::atomic<int64_t> exception_code{0};
-    auto                 recovered = empty_future.catch_error([&catch_error_called, &exception_code](const mc::exception& ex) {
+    auto recovered = empty_future.catch_error([&catch_error_called, &exception_code](const mc::exception& ex) {
         catch_error_called.store(true);
         // 验证异常代码是 invalid_future_code
         exception_code.store(ex.code());

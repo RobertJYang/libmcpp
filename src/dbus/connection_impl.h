@@ -24,10 +24,8 @@ constexpr uint32_t MAX_SERIAL_RETRY = 1000000;
 struct pending_data {
     using promise_type = mc::promise<message>;
 
-    pending_data(promise_type promise, pending_call pending)
-        : promise(std::move(promise)), pending(std::move(pending))
-    {
-    }
+    pending_data(promise_type promise, pending_call pending) : promise(std::move(promise)), pending(std::move(pending))
+    {}
 
     ~pending_data()
     {
@@ -80,12 +78,10 @@ struct connection_impl : public std::enable_shared_from_this<connection_impl> {
     DBusHandlerResult process_message(message msg);
     void              process_reply(uint32_t reply_serial, message& msg);
 
-    void                     dispatch();
-    void                     flush();
-    static void              dispatch_status_changed(DBusConnection* connection, DBusDispatchStatus new_status,
-                                                     void* user_data);
-    static DBusHandlerResult message_filter(DBusConnection* conn, DBusMessage* msg,
-                                            void* user_data);
+    void        dispatch();
+    void        flush();
+    static void dispatch_status_changed(DBusConnection* connection, DBusDispatchStatus new_status, void* user_data);
+    static DBusHandlerResult message_filter(DBusConnection* conn, DBusMessage* msg, void* user_data);
 
     void        add_rule(match_rule& rule, match_cb_t&& cb, uint64_t id);
     void        remove_rule(uint64_t id);

@@ -22,8 +22,7 @@
 
 namespace mc {
 
-variant_base::variant_base(type_id type)
-    : m_uint64(0), m_type(type), m_is_fixed(false)
+variant_base::variant_base(type_id type) : m_uint64(0), m_type(type), m_is_fixed(false)
 {
     static_assert(sizeof(variant_base) <= 16, "variant_base size is too large");
     switch (type) {
@@ -47,8 +46,7 @@ variant_base::variant_base(type_id type)
     }
 }
 
-variant_base::variant_base(const variant_base& other)
-    : m_type(other.m_type), m_is_fixed(other.m_is_fixed)
+variant_base::variant_base(const variant_base& other) : m_type(other.m_type), m_is_fixed(other.m_is_fixed)
 {
     switch (other.m_type) {
         case type_id::null_type:
@@ -238,8 +236,7 @@ variant_reference variant_base::operator[](std::string_view key) const
     }
 }
 
-const variant_base&
-variant_base::get(std::string_view key, const variant_base& default_value) const
+const variant_base& variant_base::get(std::string_view key, const variant_base& default_value) const
 {
     if (!is_object()) {
         return default_value;
@@ -268,81 +265,66 @@ bool variant_base::operator==(const dict& other) const
 variant_base& variant_base::set_value(const variant_base& other)
 {
     switch (m_type) {
-        case type_id::int8_type:
-            {
-                m_int64 = other.as_int8();
-                break;
-            }
-        case type_id::uint8_type:
-            {
-                m_uint64 = other.as_uint8();
-                break;
-            }
-        case type_id::int16_type:
-            {
-                m_int64 = other.as_int16();
-                break;
-            }
-        case type_id::uint16_type:
-            {
-                m_uint64 = other.as_uint16();
-                break;
-            }
-        case type_id::int32_type:
-            {
-                m_int64 = other.as_int32();
-                break;
-            }
-        case type_id::uint32_type:
-            {
-                m_uint64 = other.as_uint32();
-                break;
-            }
-        case type_id::int64_type:
-            {
-                m_int64 = other.as_int64();
-                break;
-            }
-        case type_id::uint64_type:
-            {
-                m_uint64 = other.as_uint64();
-                break;
-            }
-        case type_id::double_type:
-            {
-                m_double = other.as_double();
-                break;
-            }
-        case type_id::bool_type:
-            {
-                m_bool = other.as_bool();
-                break;
-            }
-        case type_id::string_type:
-            {
-                *m_string_ptr = other.as_string();
-                break;
-            }
-        case type_id::array_type:
-            {
-                m_array = other.as_array();
-                break;
-            }
-        case type_id::object_type:
-            {
-                m_object = other.as_object();
-                break;
-            }
-        case type_id::blob_type:
-            {
-                *m_blob_ptr = other.as_blob();
-                break;
-            }
-        case type_id::extension_type:
-            {
-                m_extension = other.as_extension();
-                break;
-            }
+        case type_id::int8_type: {
+            m_int64 = other.as_int8();
+            break;
+        }
+        case type_id::uint8_type: {
+            m_uint64 = other.as_uint8();
+            break;
+        }
+        case type_id::int16_type: {
+            m_int64 = other.as_int16();
+            break;
+        }
+        case type_id::uint16_type: {
+            m_uint64 = other.as_uint16();
+            break;
+        }
+        case type_id::int32_type: {
+            m_int64 = other.as_int32();
+            break;
+        }
+        case type_id::uint32_type: {
+            m_uint64 = other.as_uint32();
+            break;
+        }
+        case type_id::int64_type: {
+            m_int64 = other.as_int64();
+            break;
+        }
+        case type_id::uint64_type: {
+            m_uint64 = other.as_uint64();
+            break;
+        }
+        case type_id::double_type: {
+            m_double = other.as_double();
+            break;
+        }
+        case type_id::bool_type: {
+            m_bool = other.as_bool();
+            break;
+        }
+        case type_id::string_type: {
+            *m_string_ptr = other.as_string();
+            break;
+        }
+        case type_id::array_type: {
+            m_array = other.as_array();
+            break;
+        }
+        case type_id::object_type: {
+            m_object = other.as_object();
+            break;
+        }
+        case type_id::blob_type: {
+            *m_blob_ptr = other.as_blob();
+            break;
+        }
+        case type_id::extension_type: {
+            m_extension = other.as_extension();
+            break;
+        }
         default:
             throw_unknow_type_error(get_type());
             break;
@@ -449,15 +431,14 @@ bool variant_base::is_integer() const
 bool variant_base::is_signed_integer() const
 {
     type_id t = get_type();
-    return t == type_id::int8_type || t == type_id::int16_type ||
-           t == type_id::int32_type || t == type_id::int64_type;
+    return t == type_id::int8_type || t == type_id::int16_type || t == type_id::int32_type || t == type_id::int64_type;
 }
 
 bool variant_base::is_unsigned_integer() const
 {
     type_id t = get_type();
-    return t == type_id::uint8_type || t == type_id::uint16_type ||
-           t == type_id::uint32_type || t == type_id::uint64_type;
+    return t == type_id::uint8_type || t == type_id::uint16_type || t == type_id::uint32_type ||
+           t == type_id::uint64_type;
 }
 
 int64_t variant_base::as_int64() const
@@ -534,14 +515,12 @@ bool variant_base::as_bool(bool strict) const
             return m_uint64 != 0;
         case type_id::double_type:
             return m_double != 0;
-        case type_id::string_type:
-            {
-                return mc::string::to_bool_with_default(*m_string_ptr, !strict);
-            }
-        case type_id::blob_type:
-            {
-                return mc::string::to_bool_with_default(m_blob_ptr->as_string_view(), !strict);
-            }
+        case type_id::string_type: {
+            return mc::string::to_bool_with_default(*m_string_ptr, !strict);
+        }
+        case type_id::blob_type: {
+            return mc::string::to_bool_with_default(m_blob_ptr->as_string_view(), !strict);
+        }
         case type_id::extension_type:
             return m_extension ? m_extension->as_bool() : false;
         case type_id::null_type:
@@ -572,14 +551,12 @@ double variant_base::as_double() const
             return static_cast<double>(m_uint64);
         case type_id::bool_type:
             return m_bool ? 1.0 : 0.0;
-        case type_id::string_type:
-            {
-                return mc::string::to_number<double>(*m_string_ptr);
-            }
-        case type_id::blob_type:
-            {
-                return mc::string::to_number<double>(m_blob_ptr->as_string_view());
-            }
+        case type_id::string_type: {
+            return mc::string::to_number<double>(*m_string_ptr);
+        }
+        case type_id::blob_type: {
+            return mc::string::to_number<double>(m_blob_ptr->as_string_view());
+        }
         case type_id::extension_type:
             return m_extension ? m_extension->as_double() : 0.0;
         default:
@@ -593,23 +570,21 @@ variant_base::blob_type variant_base::as_blob() const
     switch (m_type) {
         case type_id::blob_type:
             return *m_blob_ptr;
-        case type_id::string_type:
-            {
-                blob_type b;
-                b.data.assign(m_string_ptr->begin(), m_string_ptr->end());
-                return b;
+        case type_id::string_type: {
+            blob_type b;
+            b.data.assign(m_string_ptr->begin(), m_string_ptr->end());
+            return b;
+        }
+        case type_id::extension_type: {
+            if (!m_extension) {
+                return {};
             }
-        case type_id::extension_type:
-            {
-                if (!m_extension) {
-                    return {};
-                }
 
-                blob_type b;
-                auto      s = m_extension->as_string();
-                b.data.assign(s.begin(), s.end());
-                return b;
-            }
+            blob_type b;
+            auto      s = m_extension->as_string();
+            b.data.assign(s.begin(), s.end());
+            return b;
+        }
         default:
             throw_type_error("blob_base", get_type());
     }
@@ -630,18 +605,16 @@ std::string variant_base::as_string() const
         case type_id::uint32_type:
         case type_id::uint64_type:
             return std::to_string(m_uint64);
-        case type_id::double_type:
-            {
-                return mc::to_string(m_double);
-            }
+        case type_id::double_type: {
+            return mc::to_string(m_double);
+        }
         case type_id::bool_type:
             return m_bool ? "true" : "false";
         case type_id::null_type:
             return "null";
-        case type_id::blob_type:
-            {
-                return std::string(m_blob_ptr->as_string_view());
-            }
+        case type_id::blob_type: {
+            return std::string(m_blob_ptr->as_string_view());
+        }
         case type_id::extension_type:
             return m_extension ? m_extension->as_string() : std::string();
         default:
@@ -769,18 +742,17 @@ variant_base& variant_base::operator=(const char* s)
         case type_id::object_type:
         case type_id::blob_type:
         case type_id::extension_type:
-        default:
-            {
-                if (!is_fixed_type()) {
-                    variant_base().swap(*this);
-                } else if (is_string()) {
-                    // 对于固定类型来说，给字符串赋值 0(nullptr) 会清空字符串
-                    m_string_ptr->clear();
-                } else {
-                    throw_type_error(get_type_name(), type_id::string_type);
-                }
-                break;
+        default: {
+            if (!is_fixed_type()) {
+                variant_base().swap(*this);
+            } else if (is_string()) {
+                // 对于固定类型来说，给字符串赋值 0(nullptr) 会清空字符串
+                m_string_ptr->clear();
+            } else {
+                throw_type_error(get_type_name(), type_id::string_type);
             }
+            break;
+        }
     }
     return *this;
 }
@@ -909,25 +881,21 @@ size_t variant_base::hash() const
             return std::hash<uint64_t>{}(m_uint64);
         case type_id::double_type:
             return std::hash<double>{}(m_double);
-        case type_id::string_type:
-            {
-                const auto& str_data = *m_string_ptr;
-                return calculate_str_hash(str_data);
-            }
-        case type_id::blob_type:
-            {
-                const auto& blob_data = *m_blob_ptr;
-                return calculate_str_hash(blob_data.as_string_view());
-            }
-        case type_id::array_type:
-            {
-                return calculate_array_hash(m_array);
-            }
-        case type_id::object_type:
-            {
-                // 使用dict的hash方法计算哈希值
-                return m_object.hash();
-            }
+        case type_id::string_type: {
+            const auto& str_data = *m_string_ptr;
+            return calculate_str_hash(str_data);
+        }
+        case type_id::blob_type: {
+            const auto& blob_data = *m_blob_ptr;
+            return calculate_str_hash(blob_data.as_string_view());
+        }
+        case type_id::array_type: {
+            return calculate_array_hash(m_array);
+        }
+        case type_id::object_type: {
+            // 使用dict的hash方法计算哈希值
+            return m_object.hash();
+        }
         case type_id::extension_type:
             return m_extension ? m_extension->hash() : 0;
         default:
@@ -1147,8 +1115,7 @@ variant_base variant_base::operator-(detail::numeric_t rhs) const
             return variant_base(as_double() - static_cast<double>(other));
         } else if (is_unsigned_integer() && is_unsigned(other)) {
             if (as_uint64() < static_cast<uint64_t>(other)) {
-                return variant_base(static_cast<int64_t>(as_uint64()) -
-                                    static_cast<int64_t>(other));
+                return variant_base(static_cast<int64_t>(as_uint64()) - static_cast<int64_t>(other));
             }
             return variant_base(as_uint64() - static_cast<uint64_t>(other));
         }
@@ -1371,13 +1338,12 @@ std::ostream& operator<<(std::ostream& os, const variant_base& v)
             // 二进制数据输出为 "blob[大小]" 格式
             os << "blob[" << v.get_blob().data.size() << "]";
             return os;
-        case type_id::extension_type:
-            {
-                if (auto extension = v.as_extension()) {
-                    return os << extension->get_type_name();
-                }
-                return os;
+        case type_id::extension_type: {
+            if (auto extension = v.as_extension()) {
+                return os << extension->get_type_name();
             }
+            return os;
+        }
         default:
             // 未知类型或未处理的类型输出为 "unknown_type"
             return os << "unknown_type";

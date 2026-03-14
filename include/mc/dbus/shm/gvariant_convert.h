@@ -52,14 +52,11 @@ public:
      * @param struct_depth [in] 结构体深度
      * @return 返回签名长度
      */
-    static int get_sig_len(const char* types, bool allow_dict_entry, size_t array_depth,
-                           size_t struct_depth);
+    static int get_sig_len(const char* types, bool allow_dict_entry, size_t array_depth, size_t struct_depth);
 
 private:
-    static int get_dict_len(const char* types, bool allow_dict_entry, size_t array_depth,
-                            size_t struct_depth);
-    static int get_struct_len(const char* types, bool allow_dict_entry, size_t array_depth,
-                              size_t struct_depth);
+    static int get_dict_len(const char* types, bool allow_dict_entry, size_t array_depth, size_t struct_depth);
+    static int get_struct_len(const char* types, bool allow_dict_entry, size_t array_depth, size_t struct_depth);
 };
 
 /**
@@ -174,8 +171,7 @@ public:
     static GVariant* to_gvariant(const variant& value);
 
 private:
-    static std::tuple<GVariant*, const char*> to_gvariant_inner(const variant& v,
-                                                                const char*    types);
+    static std::tuple<GVariant*, const char*> to_gvariant_inner(const variant& v, const char* types);
     static dict                               dict_to_mc_variant(GVariant* value, int n);
     static variants                           array_to_mc_variant(GVariant* value, int n);
     static variant                            container_to_mc_variant(GVariant* value);

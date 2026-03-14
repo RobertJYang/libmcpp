@@ -183,11 +183,11 @@ private:
     variants                dbus_call(mc::milliseconds timeout, const method_call_params& params);
     std::optional<variants> reroute_call(mc::milliseconds timeout, const method_call_params& params);
 
-    bool                                                  m_is_blocking;
-    bool                                                  m_enable_local_request{true};
-    std::unique_ptr<bus_mode_impl>                        m_bus;          // 阻塞式/非阻塞式总线实现（持有 connection）
-    std::string                                           m_unique_name;  // 缓存的唯一名称
-    std::string                                           m_service_name; // 缓存的服务名称
+    bool                           m_is_blocking;
+    bool                           m_enable_local_request{true};
+    std::unique_ptr<bus_mode_impl> m_bus;          // 阻塞式/非阻塞式总线实现（持有 connection）
+    std::string                    m_unique_name;  // 缓存的唯一名称
+    std::string                    m_service_name; // 缓存的服务名称
     std::map<std::string, mc::shared_ptr<dynamic_object>> m_objects;
 };
 

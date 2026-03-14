@@ -78,12 +78,10 @@ connection::connection(mc::io_context& executor, DBusConnection* conn, bool add_
 }
 
 connection::connection()
-{
-}
+{}
 
 connection::~connection()
-{
-}
+{}
 
 void connection::disconnect()
 {
@@ -119,7 +117,8 @@ bool connection::send(message&& msg)
     auto result   = m_impl->send(std::forward<message>(msg));
     auto end      = std::chrono::steady_clock::now();
     auto duration = end - start;
-    dlog("dbus send message cost '${time}' microseconds", ("time", std::chrono::duration_cast<std::chrono::microseconds>(duration)));
+    dlog("dbus send message cost '${time}' microseconds",
+         ("time", std::chrono::duration_cast<std::chrono::microseconds>(duration)));
     return result;
 }
 
@@ -137,8 +136,7 @@ message connection::send_with_reply_and_block(message&& msg, mc::milliseconds ti
     return m_impl->send_with_reply_and_block(std::forward<message>(msg), timeout);
 }
 
-connection::future<message> connection::async_send_with_reply(message&&        msg,
-                                                              mc::milliseconds timeout)
+connection::future<message> connection::async_send_with_reply(message&& msg, mc::milliseconds timeout)
 {
     ensure_impl();
 
@@ -186,8 +184,7 @@ bool connection::start()
     return m_impl->start();
 }
 
-std::tuple<bool, std::optional<error>> connection::request_name(std::string_view name,
-                                                                uint32_t         flags)
+std::tuple<bool, std::optional<error>> connection::request_name(std::string_view name, uint32_t flags)
 {
     if (!m_impl) {
         error err;

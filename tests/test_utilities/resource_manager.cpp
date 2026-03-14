@@ -21,8 +21,7 @@
 namespace mc {
 namespace test_utilities {
 
-resource_manager::resource_manager(bool auto_cleanup)
-    : m_auto_cleanup(auto_cleanup)
+resource_manager::resource_manager(bool auto_cleanup) : m_auto_cleanup(auto_cleanup)
 {
     ilog("测试资源管理器初始化，自动清理: ${auto_cleanup}", ("auto_cleanup", auto_cleanup));
 }
@@ -47,8 +46,7 @@ bool resource_manager::create_temp_file(const std::string& path, const std::stri
     try {
         std::ofstream file(path);
         if (!file) {
-            elog("无法创建临时文件: ${path}, 错误: ${error}",
-                 ("path", path)("error", std::strerror(errno)));
+            elog("无法创建临时文件: ${path}, 错误: ${error}", ("path", path)("error", std::strerror(errno)));
             return false;
         }
 
@@ -94,8 +92,7 @@ void resource_manager::cleanup()
         if (unlink(file.c_str()) == 0) {
             ilog("临时文件已删除: ${file}", ("file", file));
         } else if (errno != ENOENT) { // 忽略文件不存在的错误
-            wlog("删除临时文件失败: ${file}, 错误: ${error}",
-                 ("file", file)("error", std::strerror(errno)));
+            wlog("删除临时文件失败: ${file}, 错误: ${error}", ("file", file)("error", std::strerror(errno)));
         }
     }
     m_temp_files.clear();

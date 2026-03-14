@@ -23,10 +23,10 @@
 namespace mc::dbus {
 constexpr int MSG_QUEUE_PUSH_TIMEOUT = 100;
 
-using reply_msg_map_t      = std::unordered_map<std::string, std::unordered_map<uint32_t, local_msg*>>;
-using invoke_result        = std::pair<const mc::reflect::method_type_info*, mc::engine::invoke_result>;
-using method_handler_t     = std::function<invoke_result(
-    std::string_view, std::string_view, std::string_view, const mc::variants&)>;
+using reply_msg_map_t = std::unordered_map<std::string, std::unordered_map<uint32_t, local_msg*>>;
+using invoke_result   = std::pair<const mc::reflect::method_type_info*, mc::engine::invoke_result>;
+using method_handler_t =
+    std::function<invoke_result(std::string_view, std::string_view, std::string_view, const mc::variants&)>;
 using method_handler_map_t = std::unordered_map<std::string, method_handler_t>;
 
 /**
@@ -140,8 +140,7 @@ public:
      * @param unique_name [in] 唯一名称
      * @param handler [in] 方法处理器
      */
-    void register_method_handler(std::string_view service_name, std::string_view unique_name,
-                                 method_handler_t handler);
+    void register_method_handler(std::string_view service_name, std::string_view unique_name, method_handler_t handler);
 
     /**
      * @brief 发送共享内存消息
@@ -150,8 +149,7 @@ public:
      * @param promise [in] 消息promise
      * @return 成功返回true，失败返回false
      */
-    bool send_shm_msg(std::string_view source_name, uint32_t serial,
-                      mc::dbus::shm_msg_promise promise);
+    bool send_shm_msg(std::string_view source_name, uint32_t serial, mc::dbus::shm_msg_promise promise);
 
     /**
      * @brief 回复共享内存消息
@@ -160,8 +158,7 @@ public:
      * @param msg [in/out] 本地消息对象
      * @return 成功返回true，失败返回false
      */
-    bool reply_shm_msg(std::string_view destination_name, uint32_t serial,
-                       mc::dbus::local_msg& msg);
+    bool reply_shm_msg(std::string_view destination_name, uint32_t serial, mc::dbus::local_msg& msg);
 
     /**
      * @brief 移除共享内存消息

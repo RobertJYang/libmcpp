@@ -267,10 +267,8 @@ public:
      * @brief 构造函数
      * @param allocator 共享内存分配器
      */
-    explicit shared_allocator(shared_memory_allocator& allocator)
-        : m_allocator(allocator)
-    {
-    }
+    explicit shared_allocator(shared_memory_allocator& allocator) : m_allocator(allocator)
+    {}
 
     /**
      * @brief 拷贝构造函数
@@ -283,10 +281,8 @@ public:
      * @param other 其他类型的分配器
      */
     template <typename U>
-    shared_allocator(const shared_allocator<U>& other)
-        : m_allocator(other.m_allocator)
-    {
-    }
+    shared_allocator(const shared_allocator<U>& other) : m_allocator(other.m_allocator)
+    {}
 
     /**
      * @brief 分配内存

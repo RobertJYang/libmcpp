@@ -25,8 +25,8 @@
 namespace mc::expr {
 using abstract_object = mc::engine::abstract_object;
 
-static bool resolve_object_path(engine& expr_engine, std::string_view path_pattern,
-                                const abstract_object& obj, std::string& path)
+static bool resolve_object_path(engine& expr_engine, std::string_view path_pattern, const abstract_object& obj,
+                                std::string& path)
 {
     if (!lexer::is_template_string(path_pattern)) {
         return false;
@@ -40,27 +40,23 @@ static bool resolve_object_path(engine& expr_engine, std::string_view path_patte
     mc::expr::parser p(std::move(tokens));
     auto             node     = p.parse();
     auto             path_val = node->evaluate(ctx);
-    MC_ASSERT_THROW(path_val.is_string(), mc::invalid_arg_exception,
-                    "resolve object path ${path} failed", ("path", path_pattern));
+    MC_ASSERT_THROW(path_val.is_string(), mc::invalid_arg_exception, "resolve object path ${path} failed",
+                    ("path", path_pattern));
     path = path_val.get_string();
     return true;
 }
 
 struct engine::impl {
-    impl()
-        : global_context(&builtin::get_instance().get_context())
-    {
-    }
+    impl() : global_context(&builtin::get_instance().get_context())
+    {}
 
     ~impl() = default;
 
     context global_context;
 };
 
-engine::engine()
-    : m_impl(std::make_unique<impl>())
-{
-}
+engine::engine() : m_impl(std::make_unique<impl>())
+{}
 
 engine::~engine() = default;
 
@@ -105,8 +101,7 @@ context engine::make_context(const mc::dict& variables, context_base* parent) co
     return context(variables, parent ? parent : &get_global_context());
 }
 
-object_context engine::make_context(mc::engine::abstract_object* object,
-                                    context_base*                parent) const
+object_context engine::make_context(mc::engine::abstract_object* object, context_base* parent) const
 {
     return object_context(object, parent ? parent : &get_global_context());
 }
