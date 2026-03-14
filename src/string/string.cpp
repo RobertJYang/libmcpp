@@ -84,7 +84,10 @@ std::string_view prepare_number_string(std::string_view s, int radix, char* buff
         return {};
     }
 
-    (void)memcpy_s(buffer, buffer_size, s.data(), s.size());
+    errno_t ret = memcpy_s(buffer, buffer_size, s.data(), s.size());
+    if (ret != EOK) {
+        MC_THROW(mc::runtime_exception, "memcpy_s failed with error code ${code}", ("code", ret));
+    }
     buffer[s.size()] = '\0';
     return std::string_view(buffer, s.size());
 }
@@ -484,10 +487,11 @@ std::string_view substr(std::string_view s, int start, int end)
     }
 
     // 计算子字符串长度
-    std::size_t substr_length = adjusted_end - adjusted_start + 1;
+    std::size_t substr_length =
+        static_cast<std::size_t>(adjusted_end - adjusted_start + 1);
 
     // 返回子字符串
-    return s.substr(adjusted_start, substr_length);
+    return s.substr(static_cast<std::size_t>(adjusted_start), substr_length);
 }
 
 /**
@@ -518,12 +522,13 @@ std::string_view substring(std::string_view s, int start, std::size_t length)
     }
 
     // 调整长度（如果超出字符串范围）
-    if (length == std::string::npos || adjusted_start + static_cast<std::size_t>(length) > str_length) {
-        length = str_length - adjusted_start;
+    const std::size_t start_u = static_cast<std::size_t>(adjusted_start);
+    if (length == std::string::npos || start_u + length > str_length) {
+        length = str_length - start_u;
     }
 
     // 返回子字符串
-    return s.substr(adjusted_start, length);
+    return s.substr(start_u, length);
 }
 
 /**

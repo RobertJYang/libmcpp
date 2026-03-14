@@ -15,6 +15,7 @@
 #include <mc/exception.h>
 #include <mc/log.h>
 #include <mc/reflect.h>
+#include "securec.h"
 
 namespace mc::dbus {
 
@@ -143,8 +144,11 @@ static void parse_signature(const char* types, sig_unit& sig)
     sig.next_types = types + len;
     sig.type       = *types;
     sig.len        = len;
-    std::memcpy(sig.buf, types, len);
-    sig.buf[len]  = '\0';
+    errno_t ret    = memcpy_s(sig.buf, sizeof(sig.buf), types, len);
+    if (ret != EOK) {
+        MC_THROW(mc::runtime_exception, "memcpy_s failed with error code ${code}", ("code", ret));
+    }
+    sig.buf[len] = '\0';
     sig.sub_types = sig.buf + 1;
 }
 

@@ -207,7 +207,8 @@ static void handle_g_format_alternate(std::string& s, std::size_t pos, int preci
             s += ".";
             dot = s.size() - 1;
         }
-        int frac = s.size() - dot - 1;
+        const std::size_t frac_len = s.size() - dot - 1;
+        const int frac              = static_cast<int>(frac_len);
         for (int i = 0; i < precision - 1 - frac; ++i) {
             s += "0";
         }

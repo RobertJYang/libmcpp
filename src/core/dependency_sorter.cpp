@@ -26,7 +26,7 @@ dependency_sorter::sort_for_startup(const std::unordered_map<std::string, depend
     // 计算每个节点的入度（依赖的数量）
     std::unordered_map<std::string, int> in_degrees;
     for (const auto& [name, node] : graph) {
-        in_degrees[name] = node.dependencies.size(); // 入度是依赖的数量
+        in_degrees[name] = static_cast<int>(node.dependencies.size()); // 入度是依赖的数量
         if (node.dependencies.empty()) {             // 没有依赖的项目先启动
             queue.push(name);
         }
@@ -65,7 +65,7 @@ dependency_sorter::sort_for_shutdown(const std::unordered_map<std::string, depen
     // 计算每个节点的入度（被依赖的数量）
     std::unordered_map<std::string, int> in_degrees;
     for (const auto& [name, node] : graph) {
-        in_degrees[name] = node.dependents.size(); // 入度是被依赖的数量
+        in_degrees[name] = static_cast<int>(node.dependents.size()); // 入度是被依赖的数量
         if (node.dependents.empty()) {             // 没有被依赖的项目先停止
             queue.push(name);
         }
@@ -102,11 +102,11 @@ bool dependency_sorter::has_circular_dependency(const std::unordered_map<std::st
     // 复制入度
     std::unordered_map<std::string, int> in_degrees;
     std::queue<std::string>              queue;
-    int                                  visited_count = 0;
+    std::size_t                          visited_count = 0;
 
     // 计算入度并添加所有入度为0的节点到队列
     for (const auto& [name, node] : graph) {
-        in_degrees[name] = node.dependencies.size();
+        in_degrees[name] = static_cast<int>(node.dependencies.size());
         if (in_degrees[name] == 0) {
             queue.push(name);
         }

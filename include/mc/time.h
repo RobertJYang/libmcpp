@@ -445,7 +445,7 @@ public:
     time_point_sec(const std::chrono::time_point<Clock, Duration>& tp)
     {
         auto s_tp     = std::chrono::time_point_cast<std::chrono::seconds>(tp);
-        m_utc_seconds = s_tp.time_since_epoch().count();
+        m_utc_seconds = static_cast<uint32_t>(s_tp.time_since_epoch().count());
     }
 
     /**
@@ -503,7 +503,7 @@ public:
      */
     constexpr time_point_sec operator=(const time_point& t)
     {
-        m_utc_seconds = t.time_since_epoch().count() / 1000ll;
+        m_utc_seconds = static_cast<uint32_t>(t.time_since_epoch().count() / 1000ll);
         return *this;
     }
 
@@ -569,7 +569,7 @@ public:
      */
     constexpr time_point_sec& operator+=(milliseconds m)
     {
-        m_utc_seconds += m.to_seconds();
+        m_utc_seconds = static_cast<uint32_t>(static_cast<int64_t>(m_utc_seconds) + m.to_seconds());
         return *this;
     }
 
@@ -587,7 +587,7 @@ public:
      */
     constexpr time_point_sec& operator-=(milliseconds m)
     {
-        m_utc_seconds -= m.to_seconds();
+        m_utc_seconds = static_cast<uint32_t>(static_cast<int64_t>(m_utc_seconds) - m.to_seconds());
         return *this;
     }
 

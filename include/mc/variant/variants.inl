@@ -236,21 +236,21 @@ variants::variants(InputIt first, InputIt last,
 }
 
 inline variants_iterator variants::insert(variants_iterator pos, const variant& value) {
-    size_t index = pos - begin();
-    insert(index, value);
+    variants_iterator::difference_type index = pos - begin();
+    insert(static_cast<size_t>(index), value);
     return begin() + index;
 }
 
 inline variants_iterator variants::insert(variants_iterator pos, size_t count, const variant& value) {
-    size_t index = pos - begin();
-    insert(index, count, value);
+    variants_iterator::difference_type index = pos - begin();
+    insert(static_cast<size_t>(index), count, value);
     return begin() + index;
 }
 
 template <typename InputIt>
 variants_iterator variants::insert(variants_iterator pos, InputIt first, InputIt last) {
-    size_t index = pos - begin();
-    insert(index, first, last);
+    variants_iterator::difference_type index = pos - begin();
+    insert(static_cast<size_t>(index), first, last);
     return begin() + index;
 }
 
