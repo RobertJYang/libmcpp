@@ -147,17 +147,16 @@ struct member_node : boost::intrusive::slist_base_hook<> {
     const T* member{nullptr};
 
     member_node() = default;
-    member_node(const T* member)
-        : member(member)
-    {
-    }
+    member_node(const T* member) : member(member)
+    {}
 };
 
-using property_list   = mc::intrusive::slist<member_node<property_type_info>, mc::intrusive::constant_time_size<false>>;
-using method_list     = mc::intrusive::slist<member_node<method_type_info>, mc::intrusive::constant_time_size<false>>;
-using base_class_list = mc::intrusive::slist<member_node<base_class_type_info>, mc::intrusive::constant_time_size<false>>;
-using member_list     = mc::intrusive::slist<member_node<member_info_base>, mc::intrusive::constant_time_size<false>>;
-using custom_list     = member_list;
+using property_list = mc::intrusive::slist<member_node<property_type_info>, mc::intrusive::constant_time_size<false>>;
+using method_list   = mc::intrusive::slist<member_node<method_type_info>, mc::intrusive::constant_time_size<false>>;
+using base_class_list =
+    mc::intrusive::slist<member_node<base_class_type_info>, mc::intrusive::constant_time_size<false>>;
+using member_list = mc::intrusive::slist<member_node<member_info_base>, mc::intrusive::constant_time_size<false>>;
+using custom_list = member_list;
 
 class MC_API struct_metadata {
 public:
@@ -239,15 +238,11 @@ struct enum_values {
     enum_values() = default;
 
     template <size_t N>
-    enum_values(const std::array<enum_member_info, N>& values)
-        : members(&values[0]), count(N)
-    {
-    }
+    enum_values(const std::array<enum_member_info, N>& values) : members(&values[0]), count(N)
+    {}
 
-    enum_values(const enum_member_info* values, size_t count)
-        : members(values), count(count)
-    {
-    }
+    enum_values(const enum_member_info* values, size_t count) : members(values), count(count)
+    {}
 
     const enum_member_info* members{nullptr};
     size_t                  count{0};

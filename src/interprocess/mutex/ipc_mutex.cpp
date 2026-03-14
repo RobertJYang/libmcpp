@@ -11,8 +11,8 @@
  */
 
 #include "mc/interprocess/mutex/ipc_mutex.h"
-#include "mc/interprocess/mutex/detail/mutex_utils.h"
 #include "mc/exception.h"
+#include "mc/interprocess/mutex/detail/mutex_utils.h"
 #include "mc/log.h"
 
 #include <chrono>
@@ -43,7 +43,6 @@ ipc_mutex::~ipc_mutex()
 bool ipc_mutex::try_lock()
 {
     pid_t pid = getpid();
-
     // 如果已经持有锁，返回失败，与std::mutex语义一致
     if (m_owner_pid.load(std::memory_order_acquire) == pid) {
         wlog("进程${pid}尝试重复获取互斥锁，不允许重入，返回失败", ("pid", pid));
@@ -67,7 +66,6 @@ bool ipc_mutex::try_lock()
         // 锁需要被抢占（持有者已死亡或锁超时）
         // 获取当前锁的拥有者
         expected = m_owner_pid.load(std::memory_order_acquire);
-
         // 使用compare_exchange确保只有一个进程能成功抢占锁
         if (!m_owner_pid.compare_exchange_strong(expected, pid, std::memory_order_acq_rel)) {
             // 另一个进程已经抢占了锁
@@ -116,7 +114,6 @@ bool ipc_mutex::try_lock_for(std::chrono::milliseconds timeout_ms)
 void ipc_mutex::unlock()
 {
     pid_t pid = getpid();
-
     // 如果当前进程不持有锁，直接返回
     if (m_owner_pid.load(std::memory_order_acquire) != pid) {
         return;
@@ -157,8 +154,7 @@ ipc_mutex::preempt_condition ipc_mutex::can_preempt() const
 
     // 检查锁是否超时
     if (now > lock_time && (now - lock_time) > MC_SHARED_MUTEX_TIMEOUT_US) {
-        ilog("锁已超时(${duration}μs)，被进程${pid}持有，抢占锁",
-             ("duration", now - lock_time)("pid", owner));
+        ilog("锁已超时(${duration}μs)，被进程${pid}持有，抢占锁", ("duration", now - lock_time)("pid", owner));
         return preempt_condition::timeout;
     }
 

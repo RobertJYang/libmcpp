@@ -12,8 +12,8 @@
 
 #include <mc/log/appenders/socket_client.h>
 
-#include <cstdint>
 #include <cerrno>
+#include <cstdint>
 #include <cstring>
 
 #include <sys/socket.h>
@@ -42,8 +42,7 @@ unix_socket::~unix_socket()
     close();
 }
 
-unix_socket::unix_socket(unix_socket&& other) noexcept
-    : m_fd(other.m_fd)
+unix_socket::unix_socket(unix_socket&& other) noexcept : m_fd(other.m_fd)
 {
     other.m_fd = -1;
 }
@@ -73,7 +72,7 @@ bool unix_socket::connect(std::string_view path)
         return false;
     }
 
-    sockaddr_un addr {};
+    sockaddr_un addr{};
     addr.sun_family = AF_UNIX;
     (void)memcpy_s(addr.sun_path, sizeof(addr.sun_path), path.data(), path.size());
     addr.sun_path[path.size()] = '\0';

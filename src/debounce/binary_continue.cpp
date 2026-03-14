@@ -16,8 +16,8 @@
 namespace mc::debounce {
 
 BinaryContinue::BinaryContinue(int h_count, int l_count)
-    : m_high_level_count(h_count), m_low_level_count(l_count),
-      m_stable_val(-1), m_unstable_val(0), m_unstable_val_count(0), is_valid(false)
+    : m_high_level_count(h_count), m_low_level_count(l_count), m_stable_val(-1), m_unstable_val(0),
+      m_unstable_val_count(0), is_valid(false)
 {
     if (h_count <= 0 || l_count <= 0) {
         throw std::runtime_error("count must be greater than 0");

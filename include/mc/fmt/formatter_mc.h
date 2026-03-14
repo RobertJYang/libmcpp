@@ -87,8 +87,7 @@ struct formatter<mc::time_point>
     void format(const mc::time_point& tp, Context& ctx, const format_spec& spec) const
     {
         formatter<std::chrono::time_point<std::chrono::system_clock, std::chrono::milliseconds>>::format(
-            static_cast<std::chrono::time_point<std::chrono::system_clock, std::chrono::milliseconds>>(tp),
-            ctx, spec);
+            static_cast<std::chrono::time_point<std::chrono::system_clock, std::chrono::milliseconds>>(tp), ctx, spec);
     }
 };
 
@@ -99,20 +98,16 @@ struct formatter<mc::time_point_sec>
     void format(const mc::time_point_sec& tp, Context& ctx, const format_spec& spec) const
     {
         formatter<std::chrono::time_point<std::chrono::system_clock, std::chrono::seconds>>::format(
-            static_cast<std::chrono::time_point<std::chrono::system_clock, std::chrono::seconds>>(tp),
-            ctx, spec);
+            static_cast<std::chrono::time_point<std::chrono::system_clock, std::chrono::seconds>>(tp), ctx, spec);
     }
 };
 
 template <>
-struct formatter<mc::milliseconds>
-    : public formatter<std::chrono::milliseconds> {
+struct formatter<mc::milliseconds> : public formatter<std::chrono::milliseconds> {
     template <typename Context>
     void format(const mc::milliseconds& ms, Context& ctx, const format_spec& spec) const
     {
-        formatter<std::chrono::milliseconds>::format(
-            static_cast<std::chrono::milliseconds>(ms),
-            ctx, spec);
+        formatter<std::chrono::milliseconds>::format(static_cast<std::chrono::milliseconds>(ms), ctx, spec);
     }
 };
 

@@ -22,34 +22,18 @@ static constexpr const char*      PROP_IFACE      = "bmc.kepler.Object.Propertie
 static constexpr mc::milliseconds DEFAULT_TIMEOUT = mc::milliseconds(30000); // 30秒
 
 // 接收裸指针的构造函数（不拥有 bus 所有权）
-proxy_object::proxy_object(mc::dbus::sd_bus*     bus,
-                           std::string           service,
-                           std::string           path,
-                           std::string           interface,
+proxy_object::proxy_object(mc::dbus::sd_bus* bus, std::string service, std::string path, std::string interface,
                            const interface_info& iface_info)
-    : m_owned_bus(nullptr),
-      m_bus(bus),
-      m_service(std::move(service)),
-      m_path(std::move(path)),
-      m_interface(std::move(interface)),
-      m_iface_info(iface_info)
-{
-}
+    : m_owned_bus(nullptr), m_bus(bus), m_service(std::move(service)), m_path(std::move(path)),
+      m_interface(std::move(interface)), m_iface_info(iface_info)
+{}
 
 // 接收 shared_ptr 的构造函数
-proxy_object::proxy_object(std::shared_ptr<mc::dbus::sd_bus> bus,
-                           std::string                       service,
-                           std::string                       path,
-                           std::string                       interface,
-                           const interface_info&             iface_info)
-    : m_owned_bus(std::move(bus)),
-      m_bus(m_owned_bus.get()),
-      m_service(std::move(service)),
-      m_path(std::move(path)),
-      m_interface(std::move(interface)),
-      m_iface_info(iface_info)
-{
-}
+proxy_object::proxy_object(std::shared_ptr<mc::dbus::sd_bus> bus, std::string service, std::string path,
+                           std::string interface, const interface_info& iface_info)
+    : m_owned_bus(std::move(bus)), m_bus(m_owned_bus.get()), m_service(std::move(service)), m_path(std::move(path)),
+      m_interface(std::move(interface)), m_iface_info(iface_info)
+{}
 
 const interface_info& proxy_object::get_interface_info() const
 {
@@ -224,8 +208,7 @@ mc::variants proxy_object::call_method(const std::string& name, const mc::varian
     return results;
 }
 
-std::pair<bool, mc::variants> proxy_object::call_method_pcall(const std::string&          name,
-                                                              const mc::variant&          args,
+std::pair<bool, mc::variants> proxy_object::call_method_pcall(const std::string& name, const mc::variant& args,
                                                               std::optional<std::string>& error)
 {
     try {

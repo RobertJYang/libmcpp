@@ -51,8 +51,7 @@ template <typename Tag, typename T, typename = void>
 struct has_tag : std::false_type {};
 
 template <typename Tag, typename T>
-struct has_tag<Tag, T, std::enable_if_t<std::is_same_v<typename T::tag_type, Tag>>>
-    : std::true_type {};
+struct has_tag<Tag, T, std::enable_if_t<std::is_same_v<typename T::tag_type, Tag>>> : std::true_type {};
 
 template <typename Tag, typename T>
 inline constexpr bool has_tag_v = has_tag<Tag, T>::value;
@@ -79,10 +78,9 @@ template <typename T, typename U = void>
 struct is_property : std::false_type {};
 
 template <typename T, typename M>
-struct is_property<M T::*,
-                   std::enable_if_t<!is_method_v<M T::*> &&
-                                    (is_variant_v<mc::traits::remove_cvref_t<M>> ||
-                                     is_variant_constructible_v<mc::traits::remove_cvref_t<M>>)>>
+struct is_property<
+    M T::*, std::enable_if_t<!is_method_v<M T::*> && (is_variant_v<mc::traits::remove_cvref_t<M>> ||
+                                                      is_variant_constructible_v<mc::traits::remove_cvref_t<M>>)>>
     : std::true_type {};
 
 // 检测是否为属性
@@ -105,19 +103,17 @@ enum member_info_type {
 //------------------------------------------------------------------------------
 
 // 成员信息基类
-// @note 我们预留了 flags 用于存储自定义其他信息，比如 engine 模块的 MC_REFLECT_FLAG_PROPERTY_TPL 用于标记该属性是 property<T> 类型。
-// 这里不做过多约定由用户自己决定如何使用，为了保证定义的 flags 位不冲突，要求必须用宏定义 FLAG，并以 MC_REFLECT_FLAG_* 作为开头命名，这样
-// 通过简单的字符串查找就可以检查是否冲突
+// @note 我们预留了 flags 用于存储自定义其他信息，比如 engine 模块的 MC_REFLECT_FLAG_PROPERTY_TPL 用于标记该属性是
+// property<T> 类型。 这里不做过多约定由用户自己决定如何使用，为了保证定义的 flags 位不冲突，要求必须用宏定义 FLAG，并以
+// MC_REFLECT_FLAG_* 作为开头命名，这样 通过简单的字符串查找就可以检查是否冲突
 struct member_info_base {
     std::string_view name;
-    uint32_t         flags;           // 扩展 flags，用于存储自定义其他信息
-    uint32_t         base_offset = 0; // 如果该反射信息表示的是其他类的基类，则该值为基类相对于子类基址的偏移量，否则为 0
-    uint64_t         data;            // 扩展数据，用于存储自定义其他信息
+    uint32_t         flags;   // 扩展 flags，用于存储自定义其他信息
+    uint32_t base_offset = 0; // 如果该反射信息表示的是其他类的基类，则该值为基类相对于子类基址的偏移量，否则为 0
+    uint64_t data;            // 扩展数据，用于存储自定义其他信息
 
-    constexpr member_info_base(std::string_view n)
-        : name(n), flags(0), base_offset(0), data(0)
-    {
-    }
+    constexpr member_info_base(std::string_view n) : name(n), flags(0), base_offset(0), data(0)
+    {}
 
     virtual std::type_index   typeinfo() const  = 0;
     virtual std::string_view  type_name() const = 0;
@@ -184,10 +180,8 @@ struct member_info_base {
 //------------------------------------------------------------------------------
 
 struct property_type_info : public member_info_base {
-    constexpr property_type_info(std::string_view n)
-        : member_info_base(n)
-    {
-    }
+    constexpr property_type_info(std::string_view n) : member_info_base(n)
+    {}
 
     virtual std::string_view get_signature() const = 0;
 
@@ -213,10 +207,8 @@ struct property_info_base : public property_type_info {
     using getter_type = std::function<mc::variant(const C&)>;
     using setter_type = std::function<void(C&, const mc::variant&)>;
 
-    constexpr property_info_base(std::string_view n)
-        : property_type_info(n)
-    {
-    }
+    constexpr property_info_base(std::string_view n) : property_type_info(n)
+    {}
 
     virtual mc::variant get_value(const C& obj) const                     = 0;
     virtual void        set_value(C& obj, const mc::variant& value) const = 0;
@@ -233,8 +225,8 @@ inline mc::variant property_type_info::get_value(const void* obj) const
 }
 inline void property_type_info::set_value(void* obj, const mc::variant& value) const
 {
-    reinterpret_cast<const property_info_base<std::monostate>*>(this)->set_value(
-        *static_cast<std::monostate*>(obj), value);
+    reinterpret_cast<const property_info_base<std::monostate>*>(this)->set_value(*static_cast<std::monostate*>(obj),
+                                                                                 value);
 }
 
 // 属性元数据具体实现
@@ -251,10 +243,8 @@ struct property_info : public property_info_base<C> {
 
     M BaseT::*member_ptr;
 
-    constexpr property_info(std::string_view n, M BaseT::*ptr)
-        : property_info_base<C>(n), member_ptr(ptr)
-    {
-    }
+    constexpr property_info(std::string_view n, M BaseT::*ptr) : property_info_base<C>(n), member_ptr(ptr)
+    {}
 
     // 获取属性值
     mc::variant get_value(const C& obj) const override
@@ -339,11 +329,9 @@ struct computed_property_info : public property_info_base<C> {
     get_function_type m_getter;
     set_function_type m_setter;
 
-    constexpr computed_property_info(std::string_view n, get_function_type getter,
-                                     set_function_type setter = nullptr)
+    constexpr computed_property_info(std::string_view n, get_function_type getter, set_function_type setter = nullptr)
         : property_info_base<C>(n), m_getter(getter), m_setter(setter)
-    {
-    }
+    {}
 
     // 获取属性值
     mc::variant get_value(const C& obj) const override
@@ -421,10 +409,8 @@ struct computed_property_info : public property_info_base<C> {
 //------------------------------------------------------------------------------
 
 struct method_type_info : public member_info_base {
-    constexpr method_type_info(std::string_view n)
-        : member_info_base(n)
-    {
-    }
+    constexpr method_type_info(std::string_view n) : member_info_base(n)
+    {}
 
     virtual std::string_view get_args_signature() const   = 0;
     virtual std::string_view get_result_signature() const = 0;
@@ -457,18 +443,15 @@ struct method_info_base : public method_type_info {
     using method_type_info::async_invoke;
     using method_type_info::invoke;
 
-    constexpr method_info_base(std::string_view n)
-        : method_type_info(n)
-    {
-    }
+    constexpr method_info_base(std::string_view n) : method_type_info(n)
+    {}
 
     virtual mc::variant  invoke(C& obj, const mc::variants& args) const       = 0;
     virtual async_result async_invoke(C& obj, const mc::variants& args) const = 0;
 };
 
 // 方法元数据具体实现
-template <typename Class, typename BaseT, bool IsConst, bool IsStatic, typename RetType,
-          typename... Args>
+template <typename Class, typename BaseT, bool IsConst, bool IsStatic, typename RetType, typename... Args>
 class method_info : public method_info_base<Class> {
 public:
     using tag_type = method_tag;
@@ -476,28 +459,22 @@ public:
     using non_const_function_type = RetType (BaseT::*)(Args...);
     using const_function_type     = RetType (BaseT::*)(Args...) const;
     using static_function_type    = RetType (*)(Args...);
-    using member_function_type =
-        std::conditional_t<IsConst, const_function_type, non_const_function_type>;
-    using function_type = std::conditional_t<IsStatic, static_function_type, member_function_type>;
-    using result_type   = mc::traits::remove_cvref_t<RetType>;
-    using args_type     = std::tuple<mc::traits::remove_cvref_t<Args>...>;
-    using class_type    = Class;
-    using base_type     = BaseT;
+    using member_function_type    = std::conditional_t<IsConst, const_function_type, non_const_function_type>;
+    using function_type           = std::conditional_t<IsStatic, static_function_type, member_function_type>;
+    using result_type             = mc::traits::remove_cvref_t<RetType>;
+    using args_type               = std::tuple<mc::traits::remove_cvref_t<Args>...>;
+    using class_type              = Class;
+    using base_type               = BaseT;
 
     // 静态断言确保返回类型可以转换为variant
-    static_assert(std::is_void_v<RetType> ||
-                      is_variant_constructible_v<RetType> ||
-                      is_variant_v<RetType>,
+    static_assert(std::is_void_v<RetType> || is_variant_constructible_v<RetType> || is_variant_v<RetType>,
                   "方法返回类型必须是void或者可以转换为mc::variant");
 
     // 静态断言确保所有参数类型都可以从variant转换
-    static_assert(all_variant_constructible_v<mc::traits::remove_cvref_t<Args>...>,
-                  "参数类型必须可转换为mc::variant");
+    static_assert(all_variant_constructible_v<mc::traits::remove_cvref_t<Args>...>, "参数类型必须可转换为mc::variant");
 
-    constexpr method_info(std::string_view name, function_type func)
-        : method_info_base<Class>(name), m_function(func)
-    {
-    }
+    constexpr method_info(std::string_view name, function_type func) : method_info_base<Class>(name), m_function(func)
+    {}
 
     bool is_static() const override
     {
@@ -522,14 +499,11 @@ public:
     ResultType call_with_exact_args(C& obj, const mc::variants& args, std::index_sequence<I...>) const
     {
         if constexpr (std::is_void_v<RetType>) {
-            call_impl(
-                obj, mc::detail::convert_arg<mc::traits::remove_cvref_t<Args>>(
-                         this->name.data(), args[I])...);
+            call_impl(obj, mc::detail::convert_arg<mc::traits::remove_cvref_t<Args>>(this->name.data(), args[I])...);
             return {};
         } else {
             return ResultType(call_impl(
-                obj, mc::detail::convert_arg<mc::traits::remove_cvref_t<Args>>(
-                         this->name.data(), args[I])...));
+                obj, mc::detail::convert_arg<mc::traits::remove_cvref_t<Args>>(this->name.data(), args[I])...));
         }
     }
 
@@ -552,8 +526,7 @@ public:
                 throw_method_arg_not_enough(this->name, arg_count, args.size());
             }
 
-            return call_with_exact_args<C, ResultType>(
-                obj, args, std::make_index_sequence<arg_count>());
+            return call_with_exact_args<C, ResultType>(obj, args, std::make_index_sequence<arg_count>());
         }
     }
 
@@ -652,8 +625,8 @@ public:
 // 只是为了计算指针偏移量到正确的对象地址
 inline mc::variant method_type_info::invoke(void* obj, const mc::variants& args) const
 {
-    return reinterpret_cast<const method_info_base<std::monostate>*>(this)->invoke(
-        *static_cast<std::monostate*>(obj), args);
+    return reinterpret_cast<const method_info_base<std::monostate>*>(this)->invoke(*static_cast<std::monostate*>(obj),
+                                                                                   args);
 }
 
 inline async_result method_type_info::async_invoke(void* obj, const mc::variants& args) const
@@ -685,10 +658,8 @@ constexpr auto make_static_method_info(R (*method)(Args...), std::string_view na
 // 基类元数据结构
 //------------------------------------------------------------------------------
 struct base_class_type_info : public member_info_base {
-    constexpr base_class_type_info(std::string_view n)
-        : member_info_base(n)
-    {
-    }
+    constexpr base_class_type_info(std::string_view n) : member_info_base(n)
+    {}
 
     virtual type_id_type           get_type_id() const   = 0;
     virtual std::string_view       get_signature() const = 0;
@@ -723,10 +694,8 @@ struct base_class_type_info : public member_info_base {
 
 template <typename C>
 struct base_class_info_base : public base_class_type_info {
-    constexpr base_class_info_base(std::string_view n = {})
-        : base_class_type_info(n)
-    {
-    }
+    constexpr base_class_info_base(std::string_view n = {}) : base_class_type_info(n)
+    {}
 
     virtual mc::variant  get_value(const C& obj, std::string_view name) const                        = 0;
     virtual void         set_value(C& obj, std::string_view name, const mc::variant& value) const    = 0;
@@ -742,10 +711,8 @@ struct base_class_info : public base_class_info_base<C> {
     using base_type   = BaseT;
     using tag_type    = base_class_tag;
 
-    constexpr base_class_info(std::string_view base_class_name)
-        : base_class_info_base<C>(base_class_name)
-    {
-    }
+    constexpr base_class_info(std::string_view base_class_name) : base_class_info_base<C>(base_class_name)
+    {}
 
     std::type_index typeinfo() const override
     {
@@ -812,8 +779,8 @@ inline mc::variant base_class_type_info::get_value(void* obj, std::string_view n
 }
 inline void base_class_type_info::set_value(void* obj, std::string_view name, const mc::variant& value) const
 {
-    reinterpret_cast<const base_class_info_base<std::monostate>*>(this)->set_value(
-        *static_cast<std::monostate*>(obj), name, value);
+    reinterpret_cast<const base_class_info_base<std::monostate>*>(this)->set_value(*static_cast<std::monostate*>(obj),
+                                                                                   name, value);
 }
 inline mc::variant base_class_type_info::invoke(void* obj, std::string_view name, const mc::variants& args) const
 {
@@ -834,22 +801,17 @@ struct enum_member_info {
     std::string_view name;  // 枚举成员名称
     enum_value_type  value; // 枚举值
 
-    constexpr enum_member_info()
-        : name(), value(0)
-    {
-    }
+    constexpr enum_member_info() : name(), value(0)
+    {}
 
     template <typename EnumType>
-    constexpr enum_member_info(std::string_view n, EnumType v)
-        : name(n), value(static_cast<enum_value_type>(v))
+    constexpr enum_member_info(std::string_view n, EnumType v) : name(n), value(static_cast<enum_value_type>(v))
     {
         static_assert(std::is_enum_v<EnumType>, "EnumType must be an enum type");
     }
 
-    constexpr enum_member_info(const enum_member_info& other)
-        : name(other.name), value(other.value)
-    {
-    }
+    constexpr enum_member_info(const enum_member_info& other) : name(other.name), value(other.value)
+    {}
 };
 
 /**
@@ -950,15 +912,13 @@ struct base_class_info_creator {
 namespace detail {
 
 // 递归过滤元组元素，仅保留具有特定标签的元素
-template <typename T, typename Filter, size_t Index, typename Result,
-          typename... Tuples>
+template <typename T, typename Filter, size_t Index, typename Result, typename... Tuples>
 constexpr auto filter_members_impl(const std::tuple<Tuples...>& all_members, Result result)
 {
     if constexpr (Index >= sizeof...(Tuples)) {
         return result;
     } else {
-        using element_type =
-            mc::traits::remove_cvref_t<std::tuple_element_t<Index, std::tuple<Tuples...>>>;
+        using element_type = mc::traits::remove_cvref_t<std::tuple_element_t<Index, std::tuple<Tuples...>>>;
         if constexpr (Filter::template check<std::remove_pointer_t<element_type>>) {
             if constexpr (std::is_pointer_v<element_type>) {
                 auto member_tuple = std::make_tuple(std::get<Index>(all_members));

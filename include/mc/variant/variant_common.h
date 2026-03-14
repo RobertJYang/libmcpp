@@ -47,27 +47,22 @@ namespace mc {
  */
 template <typename T>
 inline constexpr bool is_variant_integer_v =
-    std::is_same_v<std::decay_t<T>, bool> ||
-    std::is_integral_v<std::decay_t<T>>;
+    std::is_same_v<std::decay_t<T>, bool> || std::is_integral_v<std::decay_t<T>>;
 
 template <typename T>
-inline constexpr bool is_variant_string_v =
-    std::is_same_v<T, std::string_view> ||
-    std::is_same_v<T, std::string> ||
-    std::is_same_v<T, char*> || std::is_same_v<T, const char*>;
+inline constexpr bool is_variant_string_v = std::is_same_v<T, std::string_view> || std::is_same_v<T, std::string> ||
+                                            std::is_same_v<T, char*> || std::is_same_v<T, const char*>;
 
 template <typename T>
 inline constexpr bool is_variant_fundamental_v =
-    is_variant_integer_v<std::decay_t<T>> ||
-    std::is_floating_point_v<std::decay_t<T>> ||
+    is_variant_integer_v<std::decay_t<T>> || std::is_floating_point_v<std::decay_t<T>> ||
     is_variant_string_v<std::decay_t<T>>;
 
 namespace detail {
 template <typename, typename T>
 inline constexpr bool check_is_variant_v = false;
 template <typename T>
-inline constexpr bool check_is_variant_v<std::enable_if_t<std::decay_t<T>::is_variant::value>, T> =
-    true;
+inline constexpr bool check_is_variant_v<std::enable_if_t<std::decay_t<T>::is_variant::value>, T> = true;
 
 } // namespace detail
 
@@ -89,20 +84,14 @@ template <typename Allocator = std::allocator<char>>
 struct blob_base {
     std::vector<char, Allocator> data;
 
-    blob_base(const Allocator& alloc = Allocator())
-        : data(alloc)
-    {
-    }
+    blob_base(const Allocator& alloc = Allocator()) : data(alloc)
+    {}
 
-    blob_base(const char* data, size_t size, const Allocator& alloc = Allocator())
-        : data(data, data + size, alloc)
-    {
-    }
+    blob_base(const char* data, size_t size, const Allocator& alloc = Allocator()) : data(data, data + size, alloc)
+    {}
 
-    blob_base(std::initializer_list<char> list, const Allocator& alloc = Allocator())
-        : data(list, alloc)
-    {
-    }
+    blob_base(std::initializer_list<char> list, const Allocator& alloc = Allocator()) : data(list, alloc)
+    {}
 
     /**
      * @brief 比较两个 blob_base 对象是否相等
@@ -159,10 +148,9 @@ using blob = blob_base<>;
 
 template <typename Allocator = std::allocator<char>>
 struct variant_config {
-    using alloc_traits    = std::allocator_traits<Allocator>;
-    using char_alloc_type = typename alloc_traits::template rebind_alloc<char>;
-    using variant_alloc_type =
-        typename alloc_traits::template rebind_alloc<variant_base>;
+    using alloc_traits       = std::allocator_traits<Allocator>;
+    using char_alloc_type    = typename alloc_traits::template rebind_alloc<char>;
+    using variant_alloc_type = typename alloc_traits::template rebind_alloc<variant_base>;
 
     using allocator_type = Allocator;
     using string_type    = std::basic_string<char, std::char_traits<char>, char_alloc_type>;
@@ -211,10 +199,8 @@ enum class type_id : uint8_t {
 [[noreturn]] MC_API void throw_type_error(const char* expected_type, type_id actual_type);
 MC_API const char*       get_type_name_internal(type_id type);
 [[noreturn]] MC_API void throw_unknow_type_error(type_id actual_type);
-[[noreturn]] MC_API void throw_invalid_type_comparison_error(const char* type1, const char* type2,
-                                                             const char* op);
-[[noreturn]] MC_API void throw_invalid_type_operation_error(const char* type1, const char* type2,
-                                                            const char* op);
+[[noreturn]] MC_API void throw_invalid_type_comparison_error(const char* type1, const char* type2, const char* op);
+[[noreturn]] MC_API void throw_invalid_type_operation_error(const char* type1, const char* type2, const char* op);
 [[noreturn]] MC_API void throw_divide_by_zero_exception(const char* msg);
 [[noreturn]] MC_API void throw_out_of_range_error(const char* msg);
 [[noreturn]] MC_API void throw_out_of_range_error(size_t index, size_t size);
@@ -279,13 +265,8 @@ static auto fixed_integer(T val)
     }
 }
 
-using numeric_value_t = std::variant<
-    bool,
-    int8_t, uint8_t,
-    int16_t, uint16_t,
-    int32_t, uint32_t,
-    int64_t, uint64_t,
-    float, double>;
+using numeric_value_t =
+    std::variant<bool, int8_t, uint8_t, int16_t, uint16_t, int32_t, uint32_t, int64_t, uint64_t, float, double>;
 
 template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
 numeric_value_t make_numeric_value(T val)
@@ -305,15 +286,11 @@ struct numeric_t {
 
     // explicit构造函数，防止隐式转换
     template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-    explicit numeric_t(T value)
-        : data(make_numeric_value(value))
-    {
-    }
+    explicit numeric_t(T value) : data(make_numeric_value(value))
+    {}
 
-    explicit numeric_t(numeric_value_t value)
-        : data(std::move(value))
-    {
-    }
+    explicit numeric_t(numeric_value_t value) : data(std::move(value))
+    {}
 
     numeric_value_t data;
 };
@@ -340,8 +317,8 @@ MC_API std::string to_string(const variant_base& v);
 namespace detail {
 // 检测是否存在 to_variant 函数
 template <typename T>
-auto has_to_variant_function(int)
-    -> decltype(to_variant(std::declval<T>(), std::declval<mc::variant&>()), std::true_type{});
+auto has_to_variant_function(int) -> decltype(to_variant(std::declval<T>(), std::declval<mc::variant&>()),
+                                              std::true_type{});
 
 template <typename T>
 std::false_type has_to_variant_function(...);
@@ -353,10 +330,9 @@ inline constexpr bool has_to_variant_function_v = decltype(has_to_variant_functi
 template <typename T>
 struct is_variant_constructible {
     // 第一步：检查是否可以构造
-    static constexpr bool is_constructible = mc::is_variant_fundamental_v<T> ||
-                                             std::is_same_v<std::decay_t<T>, mc::dict> ||
-                                             std::is_same_v<std::decay_t<T>, mc::blob> ||
-                                             std::is_same_v<std::decay_t<T>, mc::variants>;
+    static constexpr bool is_constructible =
+        mc::is_variant_fundamental_v<T> || std::is_same_v<std::decay_t<T>, mc::dict> ||
+        std::is_same_v<std::decay_t<T>, mc::blob> || std::is_same_v<std::decay_t<T>, mc::variants>;
 
     // 第二步：仅当不可构造时，才检查是否有 to_variant 函数
     template <typename U, bool IsConstructible>

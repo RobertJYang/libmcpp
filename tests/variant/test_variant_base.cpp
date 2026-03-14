@@ -33,12 +33,9 @@ namespace {
 class simple_extension : public mc::variant_extension<simple_extension> {
 public:
     explicit simple_extension(int64_t value = 0, bool allow_reference = false)
-        : m_value(value),
-          m_allow_reference(allow_reference),
-          m_items({mc::variant(value)}),
+        : m_value(value), m_allow_reference(allow_reference), m_items({mc::variant(value)}),
           m_attrs({{"value", mc::variant(value)}})
-    {
-    }
+    {}
 
     simple_extension(const simple_extension&)            = default;
     simple_extension& operator=(const simple_extension&) = default;
@@ -48,8 +45,7 @@ public:
         return mc::make_shared<simple_extension>(*this);
     }
 
-    mc::shared_ptr<mc::variant_extension_base>
-    deep_copy(mc::detail::copy_context* /*ctx*/) const override
+    mc::shared_ptr<mc::variant_extension_base> deep_copy(mc::detail::copy_context* /*ctx*/) const override
     {
         return copy();
     }
@@ -264,10 +260,8 @@ private:
 
 class type_record_visitor : public mc::variant_base::visitor {
 public:
-    explicit type_record_visitor()
-        : m_last_type("none")
-    {
-    }
+    explicit type_record_visitor() : m_last_type("none")
+    {}
 
     void handle() const override
     {

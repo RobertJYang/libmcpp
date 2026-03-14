@@ -48,11 +48,9 @@ struct wrapper {
 class pretty_name_test : public ::testing::Test {
 protected:
     void SetUp() override
-    {
-    }
+    {}
     void TearDown() override
-    {
-    }
+    {}
 };
 
 // 测试基本类型的名称

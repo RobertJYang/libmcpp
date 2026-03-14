@@ -63,10 +63,8 @@ public:
         color_type color; // 对应颜色
 
         level_color() = default;
-        level_color(log::level lvl, color_type clr)
-            : level(lvl), color(clr)
-        {
-        }
+        level_color(log::level lvl, color_type clr) : level(lvl), color(clr)
+        {}
     };
 
     /**

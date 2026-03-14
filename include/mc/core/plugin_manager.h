@@ -63,8 +63,7 @@ public:
 
 private:
     // 加载动态库并创建插件实例
-    bool load_dynamic_library(const std::string& plugin_name, void*& handle,
-                              std::shared_ptr<plugin>& plugin);
+    bool load_dynamic_library(const std::string& plugin_name, void*& handle, std::shared_ptr<plugin>& plugin);
 
     // 成员变量
     std::string                                              m_plugin_dir;     // 插件目录

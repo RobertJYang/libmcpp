@@ -19,31 +19,30 @@ namespace mc::futures {
 
 template <typename T>
 template <typename Executor, std::enable_if_t<detail::is_executor_v<Executor>, int>>
-Promise<T>::Promise(Executor&& executor)
-    : any_promise(make_pooled_state<T>(std::forward<Executor>(executor)))
-{
-}
+Promise<T>::Promise(Executor&& executor) : any_promise(make_pooled_state<T>(std::forward<Executor>(executor)))
+{}
 
 template <typename T>
 template <typename Future, std::enable_if_t<detail::is_future_v<Future>, int>>
 void Promise<T>::set_future_value(Future&& future)
 {
     auto promise = *this;
-    future.then([promise](auto&& value) mutable {
+    future
+        .then([promise](auto&& value) mutable {
         using value_type = typename Promise::value_type;
         if constexpr (std::is_same_v<value_type, void>) {
             promise.any_promise::set_value(false);
         } else {
             promise.any_promise::template set_value<value_type>(std::forward<decltype(value)>(value), false);
         }
-    }).catch_error([promise](const mc::exception& ec) mutable {
+    })
+        .catch_error([promise](const mc::exception& ec) mutable {
         promise.any_promise::set_exception(std::current_exception(), false);
     }).on_cancel(promise);
 }
 
 template <typename T>
-template <typename... Args,
-          std::enable_if_t<!std::is_void_v<T> && sizeof...(Args) == 1, int>>
+template <typename... Args, std::enable_if_t<!std::is_void_v<T> && sizeof...(Args) == 1, int>>
 void Promise<T>::set_value(Args&&... args)
 {
     using value_type = std::tuple_element_t<0, std::tuple<Args...>>;

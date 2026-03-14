@@ -75,8 +75,7 @@ static GVariant* new_basic_gvariant(const variant& v, const char* types)
     }
 }
 
-int sig_unit::get_dict_len(const char* types, bool allow_dict_entry, size_t array_depth,
-                           size_t struct_depth)
+int sig_unit::get_dict_len(const char* types, bool allow_dict_entry, size_t array_depth, size_t struct_depth)
 {
     if (!allow_dict_entry) {
         MC_THROW(mc::invalid_arg_exception, "dict entry not allowed");
@@ -99,8 +98,7 @@ int sig_unit::get_dict_len(const char* types, bool allow_dict_entry, size_t arra
     return p - types + 1;
 }
 
-int sig_unit::get_struct_len(const char* types, bool allow_dict_entry, size_t array_depth,
-                             size_t struct_depth)
+int sig_unit::get_struct_len(const char* types, bool allow_dict_entry, size_t array_depth, size_t struct_depth)
 {
     if (struct_depth >= MAX_CONTAINER_DEPTH) {
         MC_THROW(mc::invalid_arg_exception, "struct depth too deep");
@@ -115,8 +113,7 @@ int sig_unit::get_struct_len(const char* types, bool allow_dict_entry, size_t ar
     return p - types + 1;
 }
 
-int sig_unit::get_sig_len(const char* types, bool allow_dict_entry, size_t array_depth,
-                          size_t struct_depth)
+int sig_unit::get_sig_len(const char* types, bool allow_dict_entry, size_t array_depth, size_t struct_depth)
 {
     char type = *types;
     if (gvariant_is_basic_type(type) || type == DBUS_TYPE_VARIANT) {
@@ -151,8 +148,7 @@ static void parse_signature(const char* types, sig_unit& sig)
     sig.sub_types = sig.buf + 1;
 }
 
-gvariant_auto_free::gvariant_auto_free(GVariant* v, bool add_ref)
-    : ptr(v)
+gvariant_auto_free::gvariant_auto_free(GVariant* v, bool add_ref) : ptr(v)
 {
     if (add_ref && ptr) {
         g_variant_ref(ptr);
@@ -172,8 +168,7 @@ gvariant_auto_free::~gvariant_auto_free()
     release();
 }
 
-gvariant_auto_free::gvariant_auto_free(const gvariant_auto_free& other)
-    : ptr(other.ptr)
+gvariant_auto_free::gvariant_auto_free(const gvariant_auto_free& other) : ptr(other.ptr)
 {
     if (ptr) {
         g_variant_ref(ptr);
@@ -192,8 +187,7 @@ gvariant_auto_free& gvariant_auto_free::operator=(const gvariant_auto_free& othe
     return *this;
 }
 
-gvariant_auto_free::gvariant_auto_free(gvariant_auto_free&& other) noexcept
-    : ptr(other.ptr)
+gvariant_auto_free::gvariant_auto_free(gvariant_auto_free&& other) noexcept : ptr(other.ptr)
 {
     other.ptr = nullptr;
 }
@@ -262,8 +256,7 @@ GVariant* gvariant_convert::new_gvariant_struct(const variant& v, sig_unit& sig)
         types = std::get<1>(pair);
     }
     if (*types != '\0' && i < len) {
-        MC_THROW(mc::invalid_arg_exception,
-                 "invalid number of elements ${len} for struct: ${types}",
+        MC_THROW(mc::invalid_arg_exception, "invalid number of elements ${len} for struct: ${types}",
                  ("len", len)("types", std::string(types)));
     }
     return builder.end();
@@ -293,8 +286,7 @@ GVariant* gvariant_convert::to_gvariant(const variant& v, const char* types)
     return std::get<0>(to_gvariant_inner(v, types));
 }
 
-std::tuple<GVariant*, const char*> gvariant_convert::to_gvariant_inner(const variant& v,
-                                                                       const char*    types)
+std::tuple<GVariant*, const char*> gvariant_convert::to_gvariant_inner(const variant& v, const char* types)
 {
     if (types == nullptr) {
         MC_THROW(mc::exception, "types is nullptr");
@@ -356,9 +348,8 @@ variants gvariant_convert::array_to_mc_variant(GVariant* value, int n)
 variant gvariant_convert::container_to_mc_variant(GVariant* value)
 {
     if (g_variant_is_of_type(value, G_VARIANT_TYPE_BYTESTRING)) {
-        gsize       len = 0;
-        const char* data =
-            reinterpret_cast<const char*>(g_variant_get_fixed_array(value, &len, sizeof(char)));
+        gsize       len  = 0;
+        const char* data = reinterpret_cast<const char*>(g_variant_get_fixed_array(value, &len, sizeof(char)));
         return variant(std::string(data, len));
     }
     variants res;

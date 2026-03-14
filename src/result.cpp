@@ -36,8 +36,7 @@ mc::error_ptr get_default_error()
         return last_error;
     }
 
-    return mc::make_error("org.freedesktop.DBus.Error.Failed",
-                          "Failed to execute method");
+    return mc::make_error("org.freedesktop.DBus.Error.Failed", "Failed to execute method");
 }
 
 mc::method_call_exception make_method_call_exception(const mc::error_ptr& err)

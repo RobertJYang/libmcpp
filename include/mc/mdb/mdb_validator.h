@@ -30,7 +30,8 @@ public:
     static void check(const std::string& name, const std::string& signature, const mc::variant& value);
 
     // 校验方法参数
-    static void check_method_args(const std::string& method_name, const std::string& signature, const mc::variant& args);
+    static void check_method_args(const std::string& method_name, const std::string& signature,
+                                  const mc::variant& args);
 
 private:
     static void check_type(const std::string& signature, const mc::variant& value);

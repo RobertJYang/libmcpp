@@ -351,8 +351,7 @@ TEST(PathIterator, DISABLED_PerformanceBenchmark)
         }
 
         auto end_time = std::chrono::high_resolution_clock::now();
-        auto duration =
-            std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();
 
         // 字符串分割性能对照组（模拟简单的split实现）
         auto start_time2 = std::chrono::high_resolution_clock::now();
@@ -380,19 +379,15 @@ TEST(PathIterator, DISABLED_PerformanceBenchmark)
         }
 
         auto end_time2 = std::chrono::high_resolution_clock::now();
-        auto duration2 =
-            std::chrono::duration_cast<std::chrono::microseconds>(end_time2 - start_time2).count();
+        auto duration2 = std::chrono::duration_cast<std::chrono::microseconds>(end_time2 - start_time2).count();
 
         // 输出性能比较结果（不做断言，仅作参考）
         std::cout << "Path [" << path << "] with "
                   << (std::count(path.begin(), path.end(), '/') + (path.back() != '/' ? 1 : 0))
                   << " segments:" << std::endl;
-        std::cout << "  path_iterator: " << duration << " us for " << iterations << " iterations"
-                  << std::endl;
-        std::cout << "  string split:  " << duration2 << " us for " << iterations << " iterations"
-                  << std::endl;
-        std::cout << "  Performance ratio: " << (duration2 > 0 ? (double)duration / duration2 : 0)
-                  << std::endl;
+        std::cout << "  path_iterator: " << duration << " us for " << iterations << " iterations" << std::endl;
+        std::cout << "  string split:  " << duration2 << " us for " << iterations << " iterations" << std::endl;
+        std::cout << "  Performance ratio: " << (duration2 > 0 ? (double)duration / duration2 : 0) << std::endl;
         std::cout << std::endl;
     }
 }

@@ -32,52 +32,44 @@ public:
     using base_type = variant_base;
 
     // 默认构造函数
-    typed_variant()
-        : base_type()
+    typed_variant() : base_type()
     {
         set_fixed_type(true);
     }
 
     // 从type_id构造，初始化为该类型的默认值
-    explicit typed_variant(type_id type)
-        : base_type(type)
+    explicit typed_variant(type_id type) : base_type(type)
     {
         set_fixed_type(true);
     }
 
     // 从值构造
-    template <typename T, typename = std::enable_if_t<
-                              !std::is_same_v<std::decay_t<T>, typed_variant> &&
-                              !std::is_same_v<std::decay_t<T>, type_id>>>
-    typed_variant(T&& value)
-        : base_type(std::forward<T>(value))
+    template <typename T, typename = std::enable_if_t<!std::is_same_v<std::decay_t<T>, typed_variant> &&
+                                                      !std::is_same_v<std::decay_t<T>, type_id>>>
+    typed_variant(T&& value) : base_type(std::forward<T>(value))
     {
         set_fixed_type(true);
     }
 
     // 拷贝构造函数
-    typed_variant(const typed_variant& other)
-        : base_type(other)
+    typed_variant(const typed_variant& other) : base_type(other)
     {
         set_fixed_type(true);
     }
 
     // 移动构造函数
-    typed_variant(typed_variant&& other) noexcept
-        : base_type(std::move(other))
+    typed_variant(typed_variant&& other) noexcept : base_type(std::move(other))
     {
         set_fixed_type(true);
     }
 
     // 从base_type构造
-    typed_variant(const base_type& other)
-        : base_type(other)
+    typed_variant(const base_type& other) : base_type(other)
     {
         set_fixed_type(true);
     }
 
-    typed_variant(base_type&& other)
-        : base_type(std::move(other))
+    typed_variant(base_type&& other) : base_type(std::move(other))
     {
         set_fixed_type(true);
     }
@@ -113,16 +105,14 @@ struct all_variant_constructible<> : std::true_type {};
 template <typename T, typename... Rest>
 struct all_variant_constructible<T, Rest...> {
     static constexpr bool value =
-        (is_variant_constructible_v<T> || is_variant_v<T>) &&
-        all_variant_constructible<Rest...>::value;
+        (is_variant_constructible_v<T> || is_variant_v<T>) && all_variant_constructible<Rest...>::value;
 };
 
 template <typename... Args>
 inline constexpr bool all_variant_constructible_v = all_variant_constructible<Args...>::value;
 
 namespace detail {
-[[noreturn]] MC_API void throw_method_arg_not_match(std::string_view method_name,
-                                                    std::string_view expect_type,
+[[noreturn]] MC_API void throw_method_arg_not_match(std::string_view method_name, std::string_view expect_type,
                                                     std::string_view actual_type);
 
 template <typename Arg>
@@ -130,8 +120,7 @@ static auto convert_arg(const char* name, const mc::variant& var)
     -> std::enable_if_t<!is_variant_v<std::decay_t<Arg>>, std::remove_reference_t<Arg>>
 {
     using arg_type = mc::traits::remove_cvref_t<std::decay_t<Arg>>;
-    if constexpr (std::is_same_v<arg_type, std::string> ||
-                  std::is_same_v<arg_type, std::string_view>) {
+    if constexpr (std::is_same_v<arg_type, std::string> || std::is_same_v<arg_type, std::string_view>) {
         if (var.is_string()) {
             return var.get_string();
         }
@@ -157,8 +146,8 @@ static auto convert_arg(const char* name, const mc::variant& var)
 }
 
 template <typename Arg>
-static auto convert_arg(const char* name, const mc::variant& var)
-    -> std::enable_if_t<is_variant_v<std::decay_t<Arg>>, const mc::variant&>
+static auto convert_arg(const char*        name,
+                        const mc::variant& var) -> std::enable_if_t<is_variant_v<std::decay_t<Arg>>, const mc::variant&>
 {
     return var;
 }

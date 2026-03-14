@@ -68,10 +68,8 @@ private:
 public:
     basic_small_mutex() = default;
 
-    basic_small_mutex(const basic_small_mutex& other)
-        : m_lock_word{other.m_lock_word.load()}
-    {
-    }
+    basic_small_mutex(const basic_small_mutex& other) : m_lock_word{other.m_lock_word.load()}
+    {}
 
     basic_small_mutex& operator=(const basic_small_mutex& other)
     {
@@ -81,8 +79,7 @@ public:
         return *this;
     }
 
-    basic_small_mutex(basic_small_mutex&& other) noexcept
-        : m_lock_word{other.m_lock_word.load()}
+    basic_small_mutex(basic_small_mutex&& other) noexcept : m_lock_word{other.m_lock_word.load()}
     {
         other.m_lock_word.store(0);
     }
@@ -114,8 +111,7 @@ public:
         uint32_t old_word = m_lock_word.load(std::memory_order_acquire);
         while (true) {
             uint32_t new_word = (old_word & LOCK_MASK) | encode_data(value);
-            if (m_lock_word.compare_exchange_weak(
-                    old_word, new_word, order, std::memory_order_acquire)) {
+            if (m_lock_word.compare_exchange_weak(old_word, new_word, order, std::memory_order_acquire)) {
                 break;
             }
         }
@@ -180,9 +176,8 @@ public:
             }
 
             new_word = old_word & ~(LOCK_BIT | WAIT_BIT);
-        } while (!m_lock_word.compare_exchange_weak(
-            old_word, new_word,
-            std::memory_order_acq_rel, std::memory_order_acquire));
+        } while (!m_lock_word.compare_exchange_weak(old_word, new_word, std::memory_order_acq_rel,
+                                                    std::memory_order_acquire));
 
         detail::futex_wake(&m_lock_word, ALL, LOCK_WAIT_MASK);
     }
@@ -234,9 +229,8 @@ private:
             return false;
         }
 
-        return m_lock_word.compare_exchange_strong(
-            old_word, old_word | LOCK_BIT,
-            std::memory_order_acq_rel, std::memory_order_acquire);
+        return m_lock_word.compare_exchange_strong(old_word, old_word | LOCK_BIT, std::memory_order_acq_rel,
+                                                   std::memory_order_acquire);
     }
 
     /**
@@ -248,9 +242,8 @@ private:
         while (!ctx.should_timeout()) {
             // 设置等待位
             if ((old_word & WAIT_BIT) == 0 &&
-                !m_lock_word.compare_exchange_weak(
-                    old_word, old_word | WAIT_BIT,
-                    std::memory_order_acq_rel, std::memory_order_acquire)) {
+                !m_lock_word.compare_exchange_weak(old_word, old_word | WAIT_BIT, std::memory_order_acq_rel,
+                                                   std::memory_order_acquire)) {
                 continue;
             }
 
@@ -261,9 +254,8 @@ private:
             }
 
             // 尝试获取锁
-            if (m_lock_word.compare_exchange_weak(
-                    old_word, old_word | LOCK_BIT,
-                    std::memory_order_acq_rel, std::memory_order_acquire)) {
+            if (m_lock_word.compare_exchange_weak(old_word, old_word | LOCK_BIT, std::memory_order_acq_rel,
+                                                  std::memory_order_acquire)) {
                 return true;
             }
         }

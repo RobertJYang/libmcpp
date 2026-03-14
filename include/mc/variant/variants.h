@@ -242,8 +242,7 @@ public:
     variants(const std::initializer_list<variant>& list);
     template <typename T>
     variants(const std::initializer_list<T>& list,
-             std::enable_if_t<is_variant_constructible_v<T> &&
-                              !is_variant_reference_v<T> &&
+             std::enable_if_t<is_variant_constructible_v<T> && !is_variant_reference_v<T> &&
                               !std::is_same_v<T, variant>>* = nullptr);
     template <typename T, typename Allocator>
     variants(const std::vector<T, Allocator>& vec,
@@ -299,8 +298,7 @@ public:
     // assign 方法
     void assign(size_t count, const variant& value);
     template <typename InputIt>
-    typename std::enable_if<!std::is_integral<InputIt>::value, void>::type
-    assign(InputIt first, InputIt last)
+    typename std::enable_if<!std::is_integral<InputIt>::value, void>::type assign(InputIt first, InputIt last)
     {
         ensure_data();
         clear();

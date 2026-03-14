@@ -29,9 +29,7 @@ template <typename T, typename = void>
 struct is_promise : std::false_type {};
 
 template <typename T>
-struct is_promise<T,
-                  std::void_t<typename mc::traits::remove_cvref_t<T>::is_promise>>
-    : std::true_type {};
+struct is_promise<T, std::void_t<typename mc::traits::remove_cvref_t<T>::is_promise>> : std::true_type {};
 
 template <typename T>
 constexpr bool is_promise_v = is_promise<std::remove_cv_t<T>>::value;

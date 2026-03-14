@@ -11,8 +11,8 @@
  */
 
 #include "mc/singleton.h"
-#include <iostream>
 #include <algorithm>
+#include <iostream>
 #include <mc/log.h>
 
 namespace mc {
@@ -31,10 +31,7 @@ singleton_manager::~singleton_manager()
 }
 
 // 注册单例销毁函数
-void singleton_manager::register_singleton(
-    const type_key_t& key,
-    destroy_fn_t      destroy_fn,
-    bool              leaky)
+void singleton_manager::register_singleton(const type_key_t& key, destroy_fn_t destroy_fn, bool leaky)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
 

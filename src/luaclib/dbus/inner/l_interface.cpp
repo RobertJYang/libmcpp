@@ -22,24 +22,24 @@ namespace mc::dbus::lua {
 
 // Valid D-Bus type codes according to the specification
 static const std::unordered_set<char> VALID_TYPE_CODES = {
-    'y',  // BYTE
-    'b',  // BOOLEAN
-    'n',  // INT16
-    'q',  // UINT16
-    'i',  // INT32
-    'u',  // UINT32
-    'x',  // INT64
-    't',  // UINT64
-    'd',  // DOUBLE
-    's',  // STRING
-    'o',  // OBJECT_PATH
-    'g',  // SIGNATURE
-    'a',  // ARRAY
-    '(',  // STRUCT start
-    ')',  // STRUCT end
-    '{',  // DICT entry start
-    '}',  // DICT entry end
-    'v'   // VARIANT
+    'y', // BYTE
+    'b', // BOOLEAN
+    'n', // INT16
+    'q', // UINT16
+    'i', // INT32
+    'u', // UINT32
+    'x', // INT64
+    't', // UINT64
+    'd', // DOUBLE
+    's', // STRING
+    'o', // OBJECT_PATH
+    'g', // SIGNATURE
+    'a', // ARRAY
+    '(', // STRUCT start
+    ')', // STRUCT end
+    '{', // DICT entry start
+    '}', // DICT entry end
+    'v'  // VARIANT
 };
 
 /**
@@ -69,31 +69,30 @@ bool validate_dbus_signature(const std::string_view signature)
                 continue;
 
             case '(': // Struct start
-                {
-                    // Find matching ')' while handling nested structures
-                    int depth = 1;
-                    pos++; // Move past '('
+            {
+                // Find matching ')' while handling nested structures
+                int depth = 1;
+                pos++; // Move past '('
 
-                    while (pos < signature.length() && depth > 0) {
-                        char c = signature[pos];
-                        if (c == '(') {
-                            depth++;
-                        } else if (c == ')') {
-                            depth--;
-                        } else if (VALID_TYPE_CODES.find(c) == VALID_TYPE_CODES.end()) {
-                            return false; // Invalid character inside struct
-                        }
-
-                        if (depth > 0) {
-                            pos++;
-                        }
+                while (pos < signature.length() && depth > 0) {
+                    char c = signature[pos];
+                    if (c == '(') {
+                        depth++;
+                    } else if (c == ')') {
+                        depth--;
+                    } else if (VALID_TYPE_CODES.find(c) == VALID_TYPE_CODES.end()) {
+                        return false; // Invalid character inside struct
                     }
 
-                    if (depth != 0) {
-                        return false; // Unmatched parenthesis
+                    if (depth > 0) {
+                        pos++;
                     }
                 }
-                break;
+
+                if (depth != 0) {
+                    return false; // Unmatched parenthesis
+                }
+            } break;
 
             case '{': // Dict entry start
                 // Must be followed by two types (key and value) and a '}'
@@ -126,8 +125,8 @@ bool validate_dbus_signature(const std::string_view signature)
 
 static int l_set_property(lua_State* L)
 {
-    l_interface* interface     = reinterpret_cast<l_interface*>(luaL_checkudata(L, 1, INTERFACE_METATABLE));
-    const char*  name          = luaL_checkstring(L, 2);
+    l_interface* interface = reinterpret_cast<l_interface*>(luaL_checkudata(L, 1, INTERFACE_METATABLE));
+    const char*  name      = luaL_checkstring(L, 2);
     try {
         interface->impl->set_property(name, mc::lua::lua_to_variant(L, 3));
     } catch (const std::exception& e) {
@@ -151,19 +150,19 @@ static int l_add_property(lua_State* L)
 {
     l_interface* interface = reinterpret_cast<l_interface*>(luaL_checkudata(L, 1, INTERFACE_METATABLE));
     const char*  name      = luaL_checkstring(L, 2);
-    LDBusError error;
+    LDBusError   error;
     if (!dbus_validate_member(name, &error)) {
         luaL_error(L, "invalid property name");
     }
-    const char*  signature      = luaL_checkstring(L, 3);
+    const char* signature = luaL_checkstring(L, 3);
     if (!validate_dbus_signature(signature)) {
         luaL_error(L, "invalid property signature");
     }
     mc::variant default_value = mc::lua::lua_to_variant(L, 4);
     luaL_checktype(L, 5, LUA_TBOOLEAN);
-    bool readonly = lua_toboolean(L, 5);
-    int  flags      = luaL_checkinteger(L, 6);
-    dynamic_property prop = {name, signature, default_value, readonly, static_cast<uint8_t>(flags), {}};
+    bool             readonly = lua_toboolean(L, 5);
+    int              flags    = luaL_checkinteger(L, 6);
+    dynamic_property prop     = {name, signature, default_value, readonly, static_cast<uint8_t>(flags), {}};
     interface->impl->add_property(name, std::move(prop));
     return 0;
 }
@@ -172,23 +171,23 @@ static int l_add_method(lua_State* L)
 {
     l_interface* interface = reinterpret_cast<l_interface*>(luaL_checkudata(L, 1, INTERFACE_METATABLE));
     const char*  name      = luaL_checkstring(L, 2);
-    LDBusError error;
+    LDBusError   error;
     if (!dbus_validate_member(name, &error)) {
         luaL_error(L, "invalid method name");
     }
-    const char*  i_args      = luaL_checkstring(L, 3);
+    const char* i_args = luaL_checkstring(L, 3);
     if (!validate_dbus_signature(i_args)) {
         luaL_error(L, "invalid method input signature");
     }
-    const char*  o_args      = luaL_checkstring(L, 4);
+    const char* o_args = luaL_checkstring(L, 4);
     if (!validate_dbus_signature(o_args)) {
         luaL_error(L, "invalid method output signature");
     }
     luaL_checktype(L, 5, LUA_TFUNCTION);
     lua_pushvalue(L, 5);
-    int ref = luaL_ref(L, LUA_REGISTRYINDEX);
-    int  flags      = luaL_checkinteger(L, 6);
-    dynamic_method m = {name, i_args, o_args, ref, static_cast<uint8_t>(flags)};
+    int            ref   = luaL_ref(L, LUA_REGISTRYINDEX);
+    int            flags = luaL_checkinteger(L, 6);
+    dynamic_method m     = {name, i_args, o_args, ref, static_cast<uint8_t>(flags)};
     interface->impl->add_method(name, std::move(m));
     return 0;
 }
@@ -197,16 +196,16 @@ static int l_add_signal(lua_State* L)
 {
     l_interface* interface = reinterpret_cast<l_interface*>(luaL_checkudata(L, 1, INTERFACE_METATABLE));
     const char*  name      = luaL_checkstring(L, 2);
-    LDBusError error;
+    LDBusError   error;
     if (!dbus_validate_member(name, &error)) {
         luaL_error(L, "invalid signal name");
     }
-    const char*  signature      = luaL_checkstring(L, 3);
+    const char* signature = luaL_checkstring(L, 3);
     if (!validate_dbus_signature(signature)) {
         luaL_error(L, "invalid signal signature");
     }
-    int  flags      = luaL_checkinteger(L, 4);
-    dynamic_signal s = {name, signature, static_cast<uint8_t>(flags)};
+    int            flags = luaL_checkinteger(L, 4);
+    dynamic_signal s     = {name, signature, static_cast<uint8_t>(flags)};
     interface->impl->add_signal(name, std::move(s));
     return 0;
 }
@@ -214,11 +213,11 @@ static int l_add_signal(lua_State* L)
 int new_interface_class(lua_State* L)
 {
     const char* name = luaL_checkstring(L, 1);
-    LDBusError error;
+    LDBusError  error;
     if (!dbus_validate_interface(name, &error)) {
         return luaL_error(L, "invalid inteface name");
     }
-    void*       ud   = lua_newuserdata(L, sizeof(l_interface));
+    void* ud = lua_newuserdata(L, sizeof(l_interface));
     new (ud) l_interface(name);
     luaL_getmetatable(L, INTERFACE_METATABLE);
     lua_setmetatable(L, -2);
@@ -255,7 +254,7 @@ void register_interface_metatable(lua_State* L)
     luaL_setfuncs(L, dbus_interface_methods, 0);
     lua_pushvalue(L, -1);
     lua_setfield(L, -2, "__index");
-        // 设置 __gc
+    // 设置 __gc
     lua_pushcfunction(L, l_gc_func);
     lua_setfield(L, -2, "__gc");
 

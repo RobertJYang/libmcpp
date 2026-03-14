@@ -53,12 +53,10 @@ bool immediate_executor::operator!=(const immediate_executor&) const noexcept
 }
 
 void immediate_executor::on_work_started() const noexcept
-{
-}
+{}
 
 void immediate_executor::on_work_finished() const noexcept
-{
-}
+{}
 
 immediate_context& immediate_executor::context() const noexcept
 {
@@ -218,8 +216,7 @@ void runtime_context::impl::start_impl()
              ("io", data.config.io_threads)("work", data.config.work_threads));
     } else {
         m_work_pool = nullptr; // work() 方法会返回 io 池
-        dlog("runtime_context started, IO threads: ${io}, work shares IO pool",
-             ("io", data.config.io_threads));
+        dlog("runtime_context started, IO threads: ${io}, work shares IO pool", ("io", data.config.io_threads));
     }
 }
 
@@ -266,10 +263,8 @@ bool runtime_context::impl::is_stopped() const noexcept
     return state == state_t::stopped || state == state_t::uninitialized;
 }
 
-runtime_context::runtime_context()
-    : m_impl(std::make_unique<impl>())
-{
-}
+runtime_context::runtime_context() : m_impl(std::make_unique<impl>())
+{}
 
 runtime_context::~runtime_context()
 {

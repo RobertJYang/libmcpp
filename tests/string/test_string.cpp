@@ -58,12 +58,10 @@ TEST_F(StringTest, IEqualsTest)
     ASSERT_FALSE(iequals("test", "")) << "非空字符串与空字符串不应该相等";
 
     // 测试 std::string 版本
-    ASSERT_TRUE(iequals(std::string("test"), std::string("TEST")))
-        << "std::string 版本应该正常工作";
+    ASSERT_TRUE(iequals(std::string("test"), std::string("TEST"))) << "std::string 版本应该正常工作";
 
     // 测试 std::string_view 版本
-    ASSERT_TRUE(iequals(std::string_view("test"), std::string_view("TEST")))
-        << "std::string_view 版本应该正常工作";
+    ASSERT_TRUE(iequals(std::string_view("test"), std::string_view("TEST"))) << "std::string_view 版本应该正常工作";
 }
 
 /**

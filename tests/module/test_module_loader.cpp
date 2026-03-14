@@ -236,9 +236,8 @@ TEST_F(ModuleLoaderTest, TestLoadModuleSuccess)
 
     // 添加模拟库，模拟 mc.test.module 模块
     // 根据实现，模块名 "mc.test.module" 会转换为导出函数 "mc_open_mc_test_module" 和 "mc_close_mc_test_module"
-    mock_lib_loader::instance().add_mock_lib(
-        "./mc/test/module.so",
-        {"mc_open_mc_test_module", "mc_close_mc_test_module"});
+    mock_lib_loader::instance().add_mock_lib("./mc/test/module.so",
+                                             {"mc_open_mc_test_module", "mc_close_mc_test_module"});
 
     bool                         callback_called = false;
     mc::module::library_info_ptr received_info;
@@ -292,9 +291,8 @@ TEST_F(ModuleLoaderTest, TestLoadModuleMissingExportFunction)
     loader.add_search_path("./?.so");
 
     // 添加模拟库，但缺少必要的导出函数
-    mock_lib_loader::instance().add_mock_lib(
-        "./test/module.so",
-        {"some_other_function"} // 缺少 mc_open_test_module 和 mc_close_test_module
+    mock_lib_loader::instance().add_mock_lib("./test/module.so", {"some_other_function"}
+                                             // 缺少 mc_open_test_module 和 mc_close_test_module
     );
 
     bool callback_called = false;
@@ -319,9 +317,7 @@ TEST_F(ModuleLoaderTest, TestLoadModuleCallbackReturnsFalse)
     loader.add_search_path("./?.so");
 
     // 添加有效的模拟库
-    mock_lib_loader::instance().add_mock_lib(
-        "./test/module.so",
-        {"mc_open_test_module", "mc_close_test_module"});
+    mock_lib_loader::instance().add_mock_lib("./test/module.so", {"mc_open_test_module", "mc_close_test_module"});
 
     bool callback_called = false;
     auto callback        = [&](auto, bool&) -> bool {
@@ -352,9 +348,7 @@ TEST_F(ModuleLoaderTest, TestMultipleSearchPathPatterns)
     loader.add_search_path("./lib/?.so");
 
     // 在第二种路径模式下添加模拟库
-    mock_lib_loader::instance().add_mock_lib(
-        "./my/module/init.so",
-        {"mc_open_my_module", "mc_close_my_module"});
+    mock_lib_loader::instance().add_mock_lib("./my/module/init.so", {"mc_open_my_module", "mc_close_my_module"});
 
     bool                         callback_called = false;
     mc::module::library_info_ptr received_info;
@@ -384,8 +378,7 @@ TEST_F(ModuleLoaderTest, TestComplexModuleName)
     // 测试复杂的模块名：mc.devices.network.driver
     // 根据实现，这会转换为导出函数：mc_open_mc_devices_network_driver 和 mc_close_mc_devices_network_driver
     mock_lib_loader::instance().add_mock_lib(
-        "./mc/devices/network/driver.so",
-        {"mc_open_mc_devices_network_driver", "mc_close_mc_devices_network_driver"});
+        "./mc/devices/network/driver.so", {"mc_open_mc_devices_network_driver", "mc_close_mc_devices_network_driver"});
 
     bool callback_called = false;
     auto callback        = [&](auto, bool&) -> bool {
@@ -438,9 +431,7 @@ TEST_F(ModuleLoaderTest, TestLoadModuleSingleComponent)
     loader.add_search_path("./?.so");
 
     // 测试只有单个组件的模块名
-    mock_lib_loader::instance().add_mock_lib(
-        "./test.so",
-        {"mc_open_test", "mc_close_test"});
+    mock_lib_loader::instance().add_mock_lib("./test.so", {"mc_open_test", "mc_close_test"});
 
     bool callback_called = false;
     auto callback        = [&](auto, bool&) -> bool {
@@ -538,9 +529,7 @@ TEST_F(ModuleLoaderTest, TestLoadPathMissingCloseFunc)
     loader.add_search_path("./?.so");
 
     // 添加模拟库，但只提供 open 函数，不提供 close 函数
-    mock_lib_loader::instance().add_mock_lib(
-        "./test/module.so",
-        {"mc_open_test_module"}); // 只有 open，没有 close
+    mock_lib_loader::instance().add_mock_lib("./test/module.so", {"mc_open_test_module"}); // 只有 open，没有 close
 
     bool callback_called = false;
     auto callback        = [&](auto, bool&) -> bool {
@@ -553,8 +542,7 @@ TEST_F(ModuleLoaderTest, TestLoadPathMissingCloseFunc)
     EXPECT_FALSE(callback_called) << "回调不应被调用";
 
     // 验证库被卸载（因为缺少 close 函数时会卸载）
-    EXPECT_EQ(mock_lib_loader::instance().loaded_count(), 0)
-        << "缺少 close 函数时应卸载库";
+    EXPECT_EQ(mock_lib_loader::instance().loaded_count(), 0) << "缺少 close 函数时应卸载库";
 }
 
 /**
@@ -566,9 +554,7 @@ TEST_F(ModuleLoaderTest, TestLoadPathCallbackException)
     loader.clear_search_paths();
     loader.add_search_path("./?.so");
 
-    mock_lib_loader::instance().add_mock_lib(
-        "./test/module.so",
-        {"mc_open_test_module", "mc_close_test_module"});
+    mock_lib_loader::instance().add_mock_lib("./test/module.so", {"mc_open_test_module", "mc_close_test_module"});
 
     bool callback_called = false;
     auto callback        = [&](auto, bool&) -> bool {
@@ -581,8 +567,7 @@ TEST_F(ModuleLoaderTest, TestLoadPathCallbackException)
     EXPECT_FALSE(result) << "回调异常时应返回 false";
     EXPECT_TRUE(callback_called) << "回调应被调用";
     // 验证库被卸载（异常处理中会卸载）
-    EXPECT_EQ(mock_lib_loader::instance().loaded_count(), 0)
-        << "回调异常时应卸载库";
+    EXPECT_EQ(mock_lib_loader::instance().loaded_count(), 0) << "回调异常时应卸载库";
 }
 
 /**
@@ -612,9 +597,8 @@ TEST_F(ModuleLoaderTest, TestLoadModuleMixedSeparators)
     loader.clear_search_paths();
     loader.add_search_path("./?.so");
 
-    mock_lib_loader::instance().add_mock_lib(
-        "./pkg/driver/module.so",
-        {"mc_open_pkg_driver_module", "mc_close_pkg_driver_module"});
+    mock_lib_loader::instance().add_mock_lib("./pkg/driver/module.so",
+                                             {"mc_open_pkg_driver_module", "mc_close_pkg_driver_module"});
 
     bool        callback_called = false;
     std::string captured_path;
@@ -639,9 +623,7 @@ TEST_F(ModuleLoaderTest, TestLoadModuleTemplateMultiPlaceholders)
     loader.clear_search_paths();
     loader.add_search_path("./?/bin/?.so");
 
-    mock_lib_loader::instance().add_mock_lib(
-        "./pkg/tool/bin/pkg/tool.so",
-        {"mc_open_pkg_tool", "mc_close_pkg_tool"});
+    mock_lib_loader::instance().add_mock_lib("./pkg/tool/bin/pkg/tool.so", {"mc_open_pkg_tool", "mc_close_pkg_tool"});
 
     bool        callback_called = false;
     std::string captured_path;
@@ -667,9 +649,7 @@ TEST_F(ModuleLoaderTest, TestLoadPathMissingOpenFunc)
     loader.add_search_path("./?.so");
 
     // 添加模拟库，但只提供 close 函数，不提供 open 函数
-    mock_lib_loader::instance().add_mock_lib(
-        "./test/module.so",
-        {"mc_close_test_module"}); // 只有 close，没有 open
+    mock_lib_loader::instance().add_mock_lib("./test/module.so", {"mc_close_test_module"}); // 只有 close，没有 open
 
     bool callback_called = false;
     auto callback        = [&](auto, bool&) -> bool {
@@ -682,8 +662,7 @@ TEST_F(ModuleLoaderTest, TestLoadPathMissingOpenFunc)
     EXPECT_FALSE(callback_called) << "回调不应被调用";
 
     // 验证库被卸载（因为缺少 open 函数时会卸载）
-    EXPECT_EQ(mock_lib_loader::instance().loaded_count(), 0)
-        << "缺少 open 函数时应卸载库";
+    EXPECT_EQ(mock_lib_loader::instance().loaded_count(), 0) << "缺少 open 函数时应卸载库";
 }
 
 /**

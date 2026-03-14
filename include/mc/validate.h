@@ -13,24 +13,21 @@ namespace validate {
 // 类型错误异常
 class TypeError : public std::runtime_error {
 public:
-    explicit TypeError(const std::string& message)
-        : std::runtime_error("TypeError: " + message)
+    explicit TypeError(const std::string& message) : std::runtime_error("TypeError: " + message)
     {}
 };
 
 // 范围错误异常
 class RangeError : public std::runtime_error {
 public:
-    explicit RangeError(const std::string& message)
-        : std::runtime_error("RangeError: " + message)
+    explicit RangeError(const std::string& message) : std::runtime_error("RangeError: " + message)
     {}
 };
 
 // 范围错误异常
 class InternalError : public std::runtime_error {
 public:
-    explicit InternalError(const std::string& message)
-        : std::runtime_error("InternalError: " + message)
+    explicit InternalError(const std::string& message) : std::runtime_error("InternalError: " + message)
     {}
 };
 
@@ -53,12 +50,12 @@ private:
     void check_integer(ValueType&& value) const
     {
         // 获取值的基础类型（去除引用和const）
-        using ValueBaseType = typename std::remove_cv<
-            typename std::remove_reference<ValueType>::type>::type;
+        using ValueBaseType = typename std::remove_cv<typename std::remove_reference<ValueType>::type>::type;
 
         // 确保传入的 value 的基础类型也是整数类型
         if constexpr (!std::is_integral_v<ValueBaseType>) {
-            throw TypeError(std::string("Value type error, expected integer, get type with name: ") + typeid(ValueBaseType).name());
+            throw TypeError(std::string("Value type error, expected integer, get type with name: ") +
+                            typeid(ValueBaseType).name());
         } else {
             using Limits = std::numeric_limits<T>;
 
@@ -77,7 +74,8 @@ private:
                 }
             } else if constexpr (std::is_signed_v<ValueBaseType> && !std::is_signed_v<T>) {
                 // 值是有符号的，目标是无符号的
-                if (value < 0 || static_cast<unsigned long long>(value) > static_cast<unsigned long long>(Limits::max())) {
+                if (value < 0 ||
+                    static_cast<unsigned long long>(value) > static_cast<unsigned long long>(Limits::max())) {
                     throw RangeError(std::string("Value out of range for target type: ") + typeid(T).name());
                 }
             } else {
@@ -90,7 +88,7 @@ private:
     }
 };
 
-}  // namespace validate
-}  // namespace mc
+} // namespace validate
+} // namespace mc
 
 #endif // VALIDATE_H

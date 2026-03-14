@@ -23,7 +23,6 @@ struct lua_State;
 
 // Lua C 模块导出函数声明（C 链接）
 extern "C" {
-
 /**
  * @brief 测试 variant/variants 与 Lua 之间的双向转换性能
  *

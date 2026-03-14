@@ -62,8 +62,8 @@ TEST(SerializeTest, SerializeArrays)
 TEST(SerializeTest, SerializeMsg)
 {
     variants msg_arr;
-    auto     msg1 = new dbus::local_msg("bmc.kepler.test1", "/bmc/kepler/test/obj1",
-                                        "bmc.kepler.test.intf1", "TestMethod1");
+    auto     msg1 =
+        new dbus::local_msg("bmc.kepler.test1", "/bmc/kepler/test/obj1", "bmc.kepler.test.intf1", "TestMethod1");
     msg1->append("a{ss}", dict({{"a", "str1"}, {"b", "str2"}}));
     msg1->set_local_call(true);
     msg1->set_sender(":123");
@@ -86,8 +86,8 @@ TEST(SerializeTest, SerializeMsg)
     ASSERT_EQ(unpacked[10].as_bool(), true);
     ASSERT_EQ(unpacked[11].as_uint32(), 0);
 
-    auto msg2 = new dbus::local_msg("bmc.kepler.test2", "/bmc/kepler/test/obj2",
-                                    "bmc.kepler.test.intf2", "TestMethod2");
+    auto msg2 =
+        new dbus::local_msg("bmc.kepler.test2", "/bmc/kepler/test/obj2", "bmc.kepler.test.intf2", "TestMethod2");
     msg2->set_local_call(false);
     msg2->set_sender(":456");
     msg2->set_serial(789);

@@ -71,8 +71,7 @@ std::string_view get_property_name(M BaseT::*member)
  * @param key 属性名
  * @return 返回 mc::variant
  */
-template <typename T, typename = std::enable_if_t<
-                          is_reflectable<std::remove_cv_t<std::remove_reference_t<T>>>()>>
+template <typename T, typename = std::enable_if_t<is_reflectable<std::remove_cv_t<std::remove_reference_t<T>>>()>>
 mc::variant get_property(const T& obj, std::string_view key)
 {
     using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
@@ -87,8 +86,7 @@ mc::variant get_property(const T& obj, std::string_view key)
  * @param base_class_name 基类名称
  * @return 返回 mc::variant
  */
-template <typename T, typename = std::enable_if_t<
-                          is_reflectable<std::remove_cv_t<std::remove_reference_t<T>>>()>>
+template <typename T, typename = std::enable_if_t<is_reflectable<std::remove_cv_t<std::remove_reference_t<T>>>()>>
 mc::variant get_property(const T& obj, std::string_view key, std::string_view base_class_name)
 {
     using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
@@ -101,8 +99,7 @@ mc::variant get_property(const T& obj, std::string_view key, std::string_view ba
  * @param obj 对象
  * @return 返回 mc::dict
  */
-template <typename T, typename = std::enable_if_t<
-                          is_reflectable<std::remove_cv_t<std::remove_reference_t<T>>>()>>
+template <typename T, typename = std::enable_if_t<is_reflectable<std::remove_cv_t<std::remove_reference_t<T>>>()>>
 mc::dict get_all_properties(const T& obj)
 {
     using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
@@ -117,8 +114,7 @@ mc::dict get_all_properties(const T& obj)
  * @param value 属性值
  * @return 设置是否成功
  */
-template <typename T, typename = std::enable_if_t<
-                          is_reflectable<std::remove_cv_t<std::remove_reference_t<T>>>()>>
+template <typename T, typename = std::enable_if_t<is_reflectable<std::remove_cv_t<std::remove_reference_t<T>>>()>>
 bool set_property(T& obj, std::string_view key, const mc::variant& value)
 {
     using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
@@ -138,10 +134,8 @@ bool set_property(T& obj, std::string_view key, const mc::variant& value)
  * @param value 属性值
  * @return 设置是否成功
  */
-template <typename T, typename = std::enable_if_t<
-                          is_reflectable<std::remove_cv_t<std::remove_reference_t<T>>>()>>
-bool set_property(T& obj, std::string_view key, std::string_view base_class_name,
-                  const mc::variant& value)
+template <typename T, typename = std::enable_if_t<is_reflectable<std::remove_cv_t<std::remove_reference_t<T>>>()>>
+bool set_property(T& obj, std::string_view key, std::string_view base_class_name, const mc::variant& value)
 {
     using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
     try {

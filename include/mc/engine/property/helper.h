@@ -61,8 +61,7 @@ public:
     MC_API void set_relate_property(const mc::expr::relate_property& relate_property, const mc::variant& value);
 
     // 连接属性变化监听器
-    void connect_property_listener(abstract_object&      target_object,
-                                   const std::string&    property_name,
+    void connect_property_listener(abstract_object& target_object, const std::string& property_name,
                                    std::function<void()> callback);
 
     // 断开所有连接

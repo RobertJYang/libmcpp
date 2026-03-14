@@ -44,10 +44,8 @@ public:
     func() = default;
 
     // 修改构造函数参数顺序，使其与测试用例匹配
-    func(const std::string& result, const mc::dict& args)
-        : m_result(result), m_args(args)
-    {
-    }
+    func(const std::string& result, const mc::dict& args) : m_result(result), m_args(args)
+    {}
 
     void        validate_result();
     void        validate_args();

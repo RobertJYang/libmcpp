@@ -111,27 +111,23 @@ struct module_namespace {
  * MC_MODULE_REFLECT(test_module, ...);
  * ```
  */
-#define MC_MODULE(module_name)                                                  \
-    namespace mc::module::detail {                                              \
-    constexpr char module_name##_name[] = #module_name;                         \
-    static_assert(mc::module::detail::is_valid_module_name(module_name##_name), \
-                  "Invalid module name");                                       \
-    }                                                                           \
-    using module_name##_namespace =                                             \
-        mc::module::detail::module_namespace<mc::module::detail::module_name##_name>;
+#define MC_MODULE(module_name)                                                                                         \
+    namespace mc::module::detail {                                                                                     \
+    constexpr char module_name##_name[] = #module_name;                                                                \
+    static_assert(mc::module::detail::is_valid_module_name(module_name##_name), "Invalid module name");                \
+    }                                                                                                                  \
+    using module_name##_namespace = mc::module::detail::module_namespace<mc::module::detail::module_name##_name>;
 
 /**
  * @brief 注册内建模块到全局反射工厂
  *
  * @param module_name 模块变量（由 MC_MODULE_NAME 定义）
  */
-#define MC_REGISTER_BUILTIN_MODULE(module_name)                           \
-    []() {                                                                \
-        auto& global_factory = mc::reflect::reflection_factory::global(); \
-        global_factory.register_factory(                                  \
-            mc::reflect::reflection_factory::instance_ptr<                \
-                module_name##_namespace>());                              \
-        return true;                                                      \
+#define MC_REGISTER_BUILTIN_MODULE(module_name)                                                                        \
+    []() {                                                                                                             \
+        auto& global_factory = mc::reflect::reflection_factory::global();                                              \
+        global_factory.register_factory(mc::reflect::reflection_factory::instance_ptr<module_name##_namespace>());     \
+        return true;                                                                                                   \
     }()
 
 /**
@@ -139,17 +135,15 @@ struct module_namespace {
  *
  * @param module_name 模块变量（由 MC_MODULE_NAME 定义）
  */
-#define MC_BUILTIN_MODULE_IMPL(module_name)                     \
-    namespace mc::module::detail {                              \
-    [[maybe_unused]] static bool s_##module_name##_registered = \
-        MC_REGISTER_BUILTIN_MODULE(module_name);                \
+#define MC_BUILTIN_MODULE_IMPL(module_name)                                                                            \
+    namespace mc::module::detail {                                                                                     \
+    [[maybe_unused]] static bool s_##module_name##_registered = MC_REGISTER_BUILTIN_MODULE(module_name);               \
     }
 
-#define MC_UNREGISTER_BUILTIN_MODULE(module_name)                         \
-    {                                                                     \
-        auto& global_factory = mc::reflect::reflection_factory::global(); \
-        global_factory.unregister_factory(                                \
-            module_name##_namespace::factory_name);                       \
+#define MC_UNREGISTER_BUILTIN_MODULE(module_name)                                                                      \
+    {                                                                                                                  \
+        auto& global_factory = mc::reflect::reflection_factory::global();                                              \
+        global_factory.unregister_factory(module_name##_namespace::factory_name);                                      \
     }
 
 /**
@@ -158,8 +152,7 @@ struct module_namespace {
  * @param module_name 模块变量（由 MC_MODULE_NAME 定义）
  * @param ... 类型的反射信息，格式与 MC_REFLECT 相同
  */
-#define MC_MODULE_REFLECT(module_name, ...) \
-    MC_REFLECT_WITH_NAMESPACE(module_name##_namespace, __VA_ARGS__)
+#define MC_MODULE_REFLECT(module_name, ...) MC_REFLECT_WITH_NAMESPACE(module_name##_namespace, __VA_ARGS__)
 
 /**
  * @brief 为模块注册枚举的反射信息
@@ -167,8 +160,7 @@ struct module_namespace {
  * @param module_name 模块变量（由 MC_MODULE_NAME 定义）
  * @param ... 枚举的反射信息，格式与 MC_REFLECT_ENUM 相同
  */
-#define MC_MODULE_REFLECT_ENUM(module_name, ...) \
-    MC_REFLECT_ENUM_WITH_NAMESPACE(module_name##_namespace, __VA_ARGS__)
+#define MC_MODULE_REFLECT_ENUM(module_name, ...) MC_REFLECT_ENUM_WITH_NAMESPACE(module_name##_namespace, __VA_ARGS__)
 
 /**
  * @brief 导出动态库模块的符号
@@ -192,16 +184,16 @@ struct module_namespace {
  * 模块的反射工厂，这样能更好的做到模块隔离，避免模块之间相互影响。
  * 如果后续有需要也可以注册到全局反射工厂，比如某些底层机制想要绕过模块管理体系。
  */
-#define MC_EXPORT_MODULE(module_name)                                                          \
-    extern "C" {                                                                               \
-    MC_API void* mc_open_##module_name()                                                       \
-    {                                                                                          \
-        return mc::reflect::reflection_factory::instance_ptr<module_name##_namespace>().get(); \
-    }                                                                                          \
-    MC_API void mc_close_##module_name()                                                       \
-    {                                                                                          \
-        /* 空实现：模块的清理由 module_manager 通过引用计数管理 */           \
-    }                                                                                          \
+#define MC_EXPORT_MODULE(module_name)                                                                                  \
+    extern "C" {                                                                                                       \
+    MC_API void* mc_open_##module_name()                                                                               \
+    {                                                                                                                  \
+        return mc::reflect::reflection_factory::instance_ptr<module_name##_namespace>().get();                         \
+    }                                                                                                                  \
+    MC_API void mc_close_##module_name()                                                                               \
+    {                                                                                                                  \
+        /* 空实现：模块的清理由 module_manager 通过引用计数管理 */                                   \
+    }                                                                                                                  \
     }
 } // namespace mc::module
 
@@ -211,8 +203,7 @@ namespace module {
 /**
  * @brief 加载模块
  */
-inline mc::module::module_ptr
-load_module(std::string_view module_name)
+inline mc::module::module_ptr load_module(std::string_view module_name)
 {
     return mc::module::module_manager::instance().require(module_name);
 }

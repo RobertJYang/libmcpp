@@ -79,12 +79,9 @@ private:
 
 // 实现部分
 multi_process_shared_memory::multi_process_shared_memory(int process_count, int increments_per_process)
-    : multi_process_test_base("多进程共享内存测试", 512 * 1024),
-      m_process_count(process_count),
-      m_increments_per_process(increments_per_process),
-      m_counter(nullptr)
-{
-}
+    : multi_process_test_base("多进程共享内存测试", 512 * 1024), m_process_count(process_count),
+      m_increments_per_process(increments_per_process), m_counter(nullptr)
+{}
 
 multi_process_shared_memory::~multi_process_shared_memory()
 {
@@ -94,11 +91,9 @@ multi_process_shared_memory::~multi_process_shared_memory()
 bool multi_process_shared_memory::initialize()
 {
     // 创建共享内存管理器
-    m_shm_manager = std::make_unique<shared_memory_manager>(
-        "multi_process_test",
-        m_shm_size,
-        shared_memory_manager::REMOVE_ON_EXIT |
-            shared_memory_manager::REMOVE_IF_EXISTS);
+    m_shm_manager = std::make_unique<shared_memory_manager>("multi_process_test", m_shm_size,
+                                                            shared_memory_manager::REMOVE_ON_EXIT |
+                                                                shared_memory_manager::REMOVE_IF_EXISTS);
 
     m_shm = m_shm_manager->get_shared_memory();
     if (!m_shm) {
@@ -106,8 +101,7 @@ bool multi_process_shared_memory::initialize()
         return false;
     }
 
-    ilog("共享内存创建成功，名称: ${name}, 大小: ${size}字节",
-         ("name", m_shm->get_name())("size", m_shm->get_size()));
+    ilog("共享内存创建成功，名称: ${name}, 大小: ${size}字节", ("name", m_shm->get_name())("size", m_shm->get_size()));
 
     // 获取分配器
     m_allocator = &m_shm->get_allocator();
@@ -160,8 +154,7 @@ bool multi_process_shared_memory::create_child_processes()
                 std::this_thread::sleep_for(std::chrono::milliseconds(5));
             }
 
-            ilog("子进程 ${process} 完成，计数器最终值: ${value}",
-                 ("process", i)("value", child_counter->load()));
+            ilog("子进程 ${process} 完成，计数器最终值: ${value}", ("process", i)("value", child_counter->load()));
 
             exit(0);
         } else {
@@ -181,8 +174,7 @@ bool multi_process_shared_memory::verify_results()
     int expected_count = m_process_count * m_increments_per_process;
 
     ilog("所有子进程已完成");
-    ilog("计数器最终值: ${value}，预期值: ${expected}",
-         ("value", final_count)("expected", expected_count));
+    ilog("计数器最终值: ${value}，预期值: ${expected}", ("value", final_count)("expected", expected_count));
 
     if (final_count == expected_count) {
         ilog("测试成功: 计数器值正确");

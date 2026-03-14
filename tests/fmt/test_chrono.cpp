@@ -183,8 +183,7 @@ TEST(chrono_format_test, time_point_subsecond)
 
     // 验证结果包含子秒部分
     EXPECT_TRUE(result.find('.') != std::string::npos);
-    EXPECT_TRUE(result.find("45.123456789") != std::string::npos ||
-                result.find("45.123456") != std::string::npos);
+    EXPECT_TRUE(result.find("45.123456789") != std::string::npos || result.find("45.123456") != std::string::npos);
 
     // 测试完整时间格式
     std::string full_time = sformat("{:%T}", tp_with_subsec);
@@ -329,17 +328,15 @@ TEST(chrono_format_test, timezone_formatting)
     // 解析格式化结果中的时区偏移
     int actual_offset_minutes = 0;
     if (timezone_result[0] == '+') {
-        actual_offset_minutes = std::stoi(timezone_result.substr(1, 2)) * 60 +
-                                std::stoi(timezone_result.substr(3, 2));
+        actual_offset_minutes = std::stoi(timezone_result.substr(1, 2)) * 60 + std::stoi(timezone_result.substr(3, 2));
     } else {
-        actual_offset_minutes = -(std::stoi(timezone_result.substr(1, 2)) * 60 +
-                                  std::stoi(timezone_result.substr(3, 2)));
+        actual_offset_minutes =
+            -(std::stoi(timezone_result.substr(1, 2)) * 60 + std::stoi(timezone_result.substr(3, 2)));
     }
 
     // 验证时区偏移值是否正确
     EXPECT_EQ(actual_offset_minutes, expected_offset_minutes)
-        << "时区偏移不匹配: 期望 " << expected_offset_minutes
-        << " 分钟, 实际 " << actual_offset_minutes
+        << "时区偏移不匹配: 期望 " << expected_offset_minutes << " 分钟, 实际 " << actual_offset_minutes
         << " 分钟 (格式化结果: " << timezone_result << ")";
 
     // 测试完整的时间格式化包含时区
@@ -383,16 +380,13 @@ TEST(chrono_format_test, timezone_formatting)
 
     int now_actual_offset_minutes = 0;
     if (now_timezone[0] == '+') {
-        now_actual_offset_minutes = std::stoi(now_timezone.substr(1, 2)) * 60 +
-                                    std::stoi(now_timezone.substr(3, 2));
+        now_actual_offset_minutes = std::stoi(now_timezone.substr(1, 2)) * 60 + std::stoi(now_timezone.substr(3, 2));
     } else {
-        now_actual_offset_minutes = -(std::stoi(now_timezone.substr(1, 2)) * 60 +
-                                      std::stoi(now_timezone.substr(3, 2)));
+        now_actual_offset_minutes = -(std::stoi(now_timezone.substr(1, 2)) * 60 + std::stoi(now_timezone.substr(3, 2)));
     }
 
     EXPECT_EQ(now_actual_offset_minutes, now_expected_offset_minutes)
-        << "当前时间时区偏移不匹配: 期望 " << now_expected_offset_minutes
-        << " 分钟, 实际 " << now_actual_offset_minutes
+        << "当前时间时区偏移不匹配: 期望 " << now_expected_offset_minutes << " 分钟, 实际 " << now_actual_offset_minutes
         << " 分钟 (格式化结果: " << now_timezone << ")";
 }
 
@@ -431,8 +425,7 @@ TEST(chrono_format_test, timezone_name_formatting)
     std::string name_result   = sformat("{:%Z}", tp);
 
     // 验证它们确实不同
-    EXPECT_NE(offset_result, name_result)
-        << "%z 和 %Z 应该输出不同的结果";
+    EXPECT_NE(offset_result, name_result) << "%z 和 %Z 应该输出不同的结果";
 
     // 验证 %z 是偏移量格式（+HHMM 或 -HHMM）
     EXPECT_EQ(offset_result.size(), 5);
@@ -445,8 +438,7 @@ TEST(chrono_format_test, timezone_name_formatting)
     // 验证 %Z 是时区名称格式（字母缩写）
     EXPECT_FALSE(name_result[0] == '+' || name_result[0] == '-');
     for (char c : name_result) {
-        EXPECT_TRUE(std::isalpha(c) || std::isspace(c))
-            << "时区名称应该只包含字母和空格，但包含: " << c;
+        EXPECT_TRUE(std::isalpha(c) || std::isspace(c)) << "时区名称应该只包含字母和空格，但包含: " << c;
     }
 }
 

@@ -85,15 +85,10 @@ private:
 
 // 实现部分
 multi_process_shared_mutex::multi_process_shared_mutex(int reader_count, int writer_count, int iterations)
-    : multi_process_test_base("多进程共享读写锁测试", 256 * 1024),
-      m_reader_count(reader_count),
-      m_writer_count(writer_count),
-      m_iterations(iterations),
-      m_rw_mutex(nullptr),
-      m_data(nullptr),
+    : multi_process_test_base("多进程共享读写锁测试", 256 * 1024), m_reader_count(reader_count),
+      m_writer_count(writer_count), m_iterations(iterations), m_rw_mutex(nullptr), m_data(nullptr),
       m_read_count(nullptr)
-{
-}
+{}
 
 multi_process_shared_mutex::~multi_process_shared_mutex()
 {
@@ -103,11 +98,9 @@ multi_process_shared_mutex::~multi_process_shared_mutex()
 bool multi_process_shared_mutex::initialize()
 {
     // 创建共享内存管理器
-    m_shm_manager = std::make_unique<shared_memory_manager>(
-        "shm_rw_mutex_test",
-        m_shm_size,
-        shared_memory_manager::REMOVE_ON_EXIT |
-            shared_memory_manager::REMOVE_IF_EXISTS);
+    m_shm_manager = std::make_unique<shared_memory_manager>("shm_rw_mutex_test", m_shm_size,
+                                                            shared_memory_manager::REMOVE_ON_EXIT |
+                                                                shared_memory_manager::REMOVE_IF_EXISTS);
 
     m_shm = m_shm_manager->get_shared_memory();
     if (!m_shm) {
@@ -115,8 +108,7 @@ bool multi_process_shared_mutex::initialize()
         return false;
     }
 
-    ilog("共享内存创建成功，名称: ${name}, 大小: ${size}字节",
-         ("name", m_shm->get_name())("size", m_shm->get_size()));
+    ilog("共享内存创建成功，名称: ${name}, 大小: ${size}字节", ("name", m_shm->get_name())("size", m_shm->get_size()));
 
     // 获取分配器
     m_allocator = &m_shm->get_allocator();
@@ -174,8 +166,7 @@ bool multi_process_shared_mutex::create_child_processes()
 
                 // 验证计数值没有被写者修改
                 if (current != *m_data) {
-                    elog("读者数据竞争：计数器值被写者修改: ${old} -> ${new}",
-                         ("old", current)("new", *m_data));
+                    elog("读者数据竞争：计数器值被写者修改: ${old} -> ${new}", ("old", current)("new", *m_data));
                 }
 
                 // 释放读锁
@@ -249,8 +240,7 @@ bool multi_process_shared_mutex::verify_results()
     int final_count = *m_data;
     int expected    = m_writer_count * m_iterations;
 
-    ilog("最终计数器值: ${count}，预期值: ${expected}",
-         ("count", final_count)("expected", expected));
+    ilog("最终计数器值: ${count}，预期值: ${expected}", ("count", final_count)("expected", expected));
 
     if (final_count == expected) {
         ilog("读写锁测试成功：所有写入正确完成");

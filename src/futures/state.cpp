@@ -16,15 +16,11 @@
 namespace mc::futures {
 
 state_base::state_base(executor_type executor, destory_type destory, int value_size) noexcept
-    : m_executor(std::move(executor)),
-      m_destory(std::move(destory)),
-      m_value_size(value_size)
-{
-}
+    : m_executor(std::move(executor)), m_destory(std::move(destory)), m_value_size(value_size)
+{}
 
 state_base::~state_base()
-{
-}
+{}
 
 void state_base::set_executor(executor_type executor) noexcept
 {
@@ -45,8 +41,7 @@ void state_base::reset()
 }
 
 void state_base::reuse_impl()
-{
-}
+{}
 
 void state_base::mark_ready()
 {

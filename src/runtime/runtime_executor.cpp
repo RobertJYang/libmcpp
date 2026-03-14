@@ -16,15 +16,11 @@
 
 namespace mc::runtime {
 
-runtime_executor::runtime_executor()
-    : m_context(&mc::singleton<runtime_context>::instance())
-{
-}
+runtime_executor::runtime_executor() : m_context(&mc::singleton<runtime_context>::instance())
+{}
 
-runtime_executor::runtime_executor(runtime_context& ctx)
-    : m_context(&ctx)
-{
-}
+runtime_executor::runtime_executor(runtime_context& ctx) : m_context(&ctx)
+{}
 
 bool runtime_executor::operator==(const runtime_executor& other) const noexcept
 {
@@ -95,7 +91,7 @@ boost::asio::io_context::executor_type runtime_executor::select_io_executor() co
     // 优先级1：使用绑定的 pool
     if (m_bound_pool != nullptr) {
         static std::atomic<std::size_t> bound_round_robin{0};
-        auto                            idx = bound_round_robin.fetch_add(1, std::memory_order_relaxed) % m_bound_pool->shard_count();
+        auto idx = bound_round_robin.fetch_add(1, std::memory_order_relaxed) % m_bound_pool->shard_count();
         return m_bound_pool->get_shard(idx).get_executor();
     }
 

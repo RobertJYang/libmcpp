@@ -46,31 +46,25 @@ TEST_F(typed_variant_test, Creation)
 {
     // 从 type_id 创建
     typed_variant tv1(type_id::int64_type);
-    ASSERT_EQ(tv1.get_type(), type_id::int64_type)
-        << "从 type_id 创建的 typed_variant 类型应该正确";
+    ASSERT_EQ(tv1.get_type(), type_id::int64_type) << "从 type_id 创建的 typed_variant 类型应该正确";
 
     // 从基本类型创建
     typed_variant tv2(42);
-    ASSERT_EQ(tv2.get_type(), type_id::int32_type)
-        << "从整数创建的 typed_variant 类型应该是 int32_type";
+    ASSERT_EQ(tv2.get_type(), type_id::int32_type) << "从整数创建的 typed_variant 类型应该是 int32_type";
 
     typed_variant tv3(3.14);
-    ASSERT_EQ(tv3.get_type(), type_id::double_type)
-        << "从浮点数创建的 typed_variant 类型应该是 double_type";
+    ASSERT_EQ(tv3.get_type(), type_id::double_type) << "从浮点数创建的 typed_variant 类型应该是 double_type";
 
     typed_variant tv4(true);
-    ASSERT_EQ(tv4.get_type(), type_id::bool_type)
-        << "从布尔值创建的 typed_variant 类型应该是 bool_type";
+    ASSERT_EQ(tv4.get_type(), type_id::bool_type) << "从布尔值创建的 typed_variant 类型应该是 bool_type";
 
     typed_variant tv5(std::string("hello"));
-    ASSERT_EQ(tv5.get_type(), type_id::string_type)
-        << "从字符串创建的 typed_variant 类型应该是 string_type";
+    ASSERT_EQ(tv5.get_type(), type_id::string_type) << "从字符串创建的 typed_variant 类型应该是 string_type";
 
     // 从 variant 创建
     variant       v(123);
     typed_variant tv6(v);
-    ASSERT_EQ(tv6.get_type(), type_id::int32_type)
-        << "从 variant 创建的 typed_variant 类型应该与原 variant 相同";
+    ASSERT_EQ(tv6.get_type(), type_id::int32_type) << "从 variant 创建的 typed_variant 类型应该与原 variant 相同";
 }
 
 /**
@@ -296,11 +290,9 @@ TEST_F(typed_variant_test, ArrayTypeLocking)
     ASSERT_EQ(tv_array.get_array()[2].as_int64(), 3);
 
     // 赋值一个非数组类型，类型应该保持为 array_type，但值不会改变
-    verify_assignment_exception(
-        [&] {
+    verify_assignment_exception([&] {
         tv_array = 42;
-    },
-        tv_array);
+    }, tv_array);
 
     // 创建一个新的数组
     variants arr2;
@@ -338,11 +330,9 @@ TEST_F(typed_variant_test, ObjectTypeLocking)
 
     // 赋值一个非对象类型，类型应该保持为 object_type，但值不会改变
     size_t prev_size = tv_object.get_object().size();
-    verify_assignment_exception(
-        [&]() {
+    verify_assignment_exception([&]() {
         tv_object = 42;
-    },
-        tv_object);
+    }, tv_object);
     ASSERT_EQ(tv_object.get_object().size(), prev_size);
 
     // 创建一个新的对象
@@ -380,11 +370,9 @@ TEST_F(typed_variant_test, BlobTypeLocking)
     ASSERT_EQ(tv_blob.as_blob().data[4], 5);
 
     // 赋值一个非 blob 类型，类型应该保持为 blob_type，但值不会改变
-    verify_assignment_exception(
-        [&]() {
+    verify_assignment_exception([&]() {
         tv_blob = 42;
-    },
-        tv_blob);
+    }, tv_blob);
 
     // 创建一个新的 blob
     std::vector<char> data2 = {10, 20, 30};

@@ -23,18 +23,16 @@ extern "C" {
 extern int convert_between_variant_lua(::lua_State* L);
 
 // 模块函数注册表
-static const luaL_Reg ldft_functions[] = {
-    {"convert_between_variant_lua", convert_between_variant_lua},
-    // 后续新增函数在此添加
-    {nullptr, nullptr}};
+static const luaL_Reg ldft_functions[] = {{"convert_between_variant_lua", convert_between_variant_lua},
+                                          // 后续新增函数在此添加
+                                          {nullptr, nullptr}};
 
 /**
  * @brief ldft 模块的 Lua 入口函数
  * @param L Lua 状态机
  * @return 返回值数量（1个，模块表）
  */
-__attribute__((visibility("default")))
-int luaopen_ldft(::lua_State* L)
+__attribute__((visibility("default"))) int luaopen_ldft(::lua_State* L)
 {
     // 创建模块表并注册函数
     luaL_newlib(L, ldft_functions);

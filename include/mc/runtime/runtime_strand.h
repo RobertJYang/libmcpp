@@ -38,10 +38,8 @@ using execution_context = boost::asio::execution_context;
 class MC_API runtime_strand {
     struct task_operation_base : operation_base {
         thread_pool* target_pool;
-        task_operation_base(func_type f, destroy_type d, thread_pool* pool)
-            : operation_base(f, d), target_pool(pool)
-        {
-        }
+        task_operation_base(func_type f, destroy_type d, thread_pool* pool) : operation_base(f, d), target_pool(pool)
+        {}
     };
 
     template <typename Function>
@@ -61,10 +59,8 @@ class MC_API runtime_strand {
         }
 
         task_operation(Function&& f, thread_pool* pool)
-            : task_operation_base(&execute_impl, &destroy_impl, pool),
-              func_storage(std::forward<Function>(f))
-        {
-        }
+            : task_operation_base(&execute_impl, &destroy_impl, pool), func_storage(std::forward<Function>(f))
+        {}
     };
 
     using task_queue = op_queue<task_operation_base>;
@@ -107,11 +103,9 @@ public:
     execution_context& context() const;
 
     void on_work_started() const noexcept
-    {
-    }
+    {}
     void on_work_finished() const noexcept
-    {
-    }
+    {}
 
     runtime_strand& bound_pool(thread_pool* pool) noexcept
     {

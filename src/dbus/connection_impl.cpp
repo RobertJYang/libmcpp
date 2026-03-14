@@ -21,8 +21,7 @@ namespace mc::dbus {
 
 static std::once_flag s_init_dbus;
 
-connection_impl::connection_impl(mc::io_context& executor)
-    : m_executor(executor)
+connection_impl::connection_impl(mc::io_context& executor) : m_executor(executor)
 {
     std::call_once(s_init_dbus, []() {
         dbus_threads_init_default();
@@ -52,8 +51,7 @@ uint32_t connection_impl::get_next_serial()
 void connection_impl::disconnect()
 {
     std::lock_guard lock(m_mutex);
-    if (!m_connection || m_status == connect_status::disconnected ||
-        m_status == connect_status::disconnecting) {
+    if (!m_connection || m_status == connect_status::disconnected || m_status == connect_status::disconnecting) {
         return;
     }
 
@@ -86,8 +84,8 @@ message connection_impl::send_with_reply_and_block(message&& msg, mc::millisecon
     std::lock_guard lock(m_mutex);
 
     mc::dbus::error err;
-    DBusMessage*    reply = dbus_connection_send_with_reply_and_block(
-        m_connection, msg.get_dbus_message(), static_cast<int>(timeout.count()), &err);
+    DBusMessage*    reply = dbus_connection_send_with_reply_and_block(m_connection, msg.get_dbus_message(),
+                                                                      static_cast<int>(timeout.count()), &err);
 
     if (err.is_set()) {
         MC_THROW(mc::system_exception, "DBus send message failed: ${error}", ("error", err.message));
@@ -100,8 +98,7 @@ message connection_impl::send_with_reply_and_block(message&& msg, mc::millisecon
     return message(reply, false);
 }
 
-connection::future<message> connection_impl::async_send_with_reply(message&&        msg,
-                                                                   mc::milliseconds timeout)
+connection::future<message> connection_impl::async_send_with_reply(message&& msg, mc::milliseconds timeout)
 {
     std::lock_guard lock(m_mutex);
 
@@ -123,8 +120,8 @@ connection::future<message> connection_impl::async_send_with_reply(message&&    
 
     DBusPendingCall* dbus_pending_call = nullptr;
 
-    auto ret = dbus_connection_send_with_reply(m_connection, msg.get_dbus_message(),
-                                               &dbus_pending_call, timeout.count());
+    auto ret =
+        dbus_connection_send_with_reply(m_connection, msg.get_dbus_message(), &dbus_pending_call, timeout.count());
     if (ret != TRUE) {
         promise.set_value(message::new_error(msg, error_names::failed, "Failed to send message"));
         return future;
@@ -134,9 +131,9 @@ connection::future<message> connection_impl::async_send_with_reply(message&&    
         process_reply(serial, msg);
     };
 
-    auto [it, inserted] = m_pending_calls.emplace(
-        std::piecewise_construct, std::forward_as_tuple(serial),
-        std::forward_as_tuple(promise, pending_call(dbus_pending_call, std::move(on_reply))));
+    auto [it, inserted] =
+        m_pending_calls.emplace(std::piecewise_construct, std::forward_as_tuple(serial),
+                                std::forward_as_tuple(promise, pending_call(dbus_pending_call, std::move(on_reply))));
 
     if (!inserted) {
         promise.set_value(message::new_error(msg, error_names::failed, "Failed to send message"));
@@ -242,8 +239,7 @@ bool connection_impl::start()
     return true;
 }
 
-std::tuple<bool, std::optional<error>> connection_impl::request_name(std::string_view name,
-                                                                     uint32_t         flags)
+std::tuple<bool, std::optional<error>> connection_impl::request_name(std::string_view name, uint32_t flags)
 {
     error err;
 
@@ -280,8 +276,7 @@ std::tuple<bool, std::optional<error>> connection_impl::request_name(std::string
         return {false, std::move(req_err)};
     }
 
-    err.set_error(error_names::no_reply,
-                  "Failed after " + std::to_string(max_retries) + " retries");
+    err.set_error(error_names::no_reply, "Failed after " + std::to_string(max_retries) + " retries");
     elog("DBus request name failed after ${max} retries", ("max", max_retries));
     return {false, std::move(err)};
 }
@@ -289,13 +284,10 @@ std::tuple<bool, std::optional<error>> connection_impl::request_name(std::string
 void connection_impl::initialize()
 {
     dbus_connection_set_exit_on_disconnect(m_connection, false);
-    dbus_connection_set_watch_functions(m_connection, watch_add, watch_remove, watch_toggled, this,
-                                        nullptr);
-    dbus_connection_set_timeout_functions(m_connection, timeout_add, timeout_remove,
-                                          timeout_toggled, this, nullptr);
+    dbus_connection_set_watch_functions(m_connection, watch_add, watch_remove, watch_toggled, this, nullptr);
+    dbus_connection_set_timeout_functions(m_connection, timeout_add, timeout_remove, timeout_toggled, this, nullptr);
     dbus_connection_add_filter(m_connection, message_filter, this, nullptr);
-    dbus_connection_set_dispatch_status_function(m_connection, dispatch_status_changed, this,
-                                                 nullptr);
+    dbus_connection_set_dispatch_status_function(m_connection, dispatch_status_changed, this, nullptr);
 }
 
 DBusHandlerResult connection_impl::process_message(mc::dbus::message message)
@@ -431,15 +423,13 @@ void connection_impl::timeout_toggled(DBusTimeout* timeout, void* data)
     }
 }
 
-DBusHandlerResult connection_impl::message_filter(DBusConnection*, DBusMessage* msg,
-                                                  void* user_data)
+DBusHandlerResult connection_impl::message_filter(DBusConnection*, DBusMessage* msg, void* user_data)
 {
     connection_impl* conn = static_cast<connection_impl*>(user_data);
     return conn->process_message(mc::dbus::message(msg, true));
 }
 
-void connection_impl::dispatch_status_changed(DBusConnection*, DBusDispatchStatus new_status,
-                                              void* user_data)
+void connection_impl::dispatch_status_changed(DBusConnection*, DBusDispatchStatus new_status, void* user_data)
 {
     connection* conn = static_cast<connection*>(user_data);
 

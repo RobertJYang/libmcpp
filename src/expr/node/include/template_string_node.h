@@ -30,8 +30,7 @@ class template_string_node : public node {
 public:
     template_string_node(std::vector<std::string> text_parts, node_ptrs expressions)
         : m_text_parts(std::move(text_parts)), m_expressions(std::move(expressions))
-    {
-    }
+    {}
 
     node_type get_type() const override
     {

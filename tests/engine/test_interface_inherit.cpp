@@ -106,9 +106,8 @@ public:
 
 // 反射定义
 MC_REFLECT(test_interface_inherit::BaseInterface,
-           ((m_base_value, "BaseValue"))((m_common_prop, "CommonProp"))(
-               (m_base_signal, "BaseSignal"))((m_common_signal, "CommonSignal"))(
-               (base_method, "BaseMethod"))((common_method, "CommonMethod")))
+           ((m_base_value, "BaseValue"))((m_common_prop, "CommonProp"))((m_base_signal, "BaseSignal"))(
+               (m_common_signal, "CommonSignal"))((base_method, "BaseMethod"))((common_method, "CommonMethod")))
 
 MC_REFLECT(test_interface_inherit::MiddleInterface,
            ((m_middle_value, "MiddleValue"))((m_common_prop, "CommonProp")) // 覆盖基础接口的属性
@@ -116,14 +115,12 @@ MC_REFLECT(test_interface_inherit::MiddleInterface,
                                                 "CommonSignal"))               // 覆盖基础接口的信号
            ((middle_method, "MiddleMethod"))((common_method, "CommonMethod"))) // 覆盖基础接口的方法
 
-MC_REFLECT(
-    test_interface_inherit::ExtendedInterface,
-    ((m_extended_value, "ExtendedValue"))((m_common_prop, "CommonProp"))       // 覆盖中间接口的属性
-    ((m_extended_signal, "ExtendedSignal"))((m_common_signal, "CommonSignal")) // 覆盖中间接口的信号
-    ((extended_method, "ExtendedMethod"))((common_method, "CommonMethod")))    // 覆盖中间接口的方法
+MC_REFLECT(test_interface_inherit::ExtendedInterface,
+           ((m_extended_value, "ExtendedValue"))((m_common_prop, "CommonProp"))       // 覆盖中间接口的属性
+           ((m_extended_signal, "ExtendedSignal"))((m_common_signal, "CommonSignal")) // 覆盖中间接口的信号
+           ((extended_method, "ExtendedMethod"))((common_method, "CommonMethod")))    // 覆盖中间接口的方法
 
-MC_REFLECT(test_interface_inherit::TestObject,
-           ((m_iface, "iface"))((m_common_prop, "CommonProp"))                   // 覆盖接口的属性
+MC_REFLECT(test_interface_inherit::TestObject, ((m_iface, "iface"))((m_common_prop, "CommonProp")) // 覆盖接口的属性
            ((common_method, "CommonMethod"))((m_common_signal, "CommonSignal"))) // 覆盖接口的方法
 
 using namespace test_interface_inherit;
@@ -131,12 +128,10 @@ using namespace test_interface_inherit;
 class interface_inherit_test : public ::testing::Test {
 protected:
     void SetUp() override
-    {
-    }
+    {}
 
     void TearDown() override
-    {
-    }
+    {}
 
     TestObject obj;
 };
@@ -214,13 +209,10 @@ TEST_F(interface_inherit_test, test_get_all_properties)
     mc::engine::abstract_interface* iface       = obj.get_interface("org.test.ExtendedInterface");
     mc::dict                        iface_props = iface->get_all_properties();
 
-    mc::dict expected_iface_props = {{"BaseValue", 123},
-                                     {"MiddleValue", "test_middle"},
-                                     {"ExtendedValue", 9.99},
-                                     {"CommonProp", "test_common"}};
+    mc::dict expected_iface_props = {
+        {"BaseValue", 123}, {"MiddleValue", "test_middle"}, {"ExtendedValue", 9.99}, {"CommonProp", "test_common"}};
 
-    EXPECT_EQ(iface_props, expected_iface_props) << iface_props.to_string() << "\n"
-                                                 << expected_iface_props.to_string();
+    EXPECT_EQ(iface_props, expected_iface_props) << iface_props.to_string() << "\n" << expected_iface_props.to_string();
 
     // 测试通过对象获取指定接口的所有属性
     mc::dict obj_iface_props = obj.get_all_properties("org.test.ExtendedInterface");
@@ -230,21 +222,19 @@ TEST_F(interface_inherit_test, test_get_all_properties)
     // 测试通过对象获取所有属性（包括对象自身的属性）
     mc::dict all_props = obj.get_all_properties({}, mc::engine::property_options::with_object_property);
 
-    mc::dict expected_all_props = {
-        {"org.test.ExtendedInterface", mc::dict{{"BaseValue", 123},
-                                                {"MiddleValue", "test_middle"},
-                                                {"ExtendedValue", 9.99},
-                                                {"CommonProp", "test_common"}}},
-        // 包含对象级别的属性
-        {"CommonProp", "object_common"},
-        {"path", "/org/test/TestObject"},
-        {"class_name", "TestObject"},
-        {"object_name", ""},
-        {"position", ""},
-        {"object_id", 0}};
+    mc::dict expected_all_props = {{"org.test.ExtendedInterface", mc::dict{{"BaseValue", 123},
+                                                                           {"MiddleValue", "test_middle"},
+                                                                           {"ExtendedValue", 9.99},
+                                                                           {"CommonProp", "test_common"}}},
+                                   // 包含对象级别的属性
+                                   {"CommonProp", "object_common"},
+                                   {"path", "/org/test/TestObject"},
+                                   {"class_name", "TestObject"},
+                                   {"object_name", ""},
+                                   {"position", ""},
+                                   {"object_id", 0}};
 
-    EXPECT_EQ(all_props, expected_all_props) << all_props.to_string() << "\n"
-                                             << expected_all_props.to_string();
+    EXPECT_EQ(all_props, expected_all_props) << all_props.to_string() << "\n" << expected_all_props.to_string();
 }
 
 // 测试属性存在性检查
@@ -371,8 +361,7 @@ TEST_F(interface_inherit_test, test_abstract_object_method)
     EXPECT_EQ(obj_result, "object:test");
 
     // 指定接口名 - 仍然被对象接口覆盖
-    mc::engine::invoke_result iface_result =
-        base_obj->invoke("CommonMethod", {"test"}, "org.test.ExtendedInterface");
+    mc::engine::invoke_result iface_result = base_obj->invoke("CommonMethod", {"test"}, "org.test.ExtendedInterface");
     EXPECT_EQ(iface_result, "object:test");
 
     // 调用只在接口中存在的方法
@@ -432,15 +421,12 @@ TEST_F(interface_inherit_test, test_abstract_signal_override)
         bool signal_triggered = false;
 
         // 连接到指定接口的信号
-        auto conn2 = base_obj->connect(
-            "CommonSignal",
-            [&](const mc::variants& args) -> mc::variant {
+        auto conn2 = base_obj->connect("CommonSignal", [&](const mc::variants& args) -> mc::variant {
             signal_triggered = true;
             EXPECT_EQ(args.size(), 1);
             EXPECT_EQ(args[0], "interface_common");
             return {};
-        },
-            "org.test.ExtendedInterface");
+        }, "org.test.ExtendedInterface");
 
         // 触发指定接口的信号
         base_obj->emit("CommonSignal", {"interface_common"}, "org.test.ExtendedInterface");

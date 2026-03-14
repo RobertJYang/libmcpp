@@ -34,9 +34,7 @@ std::string shared_memory_manager::format_shm_name(const std::string& name)
     return name;
 }
 
-shared_memory_manager::shared_memory_manager(const std::string& base_name,
-                                             size_t             size,
-                                             uint32_t           opts)
+shared_memory_manager::shared_memory_manager(const std::string& base_name, size_t size, uint32_t opts)
     : m_name(base_name), m_remove_on_exit((opts & REMOVE_ON_EXIT) != 0)
 {
     // 如果设置了REMOVE_IF_EXISTS选项，先尝试删除已存在的共享内存
@@ -49,7 +47,6 @@ shared_memory_manager::shared_memory_manager(const std::string& base_name,
     // 创建共享内存对象
     size_t actual_size = (size > 0) ? size : shared_memory::MIN_MEMORY_SIZE;
     m_shared_memory    = shared_memory::create(m_name, actual_size);
-
     if (!m_shared_memory) {
         elog("无法创建共享内存管理器: 创建共享内存失败");
     } else {
@@ -119,8 +116,7 @@ bool shared_memory_manager::remove_shared_memory(const std::string& name)
         ilog("成功删除共享内存: ${name}", ("name", shm_name));
         return true;
     } else {
-        elog("无法删除共享内存: ${name}, 错误: ${error}",
-             ("name", shm_name)("error", strerror(errno)));
+        elog("无法删除共享内存: ${name}, 错误: ${error}", ("name", shm_name)("error", strerror(errno)));
         return false;
     }
 }

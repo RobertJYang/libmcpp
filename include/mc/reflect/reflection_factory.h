@@ -85,12 +85,10 @@ public:
         if constexpr (std::is_same_v<NameSpace, global_namespace>) {
             return global_ptr();
         } else {
-            static_assert(is_valid_namespace(NameSpace::factory_name),
-                          "factory_name is not valid");
+            static_assert(is_valid_namespace(NameSpace::factory_name), "factory_name is not valid");
             return mc::singleton<factory_ptr, NameSpace>::instance_with_creator([]() {
                 return new factory_ptr(
-                    new reflection_factory(
-                        NameSpace::factory_name, mc::pretty_name<NameSpace>(), false));
+                    new reflection_factory(NameSpace::factory_name, mc::pretty_name<NameSpace>(), false));
             });
         }
     }
@@ -263,8 +261,7 @@ private:
 
     friend struct module_node;
 
-    type_id_type register_type_impl(std::string_view                           type_name,
-                                    type_id_type                               type_id,
+    type_id_type register_type_impl(std::string_view type_name, type_id_type type_id,
                                     std::function<reflection_metadata_ptr()>&& creator);
     void         unregister_type_impl(std::string_view type_name);
 
@@ -348,8 +345,7 @@ template <typename T>
 reflection_factory& get_reflect_factory()
 {
     if constexpr (detail::has_reflect_namespace<T>::value) {
-        return reflection_factory::instance<
-            typename detail::reflect_namespace<T>::type>();
+        return reflection_factory::instance<typename detail::reflect_namespace<T>::type>();
     } else {
         return reflection_factory::global();
     }
@@ -359,8 +355,7 @@ template <typename T>
 factory_ptr try_get_reflect_factory()
 {
     if constexpr (detail::has_reflect_namespace<T>::value) {
-        return reflection_factory::try_instance_ptr<
-            typename detail::reflect_namespace<T>::type>();
+        return reflection_factory::try_instance_ptr<typename detail::reflect_namespace<T>::type>();
     } else {
         return reflection_factory::try_global_ptr();
     }

@@ -20,8 +20,7 @@ using namespace mc::reflect;
 
 namespace mc::engine {
 
-metadata_list::metadata_list(
-    std::string_view name, const struct_metadata** obj_metadata, size_t count)
+metadata_list::metadata_list(std::string_view name, const struct_metadata** obj_metadata, size_t count)
     : class_name(name)
 {
     array.reserve(count);
@@ -31,8 +30,7 @@ metadata_list::metadata_list(
 }
 
 metadata_list::~metadata_list()
-{
-}
+{}
 
 void metadata_list::visit_properties(const visit_properties_type& v) const
 {
@@ -168,11 +166,9 @@ using interface_map_type = std::unordered_map<std::string_view, interface_metada
 using members_map_type   = std::unordered_map<std::string_view, interface_item<member_info_base>>;
 
 struct object_metadata::impl {
-    impl(std::string_view                     class_name,
-         const mc::reflect::struct_metadata** obj_metadatas, size_t count)
+    impl(std::string_view class_name, const mc::reflect::struct_metadata** obj_metadatas, size_t count)
         : m_object_metadata(class_name, obj_metadatas, count)
-    {
-    }
+    {}
 
     ~impl()
     {
@@ -203,9 +199,9 @@ struct object_metadata::impl {
         }
     }
 
-    metadata_list      m_object_metadata;
+    metadata_list m_object_metadata;
     interface_map_type m_interface; // 对象所有接口的元信息，key 为接口在对象中的属性名和接口类名
-    members_map_type   m_members;   // 成员名到反射信息的映射
+    members_map_type m_members;     // 成员名到反射信息的映射
 
     // 保持顺序方便遍历
     property_list m_ordered_properties;
@@ -301,8 +297,7 @@ object_metadata::object_metadata(std::string_view class_name, const struct_metad
 }
 
 object_metadata::~object_metadata()
-{
-}
+{}
 
 const metadata_list& object_metadata::get_object_metadata() const
 {
@@ -319,8 +314,8 @@ const interface_type_info* object_metadata::get_interface_info(std::string_view 
     return it->second.interface;
 }
 
-const interface_item<property_type_info> object_metadata::get_property_info(
-    std::string_view name, std::string_view interface_name) const
+const interface_item<property_type_info> object_metadata::get_property_info(std::string_view name,
+                                                                            std::string_view interface_name) const
 {
     if (interface_name.empty()) {
         auto it = m_impl->m_members.find(name);
@@ -344,8 +339,8 @@ const interface_item<property_type_info> object_metadata::get_property_info(
     return {it->second.interface, info};
 }
 
-const interface_item<method_type_info> object_metadata::get_method_info(
-    std::string_view name, std::string_view interface_name) const
+const interface_item<method_type_info> object_metadata::get_method_info(std::string_view name,
+                                                                        std::string_view interface_name) const
 {
     if (interface_name.empty()) {
         auto it = m_impl->m_members.find(name);
@@ -369,8 +364,8 @@ const interface_item<method_type_info> object_metadata::get_method_info(
     return {it->second.interface, info};
 }
 
-const interface_item<signal_type_info> object_metadata::get_signal_info(
-    std::string_view name, std::string_view interface_name) const
+const interface_item<signal_type_info> object_metadata::get_signal_info(std::string_view name,
+                                                                        std::string_view interface_name) const
 {
     if (interface_name.empty()) {
         auto it = m_impl->m_members.find(name);

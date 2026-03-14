@@ -24,16 +24,11 @@ using namespace mc::fmt;
 
 TEST(format_dict_test, named_format_use_dict)
 {
-    mc::dict args = {
-        {"first", "first"},
-        {"second", "second"}};
+    mc::dict args = {{"first", "first"}, {"second", "second"}};
 
     EXPECT_EQ(mc::format_dict("${first} ${second}", args), "first second");
     EXPECT_EQ(mc::format_dict("{} {}", args), "first second"); // 字典也可以按索引访问
-    EXPECT_EQ(mc::format_dict("{0:{1}.{2}f}", mc::dict{
-                                                  {"value", 1.23456},
-                                                  {"width", 8},
-                                                  {"precision", 3}}),
+    EXPECT_EQ(mc::format_dict("{0:{1}.{2}f}", mc::dict{{"value", 1.23456}, {"width", 8}, {"precision", 3}}),
               "   1.235"); // 动态参数支持从字典读取
 }
 
@@ -48,11 +43,7 @@ static bool contains(std::string_view str, std::string_view substr)
 TEST(format_dict_test, FormatWithDictTest)
 {
     // 测试使用dict进行格式化
-    mc::dict args{{"host", "example.com"},
-                  {"port", 8080},
-                  {"protocol", "https"},
-                  {"enabled", true},
-                  {"ratio", 0.75}};
+    mc::dict args{{"host", "example.com"}, {"port", 8080}, {"protocol", "https"}, {"enabled", true}, {"ratio", 0.75}};
 
     // 基本替换测试
     std::string result = mc::format_dict("连接到 ${host}:${port}", args);
@@ -86,8 +77,7 @@ TEST(format_dict_test, FormatWithDictTest)
 
     // 测试新format重载函数，将结果追加到现有字符串
     std::string append_result = "前缀：";
-    mc::format_dict(append_result, "连接到 ${host}:${port}",
-                    mc::dict()("host", "example.com")("port", "8080"));
+    mc::format_dict(append_result, "连接到 ${host}:${port}", mc::dict()("host", "example.com")("port", "8080"));
     ASSERT_EQ(append_result, "前缀：连接到 example.com:8080") << "追加格式化结果应该正确";
 
     // 测试新format重载函数，使用空字符串
@@ -107,11 +97,7 @@ TEST(format_dict_test, FormatWithDictTest)
 
 TEST(format_dict_test, FormatIcaseTest)
 {
-    mc::dict args{{"host", "example.com"},
-                  {"port", 8080},
-                  {"protocol", "https"},
-                  {"enabled", true},
-                  {"ratio", 0.75}};
+    mc::dict args{{"host", "example.com"}, {"port", 8080}, {"protocol", "https"}, {"enabled", true}, {"ratio", 0.75}};
 
     std::string result = mc::format_dict_icase("${host}:${port}", args);
     ASSERT_EQ(result, "example.com:8080") << "大小写不敏感格式化应该正确";
@@ -132,9 +118,7 @@ TEST(format_dict_test, FormatIcaseTest)
 // 测试动态宽度和精度参数（包含大小写不敏感匹配）
 TEST(format_dict_test, DynamicWidthAndPrecisionFromDict)
 {
-    mc::dict args{{"value", 3.14159},
-                  {"WIDTH", 10},
-                  {"precision", 4}};
+    mc::dict args{{"value", 3.14159}, {"WIDTH", 10}, {"precision", 4}};
 
     std::string result = mc::format_dict_icase("${value:{WIDTH}.{precision}f}", args);
     EXPECT_EQ(result, "    3.1416");

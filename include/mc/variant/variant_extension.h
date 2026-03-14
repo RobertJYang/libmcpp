@@ -138,8 +138,7 @@ public:
         return std::string(get_type_name());
     }
     virtual void visit(std::function<void(const mc::variant&)>&& visitor) const
-    {
-    }
+    {}
 
     /**
      * @brief 查询是否支持零开销的引用访问

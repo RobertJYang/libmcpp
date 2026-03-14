@@ -33,8 +33,7 @@ protected:
 
 func make_simple_func(const std::string& expression)
 {
-    mc::dict args = {
-        {"param", mc::variant(42)}};
+    mc::dict args = {{"param", mc::variant(42)}};
     return func(expression, args);
 }
 

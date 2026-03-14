@@ -189,15 +189,12 @@ struct MC_API json_decode_options {
  * @return std::string 编码后的JSON字符串
  * @throw mc::parse_error_exception 当编码失败时抛出异常
  */
-MC_API std::string
-       json_encode(const variant&             value,
-                   const json_encode_options& options = json_encode_options::default_encode_options);
-MC_API std::string
-       json_encode(const dict&                obj,
-                   const json_encode_options& options = json_encode_options::default_encode_options);
-MC_API std::string
-       json_encode(const std::vector<variant>& arr,
-                   const json_encode_options&  options = json_encode_options::default_encode_options);
+MC_API std::string json_encode(const variant&             value,
+                               const json_encode_options& options = json_encode_options::default_encode_options);
+MC_API std::string json_encode(const dict&                obj,
+                               const json_encode_options& options = json_encode_options::default_encode_options);
+MC_API std::string json_encode(const std::vector<variant>& arr,
+                               const json_encode_options&  options = json_encode_options::default_encode_options);
 
 /**
  * @brief 从JSON字符串解码为variant对象
@@ -231,9 +228,8 @@ MC_API std::string
  *       variant v4 = json_decode(std::string_view(data, 10));  // 只解析前10个字符
  *       @endcode
  */
-MC_API variant
-json_decode(std::string_view           json,
-            const json_decode_options& options = json_decode_options::default_decode_options);
+MC_API variant json_decode(std::string_view           json,
+                           const json_decode_options& options = json_decode_options::default_decode_options);
 
 } // namespace json
 } // namespace mc

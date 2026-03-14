@@ -21,14 +21,10 @@ struct TestValue {
     std::string text;
     int         number;
 
-    TestValue()
-        : text(), number(0)
-    {
-    }
-    TestValue(const std::string& t, int n)
-        : text(t), number(n)
-    {
-    }
+    TestValue() : text(), number(0)
+    {}
+    TestValue(const std::string& t, int n) : text(t), number(n)
+    {}
 
     bool operator==(const TestValue& other) const
     {

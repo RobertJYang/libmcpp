@@ -101,7 +101,7 @@ TEST(SimpleNodeTest, AddAndGetEdge)
     // 创建更复杂的测试：带有单字符前缀
     auto         root2 = mc::make_shared<default_node_type>(nullptr);
     key_buffer<> prefix_b("b");
-    auto         child2 = mc::make_shared<default_node_type>(leaf1, prefix_b); // 使用key_buffer而不是字符串字面量
+    auto child2 = mc::make_shared<default_node_type>(leaf1, prefix_b); // 使用key_buffer而不是字符串字面量
 
     root2->add_edge(typename default_node_type::edge_type('b', child2));
 

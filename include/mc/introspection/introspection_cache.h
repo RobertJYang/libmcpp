@@ -31,11 +31,8 @@ public:
 
     // 获取接口introspection信息
 
-    const interface_info& get_interface(
-        mc::dbus::sd_bus*  bus,
-        const std::string& service,
-        const std::string& path,
-        const std::string& interface);
+    const interface_info& get_interface(mc::dbus::sd_bus* bus, const std::string& service, const std::string& path,
+                                        const std::string& interface);
 
     // 清理指定 service/path 的缓存
     void invalidate(const std::string& service, const std::string& path);

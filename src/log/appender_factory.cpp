@@ -25,8 +25,7 @@ namespace mc {
 namespace log {
 
 appender::~appender()
-{
-}
+{}
 
 const std::string& appender::get_name() const
 {
@@ -44,11 +43,9 @@ class appender_factory::impl {
         appender_creator_c   creator;   // 创建函数
         appender_destroyer_c destroyer; // 销毁函数
 
-        library_info(void* h = nullptr, appender_creator_c c = nullptr,
-                     appender_destroyer_c d = nullptr)
+        library_info(void* h = nullptr, appender_creator_c c = nullptr, appender_destroyer_c d = nullptr)
             : handle(h), creator(c), destroyer(d)
-        {
-        }
+        {}
     };
 
 public:
@@ -125,8 +122,7 @@ public:
             return false;
         }
 
-        auto destroyer =
-            reinterpret_cast<appender_destroyer_c>(dlsym(handle, "destroy_appender_c"));
+        auto destroyer = reinterpret_cast<appender_destroyer_c>(dlsym(handle, "destroy_appender_c"));
         if (!destroyer) {
             elog("Failed to find destroyer function: ${path}, error: ${error}",
                  ("path", library_path)("error", dlerror()));
@@ -150,8 +146,7 @@ public:
     {
         try {
             for (const auto& entry : mc::filesystem::directory_iterator(dir_path)) {
-                if (entry.status().type() == mc::filesystem::file_type::regular &&
-                    entry.path().extension() == ".so") {
+                if (entry.status().type() == mc::filesystem::file_type::regular && entry.path().extension() == ".so") {
                     auto appender_type = entry.path().stem().string();
                     load(entry.path().string(), appender_type);
                 }
@@ -170,8 +165,7 @@ public:
         return nullptr;
     }
 
-    appender_ptr get_or_create_appender(const std::string& name, const std::string& type,
-                                        const mc::dict& config)
+    appender_ptr get_or_create_appender(const std::string& name, const std::string& type, const mc::dict& config)
     {
         // 检查是否已存在同名appender
         auto it = m_appenders.find(name);
@@ -247,10 +241,8 @@ appender_factory& appender_factory::instance()
     return instance;
 }
 
-appender_factory::appender_factory()
-    : m_impl(std::make_unique<impl>())
-{
-}
+appender_factory::appender_factory() : m_impl(std::make_unique<impl>())
+{}
 appender_factory::~appender_factory() = default;
 
 appender_ptr appender_factory::create_impl(const std::string& type)
@@ -258,8 +250,7 @@ appender_ptr appender_factory::create_impl(const std::string& type)
     return m_impl->create_by_type(type);
 }
 
-appender_ptr appender_factory::create(const std::string& name, const std::string& type,
-                                      const mc::dict& config)
+appender_ptr appender_factory::create(const std::string& name, const std::string& type, const mc::dict& config)
 {
     return m_impl->create(name, type, config);
 }
@@ -279,15 +270,13 @@ appender_ptr appender_factory::get_appender(const std::string& name)
     return m_impl->get_appender(name);
 }
 
-appender_ptr appender_factory::get_or_create_appender(const std::string& name,
-                                                      const std::string& type,
-                                                      const mc::dict&    config)
+appender_ptr appender_factory::get_or_create_appender(const std::string& name, const std::string& type,
+                                                      const mc::dict& config)
 {
     return m_impl->get_or_create_appender(name, type, config);
 }
 
-void appender_factory::register_creator(const std::string&            type,
-                                        std::function<appender_ptr()> creator)
+void appender_factory::register_creator(const std::string& type, std::function<appender_ptr()> creator)
 {
     m_impl->register_creator(type, std::move(creator));
 }

@@ -14,18 +14,13 @@
 #include "connection.h"
 
 // 导出数据库状态枚举到模块
-MC_MODULE_REFLECT_ENUM(mc_test_database,
-                       mc::test::database::db_status,
-                       (DISCONNECTED)(CONNECTING)(CONNECTED)(ERROR))
+MC_MODULE_REFLECT_ENUM(mc_test_database, mc::test::database::db_status, (DISCONNECTED)(CONNECTING)(CONNECTED)(ERROR))
 
 // 导出数据库类型枚举到模块
-MC_MODULE_REFLECT_ENUM(mc_test_database,
-                       mc::test::database::db_type,
-                       (SQLITE)(MYSQL)(POSTGRESQL))
+MC_MODULE_REFLECT_ENUM(mc_test_database, mc::test::database::db_type, (SQLITE)(MYSQL)(POSTGRESQL))
 
 // 导出数据库连接类到模块
-MC_MODULE_REFLECT(mc_test_database,
-                  mc::test::database::db_connection,
+MC_MODULE_REFLECT(mc_test_database, mc::test::database::db_connection,
                   ((connect, "connect"))                   // 连接
                   ((disconnect, "disconnect"))             // 断开连接
                   ((execute_query, "executeQuery"))        // 执行查询

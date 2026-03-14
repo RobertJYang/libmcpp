@@ -23,10 +23,11 @@ namespace mc::futures {
 
 // State 缓存池配置结构
 struct state_pool_config {
-    std::size_t max_pool_count     = 32;   // 最大缓存池数量（相同大小的 State 一个缓存池）
-    std::size_t max_count_per_pool = 100;  // 每个缓存池最大缓存的 State 数量
-    std::size_t max_cacheable_size = 1024; // 最大可缓存的 State 大小，超过此大小不会被缓存（实际是比较 Stete::state_value 对齐后的大小）
-    std::size_t alignment          = 8;    // 缓存池对齐大小
+    std::size_t max_pool_count     = 32;  // 最大缓存池数量（相同大小的 State 一个缓存池）
+    std::size_t max_count_per_pool = 100; // 每个缓存池最大缓存的 State 数量
+    std::size_t max_cacheable_size =
+        1024; // 最大可缓存的 State 大小，超过此大小不会被缓存（实际是比较 Stete::state_value 对齐后的大小）
+    std::size_t alignment = 8; // 缓存池对齐大小
 };
 
 // 前向声明

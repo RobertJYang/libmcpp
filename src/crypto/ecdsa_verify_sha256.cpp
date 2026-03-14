@@ -46,8 +46,7 @@ int32_t construct_ecdsa_sig(ECDSA_SIG* ec_sig, const unsigned char* sign_data, u
     uint32_t r_val_len_offset = TL_LEN + 1;
     uint32_t r_val_offset     = r_val_len_offset + 1;
     if (r_val_len_offset >= sign_data_len) {
-        elog("construct_ecdsa_sig: r_len_offset overflow, offset=%u len=%d",
-             r_val_len_offset, sign_data_len);
+        elog("construct_ecdsa_sig: r_len_offset overflow, offset=%u len=%d", r_val_len_offset, sign_data_len);
         return ECDSA_VERIFY_FAILED;
     }
     if (sign_data[r_val_len_offset] > RSLEN) {
@@ -142,12 +141,11 @@ int32_t construct_ec_key(EC_KEY** ec_key, const unsigned char* public_key, uint3
 
 } // namespace
 
-int32_t ecdsa_verify_sha256(std::string& data, std::string& signature,
-                            std::string& public_key)
+int32_t ecdsa_verify_sha256(std::string& data, std::string& signature, std::string& public_key)
 {
     if (data.empty() || signature.empty() || public_key.empty()) {
-        elog("ecdsa_verify_sha256: null input or bad len: data=%zu, sig=%zu, pub=%zu",
-             data.size(), signature.size(), public_key.size());
+        elog("ecdsa_verify_sha256: null input or bad len: data=%zu, sig=%zu, pub=%zu", data.size(), signature.size(),
+             public_key.size());
         return ECDSA_VERIFY_FAILED;
     }
 
@@ -165,8 +163,8 @@ int32_t ecdsa_verify_sha256(std::string& data, std::string& signature,
 
     unsigned char digest[SHA256_DIGEST_LEN] = {0};
     uint32_t      digest_len                = 0;
-    ret                                     = generate_sha256_digest(reinterpret_cast<const unsigned char*>(data.data()),
-                                                                     static_cast<uint32_t>(data.size()), digest, digest_len);
+    ret = generate_sha256_digest(reinterpret_cast<const unsigned char*>(data.data()),
+                                 static_cast<uint32_t>(data.size()), digest, digest_len);
     if (ret != ECDSA_VERIFY_OK) {
         ECDSA_SIG_free(ec_sig);
         return ECDSA_VERIFY_FAILED;

@@ -1321,8 +1321,7 @@ TEST(JsonObjectTest, iteration)
     EXPECT_EQ(obj["b"], 4);
     EXPECT_EQ(obj["c"], 5);
 
-    const auto it =
-        std::find_if(obj.begin(), obj.end(), [](const auto& kv) {
+    const auto it = std::find_if(obj.begin(), obj.end(), [](const auto& kv) {
         return kv.key == "b";
     });
     EXPECT_NE(it, obj.end());
@@ -1400,9 +1399,7 @@ TEST(JsonComplexTest, modify_existing_structure)
 
 TEST(JsonComplexTest, variant_round_trip_complex)
 {
-    dict complex_obj{{"name", "test"},
-                     {"numbers", variants{1, 2, 3}},
-                     {"nested", dict{{"key", "value"}}}};
+    dict complex_obj{{"name", "test"}, {"numbers", variants{1, 2, 3}}, {"nested", dict{{"key", "value"}}}};
 
     JsonValue json_val = JsonValue::from_variant(variant(complex_obj));
     variant   result   = json_val.to_variant();
@@ -2193,9 +2190,7 @@ TEST(JsonConsistencyTest, encode_consistency_with_mc_json)
 
     // 测试复杂嵌套结构
     mc::dict complex_dict = {
-        {"user", "Bob"},
-        {"scores", mc::variants{85, 92, 78}},
-        {"profile", mc::dict{{"city", "Beijing"}, {"age", 25}}}};
+        {"user", "Bob"}, {"scores", mc::variants{85, 92, 78}}, {"profile", mc::dict{{"city", "Beijing"}, {"age", 25}}}};
     mc::variant complex_variant = mc::variant(complex_dict);
     EXPECT_EQ(json_wrapper::json_encode(complex_variant), mc::json::json_encode(complex_variant));
 }
@@ -2218,12 +2213,11 @@ TEST(JsonConsistencyTest, encode_vector_consistency)
 TEST(JsonConsistencyTest, decode_encode_round_trip)
 {
     // 原始数据
-    mc::dict original_dict = {
-        {"name", "Charlie"},
-        {"age", 35},
-        {"scores", mc::variants{88, 95, 82}},
-        {"address", mc::dict{{"city", "Shanghai"}, {"street", "Nanjing Road"}}}};
-    mc::variant original = mc::variant(original_dict);
+    mc::dict    original_dict = {{"name", "Charlie"},
+                                 {"age", 35},
+                                 {"scores", mc::variants{88, 95, 82}},
+                                 {"address", mc::dict{{"city", "Shanghai"}, {"street", "Nanjing Road"}}}};
+    mc::variant original      = mc::variant(original_dict);
 
     // 使用 json_wrapper 进行编码
     std::string encoded = json_wrapper::json_encode(original);
@@ -2397,10 +2391,9 @@ TEST(JsonDumpTest, dump_nested_structure)
 {
     mc::filesystem::path test_file = "/tmp/test_json_dump_nested.json";
 
-    mc::dict complex_data{
-        {"user", "Alice"},
-        {"scores", mc::variants{85, 92, 78}},
-        {"profile", mc::dict{{"city", "Beijing"}, {"age", 25}}}};
+    mc::dict complex_data{{"user", "Alice"},
+                          {"scores", mc::variants{85, 92, 78}},
+                          {"profile", mc::dict{{"city", "Beijing"}, {"age", 25}}}};
 
     bool result = json_wrapper::dump(mc::variant(complex_data), test_file);
     EXPECT_TRUE(result);
@@ -2469,10 +2462,7 @@ TEST(JsonDumpTest, dump_then_read_consistency)
     mc::filesystem::path test_file = "/tmp/test_json_dump_consistency.json";
 
     mc::dict original_data{
-        {"name", "Bob"},
-        {"age", 30},
-        {"married", false},
-        {"hobbies", mc::variants{"reading", "gaming"}}};
+        {"name", "Bob"}, {"age", 30}, {"married", false}, {"hobbies", mc::variants{"reading", "gaming"}}};
     mc::variant original(original_data);
 
     bool result = json_wrapper::dump(original, test_file, true);
@@ -2492,10 +2482,7 @@ TEST(JsonDumpTest, dump_formatted_output)
 {
     mc::filesystem::path test_file = "/tmp/test_json_dump_formatted.json";
 
-    mc::dict data{
-        {"level1", mc::dict{
-                       {"level2", mc::dict{
-                                      {"value", 42}}}}}};
+    mc::dict data{{"level1", mc::dict{{"level2", mc::dict{{"value", 42}}}}}};
 
     bool result = json_wrapper::dump(mc::variant(data), test_file, true);
     EXPECT_TRUE(result);
@@ -2549,9 +2536,7 @@ TEST(JsonDirectEncodeTest, encode_dict_nested)
 {
     // 测试嵌套对象
     mc::dict nested_dict{
-        {"user", mc::dict{{"name", "Alice"}, {"age", 25}}},
-        {"scores", mc::variants{85, 92, 78}},
-        {"active", true}};
+        {"user", mc::dict{{"name", "Alice"}, {"age", 25}}}, {"scores", mc::variants{85, 92, 78}}, {"active", true}};
 
     std::string result = json_wrapper::json_encode(nested_dict, false);
     EXPECT_TRUE(result.find("\"user\"") != std::string::npos);
@@ -2563,11 +2548,10 @@ TEST(JsonDirectEncodeTest, encode_dict_nested)
 TEST(JsonDirectEncodeTest, encode_dict_pretty_print)
 {
     // 测试格式化输出
-    mc::dict data{
-        {"name", "张三"},
-        {"age", 30},
-        {"scores", mc::variants{85, 92, 78}},
-        {"profile", mc::dict{{"city", "北京"}, {"street", "长安街"}}}};
+    mc::dict data{{"name", "张三"},
+                  {"age", 30},
+                  {"scores", mc::variants{85, 92, 78}},
+                  {"profile", mc::dict{{"city", "北京"}, {"street", "长安街"}}}};
 
     std::string compact = json_wrapper::json_encode(data, false);
     std::string pretty  = json_wrapper::json_encode(data, true);
@@ -2584,14 +2568,13 @@ TEST(JsonDirectEncodeTest, encode_dict_pretty_print)
 TEST(JsonDirectEncodeTest, encode_dict_consistency_with_variant)
 {
     // 验证直接编码 dict 与通过 variant 编码结果一致
-    mc::dict test_dict{
-        {"null_value", mc::variant()},
-        {"bool_value", true},
-        {"int_value", int64_t{12345}},
-        {"float_value", 123.45},
-        {"string_value", "hello"},
-        {"array_value", mc::variants{1, "two", false}},
-        {"object_value", mc::dict{{"key", "value"}}}};
+    mc::dict test_dict{{"null_value", mc::variant()},
+                       {"bool_value", true},
+                       {"int_value", int64_t{12345}},
+                       {"float_value", 123.45},
+                       {"string_value", "hello"},
+                       {"array_value", mc::variants{1, "two", false}},
+                       {"object_value", mc::dict{{"key", "value"}}}};
 
     // 直接编码 dict
     std::string direct_result = json_wrapper::json_encode(test_dict, false);
@@ -2625,10 +2608,7 @@ TEST(JsonDirectEncodeTest, encode_dict_special_characters)
 {
     // 测试特殊字符转义
     mc::dict special_dict{
-        {"newline", "hello\nworld"},
-        {"tab", "hello\tworld"},
-        {"quote", "hello\"world"},
-        {"backslash", "hello\\world"}};
+        {"newline", "hello\nworld"}, {"tab", "hello\tworld"}, {"quote", "hello\"world"}, {"backslash", "hello\\world"}};
 
     std::string result = json_wrapper::json_encode(special_dict, false);
     EXPECT_TRUE(result.find("\\n") != std::string::npos);
@@ -2666,11 +2646,10 @@ TEST(JsonDirectEncodeTest, encode_dict_deep_nesting)
 TEST(JsonDirectEncodeTest, encode_dict_empty_and_null_values)
 {
     // 测试空值和 null 处理
-    mc::dict null_dict{
-        {"empty_string", ""},
-        {"null_value", mc::variant()},
-        {"empty_array", mc::variants{}},
-        {"empty_object", mc::dict{}}};
+    mc::dict null_dict{{"empty_string", ""},
+                       {"null_value", mc::variant()},
+                       {"empty_array", mc::variants{}},
+                       {"empty_object", mc::dict{}}};
 
     std::string result = json_wrapper::json_encode(null_dict, false);
     EXPECT_TRUE(result.find("\"empty_string\"") != std::string::npos);
@@ -2688,23 +2667,17 @@ TEST(JsonDirectEncodeTest, encode_vector_basic)
     EXPECT_EQ(result, "[]");
 
     // 测试简单数组（各种类型）
-    std::vector<mc::variant> simple_vector = {
-        mc::variant(1),
-        mc::variant("test"),
-        mc::variant(true),
-        mc::variant(3.14)};
-    result = json_wrapper::json_encode(simple_vector, false);
+    std::vector<mc::variant> simple_vector = {mc::variant(1), mc::variant("test"), mc::variant(true),
+                                              mc::variant(3.14)};
+    result                                 = json_wrapper::json_encode(simple_vector, false);
     EXPECT_EQ(result, "[1,\"test\",true,3.14]");
 }
 
 TEST(JsonDirectEncodeTest, encode_vector_nested)
 {
     // 测试嵌套数组
-    std::vector<mc::variant> nested_vector = {
-        mc::variant(1),
-        mc::variant("hello"),
-        mc::variant(mc::variants{2, 3, 4}),
-        mc::variant(mc::dict{{"key", "value"}})};
+    std::vector<mc::variant> nested_vector = {mc::variant(1), mc::variant("hello"), mc::variant(mc::variants{2, 3, 4}),
+                                              mc::variant(mc::dict{{"key", "value"}})};
 
     std::string result = json_wrapper::json_encode(nested_vector, false);
     EXPECT_TRUE(result.find("[1,\"hello\",") != std::string::npos);
@@ -2715,11 +2688,8 @@ TEST(JsonDirectEncodeTest, encode_vector_nested)
 TEST(JsonDirectEncodeTest, encode_vector_pretty_print)
 {
     // 测试格式化输出
-    std::vector<mc::variant> data = {
-        mc::variant("姓名"),
-        mc::variant("张三"),
-        mc::variant(30),
-        mc::variant(mc::variants{85, 92, 78})};
+    std::vector<mc::variant> data = {mc::variant("姓名"), mc::variant("张三"), mc::variant(30),
+                                     mc::variant(mc::variants{85, 92, 78})};
 
     std::string compact = json_wrapper::json_encode(data, false);
     std::string pretty  = json_wrapper::json_encode(data, true);
@@ -2736,14 +2706,13 @@ TEST(JsonDirectEncodeTest, encode_vector_pretty_print)
 TEST(JsonDirectEncodeTest, encode_vector_consistency_with_variant)
 {
     // 验证直接编码 vector 与通过 variant 编码结果一致
-    std::vector<mc::variant> test_vector = {
-        mc::variant(),
-        mc::variant(true),
-        mc::variant(int64_t{12345}),
-        mc::variant(123.45),
-        mc::variant("hello"),
-        mc::variant(mc::variants{1, 2, 3}),
-        mc::variant(mc::dict{{"key", "value"}})};
+    std::vector<mc::variant> test_vector = {mc::variant(),
+                                            mc::variant(true),
+                                            mc::variant(int64_t{12345}),
+                                            mc::variant(123.45),
+                                            mc::variant("hello"),
+                                            mc::variant(mc::variants{1, 2, 3}),
+                                            mc::variant(mc::dict{{"key", "value"}})};
 
     // 直接编码 vector
     std::string direct_result = json_wrapper::json_encode(test_vector, false);
@@ -2794,13 +2763,8 @@ TEST(JsonDirectEncodeTest, encode_vector_mixed_types)
 TEST(JsonDirectEncodeTest, encode_vector_chinese)
 {
     // 测试中文字符数组
-    std::vector<mc::variant> chinese_vector = {
-        mc::variant("姓名"),
-        mc::variant("张三"),
-        mc::variant("年龄"),
-        mc::variant(30),
-        mc::variant("城市"),
-        mc::variant("北京")};
+    std::vector<mc::variant> chinese_vector = {mc::variant("姓名"), mc::variant("张三"), mc::variant("年龄"),
+                                               mc::variant(30),     mc::variant("城市"), mc::variant("北京")};
 
     std::string result = json_wrapper::json_encode(chinese_vector, false);
     EXPECT_TRUE(result.find("\"姓名\"") != std::string::npos);
@@ -2820,11 +2784,8 @@ TEST(JsonDirectEncodeTest, encode_vector_chinese)
 TEST(JsonDirectEncodeTest, encode_vector_special_characters)
 {
     // 测试特殊字符转义
-    std::vector<mc::variant> special_vector = {
-        mc::variant("hello\nworld"),
-        mc::variant("hello\tworld"),
-        mc::variant("hello\"world"),
-        mc::variant("hello\\world")};
+    std::vector<mc::variant> special_vector = {mc::variant("hello\nworld"), mc::variant("hello\tworld"),
+                                               mc::variant("hello\"world"), mc::variant("hello\\world")};
 
     std::string result = json_wrapper::json_encode(special_vector, false);
     EXPECT_TRUE(result.find("\\n") != std::string::npos);
@@ -2866,16 +2827,13 @@ TEST(JsonDirectEncodeTest, encode_vector_large_numbers)
 TEST(JsonDirectEncodeTest, performance_optimization_dict)
 {
     // 验证直接编码 dict 与通过 variant 编码结果完全一致
-    mc::dict complex_dict{
-        {"string", "hello world"},
-        {"number", 42},
-        {"floating", 3.14159},
-        {"boolean", true},
-        {"null", mc::variant()},
-        {"array", mc::variants{1, 2, 3, "test", false}},
-        {"nested", mc::dict{
-                       {"level2", mc::dict{
-                                      {"value", "deep"}}}}}};
+    mc::dict complex_dict{{"string", "hello world"},
+                          {"number", 42},
+                          {"floating", 3.14159},
+                          {"boolean", true},
+                          {"null", mc::variant()},
+                          {"array", mc::variants{1, 2, 3, "test", false}},
+                          {"nested", mc::dict{{"level2", mc::dict{{"value", "deep"}}}}}};
 
     std::string direct  = json_wrapper::json_encode(complex_dict, false);
     std::string variant = json_wrapper::json_encode(mc::variant(complex_dict), false);
@@ -2917,16 +2875,12 @@ TEST(JsonDirectEncodeTest, performance_optimization_vector)
 TEST(JsonDirectEncodeTest, round_trip_dict)
 {
     // 创建复杂 dict
-    mc::dict original{
-        {"name", "测试用户"},
-        {"age", 25},
-        {"scores", mc::variants{85, 92, 78, 95}},
-        {"profile", mc::dict{
-                        {"city", "上海"},
-                        {"district", "浦东新区"},
-                        {"zip", "200000"}}},
-        {"active", true},
-        {"balance", 1234.56}};
+    mc::dict original{{"name", "测试用户"},
+                      {"age", 25},
+                      {"scores", mc::variants{85, 92, 78, 95}},
+                      {"profile", mc::dict{{"city", "上海"}, {"district", "浦东新区"}, {"zip", "200000"}}},
+                      {"active", true},
+                      {"balance", 1234.56}};
 
     // 编码
     std::string encoded = json_wrapper::json_encode(original, false);
@@ -2946,14 +2900,13 @@ TEST(JsonDirectEncodeTest, round_trip_dict)
 TEST(JsonDirectEncodeTest, round_trip_vector)
 {
     // 创建复杂 vector
-    std::vector<mc::variant> original = {
-        mc::variant("数据"),
-        mc::variant(42),
-        mc::variant(3.14),
-        mc::variant(true),
-        mc::variant(),
-        mc::variant(mc::variants{1, 2, 3}),
-        mc::variant(mc::dict{{"键", "值"}})};
+    std::vector<mc::variant> original = {mc::variant("数据"),
+                                         mc::variant(42),
+                                         mc::variant(3.14),
+                                         mc::variant(true),
+                                         mc::variant(),
+                                         mc::variant(mc::variants{1, 2, 3}),
+                                         mc::variant(mc::dict{{"键", "值"}})};
 
     // 编码
     std::string encoded = json_wrapper::json_encode(original, false);

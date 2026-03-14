@@ -260,24 +260,21 @@ typename std::enable_if<enable_enum_flags<Enum>::enable, Enum>::type operator~(E
 }
 
 template <typename Enum>
-typename std::enable_if<enable_enum_flags<Enum>::enable, Enum&>::type operator|=(Enum& lhs,
-                                                                                 Enum  rhs)
+typename std::enable_if<enable_enum_flags<Enum>::enable, Enum&>::type operator|=(Enum& lhs, Enum rhs)
 {
     lhs = lhs | rhs;
     return lhs;
 }
 
 template <typename Enum>
-typename std::enable_if<enable_enum_flags<Enum>::enable, Enum&>::type operator&=(Enum& lhs,
-                                                                                 Enum  rhs)
+typename std::enable_if<enable_enum_flags<Enum>::enable, Enum&>::type operator&=(Enum& lhs, Enum rhs)
 {
     lhs = lhs & rhs;
     return lhs;
 }
 
 template <typename Enum>
-typename std::enable_if<enable_enum_flags<Enum>::enable, Enum&>::type operator^=(Enum& lhs,
-                                                                                 Enum  rhs)
+typename std::enable_if<enable_enum_flags<Enum>::enable, Enum&>::type operator^=(Enum& lhs, Enum rhs)
 {
     lhs = lhs ^ rhs;
     return lhs;
@@ -290,10 +287,10 @@ typename std::enable_if<enable_enum_flags<Enum>::enable, Enum&>::type operator^=
  *   MC_ENABLE_ENUM_FLAGS(MyFlags)
  *   MyFlags flags = MyFlags::Flag1 | MyFlags::Flag2;
  */
-#define MC_ENABLE_ENUM_FLAGS(Enum)           \
-    template <>                              \
-    struct mc::enable_enum_flags<Enum> {     \
-        static constexpr bool enable = true; \
+#define MC_ENABLE_ENUM_FLAGS(Enum)                                                                                     \
+    template <>                                                                                                        \
+    struct mc::enable_enum_flags<Enum> {                                                                               \
+        static constexpr bool enable = true;                                                                           \
     }
 
 //------------------------------------------------------------------------------
@@ -334,16 +331,13 @@ typename std::enable_if<std::is_floating_point<T>::value, T>::type random(T min,
  */
 class scope_timer {
 public:
-    explicit scope_timer(const std::string& name)
-        : m_name(name), m_start(std::chrono::high_resolution_clock::now())
-    {
-    }
+    explicit scope_timer(const std::string& name) : m_name(name), m_start(std::chrono::high_resolution_clock::now())
+    {}
 
     ~scope_timer()
     {
-        auto end = std::chrono::high_resolution_clock::now();
-        auto duration =
-            std::chrono::duration_cast<std::chrono::milliseconds>(end - m_start).count();
+        auto end      = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - m_start).count();
 
         MC_UNUSED(end);
         MC_UNUSED(duration);
@@ -379,16 +373,16 @@ typename std::enable_if_t<std::is_unsigned_v<T>, T> swap_bytes(T value)
     } else if constexpr (sizeof(T) == 2) {
         return ((value & 0xFF00) >> 8) | ((value & 0x00FF) << 8);
     } else if constexpr (sizeof(T) == 4) {
-        return ((value & 0xFF000000) >> 24) | ((value & 0x00FF0000) >> 8) |
-               ((value & 0x0000FF00) << 8) | ((value & 0x000000FF) << 24);
+        return ((value & 0xFF000000) >> 24) | ((value & 0x00FF0000) >> 8) | ((value & 0x0000FF00) << 8) |
+               ((value & 0x000000FF) << 24);
     } else if constexpr (sizeof(T) == 8) {
         return ((value & 0xFF00000000000000ULL) >> 56) | ((value & 0x00FF000000000000ULL) >> 40) |
                ((value & 0x0000FF0000000000ULL) >> 24) | ((value & 0x000000FF00000000ULL) >> 8) |
                ((value & 0x00000000FF000000ULL) << 8) | ((value & 0x0000000000FF0000ULL) << 24) |
                ((value & 0x000000000000FF00ULL) << 40) | ((value & 0x00000000000000FFULL) << 56);
     } else {
-        static_assert(sizeof(std::size_t) == 1 || sizeof(std::size_t) == 2 ||
-                          sizeof(std::size_t) == 4 || sizeof(std::size_t) == 8,
+        static_assert(sizeof(std::size_t) == 1 || sizeof(std::size_t) == 2 || sizeof(std::size_t) == 4 ||
+                          sizeof(std::size_t) == 8,
                       "Unsupported size_t type");
     }
 }
@@ -528,8 +522,7 @@ inline int64_t hton(int64_t value)
  * @param OFFSET 偏移量
  * @return TYPE* 成员指针
  */
-#define MC_MEMBER_PTR(TYPE, PTR, OFFSET) \
-    (reinterpret_cast<TYPE>(reinterpret_cast<std::uintptr_t>(PTR) + OFFSET))
+#define MC_MEMBER_PTR(TYPE, PTR, OFFSET) (reinterpret_cast<TYPE>(reinterpret_cast<std::uintptr_t>(PTR) + OFFSET))
 
 /**
  * @brief 计算两个指针之间的偏移量
@@ -548,8 +541,7 @@ inline int64_t hton(int64_t value)
  * @param MEMBER 成员指针
  * @return size_t 成员偏移量（字节数）
  */
-#define MC_MEMBER_OFFSETOF(TYPE, MEMBER) \
-    (reinterpret_cast<std::size_t>(&(reinterpret_cast<TYPE*>(0)->*MEMBER)))
+#define MC_MEMBER_OFFSETOF(TYPE, MEMBER) (reinterpret_cast<std::size_t>(&(reinterpret_cast<TYPE*>(0)->*MEMBER)))
 
 #define MC_ALIGN(value, alignment)    (value & ~(alignment - 1))
 #define MC_ALIGN_UP(value, alignment) ((value + alignment - 1) & ~(alignment - 1))
@@ -567,9 +559,7 @@ struct is_function_pointer<R (*)(Args...)> : std::true_type {};
 
 template <typename F>
 inline auto get_function_offset(F function)
-    -> std::enable_if_t<std::is_member_function_pointer_v<F> ||
-                            detail::is_function_pointer<F>::value,
-                        std::uintptr_t>
+    -> std::enable_if_t<std::is_member_function_pointer_v<F> || detail::is_function_pointer<F>::value, std::uintptr_t>
 {
     union {
         F              function;
@@ -624,8 +614,7 @@ constexpr bool is_valid_interface_name(std::string_view name)
     bool has_dot = false;
 
     // 不能以点开头或结尾
-    if (name.empty() || name[0] == '.' || name[name.size() - 1] == '.' ||
-        name.size() > max_identifier_length) {
+    if (name.empty() || name[0] == '.' || name[name.size() - 1] == '.' || name.size() > max_identifier_length) {
         return false;
     }
 
@@ -664,8 +653,7 @@ std::uintptr_t get_base_offset()
 
     Derived* derived_ptr = reinterpret_cast<Derived*>(buffer);
     Base*    base_ptr    = static_cast<Base*>(derived_ptr);
-    return reinterpret_cast<std::uintptr_t>(base_ptr) -
-           reinterpret_cast<std::uintptr_t>(derived_ptr);
+    return reinterpret_cast<std::uintptr_t>(base_ptr) - reinterpret_cast<std::uintptr_t>(derived_ptr);
 }
 
 MC_API void set_current_thread_name(const std::string& name);

@@ -29,14 +29,13 @@ mc::variant conditional_node::evaluate(const context_base& ctx) const
 
 std::string conditional_node::to_string() const
 {
-    return "(" + m_condition->to_string() + " ? " + m_true_branch->to_string() + " : " +
-           m_false_branch->to_string() + ")";
+    return "(" + m_condition->to_string() + " ? " + m_true_branch->to_string() + " : " + m_false_branch->to_string() +
+           ")";
 }
 
 node_ptr make_conditional(node_ptr condition, node_ptr true_branch, node_ptr false_branch)
 {
-    return std::make_shared<conditional_node>(std::move(condition), std::move(true_branch),
-                                              std::move(false_branch));
+    return std::make_shared<conditional_node>(std::move(condition), std::move(true_branch), std::move(false_branch));
 }
 
 } // namespace mc::expr

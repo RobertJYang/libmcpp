@@ -58,10 +58,8 @@ public:
     using ref_ptr_type = typename Node::ref_ptr_type;
 
     // 构造函数实现
-    edge(uint8_t label, ref_ptr_type node)
-        : m_label(label), m_node(std::move(node))
-    {
-    }
+    edge(uint8_t label, ref_ptr_type node) : m_label(label), m_node(std::move(node))
+    {}
 
     ~edge()
     {
@@ -175,8 +173,8 @@ struct edge_greater {
  */
 template <typename Node>
 using edges =
-    std::vector<edge<Node>, typename std::allocator_traits<
-                                typename Node::allocator_type>::template rebind_alloc<edge<Node>>>;
+    std::vector<edge<Node>,
+                typename std::allocator_traits<typename Node::allocator_type>::template rebind_alloc<edge<Node>>>;
 
 /**
  * 节点类，表示基数树中的一个节点
@@ -203,46 +201,36 @@ public:
 
     // 默认构造函数
     node()
-    {
-    }
+    {}
 
     // 基本构造函数
-    explicit node(leaf_type leaf)
-        : m_leaf(leaf)
-    {
-    }
+    explicit node(leaf_type leaf) : m_leaf(leaf)
+    {}
 
     // 带前缀构造，使用key_view
     node(leaf_type leaf, key_view prefix, edges_type edges = {})
         : m_leaf(leaf), m_prefix(prefix), m_edges(std::move(edges)), m_version(0)
-    {
-    }
+    {}
 
     // 带前缀构造，使用key_type右值引用
     node(leaf_type leaf, key_type prefix, edges_type edges = {})
         : m_leaf(leaf), m_prefix(std::move(prefix)), m_edges(std::move(edges)), m_version(0)
-    {
-    }
+    {}
 
     // 带分配器的构造函数
-    node(const allocator_type& alloc, leaf_type leaf)
-        : m_leaf(leaf), m_prefix(alloc), m_edges(alloc), m_alloc(alloc)
-    {
-    }
+    node(const allocator_type& alloc, leaf_type leaf) : m_leaf(leaf), m_prefix(alloc), m_edges(alloc), m_alloc(alloc)
+    {}
 
     // 带分配器和前缀的构造函数
     node(const allocator_type& alloc, leaf_type leaf, key_view prefix, edges_type edges = {})
-        : m_leaf(leaf), m_prefix(alloc, prefix), m_edges(alloc, std::move(edges)), m_version(0),
-          m_alloc(alloc)
-    {
-    }
+        : m_leaf(leaf), m_prefix(alloc, prefix), m_edges(alloc, std::move(edges)), m_version(0), m_alloc(alloc)
+    {}
 
     // 带分配器和前缀的构造函数（前缀为右值引用）
     node(const allocator_type& alloc, leaf_type leaf, key_type prefix, edges_type edges = {})
-        : m_leaf(leaf), m_prefix(alloc, std::move(prefix)), m_edges(alloc, std::move(edges)),
-          m_version(0), m_alloc(alloc)
-    {
-    }
+        : m_leaf(leaf), m_prefix(alloc, std::move(prefix)), m_edges(alloc, std::move(edges)), m_version(0),
+          m_alloc(alloc)
+    {}
 
     ~node()
     {
@@ -337,8 +325,7 @@ public:
 
     friend bool operator==(const node& lhs, const node& rhs)
     {
-        return lhs.m_leaf == rhs.m_leaf && lhs.m_prefix == rhs.m_prefix &&
-               lhs.m_edges == rhs.m_edges;
+        return lhs.m_leaf == rhs.m_leaf && lhs.m_prefix == rhs.m_prefix && lhs.m_edges == rhs.m_edges;
     }
 
     friend bool operator!=(const node& lhs, const node& rhs)

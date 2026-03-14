@@ -62,7 +62,7 @@ extern std::atomic<bool> g_running;
 extern void              signal_handler(int signum);
 
 // 共享内存辅助函数声明
-extern void write_to_shared_memory(shared_memory_allocator& allocator, const std::string& data);
+extern void        write_to_shared_memory(shared_memory_allocator& allocator, const std::string& data);
 extern std::string read_from_shared_memory(shared_memory_allocator& allocator, void* ptr);
 
 // 测试函数声明

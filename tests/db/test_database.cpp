@@ -31,14 +31,11 @@ public:
 
     test_object() = default;
 
-    test_object(uint32_t id, std::string name, int value)
-        : m_id(id), m_name(std::move(name)), m_value(value)
-    {
-    }
+    test_object(uint32_t id, std::string name, int value) : m_id(id), m_name(std::move(name)), m_value(value)
+    {}
 
     ~test_object() override
-    {
-    }
+    {}
 
     uint32_t id() const
     {
@@ -66,8 +63,9 @@ MC_REFLECT(test_object, ((m_id, "id"))((m_name, "name"))((m_value, "value")))
 namespace {
 
 // 使用限定命名空间访问
-using test_table = table<test_object, indexed_by<ordered_unique<&test_object::m_id, by_id::tag>,
-                                                 ordered_non_unique<&test_object::m_name>>>;
+using test_table =
+    table<test_object,
+          indexed_by<ordered_unique<&test_object::m_id, by_id::tag>, ordered_non_unique<&test_object::m_name>>>;
 
 // 拿到表的字段，可用于后续构造查询语句
 auto field_id    = mc::db::field(&test_object::m_id);
@@ -301,8 +299,7 @@ TEST_F(database_test, table_operations)
     EXPECT_FALSE(db.is_table_registered("test_table"));
 
     // 尝试操作已注销的表
-    EXPECT_FALSE(db.add("test_table", dict{{"id", 2}, {"name", "test2"}, {"value", 200}}) !=
-                 nullptr);
+    EXPECT_FALSE(db.add("test_table", dict{{"id", 2}, {"name", "test2"}, {"value", 200}}) != nullptr);
 }
 
 // 测试数据库事务功能

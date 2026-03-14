@@ -111,8 +111,7 @@ int dbus_blocking_run_until(lua_State* L)
 
         // 直接使用 wrapper->bus_impl 调用方法
         lua_State* lua_state = L;
-        bool       result    = wrapper->bus_impl->run_until(
-            [lua_state, callback_ref]() -> bool {
+        bool       result    = wrapper->bus_impl->run_until([lua_state, callback_ref]() -> bool {
             lua_rawgeti(lua_state, LUA_REGISTRYINDEX, callback_ref);
             if (lua_pcall(lua_state, 0, 1, 0) != LUA_OK) {
                 lua_pop(lua_state, 1);
@@ -121,8 +120,7 @@ int dbus_blocking_run_until(lua_State* L)
             bool cb_result = lua_toboolean(lua_state, -1);
             lua_pop(lua_state, 1);
             return cb_result;
-        },
-            total_timeout_ms, step_ms);
+        }, total_timeout_ms, step_ms);
 
         // 释放回调引用
         luaL_unref(L, LUA_REGISTRYINDEX, callback_ref);
@@ -180,8 +178,8 @@ int dbus_blocking_timeout_call(lua_State* L)
         }
 
         // 直接使用 wrapper->bus_impl 调用方法
-        auto result =
-            wrapper->bus_impl->timeout_call(timeout_ms, service_name, path, interface, method, signature, std::move(args));
+        auto result = wrapper->bus_impl->timeout_call(timeout_ms, service_name, path, interface, method, signature,
+                                                      std::move(args));
         return mc::lua::variants_to_lua(L, result);
     } catch (const std::exception& e) {
         return luaL_error(L, "timeout_call method failed: %s", e.what());

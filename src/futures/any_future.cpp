@@ -20,10 +20,8 @@
 
 namespace mc::futures {
 
-any_future::any_future(state_base_ptr state)
-    : m_state(std::move(state))
-{
-}
+any_future::any_future(state_base_ptr state) : m_state(std::move(state))
+{}
 
 bool any_future::valid() const noexcept
 {
@@ -156,7 +154,8 @@ void any_future::add_continuation(callback_type continuation, launch policy, std
     }
 }
 
-void any_future::finally(any_promise& promise, callback_type cleanup, launch policy, std::optional<mc::any_executor> executor)
+void any_future::finally(any_promise& promise, callback_type cleanup, launch policy,
+                         std::optional<mc::any_executor> executor)
 {
     if (!m_state) {
         promise.set_exception(make_invalid_future_exception());
@@ -244,11 +243,8 @@ void any_future::timeout(any_future& src_future, duration_type duration, callbac
     struct timer_data {
         using timer_type = mc::runtime::basic_timer<executor_type>;
 
-        timer_data(any_executor executor, duration_type duration)
-            : timer(executor, duration),
-              completed(false)
-        {
-        }
+        timer_data(any_executor executor, duration_type duration) : timer(executor, duration), completed(false)
+        {}
 
         timer_type        timer;
         std::atomic<bool> completed;

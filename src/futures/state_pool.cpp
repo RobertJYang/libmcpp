@@ -41,10 +41,8 @@ void state_base_deleter::deallocate(const void* ptr)
 // 固定大小的 State 缓存池
 class sized_state_pool {
 public:
-    explicit sized_state_pool(std::size_t max_size)
-        : m_max_size(max_size)
-    {
-    }
+    explicit sized_state_pool(std::size_t max_size) : m_max_size(max_size)
+    {}
 
     ~sized_state_pool()
     {
@@ -248,10 +246,8 @@ void state_pool::impl::remove_global_pool_unlocked(std::size_t state_size)
 
 // state_pool 实现
 
-state_pool::state_pool()
-    : m_pimpl(std::make_unique<impl>())
-{
-}
+state_pool::state_pool() : m_pimpl(std::make_unique<impl>())
+{}
 
 state_pool::~state_pool() = default;
 

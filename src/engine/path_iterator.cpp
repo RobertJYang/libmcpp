@@ -13,8 +13,7 @@
 
 namespace mc::engine {
 
-path_iterator::path_iterator(std::string_view path)
-    : m_path(path), m_start(0), m_end(0), m_is_initialized(false)
+path_iterator::path_iterator(std::string_view path) : m_path(path), m_start(0), m_end(0), m_is_initialized(false)
 {
     // 去除尾部斜杠
     if (!m_path.empty() && m_path.back() == IMMUTABLE_PATH_SEP) {

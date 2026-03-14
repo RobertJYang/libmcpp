@@ -42,8 +42,7 @@ struct can_convert_to_io_executor : std::false_type {};
 
 template <typename Executor>
 struct can_convert_to_io_executor<
-    Executor,
-    std::void_t<decltype(static_cast<boost::asio::io_context::executor_type>(std::declval<Executor>()))>>
+    Executor, std::void_t<decltype(static_cast<boost::asio::io_context::executor_type>(std::declval<Executor>()))>>
     : std::true_type {};
 
 template <typename Executor>
@@ -54,8 +53,7 @@ struct can_convert_to_any_io_executor : std::false_type {};
 
 template <typename Executor>
 struct can_convert_to_any_io_executor<
-    Executor,
-    std::void_t<decltype(static_cast<boost::asio::any_io_executor>(std::declval<Executor>()))>>
+    Executor, std::void_t<decltype(static_cast<boost::asio::any_io_executor>(std::declval<Executor>()))>>
     : std::true_type {};
 
 template <typename Executor>
@@ -156,10 +154,8 @@ private:
     using function = boost::asio::detail::executor_function;
     class impl_base {
     public:
-        impl_base()
-            : m_ref_count(1)
-        {
-        }
+        impl_base() : m_ref_count(1)
+        {}
 
         virtual ~impl_base() = default;
 
@@ -203,8 +199,7 @@ private:
     public:
         explicit impl(Executor executor, const Allocator& allocator)
             : m_executor(std::move(executor)), m_allocator(allocator)
-        {
-        }
+        {}
 
         void post(function&& f) const override
         {
@@ -295,8 +290,7 @@ private:
 
     private:
         template <typename E>
-        static auto running_in_this_thread_impl(const E& exec) noexcept
-            -> decltype(exec.running_in_this_thread())
+        static auto running_in_this_thread_impl(const E& exec) noexcept -> decltype(exec.running_in_this_thread())
         {
             return exec.running_in_this_thread();
         }
@@ -316,10 +310,8 @@ private:
 
 template <typename Executor, typename Allocator, typename>
 executor::executor(Executor&& exec, const Allocator& allocator)
-    : m_impl(new impl<std::decay_t<Executor>, std::decay_t<Allocator>>(
-          std::forward<Executor>(exec), allocator))
-{
-}
+    : m_impl(new impl<std::decay_t<Executor>, std::decay_t<Allocator>>(std::forward<Executor>(exec), allocator))
+{}
 
 template <typename Function, typename Allocator>
 auto executor::post(Function&& f, const Allocator& a) const

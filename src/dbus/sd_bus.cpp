@@ -50,8 +50,7 @@ static std::unique_ptr<bus_mode_impl> create_bus_impl(bool is_blocking)
     return std::make_unique<nonblocking_bus_impl>();
 }
 
-sd_bus::sd_bus(bool start_now, bool is_blocking)
-    : m_is_blocking(is_blocking), m_bus(create_bus_impl(is_blocking))
+sd_bus::sd_bus(bool start_now, bool is_blocking) : m_is_blocking(is_blocking), m_bus(create_bus_impl(is_blocking))
 {
     // 创建连接并初始化到 bus_impl
     auto conn = connection::open_session_bus(mc::get_io_context());
@@ -63,8 +62,7 @@ sd_bus::sd_bus(bool start_now, bool is_blocking)
     }
 }
 
-sd_bus::sd_bus(connection conn, bool is_blocking)
-    : m_is_blocking(is_blocking), m_bus(create_bus_impl(is_blocking))
+sd_bus::sd_bus(connection conn, bool is_blocking) : m_is_blocking(is_blocking), m_bus(create_bus_impl(is_blocking))
 {
     // 使用提供的连接初始化到 bus_impl
     m_bus->init_connection(std::move(conn));
@@ -74,13 +72,10 @@ sd_bus::sd_bus(connection conn, bool is_blocking)
 sd_bus::~sd_bus() = default;
 
 sd_bus::sd_bus(sd_bus&& other) noexcept
-    : m_is_blocking(other.m_is_blocking),
-      m_enable_local_request(other.m_enable_local_request),
-      m_bus(std::move(other.m_bus)),
-      m_unique_name(std::move(other.m_unique_name)),
+    : m_is_blocking(other.m_is_blocking), m_enable_local_request(other.m_enable_local_request),
+      m_bus(std::move(other.m_bus)), m_unique_name(std::move(other.m_unique_name)),
       m_service_name(std::move(other.m_service_name))
-{
-}
+{}
 
 sd_bus& sd_bus::operator=(sd_bus&& other) noexcept
 {
@@ -97,8 +92,8 @@ sd_bus& sd_bus::operator=(sd_bus&& other) noexcept
 variants sd_bus::dbus_call(mc::milliseconds timeout, const method_call_params& params)
 {
     return m_bus->timeout_call(timeout.count(), std::string(params.service_name), std::string(params.path),
-                               std::string(params.interface), std::string(params.method),
-                               std::string(params.signature), variants(params.args));
+                               std::string(params.interface), std::string(params.method), std::string(params.signature),
+                               variants(params.args));
 }
 
 std::optional<variants> sd_bus::shm_timeout_call(mc::milliseconds timeout, const method_call_params& params)
@@ -157,8 +152,8 @@ std::optional<variants> sd_bus::reroute_call(mc::milliseconds timeout, const met
     }
 
     const auto& [target_method, target_signature] = method_it->second;
-    method_call_params target_params{DEVMON_SERVICE, params.path, DEVMON_CHIP_INTERFACE,
-                                     target_method, target_signature, remove_context_arg(params.args)};
+    method_call_params target_params{DEVMON_SERVICE, params.path,      DEVMON_CHIP_INTERFACE,
+                                     target_method,  target_signature, remove_context_arg(params.args)};
     return timeout_call_impl(timeout, target_params);
 }
 

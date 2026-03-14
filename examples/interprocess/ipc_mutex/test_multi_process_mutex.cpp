@@ -78,13 +78,9 @@ private:
 
 // 实现部分
 multi_process_mutex::multi_process_mutex(int process_count, int iterations)
-    : multi_process_test_base("多进程互斥锁测试", 256 * 1024),
-      m_process_count(process_count),
-      m_iterations(iterations),
-      m_mutex(nullptr),
-      m_counter(nullptr)
-{
-}
+    : multi_process_test_base("多进程互斥锁测试", 256 * 1024), m_process_count(process_count), m_iterations(iterations),
+      m_mutex(nullptr), m_counter(nullptr)
+{}
 
 multi_process_mutex::~multi_process_mutex()
 {
@@ -94,11 +90,9 @@ multi_process_mutex::~multi_process_mutex()
 bool multi_process_mutex::initialize()
 {
     // 创建共享内存管理器
-    m_shm_manager = std::make_unique<shared_memory_manager>(
-        "shm_multi_process_mutex_test",
-        m_shm_size,
-        shared_memory_manager::REMOVE_ON_EXIT |
-            shared_memory_manager::REMOVE_IF_EXISTS);
+    m_shm_manager = std::make_unique<shared_memory_manager>("shm_multi_process_mutex_test", m_shm_size,
+                                                            shared_memory_manager::REMOVE_ON_EXIT |
+                                                                shared_memory_manager::REMOVE_IF_EXISTS);
 
     m_shm = m_shm_manager->get_shared_memory();
     if (!m_shm) {
@@ -106,8 +100,7 @@ bool multi_process_mutex::initialize()
         return false;
     }
 
-    ilog("共享内存创建成功，名称: ${name}, 大小: ${size}字节",
-         ("name", m_shm->get_name())("size", m_shm->get_size()));
+    ilog("共享内存创建成功，名称: ${name}, 大小: ${size}字节", ("name", m_shm->get_name())("size", m_shm->get_size()));
 
     // 获取分配器
     m_allocator = &m_shm->get_allocator();
@@ -188,8 +181,7 @@ bool multi_process_mutex::verify_results()
     int final_count  = *m_counter;
     int expected_max = m_process_count * m_iterations;
 
-    ilog("最终计数器值: ${count}，最大预期值: ${expected}",
-         ("count", final_count)("expected", expected_max));
+    ilog("最终计数器值: ${count}，最大预期值: ${expected}", ("count", final_count)("expected", expected_max));
 
     if (final_count <= expected_max && final_count > 0) {
         if (final_count == expected_max) {

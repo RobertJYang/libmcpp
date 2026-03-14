@@ -223,8 +223,7 @@ public:
     {
         singleton_options options;
         options.leaky = false; // 非泄露模式
-        return detail::singleton_impl<T, Tag>::get_instance_with_creator(std::move(creator),
-                                                                         options);
+        return detail::singleton_impl<T, Tag>::get_instance_with_creator(std::move(creator), options);
     }
 
     /**
@@ -288,8 +287,7 @@ public:
     {
         singleton_options options;
         options.leaky = true; // 泄露模式
-        return detail::singleton_impl<T, Tag>::get_instance_with_creator(std::move(creator),
-                                                                         options);
+        return detail::singleton_impl<T, Tag>::get_instance_with_creator(std::move(creator), options);
     }
 
     /**

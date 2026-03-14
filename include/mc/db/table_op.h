@@ -46,12 +46,9 @@ public:
      * @param table_id 表ID
      * @param table 表引用
      */
-    table_op_resource(uint32_t table_id, uint32_t object_id, table_type& table, int32_t sp,
-                      table_op_type op_type)
-        : m_table_id(table_id), m_object_id(object_id), m_table(table), m_savepoint_id(sp),
-          m_op_type(op_type)
-    {
-    }
+    table_op_resource(uint32_t table_id, uint32_t object_id, table_type& table, int32_t sp, table_op_type op_type)
+        : m_table_id(table_id), m_object_id(object_id), m_table(table), m_savepoint_id(sp), m_op_type(op_type)
+    {}
 
     virtual ~table_op_resource() = default;
 

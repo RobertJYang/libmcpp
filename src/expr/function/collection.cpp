@@ -33,7 +33,8 @@ func_collection& func_collection::get_instance()
     return instance;
 }
 
-void func_collection::add(const std::string_view& position, std::shared_ptr<mc::engine::service> service, mc::dict& functions)
+void func_collection::add(const std::string_view& position, std::shared_ptr<mc::engine::service> service,
+                          mc::dict& functions)
 {
     std::lock_guard lock(m_mutex);
     std::string     position_str(position);

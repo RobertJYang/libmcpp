@@ -122,15 +122,11 @@ const mc::variant* runtime_arg_store::get_variant(std::string_view name) const
 
 } // namespace detail
 
-format_context::format_context(std::string& out, detail::runtime_arg_store& args)
-    : m_out(out), m_args(args)
-{
-}
+format_context::format_context(std::string& out, detail::runtime_arg_store& args) : m_out(out), m_args(args)
+{}
 
-format_context::format_context(std::string& out)
-    : m_out(out), m_args(s_empty_args)
-{
-}
+format_context::format_context(std::string& out) : m_out(out), m_args(s_empty_args)
+{}
 
 std::string& format_context::out()
 {
@@ -211,20 +207,16 @@ void format_context::raise_error(const detail::parser_result& result)
             MC_THROW(mc::format_error, "Standalone '}}' in format string");
             break;
         case detail::parser_error::name_arg_not_found:
-            MC_THROW(mc::format_error, "Named parameter not found: ${name}",
-                    ("name", result.text));
+            MC_THROW(mc::format_error, "Named parameter not found: ${name}", ("name", result.text));
             break;
         case detail::parser_error::index_arg_not_found:
-            MC_THROW(mc::format_error, "Positional parameter not found: ${index}",
-                    ("index", result.text));
+            MC_THROW(mc::format_error, "Positional parameter not found: ${index}", ("index", result.text));
             break;
         case detail::parser_error::invalid_spec_arg:
-            MC_THROW(mc::format_error, "Format string or parameter error: ${text}",
-                    ("text", result.text));
+            MC_THROW(mc::format_error, "Format string or parameter error: ${text}", ("text", result.text));
             break;
         case detail::parser_error::invalid_dynamic_param:
-            MC_THROW(mc::format_error, "Dynamic parameter type error: ${text}",
-                    ("text", result.text));
+            MC_THROW(mc::format_error, "Dynamic parameter type error: ${text}", ("text", result.text));
             break;
         default:
             break;

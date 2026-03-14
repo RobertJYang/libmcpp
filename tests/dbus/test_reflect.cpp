@@ -99,16 +99,15 @@ protected:
     }
 
     void TearDown() override
-    {
-    }
+    {}
 
     test_struct ts_out;
 };
 
 TEST_F(reflect_test, test_reflect_struct)
 {
-    auto msg_out = mc::dbus::message::new_method_call(
-        "org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "Hello");
+    auto msg_out = mc::dbus::message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
+                                                      "org.freedesktop.DBus", "Hello");
     msg_out.set_serial(123456);
     EXPECT_TRUE(msg_out.is_valid());
 

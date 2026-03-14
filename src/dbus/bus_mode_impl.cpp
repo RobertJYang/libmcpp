@@ -23,8 +23,7 @@ namespace mc::dbus {
 // ==================== bus_mode_impl ====================
 
 bus_mode_impl::~bus_mode_impl()
-{
-}
+{}
 
 void bus_mode_impl::init_connection(connection&& conn)
 {
@@ -142,9 +141,8 @@ shm_tree* blocking_bus_impl::get_shm_tree()
     return nullptr;
 }
 
-variants blocking_bus_impl::call(const std::string& service, const std::string& path,
-                                 const std::string& interface, const std::string& method,
-                                 const std::string& signature, variants&& args)
+variants blocking_bus_impl::call(const std::string& service, const std::string& path, const std::string& interface,
+                                 const std::string& method, const std::string& signature, variants&& args)
 {
     // 直接使用 m_connection 发送消息
     auto               msg    = message::new_method_call(service, path, interface, method);
@@ -168,10 +166,9 @@ variants blocking_bus_impl::call(const std::string& service, const std::string& 
     throw mc::error_exception(error_name.c_str(), error_message);
 }
 
-variants blocking_bus_impl::timeout_call(int timeout_ms, const std::string& service,
-                                         const std::string& path, const std::string& interface,
-                                         const std::string& method, const std::string& signature,
-                                         variants&& args)
+variants blocking_bus_impl::timeout_call(int timeout_ms, const std::string& service, const std::string& path,
+                                         const std::string& interface, const std::string& method,
+                                         const std::string& signature, variants&& args)
 {
     // 直接使用 m_connection 发送消息
     auto               msg    = message::new_method_call(service, path, interface, method);
@@ -196,29 +193,26 @@ variants blocking_bus_impl::timeout_call(int timeout_ms, const std::string& serv
 }
 
 std::tuple<std::optional<std::string>, variants>
-blocking_bus_impl::async_call(const std::string& service, const std::string& path,
-                              const std::string& interface, const std::string& method,
-                              const std::string& signature, variants&& args)
+blocking_bus_impl::async_call(const std::string& service, const std::string& path, const std::string& interface,
+                              const std::string& method, const std::string& signature, variants&& args)
 {
     // 阻塞模式不支持异步调用，返回错误
     return {std::string("async_call is not supported in blocking mode"), variants{}};
 }
 
 std::tuple<std::optional<std::string>, variants>
-blocking_bus_impl::async_timeout_call(int timeout_ms, const std::string& service,
-                                      const std::string& path, const std::string& interface,
-                                      const std::string& method, const std::string& signature,
-                                      variants&& args)
+blocking_bus_impl::async_timeout_call(int timeout_ms, const std::string& service, const std::string& path,
+                                      const std::string& interface, const std::string& method,
+                                      const std::string& signature, variants&& args)
 {
     // 阻塞模式不支持异步调用，返回错误
     return {std::string("async_timeout_call is not supported in blocking mode"), variants{}};
 }
 
 std::tuple<std::optional<std::string>, variants>
-blocking_bus_impl::async_shm_timeout_call(int timeout_ms, const std::string& service,
-                                          const std::string& path, const std::string& interface,
-                                          const std::string& method, const std::string& signature,
-                                          variants&& args)
+blocking_bus_impl::async_shm_timeout_call(int timeout_ms, const std::string& service, const std::string& path,
+                                          const std::string& interface, const std::string& method,
+                                          const std::string& signature, variants&& args)
 {
     // 阻塞模式不支持异步调用，返回错误
     return {std::string("async_shm_timeout_call is not supported in blocking mode"), variants{}};
@@ -309,19 +303,17 @@ shm_tree* nonblocking_bus_impl::get_shm_tree()
     return m_shm_tree;
 }
 
-variants nonblocking_bus_impl::call(const std::string& service, const std::string& path,
-                                    const std::string& interface, const std::string& method,
-                                    const std::string& signature, variants&& args)
+variants nonblocking_bus_impl::call(const std::string& service, const std::string& path, const std::string& interface,
+                                    const std::string& method, const std::string& signature, variants&& args)
 {
     // 非阻塞模式不支持同步调用
     MC_THROW_ERROR_WITH_MESSAGE("InvalidOperation",
                                 MC_LOG_MESSAGE(error, "call is not supported in non-blocking mode"));
 }
 
-variants nonblocking_bus_impl::timeout_call(int timeout_ms, const std::string& service,
-                                            const std::string& path, const std::string& interface,
-                                            const std::string& method, const std::string& signature,
-                                            variants&& args)
+variants nonblocking_bus_impl::timeout_call(int timeout_ms, const std::string& service, const std::string& path,
+                                            const std::string& interface, const std::string& method,
+                                            const std::string& signature, variants&& args)
 {
     auto               msg    = message::new_method_call(service, path, interface, method);
     auto               writer = msg.writer();
@@ -345,19 +337,17 @@ variants nonblocking_bus_impl::timeout_call(int timeout_ms, const std::string& s
 }
 
 std::tuple<std::optional<std::string>, variants>
-nonblocking_bus_impl::async_call(const std::string& service, const std::string& path,
-                                 const std::string& interface, const std::string& method,
-                                 const std::string& signature, variants&& args)
+nonblocking_bus_impl::async_call(const std::string& service, const std::string& path, const std::string& interface,
+                                 const std::string& method, const std::string& signature, variants&& args)
 {
     // 直接调用 async_timeout_call，使用默认超时
     return async_timeout_call(60000, service, path, interface, method, signature, std::move(args));
 }
 
 std::tuple<std::optional<std::string>, variants>
-nonblocking_bus_impl::async_timeout_call(int timeout_ms, const std::string& service,
-                                         const std::string& path, const std::string& interface,
-                                         const std::string& method, const std::string& signature,
-                                         variants&& args)
+nonblocking_bus_impl::async_timeout_call(int timeout_ms, const std::string& service, const std::string& path,
+                                         const std::string& interface, const std::string& method,
+                                         const std::string& signature, variants&& args)
 {
     // 直接使用 m_connection 发送异步消息
     try {
@@ -385,10 +375,9 @@ nonblocking_bus_impl::async_timeout_call(int timeout_ms, const std::string& serv
 }
 
 std::tuple<std::optional<std::string>, variants>
-nonblocking_bus_impl::async_shm_timeout_call(int timeout_ms, const std::string& service,
-                                             const std::string& path, const std::string& interface,
-                                             const std::string& method, const std::string& signature,
-                                             variants&& args)
+nonblocking_bus_impl::async_shm_timeout_call(int timeout_ms, const std::string& service, const std::string& path,
+                                             const std::string& interface, const std::string& method,
+                                             const std::string& signature, variants&& args)
 {
     // 非阻塞模式下的共享内存调用实际上是同步的
     // 这里简单地委托给 async_timeout_call

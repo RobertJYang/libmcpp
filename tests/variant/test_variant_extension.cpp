@@ -31,18 +31,12 @@ namespace test {
 // 测试用的扩展类型
 class test_extension : public variant_extension<test_extension> {
 public:
-    test_extension()
-        : m_value(0)
-    {
-    }
-    explicit test_extension(int value)
-        : m_value(value)
-    {
-    }
-    test_extension(const test_extension& other)
-        : m_value(other.m_value)
-    {
-    }
+    test_extension() : m_value(0)
+    {}
+    explicit test_extension(int value) : m_value(value)
+    {}
+    test_extension(const test_extension& other) : m_value(other.m_value)
+    {}
     test_extension& operator=(const test_extension& other)
     {
         if (this != &other) {
@@ -107,18 +101,12 @@ private:
 // 另一个测试用的扩展类型
 class complex_extension : public variant_extension<complex_extension> {
 public:
-    complex_extension()
-        : m_name(""), m_count(0)
-    {
-    }
-    complex_extension(std::string name, int count)
-        : m_name(std::move(name)), m_count(count)
-    {
-    }
-    complex_extension(const complex_extension& other)
-        : m_name(other.m_name), m_count(other.m_count)
-    {
-    }
+    complex_extension() : m_name(""), m_count(0)
+    {}
+    complex_extension(std::string name, int count) : m_name(std::move(name)), m_count(count)
+    {}
+    complex_extension(const complex_extension& other) : m_name(other.m_name), m_count(other.m_count)
+    {}
     complex_extension& operator=(const complex_extension& other)
     {
         if (this != &other) {
@@ -162,10 +150,8 @@ private:
 // 简单的支持引用访问的扩展类型（用于测试零开销引用访问路径）
 class simple_extension : public variant_extension<simple_extension> {
 public:
-    simple_extension(int value, bool allow_reference)
-        : m_allow_reference(allow_reference), m_value_variant(value)
-    {
-    }
+    simple_extension(int value, bool allow_reference) : m_allow_reference(allow_reference), m_value_variant(value)
+    {}
 
     bool operator==(const simple_extension& other) const
     {
@@ -243,10 +229,8 @@ class variant_array_extension : public variant_extension<variant_array_extension
 public:
     variant_array_extension() = default;
 
-    explicit variant_array_extension(mc::array<mc::variant> data)
-        : m_data(std::move(data))
-    {
-    }
+    explicit variant_array_extension(mc::array<mc::variant> data) : m_data(std::move(data))
+    {}
 
     bool operator==(const variant_array_extension& other) const
     {
@@ -321,10 +305,8 @@ class variant_object_extension : public variant_extension<variant_object_extensi
 public:
     variant_object_extension() = default;
 
-    explicit variant_object_extension(dict data)
-        : m_data(std::move(data))
-    {
-    }
+    explicit variant_object_extension(dict data) : m_data(std::move(data))
+    {}
 
     bool operator==(const variant_object_extension& other) const
     {
@@ -393,8 +375,7 @@ public:
     fallback_object_extension() = default;
     explicit fallback_object_extension(std::unordered_map<std::string, mc::variant> entries)
         : m_entries(std::move(entries))
-    {
-    }
+    {}
 
     bool equals(const variant_extension_base& other) const override
     {
@@ -434,10 +415,8 @@ private:
 class fallback_array_extension : public variant_extension<fallback_array_extension> {
 public:
     fallback_array_extension() = default;
-    explicit fallback_array_extension(std::vector<mc::variant> entries)
-        : m_entries(std::move(entries))
-    {
-    }
+    explicit fallback_array_extension(std::vector<mc::variant> entries) : m_entries(std::move(entries))
+    {}
 
     bool equals(const variant_extension_base& other) const override
     {
@@ -478,11 +457,9 @@ private:
 class VariantExtensionTest : public mc::test::TestBase {
 protected:
     void SetUp() override
-    {
-    }
+    {}
     void TearDown() override
-    {
-    }
+    {}
 };
 
 TEST_F(VariantExtensionTest, VariantExtensionConstruction)
@@ -647,11 +624,9 @@ TEST_F(VariantExtensionTest, ExtensionTypeInObject)
 
 TEST_F(VariantExtensionTest, ExtensionReferenceFallbackByKey)
 {
-    std::unordered_map<std::string, mc::variant> entries{
-        {"count", 7},
-        {"desc", "value"}};
-    auto    ext = mc::make_shared<fallback_object_extension>(entries);
-    variant v(ext);
+    std::unordered_map<std::string, mc::variant> entries{{"count", 7}, {"desc", "value"}};
+    auto                                         ext = mc::make_shared<fallback_object_extension>(entries);
+    variant                                      v(ext);
 
     auto ref = v["count"];
     EXPECT_EQ(ref.as_int64(), 7);
@@ -736,8 +711,7 @@ TEST_F(VariantExtensionTest, FromVariant)
 TEST_F(VariantExtensionTest, ArrayExtensionWithZeroCopyAccess)
 {
     // 创建支持零开销访问的数组扩展
-    auto ext = mc::make_shared<variant_array_extension>(
-        mc::array<mc::variant>{10, 20, 30, 40, 50});
+    auto    ext = mc::make_shared<variant_array_extension>(mc::array<mc::variant>{10, 20, 30, 40, 50});
     variant v(ext);
 
     // 验证是 extension 类型
@@ -767,8 +741,7 @@ TEST_F(VariantExtensionTest, ArrayExtensionWithZeroCopyAccess)
 TEST_F(VariantExtensionTest, ObjectExtensionWithZeroCopyAccess)
 {
     // 创建支持零开销访问的对象扩展
-    auto ext = mc::make_shared<variant_object_extension>(
-        dict{{"name", "Alice"}, {"age", 30}, {"score", 95.5}});
+    auto    ext = mc::make_shared<variant_object_extension>(dict{{"name", "Alice"}, {"age", 30}, {"score", 95.5}});
     variant v(ext);
 
     // 验证是 extension 类型
@@ -798,14 +771,12 @@ TEST_F(VariantExtensionTest, ObjectExtensionWithZeroCopyAccess)
 TEST_F(VariantExtensionTest, ExtensionOperatorChainedAccess)
 {
     // 测试嵌套的 extension + 链式访问
-    auto inner_ext = mc::make_shared<variant_array_extension>(
-        mc::array<mc::variant>{100, 200, 300});
+    auto inner_ext = mc::make_shared<variant_array_extension>(mc::array<mc::variant>{100, 200, 300});
 
-    auto outer_ext = mc::make_shared<variant_object_extension>(
-        dict{
-            {"data", variant(inner_ext)},
-            {"count", 3},
-        });
+    auto outer_ext = mc::make_shared<variant_object_extension>(dict{
+        {"data", variant(inner_ext)},
+        {"count", 3},
+    });
 
     variant v(outer_ext);
 
@@ -823,12 +794,10 @@ TEST_F(VariantExtensionTest, ExtensionOperatorChainedAccess)
 TEST_F(VariantExtensionTest, ExtensionMixedWithNormalVariant)
 {
     // 测试扩展对象与普通 variant 的混合使用
-    auto ext = mc::make_shared<variant_array_extension>(
-        mc::array<mc::variant>{
-            10,
-            variants{100, 200},       // 嵌套普通数组
-            dict{{"x", 1}, {"y", 2}}, // 嵌套 dict
-        });
+    auto    ext = mc::make_shared<variant_array_extension>(mc::array<mc::variant>{
+        10, variants{100, 200},   // 嵌套普通数组
+        dict{{"x", 1}, {"y", 2}}, // 嵌套 dict
+    });
     variant v(ext);
 
     // ✅ 访问扩展数组的元素
@@ -852,17 +821,14 @@ TEST_F(VariantExtensionTest, ExtensionMixedWithNormalVariant)
 TEST_F(VariantExtensionTest, ExtensionNestedExtensions)
 {
     // 测试嵌套的 extension（extension 中包含 extension）
-    auto inner_ext1 = mc::make_shared<variant_array_extension>(
-        mc::array<mc::variant>{1, 2, 3});
-    auto inner_ext2 = mc::make_shared<variant_array_extension>(
-        mc::array<mc::variant>{10, 20, 30});
+    auto inner_ext1 = mc::make_shared<variant_array_extension>(mc::array<mc::variant>{1, 2, 3});
+    auto inner_ext2 = mc::make_shared<variant_array_extension>(mc::array<mc::variant>{10, 20, 30});
 
-    auto outer_ext = mc::make_shared<variant_object_extension>(
-        dict{
-            {"first", variant(inner_ext1)},
-            {"second", variant(inner_ext2)},
-            {"scalar", 999},
-        });
+    auto outer_ext = mc::make_shared<variant_object_extension>(dict{
+        {"first", variant(inner_ext1)},
+        {"second", variant(inner_ext2)},
+        {"scalar", 999},
+    });
 
     variant v(outer_ext);
 
@@ -887,8 +853,7 @@ TEST_F(VariantExtensionTest, ExtensionNestedExtensions)
 TEST_F(VariantExtensionTest, ExtensionZeroCopyVerification)
 {
     // 验证确实是零开销（通过指针地址验证）
-    auto ext = mc::make_shared<variant_array_extension>(
-        mc::array<mc::variant>{10, 20, 30});
+    auto    ext = mc::make_shared<variant_array_extension>(mc::array<mc::variant>{10, 20, 30});
     variant v(ext);
 
     // 获取内部数据的地址
@@ -908,8 +873,7 @@ TEST_F(VariantExtensionTest, ExtensionZeroCopyVerification)
 TEST_F(VariantExtensionTest, ExtensionStringConcatenation)
 {
     // 测试字符串扩展的拼接操作
-    auto ext = mc::make_shared<variant_array_extension>(
-        mc::array<mc::variant>{"Hello", " ", "World", "!"});
+    auto    ext = mc::make_shared<variant_array_extension>(mc::array<mc::variant>{"Hello", " ", "World", "!"});
     variant v(ext);
 
     // ✅ 字符串拼接（零开销）
@@ -925,8 +889,7 @@ TEST_F(VariantExtensionTest, ExtensionStringConcatenation)
 TEST_F(VariantExtensionTest, ExtensionModificationPersistence)
 {
     // 验证通过 operator[] 修改的数据持久化到 extension 内部
-    auto ext = mc::make_shared<variant_object_extension>(
-        dict{{"x", 10}, {"y", 20}, {"z", 30}});
+    auto    ext = mc::make_shared<variant_object_extension>(dict{{"x", 10}, {"y", 20}, {"z", 30}});
     variant v(ext);
 
     // 修改前的值
@@ -951,10 +914,8 @@ TEST_F(VariantExtensionTest, ExtensionModificationPersistence)
 TEST_F(VariantExtensionTest, ExtensionMixedOperations)
 {
     // 测试扩展对象的混合操作场景
-    auto arr_ext = mc::make_shared<variant_array_extension>(
-        mc::array<mc::variant>{5, 10, 15});
-    auto obj_ext = mc::make_shared<variant_object_extension>(
-        dict{{"multiplier", 2}, {"offset", 100}});
+    auto arr_ext = mc::make_shared<variant_array_extension>(mc::array<mc::variant>{5, 10, 15});
+    auto obj_ext = mc::make_shared<variant_object_extension>(dict{{"multiplier", 2}, {"offset", 100}});
 
     variant arr_var(arr_ext);
     variant obj_var(obj_ext);
@@ -974,8 +935,7 @@ TEST_F(VariantExtensionTest, ExtensionMixedOperations)
 TEST_F(VariantExtensionTest, ExtensionOperatorAllTypes)
 {
     // 测试扩展对象支持所有操作符类型
-    auto ext = mc::make_shared<variant_array_extension>(
-        mc::array<mc::variant>{12, 10, 5, true, "text"});
+    auto    ext = mc::make_shared<variant_array_extension>(mc::array<mc::variant>{12, 10, 5, true, "text"});
     variant v(ext);
 
     // ✅ 位操作
@@ -1021,7 +981,8 @@ TEST_F(VariantExtensionTest, NonArrayExtensionCannotConvertToArray)
     // 同样，complex_extension 也不应该被转换为数组
     auto complex_ext       = mc::make_shared<complex_extension>("test", 100);
     auto complex_type_info = complex_ext->get_type_info();
-    EXPECT_NE(complex_type_info.id, mc::extension_type_ids::typed_array) << "complex_extension should not be typed_array";
+    EXPECT_NE(complex_type_info.id, mc::extension_type_ids::typed_array)
+        << "complex_extension should not be typed_array";
 
     mc::variant v2(mc::static_pointer_cast<mc::variant_extension_base>(complex_ext));
 

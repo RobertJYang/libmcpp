@@ -23,7 +23,6 @@
 #include <string>
 
 extern "C" {
-
 mc_variant_t* mc_variant_from_int64(int64_t value)
 {
     try {

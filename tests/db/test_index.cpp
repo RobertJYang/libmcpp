@@ -62,8 +62,7 @@ struct user : mc::db::object_base {
     }
 };
 
-class database_index_test : public mc::test::TestBase {
-};
+class database_index_test : public mc::test::TestBase {};
 
 // 测试 mc::db::index 的基本功能
 TEST_F(database_index_test, mc_database_index_basic)
@@ -469,17 +468,18 @@ TEST_F(database_index_test, non_unique_key_test)
 TEST_F(database_index_test, non_unique_compound_key_test)
 {
     // 创建组合键提取器
-    using key_extractor = mc::db::detail::composite_key<
-        mc::db::detail::member_key<user, int, &user::m_age>,
-        mc::db::detail::member_key<user, std::string, &user::m_city>,
-        mc::db::detail::member_key<user, std::string, &user::m_department>>;
+    using key_extractor =
+        mc::db::detail::composite_key<mc::db::detail::member_key<user, int, &user::m_age>,
+                                      mc::db::detail::member_key<user, std::string, &user::m_city>,
+                                      mc::db::detail::member_key<user, std::string, &user::m_department>>;
 
     // 创建非唯一索引
     auto idx = mc::db::make_index<user, false>(key_extractor());
 
     // 创建测试数据
-    std::vector<user> users = {
-        {1, "张三", 25, 0.0, "北京", "研发部"}, {2, "李四", 25, 0.0, "北京", "测试部"}, {3, "王五", 30, 0.0, "上海", "研发部"}, {4, "赵六", 30, 0.0, "上海", "测试部"}, {5, "钱七", 35, 0.0, "广州", "研发部"}, {6, "孙八", 35, 0.0, "广州", "测试部"}};
+    std::vector<user> users = {{1, "张三", 25, 0.0, "北京", "研发部"}, {2, "李四", 25, 0.0, "北京", "测试部"},
+                               {3, "王五", 30, 0.0, "上海", "研发部"}, {4, "赵六", 30, 0.0, "上海", "测试部"},
+                               {5, "钱七", 35, 0.0, "广州", "研发部"}, {6, "孙八", 35, 0.0, "广州", "测试部"}};
 
     // 添加数据到索引
     for (const auto& u : users) {

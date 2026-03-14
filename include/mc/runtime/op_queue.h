@@ -27,10 +27,8 @@ class op_queue {
 public:
     using operation_type = Operation;
 
-    op_queue()
-        : m_front(nullptr), m_back(nullptr)
-    {
-    }
+    op_queue() : m_front(nullptr), m_back(nullptr)
+    {}
 
     ~op_queue()
     {

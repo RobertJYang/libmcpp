@@ -16,8 +16,7 @@ namespace mc::dbus {
 
 pending_call::pending_call(DBusPendingCall* pending_call, reply_cb reply)
     : m_pending_call(pending_call), on_reply(std::move(reply))
-{
-}
+{}
 
 pending_call::~pending_call()
 {

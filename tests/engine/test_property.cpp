@@ -33,10 +33,8 @@ struct Point {
     int y{0};
 
     Point() = default;
-    Point(int x, int y)
-        : x(x), y(y)
-    {
-    }
+    Point(int x, int y) : x(x), y(y)
+    {}
 
     bool operator==(const Point& other) const
     {
@@ -55,8 +53,7 @@ struct test_observer {
     }
 
     void notify_update_shm(mc::variant value, mc::engine::property_base& property)
-    {
-    }
+    {}
 };
 
 template <typename T, typename Observer = mc::engine::detail::empty_observer>
@@ -150,10 +147,8 @@ public:
 // 真实的测试服务
 class real_test_service : public mc::engine::service {
 public:
-    real_test_service()
-        : mc::engine::service(generate_unique_service_name())
-    {
-    }
+    real_test_service() : mc::engine::service(generate_unique_service_name())
+    {}
 
     bool init_for_test()
     {
@@ -264,8 +259,7 @@ struct PropertyTestEnvironment : public ::testing::Environment {
 };
 
 // 注册测试环境
-::testing::Environment* const g_property_env =
-    ::testing::AddGlobalTestEnvironment(new PropertyTestEnvironment);
+::testing::Environment* const g_property_env = ::testing::AddGlobalTestEnvironment(new PropertyTestEnvironment);
 
 // 测试基础类型的 property
 TEST(PropertyTest, BasicType)
@@ -521,9 +515,7 @@ TEST_F(PropertyRelateTest, SetRelateProperty)
     mc::variant test_value(80.0);
 
     // 测试设置relate_property
-    EXPECT_NO_THROW({
-        test_prop.set_relate_property(rp, test_value);
-    });
+    EXPECT_NO_THROW({ test_prop.set_relate_property(rp, test_value); });
 
     // 验证值是否设置成功
     auto result = test_prop.get_relate_property(rp);
@@ -544,9 +536,7 @@ TEST_F(PropertyRelateTest, ReferencePropertyBasics)
     ASSERT_EQ(test_prop.get_object(), test_obj.get());
 
     // 使用from_variant设置引用属性（通过processor系统）
-    EXPECT_NO_THROW({
-        from_variant(mc::variant("#/CPU.Temperature"), test_prop);
-    });
+    EXPECT_NO_THROW({ from_variant(mc::variant("#/CPU.Temperature"), test_prop); });
 
     // 验证property现在能够反映被引用的值
     // 注意：这里需要检查property的值是否等于被引用对象的属性值
@@ -647,20 +637,12 @@ TEST_F(PropertyRelateTest, HookRefProperties)
     // 创建一个模拟的relate_properties字典
     mc::dict relate_properties;
     relate_properties["cpu_temp"] = mc::dict{
-        {"type", "ref"},
-        {"object_name", "CPU"},
-        {"property_name", "Temperature"},
-        {"full_name", "CPU.Temperature"}};
+        {"type", "ref"}, {"object_name", "CPU"}, {"property_name", "Temperature"}, {"full_name", "CPU.Temperature"}};
     relate_properties["gpu_temp"] = mc::dict{
-        {"type", "ref"},
-        {"object_name", "GPU"},
-        {"property_name", "Temperature"},
-        {"full_name", "GPU.Temperature"}};
+        {"type", "ref"}, {"object_name", "GPU"}, {"property_name", "Temperature"}, {"full_name", "GPU.Temperature"}};
 
     // 测试引用属性功能（使用标准引用语法）
-    EXPECT_NO_THROW({
-        from_variant(mc::variant("#/CPU.Temperature"), test_prop);
-    });
+    EXPECT_NO_THROW({ from_variant(mc::variant("#/CPU.Temperature"), test_prop); });
 
     // 验证引用属性设置后的值
     std::string expected_value = "75.5";
@@ -687,15 +669,21 @@ TEST_F(PropertyRelateTest, HookRefPropertiesWithExpressionCalculation)
     mc::dict functions;
 
     // 创建函数参数，包含多个引用属性
-    mc::dict func_args = {
-        {"cpu_temp", mc::dict{
-                         {"type", "ref"},
-                         {"object_name", "CPU"},
-                         {"property_name", "Temperature"},
-                         {"full_name", "CPU.Temperature"},
-                         {"interface", ""}}},
-        {"memory_usage", mc::dict{{"type", "ref"}, {"object_name", "Memory"}, {"property_name", "Usage"}, {"full_name", "Memory.Usage"}, {"interface", ""}}},
-        {"gpu_load", mc::dict{{"type", "ref"}, {"object_name", "GPU"}, {"property_name", "Load"}, {"full_name", "GPU.Load"}, {"interface", ""}}}};
+    mc::dict func_args = {{"cpu_temp", mc::dict{{"type", "ref"},
+                                                {"object_name", "CPU"},
+                                                {"property_name", "Temperature"},
+                                                {"full_name", "CPU.Temperature"},
+                                                {"interface", ""}}},
+                          {"memory_usage", mc::dict{{"type", "ref"},
+                                                    {"object_name", "Memory"},
+                                                    {"property_name", "Usage"},
+                                                    {"full_name", "Memory.Usage"},
+                                                    {"interface", ""}}},
+                          {"gpu_load", mc::dict{{"type", "ref"},
+                                                {"object_name", "GPU"},
+                                                {"property_name", "Load"},
+                                                {"full_name", "GPU.Load"},
+                                                {"interface", ""}}}};
 
     // 创建计算表达式：CPU温度 + Memory使用率 + GPU负载的加权平均
     std::string    expression = "(cpu_temp * 0.4) + (memory_usage * 0.3) + (gpu_load * 0.3)";
@@ -708,30 +696,25 @@ TEST_F(PropertyRelateTest, HookRefPropertiesWithExpressionCalculation)
 
     // 创建relate_properties字典，包含所有引用的属性
     mc::dict relate_properties;
-    relate_properties["cpu_temp"] = mc::dict{
-        {"type", "ref"},
-        {"object_name", "CPU"},
-        {"property_name", "Temperature"},
-        {"full_name", "CPU.Temperature"},
-        {"interface", ""}};
-    relate_properties["memory_usage"] = mc::dict{
-        {"type", "ref"},
-        {"object_name", "Memory"},
-        {"property_name", "Usage"},
-        {"full_name", "Memory.Usage"},
-        {"interface", ""}};
-    relate_properties["gpu_load"] = mc::dict{
-        {"type", "ref"},
-        {"object_name", "GPU"},
-        {"property_name", "Load"},
-        {"full_name", "GPU.Load"},
-        {"interface", ""}};
+    relate_properties["cpu_temp"]     = mc::dict{{"type", "ref"},
+                                                 {"object_name", "CPU"},
+                                                 {"property_name", "Temperature"},
+                                                 {"full_name", "CPU.Temperature"},
+                                                 {"interface", ""}};
+    relate_properties["memory_usage"] = mc::dict{{"type", "ref"},
+                                                 {"object_name", "Memory"},
+                                                 {"property_name", "Usage"},
+                                                 {"full_name", "Memory.Usage"},
+                                                 {"interface", ""}};
+    relate_properties["gpu_load"]     = mc::dict{{"type", "ref"},
+                                                 {"object_name", "GPU"},
+                                                 {"property_name", "Load"},
+                                                 {"full_name", "GPU.Load"},
+                                                 {"interface", ""}};
 
     // 使用from_variant方法，它会自动处理函数注册和调用
     std::string func_call_str = "$Func_CalculateAverage({})";
-    EXPECT_NO_THROW({
-        from_variant(mc::variant(func_call_str), test_prop);
-    });
+    EXPECT_NO_THROW({ from_variant(mc::variant(func_call_str), test_prop); });
 
     // 直接验证属性的表达式计算结果
     // 由于hook_ref_properties设置了getter，属性值应该通过表达式计算得出
@@ -746,8 +729,7 @@ TEST_F(PropertyRelateTest, HookRefPropertiesWithExpressionCalculation)
     try {
         double actual_result = std::stod(property_value);
         EXPECT_NEAR(actual_result, expected_result, 0.01)
-            << "表达式计算结果不匹配。期望: " << expected_result
-            << ", 实际: " << actual_result
+            << "表达式计算结果不匹配。期望: " << expected_result << ", 实际: " << actual_result
             << ", 属性值: " << property_value;
     } catch (const std::exception& e) {
         // 如果无法解析为数值，说明hook_ref_properties可能有不同的实现
@@ -766,8 +748,7 @@ TEST_F(PropertyRelateTest, HookRefPropertiesWithExpressionCalculation)
     // 获取新的计算结果
     std::string new_property_value = test_prop.value(true);
     EXPECT_FALSE(new_property_value.empty());
-    EXPECT_NE(property_value, new_property_value)
-        << "修改源属性后，表达式计算结果应该发生变化";
+    EXPECT_NE(property_value, new_property_value) << "修改源属性后，表达式计算结果应该发生变化";
 
     // 验证新的计算结果
     // 新的期望值：(80.0 * 0.4) + (90.0 * 0.3) + (70.0 * 0.3) = 32.0 + 27.0 + 21.0 = 80.0
@@ -775,10 +756,8 @@ TEST_F(PropertyRelateTest, HookRefPropertiesWithExpressionCalculation)
 
     try {
         double new_actual = std::stod(new_property_value);
-        EXPECT_NEAR(new_actual, new_expected, 0.01)
-            << "更新后的表达式计算结果不匹配。期望: " << new_expected
-            << ", 实际: " << new_actual
-            << ", 属性值: " << new_property_value;
+        EXPECT_NEAR(new_actual, new_expected, 0.01) << "更新后的表达式计算结果不匹配。期望: " << new_expected
+                                                    << ", 实际: " << new_actual << ", 属性值: " << new_property_value;
     } catch (const std::exception& e) {
         // 验证新值包含更新后的源属性值
         EXPECT_TRUE(new_property_value.find("80") != std::string::npos ||
@@ -788,10 +767,7 @@ TEST_F(PropertyRelateTest, HookRefPropertiesWithExpressionCalculation)
     }
 
     // 验证属性仍然是只读的（设置了hook_ref_properties后）
-    EXPECT_THROW({
-        test_prop = "manual_value";
-    },
-                 mc::invalid_op_exception);
+    EXPECT_THROW({ test_prop = "manual_value"; }, mc::invalid_op_exception);
 }
 
 // 测试 hook_ref_properties 的基本多属性引用功能
@@ -811,15 +787,21 @@ TEST_F(PropertyRelateTest, HookRefPropertiesBasicMultiReference)
     mc::expr::func_collection::get_instance().clear();
 
     // 创建函数来计算多个属性的组合值
-    mc::dict func_args = {
-        {"cpu_temp", mc::dict{
-                         {"type", "ref"},
-                         {"object_name", "CPU"},
-                         {"property_name", "Temperature"},
-                         {"full_name", "CPU.Temperature"},
-                         {"interface", ""}}},
-        {"memory_usage", mc::dict{{"type", "ref"}, {"object_name", "Memory"}, {"property_name", "Usage"}, {"full_name", "Memory.Usage"}, {"interface", ""}}},
-        {"gpu_load", mc::dict{{"type", "ref"}, {"object_name", "GPU"}, {"property_name", "Load"}, {"full_name", "GPU.Load"}, {"interface", ""}}}};
+    mc::dict func_args = {{"cpu_temp", mc::dict{{"type", "ref"},
+                                                {"object_name", "CPU"},
+                                                {"property_name", "Temperature"},
+                                                {"full_name", "CPU.Temperature"},
+                                                {"interface", ""}}},
+                          {"memory_usage", mc::dict{{"type", "ref"},
+                                                    {"object_name", "Memory"},
+                                                    {"property_name", "Usage"},
+                                                    {"full_name", "Memory.Usage"},
+                                                    {"interface", ""}}},
+                          {"gpu_load", mc::dict{{"type", "ref"},
+                                                {"object_name", "GPU"},
+                                                {"property_name", "Load"},
+                                                {"full_name", "GPU.Load"},
+                                                {"interface", ""}}}};
 
     // 创建一个简单的表达式，将三个属性值相加
     std::string    expression = "cpu_temp + memory_usage + gpu_load";
@@ -833,30 +815,25 @@ TEST_F(PropertyRelateTest, HookRefPropertiesBasicMultiReference)
 
     // 创建包含多个引用属性的字典
     mc::dict relate_properties;
-    relate_properties["cpu_temp"] = mc::dict{
-        {"type", "ref"},
-        {"object_name", "CPU"},
-        {"property_name", "Temperature"},
-        {"full_name", "CPU.Temperature"},
-        {"interface", ""}};
-    relate_properties["memory_usage"] = mc::dict{
-        {"type", "ref"},
-        {"object_name", "Memory"},
-        {"property_name", "Usage"},
-        {"full_name", "Memory.Usage"},
-        {"interface", ""}};
-    relate_properties["gpu_load"] = mc::dict{
-        {"type", "ref"},
-        {"object_name", "GPU"},
-        {"property_name", "Load"},
-        {"full_name", "GPU.Load"},
-        {"interface", ""}};
+    relate_properties["cpu_temp"]     = mc::dict{{"type", "ref"},
+                                                 {"object_name", "CPU"},
+                                                 {"property_name", "Temperature"},
+                                                 {"full_name", "CPU.Temperature"},
+                                                 {"interface", ""}};
+    relate_properties["memory_usage"] = mc::dict{{"type", "ref"},
+                                                 {"object_name", "Memory"},
+                                                 {"property_name", "Usage"},
+                                                 {"full_name", "Memory.Usage"},
+                                                 {"interface", ""}};
+    relate_properties["gpu_load"]     = mc::dict{{"type", "ref"},
+                                                 {"object_name", "GPU"},
+                                                 {"property_name", "Load"},
+                                                 {"full_name", "GPU.Load"},
+                                                 {"interface", ""}};
 
     // 使用from_variant方法调用函数
     std::string func_call_str = "$Func_MultiRefCalculation({})";
-    EXPECT_NO_THROW({
-        from_variant(mc::variant(func_call_str), test_prop);
-    });
+    EXPECT_NO_THROW({ from_variant(mc::variant(func_call_str), test_prop); });
 
     // 验证属性能够获取到基于多个引用属性的计算值
     std::string property_value = test_prop.value(true);
@@ -872,12 +849,10 @@ TEST_F(PropertyRelateTest, HookRefPropertiesBasicMultiReference)
     try {
         double actual_sum = std::stod(property_value);
         EXPECT_NEAR(actual_sum, expected_sum, 0.01)
-            << "表达式计算结果应该是三个属性的总和。期望: " << expected_sum
-            << ", 实际: " << actual_sum;
+            << "表达式计算结果应该是三个属性的总和。期望: " << expected_sum << ", 实际: " << actual_sum;
     } catch (const std::exception& e) {
         // 如果无法解析为数值，验证包含了某些源属性信息
-        EXPECT_TRUE(property_value.find("75") != std::string::npos ||
-                    property_value.find("85") != std::string::npos ||
+        EXPECT_TRUE(property_value.find("75") != std::string::npos || property_value.find("85") != std::string::npos ||
                     property_value.find("60") != std::string::npos)
             << "初始属性值应该包含源属性的值: " << property_value;
     }
@@ -946,10 +921,7 @@ TEST_F(PropertyRelateTest, HookRefPropertiesBasicMultiReference)
     m_service->get_memory()->m_interface.usage    = initial_memory_usage;
 
     // 验证属性仍然是只读的
-    EXPECT_THROW({
-        test_prop = "cannot_set_value";
-    },
-                 mc::invalid_op_exception);
+    EXPECT_THROW({ test_prop = "cannot_set_value"; }, mc::invalid_op_exception);
 }
 
 // 测试 property 的 hook_relate_properties 方法
@@ -972,9 +944,7 @@ TEST_F(PropertyRelateTest, HookRelateProperties)
     mc::dict empty_relate_properties;
 
     // 测试空的函数调用语法
-    EXPECT_NO_THROW({
-        from_variant(mc::variant("$Func_empty({})"), test_prop);
-    });
+    EXPECT_NO_THROW({ from_variant(mc::variant("$Func_empty({})"), test_prop); });
 }
 
 // 测试 hook_relate_properties 与func_collection集成的表达式计算
@@ -997,15 +967,21 @@ TEST_F(PropertyRelateTest, HookRelatePropertiesWithFuncCollection)
     mc::dict functions;
 
     // 创建函数参数，包含多个引用属性
-    mc::dict func_args = {
-        {"temp_diff", mc::dict{
-                          {"type", "ref"},
-                          {"object_name", "CPU"},
-                          {"property_name", "Temperature"},
-                          {"full_name", "CPU.Temperature"},
-                          {"interface", ""}}},
-        {"efficiency", mc::dict{{"type", "ref"}, {"object_name", "Memory"}, {"property_name", "Usage"}, {"full_name", "Memory.Usage"}, {"interface", ""}}},
-        {"performance", mc::dict{{"type", "ref"}, {"object_name", "GPU"}, {"property_name", "Load"}, {"full_name", "GPU.Load"}, {"interface", ""}}}};
+    mc::dict func_args = {{"temp_diff", mc::dict{{"type", "ref"},
+                                                 {"object_name", "CPU"},
+                                                 {"property_name", "Temperature"},
+                                                 {"full_name", "CPU.Temperature"},
+                                                 {"interface", ""}}},
+                          {"efficiency", mc::dict{{"type", "ref"},
+                                                  {"object_name", "Memory"},
+                                                  {"property_name", "Usage"},
+                                                  {"full_name", "Memory.Usage"},
+                                                  {"interface", ""}}},
+                          {"performance", mc::dict{{"type", "ref"},
+                                                   {"object_name", "GPU"},
+                                                   {"property_name", "Load"},
+                                                   {"full_name", "GPU.Load"},
+                                                   {"interface", ""}}}};
 
     // 创建一个复合计算表达式：计算系统性能指标
     // 公式：系统性能 = (100 - temp_diff) + efficiency + performance
@@ -1020,9 +996,7 @@ TEST_F(PropertyRelateTest, HookRelatePropertiesWithFuncCollection)
 
     // 使用from_variant方法调用函数
     std::string func_call_str = "$Func_CalculatePerformance({})";
-    EXPECT_NO_THROW({
-        from_variant(mc::variant(func_call_str), test_prop);
-    });
+    EXPECT_NO_THROW({ from_variant(mc::variant(func_call_str), test_prop); });
 
     // 直接验证属性值是否基于多个引用属性的函数计算
     std::string initial_value = test_prop.value(true);
@@ -1039,8 +1013,7 @@ TEST_F(PropertyRelateTest, HookRelatePropertiesWithFuncCollection)
     double expected_initial = (100.0 - 75.5) + 85.2 + 60.8;
     try {
         double actual_initial = std::stod(initial_value);
-        EXPECT_NEAR(actual_initial, expected_initial, 0.1)
-            << "初始属性值应该是表达式计算结果: " << initial_value;
+        EXPECT_NEAR(actual_initial, expected_initial, 0.1) << "初始属性值应该是表达式计算结果: " << initial_value;
     } catch (const std::exception& e) {
         FAIL() << "无法解析属性值为数字: " << initial_value;
     }
@@ -1085,8 +1058,7 @@ TEST_F(PropertyRelateTest, HookRelatePropertiesWithFuncCollection)
     double expected_final = (100.0 - 90.0) + 95.0 + 75.0;
     try {
         double actual_final = std::stod(final_value);
-        EXPECT_NEAR(actual_final, expected_final, 0.1)
-            << "最终属性值应该是新的表达式计算结果: " << final_value;
+        EXPECT_NEAR(actual_final, expected_final, 0.1) << "最终属性值应该是新的表达式计算结果: " << final_value;
     } catch (const std::exception& e) {
         FAIL() << "无法解析最终属性值为数字: " << final_value;
     }
@@ -1097,14 +1069,10 @@ TEST_F(PropertyRelateTest, HookRelatePropertiesWithFuncCollection)
     m_service->get_gpu()->m_interface.load        = 100.0;
 
     std::string boundary_value = test_prop.value(true);
-    EXPECT_NE(final_value, boundary_value)
-        << "设置边界值后，函数计算结果应该变化: " << boundary_value;
+    EXPECT_NE(final_value, boundary_value) << "设置边界值后，函数计算结果应该变化: " << boundary_value;
 
     // 验证属性仍然是只读的（设置了函数计算后）
-    EXPECT_THROW({
-        test_prop = "manual_override";
-    },
-                 mc::invalid_op_exception);
+    EXPECT_THROW({ test_prop = "manual_override"; }, mc::invalid_op_exception);
 }
 
 // 测试 property 的 process_property_value 方法
@@ -1123,22 +1091,15 @@ TEST_F(PropertyRelateTest, ProcessPropertyValue)
     std::string invalid_func_str = "$Func_NonExistentFunction({})";
 
     // 由于函数不存在，这应该会记录错误但不会崩溃
-    EXPECT_NO_THROW({
-        from_variant(mc::variant(invalid_func_str), test_prop);
-    });
+    EXPECT_NO_THROW({ from_variant(mc::variant(invalid_func_str), test_prop); });
 
     // 测试空的函数名会抛出runtime_error
     std::string empty_func_str = "$Func_()";
-    EXPECT_THROW({
-        from_variant(mc::variant(empty_func_str), test_prop);
-    },
-                 mc::invalid_op_exception);
+    EXPECT_THROW({ from_variant(mc::variant(empty_func_str), test_prop); }, mc::invalid_op_exception);
 
     // 测试有效格式的函数名，但函数不存在
     std::string valid_format_str = "$Func_ValidName({})";
-    EXPECT_NO_THROW({
-        from_variant(mc::variant(valid_format_str), test_prop);
-    });
+    EXPECT_NO_THROW({ from_variant(mc::variant(valid_format_str), test_prop); });
 }
 
 // 测试 from_variant 方法处理引用属性
@@ -1157,9 +1118,7 @@ TEST_F(PropertyRelateTest, FromVariantRefProperty)
     mc::variant ref_variant("#/GPU.Load");
 
     // 测试解析引用属性并建立关联
-    EXPECT_NO_THROW({
-        from_variant(ref_variant, test_prop);
-    });
+    EXPECT_NO_THROW({ from_variant(ref_variant, test_prop); });
 
     // 验证property现在反映被引用对象的值
     // 由于我们需要强制更新才能获取引用的值
@@ -1433,15 +1392,10 @@ TEST_F(PropertyRelateTest, FromVariantSyncProperty)
     mc::variant sync_variant("<=/GPU.Load");
 
     // 测试解析同步属性并建立关联
-    EXPECT_NO_THROW({
-        from_variant(sync_variant, test_prop);
-    });
+    EXPECT_NO_THROW({ from_variant(sync_variant, test_prop); });
 
     // 验证同步属性不支持设置值
-    EXPECT_THROW({
-        test_prop.set_value("new_value");
-    },
-                 mc::invalid_op_exception);
+    EXPECT_THROW({ test_prop.set_value("new_value"); }, mc::invalid_op_exception);
 
     // 验证property现在反映被同步对象的值
     std::string expected_value = "60.8";
@@ -1468,15 +1422,10 @@ TEST_F(PropertyRelateTest, SyncPropertyBasics)
     ASSERT_EQ(test_prop.get_object(), test_obj.get());
 
     // 使用from_variant设置同步属性（通过processor系统）
-    EXPECT_NO_THROW({
-        from_variant(mc::variant("<=/CPU.Temperature"), test_prop);
-    });
+    EXPECT_NO_THROW({ from_variant(mc::variant("<=/CPU.Temperature"), test_prop); });
 
     // 验证同步属性不支持设置值
-    EXPECT_THROW({
-        test_prop.set_value("new_value");
-    },
-                 mc::invalid_op_exception);
+    EXPECT_THROW({ test_prop.set_value("new_value"); }, mc::invalid_op_exception);
 
     // 验证property现在能够反映被同步的值
     std::string expected_value = "75.5";
@@ -1514,15 +1463,10 @@ TEST_F(PropertyRelateTest, SyncPropertyDeferredConnection)
 
     // 设置一个指向尚不存在对象的同步属性
     // CPU_05 对象此时还不存在，应该设置延迟连接
-    EXPECT_NO_THROW({
-        from_variant(mc::variant("<=/CPU.Temperature"), test_prop);
-    });
+    EXPECT_NO_THROW({ from_variant(mc::variant("<=/CPU.Temperature"), test_prop); });
 
     // 验证同步属性不支持设置值
-    EXPECT_THROW({
-        test_prop.set_value("new_value");
-    },
-                 mc::invalid_op_exception);
+    EXPECT_THROW({ test_prop.set_value("new_value"); }, mc::invalid_op_exception);
 
     // 此时由于目标对象不存在，属性值应该保持初始值
     EXPECT_EQ(test_prop.value(), "initial_value");
@@ -1565,28 +1509,25 @@ TEST_F(PropertyRelateTest, HookSyncProperties)
     mc::dict relate_properties;
 
     // 添加第一个同步属性
-    relate_properties["cpu_temp"] = mc::dict{
-        {"type", "sync"},
-        {"object_name", "CPU"},
-        {"property_name", "Temperature"},
-        {"full_name", "CPU.Temperature"},
-        {"interface", ""}};
+    relate_properties["cpu_temp"] = mc::dict{{"type", "sync"},
+                                             {"object_name", "CPU"},
+                                             {"property_name", "Temperature"},
+                                             {"full_name", "CPU.Temperature"},
+                                             {"interface", ""}};
 
     // 添加第二个同步属性
-    relate_properties["memory_usage"] = mc::dict{
-        {"type", "sync"},
-        {"object_name", "Memory"},
-        {"property_name", "Usage"},
-        {"full_name", "Memory.Usage"},
-        {"interface", ""}};
+    relate_properties["memory_usage"] = mc::dict{{"type", "sync"},
+                                                 {"object_name", "Memory"},
+                                                 {"property_name", "Usage"},
+                                                 {"full_name", "Memory.Usage"},
+                                                 {"interface", ""}};
 
     // 添加第三个同步属性
-    relate_properties["gpu_load"] = mc::dict{
-        {"type", "sync"},
-        {"object_name", "GPU"},
-        {"property_name", "Load"},
-        {"full_name", "GPU.Load"},
-        {"interface", ""}};
+    relate_properties["gpu_load"] = mc::dict{{"type", "sync"},
+                                             {"object_name", "GPU"},
+                                             {"property_name", "Load"},
+                                             {"full_name", "GPU.Load"},
+                                             {"interface", ""}};
 
     // 注册一个用于计算多个同步属性的函数
     mc::dict functions;
@@ -1606,9 +1547,7 @@ TEST_F(PropertyRelateTest, HookSyncProperties)
     // 使用from_variant方法来触发hook_sync_properties
     // 这样可以避免直接访问protected成员
     std::string func_call_str = "$Func_CalculateAverage({})";
-    EXPECT_NO_THROW({
-        from_variant(mc::variant(func_call_str), test_prop);
-    });
+    EXPECT_NO_THROW({ from_variant(mc::variant(func_call_str), test_prop); });
 
     // 验证属性值已经通过函数计算得出
     std::string property_value = test_prop.value();
@@ -1626,8 +1565,7 @@ TEST_F(PropertyRelateTest, HookSyncProperties)
         EXPECT_NEAR(actual_avg, expected_avg, 0.1);
     } catch (const std::exception& e) {
         // 如果无法解析为数值，验证包含了源属性的信息
-        EXPECT_TRUE(property_value.find("75") != std::string::npos ||
-                    property_value.find("85") != std::string::npos ||
+        EXPECT_TRUE(property_value.find("75") != std::string::npos || property_value.find("85") != std::string::npos ||
                     property_value.find("60") != std::string::npos)
             << "属性值应该包含源属性的信息: " << property_value;
     }
@@ -1653,15 +1591,10 @@ TEST_F(PropertyRelateTest, SyncPropertyErrorHandling)
     invalid_object_sync.full_name     = "NonExistentObject.SomeProperty";
 
     // 这不应该抛出异常，而是设置延迟连接
-    EXPECT_NO_THROW({
-        from_variant(mc::variant("<=/NonExistentObject.SomeProperty"), test_prop);
-    });
+    EXPECT_NO_THROW({ from_variant(mc::variant("<=/NonExistentObject.SomeProperty"), test_prop); });
 
     // 验证同步属性不支持设置值
-    EXPECT_THROW({
-        test_prop.set_value("new_value");
-    },
-                 mc::invalid_op_exception);
+    EXPECT_THROW({ test_prop.set_value("new_value"); }, mc::invalid_op_exception);
 
     // 由于目标对象不存在，属性值应该保持初始值
     EXPECT_EQ(test_prop.value(), "initial_value");
@@ -1673,15 +1606,10 @@ TEST_F(PropertyRelateTest, SyncPropertyErrorHandling)
     invalid_property_sync.property_name = "NonExistentProperty";
     invalid_property_sync.full_name     = "CPU.NonExistentProperty";
 
-    EXPECT_NO_THROW({
-        from_variant(mc::variant("<=/CPU.NonExistentProperty"), test_prop);
-    });
+    EXPECT_NO_THROW({ from_variant(mc::variant("<=/CPU.NonExistentProperty"), test_prop); });
 
     // 验证同步属性不支持设置值
-    EXPECT_THROW({
-        test_prop.set_value("new_value");
-    },
-                 mc::invalid_op_exception);
+    EXPECT_THROW({ test_prop.set_value("new_value"); }, mc::invalid_op_exception);
 }
 
 // 测试同步属性的实时更新能力
@@ -1897,10 +1825,7 @@ TEST_F(PropertyRelateTest, SetRelatePropertyWithInterface)
     mc::variant test_value(95.0);
 
     // 测试设置带接口的属性（如果接口不存在，应该抛出异常）
-    EXPECT_THROW({
-        test_prop.set_relate_property(interface_rp, test_value);
-    },
-                 mc::invalid_op_exception);
+    EXPECT_THROW({ test_prop.set_relate_property(interface_rp, test_value); }, mc::invalid_op_exception);
 
     // 测试传统方式的属性设置
     mc::expr::relate_property traditional_rp;
@@ -1910,9 +1835,7 @@ TEST_F(PropertyRelateTest, SetRelatePropertyWithInterface)
     traditional_rp.property_name = "Temperature";
     traditional_rp.full_name     = "CPU.Temperature";
 
-    EXPECT_NO_THROW({
-        test_prop.set_relate_property(traditional_rp, test_value);
-    });
+    EXPECT_NO_THROW({ test_prop.set_relate_property(traditional_rp, test_value); });
 
     // 验证传统方式设置成功
     auto result = test_prop.get_relate_property(traditional_rp);
@@ -1937,15 +1860,11 @@ TEST_F(PropertyRelateTest, HookRefPropertyWithInterface)
     interface_ref.full_name     = "CPU[bmc.hardware.Processor].Temperature";
 
     // 设置引用属性（使用正确的接口格式）
-    EXPECT_NO_THROW({
-        from_variant(mc::variant("#/CPU[bmc.hardware.Processor].Temperature"), test_prop);
-    });
+    EXPECT_NO_THROW({ from_variant(mc::variant("#/CPU[bmc.hardware.Processor].Temperature"), test_prop); });
 
     // 由于接口不存在，应该返回null或抛出异常
     // 这里改为测试正常的CPU温度属性
-    EXPECT_NO_THROW({
-        from_variant(mc::variant("#/CPU.Temperature"), test_prop);
-    });
+    EXPECT_NO_THROW({ from_variant(mc::variant("#/CPU.Temperature"), test_prop); });
     EXPECT_EQ(test_prop.value(true), "75.5");
 
     // 测试传统方式的引用属性
@@ -1956,9 +1875,7 @@ TEST_F(PropertyRelateTest, HookRefPropertyWithInterface)
     traditional_ref.property_name = "Temperature";
     traditional_ref.full_name     = "CPU.Temperature";
 
-    EXPECT_NO_THROW({
-        from_variant(mc::variant("#/CPU.Temperature"), test_prop);
-    });
+    EXPECT_NO_THROW({ from_variant(mc::variant("#/CPU.Temperature"), test_prop); });
 
     // 传统方式应该能正常工作
     EXPECT_EQ(test_prop.value(true), "75.5");
@@ -1976,9 +1893,7 @@ TEST_F(PropertyRelateTest, RefObjectBasicUsage)
     mc::variant ref_obj_variant("#/CPU");
 
     // 解析引用对象语法
-    EXPECT_NO_THROW({
-        from_variant(ref_obj_variant, test_prop);
-    });
+    EXPECT_NO_THROW({ from_variant(ref_obj_variant, test_prop); });
 
     // 验证属性类型设置正确
     EXPECT_EQ(test_prop.get_property_type_value(), static_cast<uint32_t>(mc::engine::p_type::ref_object));
@@ -2014,9 +1929,7 @@ TEST_F(PropertyRelateTest, RefObjectErrorHandling)
     // 设置引用到不存在的对象
     mc::variant invalid_ref_variant("#/NonExistentObject");
 
-    EXPECT_NO_THROW({
-        from_variant(invalid_ref_variant, test_prop);
-    });
+    EXPECT_NO_THROW({ from_variant(invalid_ref_variant, test_prop); });
 
     // 验证属性类型设置正确
     EXPECT_EQ(test_prop.get_property_type_value(), static_cast<uint32_t>(mc::engine::p_type::ref_object));
@@ -2033,16 +1946,10 @@ TEST_F(PropertyRelateTest, RefObjectErrorHandling)
         EXPECT_FALSE(ref_obj->is_valid());
 
         // 验证访问不存在对象的属性时抛出异常
-        EXPECT_THROW({
-            ref_obj->get_property("SomeProperty");
-        },
-                     mc::invalid_op_exception);
+        EXPECT_THROW({ ref_obj->get_property("SomeProperty"); }, mc::invalid_op_exception);
 
         // 验证设置不存在对象的属性时抛出异常
-        EXPECT_THROW({
-            ref_obj->set_property("SomeProperty", mc::variant("test_value"));
-        },
-                     mc::invalid_op_exception);
+        EXPECT_THROW({ ref_obj->set_property("SomeProperty", mc::variant("test_value")); }, mc::invalid_op_exception);
     }
 }
 
@@ -2150,19 +2057,14 @@ TEST_F(PropertyRelateTest, RefObjectInterfaceAccess)
         EXPECT_DOUBLE_EQ(load_prop.template as<double>(), 60.8);
 
         // 测试带接口的属性访问（如果接口不存在应该抛出异常）
-        EXPECT_THROW({
-            ref_obj->get_property("some_interface", "SomeProperty");
-        },
-                     mc::invalid_op_exception);
+        EXPECT_THROW({ ref_obj->get_property("some_interface", "SomeProperty"); }, mc::invalid_op_exception);
 
         // 测试设置无接口的属性
         ref_obj->set_property("Load", mc::variant(75.0));
         EXPECT_DOUBLE_EQ(m_service->get_gpu()->m_interface.load.value(), 75.0);
 
         // 测试设置带接口的属性（接口不存在时应该抛出异常）
-        EXPECT_THROW({
-            ref_obj->set_property("some_interface", "SomeProperty", mc::variant("test"));
-        },
+        EXPECT_THROW({ ref_obj->set_property("some_interface", "SomeProperty", mc::variant("test")); },
                      mc::invalid_op_exception);
     }
 }
@@ -2319,10 +2221,7 @@ TEST_F(PropertyRelateTest, RefObjectInterfaceInvoke)
 
     // 测试指定接口的方法调用
     // 测试不存在的接口（应该抛出异常）
-    EXPECT_THROW({
-        ref_obj->invoke("org.test.NonExistentInterface", "SomeMethod", {});
-    },
-                 mc::invalid_op_exception);
+    EXPECT_THROW({ ref_obj->invoke("org.test.NonExistentInterface", "SomeMethod", {}); }, mc::invalid_op_exception);
 
     // 测试空接口名称（应该等同于不指定接口）
     auto result = ref_obj->invoke("", "NonExistentMethod", {});
@@ -2364,9 +2263,7 @@ TEST_F(PropertyRelateTest, RefObjectInterfaceAsyncInvoke)
 
     // 测试指定接口的异步方法调用
     // 测试不存在的接口（应该抛出异常）
-    EXPECT_THROW({
-        ref_obj->async_invoke("org.test.NonExistentInterface", "SomeAsyncMethod", {});
-    },
+    EXPECT_THROW({ ref_obj->async_invoke("org.test.NonExistentInterface", "SomeAsyncMethod", {}); },
                  mc::invalid_op_exception);
 
     // 测试空接口名称（应该等同于不指定接口）
@@ -2392,24 +2289,13 @@ TEST_F(PropertyRelateTest, RefObjectInvokeNonExistentObject)
     EXPECT_FALSE(ref_obj->is_valid());
 
     // 测试调用方法时抛出异常
-    EXPECT_THROW({
-        ref_obj->invoke("SomeMethod", {});
-    },
-                 mc::invalid_op_exception);
+    EXPECT_THROW({ ref_obj->invoke("SomeMethod", {}); }, mc::invalid_op_exception);
 
-    EXPECT_THROW({
-        ref_obj->invoke("org.test.SomeInterface", "SomeMethod", {});
-    },
-                 mc::invalid_op_exception);
+    EXPECT_THROW({ ref_obj->invoke("org.test.SomeInterface", "SomeMethod", {}); }, mc::invalid_op_exception);
 
-    EXPECT_THROW({
-        ref_obj->async_invoke(std::string_view("SomeAsyncMethod"), {});
-    },
-                 mc::invalid_op_exception);
+    EXPECT_THROW({ ref_obj->async_invoke(std::string_view("SomeAsyncMethod"), {}); }, mc::invalid_op_exception);
 
-    EXPECT_THROW({
-        ref_obj->async_invoke("org.test.SomeInterface", std::string_view("SomeAsyncMethod"), {});
-    },
+    EXPECT_THROW({ ref_obj->async_invoke("org.test.SomeInterface", std::string_view("SomeAsyncMethod"), {}); },
                  mc::invalid_op_exception);
 }
 
@@ -2505,32 +2391,21 @@ TEST_F(PropertyRelateTest, RefObjectNullObjectFinder)
     mc::engine::ref_object ref_obj("TestObject", nullptr);
 
     // 所有调用都应该抛出异常
-    EXPECT_THROW({
-        ref_obj.invoke("SomeMethod", {});
-    },
-                 mc::invalid_op_exception);
+    EXPECT_THROW({ ref_obj.invoke("SomeMethod", {}); }, mc::invalid_op_exception);
 
-    EXPECT_THROW({
-        ref_obj.async_invoke(std::string_view("SomeAsyncMethod"), {});
-    },
-                 mc::invalid_op_exception);
+    EXPECT_THROW({ ref_obj.async_invoke(std::string_view("SomeAsyncMethod"), {}); }, mc::invalid_op_exception);
 
-    EXPECT_THROW({
-        ref_obj.invoke("org.test.SomeInterface", "SomeMethod", {});
-    },
-                 mc::invalid_op_exception);
+    EXPECT_THROW({ ref_obj.invoke("org.test.SomeInterface", "SomeMethod", {}); }, mc::invalid_op_exception);
 
-    EXPECT_THROW({
-        ref_obj.async_invoke("org.test.SomeInterface", "SomeAsyncMethod", {});
-    },
-                 mc::invalid_op_exception);
+    EXPECT_THROW({ ref_obj.async_invoke("org.test.SomeInterface", "SomeAsyncMethod", {}); }, mc::invalid_op_exception);
 }
 
 // 测试引用对象的边界情况
 TEST_F(PropertyRelateTest, RefObjectEdgeCases)
 {
     // 测试明确不存在的对象名称
-    mc::engine::ref_object non_existent_ref_obj("NonExistentObjectForEdgeCase", [this](const std::string& name) -> mc::engine::abstract_object* {
+    mc::engine::ref_object non_existent_ref_obj("NonExistentObjectForEdgeCase",
+                                                [this](const std::string& name) -> mc::engine::abstract_object* {
         auto& object_table = m_service->get_object_table();
         auto& idx          = object_table.template get<mc::engine::by_object_name>();
         auto  obj_it       = idx.find(name);
@@ -2541,13 +2416,11 @@ TEST_F(PropertyRelateTest, RefObjectEdgeCases)
     });
 
     // 不存在的对象应该导致对象查找失败，从而抛出异常
-    EXPECT_THROW({
-        non_existent_ref_obj.invoke("SomeMethod", {});
-    },
-                 mc::invalid_op_exception);
+    EXPECT_THROW({ non_existent_ref_obj.invoke("SomeMethod", {}); }, mc::invalid_op_exception);
 
     // 测试包含特殊字符的对象名称
-    mc::engine::ref_object special_ref_obj("Test.Object.With.Dots", [this](const std::string& name) -> mc::engine::abstract_object* {
+    mc::engine::ref_object special_ref_obj("Test.Object.With.Dots",
+                                           [this](const std::string& name) -> mc::engine::abstract_object* {
         auto& object_table = m_service->get_object_table();
         auto& idx          = object_table.template get<mc::engine::by_object_name>();
         auto  obj_it       = idx.find(name);
@@ -2557,10 +2430,7 @@ TEST_F(PropertyRelateTest, RefObjectEdgeCases)
         return const_cast<mc::engine::abstract_object*>(&(*obj_it));
     });
 
-    EXPECT_THROW({
-        special_ref_obj.invoke("SomeMethod", {});
-    },
-                 mc::invalid_op_exception);
+    EXPECT_THROW({ special_ref_obj.invoke("SomeMethod", {}); }, mc::invalid_op_exception);
 }
 
 // 测试outsider getter和setter功能
@@ -2912,9 +2782,7 @@ TEST_F(PropertyRelateTest, RefObjectExtendedErrorHandling)
     EXPECT_TRUE(non_existent_prop.is_null());
 
     // 测试设置只读属性（可能不会抛出异常，而是静默失败）
-    EXPECT_NO_THROW({
-        ref_obj->set_property("ReadOnlyProperty", 100);
-    });
+    EXPECT_NO_THROW({ ref_obj->set_property("ReadOnlyProperty", 100); });
 
     // 测试调用不存在的方法
     auto result = ref_obj->invoke("NonExistentMethod", {});
@@ -3070,7 +2938,8 @@ TEST_F(PropertyRelateTest, RefObjectSignalConnect)
 
     // 测试基本的信号连接功能（使用属性变化信号）
     int  signal_count = 0;
-    auto conn         = target_obj->property_changed().connect([&](const mc::variant& value, const mc::engine::property_base& prop) {
+    auto conn =
+        target_obj->property_changed().connect([&](const mc::variant& value, const mc::engine::property_base& prop) {
         signal_count++;
     });
 

@@ -149,8 +149,7 @@ public:
      * @param timeout [in] 超时时间（毫秒）
      * @return 完成后的future，包含回复消息
      */
-    future<message> async_send_with_reply(message&&        msg,
-                                          mc::milliseconds timeout = DBUS_TIMEOUT_DEFAULT);
+    future<message> async_send_with_reply(message&& msg, mc::milliseconds timeout = DBUS_TIMEOUT_DEFAULT);
 
     /**
      * @brief 注册路径

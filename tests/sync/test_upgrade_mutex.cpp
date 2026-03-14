@@ -212,8 +212,7 @@ TYPED_TEST(UpgradeMutexTest, UpgradeToWriteLockWithTimeout)
         // 等待升级线程完成，最多等待2秒
         constexpr auto wait_limit = std::chrono::milliseconds(2000);
         auto           start      = std::chrono::steady_clock::now();
-        while (!upgrade_finished &&
-               std::chrono::steady_clock::now() - start < wait_limit) {
+        while (!upgrade_finished && std::chrono::steady_clock::now() - start < wait_limit) {
             std::this_thread::yield();
         }
         if (!upgrade_finished) {

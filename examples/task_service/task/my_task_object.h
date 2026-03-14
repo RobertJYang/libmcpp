@@ -23,8 +23,7 @@ namespace test {
 //
 class my_task_object : public mc::engine::object<my_task_object> {
 public:
-    MC_OBJECT(my_task_object, "TaskObject", "/bmc/kepler/TaskService/Tasks/${Id}",
-              (my_task_interface))
+    MC_OBJECT(my_task_object, "TaskObject", "/bmc/kepler/TaskService/Tasks/${Id}", (my_task_interface))
 
     my_task_object(mc::core::object* parent = nullptr);
 
@@ -39,8 +38,7 @@ class my_tasks_object : public mc::engine::object<my_tasks_object> {
     using tasks_type = std::vector<mc::shared_ptr<my_task_object>>;
 
 public:
-    MC_OBJECT(my_tasks_object, "TasksObject", "/bmc/kepler/TaskService/Tasks",
-              (tasks_interface))
+    MC_OBJECT(my_tasks_object, "TasksObject", "/bmc/kepler/TaskService/Tasks", (tasks_interface))
 
     my_tasks_object(mc::core::object* parent = nullptr);
 

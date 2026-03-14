@@ -80,10 +80,8 @@ public:
      *
      * @param metadata 表元数据
      */
-    explicit query_planner(const table_index_metadata<ObjectType>& metadata)
-        : m_metadata(metadata)
-    {
-    }
+    explicit query_planner(const table_index_metadata<ObjectType>& metadata) : m_metadata(metadata)
+    {}
 
     /**
      * 构造函数 - 接受元数据共享指针
@@ -92,8 +90,7 @@ public:
      */
     explicit query_planner(const std::shared_ptr<table_index_metadata<ObjectType>>& reflection_ptr)
         : m_metadata(*reflection_ptr)
-    {
-    }
+    {}
 
     /**
      * 为查询生成执行计划
@@ -362,8 +359,7 @@ private:
      * @param out_field 输出参数，找到的公共字段
      * @return 是否找到公共字段
      */
-    bool find_common_field_for_or(const std::vector<condition>& conditions,
-                                  std::string_view&             out_field) const
+    bool find_common_field_for_or(const std::vector<condition>& conditions, std::string_view& out_field) const
     {
         if (conditions.empty()) {
             return false;
@@ -396,13 +392,11 @@ private:
     bool is_better_plan(const query_plan& a, const query_plan& b) const
     {
         // 优先级：精确匹配 > 范围查询 > 全表扫描
-        if (a.plan_type == query_plan_type::index_exact_match &&
-            b.plan_type != query_plan_type::index_exact_match) {
+        if (a.plan_type == query_plan_type::index_exact_match && b.plan_type != query_plan_type::index_exact_match) {
             return true;
         }
 
-        if (a.plan_type == query_plan_type::index_range &&
-            b.plan_type == query_plan_type::full_scan) {
+        if (a.plan_type == query_plan_type::index_range && b.plan_type == query_plan_type::full_scan) {
             return true;
         }
 

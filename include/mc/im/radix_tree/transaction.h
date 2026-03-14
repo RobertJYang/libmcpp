@@ -30,24 +30,18 @@ public:
     using node_type = node<Config>;
     using node_ptr  = typename node_type::ref_ptr_type;
 
-    save_point()
-        : m_size(0), m_version(0)
-    {
-    }
+    save_point() : m_size(0), m_version(0)
+    {}
 
-    save_point(node_ptr root, size_t size)
-        : m_root(std::move(root)), m_size(size), m_version(0)
-    {
-    }
+    save_point(node_ptr root, size_t size) : m_root(std::move(root)), m_size(size), m_version(0)
+    {}
 
     save_point(const save_point& other)            = delete;
     save_point& operator=(const save_point& other) = delete;
 
     save_point(save_point&& other) noexcept
-        : m_root(std::move(other.m_root)),
-          m_size(other.m_size), m_version(other.m_version)
-    {
-    }
+        : m_root(std::move(other.m_root)), m_size(other.m_size), m_version(other.m_version)
+    {}
 
     save_point& operator=(save_point&& other) noexcept
     {
@@ -60,16 +54,14 @@ public:
     }
 
     ~save_point()
-    {
-    }
+    {}
 
     /**
      * 初始化保存点
      * @param free_list 空闲列表
      */
     void init()
-    {
-    }
+    {}
 
     /**
      * 设置版本号
@@ -126,19 +118,15 @@ public:
     /**
      * 默认构造函数
      */
-    transaction(const allocator_type& alloc = allocator_type())
-        : m_tree(alloc)
-    {
-    }
+    transaction(const allocator_type& alloc = allocator_type()) : m_tree(alloc)
+    {}
 
     /**
      * 为给定 tree 创建新的事务
      * @param tree 给定的树
      */
-    transaction(tree_type tree)
-        : m_tree(tree)
-    {
-    }
+    transaction(tree_type tree) : m_tree(tree)
+    {}
 
     ~transaction()
     {
@@ -395,8 +383,7 @@ private:
     /**
      * 递归插入节点
      */
-    std::tuple<node_ptr, leaf_type, bool> insert(const node_ptr& n, key_view k, key_view search,
-                                                 value_type v)
+    std::tuple<node_ptr, leaf_type, bool> insert(const node_ptr& n, key_view k, key_view search, value_type v)
     {
         // 如果搜索到了末尾，更新叶子节点
         if (search.empty()) {

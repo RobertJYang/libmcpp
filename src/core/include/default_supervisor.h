@@ -31,8 +31,7 @@ using dependency_node = mc::core::internal::dependency_sorter::dependency_node;
  *
  * 负责管理服务的生命周期，包括启动、停止、重启和健康检查
  */
-class default_supervisor : public supervisor,
-                           public std::enable_shared_from_this<default_supervisor> {
+class default_supervisor : public supervisor, public std::enable_shared_from_this<default_supervisor> {
 public:
     default_supervisor();
     ~default_supervisor() override = default;

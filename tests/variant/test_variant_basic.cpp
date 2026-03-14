@@ -168,14 +168,10 @@ TEST_F(VariantBasicTest, IntegerTypeConversions)
 
     // 负值转无符号类型应被解释为对应的大整数
     variant v_negative(-1);
-    ASSERT_EQ(v_negative.as<uint8_t>(), static_cast<uint8_t>(-1))
-        << "负值转 uint8_t 应被解释为对应的无符号值";
-    ASSERT_EQ(v_negative.as<uint16_t>(), static_cast<uint16_t>(-1))
-        << "负值转 uint16_t 应被解释为对应的无符号值";
-    ASSERT_EQ(v_negative.as<uint32_t>(), static_cast<uint32_t>(-1))
-        << "负值转 uint32_t 应被解释为对应的无符号值";
-    ASSERT_EQ(v_negative.as<uint64_t>(), static_cast<uint64_t>(-1))
-        << "负值转 uint64_t 应被解释为对应的无符号值";
+    ASSERT_EQ(v_negative.as<uint8_t>(), static_cast<uint8_t>(-1)) << "负值转 uint8_t 应被解释为对应的无符号值";
+    ASSERT_EQ(v_negative.as<uint16_t>(), static_cast<uint16_t>(-1)) << "负值转 uint16_t 应被解释为对应的无符号值";
+    ASSERT_EQ(v_negative.as<uint32_t>(), static_cast<uint32_t>(-1)) << "负值转 uint32_t 应被解释为对应的无符号值";
+    ASSERT_EQ(v_negative.as<uint64_t>(), static_cast<uint64_t>(-1)) << "负值转 uint64_t 应被解释为对应的无符号值";
 }
 
 /**
@@ -294,8 +290,7 @@ TEST_F(VariantBasicTest, AsWithDefaultValue)
 
     // 测试不同整数类型间的转换
     variant v_large(1000);
-    ASSERT_EQ(v_large.as<int8_t>(50), static_cast<int8_t>(1000))
-        << "整数转换到较小类型时应进行截断而非返回默认值";
+    ASSERT_EQ(v_large.as<int8_t>(50), static_cast<int8_t>(1000)) << "整数转换到较小类型时应进行截断而非返回默认值";
 
     // 测试边界情况
     variant v_edge_case(std::numeric_limits<int>::max());

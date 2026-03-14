@@ -31,12 +31,11 @@ constexpr const char* CONNECTION_METATABLE = "dbus.connection";
 struct connection_wrapper {
     mc::dbus::connection* conn_ptr;
     bool                  owns;
-    bool                  is_blocking;  // 标识是否来自阻塞式 bus
+    bool                  is_blocking; // 标识是否来自阻塞式 bus
 
     explicit connection_wrapper(mc::dbus::connection* ptr, bool take_ownership = false, bool blocking = true)
         : conn_ptr(ptr), owns(take_ownership), is_blocking(blocking)
-    {
-    }
+    {}
 
     mc::dbus::connection& get()
     {
@@ -106,9 +105,8 @@ inline int connection_request_name(lua_State* L)
 {
     auto wrapper = check_connection(L);
     try {
-        const char* name = luaL_checkstring(L, 2);
-        uint32_t    flags =
-            lua_isnumber(L, 3) ? static_cast<uint32_t>(lua_tointeger(L, 3)) : 0;
+        const char* name  = luaL_checkstring(L, 2);
+        uint32_t    flags = lua_isnumber(L, 3) ? static_cast<uint32_t>(lua_tointeger(L, 3)) : 0;
 
         auto [result, err_opt] = wrapper->get().request_name(name, flags);
         lua_pushboolean(L, result);
@@ -272,8 +270,7 @@ inline int connection_send_with_reply_and_block(lua_State* L)
         }
 
         // 获取 message wrapper
-        auto* msg_wrapper = static_cast<message_wrapper*>(
-            luaL_checkudata(L, 2, "dbus.message"));
+        auto* msg_wrapper = static_cast<message_wrapper*>(luaL_checkudata(L, 2, "dbus.message"));
 
         if (!msg_wrapper) {
             return luaL_error(L, "invalid message object");
@@ -287,8 +284,7 @@ inline int connection_send_with_reply_and_block(lua_State* L)
         if (lua_gettop(L) >= 3 && !lua_isnil(L, 3)) {
             // 有 timeout 参数且不是 nil，使用指定值
             int timeout_ms = luaL_checkinteger(L, 3);
-            reply          = wrapper->get().send_with_reply_and_block(
-                std::move(msg_copy), mc::milliseconds(timeout_ms));
+            reply = wrapper->get().send_with_reply_and_block(std::move(msg_copy), mc::milliseconds(timeout_ms));
         } else {
             // 没有 timeout 参数或参数是 nil，使用 C++ 的默认参数
             reply = wrapper->get().send_with_reply_and_block(std::move(msg_copy));

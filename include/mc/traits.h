@@ -80,10 +80,9 @@ private:
     static constexpr bool is_contained = contains_impl<T, rest_unique>::value;
 
 public:
-    using type = std::conditional_t<
-        is_contained,
-        rest_unique,
-        decltype(std::tuple_cat(std::declval<std::tuple<T>>(), std::declval<rest_unique>()))>;
+    using type =
+        std::conditional_t<is_contained, rest_unique,
+                           decltype(std::tuple_cat(std::declval<std::tuple<T>>(), std::declval<rest_unique>()))>;
 };
 
 template <typename... Ts>
@@ -196,24 +195,22 @@ struct is_getter_impl : std::false_type {};
 
 // 普通函数和函数对象的特化
 template <typename T, typename F>
-struct is_getter_impl<
-    T, F,
-    std::enable_if_t<!std::is_void_v<std::decay_t<T>> &&
-                     std::is_invocable_r_v<std::decay_t<T>, F> && std::is_invocable_v<F>>>
-    : std::true_type {};
+struct is_getter_impl<T, F,
+                      std::enable_if_t<!std::is_void_v<std::decay_t<T>> && std::is_invocable_r_v<std::decay_t<T>, F> &&
+                                       std::is_invocable_v<F>>> : std::true_type {};
 
 // 成员函数指针的特化
 template <typename T, typename ClassType, typename ReturnType>
-struct is_getter_impl<T, ReturnType (ClassType::*)(),
-                      std::enable_if_t<!std::is_void_v<std::decay_t<T>> &&
-                                       std::is_same_v<std::decay_t<T>, std::decay_t<ReturnType>>>>
+struct is_getter_impl<
+    T, ReturnType (ClassType::*)(),
+    std::enable_if_t<!std::is_void_v<std::decay_t<T>> && std::is_same_v<std::decay_t<T>, std::decay_t<ReturnType>>>>
     : std::true_type {};
 
 // const 成员函数指针的特化
 template <typename T, typename ClassType, typename ReturnType>
-struct is_getter_impl<T, ReturnType (ClassType::*)() const,
-                      std::enable_if_t<!std::is_void_v<std::decay_t<T>> &&
-                                       std::is_same_v<std::decay_t<T>, std::decay_t<ReturnType>>>>
+struct is_getter_impl<
+    T, ReturnType (ClassType::*)() const,
+    std::enable_if_t<!std::is_void_v<std::decay_t<T>> && std::is_same_v<std::decay_t<T>, std::decay_t<ReturnType>>>>
     : std::true_type {};
 
 template <typename T, typename F, typename = void>
@@ -221,20 +218,19 @@ struct is_setter_impl : std::false_type {};
 
 // 普通函数和函数对象的特化
 template <typename T, typename F>
-struct is_setter_impl<T, F,
-                      std::enable_if_t<!std::is_void_v<std::decay_t<T>> &&
-                                       std::is_invocable_r_v<void, F, std::decay_t<T>>>>
+struct is_setter_impl<
+    T, F, std::enable_if_t<!std::is_void_v<std::decay_t<T>> && std::is_invocable_r_v<void, F, std::decay_t<T>>>>
     : std::true_type {};
 
 // 成员函数指针的特化
 template <typename T, typename ClassType>
-struct is_setter_impl<T, void (ClassType::*)(std::decay_t<T>),
-                      std::enable_if_t<!std::is_void_v<std::decay_t<T>>>> : std::true_type {};
+struct is_setter_impl<T, void (ClassType::*)(std::decay_t<T>), std::enable_if_t<!std::is_void_v<std::decay_t<T>>>>
+    : std::true_type {};
 
 // const 成员函数指针的特化
 template <typename T, typename ClassType>
-struct is_setter_impl<T, void (ClassType::*)(std::decay_t<T>) const,
-                      std::enable_if_t<!std::is_void_v<std::decay_t<T>>>> : std::true_type {};
+struct is_setter_impl<T, void (ClassType::*)(std::decay_t<T>) const, std::enable_if_t<!std::is_void_v<std::decay_t<T>>>>
+    : std::true_type {};
 } // namespace detail
 
 template <typename T, typename F>
@@ -261,8 +257,7 @@ constexpr void tuple_for_each(Tuple&& tuple, Func&& func)
 template <typename Tuple, typename Func>
 constexpr auto tuple_map(const Tuple& tuple, Func&& func)
 {
-    return std::apply(
-        [&](auto&... element) {
+    return std::apply([&](auto&... element) {
         return (std::tuple_cat(func(element)...));
     }, tuple);
 }
@@ -282,9 +277,8 @@ constexpr void tuple_element_for_each_impl(Func&& func, std::index_sequence<I...
 template <typename Tuple, typename Func>
 constexpr void tuple_element_for_each(Func&& func)
 {
-    tuple_element_for_each_impl<Tuple>(
-        std::forward<Func>(func),
-        std::make_index_sequence<std::tuple_size_v<std::decay_t<Tuple>>>{});
+    tuple_element_for_each_impl<Tuple>(std::forward<Func>(func),
+                                       std::make_index_sequence<std::tuple_size_v<std::decay_t<Tuple>>>{});
 }
 
 template <typename F, size_t I = 0, typename... Ts>
@@ -321,8 +315,7 @@ template <typename T, typename U = T, typename = void>
 struct has_operator_equal : std::false_type {};
 
 template <typename T, typename U>
-struct has_operator_equal<T, U, std::void_t<decltype(std::declval<T>() == std::declval<U>())>>
-    : std::true_type {};
+struct has_operator_equal<T, U, std::void_t<decltype(std::declval<T>() == std::declval<U>())>> : std::true_type {};
 
 template <typename T, typename U = T>
 inline constexpr bool has_operator_equal_v = has_operator_equal<T, U>::value;

@@ -57,8 +57,7 @@ struct AllState : public AllStateBase {
 
     AllState(std::size_t total_count, mc::any_executor executor)
         : AllStateBase(total_count, make_promise<ResultType>(std::move(executor)))
-    {
-    }
+    {}
 
     template <typename ValueType, typename ForwardType>
     void set_value(std::size_t index, ValueType& result, ForwardType&& value)
@@ -101,8 +100,7 @@ struct AnyState : public AnyStateBase {
 
     AnyState(std::size_t total_count, mc::any_executor executor)
         : AnyStateBase(total_count, make_promise<ResultType>(std::move(executor)))
-    {
-    }
+    {}
 
     template <typename ValueType>
     void set_value(std::size_t index, ValueType&& value)
@@ -127,17 +125,18 @@ void process_all(std::shared_ptr<State> state, std::size_t index, Result& result
 {
     using result_type = typename Future::result_type;
 
-    auto f = future.then([state, index, &result](auto&& value) mutable {
+    auto f = future
+                 .then([state, index, &result](auto&& value) mutable {
         // 某些编译器对参数为 auto&& 的 lambda 函数用 std::monostate 作为参数调用，
         // 会错误的将 value 推导成 int 类型导致编译错误，这里特殊处理一下
-        if constexpr (std::is_same_v<result_type, void> ||
-                      std::is_same_v<result_type, std::monostate>) {
+        if constexpr (std::is_same_v<result_type, void> || std::is_same_v<result_type, std::monostate>) {
             MC_UNUSED(value);
             state->set_value(index, result, std::monostate{});
         } else {
             state->set_value(index, result, std::forward<decltype(value)>(value));
         }
-    }).catch_error([state](const mc::exception& e) mutable {
+    })
+                 .catch_error([state](const mc::exception& e) mutable {
         state->set_exception(e);
     }).on_cancel([wstate = std::weak_ptr(state)]() mutable {
         if (auto state = wstate.lock()) {
@@ -161,17 +160,18 @@ void process_any(std::shared_ptr<State> state, std::size_t index, Future& future
 {
     using result_type = typename Future::result_type;
 
-    auto f = future.then([state, index](auto&& value) mutable {
+    auto f = future
+                 .then([state, index](auto&& value) mutable {
         // 某些编译器对参数为 auto&& 的 lambda 函数用 std::monostate 作为参数调用，
         // 会错误的将 value 推导成 int 类型导致编译错误，这里特殊处理一下
-        if constexpr (std::is_same_v<result_type, void> ||
-                      std::is_same_v<result_type, std::monostate>) {
+        if constexpr (std::is_same_v<result_type, void> || std::is_same_v<result_type, std::monostate>) {
             MC_UNUSED(value);
             state->set_value(index, std::monostate{});
         } else {
             state->set_value(index, std::forward<decltype(value)>(value));
         }
-    }).catch_error([state](const mc::exception& e) mutable {
+    })
+                 .catch_error([state](const mc::exception& e) mutable {
         state->set_exception(e);
     }).on_cancel([wstate = std::weak_ptr(state)]() {
         if (auto state = wstate.lock()) {
@@ -194,8 +194,7 @@ void process_any(std::shared_ptr<State> state, Futures& futures)
 
 // 可变参数版本的 all 函数实现
 template <typename... Futures>
-auto all(Futures&&... futures)
-    -> Future<std::tuple<typename std::decay_t<Futures>::result_type...>>
+auto all(Futures&&... futures) -> Future<std::tuple<typename std::decay_t<Futures>::result_type...>>
 {
     static_assert(sizeof...(Futures) > 0, "all requires at least one future");
 
@@ -220,8 +219,8 @@ auto all(Futures&&... futures)
 
 // 容器版本的 all 函数实现
 template <typename Iterator>
-auto all(Iterator begin, Iterator end)
-    -> Future<std::vector<typename std::iterator_traits<Iterator>::value_type::result_type>>
+auto all(Iterator begin,
+         Iterator end) -> Future<std::vector<typename std::iterator_traits<Iterator>::value_type::result_type>>
 {
     using future_type = typename std::iterator_traits<Iterator>::value_type;
     using value_type  = typename future_type::result_type;
@@ -252,16 +251,14 @@ auto all(Iterator begin, Iterator end)
 // any 实现：等待任意一个 future 完成
 template <typename... Futures>
 auto any(Futures&&... futures)
-    -> Future<std::pair<std::size_t,
-                        mc::traits::apply_type_t<
-                            std::variant,
-                            mc::traits::type_set_t<typename std::decay_t<Futures>::result_type...>>>>
+    -> Future<std::pair<
+        std::size_t,
+        mc::traits::apply_type_t<std::variant, mc::traits::type_set_t<typename std::decay_t<Futures>::result_type...>>>>
 {
     static_assert(sizeof...(Futures) > 0, "any requires at least one future");
 
-    using VariantType = mc::traits::apply_type_t<
-        std::variant,
-        mc::traits::type_set_t<typename std::decay_t<Futures>::result_type...>>;
+    using VariantType =
+        mc::traits::apply_type_t<std::variant, mc::traits::type_set_t<typename std::decay_t<Futures>::result_type...>>;
     using ResultType = std::pair<std::size_t, VariantType>;
     using State      = detail::AnyState<ResultType>;
 

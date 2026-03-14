@@ -36,11 +36,11 @@ void verify_exception(ExceptionT&& ex, int64_t expected_code, std::string_view e
 
 } // namespace
 
-#define GEN_STD_EXCEPTION_TEST(TYPE, CODE, DEFAULT_MSG, DEFAULT_NAME)         \
-    TEST(ExceptionStdClassCoverage, TYPE##ConstructAndThrow)                  \
-    {                                                                         \
-        auto ex = MC_MAKE_EXCEPTION(mc::TYPE, DEFAULT_MSG);                   \
-        verify_exception(std::move(ex), mc::CODE, DEFAULT_NAME, DEFAULT_MSG); \
+#define GEN_STD_EXCEPTION_TEST(TYPE, CODE, DEFAULT_MSG, DEFAULT_NAME)                                                  \
+    TEST(ExceptionStdClassCoverage, TYPE##ConstructAndThrow)                                                           \
+    {                                                                                                                  \
+        auto ex = MC_MAKE_EXCEPTION(mc::TYPE, DEFAULT_MSG);                                                            \
+        verify_exception(std::move(ex), mc::CODE, DEFAULT_NAME, DEFAULT_MSG);                                          \
     }
 
 MC_STD_EXCEPTION_CLASS(GEN_STD_EXCEPTION_TEST)
@@ -73,7 +73,6 @@ TEST(ExceptionStdClassCoverage, ErrorReflectionMetadata)
     error_ptr->append_arg("code", 500);
 
     EXPECT_EQ(name_prop->get_value(*error_ptr).as<std::string_view>(), "org.test.runtime");
-    EXPECT_NE(format_prop->get_value(*error_ptr).as<std::string_view>().find("Runtime failure"),
-              std::string::npos);
+    EXPECT_NE(format_prop->get_value(*error_ptr).as<std::string_view>().find("Runtime failure"), std::string::npos);
     EXPECT_TRUE(args_prop->get_value(*error_ptr).as<mc::dict>().contains("code"));
 }

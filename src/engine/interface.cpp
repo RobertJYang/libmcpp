@@ -24,12 +24,10 @@ static property_base* to_property_base(const interface_impl* self, const propert
 } // namespace detail
 
 interface_impl::interface_impl()
-{
-}
+{}
 
 interface_impl::~interface_impl()
-{
-}
+{}
 
 abstract_object* interface_impl::get_owner() const
 {
@@ -95,8 +93,7 @@ const property_type_info* interface_impl::get_property_info(std::string_view pro
 
 const property_type_info* interface_impl::get_property_info(const void* prop_addr) const
 {
-    std::uintptr_t offset = reinterpret_cast<std::uintptr_t>(prop_addr) -
-                            reinterpret_cast<std::uintptr_t>(this);
+    std::uintptr_t offset = reinterpret_cast<std::uintptr_t>(prop_addr) - reinterpret_cast<std::uintptr_t>(this);
     return get_metadata().get_property_info(offset);
 }
 

@@ -840,8 +840,9 @@ TEST(DictOperationsTest, DeepCopyCycleHandling)
         EXPECT_EQ(outer_back["value"], 200);
 
         // 关键验证：使用 data() 指针直接验证循环引用的身份
-        EXPECT_EQ(outer_back.data(), outer_copy.data());                         // ✅ outer_back 就是 outer_copy
-        EXPECT_EQ(inner_copy.data(), outer_copy["outer_key"].as<dict>().data()); // ✅ inner_copy 就是 outer_copy["outer_key"]
+        EXPECT_EQ(outer_back.data(), outer_copy.data()); // ✅ outer_back 就是 outer_copy
+        EXPECT_EQ(inner_copy.data(),
+                  outer_copy["outer_key"].as<dict>().data()); // ✅ inner_copy 就是 outer_copy["outer_key"]
 
         // 验证拷贝与原始对象独立
         EXPECT_NE(outer_copy.data(), outer.data()); // ✅ 不同对象

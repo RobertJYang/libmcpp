@@ -20,12 +20,10 @@ object_id_type table_base::generate_id()
 }
 
 database::database()
-{
-}
+{}
 
 database::~database()
-{
-}
+{}
 
 void database::register_table(table_ptr table)
 {
@@ -123,8 +121,8 @@ void database::clear(std::string_view table_name)
     table->second->clear();
 }
 
-bool database::update(std::string_view table_name, const query_builder& builder,
-                      const mc::dict& values, transaction* txn)
+bool database::update(std::string_view table_name, const query_builder& builder, const mc::dict& values,
+                      transaction* txn)
 {
     std::lock_guard lock(m_mutex);
 

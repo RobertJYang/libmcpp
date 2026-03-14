@@ -53,12 +53,9 @@ struct application::impl {
 
 application::impl::impl()
     : m_version("1.0.0"), m_plugin_manager(std::make_unique<plugin_manager>()),
-      m_service_factory(std::make_unique<service_factory>()),
-      m_service_manager(std::make_unique<service_manager>()),
-      m_config_manager(std::make_unique<config_manager>()),
-      m_supervisor_manager(std::make_unique<supervisor_manager>())
-{
-}
+      m_service_factory(std::make_unique<service_factory>()), m_service_manager(std::make_unique<service_manager>()),
+      m_config_manager(std::make_unique<config_manager>()), m_supervisor_manager(std::make_unique<supervisor_manager>())
+{}
 
 application& application::instance()
 {
@@ -72,10 +69,8 @@ void application::reset_for_test()
     mc::singleton<application>::reset_for_test();
 }
 
-application::application()
-    : m_impl(std::make_unique<impl>())
-{
-}
+application::application() : m_impl(std::make_unique<impl>())
+{}
 
 application::~application()
 {
@@ -223,8 +218,7 @@ bool application::impl::initialize_services(bool config_loaded)
         return true;
     }
 
-    return m_service_manager->initialize_from_configs(*m_config_manager, *m_supervisor_manager,
-                                                      *m_service_factory);
+    return m_service_manager->initialize_from_configs(*m_config_manager, *m_supervisor_manager, *m_service_factory);
 }
 
 bool application::start()

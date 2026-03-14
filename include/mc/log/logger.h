@@ -288,51 +288,51 @@ private:
  * @brief 记录日志
  * 支持可选 attrs：如果最后一个参数是 mc::dict 类型，则自动作为 attrs
  */
-#define MC_LOG_BASE(LOGGER, LEVEL, ...)                     \
-    do {                                                    \
-        if (LOGGER.is_enabled(mc::log::level::LEVEL)) {     \
-            LOGGER.log(MC_LOG_MESSAGE(LEVEL, __VA_ARGS__)); \
-        }                                                   \
+#define MC_LOG_BASE(LOGGER, LEVEL, ...)                                                                                \
+    do {                                                                                                               \
+        if (LOGGER.is_enabled(mc::log::level::LEVEL)) {                                                                \
+            LOGGER.log(MC_LOG_MESSAGE(LEVEL, __VA_ARGS__));                                                            \
+        }                                                                                                              \
     } while (0)
 
 /**
  * @brief 记录日志
  */
-#define MC_LOG_BASE_WITH_CATEGORY(LOGGER, CATEGORY, ...)                     \
-    do {                                                                     \
-        if (!LOGGER.is_debug_log(CATEGORY)) {                                \
-            LOGGER.log(MC_LOG_MESSAGE_WITH_CATEGORY(CATEGORY, __VA_ARGS__)); \
-        }                                                                    \
+#define MC_LOG_BASE_WITH_CATEGORY(LOGGER, CATEGORY, ...)                                                               \
+    do {                                                                                                               \
+        if (!LOGGER.is_debug_log(CATEGORY)) {                                                                          \
+            LOGGER.log(MC_LOG_MESSAGE_WITH_CATEGORY(CATEGORY, __VA_ARGS__));                                           \
+        }                                                                                                              \
     } while (0)
 
 /**
  * @brief 按类别与级别记录日志（用于南向硬件流等需同时指定类别与级别的场景）
  */
-#define MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, CATEGORY, LEVEL, ...)                     \
-    do {                                                                                      \
-        if (!LOGGER.is_debug_log(CATEGORY)) {                                                 \
-            LOGGER.log(MC_LOG_DISPATCH(LEVEL, CATEGORY, MC_FORMAT_EMPTY_CHECK, __VA_ARGS__)); \
-        }                                                                                     \
+#define MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, CATEGORY, LEVEL, ...)                                              \
+    do {                                                                                                               \
+        if (!LOGGER.is_debug_log(CATEGORY)) {                                                                          \
+            LOGGER.log(MC_LOG_DISPATCH(LEVEL, CATEGORY, MC_FORMAT_EMPTY_CHECK, __VA_ARGS__));                          \
+        }                                                                                                              \
     } while (0)
 
 /**
  * @brief 不安全的记录日志（编译期不检查格式化字符串和格式化参数）
  */
-#define MC_LOG_BASE_UNSAFE(LOGGER, LEVEL, ...)                     \
-    do {                                                           \
-        if (LOGGER.is_enabled(mc::log::level::LEVEL)) {            \
-            LOGGER.log(MC_LOG_MESSAGE_UNSAFE(LEVEL, __VA_ARGS__)); \
-        }                                                          \
+#define MC_LOG_BASE_UNSAFE(LOGGER, LEVEL, ...)                                                                         \
+    do {                                                                                                               \
+        if (LOGGER.is_enabled(mc::log::level::LEVEL)) {                                                                \
+            LOGGER.log(MC_LOG_MESSAGE_UNSAFE(LEVEL, __VA_ARGS__));                                                     \
+        }                                                                                                              \
     } while (0)
 
 /**
  * @brief 不限流（_easy）记录日志：file_appender 的 internal_log_handler 第二个参数为 false
  */
-#define MC_LOG_BASE_EASY(LOGGER, LEVEL, ...)                     \
-    do {                                                         \
-        if (LOGGER.is_enabled(mc::log::level::LEVEL)) {          \
-            LOGGER.log(MC_LOG_MESSAGE_EASY(LEVEL, __VA_ARGS__)); \
-        }                                                        \
+#define MC_LOG_BASE_EASY(LOGGER, LEVEL, ...)                                                                           \
+    do {                                                                                                               \
+        if (LOGGER.is_enabled(mc::log::level::LEVEL)) {                                                                \
+            LOGGER.log(MC_LOG_MESSAGE_EASY(LEVEL, __VA_ARGS__));                                                       \
+        }                                                                                                              \
     } while (0)
 
 } // namespace log

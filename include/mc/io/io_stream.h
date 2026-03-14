@@ -238,8 +238,7 @@ public:
      * @param is_little_endian 是否为小端字节序
      * @return 读取的值
      */
-    template <typename T,
-              typename std::enable_if<std::is_trivially_copyable<T>::value, int>::type = 0>
+    template <typename T, typename std::enable_if<std::is_trivially_copyable<T>::value, int>::type = 0>
     T read_value(bool is_little_endian = mc::is_little_endian())
     {
         T value = {};
@@ -258,8 +257,7 @@ public:
      * @param is_little_endian 是否为小端字节序
      * @return 是否读取成功
      */
-    template <typename T,
-              typename std::enable_if<std::is_trivially_copyable<T>::value, int>::type = 0>
+    template <typename T, typename std::enable_if<std::is_trivially_copyable<T>::value, int>::type = 0>
     bool read_value(T& value, bool is_little_endian = mc::is_little_endian())
     {
         if (!m_buffer->read_value(m_read_pos, value, is_little_endian)) {
@@ -295,8 +293,7 @@ public:
      * @param is_little_endian 是否为小端字节序
      * @return 写入后的位置
      */
-    template <typename T,
-              typename std::enable_if<std::is_trivially_copyable<T>::value, int>::type = 0>
+    template <typename T, typename std::enable_if<std::is_trivially_copyable<T>::value, int>::type = 0>
     std::size_t write_value(T value, bool is_little_endian = mc::is_little_endian())
     {
         if (!m_writable) {
@@ -362,8 +359,7 @@ public:
 
         write_length_guard(io_stream& stream, bool is_little_endian = mc::is_little_endian())
             : m_stream(stream), m_is_little_endian(is_little_endian)
-        {
-        }
+        {}
 
         // 预先写入长度
         void prepare_length_field(std::size_t alignment = sizeof(LengthType))

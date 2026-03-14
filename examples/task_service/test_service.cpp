@@ -14,14 +14,11 @@
 
 namespace test {
 
-test_service::test_service(std::string_view name)
-    : mc::engine::service(name)
-{
-}
+test_service::test_service(std::string_view name) : mc::engine::service(name)
+{}
 
 test_service::~test_service()
-{
-}
+{}
 
 bool test_service::init(mc::dict args)
 {

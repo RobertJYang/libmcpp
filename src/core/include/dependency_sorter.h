@@ -47,9 +47,9 @@ public:
      * @return 依赖图
      */
     template <typename T>
-    static std::unordered_map<std::string, dependency_node> build_dependency_graph(
-        const std::unordered_map<std::string, T>&                items,
-        const std::function<std::vector<std::string>(const T&)>& dependency_getter)
+    static std::unordered_map<std::string, dependency_node>
+    build_dependency_graph(const std::unordered_map<std::string, T>&                items,
+                           const std::function<std::vector<std::string>(const T&)>& dependency_getter)
     {
         std::unordered_map<std::string, dependency_node> graph;
 
@@ -87,8 +87,7 @@ public:
      * @return 排序后的项目名称列表
      * @throws mc::parse_error_exception 如果存在循环依赖
      */
-    static std::vector<std::string>
-    sort_for_startup(const std::unordered_map<std::string, dependency_node>& graph);
+    static std::vector<std::string> sort_for_startup(const std::unordered_map<std::string, dependency_node>& graph);
 
     /**
      * @brief 执行拓扑排序，返回停止顺序（从被依赖到无被依赖）
@@ -97,8 +96,7 @@ public:
      * @return 排序后的项目名称列表
      * @throws mc::parse_error_exception 如果存在循环依赖
      */
-    static std::vector<std::string>
-    sort_for_shutdown(const std::unordered_map<std::string, dependency_node>& graph);
+    static std::vector<std::string> sort_for_shutdown(const std::unordered_map<std::string, dependency_node>& graph);
 
     /**
      * @brief 检查是否存在循环依赖
@@ -106,8 +104,7 @@ public:
      * @param graph 依赖图
      * @return 是否存在循环依赖
      */
-    static bool
-    has_circular_dependency(const std::unordered_map<std::string, dependency_node>& graph);
+    static bool has_circular_dependency(const std::unordered_map<std::string, dependency_node>& graph);
 };
 
 } // namespace internal

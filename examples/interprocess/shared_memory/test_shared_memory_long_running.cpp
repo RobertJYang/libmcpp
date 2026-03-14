@@ -46,7 +46,8 @@ void test_shared_memory_long_running()
 
     // 展示内存使用情况
     ilog("共享内存总大小: ${total}字节, 已分配: ${used}字节, 可用: ${available}字节",
-         ("total", allocator.get_total_size())("used", allocator.get_allocated_size())("available", allocator.get_available_size()));
+         ("total", allocator.get_total_size())("used", allocator.get_allocated_size())("available",
+                                                                                       allocator.get_available_size()));
 
     // 运行一段时间，可以按Ctrl+C终止
     ilog("程序正在运行中，按Ctrl+C终止...");

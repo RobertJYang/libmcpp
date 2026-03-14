@@ -18,10 +18,8 @@
 namespace mc {
 namespace io {
 
-io_stream::io_stream()
-    : m_buffer(std::make_unique<io_buffer>())
-{
-}
+io_stream::io_stream() : m_buffer(std::make_unique<io_buffer>())
+{}
 
 io_stream::io_stream(std::unique_ptr<io_buffer> buffer, bool writable)
     : m_buffer(std::move(buffer)), m_writable(writable)
@@ -31,14 +29,12 @@ io_stream::io_stream(std::unique_ptr<io_buffer> buffer, bool writable)
     }
 }
 
-io_stream::io_stream(std::size_t capacity)
-    : m_buffer(io_buffer::create(capacity))
-{
-}
+io_stream::io_stream(std::size_t capacity) : m_buffer(io_buffer::create(capacity))
+{}
 
 io_stream::io_stream(io_stream&& other) noexcept
-    : m_buffer(std::move(other.m_buffer)), m_read_pos(other.m_read_pos),
-      m_write_pos(other.m_write_pos), m_writable(other.m_writable)
+    : m_buffer(std::move(other.m_buffer)), m_read_pos(other.m_read_pos), m_write_pos(other.m_write_pos),
+      m_writable(other.m_writable)
 {
     other.m_read_pos  = 0;
     other.m_write_pos = 0;

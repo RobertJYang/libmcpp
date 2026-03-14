@@ -16,11 +16,11 @@
 #include <string>
 #include <vector>
 
+#include <json_api.h>
 #include <mc/dict/dict.h>
 #include <mc/exception.h>
 #include <mc/filesystem.h>
 #include <mc/json_wrapper.h>
-#include <json_api.h>
 
 extern "C" {
 #include <lauxlib.h>
@@ -75,7 +75,6 @@ bool is_lua_array(::lua_State* L, int index)
 
     // 获取 table 的大小
     lua_Integer array_size = get_lua_table_length(L, abs_index);
-
     if (array_size == 0) {
         // 空 table，检查是否有非整数键
         lua_pushnil(L);
@@ -125,10 +124,8 @@ struct json_value_wrapper {
     JsonValue value;
 
     json_value_wrapper() = default;
-    explicit json_value_wrapper(JsonValue&& v)
-        : value(std::move(v))
-    {
-    }
+    explicit json_value_wrapper(JsonValue&& v) : value(std::move(v))
+    {}
 };
 
 // 强制检查并获取 json_value userdata
@@ -157,14 +154,14 @@ inline int push_json_value(lua_State* L, JsonValue&& value)
     return 1;
 }
 
-static Json *json_array_new(lua_State* L, int idx);
-static Json *json_object_new(lua_State* L, int idx);
-static Json *json_new(lua_State* L, int index)
+static Json* json_array_new(lua_State* L, int idx);
+static Json* json_object_new(lua_State* L, int idx);
+static Json* json_new(lua_State* L, int index)
 {
-    Json *json;
-    int idx = (index < 0) ? lua_gettop(L) + index + 1 : index;
-    int type = lua_type(L, idx);
-    switch(type) {
+    Json* json;
+    int   idx  = (index < 0) ? lua_gettop(L) + index + 1 : index;
+    int   type = lua_type(L, idx);
+    switch (type) {
         case LUA_TNIL: {
             JsonNullCreate(&json);
             return json;
@@ -214,10 +211,10 @@ static Json *json_new(lua_State* L, int index)
     }
 }
 
-static Json *json_array_new(lua_State* L, int idx)
+static Json* json_array_new(lua_State* L, int idx)
 {
     size_t len = lua_rawlen(L, idx);
-    Json *object;
+    Json*  object;
     if (JsonArrayCreate(&object) != JSON_OK) {
         luaL_error(L, "json: cannot create json array");
     }
@@ -245,12 +242,12 @@ static bool is_empty_object(lua_State* L, int idx)
     }
 }
 
-static Json *json_object_new(lua_State* L, int idx)
+static Json* json_object_new(lua_State* L, int idx)
 {
     if (is_empty_object(L, idx) && !g_encode_empty_table_as_object) {
         return json_array_new(L, idx);
     }
-    Json *object;
+    Json* object;
     if (JsonObjectCreate(&object) != JSON_OK) {
         luaL_error(L, "json: cannot create json object");
     }
@@ -277,7 +274,7 @@ static void json_value_push(lua_State* L, Json* val)
     JsonType type = JsonTypeGet(val);
     switch (type) {
         case JSONTYPE_QUOTE: {
-            Json *tmp;
+            Json* tmp;
             if (JsonObjectQuoteGet(val, &tmp) != JSON_OK) {
                 luaL_error(L, "json: cannot get json quote");
             }
@@ -322,8 +319,8 @@ static void json_value_push(lua_State* L, Json* val)
             break;
         }
         case JSONTYPE_STRING: {
-            char* value = nullptr;
-            uint32_t size = 0;
+            char*    value = nullptr;
+            uint32_t size  = 0;
             if (JsonItemStringValueGet(val, &value) != JSON_OK || JsonItemStringValueLenGet(val, &size) != JSON_OK) {
                 luaL_error(L, "json: cannot get json string value");
             }
@@ -338,9 +335,9 @@ static void json_value_push(lua_State* L, Json* val)
 static void json_object_push(lua_State* L, Json* val)
 {
     lua_createtable(L, 0, 0);
-    Json *child;
+    Json*    child;
     uint32_t ret = JsonItemFirstChild(val, &child);
-    char *key = nullptr;
+    char*    key = nullptr;
     while (ret == JSON_OK && child != nullptr) {
         if (JsonItemKeyGet(child, &key) == JSON_OK) {
             json_value_push(L, child);
@@ -362,7 +359,7 @@ static void json_array_push(lua_State* L, Json* val)
     }
     lua_createtable(L, len, 0);
     for (size_t i = 0; i < len; i++) {
-        Json *item;
+        Json* item;
         if (JsonArrayItemGet(val, i, &item) != JSON_OK) {
             luaL_error(L, "json: cannot get json object item");
         }
@@ -423,7 +420,6 @@ static int json_value_index(lua_State* L)
 
         // 获取索引
         int key_type = lua_type(L, 2);
-
         if (key_type == LUA_TSTRING) {
             const char* key = lua_tostring(L, 2);
 
@@ -476,7 +472,6 @@ static int json_value_newindex(lua_State* L)
         auto* wrapper = check_json_value(L, 1);
 
         int key_type = lua_type(L, 2);
-
         if (key_type == LUA_TSTRING && wrapper->value.is_object()) {
             const char* key = lua_tostring(L, 2);
             JsonValue   val = get_json_value_from_lua(L, 3);
@@ -491,7 +486,6 @@ static int json_value_newindex(lua_State* L)
 
             JsonArray arr  = wrapper->value.as_array();
             uint32_t  size = arr.size();
-
             if (index < size) {
                 // 替换已存在的元素
                 arr.set(index, val);
@@ -647,7 +641,6 @@ static int l_json_object_get_keys(lua_State* L)
         }
 
         JsonValue json_val = get_json_value_from_lua(L, 1);
-
         if (!json_val.is_object()) {
             return luaL_error(L, "argument must be a JSON object");
         }
@@ -1022,8 +1015,8 @@ static int ldump(lua_State* L)
             return luaL_error(L, "dump argument 2 must be string (file_path)");
         }
 
-        size_t      path_len = 0;
-        const char* path_str = lua_tolstring(L, 2, &path_len);
+        size_t               path_len = 0;
+        const char*          path_str = lua_tolstring(L, 2, &path_len);
         mc::filesystem::path file_path(std::string(path_str, path_len));
 
         // 使用 json_wrapper::dump(JsonValue&, bool) 保存到文件（紧凑格式）
@@ -1055,8 +1048,8 @@ static int ldump_pretty(lua_State* L)
             return luaL_error(L, "dump_pretty argument 2 must be string (file_path)");
         }
 
-        size_t      path_len = 0;
-        const char* path_str = lua_tolstring(L, 2, &path_len);
+        size_t               path_len = 0;
+        const char*          path_str = lua_tolstring(L, 2, &path_len);
         mc::filesystem::path file_path(std::string(path_str, path_len));
 
         // 使用 json_wrapper::dump(JsonValue&, bool) 保存到文件（格式化输出）
@@ -1089,8 +1082,8 @@ static int ljson_object_dump(lua_State* L)
             return luaL_error(L, "json_object_dump argument 2 must be string (file_path)");
         }
 
-        size_t      path_len = 0;
-        const char* path_str = lua_tolstring(L, 2, &path_len);
+        size_t               path_len = 0;
+        const char*          path_str = lua_tolstring(L, 2, &path_len);
         mc::filesystem::path file_path(std::string(path_str, path_len));
 
         // 使用 json_wrapper::dump(JsonValue&, bool) 保存到文件（紧凑格式）
@@ -1123,8 +1116,8 @@ static int ljson_object_dump_pretty(lua_State* L)
             return luaL_error(L, "json_object_dump_pretty argument 2 must be string (file_path)");
         }
 
-        size_t      path_len = 0;
-        const char* path_str = lua_tolstring(L, 2, &path_len);
+        size_t               path_len = 0;
+        const char*          path_str = lua_tolstring(L, 2, &path_len);
         mc::filesystem::path file_path(std::string(path_str, path_len));
 
         // 使用 json_wrapper::dump(JsonValue&, bool) 保存到文件（格式化输出）
@@ -1157,7 +1150,7 @@ static int lencode_empty_table_as_object(lua_State* L)
         // 设置全局标志位
         g_encode_empty_table_as_object = (lua_toboolean(L, 1) != 0);
 
-        return 0;  // 无返回值
+        return 0; // 无返回值
     } catch (const mc::exception& e) {
         return luaL_error(L, "encode_empty_table_as_object failed: %s", e.what());
     }
@@ -1191,7 +1184,6 @@ static const luaL_Reg methods[] = {{"encode", lencode},
 } // namespace mc
 
 extern "C" {
-
 __attribute__((visibility("default"))) int luaopen_ljson(lua_State* L)
 {
     using namespace mc::json_wrapper::lua;

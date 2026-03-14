@@ -196,9 +196,8 @@ TEST_F(ModuleLoaderExtraBranchTest, TestLoadPathIsReusedBranch)
     loader.clear_search_paths();
     loader.add_search_path("./?.so");
 
-    mock_lib_loader_for_reused::instance().add_mock_lib(
-        "./test/module.so",
-        {"mc_open_test_module", "mc_close_test_module"});
+    mock_lib_loader_for_reused::instance().add_mock_lib("./test/module.so",
+                                                        {"mc_open_test_module", "mc_close_test_module"});
 
     bool is_reused_set = false;
     auto callback      = [&](auto, bool& is_reused) -> bool {
@@ -280,12 +279,13 @@ TEST_F(ModuleLoaderExtraBranchTest, TestIsReadableExceptionBranch)
     // 但根据代码，m_load_lib_func.is_readable 是在 load_path 中调用的
     // 如果它抛出异常，load_path 没有捕获，所以异常会传播到 load_module
     // 但 load_module 也没有捕获，所以异常会传播到测试
-    EXPECT_THROW({
-        bool result = loader.load_module("test.module", callback);
-        EXPECT_FALSE(result);
-        EXPECT_FALSE(callback_called);
-    },
-                 std::runtime_error);
+    EXPECT_THROW(
+        {
+            bool result = loader.load_module("test.module", callback);
+            EXPECT_FALSE(result);
+            EXPECT_FALSE(callback_called);
+        },
+        std::runtime_error);
 }
 
 } // anonymous namespace

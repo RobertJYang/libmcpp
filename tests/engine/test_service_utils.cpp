@@ -30,8 +30,7 @@ public:
 
 class service_test_object : public ::mc::engine::object<service_test_object> {
 public:
-    MC_OBJECT(service_test_object, "ServiceObject", "/org/openubmc/test_service_object",
-              (service_test_interface))
+    MC_OBJECT(service_test_object, "ServiceObject", "/org/openubmc/test_service_object", (service_test_interface))
 
     void init(std::string_view path, std::string_view name)
     {
@@ -53,10 +52,8 @@ using mc::test::engine_tests::service_test_object;
 
 class ResolverGuard {
 public:
-    ResolverGuard()
-        : m_previous(::mc::engine::engine::get_path_resolver())
-    {
-    }
+    ResolverGuard() : m_previous(::mc::engine::engine::get_path_resolver())
+    {}
 
     ~ResolverGuard()
     {
@@ -77,8 +74,7 @@ TEST(ServiceUtilsTest, ResolveObjectPathWithFallback)
     child->set_parent(parent);
     child->set_owner(parent.get());
 
-    std::string resolved =
-        ::mc::engine::service::resolve_object_path(" child/path ", *child);
+    std::string resolved = ::mc::engine::service::resolve_object_path(" child/path ", *child);
     EXPECT_EQ(resolved, "/org/openubmc/parent/child/path");
 
     resolved = ::mc::engine::service::resolve_object_path("/absolute/path", *child);

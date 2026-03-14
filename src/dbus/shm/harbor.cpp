@@ -68,14 +68,11 @@ shm::object_tree* create_shm_tree(std::string_view harbor_name, std::string_view
     });
 }
 
-message_queue::message_queue(shm::message_queue_t& msg_queue)
-    : m_msg_queue(msg_queue)
-{
-}
+message_queue::message_queue(shm::message_queue_t& msg_queue) : m_msg_queue(msg_queue)
+{}
 
 message_queue::~message_queue()
-{
-}
+{}
 
 static bool is_dbus_message(const std::string_view& data)
 {
@@ -86,8 +83,7 @@ static bool is_dbus_message(const std::string_view& data)
     return head == DBUS_LITTLE_ENDIAN || head == DBUS_BIG_ENDIAN;
 }
 
-void message_queue::dispatch(int timeout_ms, int max_read_count,
-                             std::function<void(message_data&)> handler)
+void message_queue::dispatch(int timeout_ms, int max_read_count, std::function<void(message_data&)> handler)
 {
     if (!m_mutex.try_lock_for(std::chrono::milliseconds(100))) {
         return;
@@ -123,10 +119,8 @@ void message_queue::dispatch(int timeout_ms, int max_read_count,
     }
 }
 
-harbor::harbor()
-    : m_is_running(false), m_mq(nullptr)
-{
-}
+harbor::harbor() : m_is_running(false), m_mq(nullptr)
+{}
 
 harbor::~harbor()
 {
@@ -334,8 +328,7 @@ void harbor::process_message(message_data& msg_data)
     if (msg_data.size < 0) {
         process_dbus_message(reinterpret_cast<DBusMessage*>(msg_data.ptr));
     } else {
-        auto unpacked =
-            serialize::unpack(std::string_view(static_cast<char*>(msg_data.ptr), msg_data.size));
+        auto unpacked = serialize::unpack(std::string_view(static_cast<char*>(msg_data.ptr), msg_data.size));
         free(msg_data.ptr);
         process_local_message(unpacked);
     }
@@ -384,7 +377,8 @@ void harbor::process_local_message(const variants& unpacked)
     std::string type_str    = is_reply ? "reply" : "request";
     dlog("${type} shm message transfer time: ${duration} ms, sender: ${sender}, destination: ${destination}, path: "
          "${path}, interface: ${interface}, method: ${member}",
-         ("type", type_str)("duration", duration_ms)("sender", msg->sender())("destination", msg->destination())("path", msg->path())("interface", msg->interface())("member", msg->member()));
+         ("type", type_str)("duration", duration_ms)("sender", msg->sender())("destination", msg->destination())(
+             "path", msg->path())("interface", msg->interface())("member", msg->member()));
 #endif
     if (!is_reply) {
         boost::asio::post(mc::get_work_context(), [this, msg = std::move(msg)]() mutable {
@@ -500,8 +494,7 @@ std::string harbor::get_unique_name(std::string_view service_name)
     return it->second;
 }
 
-bool harbor::send_shm_msg(std::string_view source_name, uint32_t serial,
-                          mc::dbus::shm_msg_promise promise)
+bool harbor::send_shm_msg(std::string_view source_name, uint32_t serial, mc::dbus::shm_msg_promise promise)
 {
     if (!mc::dbus::is_unique_name(source_name)) {
         source_name = get_unique_name(source_name);
@@ -509,8 +502,7 @@ bool harbor::send_shm_msg(std::string_view source_name, uint32_t serial,
     return m_shm_pending_msgs.send(source_name, serial, std::move(promise));
 }
 
-bool harbor::reply_shm_msg(std::string_view destination_name, uint32_t serial,
-                           mc::dbus::local_msg& msg)
+bool harbor::reply_shm_msg(std::string_view destination_name, uint32_t serial, mc::dbus::local_msg& msg)
 {
     if (!mc::dbus::is_unique_name(destination_name)) {
         destination_name = get_unique_name(destination_name);

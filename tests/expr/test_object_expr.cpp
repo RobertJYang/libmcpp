@@ -75,10 +75,8 @@ class TestObject : public mc::engine::object<TestObject> {
 public:
     MC_OBJECT(TestObject, "TestObject", "/org/test/TestObject", (TestInterface1)(TestInterface2))
 
-    TestObject(mc::engine::core_object* parent = nullptr)
-        : mc::engine::object<TestObject>(parent)
-    {
-    }
+    TestObject(mc::engine::core_object* parent = nullptr) : mc::engine::object<TestObject>(parent)
+    {}
 
     TestInterface1 m_iface1;
     TestInterface2 m_iface2;
@@ -88,13 +86,10 @@ public:
 
 // 反射声明
 MC_REFLECT(test_object_expr::TestInterface1,
-           ((m_value, "value"))((add, "Add"))((subtract, "Subtract"))((value_changed,
-                                                                       "value_changed")))
-MC_REFLECT(test_object_expr::TestInterface2,
-           ((m_value, "value"))((set_value, "SetValue"))((get_value, "GetValue"))(
-               (is_empty, "IsEmpty"))((value_changed, "value_changed")))
-MC_REFLECT(test_object_expr::TestObject,
-           ((m_iface1, "iface1"))((m_iface2, "iface2")))
+           ((m_value, "value"))((add, "Add"))((subtract, "Subtract"))((value_changed, "value_changed")))
+MC_REFLECT(test_object_expr::TestInterface2, ((m_value, "value"))((set_value, "SetValue"))((get_value, "GetValue"))(
+                                                 (is_empty, "IsEmpty"))((value_changed, "value_changed")))
+MC_REFLECT(test_object_expr::TestObject, ((m_iface1, "iface1"))((m_iface2, "iface2")))
 
 using namespace test_object_expr;
 
@@ -120,8 +115,7 @@ protected:
             last_new_value = new_val;
         });
 
-        string_conn = obj->m_iface2.value_changed.connect(
-            [this](std::string_view old_val, std::string_view new_val) {
+        string_conn = obj->m_iface2.value_changed.connect([this](std::string_view old_val, std::string_view new_val) {
             string_change_count++;
             last_old_string = old_val;
             last_new_string = new_val;
@@ -259,12 +253,10 @@ TEST_F(object_expr_test, test_error_handling)
     EXPECT_THROW(expr_engine.evaluate("iface1.non_existent", *obj_ctx), mc::invalid_arg_exception);
 
     // 调用不存在的方法
-    EXPECT_THROW(expr_engine.evaluate("iface1.NonExistentMethod()", *obj_ctx),
-                 mc::invalid_arg_exception);
+    EXPECT_THROW(expr_engine.evaluate("iface1.NonExistentMethod()", *obj_ctx), mc::invalid_arg_exception);
 
     // 参数错误
-    EXPECT_THROW(expr_engine.evaluate("iface1.Add('not a number')", *obj_ctx),
-                 mc::invalid_arg_exception);
+    EXPECT_THROW(expr_engine.evaluate("iface1.Add('not a number')", *obj_ctx), mc::invalid_arg_exception);
 
     // 实参个数比形参个数多，允许
     EXPECT_NO_THROW(expr_engine.evaluate("iface1.Add(1, 2)", *obj_ctx));

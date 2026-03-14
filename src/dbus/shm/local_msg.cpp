@@ -31,8 +31,7 @@ static constexpr size_t REPLY_SERIAL_INDEX = 11;
 static constexpr size_t TIMESTAMP_INDEX    = 12;
 
 template <typename T>
-static T get_variants_item(const variants& v, size_t index, type_id expected_type,
-                           const T& default_value)
+static T get_variants_item(const variants& v, size_t index, type_id expected_type, const T& default_value)
 {
     if (v.size() <= index) {
         return default_value;
@@ -63,25 +62,22 @@ static size_t get_signature_item_count(std::string_view signature)
     return count;
 }
 
-local_msg::local_msg(std::string_view service_name, std::string_view path,
-                     std::string_view interface, std::string_view member)
+local_msg::local_msg(std::string_view service_name, std::string_view path, std::string_view interface,
+                     std::string_view member)
     : m_local_call(false), m_type(DBUS_MESSAGE_TYPE_METHOD_CALL), m_serial(0), m_reply_serial(0),
-      m_service_name(service_name), m_path(path), m_interface(interface), m_member(member),
-      m_error_name("NA")
-{
-}
+      m_service_name(service_name), m_path(path), m_interface(interface), m_member(member), m_error_name("NA")
+{}
 
 local_msg::local_msg(const variants& v)
 {
-    m_type = get_uint32_item(v, TYPE_INDEX, DBUS_MESSAGE_TYPE_METHOD_CALL);
-    m_service_name =
-        get_variants_item<std::string>(v, SERVICE_NAME_INDEX, type_id::string_type, "");
-    m_path        = get_variants_item<std::string>(v, PATH_INDEX, type_id::string_type, "");
-    m_interface   = get_variants_item<std::string>(v, INTERFACE_INDEX, type_id::string_type, "");
-    m_member      = get_variants_item<std::string>(v, MEMBER_INDEX, type_id::string_type, "");
-    m_error_name  = get_variants_item<std::string>(v, ERROR_NAME_INDEX, type_id::string_type, "");
-    m_signature   = get_variants_item<std::string>(v, SIGNATURE_INDEX, type_id::string_type, "");
-    auto raw_args = get_variants_item<variants>(v, ARGS_INDEX, type_id::array_type, variants());
+    m_type         = get_uint32_item(v, TYPE_INDEX, DBUS_MESSAGE_TYPE_METHOD_CALL);
+    m_service_name = get_variants_item<std::string>(v, SERVICE_NAME_INDEX, type_id::string_type, "");
+    m_path         = get_variants_item<std::string>(v, PATH_INDEX, type_id::string_type, "");
+    m_interface    = get_variants_item<std::string>(v, INTERFACE_INDEX, type_id::string_type, "");
+    m_member       = get_variants_item<std::string>(v, MEMBER_INDEX, type_id::string_type, "");
+    m_error_name   = get_variants_item<std::string>(v, ERROR_NAME_INDEX, type_id::string_type, "");
+    m_signature    = get_variants_item<std::string>(v, SIGNATURE_INDEX, type_id::string_type, "");
+    auto raw_args  = get_variants_item<variants>(v, ARGS_INDEX, type_id::array_type, variants());
     if (m_signature.empty()) {
         m_args = raw_args;
     } else {
@@ -170,8 +166,7 @@ static auto parse_variant_basic(const variant& v)
     if constexpr (std::is_arithmetic_v<T>) {
         return v.as<T>();
     } else if constexpr (std::is_same_v<T, std::string_view> || std::is_same_v<T, std::string> ||
-                         std::is_same_v<T, mc::dbus::path> ||
-                         std::is_same_v<T, mc::dbus::signature>) {
+                         std::is_same_v<T, mc::dbus::path> || std::is_same_v<T, mc::dbus::signature>) {
         if (v.is_string()) {
             return v.get_string();
         } else {
@@ -234,8 +229,7 @@ variants local_msg::parse_variant_elements(signature_iterator it, const variants
     variants output;
     for (const auto& item : v) {
         signature_iterator item_it(it.current_type());
-        MC_ASSERT(!item_it.at_end() && !it.at_end(),
-                  "invalid number of elements ${size} for signature: ${signature}",
+        MC_ASSERT(!item_it.at_end() && !it.at_end(), "invalid number of elements ${size} for signature: ${signature}",
                   ("size", v.size())("signature", it.str()));
         output.push_back(parse_variant(item_it, item, depth + 1));
         it.next();
@@ -281,8 +275,7 @@ variant local_msg::parse_variant(signature_iterator it, const variant& v, size_t
             return parse_variant(sig, v, depth + 1);
         }
         default:
-            MC_THROW(mc::invalid_arg_exception, "unknown type: ${type}",
-                    ("type", it.current_type_char()));
+            MC_THROW(mc::invalid_arg_exception, "unknown type: ${type}", ("type", it.current_type_char()));
     }
 }
 
@@ -295,8 +288,7 @@ void local_msg::append_return_args(std::string_view signature, const variant& ar
         if (!top_it.at_end() && top_it.current_type_code() == type_code::struct_start) {
             std::string_view inner = signature.substr(1, signature.size() - 2);
             m_signature            = inner;
-            MC_ASSERT(arg.is_array(),
-                      "struct return type requires array variant, signature: ${signature}",
+            MC_ASSERT(arg.is_array(), "struct return type requires array variant, signature: ${signature}",
                       ("signature", signature));
             m_args = parse_variant_elements(signature_iterator(inner), arg.as_array(), 0);
             return;
@@ -312,10 +304,8 @@ void local_msg::append_return_args(std::string_view signature, const variant& ar
         }
         return;
     }
-    MC_ASSERT(
-        arg.is_array(),
-        "invalid number of return args, signature: ${signature}, expected: ${arg_cnt}, actual: 1",
-        ("signature", signature)("arg_cnt", arg_cnt));
+    MC_ASSERT(arg.is_array(), "invalid number of return args, signature: ${signature}, expected: ${arg_cnt}, actual: 1",
+              ("signature", signature)("arg_cnt", arg_cnt));
     m_args = parse_variant_elements(signature_iterator(signature), arg.as_array(), 0);
 }
 
@@ -427,7 +417,8 @@ void local_msg::set_timestamp()
 
 int64_t local_msg::duration_ms_from_timestamp() const
 {
-    if (m_timestamp.empty() || m_timestamp.size() != sizeof(int64_t) + 2 || m_timestamp[0] != '#' || m_timestamp[sizeof(int64_t) + 1] != '#') {
+    if (m_timestamp.empty() || m_timestamp.size() != sizeof(int64_t) + 2 || m_timestamp[0] != '#' ||
+        m_timestamp[sizeof(int64_t) + 1] != '#') {
         return -1;
     }
     int64_t time_ms = 0;
@@ -445,8 +436,7 @@ std::string local_msg::get_error_message() const
     return m_args[0].as<std::string>("");
 }
 
-bool shm_pending_msgs::send(std::string_view source_unique_name, uint32_t serial,
-                            shm_msg_promise promise)
+bool shm_pending_msgs::send(std::string_view source_unique_name, uint32_t serial, shm_msg_promise promise)
 {
     std::lock_guard lock(m_mutex);
     auto&           serial_map = m_pending_msgs[std::string(source_unique_name)];
@@ -458,8 +448,7 @@ bool shm_pending_msgs::send(std::string_view source_unique_name, uint32_t serial
     return result.second;
 }
 
-bool shm_pending_msgs::reply(std::string_view destination_unique_name, uint32_t serial,
-                             local_msg& msg)
+bool shm_pending_msgs::reply(std::string_view destination_unique_name, uint32_t serial, local_msg& msg)
 {
     std::lock_guard lock(m_mutex);
     auto&           serial_map = m_pending_msgs[std::string(destination_unique_name)];

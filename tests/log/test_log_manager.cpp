@@ -86,8 +86,7 @@ std::string make_unique_name(const std::string& prefix)
 class memory_appender : public mc::log::appender {
 public:
     memory_appender()
-    {
-    }
+    {}
 
     bool init(const mc::variant& args) override
     {
@@ -121,8 +120,7 @@ public:
     }
 
     void append(const mc::log::message&) override
-    {
-    }
+    {}
 };
 
 class log_manager_test : public mc::test::TestBase {
@@ -305,7 +303,8 @@ TEST_F(log_manager_test, LoadAppenderLibrary)
 TEST_F(log_manager_test, FactoryCreateAppender)
 {
     // 使用唯一的名称避免冲突
-    std::string unique_prefix = "factory_test_" + std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
+    std::string unique_prefix =
+        "factory_test_" + std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
 
     // 使用 appender_factory 创建 console appender
     mc::dict config;
@@ -418,8 +417,7 @@ TEST_F(log_manager_test, AppenderFactoryReinitializeExisting)
 {
     auto type_name = make_unique_name("tracking_type");
     auto app_name  = make_unique_name("tracking_app");
-    appender_factory::instance().register_creator(
-        type_name, []() {
+    appender_factory::instance().register_creator(type_name, []() {
         return std::make_shared<tracking_appender>();
     });
 
@@ -442,8 +440,7 @@ TEST_F(log_manager_test, AppenderFactoryRejectsDuplicateName)
 {
     auto type_name = make_unique_name("dup_type");
     auto app_name  = make_unique_name("dup_app");
-    appender_factory::instance().register_creator(
-        type_name, []() {
+    appender_factory::instance().register_creator(type_name, []() {
         return std::make_shared<tracking_appender>();
     });
 
@@ -475,8 +472,7 @@ TEST_F(log_manager_test, ApplyConfigHandlesPartialAppenderFailures)
     auto invalid_app = make_unique_name("invalid_app");
     auto logger_name = make_unique_name("config_logger");
 
-    appender_factory::instance().register_creator(
-        valid_type, []() {
+    appender_factory::instance().register_creator(valid_type, []() {
         return std::make_shared<tracking_appender>();
     });
 
@@ -502,8 +498,7 @@ TEST_F(log_manager_test, ApplyConfigHandlesPartialAppenderFailures)
 
     auto logger_instance = log_manager::instance().get_logger(logger_name.c_str());
     ASSERT_EQ(logger_instance.get_appenders().size(), 1);
-    auto tracking = std::dynamic_pointer_cast<tracking_appender>(
-        appender_factory::instance().get_appender(valid_app));
+    auto tracking = std::dynamic_pointer_cast<tracking_appender>(appender_factory::instance().get_appender(valid_app));
     ASSERT_NE(tracking, nullptr);
     EXPECT_EQ(tracking->init_count(), 1);
 
@@ -516,8 +511,7 @@ TEST_F(log_manager_test, ApplyConfigUpdatesAndRemovesAppenders)
     auto app_one     = make_unique_name("app_one");
     auto logger_name = make_unique_name("update_logger");
 
-    appender_factory::instance().register_creator(
-        type_name, []() {
+    appender_factory::instance().register_creator(type_name, []() {
         return std::make_shared<tracking_appender>();
     });
 
@@ -624,8 +618,7 @@ TEST_F(log_manager_test, AppenderFactoryInitFailureReturnsNullptr)
 {
     auto type_name = make_unique_name("failing_type");
     auto app_name  = make_unique_name("failing_app");
-    appender_factory::instance().register_creator(
-        type_name, []() {
+    appender_factory::instance().register_creator(type_name, []() {
         return std::make_shared<failing_init_appender>();
     });
 
@@ -677,8 +670,7 @@ TEST_F(log_manager_test, AppenderFactoryDuplicateName)
     auto type_name = make_unique_name("dup_type");
     auto app_name  = make_unique_name("dup_app");
 
-    appender_factory::instance().register_creator(
-        type_name, []() {
+    appender_factory::instance().register_creator(type_name, []() {
         return std::make_shared<tracking_appender>();
     });
 
@@ -775,8 +767,7 @@ TEST_F(log_manager_test, UpdateExistingLoggerAddAppender)
     // 创建一个 appender
     auto type_name = make_unique_name("update_type");
     auto app_name  = make_unique_name("update_app");
-    appender_factory::instance().register_creator(
-        type_name, []() {
+    appender_factory::instance().register_creator(type_name, []() {
         return std::make_shared<tracking_appender>();
     });
 
@@ -812,8 +803,7 @@ TEST_F(log_manager_test, UpdateExistingLoggerRemoveAppender)
     // 创建一个 appender 并添加到 logger
     auto type_name = make_unique_name("remove_type");
     auto app_name  = make_unique_name("remove_app");
-    appender_factory::instance().register_creator(
-        type_name, []() {
+    appender_factory::instance().register_creator(type_name, []() {
         return std::make_shared<tracking_appender>();
     });
 

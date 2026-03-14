@@ -23,10 +23,8 @@ namespace mc::test::runtime {
 
 class future_flag {
 public:
-    future_flag()
-        : m_state(std::make_shared<state>())
-    {
-    }
+    future_flag() : m_state(std::make_shared<state>())
+    {}
 
     void set() const
     {
@@ -43,10 +41,8 @@ public:
 
 private:
     struct state {
-        state()
-            : future(promise.get_future().share())
-        {
-        }
+        state() : future(promise.get_future().share())
+        {}
 
         std::promise<void>       promise;
         std::shared_future<void> future;
@@ -58,10 +54,8 @@ private:
 
 class countdown_future {
 public:
-    explicit countdown_future(int target)
-        : m_state(std::make_shared<state>(target))
-    {
-    }
+    explicit countdown_future(int target) : m_state(std::make_shared<state>(target))
+    {}
 
     void arrive() const
     {
@@ -86,10 +80,8 @@ public:
 
 private:
     struct state {
-        explicit state(int target)
-            : remaining(target)
-        {
-        }
+        explicit state(int target) : remaining(target)
+        {}
 
         std::atomic<int> remaining;
         future_flag      flag;

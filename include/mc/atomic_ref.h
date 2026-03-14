@@ -31,8 +31,7 @@ public:
     using value_type = T;
 
     // 构造函数
-    explicit atomic_ref(T& obj) noexcept
-        : m_ptr(&obj)
+    explicit atomic_ref(T& obj) noexcept : m_ptr(&obj)
     {
         static_assert(alignof(T) >= alignof(std::atomic<T>), "Alignment requirement not met");
     }
@@ -56,21 +55,19 @@ public:
     }
 
     // 比较并交换（弱版本）
-    bool compare_exchange_weak(T& expected, T desired,
-                               std::memory_order success = std::memory_order_seq_cst,
+    bool compare_exchange_weak(T& expected, T desired, std::memory_order success = std::memory_order_seq_cst,
                                std::memory_order failure = std::memory_order_seq_cst) noexcept
     {
-        return reinterpret_cast<volatile std::atomic<T>*>(m_ptr)->compare_exchange_weak(
-            expected, desired, success, failure);
+        return reinterpret_cast<volatile std::atomic<T>*>(m_ptr)->compare_exchange_weak(expected, desired, success,
+                                                                                        failure);
     }
 
     // 比较并交换（强版本）
-    bool compare_exchange_strong(T& expected, T desired,
-                                 std::memory_order success = std::memory_order_seq_cst,
+    bool compare_exchange_strong(T& expected, T desired, std::memory_order success = std::memory_order_seq_cst,
                                  std::memory_order failure = std::memory_order_seq_cst) noexcept
     {
-        return reinterpret_cast<volatile std::atomic<T>*>(m_ptr)->compare_exchange_strong(
-            expected, desired, success, failure);
+        return reinterpret_cast<volatile std::atomic<T>*>(m_ptr)->compare_exchange_strong(expected, desired, success,
+                                                                                          failure);
     }
 
     // 原子加法（仅限整数类型）

@@ -30,10 +30,10 @@ namespace mc {
  * 对应 JSON 文件中的单个 Message 定义
  */
 struct error_message_definition {
-    error_message_definition()                                         = default;
-    error_message_definition(const error_message_definition&)          = default;
-    error_message_definition(error_message_definition&&) noexcept      = default;
-    error_message_definition& operator=(const error_message_definition&) = default;
+    error_message_definition()                                               = default;
+    error_message_definition(const error_message_definition&)                = default;
+    error_message_definition(error_message_definition&&) noexcept            = default;
+    error_message_definition& operator=(const error_message_definition&)     = default;
     error_message_definition& operator=(error_message_definition&&) noexcept = default;
 
     /**
@@ -93,10 +93,10 @@ struct error_message_definition {
  * 对应整个 JSON 文件
  */
 struct error_message_registry {
-    error_message_registry()                                           = default;
-    error_message_registry(const error_message_registry&)            = default;
-    error_message_registry(error_message_registry&&) noexcept        = default;
-    error_message_registry& operator=(const error_message_registry&) = default;
+    error_message_registry()                                             = default;
+    error_message_registry(const error_message_registry&)                = default;
+    error_message_registry(error_message_registry&&) noexcept            = default;
+    error_message_registry& operator=(const error_message_registry&)     = default;
     error_message_registry& operator=(error_message_registry&&) noexcept = default;
 
     /**
@@ -127,11 +127,11 @@ struct error_message_registry {
  */
 class error_message_parser {
 public:
-    error_message_parser()                                     = default;
-    ~error_message_parser()                                    = default;
-    error_message_parser(const error_message_parser&)          = delete;
-    error_message_parser& operator=(const error_message_parser&) = delete;
-    error_message_parser(error_message_parser&&) noexcept      = default;
+    error_message_parser()                                           = default;
+    ~error_message_parser()                                          = default;
+    error_message_parser(const error_message_parser&)                = delete;
+    error_message_parser& operator=(const error_message_parser&)     = delete;
+    error_message_parser(error_message_parser&&) noexcept            = default;
     error_message_parser& operator=(error_message_parser&&) noexcept = default;
 
     /**
@@ -157,9 +157,8 @@ public:
      * @param message_name 消息名称
      * @return 错误定义，如果未找到返回 std::nullopt
      */
-    static MC_API std::optional<error_message_definition> find_message(
-        const error_message_registry& registry,
-        std::string_view              message_name);
+    static MC_API std::optional<error_message_definition> find_message(const error_message_registry& registry,
+                                                                       std::string_view              message_name);
 
     /**
      * @brief 格式化错误消息
@@ -170,8 +169,7 @@ public:
      * @param args 参数列表
      * @return 格式化后的消息
      */
-    static MC_API std::string format_message(std::string_view template_msg,
-                                             const mc::dict&  args);
+    static MC_API std::string format_message(std::string_view template_msg, const mc::dict& args);
 
     /**
      * @brief 格式化错误消息（使用错误定义）
@@ -180,8 +178,7 @@ public:
      * @param args 参数列表
      * @return 格式化后的消息
      */
-    static MC_API std::string format_message(const error_message_definition& def,
-                                             const mc::dict&                  args);
+    static MC_API std::string format_message(const error_message_definition& def, const mc::dict& args);
 };
 
 } // namespace mc

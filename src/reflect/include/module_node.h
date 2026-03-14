@@ -41,8 +41,7 @@ inline type_id_type encode_type_id(factory_id_type factory_id, local_type_id_typ
 
 inline std::pair<factory_id_type, local_type_id_type> decode_type_id(type_id_type id)
 {
-    return {static_cast<factory_id_type>(id >> 32),
-            static_cast<local_type_id_type>(id & 0xFFFFFFFF)};
+    return {static_cast<factory_id_type>(id >> 32), static_cast<local_type_id_type>(id & 0xFFFFFFFF)};
 }
 
 inline std::string make_full_path(std::string_view path, std::string_view name)
@@ -60,8 +59,7 @@ using metadata_creator = std::function<reflection_metadata_ptr()>;
 struct type_info {
     type_info(local_type_id_type id, std::string name, metadata_creator&& creator)
         : type_id(id), type_name(std::move(name)), creator(std::move(creator))
-    {
-    }
+    {}
 
     type_info(const type_info& other)                = delete;
     type_info& operator=(const type_info& other)     = delete;
@@ -77,8 +75,7 @@ struct type_info {
 struct factory_info {
     factory_info(factory_id_type id, std::string name, factory_ptr f)
         : factory_id(id), module_name(std::move(name)), factory(f)
-    {
-    }
+    {}
 
     factory_info(const factory_info& other)                = delete;
     factory_info& operator=(const factory_info& other)     = delete;
@@ -100,10 +97,8 @@ struct module_node {
     using submodules_map = std::unordered_map<std::string_view, std::unique_ptr<module_node>>;
     using types_map      = std::unordered_map<std::string_view, type_info*>;
 
-    module_node(std::string_view name)
-        : name(name)
-    {
-    }
+    module_node(std::string_view name) : name(name)
+    {}
 
     module_node()                              = default;
     module_node(const module_node&)            = delete;

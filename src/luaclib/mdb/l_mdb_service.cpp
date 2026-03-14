@@ -34,8 +34,7 @@ struct sd_bus_wrapper {
 // 辅助函数：从 sd_bus userdata 获取 sd_bus 裸指针
 static mc::dbus::sd_bus* get_sd_bus_from_lua(lua_State* L, int index)
 {
-    auto* wrapper = static_cast<sd_bus_wrapper*>(
-        luaL_checkudata(L, index, mc::dbus::lua::SD_BUS_METATABLE));
+    auto* wrapper = static_cast<sd_bus_wrapper*>(luaL_checkudata(L, index, mc::dbus::lua::SD_BUS_METATABLE));
     if (!wrapper || !wrapper->bus) {
         luaL_error(L, "无效的 sd_bus 对象");
         return nullptr;
@@ -53,7 +52,6 @@ static mc::variants lua_to_interfaces_array(lua_State* L, int index)
 
     // 先转换为 variant
     mc::variant v = mc::lua::lua_to_variant(L, index);
-
     // 如果已经是数组类型，直接返回其内容
     if (v.get_type() == mc::type_id::array_type) {
         return v.get_array();
@@ -176,8 +174,7 @@ static int l_get_path(lua_State* L)
         bool        ignore_case  = lua_toboolean(L, 4);
         bool        enable_cache = lua_toboolean(L, 5);
 
-        auto result =
-            mc::mdb::service::get_path(bus, interface, filter, ignore_case, enable_cache);
+        auto result = mc::mdb::service::get_path(bus, interface, filter, ignore_case, enable_cache);
         mc::lua::variant_to_lua(L, result);
         return 1;
     } catch (const std::exception& e) {
@@ -227,8 +224,7 @@ static int l_get_sub_paths_paging(lua_State* L)
         int32_t     skip       = luaL_checkinteger(L, 5);
         int32_t     top        = luaL_checkinteger(L, 6);
 
-        auto result =
-            mc::mdb::service::get_sub_paths_paging(bus, path, depth, interfaces, skip, top);
+        auto result = mc::mdb::service::get_sub_paths_paging(bus, path, depth, interfaces, skip, top);
         mc::lua::variant_to_lua(L, result);
         return 1;
     } catch (const std::exception& e) {
@@ -289,8 +285,7 @@ static int l_get_matched_objects(lua_State* L)
         const char* object_name       = luaL_checkstring(L, 2);
         const char* interface_pattern = luaL_checkstring(L, 3);
 
-        auto result =
-            mc::mdb::service::get_matched_objects(bus, object_name, interface_pattern);
+        auto result = mc::mdb::service::get_matched_objects(bus, object_name, interface_pattern);
         mc::lua::variant_to_lua(L, result);
         return 1;
     } catch (const std::exception& e) {

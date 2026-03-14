@@ -511,15 +511,11 @@ TEST(array_test, with_string)
 struct custom_type {
     int value;
 
-    custom_type()
-        : value(0)
-    {
-    }
+    custom_type() : value(0)
+    {}
 
-    explicit custom_type(int v)
-        : value(v)
-    {
-    }
+    explicit custom_type(int v) : value(v)
+    {}
 
     bool operator==(const custom_type& other) const
     {
@@ -914,14 +910,10 @@ TEST(array_test, std_stable_sort)
         int value;
         int order;
 
-        item()
-            : value(0), order(0)
-        {
-        }
-        item(int v, int o)
-            : value(v), order(o)
-        {
-        }
+        item() : value(0), order(0)
+        {}
+        item(int v, int o) : value(v), order(o)
+        {}
 
         bool operator<(const item& other) const
         {

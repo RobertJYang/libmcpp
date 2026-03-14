@@ -27,12 +27,10 @@ namespace test {
 class VariantVisitorTest : public mc::test::TestBase {
 protected:
     void SetUp() override
-    {
-    }
+    {}
 
     void TearDown() override
-    {
-    }
+    {}
 
     // 自定义访问者类
     class TestVisitor : public variant::visitor {

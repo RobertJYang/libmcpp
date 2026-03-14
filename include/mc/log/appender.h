@@ -70,15 +70,15 @@ using appender_ptr = std::shared_ptr<appender>;
  *
  * 用于在动态库中注册追加器
  */
-#define MC_REGISTER_APPENDER(appender_class)                  \
-    extern "C" MC_API void* create_appender()                 \
-    {                                                         \
-        return new mc::log::appender_ptr(new appender_class); \
-    }                                                         \
-                                                              \
-    extern "C" MC_API void destroy_appender(void* ptr)        \
-    {                                                         \
-        delete static_cast<mc::log::appender_ptr*>(ptr);      \
+#define MC_REGISTER_APPENDER(appender_class)                                                                           \
+    extern "C" MC_API void* create_appender()                                                                          \
+    {                                                                                                                  \
+        return new mc::log::appender_ptr(new appender_class);                                                          \
+    }                                                                                                                  \
+                                                                                                                       \
+    extern "C" MC_API void destroy_appender(void* ptr)                                                                 \
+    {                                                                                                                  \
+        delete static_cast<mc::log::appender_ptr*>(ptr);                                                               \
     }
 
 } // namespace log

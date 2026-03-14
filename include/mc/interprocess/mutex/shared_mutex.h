@@ -48,8 +48,7 @@ public:
      */
     explicit shared_mutex(ipc_shared_mutex& ipc_rw_mtx)
         : m_ipc_mutex(ipc_rw_mtx), m_reader_count(0), m_writer_thread_id(0)
-    {
-    }
+    {}
 
     ~shared_mutex()
     {
@@ -106,8 +105,7 @@ public:
         // 检查当前线程是否已经持有写锁
         int current_thread = detail::thread_id_to_int(std::this_thread::get_id());
         if (m_writer_thread_id == current_thread) {
-            throw std::system_error(std::make_error_code(std::errc::resource_deadlock_would_occur),
-                                    "尝试递归获取写锁");
+            throw std::system_error(std::make_error_code(std::errc::resource_deadlock_would_occur), "尝试递归获取写锁");
         }
 
         // 获取线程互斥锁
@@ -130,8 +128,7 @@ public:
         // 检查当前线程是否持有写锁
         int current_thread = detail::thread_id_to_int(std::this_thread::get_id());
         if (m_writer_thread_id != current_thread) {
-            throw std::system_error(std::make_error_code(std::errc::operation_not_permitted),
-                                    "当前线程未持有写锁");
+            throw std::system_error(std::make_error_code(std::errc::operation_not_permitted), "当前线程未持有写锁");
         }
 
         // 释放写锁
@@ -194,8 +191,7 @@ public:
 
         // 检查是否有读锁
         if (m_reader_count == 0) {
-            throw std::system_error(std::make_error_code(std::errc::operation_not_permitted),
-                                    "没有持有读锁");
+            throw std::system_error(std::make_error_code(std::errc::operation_not_permitted), "没有持有读锁");
         }
 
         // 减少读者计数

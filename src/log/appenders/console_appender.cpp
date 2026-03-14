@@ -32,8 +32,7 @@
 #include <mutex>
 #include <sstream>
 
-MC_REFLECT_ENUM(mc::log::console_appender::color_type,
-                (console_default)(red)(green)(brown)(blue)(magenta)(cyan)(white))
+MC_REFLECT_ENUM(mc::log::console_appender::color_type, (console_default)(red)(green)(brown)(blue)(magenta)(cyan)(white))
 MC_REFLECT_ENUM(mc::log::console_appender::stream_type, (std_out)(std_error))
 MC_REFLECT(mc::log::console_appender::config, (stream)(use_color)(flush)(level_colors))
 MC_REFLECT(mc::log::console_appender::level_color, (level)(color))
@@ -46,16 +45,14 @@ public:
     config     cfg;
     color_type level_colors[static_cast<int>(level::off) + 1] = {
         color_type::console_default, color_type::console_default, color_type::cyan,
-        color_type::green, color_type::brown, color_type::red,
-        color_type::magenta, color_type::console_default};
+        color_type::green,           color_type::brown,           color_type::red,
+        color_type::magenta,         color_type::console_default};
 
     std::mutex mutex;
 };
 
-console_appender::console_appender()
-    : m_impl(new impl())
-{
-}
+console_appender::console_appender() : m_impl(new impl())
+{}
 
 console_appender::~console_appender() = default;
 

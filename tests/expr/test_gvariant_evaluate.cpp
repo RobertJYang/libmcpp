@@ -18,16 +18,13 @@ namespace {
 class gvariant_evaluate_test : public ::testing::Test {
 protected:
     gvariant_evaluate_test()
-    {
-    }
+    {}
 
     void SetUp() override
-    {
-    }
+    {}
 
     void TearDown() override
-    {
-    }
+    {}
 
     mc::expr::engine engine;
 };

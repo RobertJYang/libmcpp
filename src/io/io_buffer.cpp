@@ -21,15 +21,12 @@
 namespace mc {
 namespace io {
 
-io_buffer::io_buffer() noexcept
-    : m_data(nullptr), m_length(0), m_capacity(0), m_next(this), m_prev(this)
-{
-}
+io_buffer::io_buffer() noexcept : m_data(nullptr), m_length(0), m_capacity(0), m_next(this), m_prev(this)
+{}
 
 io_buffer::io_buffer(io_buffer&& other) noexcept
-    : m_buffer(std::move(other.m_buffer)), m_data(other.m_data), m_length(other.m_length),
-      m_capacity(other.m_capacity), m_next(other.m_next == &other ? this : other.m_next),
-      m_prev(other.m_prev == &other ? this : other.m_prev)
+    : m_buffer(std::move(other.m_buffer)), m_data(other.m_data), m_length(other.m_length), m_capacity(other.m_capacity),
+      m_next(other.m_next == &other ? this : other.m_next), m_prev(other.m_prev == &other ? this : other.m_prev)
 {
     if (m_next != this) {
         m_next->m_prev = this;
@@ -72,14 +69,12 @@ io_buffer& io_buffer::operator=(io_buffer&& other) noexcept
     return *this;
 }
 
-io_buffer::io_buffer(const io_buffer& other)
-    : io_buffer(other, true)
-{
-}
+io_buffer::io_buffer(const io_buffer& other) : io_buffer(other, true)
+{}
 
 io_buffer::io_buffer(const io_buffer& other, bool copy_chain)
-    : m_buffer(other.m_buffer), m_data(other.m_data), m_length(other.m_length),
-      m_capacity(other.m_capacity), m_next(this), m_prev(this)
+    : m_buffer(other.m_buffer), m_data(other.m_data), m_length(other.m_length), m_capacity(other.m_capacity),
+      m_next(this), m_prev(this)
 {
     if (!copy_chain || other.m_next == &other) {
         return;
@@ -94,8 +89,8 @@ io_buffer::io_buffer(const io_buffer& other, bool copy_chain)
             break;
         }
 
-        auto* new_node = new io_buffer(*current, false);
-        tail->m_next   = new_node;
+        auto* new_node   = new io_buffer(*current, false);
+        tail->m_next     = new_node;
         new_node->m_prev = tail;
         tail             = new_node;
     }
@@ -139,27 +134,23 @@ void io_buffer::free_chain()
     }
 }
 
-io_buffer::io_buffer(std::size_t capacity)
-    : m_next(this), m_prev(this)
+io_buffer::io_buffer(std::size_t capacity) : m_next(this), m_prev(this)
 {
     allocate(capacity);
 }
 
-io_buffer::io_buffer(void* buf, std::size_t capacity, std::size_t length, free_function fn,
-                     void* user_data)
-    : m_buffer(buf, fn, user_data), m_data(static_cast<uint8_t*>(buf)), m_length(length),
-      m_capacity(capacity), m_next(this), m_prev(this)
-{
-}
+io_buffer::io_buffer(void* buf, std::size_t capacity, std::size_t length, free_function fn, void* user_data)
+    : m_buffer(buf, fn, user_data), m_data(static_cast<uint8_t*>(buf)), m_length(length), m_capacity(capacity),
+      m_next(this), m_prev(this)
+{}
 
 std::unique_ptr<io_buffer> io_buffer::create(std::size_t capacity)
 {
     return std::unique_ptr<io_buffer>(new io_buffer(capacity));
 }
 
-std::unique_ptr<io_buffer> io_buffer::take_ownership(void* buf, std::size_t capacity,
-                                                     std::size_t length, free_function free_fn,
-                                                     void* user_data)
+std::unique_ptr<io_buffer> io_buffer::take_ownership(void* buf, std::size_t capacity, std::size_t length,
+                                                     free_function free_fn, void* user_data)
 {
     if (!buf) {
         MC_THROW(mc::invalid_arg_exception, "缓冲区指针为空");
@@ -178,12 +169,11 @@ std::unique_ptr<io_buffer> io_buffer::wrap(const void* buf, std::size_t length)
         MC_THROW(mc::invalid_arg_exception, "缓冲区指针为空但长度大于0");
     }
 
-    return std::unique_ptr<io_buffer>(
-        new io_buffer(const_cast<void*>(buf), length, length, nullptr, nullptr));
+    return std::unique_ptr<io_buffer>(new io_buffer(const_cast<void*>(buf), length, length, nullptr, nullptr));
 }
 
-std::unique_ptr<io_buffer> io_buffer::copy_buffer(const void* data, std::size_t length,
-                                                  std::size_t headroom, std::size_t tailroom)
+std::unique_ptr<io_buffer> io_buffer::copy_buffer(const void* data, std::size_t length, std::size_t headroom,
+                                                  std::size_t tailroom)
 {
     if (!data && length > 0) {
         MC_THROW(mc::invalid_arg_exception, "数据指针为空但长度大于0");
@@ -490,7 +480,6 @@ std::unique_ptr<io_buffer> io_buffer::clone() const
         tail->m_next     = new_node.get();
         new_node->m_prev = tail;
         tail             = new_node.release();
-
     } while (true);
 
     tail->m_next = head.get();
@@ -600,8 +589,7 @@ std::string_view io_buffer::normalize()
 
 detail::shard_buffer::shard_buffer()
     : m_shared_info(nullptr), m_buffer(nullptr), m_free_fn(nullptr), m_user_data(nullptr)
-{
-}
+{}
 
 detail::shard_buffer::shard_buffer(const detail::shard_buffer& other)
     : m_shared_info(other.m_shared_info), m_buffer(other.m_buffer), m_free_fn(other.m_free_fn),
@@ -657,8 +645,7 @@ detail::shard_buffer::~shard_buffer()
 
 detail::shard_buffer::shard_buffer(void* buf, free_function fn, void* user_data)
     : m_buffer(static_cast<uint8_t*>(buf)), m_free_fn(fn), m_user_data(user_data)
-{
-}
+{}
 
 void detail::shard_buffer::ensure_shared_info()
 {

@@ -18,14 +18,14 @@ namespace mc::engine {
 
 ref_object::ref_object(const std::string& object_name, object_finder_type finder)
     : m_object_name(object_name), m_object_finder(finder)
-{
-}
+{}
 
 mc::variant ref_object::get_property(const std::string_view property_name) const
 {
     auto* target_object = find_related_object();
     if (target_object == nullptr) {
-        MC_THROW(mc::invalid_op_exception, "get_property failed, reference object not found: ${object_name}", ("object_name", m_object_name));
+        MC_THROW(mc::invalid_op_exception, "get_property failed, reference object not found: ${object_name}",
+                 ("object_name", m_object_name));
     }
     return target_object->get_property(property_name);
 }
@@ -34,7 +34,8 @@ mc::variant ref_object::get_property(const std::string_view interface_name, cons
 {
     auto* target_object = find_related_object();
     if (target_object == nullptr) {
-        MC_THROW(mc::invalid_op_exception, "get_property failed, reference object not found: ${object_name}", ("object_name", m_object_name));
+        MC_THROW(mc::invalid_op_exception, "get_property failed, reference object not found: ${object_name}",
+                 ("object_name", m_object_name));
     }
 
     if (!interface_name.empty()) {
@@ -53,16 +54,19 @@ void ref_object::set_property(const std::string_view property_name, const mc::va
 {
     auto* target_object = find_related_object();
     if (target_object == nullptr) {
-        MC_THROW(mc::invalid_op_exception, "set_property failed, reference object not found: ${object_name}", ("object_name", m_object_name));
+        MC_THROW(mc::invalid_op_exception, "set_property failed, reference object not found: ${object_name}",
+                 ("object_name", m_object_name));
     }
     target_object->set_property(property_name, value);
 }
 
-void ref_object::set_property(const std::string_view interface_name, const std::string_view property_name, const mc::variant& value) const
+void ref_object::set_property(const std::string_view interface_name, const std::string_view property_name,
+                              const mc::variant& value) const
 {
     auto* target_object = find_related_object();
     if (target_object == nullptr) {
-        MC_THROW(mc::invalid_op_exception, "set_property failed, reference object not found: ${object_name}", ("object_name", m_object_name));
+        MC_THROW(mc::invalid_op_exception, "set_property failed, reference object not found: ${object_name}",
+                 ("object_name", m_object_name));
     }
 
     if (!interface_name.empty()) {
@@ -81,17 +85,20 @@ invoke_result ref_object::invoke(std::string_view method_name, const mc::variant
 {
     auto* target_object = find_related_object();
     if (target_object == nullptr) {
-        MC_THROW(mc::invalid_op_exception, "reference object not found: ${object_name}", ("object_name", m_object_name));
+        MC_THROW(mc::invalid_op_exception, "reference object not found: ${object_name}",
+                 ("object_name", m_object_name));
     }
 
     return target_object->invoke(method_name, args);
 }
 
-invoke_result ref_object::invoke(const std::string& interface_name, std::string_view method_name, const mc::variants& args)
+invoke_result ref_object::invoke(const std::string& interface_name, std::string_view method_name,
+                                 const mc::variants& args)
 {
     auto* target_object = find_related_object();
     if (target_object == nullptr) {
-        MC_THROW(mc::invalid_op_exception, "reference object not found: ${object_name}", ("object_name", m_object_name));
+        MC_THROW(mc::invalid_op_exception, "reference object not found: ${object_name}",
+                 ("object_name", m_object_name));
     }
 
     if (!interface_name.empty()) {
@@ -110,17 +117,20 @@ async_result ref_object::async_invoke(std::string_view method_name, const mc::va
 {
     auto* target_object = find_related_object();
     if (target_object == nullptr) {
-        MC_THROW(mc::invalid_op_exception, "reference object not found: ${object_name}", ("object_name", m_object_name));
+        MC_THROW(mc::invalid_op_exception, "reference object not found: ${object_name}",
+                 ("object_name", m_object_name));
     }
 
     return target_object->async_invoke(method_name, args);
 }
 
-async_result ref_object::async_invoke(const std::string& interface_name, std::string_view method_name, const mc::variants& args)
+async_result ref_object::async_invoke(const std::string& interface_name, std::string_view method_name,
+                                      const mc::variants& args)
 {
     auto* target_object = find_related_object();
     if (target_object == nullptr) {
-        MC_THROW(mc::invalid_op_exception, "reference object not found: ${object_name}", ("object_name", m_object_name));
+        MC_THROW(mc::invalid_op_exception, "reference object not found: ${object_name}",
+                 ("object_name", m_object_name));
     }
 
     if (!interface_name.empty()) {

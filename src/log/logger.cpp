@@ -58,27 +58,19 @@ public:
 
     impl(const std::string& name = MC_LOG_DEFAULT_LOGGER)
         : m_config(name), system_id(-1), period_s(0), m_throttle_state(std::make_shared<throttle_state>())
-    {
-    }
+    {}
 
     impl(const impl& other)
-        : m_config(other.m_config),
-          m_appenders(other.m_appenders),
-          system_id(other.system_id),
-          period_s(other.period_s),
-          m_throttle_state(other.m_throttle_state)
+        : m_config(other.m_config), m_appenders(other.m_appenders), system_id(other.system_id),
+          period_s(other.period_s), m_throttle_state(other.m_throttle_state)
     {
         // 说明：节流状态与 logger 配置分离，clone 需要共享节流信息才能支持链式临时 logger 的周期限制
     }
 
     impl(impl&& other) noexcept
-        : m_config(std::move(other.m_config)),
-          m_appenders(std::move(other.m_appenders)),
-          system_id(other.system_id),
-          period_s(other.period_s),
-          m_throttle_state(std::move(other.m_throttle_state))
-    {
-    }
+        : m_config(std::move(other.m_config)), m_appenders(std::move(other.m_appenders)), system_id(other.system_id),
+          period_s(other.period_s), m_throttle_state(std::move(other.m_throttle_state))
+    {}
 };
 
 // 静态方法实现
@@ -87,26 +79,18 @@ logger logger::get(const char* name)
     return log_manager::instance().get_logger(name);
 }
 
-logger::logger()
-    : m_impl(std::make_shared<impl>())
-{
-}
+logger::logger() : m_impl(std::make_shared<impl>())
+{}
 
 // 构造函数实现
-logger::logger(const std::string& name)
-    : m_impl(std::make_shared<impl>(name))
-{
-}
+logger::logger(const std::string& name) : m_impl(std::make_shared<impl>(name))
+{}
 
-logger::logger(const logger& other)
-    : m_impl(other.m_impl)
-{
-}
+logger::logger(const logger& other) : m_impl(other.m_impl)
+{}
 
-logger::logger(logger&& other) noexcept
-    : m_impl(std::move(other.m_impl))
-{
-}
+logger::logger(logger&& other) noexcept : m_impl(std::move(other.m_impl))
+{}
 
 // 赋值运算符实现
 logger& logger::operator=(const logger& other)
@@ -401,8 +385,10 @@ void logger::log_serial_printf(level lvl, const message& msg)
     if (get_log_time_str_ptr) {
         const char* time_str = get_log_time_str_ptr(LOG_US_TIME);
         if (time_str) {
-            std::string       str = mc::format_dict("${time} ${module} ${level}: ${file}(${line}): ${message}",
-                                                    mc::dict()("time", time_str)("module", module_name)("level", mc::log::to_string(msg.get_level()))("file", file_str)("line", std::to_string(ctx.m_line))("message", message_str));
+            std::string str = mc::format_dict(
+                "${time} ${module} ${level}: ${file}(${line}): ${message}",
+                mc::dict()("time", time_str)("module", module_name)("level", mc::log::to_string(msg.get_level()))(
+                    "file", file_str)("line", std::to_string(ctx.m_line))("message", message_str));
             const std::string cmd = "echo \"" + str + "\" > /dev/ttyS0";
             run_shell_cmd(cmd);
         }
@@ -437,7 +423,6 @@ appender_ptr logger::find_appender(const std::string& name) const
     auto        it        = std::find_if(appenders.begin(), appenders.end(), [&name](const appender_ptr& a) {
         return a && a->get_name() == name;
     });
-
     return (it != appenders.end()) ? *it : nullptr;
 }
 

@@ -65,48 +65,48 @@ struct call_stack_impl {
 } // namespace mc::engine::detail
 
 // ======= 调用栈实例化宏 =======
-#define MC_ENGINE_CALL_STACK_IMPL(Key, Value)                                      \
-    template class mc::engine::detail::call_stack<Key, Value>;                     \
-    template <>                                                                    \
-    Value* mc::engine::detail::call_stack<Key, Value>::top_value()                 \
-    {                                                                              \
-        auto* elem = call_stack_impl<Key, Value>::s_top;                           \
-        return elem ? elem->m_value : nullptr;                                     \
-    }                                                                              \
-    template <>                                                                    \
-    Key* mc::engine::detail::call_stack<Key, Value>::top_key()                     \
-    {                                                                              \
-        auto* elem = call_stack_impl<Key, Value>::s_top;                           \
-        return elem ? elem->m_key : nullptr;                                       \
-    }                                                                              \
-    template <>                                                                    \
-    Value* mc::engine::detail::call_stack<Key, Value>::contains(Key* k)            \
-    {                                                                              \
-        auto* elem = call_stack_impl<Key, Value>::s_top;                           \
-        while (elem) {                                                             \
-            if (elem->m_key == k)                                                  \
-                return elem->m_value;                                              \
-            elem = elem->m_next;                                                   \
-        }                                                                          \
-        return nullptr;                                                            \
-    }                                                                              \
-    template <>                                                                    \
-    mc::engine::detail::call_stack<Key, Value>::context::context(Key* k)           \
-        : m_key(k), m_next(call_stack_impl<Key, Value>::s_top)                     \
-    {                                                                              \
-        m_value                            = reinterpret_cast<Value*>(this);       \
-        call_stack_impl<Key, Value>::s_top = this;                                 \
-    }                                                                              \
-    template <>                                                                    \
-    mc::engine::detail::call_stack<Key, Value>::context::context(Key* k, Value& v) \
-        : m_key(k), m_value(&v), m_next(call_stack_impl<Key, Value>::s_top)        \
-    {                                                                              \
-        call_stack_impl<Key, Value>::s_top = this;                                 \
-    }                                                                              \
-    template <>                                                                    \
-    mc::engine::detail::call_stack<Key, Value>::context::~context()                \
-    {                                                                              \
-        call_stack_impl<Key, Value>::s_top = m_next;                               \
+#define MC_ENGINE_CALL_STACK_IMPL(Key, Value)                                                                          \
+    template class mc::engine::detail::call_stack<Key, Value>;                                                         \
+    template <>                                                                                                        \
+    Value* mc::engine::detail::call_stack<Key, Value>::top_value()                                                     \
+    {                                                                                                                  \
+        auto* elem = call_stack_impl<Key, Value>::s_top;                                                               \
+        return elem ? elem->m_value : nullptr;                                                                         \
+    }                                                                                                                  \
+    template <>                                                                                                        \
+    Key* mc::engine::detail::call_stack<Key, Value>::top_key()                                                         \
+    {                                                                                                                  \
+        auto* elem = call_stack_impl<Key, Value>::s_top;                                                               \
+        return elem ? elem->m_key : nullptr;                                                                           \
+    }                                                                                                                  \
+    template <>                                                                                                        \
+    Value* mc::engine::detail::call_stack<Key, Value>::contains(Key* k)                                                \
+    {                                                                                                                  \
+        auto* elem = call_stack_impl<Key, Value>::s_top;                                                               \
+        while (elem) {                                                                                                 \
+            if (elem->m_key == k)                                                                                      \
+                return elem->m_value;                                                                                  \
+            elem = elem->m_next;                                                                                       \
+        }                                                                                                              \
+        return nullptr;                                                                                                \
+    }                                                                                                                  \
+    template <>                                                                                                        \
+    mc::engine::detail::call_stack<Key, Value>::context::context(Key* k)                                               \
+        : m_key(k), m_next(call_stack_impl<Key, Value>::s_top)                                                         \
+    {                                                                                                                  \
+        m_value                            = reinterpret_cast<Value*>(this);                                           \
+        call_stack_impl<Key, Value>::s_top = this;                                                                     \
+    }                                                                                                                  \
+    template <>                                                                                                        \
+    mc::engine::detail::call_stack<Key, Value>::context::context(Key* k, Value& v)                                     \
+        : m_key(k), m_value(&v), m_next(call_stack_impl<Key, Value>::s_top)                                            \
+    {                                                                                                                  \
+        call_stack_impl<Key, Value>::s_top = this;                                                                     \
+    }                                                                                                                  \
+    template <>                                                                                                        \
+    mc::engine::detail::call_stack<Key, Value>::context::~context()                                                    \
+    {                                                                                                                  \
+        call_stack_impl<Key, Value>::s_top = m_next;                                                                   \
     }
 
 #endif // MC_ENGINE_CALL_STACK_H

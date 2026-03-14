@@ -70,8 +70,7 @@ public:
      */
     radix_tree(const allocator_type& alloc = allocator_type())
         : m_root(mc::allocate_shared<node_type>(alloc, std::nullopt)), m_size(0), m_allocator(alloc)
-    {
-    }
+    {}
 
     /**
      * 使用现有节点创建不可变基数树

@@ -37,8 +37,7 @@ public:
      *
      * @param ipc_mtx 共享内存中的IPC互斥锁引用
      */
-    explicit mutex(ipc_mutex& ipc_mtx)
-        : m_ipc_mutex(ipc_mtx)
+    explicit mutex(ipc_mutex& ipc_mtx) : m_ipc_mutex(ipc_mtx)
     {}
 
     ~mutex() = default;

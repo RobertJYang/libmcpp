@@ -105,10 +105,8 @@ public:
     using managed_objects = std::map<std::string_view, abstract_object*>;
     using mc::core::object::connect;
 
-    abstract_object(core_object* parent = nullptr)
-        : mc::core::object(parent)
-    {
-    }
+    abstract_object(core_object* parent = nullptr) : mc::core::object(parent)
+    {}
 
     virtual ~abstract_object() = default;
 
@@ -132,13 +130,12 @@ public:
     virtual bool                has_interface(std::string_view interface_name) const = 0;
     virtual abstract_interface* get_interface(std::string_view interface_name) const = 0;
 
-    virtual mc::variant get_property(std::string_view property_name,
-                                     std::string_view interface_name = {}, int options = 0) const       = 0;
-    virtual bool        has_property(std::string_view property_name,
-                                     std::string_view interface_name = {}) const                        = 0;
-    virtual mc::dict    get_all_properties(std::string_view interface_name = {}, int options = 0) const = 0;
+    virtual mc::variant get_property(std::string_view property_name, std::string_view interface_name = {},
+                                     int options = 0) const                                                      = 0;
+    virtual bool        has_property(std::string_view property_name, std::string_view interface_name = {}) const = 0;
+    virtual mc::dict    get_all_properties(std::string_view interface_name = {}, int options = 0) const          = 0;
     virtual bool        set_property(std::string_view property_name, const mc::variant& value,
-                                     std::string_view interface_name = {})                              = 0;
+                                     std::string_view interface_name = {})                                       = 0;
 
     virtual void                   set_property_ref_info(std::string_view property_name, const std::string& info,
                                                          std::string_view interface_name = {})        = 0;
@@ -154,19 +151,16 @@ public:
     virtual mc::variant         emit(std::string_view signal_name, const mc::variants& args,
                                      std::string_view interface_name = {})    = 0;
 
-    virtual bool                has_method(std::string_view method_name,
-                                           std::string_view interface_name = {}) const = 0;
-    virtual invoke_result       invoke(std::string_view method_name, const mc::variants& args = {},
-                                       std::string_view interface_name = {})           = 0;
+    virtual bool          has_method(std::string_view method_name, std::string_view interface_name = {}) const = 0;
+    virtual invoke_result invoke(std::string_view method_name, const mc::variants& args = {},
+                                 std::string_view interface_name = {})                                         = 0;
     virtual result<mc::variant> async_invoke(std::string_view method_name, const mc::variants& args = {},
-                                             std::string_view interface_name = {})     = 0;
+                                             std::string_view interface_name = {})                             = 0;
 
-    virtual void                     notify_property_changed(const mc::variant&   value,
-                                                             const property_base& prop)    = 0;
-    virtual property_changed_signal& property_changed()                                    = 0;
-    virtual void                     notify_property_update_shm(const mc::variant&   value,
-                                                                const property_base& prop) = 0;
-    virtual property_changed_signal& property_update_shm()                                 = 0;
+    virtual void                     notify_property_changed(const mc::variant& value, const property_base& prop) = 0;
+    virtual property_changed_signal& property_changed()                                                           = 0;
+    virtual void notify_property_update_shm(const mc::variant& value, const property_base& prop)                  = 0;
+    virtual property_changed_signal& property_update_shm()                                                        = 0;
 
     mc::shared_ptr<abstract_object> shared_from_this()
     {
@@ -206,11 +200,10 @@ public:
     virtual result<mc::variant> async_invoke(std::string_view method_name, const mc::variants& args = {}) = 0;
 
     // 信号相关接口
-    virtual mc::variant         emit(std::string_view signal_name, const mc::variants& args) = 0;
-    virtual mc::connection_type connect(std::string_view signal_name, slot_type slot)        = 0;
-    virtual void                notify_property_changed(
-                       const mc::variant& value, const property_base& prop) = 0;
-    virtual property_changed_signal& property_changed()                     = 0;
+    virtual mc::variant              emit(std::string_view signal_name, const mc::variants& args)                 = 0;
+    virtual mc::connection_type      connect(std::string_view signal_name, slot_type slot)                        = 0;
+    virtual void                     notify_property_changed(const mc::variant& value, const property_base& prop) = 0;
+    virtual property_changed_signal& property_changed()                                                           = 0;
 
     // 类型反射相关接口
     virtual const metadata_list&      get_metadata() const                                    = 0;
@@ -245,40 +238,31 @@ MC_FIELD_INDEX_TAG(by_path, "path");
 MC_FIELD_INDEX_TAG(by_class_name, "class_name");
 MC_FIELD_INDEX_TAG(by_object_name, "object_name");
 
-using path_non_unique_index =
-    mc::db::ordered_non_unique<&abstract_object::get_object_path, by_path::tag>;
-using path_unique_index = mc::db::ordered_unique<&abstract_object::get_object_path, by_path::tag>;
+using path_non_unique_index = mc::db::ordered_non_unique<&abstract_object::get_object_path, by_path::tag>;
+using path_unique_index     = mc::db::ordered_unique<&abstract_object::get_object_path, by_path::tag>;
 using class_name_index =
-    mc::db::ordered_non_unique<&abstract_object::get_class_name, &abstract_object::get_position,
-                               by_class_name::tag>;
-using object_name_index =
-    mc::db::ordered_unique<&abstract_object::get_object_name, by_object_name::tag>;
+    mc::db::ordered_non_unique<&abstract_object::get_class_name, &abstract_object::get_position, by_class_name::tag>;
+using object_name_index = mc::db::ordered_unique<&abstract_object::get_object_name, by_object_name::tag>;
 
 // 每个服务自己的对象表
 using service_object_table_impl =
-    mdb::table<abstract_object,
-               mdb::indexed_by<path_unique_index, class_name_index, object_name_index>>;
+    mdb::table<abstract_object, mdb::indexed_by<path_unique_index, class_name_index, object_name_index>>;
 
 using object_table_impl =
-    mdb::table<abstract_object,
-               mdb::indexed_by<path_non_unique_index, class_name_index, object_name_index>>;
+    mdb::table<abstract_object, mdb::indexed_by<path_non_unique_index, class_name_index, object_name_index>>;
 
 // 服务对象表（每个服务一个）
 class service_object_table : public service_object_table_impl {
 public:
-    service_object_table(const std::string& service_name)
-        : service_object_table_impl(service_name + ".object_table")
-    {
-    }
+    service_object_table(const std::string& service_name) : service_object_table_impl(service_name + ".object_table")
+    {}
 };
 
 // 全局对象表，与服务对象表的差别是 path 是非唯一索引
 class object_table : public object_table_impl {
 public:
-    object_table()
-        : object_table_impl("object_table")
-    {
-    }
+    object_table() : object_table_impl("object_table")
+    {}
 };
 
 } // namespace mc::engine

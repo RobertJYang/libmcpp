@@ -42,10 +42,8 @@ struct io_context_wrapper {
     std::shared_ptr<mc::io_context> ctx;
     bool                            should_delete;
 
-    io_context_wrapper(std::shared_ptr<mc::io_context> c, bool del = true)
-        : ctx(std::move(c)), should_delete(del)
-    {
-    }
+    io_context_wrapper(std::shared_ptr<mc::io_context> c, bool del = true) : ctx(std::move(c)), should_delete(del)
+    {}
 };
 
 // DBus 连接包装器
@@ -86,8 +84,7 @@ struct dbus_wrapper {
 };
 
 // 辅助函数：从 Lua 栈获取 io_context
-inline std::shared_ptr<mc::io_context> get_io_context(lua_State* L, int index,
-                                                      const char* metatable_name)
+inline std::shared_ptr<mc::io_context> get_io_context(lua_State* L, int index, const char* metatable_name)
 {
     if (lua_isuserdata(L, index)) {
         auto* wrapper = static_cast<io_context_wrapper*>(luaL_checkudata(L, index, metatable_name));
@@ -288,11 +285,8 @@ inline int dbus_new_impl(lua_State* L, const char* metatable_name, const char* i
 }
 
 // 通用的 dbus.xxx.open_user() 实现
-inline int dbus_open_user_impl(lua_State*                                 L,
-                               std::shared_ptr<mc::io_context>&           static_io_ctx,
-                               const char*                                metatable_name,
-                               bool                                       is_blocking,
-                               std::function<void(mc::dbus::connection&)> post_connect = nullptr)
+inline int dbus_open_user_impl(lua_State* L, std::shared_ptr<mc::io_context>& static_io_ctx, const char* metatable_name,
+                               bool is_blocking, std::function<void(mc::dbus::connection&)> post_connect = nullptr)
 {
     try {
         // 使用 connection 静态方法创建连接
@@ -318,11 +312,8 @@ inline int dbus_open_user_impl(lua_State*                                 L,
 }
 
 // 通用的 register_metatable 实现
-inline void register_metatable_impl(lua_State*      L,
-                                    const char*     metatable_name,
-                                    const luaL_Reg* methods,
-                                    lua_CFunction   index_func,
-                                    lua_CFunction   gc_func)
+inline void register_metatable_impl(lua_State* L, const char* metatable_name, const luaL_Reg* methods,
+                                    lua_CFunction index_func, lua_CFunction gc_func)
 {
     // 创建 metatable
     luaL_newmetatable(L, metatable_name);
@@ -372,10 +363,8 @@ struct lua_match_callback {
     lua_State* L;
     int        callback_ref;
 
-    lua_match_callback(lua_State* l, int ref)
-        : L(l), callback_ref(ref)
-    {
-    }
+    lua_match_callback(lua_State* l, int ref) : L(l), callback_ref(ref)
+    {}
 
     ~lua_match_callback()
     {
@@ -387,8 +376,7 @@ struct lua_match_callback {
     // 禁止拷贝，只允许移动
     lua_match_callback(const lua_match_callback&)            = delete;
     lua_match_callback& operator=(const lua_match_callback&) = delete;
-    lua_match_callback(lua_match_callback&& other) noexcept
-        : L(other.L), callback_ref(other.callback_ref)
+    lua_match_callback(lua_match_callback&& other) noexcept : L(other.L), callback_ref(other.callback_ref)
     {
         other.callback_ref = LUA_REFNIL;
     }
@@ -572,8 +560,8 @@ inline int add_match(lua_State* L)
             uint32_t       data_high = data >> N;
             uint32_t       source    = (data_high << 16) | callback_id;
             std::size_t    sz        = data & ~(std::size_t(0xFFFF) << N);
-            skynet.skynet_send_with_priority(nullptr, source, rule_id,
-                                                      PTYPE_SIGNAL_PROCESS | PTYPE_TAG_DONTCOPY, 0, 0, sz, 0);
+            skynet.skynet_send_with_priority(nullptr, source, rule_id, PTYPE_SIGNAL_PROCESS | PTYPE_TAG_DONTCOPY, 0, 0,
+                                                      sz, 0);
         });
 
         auto shm_harbor_name = harbor.get_harbor_name();

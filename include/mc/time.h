@@ -36,10 +36,8 @@ public:
      * @brief 构造函数
      * @param count 毫秒数
      */
-    constexpr explicit milliseconds(int64_t count = 0)
-        : m_count(count)
-    {
-    }
+    constexpr explicit milliseconds(int64_t count = 0) : m_count(count)
+    {}
 
     /**
      * @brief 从 std::chrono::duration 构造
@@ -47,8 +45,7 @@ public:
     template <typename Rep, typename Period>
     constexpr milliseconds(const std::chrono::duration<Rep, Period>& duration)
         : m_count(std::chrono::duration_cast<std::chrono::milliseconds>(duration).count())
-    {
-    }
+    {}
 
     /**
      * @brief 获取最大毫秒值
@@ -174,8 +171,7 @@ public:
     template <typename Rep, typename Period>
     constexpr operator std::chrono::duration<Rep, Period>() const
     {
-        return std::chrono::duration_cast<std::chrono::duration<Rep, Period>>(
-            std::chrono::milliseconds(m_count));
+        return std::chrono::duration_cast<std::chrono::duration<Rep, Period>>(std::chrono::milliseconds(m_count));
     }
 
 private:
@@ -232,10 +228,8 @@ public:
      * @brief 构造函数
      * @param elapsed 时间间隔
      */
-    constexpr explicit time_point(milliseconds elapsed = milliseconds())
-        : m_elapsed(elapsed)
-    {
-    }
+    constexpr explicit time_point(milliseconds elapsed = milliseconds()) : m_elapsed(elapsed)
+    {}
 
     /**
      * @brief 从std::chrono::time_point构造
@@ -316,8 +310,7 @@ public:
     template <typename Clock, typename Duration>
     operator std::chrono::time_point<Clock, Duration>() const
     {
-        return std::chrono::time_point<Clock, Duration>(
-            std::chrono::milliseconds(m_elapsed.count()));
+        return std::chrono::time_point<Clock, Duration>(std::chrono::milliseconds(m_elapsed.count()));
     }
 
     /**
@@ -428,28 +421,22 @@ public:
     /**
      * @brief 默认构造函数
      */
-    constexpr time_point_sec()
-        : m_utc_seconds(0)
-    {
-    }
+    constexpr time_point_sec() : m_utc_seconds(0)
+    {}
 
     /**
      * @brief 构造函数
      * @param seconds 秒数
      */
-    constexpr explicit time_point_sec(uint32_t seconds)
-        : m_utc_seconds(seconds)
-    {
-    }
+    constexpr explicit time_point_sec(uint32_t seconds) : m_utc_seconds(seconds)
+    {}
 
     /**
      * @brief 从时间点构造
      * @param t 时间点
      */
-    constexpr time_point_sec(const time_point& t)
-        : m_utc_seconds(t.time_since_epoch().count() / 1000ll)
-    {
-    }
+    constexpr time_point_sec(const time_point& t) : m_utc_seconds(t.time_since_epoch().count() / 1000ll)
+    {}
 
     /**
      * @brief 从std::chrono::time_point构造
@@ -499,8 +486,7 @@ public:
     template <typename Clock, typename Duration>
     operator std::chrono::time_point<Clock, Duration>() const
     {
-        return std::chrono::time_point<Clock, Duration>(
-            std::chrono::seconds(m_utc_seconds));
+        return std::chrono::time_point<Clock, Duration>(std::chrono::seconds(m_utc_seconds));
     }
 
     /**

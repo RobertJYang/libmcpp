@@ -113,8 +113,7 @@ TEST(JsonEncodeTest, CompoundTypes)
 TEST(JsonEncodeOptionsTest, PrettyPrint)
 {
     // 创建测试数据
-    dict obj{
-        {"name", "张三"}, {"age", 30}, {"scores", variants{variant(85), variant(92), variant(78)}}};
+    dict obj{{"name", "张三"}, {"age", 30}, {"scores", variants{variant(85), variant(92), variant(78)}}};
 
     // 默认选项（紧凑输出）
     std::string compact = json_encode(variant(obj));

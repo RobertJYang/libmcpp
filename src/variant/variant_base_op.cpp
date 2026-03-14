@@ -119,8 +119,7 @@ variant_base variant_base::operator-(const variant_base& other) const
         if (is_unsigned_integer() && other.is_unsigned_integer()) {
             // 处理下溢
             if (as_uint64() < other.as_uint64()) {
-                return {static_cast<int64_t>(as_uint64()) -
-                        static_cast<int64_t>(other.as_uint64())};
+                return {static_cast<int64_t>(as_uint64()) - static_cast<int64_t>(other.as_uint64())};
             }
             return {as_uint64() - other.as_uint64()};
         }
@@ -259,8 +258,7 @@ variant_base variant_base::operator^(const variant_base& other) const
     }
 }
 
-variant_base
-variant_base::operator<<(const variant_base& other) const
+variant_base variant_base::operator<<(const variant_base& other) const
 {
     try {
         uint64_t shift_amount = other.as_uint64();
@@ -276,8 +274,7 @@ variant_base::operator<<(const variant_base& other) const
     }
 }
 
-variant_base
-variant_base::operator>>(const variant_base& other) const
+variant_base variant_base::operator>>(const variant_base& other) const
 {
     try {
         uint64_t shift_amount = other.as_uint64();

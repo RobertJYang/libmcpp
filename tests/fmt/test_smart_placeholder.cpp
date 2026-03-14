@@ -75,10 +75,7 @@ TEST(smart_placeholder_test, format_specifications)
 TEST(smart_placeholder_test, dynamic_format_parameters)
 {
     // 使用命名参数作为动态宽度和精度
-    auto result1 = sformat("{value:{width}.{precision}f}",
-                           ("value", 3.14159),
-                           ("width", 10),
-                           ("precision", 3));
+    auto result1 = sformat("{value:{width}.{precision}f}", ("value", 3.14159), ("width", 10), ("precision", 3));
     EXPECT_EQ(result1, "     3.142");
 
     // 混合索引和命名参数的动态格式
@@ -135,10 +132,7 @@ TEST(smart_placeholder_test, edge_cases)
 TEST(smart_placeholder_test, nested_braces)
 {
     // 命名参数中的嵌套大括号格式
-    auto result1 = sformat("{value:{width}.{precision}f}",
-                           ("value", 123.456),
-                           ("width", 12),
-                           ("precision", 2));
+    auto result1 = sformat("{value:{width}.{precision}f}", ("value", 123.456), ("width", 12), ("precision", 2));
     EXPECT_EQ(result1, "      123.46");
 
     // 索引参数中的嵌套大括号格式

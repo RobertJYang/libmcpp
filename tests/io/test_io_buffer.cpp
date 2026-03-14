@@ -261,8 +261,8 @@ TEST(IOBufferTest, TakeOwnership)
 
     // 创建接管外部缓冲区的 io_buffer
     {
-        auto buffer = io::io_buffer::take_ownership(raw_buffer, test_capacity, sizeof(test_pattern),
-                                                    custom_free, &was_freed);
+        auto buffer =
+            io::io_buffer::take_ownership(raw_buffer, test_capacity, sizeof(test_pattern), custom_free, &was_freed);
 
         // 验证基本属性
         ASSERT_TRUE(buffer != nullptr);

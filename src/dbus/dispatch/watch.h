@@ -22,8 +22,7 @@ public:
     template <typename Executor>
     watch(const Executor& executor, DBusWatch* watch)
         : m_watch(watch), m_socket(executor, dbus_watch_get_unix_fd(watch))
-    {
-    }
+    {}
 
     ~watch();
 

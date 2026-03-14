@@ -53,8 +53,7 @@ public:
      * @return 对象指针
      */
     template <typename T>
-    mc::shared_ptr<T> add(std::string_view table_name, const mc::dict& var,
-                          transaction* txn = nullptr)
+    mc::shared_ptr<T> add(std::string_view table_name, const mc::dict& var, transaction* txn = nullptr)
     {
         return add(table_name, var, txn).template static_pointer_cast<T>();
     }
@@ -84,8 +83,7 @@ public:
      * @return 对象指针数组
      */
     template <typename T>
-    std::vector<mc::shared_ptr<T>> query(std::string_view table_name, const query_builder& builder,
-                                         int limit = 0)
+    std::vector<mc::shared_ptr<T>> query(std::string_view table_name, const query_builder& builder, int limit = 0)
     {
         std::vector<mc::shared_ptr<T>> results;
         query<T>(table_name, builder, [&results, limit](T& obj) {
@@ -112,8 +110,7 @@ public:
      * @return 是否查询成功
      */
     template <typename T>
-    bool query(std::string_view table_name, const query_builder& builder,
-               std::function<bool(T&)>&& handler)
+    bool query(std::string_view table_name, const query_builder& builder, std::function<bool(T&)>&& handler)
     {
         auto table = m_tables.find(table_name);
         if (table == m_tables.end()) {
@@ -126,13 +123,12 @@ public:
         });
     }
 
-    bool remove(std::string_view table_name, const query_builder& builder,
-                transaction* txn = nullptr);
+    bool remove(std::string_view table_name, const query_builder& builder, transaction* txn = nullptr);
 
     bool update(std::string_view table_name, const query_builder& builder, const mc::dict& values,
                 transaction* txn = nullptr);
-    bool update(std::string_view table_name, const query_builder& builder,
-                const std::map<std::string, variant>& values, transaction* txn = nullptr);
+    bool update(std::string_view table_name, const query_builder& builder, const std::map<std::string, variant>& values,
+                transaction* txn = nullptr);
 
 private:
     mutable std::mutex m_mutex;

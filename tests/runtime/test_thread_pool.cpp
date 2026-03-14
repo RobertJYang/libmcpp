@@ -74,8 +74,7 @@ TEST_F(ThreadPoolTest, LoadBalancing)
     mc::test::runtime::countdown_future tasks_done(100);
 
     for (int i = 0; i < 100; ++i) {
-        executor.post(
-            [&]() {
+        executor.post([&]() {
             {
                 std::lock_guard lock(mtx);
                 thread_ids.insert(std::this_thread::get_id());

@@ -28,10 +28,8 @@ namespace mc::expr {
  */
 class literal_node : public node {
 public:
-    explicit literal_node(mc::variant value)
-        : m_value(std::move(value))
-    {
-    }
+    explicit literal_node(mc::variant value) : m_value(std::move(value))
+    {}
 
     node_type get_type() const override
     {

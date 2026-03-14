@@ -23,10 +23,8 @@ public:
     MC_REFLECTABLE("FactoryPerson");
 
     test_person() = default;
-    test_person(std::string name, int age)
-        : m_name(std::move(name)), m_age(age)
-    {
-    }
+    test_person(std::string name, int age) : m_name(std::move(name)), m_age(age)
+    {}
 
     int get_age() const
     {
@@ -55,11 +53,7 @@ private:
 };
 
 // 测试用的枚举类型
-enum class test_status {
-    ACTIVE,
-    INACTIVE,
-    PENDING
-};
+enum class test_status { ACTIVE, INACTIVE, PENDING };
 
 // 测试用的模块A中的类
 class module_a_person {
@@ -96,40 +90,30 @@ public:
 } // namespace test_reflection_factory
 
 // 注册反射信息
-MC_REFLECT(test_reflection_factory::test_person,
-           ((m_name, "name"))                              // 名称 name
-           (MC_COMPUTED_PROPERTY("age", get_age, set_age)) // 计算属性 age
-           ((greet, "greet"))                              // 方法 greet
-           ((greet_with, "greetWith"))                     // 方法 greetWith
+MC_REFLECT(test_reflection_factory::test_person, ((m_name, "name")) // 名称 name
+           (MC_COMPUTED_PROPERTY("age", get_age, set_age))          // 计算属性 age
+           ((greet, "greet"))                                       // 方法 greet
+           ((greet_with, "greetWith"))                              // 方法 greetWith
 )
 
 MC_REFLECTABLE("test_reflection_factory.Status", test_reflection_factory::test_status)
 
 // 注册枚举类型
-MC_REFLECT_ENUM(test_reflection_factory::test_status,
-                (ACTIVE)(INACTIVE)(PENDING))
+MC_REFLECT_ENUM(test_reflection_factory::test_status, (ACTIVE)(INACTIVE)(PENDING))
 
 // 注册模块A中的类
-MC_REFLECT(test_reflection_factory::module_a_person,
-           ((m_name, "name"))((m_age, "age")))
+MC_REFLECT(test_reflection_factory::module_a_person, ((m_name, "name"))((m_age, "age")))
 
 // 注册模块B中的类
-MC_REFLECT(test_reflection_factory::module_b_person,
-           ((m_name, "name"))((m_address, "address")))
+MC_REFLECT(test_reflection_factory::module_b_person, ((m_name, "name"))((m_address, "address")))
 
 // 注册用于测试去重的类，模拟使用工厂前缀的类型名
-MC_REFLECT_WITH_NAMESPACE(test_reflection_factory::devices_namespace,
-                          test_reflection_factory::devices_sensor,
+MC_REFLECT_WITH_NAMESPACE(test_reflection_factory::devices_namespace, test_reflection_factory::devices_sensor,
                           ((m_name, "name"))((m_value, "value")))
 
 namespace test_reflection_factory {
 
-using test_types = std::tuple<
-    test_person,
-    test_status,
-    module_a_person,
-    module_b_person,
-    devices_sensor>;
+using test_types = std::tuple<test_person, test_status, module_a_person, module_b_person, devices_sensor>;
 
 class reflect_factory_test : public mc::test::TestBase {
 protected:

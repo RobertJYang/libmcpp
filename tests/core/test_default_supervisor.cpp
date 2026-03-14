@@ -25,10 +25,8 @@ using namespace mc::core;
 // 测试用服务实现
 class test_service : public service_base {
 public:
-    test_service(const std::string& name)
-        : service_base(name), m_started(false)
-    {
-    }
+    test_service(const std::string& name) : service_base(name), m_started(false)
+    {}
 
     bool init(dict args) override
     {
@@ -83,8 +81,7 @@ class failing_service : public service_base {
 public:
     failing_service(const std::string& name, bool start_ok, bool stop_ok)
         : service_base(name), m_start_ok(start_ok), m_stop_ok(stop_ok)
-    {
-    }
+    {}
 
     bool init(dict) override
     {
@@ -102,8 +99,7 @@ public:
     }
 
     void cleanup() override
-    {
-    }
+    {}
 
     void set_dependencies_public(const std::vector<std::string>& deps)
     {
@@ -126,10 +122,8 @@ private:
 };
 
 // 辅助函数：创建监督器配置
-config::supervisor_config make_supervisor_config(const std::string&          name,
-                                                 config::supervisor_strategy strategy,
-                                                 int                         max_restarts,
-                                                 int                         restart_window_seconds = 1)
+config::supervisor_config make_supervisor_config(const std::string& name, config::supervisor_strategy strategy,
+                                                 int max_restarts, int restart_window_seconds = 1)
 {
     config::supervisor_config cfg;
     cfg.api_version            = "v1";
@@ -148,8 +142,8 @@ protected:
         TestBase::SetUp();
         supervisor = std::make_shared<default_supervisor>();
 
-        config::supervisor_config cfg = make_supervisor_config(
-            "test_supervisor", config::supervisor_strategy::one_for_one, 3);
+        config::supervisor_config cfg =
+            make_supervisor_config("test_supervisor", config::supervisor_strategy::one_for_one, 3);
         supervisor->init(cfg);
     }
 
@@ -176,8 +170,8 @@ TEST_F(default_supervisor_test, constructor)
 // 测试初始化
 TEST_F(default_supervisor_test, init)
 {
-    config::supervisor_config cfg = make_supervisor_config(
-        "new_supervisor", config::supervisor_strategy::one_for_one, 5);
+    config::supervisor_config cfg =
+        make_supervisor_config("new_supervisor", config::supervisor_strategy::one_for_one, 5);
 
     EXPECT_TRUE(supervisor->init(cfg));
     EXPECT_EQ(supervisor->name(), "new_supervisor");
@@ -292,8 +286,7 @@ TEST_F(default_supervisor_test, is_healthy)
 TEST_F(default_supervisor_test, add_child)
 {
     auto                      child = std::make_shared<default_supervisor>();
-    config::supervisor_config cfg =
-        make_supervisor_config("child", config::supervisor_strategy::one_for_one, 3);
+    config::supervisor_config cfg   = make_supervisor_config("child", config::supervisor_strategy::one_for_one, 3);
     child->init(cfg);
 
     EXPECT_TRUE(supervisor->add_child(child));
@@ -310,8 +303,7 @@ TEST_F(default_supervisor_test, add_null_child)
 TEST_F(default_supervisor_test, remove_child)
 {
     auto                      child = std::make_shared<default_supervisor>();
-    config::supervisor_config cfg =
-        make_supervisor_config("child", config::supervisor_strategy::one_for_one, 3);
+    config::supervisor_config cfg   = make_supervisor_config("child", config::supervisor_strategy::one_for_one, 3);
     child->init(cfg);
 
     supervisor->add_child(child);
@@ -323,8 +315,7 @@ TEST_F(default_supervisor_test, remove_child)
 TEST_F(default_supervisor_test, get_child)
 {
     auto                      child = std::make_shared<default_supervisor>();
-    config::supervisor_config cfg =
-        make_supervisor_config("child", config::supervisor_strategy::one_for_one, 3);
+    config::supervisor_config cfg   = make_supervisor_config("child", config::supervisor_strategy::one_for_one, 3);
     child->init(cfg);
 
     supervisor->add_child(child);
@@ -466,8 +457,7 @@ public:
 TEST_F(default_supervisor_test, get_strategy_name_one_for_one)
 {
     auto                      testable = std::make_shared<testable_supervisor>();
-    config::supervisor_config cfg      = make_supervisor_config(
-        "test", config::supervisor_strategy::one_for_one, 3);
+    config::supervisor_config cfg      = make_supervisor_config("test", config::supervisor_strategy::one_for_one, 3);
     testable->init(cfg);
 
     std::string name = testable->expose_get_strategy_name(config::supervisor_strategy::one_for_one);
@@ -478,8 +468,7 @@ TEST_F(default_supervisor_test, get_strategy_name_one_for_one)
 TEST_F(default_supervisor_test, get_strategy_name_one_for_all)
 {
     auto                      testable = std::make_shared<testable_supervisor>();
-    config::supervisor_config cfg      = make_supervisor_config(
-        "test", config::supervisor_strategy::one_for_one, 3);
+    config::supervisor_config cfg      = make_supervisor_config("test", config::supervisor_strategy::one_for_one, 3);
     testable->init(cfg);
 
     std::string name = testable->expose_get_strategy_name(config::supervisor_strategy::one_for_all);
@@ -490,8 +479,7 @@ TEST_F(default_supervisor_test, get_strategy_name_one_for_all)
 TEST_F(default_supervisor_test, get_strategy_name_rest_for_one)
 {
     auto                      testable = std::make_shared<testable_supervisor>();
-    config::supervisor_config cfg      = make_supervisor_config(
-        "test", config::supervisor_strategy::one_for_one, 3);
+    config::supervisor_config cfg      = make_supervisor_config("test", config::supervisor_strategy::one_for_one, 3);
     testable->init(cfg);
 
     std::string name = testable->expose_get_strategy_name(config::supervisor_strategy::rest_for_one);
@@ -502,8 +490,7 @@ TEST_F(default_supervisor_test, get_strategy_name_rest_for_one)
 TEST_F(default_supervisor_test, get_strategy_name_unknown)
 {
     auto                      testable = std::make_shared<testable_supervisor>();
-    config::supervisor_config cfg      = make_supervisor_config(
-        "test", config::supervisor_strategy::one_for_one, 3);
+    config::supervisor_config cfg      = make_supervisor_config("test", config::supervisor_strategy::one_for_one, 3);
     testable->init(cfg);
 
     // 使用一个无效的枚举值（通过 static_cast）
@@ -516,8 +503,7 @@ TEST_F(default_supervisor_test, get_strategy_name_unknown)
 TEST_F(default_supervisor_test, handle_service_crash_service_not_found)
 {
     auto                      testable = std::make_shared<testable_supervisor>();
-    config::supervisor_config cfg      = make_supervisor_config(
-        "test", config::supervisor_strategy::one_for_one, 3);
+    config::supervisor_config cfg      = make_supervisor_config("test", config::supervisor_strategy::one_for_one, 3);
     testable->init(cfg);
 
     // 服务不存在时应该直接返回，不抛出异常
@@ -528,8 +514,8 @@ TEST_F(default_supervisor_test, handle_service_crash_service_not_found)
 TEST_F(default_supervisor_test, handle_service_crash_exceeds_max_restarts)
 {
     auto                      testable = std::make_shared<testable_supervisor>();
-    config::supervisor_config cfg      = make_supervisor_config(
-        "test", config::supervisor_strategy::one_for_one, 2); // 最大重启2次
+    config::supervisor_config cfg =
+        make_supervisor_config("test", config::supervisor_strategy::one_for_one, 2); // 最大重启2次
     testable->init(cfg);
 
     auto service = mc::make_shared<test_service>("service1");
@@ -550,8 +536,8 @@ TEST_F(default_supervisor_test, handle_service_crash_exceeds_max_restarts)
 TEST_F(default_supervisor_test, handle_service_crash_unlimited_restarts)
 {
     auto                      testable = std::make_shared<testable_supervisor>();
-    config::supervisor_config cfg      = make_supervisor_config(
-        "test", config::supervisor_strategy::one_for_one, 0); // 0 表示无限制
+    config::supervisor_config cfg =
+        make_supervisor_config("test", config::supervisor_strategy::one_for_one, 0); // 0 表示无限制
     testable->init(cfg);
 
     auto service = mc::make_shared<test_service>("service1");
@@ -570,8 +556,7 @@ TEST_F(default_supervisor_test, handle_service_crash_unlimited_restarts)
 TEST_F(default_supervisor_test, handle_service_crash_one_for_all_strategy)
 {
     auto                      testable = std::make_shared<testable_supervisor>();
-    config::supervisor_config cfg      = make_supervisor_config(
-        "test", config::supervisor_strategy::one_for_all, 3);
+    config::supervisor_config cfg      = make_supervisor_config("test", config::supervisor_strategy::one_for_all, 3);
     testable->init(cfg);
 
     auto service1 = mc::make_shared<test_service>("service1");
@@ -594,8 +579,7 @@ TEST_F(default_supervisor_test, handle_service_crash_one_for_all_strategy)
 TEST_F(default_supervisor_test, handle_service_crash_rest_for_one_strategy)
 {
     auto                      testable = std::make_shared<testable_supervisor>();
-    config::supervisor_config cfg      = make_supervisor_config(
-        "test", config::supervisor_strategy::rest_for_one, 3);
+    config::supervisor_config cfg      = make_supervisor_config("test", config::supervisor_strategy::rest_for_one, 3);
     testable->init(cfg);
 
     auto service1 = mc::make_shared<test_service>("service1");
@@ -621,8 +605,7 @@ TEST(SupervisorManagerTest, ManageSupervisorsLifecycle)
     ASSERT_TRUE(manager.init());
     EXPECT_NE(manager.get_root_supervisor(), nullptr);
 
-    auto cfg = make_supervisor_config("child_supervisor",
-                                      config::supervisor_strategy::one_for_all, 5);
+    auto cfg = make_supervisor_config("child_supervisor", config::supervisor_strategy::one_for_all, 5);
     auto sup = manager.create_supervisor(cfg);
     ASSERT_NE(sup, nullptr);
     // create_supervisor 已经将 supervisor 添加到 m_supervisors 中，所以不需要再调用 add_supervisor
@@ -633,8 +616,8 @@ TEST(SupervisorManagerTest, ManageSupervisorsLifecycle)
     EXPECT_FALSE(manager.add_supervisor("null_supervisor", nullptr));
 
     // 测试创建重复名称的 supervisor 应该返回 nullptr
-    auto duplicate = manager.create_supervisor(make_supervisor_config(
-        cfg.meta.name, config::supervisor_strategy::one_for_one, 2));
+    auto duplicate =
+        manager.create_supervisor(make_supervisor_config(cfg.meta.name, config::supervisor_strategy::one_for_one, 2));
     EXPECT_EQ(duplicate, nullptr);
 
     EXPECT_TRUE(manager.start_supervisors());
@@ -646,8 +629,7 @@ TEST(SupervisorManagerTest, StartFailureIsHandled)
     supervisor_manager manager;
     ASSERT_TRUE(manager.init());
 
-    auto cfg = make_supervisor_config("failing_start",
-                                      config::supervisor_strategy::one_for_one, 1);
+    auto cfg = make_supervisor_config("failing_start", config::supervisor_strategy::one_for_one, 1);
     auto sup = manager.create_supervisor(cfg);
     ASSERT_NE(sup, nullptr);
     // create_supervisor 已经将 supervisor 添加到 m_supervisors 中
@@ -664,14 +646,12 @@ TEST(SupervisorManagerTest, StopFailureIsHandled)
     supervisor_manager manager;
     ASSERT_TRUE(manager.init());
 
-    auto cfg = make_supervisor_config("failing_stop",
-                                      config::supervisor_strategy::rest_for_one, 1);
+    auto cfg = make_supervisor_config("failing_stop", config::supervisor_strategy::rest_for_one, 1);
     auto sup = manager.create_supervisor(cfg);
     ASSERT_NE(sup, nullptr);
     // create_supervisor 已经将 supervisor 添加到 m_supervisors 中
 
-    auto service =
-        mc::make_shared<failing_service>("failing_stop_service", true, false);
+    auto service = mc::make_shared<failing_service>("failing_stop_service", true, false);
     ASSERT_TRUE(sup->add_service(service));
 
     EXPECT_TRUE(manager.start_supervisors());
@@ -684,17 +664,14 @@ TEST(SupervisorManagerTest, InitializeFromConfigsAddsSupervisors)
     ASSERT_TRUE(manager.init());
 
     std::vector<config::supervisor_config> configs;
-    configs.push_back(make_supervisor_config("cfg_one",
-                                             config::supervisor_strategy::one_for_one, 3));
-    configs.push_back(make_supervisor_config("cfg_two",
-                                             config::supervisor_strategy::rest_for_one, 2));
+    configs.push_back(make_supervisor_config("cfg_one", config::supervisor_strategy::one_for_one, 3));
+    configs.push_back(make_supervisor_config("cfg_two", config::supervisor_strategy::rest_for_one, 2));
 
     EXPECT_TRUE(manager.initialize_from_configs(configs));
     EXPECT_NE(manager.get_supervisor("cfg_one"), nullptr);
     EXPECT_NE(manager.get_supervisor("cfg_two"), nullptr);
 
-    configs.push_back(make_supervisor_config("cfg_one",
-                                             config::supervisor_strategy::one_for_all, 1));
+    configs.push_back(make_supervisor_config("cfg_one", config::supervisor_strategy::one_for_all, 1));
     EXPECT_TRUE(manager.initialize_from_configs(configs));
 }
 
@@ -710,8 +687,7 @@ TEST_F(default_supervisor_test, StartOneService)
 
     // 测试启动不存在的服务（通过 testable_supervisor）
     auto                      testable = std::make_shared<testable_supervisor>();
-    config::supervisor_config cfg      = make_supervisor_config(
-        "test", config::supervisor_strategy::one_for_one, 3);
+    config::supervisor_config cfg      = make_supervisor_config("test", config::supervisor_strategy::one_for_one, 3);
     testable->init(cfg);
 
     // 启动不存在的服务应该返回 false
@@ -798,8 +774,7 @@ TEST_F(default_supervisor_test, RestartOneService)
 
     // 重启服务
     auto                      testable = std::make_shared<testable_supervisor>();
-    config::supervisor_config cfg      = make_supervisor_config(
-        "test", config::supervisor_strategy::one_for_one, 3);
+    config::supervisor_config cfg      = make_supervisor_config("test", config::supervisor_strategy::one_for_one, 3);
     testable->init(cfg);
     testable->add_service(service);
     service->init(dict{});
@@ -813,8 +788,7 @@ TEST_F(default_supervisor_test, RestartOneServiceStopFailure)
 {
     auto                      service  = mc::make_shared<failing_service>("failing_service", true, false);
     auto                      testable = std::make_shared<testable_supervisor>();
-    config::supervisor_config cfg      = make_supervisor_config(
-        "test", config::supervisor_strategy::one_for_one, 3);
+    config::supervisor_config cfg      = make_supervisor_config("test", config::supervisor_strategy::one_for_one, 3);
     testable->init(cfg);
     testable->add_service(service);
     service->init(dict{});
@@ -829,8 +803,7 @@ TEST_F(default_supervisor_test, RestartOneServiceStartFailure)
 {
     auto                      service  = mc::make_shared<failing_service>("failing_service", false, true);
     auto                      testable = std::make_shared<testable_supervisor>();
-    config::supervisor_config cfg      = make_supervisor_config(
-        "test", config::supervisor_strategy::one_for_one, 3);
+    config::supervisor_config cfg      = make_supervisor_config("test", config::supervisor_strategy::one_for_one, 3);
     testable->init(cfg);
     testable->add_service(service);
     service->init(dict{});
@@ -856,8 +829,7 @@ TEST_F(default_supervisor_test, RestartAllServicesWithCountReset)
 
     // 重启所有服务（通过 handle_service_crash 间接测试）
     auto                      testable = std::make_shared<testable_supervisor>();
-    config::supervisor_config cfg      = make_supervisor_config(
-        "test", config::supervisor_strategy::one_for_all, 3);
+    config::supervisor_config cfg      = make_supervisor_config("test", config::supervisor_strategy::one_for_all, 3);
     testable->init(cfg);
     testable->add_service(service1);
     testable->add_service(service2);
@@ -876,8 +848,7 @@ TEST_F(default_supervisor_test, RestartAllServicesExceedsMaxRestarts)
     auto service2 = mc::make_shared<test_service>("service2");
 
     auto                      testable = std::make_shared<testable_supervisor>();
-    config::supervisor_config cfg      = make_supervisor_config(
-        "test", config::supervisor_strategy::one_for_all, 2);
+    config::supervisor_config cfg      = make_supervisor_config("test", config::supervisor_strategy::one_for_all, 2);
     testable->init(cfg);
     testable->add_service(service1);
     testable->add_service(service2);
@@ -901,8 +872,7 @@ TEST_F(default_supervisor_test, RestartAllServicesStartFailure)
     auto service2 = mc::make_shared<failing_service>("failing_service", false, true);
 
     auto                      testable = std::make_shared<testable_supervisor>();
-    config::supervisor_config cfg      = make_supervisor_config(
-        "test", config::supervisor_strategy::one_for_all, 3);
+    config::supervisor_config cfg      = make_supervisor_config("test", config::supervisor_strategy::one_for_all, 3);
     testable->init(cfg);
     testable->add_service(service1);
     testable->add_service(service2);
@@ -929,8 +899,7 @@ TEST_F(default_supervisor_test, RestartDependentServices)
 
     // 通过 handle_service_crash 的 rest_for_one 策略间接测试
     auto                      testable = std::make_shared<testable_supervisor>();
-    config::supervisor_config cfg      = make_supervisor_config(
-        "test", config::supervisor_strategy::rest_for_one, 3);
+    config::supervisor_config cfg      = make_supervisor_config("test", config::supervisor_strategy::rest_for_one, 3);
     testable->init(cfg);
     testable->add_service(service1);
     testable->add_service(service2);
@@ -950,8 +919,7 @@ TEST_F(default_supervisor_test, RestartDependentServicesFailure)
     service2->set_dependencies_public({"service1"});
 
     auto                      testable = std::make_shared<testable_supervisor>();
-    config::supervisor_config cfg      = make_supervisor_config(
-        "test", config::supervisor_strategy::rest_for_one, 3);
+    config::supervisor_config cfg      = make_supervisor_config("test", config::supervisor_strategy::rest_for_one, 3);
     testable->init(cfg);
     testable->add_service(service1);
     testable->add_service(service2);
@@ -967,8 +935,7 @@ TEST_F(default_supervisor_test, RestartDependentServicesFailure)
 TEST_F(default_supervisor_test, StopOneChildSupervisor)
 {
     auto                      child_supervisor = std::make_shared<default_supervisor>();
-    config::supervisor_config child_cfg        = make_supervisor_config(
-        "child", config::supervisor_strategy::one_for_one, 3);
+    config::supervisor_config child_cfg = make_supervisor_config("child", config::supervisor_strategy::one_for_one, 3);
     child_supervisor->init(child_cfg);
 
     supervisor->add_child(child_supervisor);
@@ -991,8 +958,7 @@ TEST_F(default_supervisor_test, StopOneChildSupervisorFailure)
     };
 
     auto                      child_supervisor = std::make_shared<failing_supervisor>();
-    config::supervisor_config child_cfg        = make_supervisor_config(
-        "child", config::supervisor_strategy::one_for_one, 3);
+    config::supervisor_config child_cfg = make_supervisor_config("child", config::supervisor_strategy::one_for_one, 3);
     child_supervisor->init(child_cfg);
 
     supervisor->add_child(child_supervisor);
@@ -1015,8 +981,7 @@ TEST_F(default_supervisor_test, StopOneChildSupervisorException)
     };
 
     auto                      child_supervisor = std::make_shared<exception_supervisor>();
-    config::supervisor_config child_cfg        = make_supervisor_config(
-        "child", config::supervisor_strategy::one_for_one, 3);
+    config::supervisor_config child_cfg = make_supervisor_config("child", config::supervisor_strategy::one_for_one, 3);
     child_supervisor->init(child_cfg);
 
     supervisor->add_child(child_supervisor);
@@ -1039,8 +1004,7 @@ TEST_F(default_supervisor_test, StartChildSupervisorFailure)
     };
 
     auto                      child_supervisor = std::make_shared<failing_supervisor>();
-    config::supervisor_config child_cfg        = make_supervisor_config(
-        "child", config::supervisor_strategy::one_for_one, 3);
+    config::supervisor_config child_cfg = make_supervisor_config("child", config::supervisor_strategy::one_for_one, 3);
     child_supervisor->init(child_cfg);
 
     supervisor->add_child(child_supervisor);
@@ -1053,8 +1017,7 @@ TEST_F(default_supervisor_test, StartChildSupervisorFailure)
 TEST_F(default_supervisor_test, AddChildDuplicate)
 {
     auto                      child_supervisor1 = std::make_shared<default_supervisor>();
-    config::supervisor_config child_cfg         = make_supervisor_config(
-        "child", config::supervisor_strategy::one_for_one, 3);
+    config::supervisor_config child_cfg = make_supervisor_config("child", config::supervisor_strategy::one_for_one, 3);
     child_supervisor1->init(child_cfg);
 
     EXPECT_TRUE(supervisor->add_child(child_supervisor1));
@@ -1074,8 +1037,7 @@ TEST_F(default_supervisor_test, ComplexScenarioAllUncoveredFeatures)
     service2->set_dependencies_public({"service1"});
 
     auto                      child_supervisor = std::make_shared<default_supervisor>();
-    config::supervisor_config child_cfg        = make_supervisor_config(
-        "child", config::supervisor_strategy::one_for_one, 3);
+    config::supervisor_config child_cfg = make_supervisor_config("child", config::supervisor_strategy::one_for_one, 3);
     child_supervisor->init(child_cfg);
 
     supervisor->add_service(service1);
@@ -1093,8 +1055,7 @@ TEST_F(default_supervisor_test, ComplexScenarioAllUncoveredFeatures)
 
     // 触发崩溃，测试重启机制
     auto                      testable = std::make_shared<testable_supervisor>();
-    config::supervisor_config cfg      = make_supervisor_config(
-        "test", config::supervisor_strategy::rest_for_one, 3);
+    config::supervisor_config cfg      = make_supervisor_config("test", config::supervisor_strategy::rest_for_one, 3);
     testable->init(cfg);
     testable->add_service(service1);
     testable->add_service(service2);
@@ -1112,8 +1073,7 @@ TEST_F(default_supervisor_test, ComplexScenarioAllUncoveredFeatures)
 TEST_F(default_supervisor_test, restart_unknown_service_fails)
 {
     auto                      testable = std::make_shared<testable_supervisor>();
-    config::supervisor_config cfg      = make_supervisor_config(
-        "test", config::supervisor_strategy::one_for_one, 3);
+    config::supervisor_config cfg      = make_supervisor_config("test", config::supervisor_strategy::one_for_one, 3);
     testable->init(cfg);
 
     // 重启不存在的服务应该返回 false
@@ -1133,8 +1093,7 @@ TEST_F(default_supervisor_test, stop_child_exception_propagates)
     };
 
     auto                      child_supervisor = std::make_shared<exception_supervisor>();
-    config::supervisor_config child_cfg        = make_supervisor_config(
-        "child", config::supervisor_strategy::one_for_one, 3);
+    config::supervisor_config child_cfg = make_supervisor_config("child", config::supervisor_strategy::one_for_one, 3);
     child_supervisor->init(child_cfg);
 
     supervisor->add_child(child_supervisor);

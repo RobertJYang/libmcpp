@@ -48,8 +48,7 @@ struct error_info {
     constexpr explicit error_info(std::string_view name, std::string_view format = {},
                                   error_level level = error_level::error)
         : name(name), format(format), level(level)
-    {
-    }
+    {}
 
     bool operator==(const error_info& other) const
     {
@@ -98,8 +97,7 @@ struct MC_API error : public mc::enable_shared_from_this<error>, public error_in
 
     error();
     error(const error_info& info);
-    error(std::string_view name, std::string_view format,
-          error_level level = error_level::error);
+    error(std::string_view name, std::string_view format, error_level level = error_level::error);
 
     error(const error& other);
     error& operator=(const error& other);
@@ -180,8 +178,8 @@ struct MC_API error : public mc::enable_shared_from_this<error>, public error_in
      * @param options 编码选项
      * @return JSON 字符串
      */
-    std::string encode(const mc::json::json_encode_options& options =
-                           mc::json::json_encode_options::default_encode_options) const;
+    std::string
+    encode(const mc::json::json_encode_options& options = mc::json::json_encode_options::default_encode_options) const;
 
     /**
      * @brief 从 JSON 反序列化 (静态方法)
@@ -190,10 +188,9 @@ struct MC_API error : public mc::enable_shared_from_this<error>, public error_in
      * @return 错误对象指针
      * @throw mc::parse_error_exception 当解码失败时
      */
-    static mc::shared_ptr<error> decode(
-        std::string_view                     json,
-        const mc::json::json_decode_options& options =
-            mc::json::json_decode_options::default_decode_options);
+    static mc::shared_ptr<error>
+    decode(std::string_view                     json,
+           const mc::json::json_decode_options& options = mc::json::json_decode_options::default_decode_options);
 
     /**
      * @brief 获取并保存调用栈

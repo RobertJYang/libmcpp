@@ -40,8 +40,7 @@ public:
      * @param name 错误名称
      * @param format 格式化字符串
      */
-    MC_API error_info register_error(std::string name, std::string format,
-                                     error_level level = error_level::error);
+    MC_API error_info register_error(std::string name, std::string format, error_level level = error_level::error);
 
     /*
      * 获取错误信息
@@ -79,14 +78,12 @@ private:
 
 } // namespace mc
 
-#define DECLARE_ERROR(NAME) \
-    extern MC_API const mc::error_info NAME
+#define DECLARE_ERROR(NAME) extern MC_API const mc::error_info NAME
 
-#define REGISTER_CONST_ERROR(NAME, ERROR, ...) \
-    const mc::error_info NAME =                \
-        mc::error_engine::get_instance().register_const_error(ERROR, ##__VA_ARGS__)
+#define REGISTER_CONST_ERROR(NAME, ERROR, ...)                                                                         \
+    const mc::error_info NAME = mc::error_engine::get_instance().register_const_error(ERROR, ##__VA_ARGS__)
 
-#define REGISTER_ERROR(NAME, ERROR, ...) \
+#define REGISTER_ERROR(NAME, ERROR, ...)                                                                               \
     const mc::error_info NAME = mc::error_engine::get_instance().register_error(ERROR, ##__VA_ARGS__)
 
 #endif // MC_ENGINE_ERROR_ENGINE_H

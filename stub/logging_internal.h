@@ -38,12 +38,10 @@ struct LogRecord {
 };
 
 inline void filter_invalid_chars(std::string& str)
-{
-}
+{}
 
 inline void internal_log_handler(LogRecord* rec, bool limit)
-{
-}
+{}
 
 } // namespace logging
 

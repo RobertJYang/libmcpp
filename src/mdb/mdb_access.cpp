@@ -29,13 +29,10 @@ using mc::dbus::match;
 using mc::dbus::message;
 
 namespace {
-constexpr const char* INTROSPECTION_INTERFACE =
-    "org.freedesktop.DBus.introspectable";
-constexpr const char* INTROSPECT_METHOD = "Introspect";
-constexpr const char* OBJMGR_INTERFACE =
-    "org.freedesktop.DBus.ObjectManager";
-constexpr const char* SIGNAL_INTERFACES_REMOVED =
-    "InterfaceRemoved";
+constexpr const char* INTROSPECTION_INTERFACE   = "org.freedesktop.DBus.introspectable";
+constexpr const char* INTROSPECT_METHOD         = "Introspect";
+constexpr const char* OBJMGR_INTERFACE          = "org.freedesktop.DBus.ObjectManager";
+constexpr const char* SIGNAL_INTERFACES_REMOVED = "InterfaceRemoved";
 
 constexpr mc::milliseconds MDB_SERVICE_TIMEOUT   = mc::milliseconds(10 * 60 * 1000);
 constexpr std::string_view MDB_SERVICE_NAME      = "bmc.kepler.maca";
@@ -55,36 +52,29 @@ mdb_access& mdb_access::instance(size_t max_cache_size)
     return *inst;
 }
 
-mdb_access::mdb_access(size_t max_cache_size)
-    : m_cache(max_cache_size)
-{
-}
+mdb_access::mdb_access(size_t max_cache_size) : m_cache(max_cache_size)
+{}
 
-std::shared_ptr<proxy_object> mdb_access::get_object_by_short_call(mc::dbus::sd_bus*  bus,
-                                                                   const std::string& path,
+std::shared_ptr<proxy_object> mdb_access::get_object_by_short_call(mc::dbus::sd_bus* bus, const std::string& path,
                                                                    const std::string& interface)
 {
     mc::variants interfaces = {mc::variant(interface)};
     mc::variant  rsp        = mc::mdb::service::get_object(bus, path, interfaces);
     auto         it         = rsp.get_object().begin();
-
     if (it == rsp.get_object().end()) {
-        MC_THROW(mc::system_exception, "service not exists: path=${p}, interface=${i}",
-                 ("p", path)("i", interface));
+        MC_THROW(mc::system_exception, "service not exists: path=${p}, interface=${i}", ("p", path)("i", interface));
     }
 
-    std::string           service = it->key.as_string();
-    const interface_info& iface_info =
-        introspection_cache::instance().get_interface(bus, service, path, interface);
+    std::string           service    = it->key.as_string();
+    const interface_info& iface_info = introspection_cache::instance().get_interface(bus, service, path, interface);
 
     // 使用 shared_ptr 管理内存，避免内存泄漏
     // 返回 shared_ptr 以确保对象生命周期由调用者管理
     return std::make_shared<proxy_object>(bus, service, path, interface, iface_info);
 }
 
-std::shared_ptr<proxy_object> mdb_access::get_object(std::shared_ptr<mc::dbus::sd_bus> bus,
-                                                     const std::string&                path,
-                                                     const std::string&                interface)
+std::shared_ptr<proxy_object> mdb_access::get_object(std::shared_ptr<mc::dbus::sd_bus> bus, const std::string& path,
+                                                     const std::string& interface)
 {
     std::string cache_key = path + interface;
 
@@ -104,8 +94,7 @@ std::shared_ptr<proxy_object> mdb_access::get_object(std::shared_ptr<mc::dbus::s
 
     auto it = rsp.get_object().begin();
     if (it == rsp.get_object().end()) {
-        MC_THROW(mc::system_exception, "service not exists: path=${p}, interface=${i}",
-                 ("p", path)("i", interface));
+        MC_THROW(mc::system_exception, "service not exists: path=${p}, interface=${i}", ("p", path)("i", interface));
     }
 
     std::string           service = it->key.as_string();
@@ -127,11 +116,9 @@ std::shared_ptr<proxy_object> mdb_access::get_object(std::shared_ptr<mc::dbus::s
     return obj;
 }
 
-std::shared_ptr<proxy_object> mdb_access::get_object_with_service(
-    std::shared_ptr<mc::dbus::sd_bus> bus,
-    const std::string&                service,
-    const std::string&                path,
-    const std::string&                interface)
+std::shared_ptr<proxy_object> mdb_access::get_object_with_service(std::shared_ptr<mc::dbus::sd_bus> bus,
+                                                                  const std::string& service, const std::string& path,
+                                                                  const std::string& interface)
 {
     // 对 service 名称进行判空检查
     if (service.empty()) {
@@ -170,11 +157,10 @@ std::shared_ptr<proxy_object> mdb_access::get_object_with_service(
     return obj;
 }
 
-std::map<std::string, std::shared_ptr<proxy_object>> mdb_access::get_sub_objects(
-    std::shared_ptr<mc::dbus::sd_bus> bus,
-    const std::string&                path,
-    const std::string&                interface,
-    int32_t                           depth)
+std::map<std::string, std::shared_ptr<proxy_object>> mdb_access::get_sub_objects(std::shared_ptr<mc::dbus::sd_bus> bus,
+                                                                                 const std::string&                path,
+                                                                                 const std::string& interface,
+                                                                                 int32_t            depth)
 {
     // 在 move bus 之前保存 connection 和 is_blocking 信息
     mc::dbus::connection conn        = bus->get_connection();

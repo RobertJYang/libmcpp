@@ -112,8 +112,7 @@ void throw_type_error(const char* expected_type, type_id actual_type)
 
 void throw_unknow_type_error(type_id actual_type)
 {
-    MC_THROW(mc::invalid_arg_exception, "未知类型：${type}",
-             ("type", static_cast<int>(actual_type)));
+    MC_THROW(mc::invalid_arg_exception, "未知类型：${type}", ("type", static_cast<int>(actual_type)));
 }
 
 void throw_invalid_type_comparison_error(const char* type1, const char* type2, const char* op)
@@ -141,8 +140,7 @@ void throw_out_of_range_error(const char* msg)
 
 void throw_out_of_range_error(size_t index, size_t size)
 {
-    MC_THROW(mc::out_of_range_exception, "索引越界: 索引${index}超出范围[0, ${size})",
-             ("index", index)("size", size));
+    MC_THROW(mc::out_of_range_exception, "索引越界: 索引${index}超出范围[0, ${size})", ("index", index)("size", size));
 }
 
 void throw_bad_cast_error(const char* msg)

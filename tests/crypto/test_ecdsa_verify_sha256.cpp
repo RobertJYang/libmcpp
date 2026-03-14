@@ -97,9 +97,7 @@ TEST_F(EcdsaVerifySha256Test, VerifySuccess)
     ASSERT_FALSE(signature_der.empty());
 
     std::string data_mutable = data;
-    int32_t     ret          = ecdsa_verify_sha256(data_mutable,
-                                                   signature_der,
-                                                   pub_der_);
+    int32_t     ret          = ecdsa_verify_sha256(data_mutable, signature_der, pub_der_);
     EXPECT_EQ(ret, ECDSA_VERIFY_OK);
 }
 

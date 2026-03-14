@@ -49,8 +49,7 @@ public:
      */
     explicit lru_cache(size_t max_size = 0, eviction_callback on_evict = nullptr)
         : m_max_size(max_size), m_on_evict(std::move(on_evict))
-    {
-    }
+    {}
 
     /**
      * @brief 禁用拷贝构造

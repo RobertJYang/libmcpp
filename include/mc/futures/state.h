@@ -30,10 +30,8 @@ namespace mc::futures {
 
 namespace detail {
 template <typename T>
-using state_tt = std::conditional_t<
-    std::is_same_v<mc::traits::remove_cvref_t<T>, std::monostate>,
-    void,
-    mc::traits::remove_cvref_t<T>>;
+using state_tt = std::conditional_t<std::is_same_v<mc::traits::remove_cvref_t<T>, std::monostate>, void,
+                                    mc::traits::remove_cvref_t<T>>;
 } // namespace detail
 
 class MC_API state_base : public shared_base {
@@ -133,19 +131,12 @@ protected:
 template <typename T>
 class State : public state_base {
 public:
-    using value_type = std::conditional_t<
-        std::is_same_v<T, void>,
-        std::monostate,
-        std::decay_t<T>>;
+    using value_type  = std::conditional_t<std::is_same_v<T, void>, std::monostate, std::decay_t<T>>;
     using result_type = std::optional<value_type>;
 
     template <typename Executor>
-    State(Executor executor)
-        : state_base(std::forward<Executor>(executor),
-                     get_destory_(),
-                     sizeof(result_type))
-    {
-    }
+    State(Executor executor) : state_base(std::forward<Executor>(executor), get_destory_(), sizeof(result_type))
+    {}
 
     void reset()
     {
@@ -156,8 +147,7 @@ public:
     template <typename Executor>
     void reuse(Executor executor)
     {
-        static_assert(std::is_same_v<Executor, executor_type> ||
-                          boost::asio::is_executor<Executor>::value,
+        static_assert(std::is_same_v<Executor, executor_type> || boost::asio::is_executor<Executor>::value,
                       "reuse() 参数必须是 executor 类型");
         // state_base::destory() 调用链末尾的 state_base::reset() 会将 m_destory 清为
         // nullptr。重新从池中取出时必须在此恢复，否则第二次释放时 destory_impl 不会被调

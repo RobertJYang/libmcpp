@@ -11,12 +11,12 @@
  */
 
 #include "multi_process_test_base.h"
-#include <sys/wait.h>
-#include <signal.h>
-#include <unistd.h>
 #include <chrono>
-#include <thread>
 #include <iostream>
+#include <signal.h>
+#include <sys/wait.h>
+#include <thread>
+#include <unistd.h>
 
 namespace mc {
 namespace interprocess {
@@ -81,11 +81,9 @@ bool multi_process_test_base::wait_for_children(int timeout_seconds)
             if (result > 0) {
                 // 子进程已结束
                 if (WIFEXITED(status)) {
-                    ilog("子进程(PID=${pid})正常退出，退出码: ${code}",
-                         ("pid", *it)("code", WEXITSTATUS(status)));
+                    ilog("子进程(PID=${pid})正常退出，退出码: ${code}", ("pid", *it)("code", WEXITSTATUS(status)));
                 } else if (WIFSIGNALED(status)) {
-                    elog("子进程(PID=${pid})被信号${signal}终止",
-                         ("pid", *it)("signal", WTERMSIG(status)));
+                    elog("子进程(PID=${pid})被信号${signal}终止", ("pid", *it)("signal", WTERMSIG(status)));
                 }
 
                 // 从列表中移除已结束的子进程
@@ -96,8 +94,7 @@ bool multi_process_test_base::wait_for_children(int timeout_seconds)
                 ++it;
             } else {
                 // waitpid出错
-                elog("等待子进程${pid}时出错: ${error}",
-                     ("pid", *it)("error", strerror(errno)));
+                elog("等待子进程${pid}时出错: ${error}", ("pid", *it)("error", strerror(errno)));
                 ++it;
             }
         }
@@ -135,6 +132,6 @@ void multi_process_test_base::terminate_children()
     m_child_pids.clear();
 }
 
-}  // namespace test
-}  // namespace interprocess
-}  // namespace mc 
+} // namespace test
+} // namespace interprocess
+} // namespace mc

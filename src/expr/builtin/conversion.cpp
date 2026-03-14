@@ -33,7 +33,8 @@ struct conversion_funcs {
         try {
             return arg.as_double();
         } catch (const std::exception&) {
-            MC_THROW(mc::invalid_arg_exception, "Expression evaluation error: unable to convert value to floating point type");
+            MC_THROW(mc::invalid_arg_exception,
+                     "Expression evaluation error: unable to convert value to floating point type");
         }
     }
 
@@ -56,11 +57,13 @@ struct conversion_funcs {
         try {
             int32_t value = arg.as_int32();
             if (value < 0 || value > 255) {
-                MC_THROW(mc::invalid_arg_exception, "Expression evaluation error: to_char value must be in range [0, 255]");
+                MC_THROW(mc::invalid_arg_exception,
+                         "Expression evaluation error: to_char value must be in range [0, 255]");
             }
             return std::string(1, static_cast<char>(value));
         } catch (const std::exception&) {
-            MC_THROW(mc::invalid_arg_exception, "Expression evaluation error: unable to convert value to character type");
+            MC_THROW(mc::invalid_arg_exception,
+                     "Expression evaluation error: unable to convert value to character type");
         }
     }
 };

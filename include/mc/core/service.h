@@ -116,8 +116,7 @@ public:
     }
 
     void cleanup() override
-    {
-    }
+    {}
 
     bool is_healthy() const override
     {
@@ -125,12 +124,10 @@ public:
     }
 
     void on_dump(std::map<std::string, std::string> context, std::string filepath) override
-    {
-    }
+    {}
 
     void on_detach_debug_console(std::map<std::string, std::string> context) override
-    {
-    }
+    {}
 
     int32_t on_reboot_prepare(std::map<std::string, std::string> context) override
     {
@@ -148,8 +145,7 @@ public:
     }
 
     void on_reboot_cancel(std::map<std::string, std::string> context) override
-    {
-    }
+    {}
 
 protected:
     void set_state(service_state state);

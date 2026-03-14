@@ -58,11 +58,9 @@ struct MC_API properties_interface : public mc::engine::interface<properties_int
 
     mc::variant get(std::string_view interface_name, std::string_view property_name) const;
     mc::dict    get_all(std::string_view interface_name) const;
-    void        set(std::string_view interface_name, std::string_view property_name,
-                    const mc::variant& value);
+    void        set(std::string_view interface_name, std::string_view property_name, const mc::variant& value);
 
-    using properties_changed_signal =
-        mc::signal<void(std::string_view, mc::dict, std::vector<std::string>)>;
+    using properties_changed_signal = mc::signal<void(std::string_view, mc::dict, std::vector<std::string>)>;
     properties_changed_signal properties_changed;
 
     static properties_interface& get_instance();
@@ -152,7 +150,7 @@ struct MC_API common_properties_interface : public mc::engine::interface<common_
                                         std::string_view property_name);
     static void        set_with_context(std::map<std::string, std::string> context, std::string_view interface_name,
                                         std::string_view property_name, const mc::variant& value);
-    static mc::dict    get_all_with_context(std::map<std::string, std::string> context, std::string_view interface_name);
+    static mc::dict get_all_with_context(std::map<std::string, std::string> context, std::string_view interface_name);
     static std::string get_property_detail(std::map<std::string, std::string> context, std::string_view interface_name,
                                            std::string_view property_name);
     static std::string get_private_properties(std::map<std::string, std::string> context);
@@ -168,8 +166,8 @@ public:
     static constexpr std::string_view peer_name              = "Peer";
     static constexpr std::string_view object_manager_name    = "ObjectManager";
     static constexpr std::string_view common_properties_name = "bmc.kepler.Object.Properties";
-    static invoke_result              invoke(abstract_object* object, std::string_view method_name,
-                                             const mc::variants& args, std::string_view interface_name);
+    static invoke_result invoke(abstract_object* object, std::string_view method_name, const mc::variants& args,
+                                std::string_view interface_name);
 };
 
 } // namespace mc::engine

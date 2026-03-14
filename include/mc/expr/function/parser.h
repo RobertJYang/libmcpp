@@ -68,8 +68,7 @@ private:
     std::string                         parse_params_string(const std::string& input);
 
     // 通用属性解析函数
-    relate_property parse_property_with_type(const std::string&          input,
-                                             const property_type_config& config);
+    relate_property parse_property_with_type(const std::string& input, const property_type_config& config);
 };
 
 class MC_API param_value_comparator {

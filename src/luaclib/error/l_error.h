@@ -33,14 +33,10 @@ struct error_wrapper {
     mc::error_ptr err;
 
     error_wrapper() = default;
-    explicit error_wrapper(mc::error_ptr e)
-        : err(e)
-    {
-    }
-    explicit error_wrapper(mc::error* e)
-        : err(e)
-    {
-    }
+    explicit error_wrapper(mc::error_ptr e) : err(e)
+    {}
+    explicit error_wrapper(mc::error* e) : err(e)
+    {}
 };
 
 // ============================================================================

@@ -28,20 +28,12 @@
 class MC_API proxy_object {
 public:
     // 接收指针的构造函数（用于 get_object）
-    proxy_object(
-        mc::dbus::sd_bus*     bus,
-        std::string           service,
-        std::string           path,
-        std::string           interface,
-        const interface_info& iface_info);
+    proxy_object(mc::dbus::sd_bus* bus, std::string service, std::string path, std::string interface,
+                 const interface_info& iface_info);
 
     // 接收 shared_ptr 的构造函数（用于 get_object）
-    proxy_object(
-        std::shared_ptr<mc::dbus::sd_bus> bus,
-        std::string                       service,
-        std::string                       path,
-        std::string                       interface,
-        const interface_info&             iface_info);
+    proxy_object(std::shared_ptr<mc::dbus::sd_bus> bus, std::string service, std::string path, std::string interface,
+                 const interface_info& iface_info);
 
     const interface_info& get_interface_info() const;
 

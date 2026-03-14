@@ -33,8 +33,8 @@ static interface_impl* get_interface(const object_impl* self, const property_typ
 }
 
 template <typename ResultType>
-ResultType do_invoke(object_impl* self, context& ctx, std::string_view method_name,
-                     const mc::variants& args, std::string_view interface_name)
+ResultType do_invoke(object_impl* self, context& ctx, std::string_view method_name, const mc::variants& args,
+                     std::string_view interface_name)
 {
     // 方法查找顺序：标准接口方法 -> 对象方法 -> 接口方法
 
@@ -102,10 +102,8 @@ ResultType invoke_impl(object_impl* self, std::string_view method_name, const mc
 
 } // namespace detail
 
-object_impl::object_impl(core_object* parent)
-    : abstract_object(parent)
-{
-}
+object_impl::object_impl(core_object* parent) : abstract_object(parent)
+{}
 
 object_impl::~object_impl()
 {
@@ -121,8 +119,7 @@ bool object_impl::init(const mc::dict& args)
         from_variant(args, *this);
         return true;
     } catch (const std::exception& e) {
-        elog("init object ${class} failed: ${error}",
-             ("class", get_class_name())("error", e.what()));
+        elog("init object ${class} failed: ${error}", ("class", get_class_name())("error", e.what()));
         return false;
     }
 }
@@ -133,8 +130,7 @@ std::string_view object_impl::get_object_path() const
         return m_object_path;
     }
 
-    const_cast<object_impl*>(this)->set_object_path(
-        service::resolve_object_path(get_path_pattern(), *this));
+    const_cast<object_impl*>(this)->set_object_path(service::resolve_object_path(get_path_pattern(), *this));
     return m_object_path;
 }
 
@@ -299,8 +295,7 @@ void object_impl::set_object_path(std::string_view path)
 
     // 如果已经注册到服务中则不能修改路径
     MC_ASSERT_THROW(m_object_path.empty() || !get_service(), mc::invalid_arg_exception,
-                    "object ”${path}“ is registered, please unregister first",
-                    ("path", m_object_path));
+                    "object ”${path}“ is registered, please unregister first", ("path", m_object_path));
 
     m_object_path = path;
 }
@@ -345,8 +340,8 @@ void object_impl::init_interface_object(const object_metadata& metadata)
     });
 }
 
-mc::variant object_impl::get_property(std::string_view property_name,
-                                      std::string_view interface_name, int options) const
+mc::variant object_impl::get_property(std::string_view property_name, std::string_view interface_name,
+                                      int options) const
 {
     // TODO:: 属性目前没有实现对象重载接口属性，后续需要实现
     const auto& metadata = get_metadata();
@@ -447,8 +442,7 @@ void object_impl::set_property_ref_info(std::string_view property_name, const st
     m_properties_ref_info->set(interface_name, property_name, info);
 }
 
-std::string object_impl::get_property_ref_info(std::string_view property_name,
-                                               std::string_view interface_name) const
+std::string object_impl::get_property_ref_info(std::string_view property_name, std::string_view interface_name) const
 {
     if (!m_properties_ref_info) {
         return "";
@@ -572,8 +566,7 @@ bool object_impl::has_interface(std::string_view interface_name) const
     return get_metadata().get_interface_info(interface_name) != nullptr;
 }
 
-mc::connection_type object_impl::connect(std::string_view signal_name,
-                                         slot_type slot, std::string_view interface_name)
+mc::connection_type object_impl::connect(std::string_view signal_name, slot_type slot, std::string_view interface_name)
 {
     const auto& metadata = get_metadata();
     auto        info     = metadata.get_signal_info(signal_name, interface_name);
@@ -584,8 +577,7 @@ mc::connection_type object_impl::connect(std::string_view signal_name,
     return {};
 }
 
-mc::variant object_impl::emit(std::string_view    signal_name,
-                              const mc::variants& args, std::string_view interface_name)
+mc::variant object_impl::emit(std::string_view signal_name, const mc::variants& args, std::string_view interface_name)
 {
     const auto& metadata = get_metadata();
     auto        info     = metadata.get_signal_info(signal_name, interface_name);
@@ -608,8 +600,7 @@ result<mc::variant> object_impl::async_invoke(std::string_view method_name, cons
     return detail::invoke_impl<result<mc::variant>>(this, method_name, args, interface_name);
 }
 
-bool object_impl::has_method(std::string_view method_name,
-                             std::string_view interface_name) const
+bool object_impl::has_method(std::string_view method_name, std::string_view interface_name) const
 {
     const auto& metadata = get_metadata();
     auto        info     = metadata.get_method_info(method_name, interface_name);

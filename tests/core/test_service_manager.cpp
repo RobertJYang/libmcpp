@@ -28,8 +28,7 @@ using namespace mc::core;
 
 class fake_service : public service_base {
 public:
-    explicit fake_service(std::string name)
-        : service_base(std::move(name))
+    explicit fake_service(std::string name) : service_base(std::move(name))
     {
         set_state(service_state::stopped);
     }
@@ -74,8 +73,7 @@ public:
 };
 
 // 测试辅助函数：创建服务配置
-config::service_config make_service_config(const std::string&              name,
-                                           const std::vector<std::string>& deps)
+config::service_config make_service_config(const std::string& name, const std::vector<std::string>& deps)
 {
     config::service_config cfg;
     cfg.api_version  = "v1";
@@ -91,8 +89,7 @@ config::service_config make_service_config(const std::string&              name,
 // 测试用监督器
 class test_supervisor : public supervisor {
 public:
-    test_supervisor()
-        : m_config{}
+    test_supervisor() : m_config{}
     {
         m_config.meta.name    = "main";
         m_config.strategy     = config::supervisor_strategy::one_for_one;
@@ -114,8 +111,7 @@ public:
         return true;
     }
     void cleanup() override
-    {
-    }
+    {}
 
     bool add_service(service_base_ptr service) override
     {
@@ -173,10 +169,8 @@ private:
 // 测试用服务（重命名以避免与test_default_supervisor.cpp中的同名类冲突）
 class test_service_simple : public service_base {
 public:
-    test_service_simple(const std::string& name)
-        : service_base(name)
-    {
-    }
+    test_service_simple(const std::string& name) : service_base(name)
+    {}
 
     bool init(dict args) override
     {
@@ -191,8 +185,7 @@ public:
         return true;
     }
     void cleanup() override
-    {
-    }
+    {}
 
     service_state get_state() const override
     {
@@ -226,8 +219,7 @@ protected:
     }
 
     ~service_manager_test()
-    {
-    }
+    {}
 
     void TearDown() override
     {
@@ -421,9 +413,8 @@ TEST_F(service_manager_test, start_services_handles_failure)
 // 测试无依赖的服务
 TEST_F(service_manager_test, no_dependencies)
 {
-    std::vector<config::service_config> configs = {make_service_config("service1", {}),
-                                                   make_service_config("service2", {}),
-                                                   make_service_config("service3", {})};
+    std::vector<config::service_config> configs = {
+        make_service_config("service1", {}), make_service_config("service2", {}), make_service_config("service3", {})};
 
     add_configs(configs);
     ASSERT_TRUE(manager.initialize_from_configs(config_mgr, supervisor_mgr, *factory));
@@ -588,10 +579,8 @@ TEST_F(service_manager_test, service_start_failure)
     // 创建一个会启动失败的服务
     class failing_service : public service_base {
     public:
-        failing_service(const std::string& name)
-            : service_base(name)
-        {
-        }
+        failing_service(const std::string& name) : service_base(name)
+        {}
 
         bool init(dict args) override
         {
@@ -606,8 +595,7 @@ TEST_F(service_manager_test, service_start_failure)
             return true;
         }
         void cleanup() override
-        {
-        }
+        {}
         service_state get_state() const override
         {
             return service_state::stopped;
@@ -632,10 +620,8 @@ TEST_F(service_manager_test, service_stop_failure)
     // 创建一个会停止失败的服务
     class failing_stop_service : public service_base {
     public:
-        failing_stop_service(const std::string& name)
-            : service_base(name)
-        {
-        }
+        failing_stop_service(const std::string& name) : service_base(name)
+        {}
 
         bool init(dict args) override
         {
@@ -650,8 +636,7 @@ TEST_F(service_manager_test, service_stop_failure)
             return false;
         } // 故意失败
         void cleanup() override
-        {
-        }
+        {}
         service_state get_state() const override
         {
             return service_state::running;
@@ -675,10 +660,8 @@ TEST_F(service_manager_test, service_cleanup_exception)
     // 创建一个清理时会抛出异常的服务
     class exception_cleanup_service : public service_base {
     public:
-        exception_cleanup_service(const std::string& name)
-            : service_base(name)
-        {
-        }
+        exception_cleanup_service(const std::string& name) : service_base(name)
+        {}
 
         bool init(dict args) override
         {

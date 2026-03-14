@@ -64,8 +64,7 @@ public:
     MC_OBJECT(TestObject2, "TestObject", "Id/${Id}", (TestInterface2))
 
     ~TestObject2()
-    {
-    }
+    {}
 
     TestInterface2 m_iface2;
 };
@@ -157,10 +156,8 @@ public:
 };
 
 struct test_service_1 : public mc::engine::service {
-    test_service_1()
-        : mc::engine::service("org.openubmc.test_service_1")
-    {
-    }
+    test_service_1() : mc::engine::service("org.openubmc.test_service_1")
+    {}
 
     bool init(mc::dict args = {}) override
     {
@@ -204,10 +201,8 @@ struct test_service_1 : public mc::engine::service {
 };
 
 struct test_service_2 : public mc::engine::service {
-    test_service_2()
-        : mc::engine::service("org.openubmc.test_service_2")
-    {
-    }
+    test_service_2() : mc::engine::service("org.openubmc.test_service_2")
+    {}
 
     bool init(mc::dict args = {}) override
     {
@@ -240,14 +235,15 @@ struct test_service_2 : public mc::engine::service {
 } // namespace tests::engine::std_interface
 
 MC_REFLECT(tests::engine::std_interface::TestInterface1,
-           ((m_value, "Value"))((m_name, "Name"))((set_value, "SetValue"))((get_value, "GetValue"))(
-               (m_value_changeds, "ValueChanged")))
+           ((m_value, "Value"))((m_name, "Name"))((set_value, "SetValue"))((get_value, "GetValue"))((m_value_changeds,
+                                                                                                     "ValueChanged")))
 MC_REFLECT(tests::engine::std_interface::TestInterface2, ((m_id, "Id"))((m_map, "Map")))
 MC_REFLECT(tests::engine::std_interface::TestObject1, ((m_iface1, "Interface1")))
 MC_REFLECT(tests::engine::std_interface::TestObject2, ((m_iface2, "Interface2")))
 
-MC_REFLECT(tests::engine::std_interface::TestInterfaceA, ((add, "Add"))((set_num, "SetNum"))((set_str, "SetStr"))(
-                                                             (get_num_and_str, "GetNumAndStr"))((m_num, "Num"))((m_str, "Str")))
+MC_REFLECT(tests::engine::std_interface::TestInterfaceA,
+           ((add, "Add"))((set_num, "SetNum"))((set_str, "SetStr"))((get_num_and_str,
+                                                                     "GetNumAndStr"))((m_num, "Num"))((m_str, "Str")))
 MC_REFLECT(tests::engine::std_interface::TestInterfaceB, ((increment, "Increment"))((m_cnt, "Cnt"))((m_arr, "Arr")))
 MC_REFLECT(tests::engine::std_interface::TestObjectA, ((m_iface, "InterfaceA"))((m_private_str_prop, "PrivateStrProp")))
 MC_REFLECT(tests::engine::std_interface::TestObjectB, ((m_iface, "InterfaceB")))
@@ -271,9 +267,8 @@ namespace {
  */
 template <typename Builder>
 mc::dbus::message wait_valid_reply(mc::dbus::connection& conn, Builder&& builder,
-                                   mc::milliseconds timeout      = mc::milliseconds(2000),
-                                   int              max_attempts = 5,
-                                   mc::milliseconds retry_delay  = mc::milliseconds(100))
+                                   mc::milliseconds timeout = mc::milliseconds(2000), int max_attempts = 5,
+                                   mc::milliseconds retry_delay = mc::milliseconds(100))
 {
     mc::dbus::message reply;
     for (int attempt = 0; attempt < max_attempts; ++attempt) {
@@ -296,8 +291,7 @@ protected:
     TestObject2*                child_obj3;
 
     ~std_interface_test()
-    {
-    }
+    {}
 
     static void SetUpTestSuite()
     {
@@ -481,20 +475,17 @@ protected:
 
 TEST_F(std_interface_test, test_properties)
 {
-    auto value = root->invoke("Get", mc::variants{"org.test.std.TestInterface1", "Value"},
-                              properties_interface_name);
+    auto value = root->invoke("Get", mc::variants{"org.test.std.TestInterface1", "Value"}, properties_interface_name);
     EXPECT_EQ(value, 100);
 
-    auto i1values =
-        root->invoke("GetAll", mc::variants{"org.test.std.TestInterface1"}, properties_interface_name);
+    auto i1values = root->invoke("GetAll", mc::variants{"org.test.std.TestInterface1"}, properties_interface_name);
     EXPECT_EQ(i1values, (mc::dict{{"Value", 100}, {"Name", "Name"}}));
 
-    auto i2values = child_obj2->invoke("GetAll", mc::variants{"org.test.std.TestInterface2"},
-                                       properties_interface_name);
+    auto i2values =
+        child_obj2->invoke("GetAll", mc::variants{"org.test.std.TestInterface2"}, properties_interface_name);
     EXPECT_EQ(i2values, (mc::dict{{"Id", "00101"}, {"Map", mc::dict{{"Key1", 1}, {"Key2", 2}}}}));
 
-    root->invoke("Set", mc::variants{"org.test.std.TestInterface1", "Value", 200},
-                 properties_interface_name);
+    root->invoke("Set", mc::variants{"org.test.std.TestInterface1", "Value", 200}, properties_interface_name);
     EXPECT_EQ(root->m_iface1.m_value, 200);
 
     EXPECT_EQ(root->get_object_path(), "/org/test/TestObject");
@@ -549,18 +540,15 @@ TEST_F(std_interface_test, test_introspect)
             {
                 "methods",
                 mc::variants{mc::dict{{"name", "SetValue"},
-                                      {"args", mc::variants{mc::dict{{"type", "i"},
-                                                                     {"direction", "in"}}}}},
+                                      {"args", mc::variants{mc::dict{{"type", "i"}, {"direction", "in"}}}}},
                              mc::dict{{"name", "GetValue"},
-                                      {"args", mc::variants{mc::dict{{"type", "i"},
-                                                                     {"direction", "out"}}}}}},
+                                      {"args", mc::variants{mc::dict{{"type", "i"}, {"direction", "out"}}}}}},
             },
             {
                 "signals",
                 mc::variants{
                     mc::dict{{"name", "ValueChanged"},
-                             {"args",
-                              mc::variants{mc::dict{{"type", "i"}}, mc::dict{{"type", "i"}}}}},
+                             {"args", mc::variants{mc::dict{{"type", "i"}}, mc::dict{{"type", "i"}}}}},
                 },
             },
         },
@@ -578,14 +566,9 @@ TEST_F(std_interface_test, TestGetWithContext)
 {
     std::map<std::string, std::string> ctx;
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    auto reply = wait_valid_reply(
-        test_conn,
-        [&]() {
-        auto msg =
-            mc::dbus::message::new_method_call("org.openubmc.test_service_2",
-                                               "/org/openubmc/test_object_b",
-                                               "bmc.kepler.Object.Properties",
-                                               "GetWithContext");
+    auto reply = wait_valid_reply(test_conn, [&]() {
+        auto msg = mc::dbus::message::new_method_call("org.openubmc.test_service_2", "/org/openubmc/test_object_b",
+                                                      "bmc.kepler.Object.Properties", "GetWithContext");
         msg.set_sender("bmc.kepler.test_client");
         msg.set_serial(1);
         auto writer = msg.writer();
@@ -593,8 +576,7 @@ TEST_F(std_interface_test, TestGetWithContext)
         return msg;
     });
     ASSERT_TRUE(reply.is_valid() && reply.is_method_return())
-        << "reply_valid=" << reply.is_valid()
-        << " reply_type=" << static_cast<int>(reply.get_type())
+        << "reply_valid=" << reply.is_valid() << " reply_type=" << static_cast<int>(reply.get_type())
         << " reply_error=" << (reply.is_error() ? reply.get_error_name() : "");
     mc::variant result;
     reply >> result;
@@ -614,38 +596,28 @@ TEST_F(std_interface_test, TestSetWithContext)
     arr.push_back(5);
     arr.push_back(6);
 
-    auto setter_reply = wait_valid_reply(
-        test_conn,
-        [&]() {
-        auto msg =
-            mc::dbus::message::new_method_call(
-                "org.openubmc.test_service_2",
-                "/org/openubmc/test_object_b", "bmc.kepler.Object.Properties", "SetWithContext");
+    auto setter_reply = wait_valid_reply(test_conn, [&]() {
+        auto msg = mc::dbus::message::new_method_call("org.openubmc.test_service_2", "/org/openubmc/test_object_b",
+                                                      "bmc.kepler.Object.Properties", "SetWithContext");
         msg.set_sender("bmc.kepler.test_client");
         auto writer = msg.writer();
         writer << ctx << "org.openubmc.test_interface_b" << "Arr" << arr;
         return msg;
     });
     ASSERT_TRUE(setter_reply.is_valid() && setter_reply.is_method_return())
-        << "reply_valid=" << setter_reply.is_valid()
-        << " reply_type=" << static_cast<int>(setter_reply.get_type())
+        << "reply_valid=" << setter_reply.is_valid() << " reply_type=" << static_cast<int>(setter_reply.get_type())
         << " reply_error=" << (setter_reply.is_error() ? setter_reply.get_error_name() : "");
 
-    auto getter_reply = wait_valid_reply(
-        test_conn,
-        [&]() {
-        auto msg = mc::dbus::message::new_method_call("org.openubmc.test_service_2",
-                                                      "/org/openubmc/test_object_b",
-                                                      "bmc.kepler.Object.Properties",
-                                                      "GetWithContext");
+    auto getter_reply = wait_valid_reply(test_conn, [&]() {
+        auto msg = mc::dbus::message::new_method_call("org.openubmc.test_service_2", "/org/openubmc/test_object_b",
+                                                      "bmc.kepler.Object.Properties", "GetWithContext");
         msg.set_sender("bmc.kepler.test_client");
         auto writer = msg.writer();
         writer << ctx << "org.openubmc.test_interface_b" << "Arr";
         return msg;
     });
     ASSERT_TRUE(getter_reply.is_valid() && getter_reply.is_method_return())
-        << "reply_valid=" << getter_reply.is_valid()
-        << " reply_type=" << static_cast<int>(getter_reply.get_type())
+        << "reply_valid=" << getter_reply.is_valid() << " reply_type=" << static_cast<int>(getter_reply.get_type())
         << " reply_error=" << (getter_reply.is_error() ? getter_reply.get_error_name() : "");
 
     mc::variant result;
@@ -686,8 +658,7 @@ TEST_F(std_interface_test, PropertiesInterfaceSetAndCommonProperties)
     props.set("org.openubmc.test_interface_a", "Num", mc::variant(uint8_t(77)));
     EXPECT_EQ(obj.m_iface.m_num.value(), 77);
 
-    auto object_name =
-        props.get(mc::engine::common_properties_name, "ObjectName").as_string();
+    auto object_name = props.get(mc::engine::common_properties_name, "ObjectName").as_string();
     EXPECT_EQ(object_name, "TestObjectA");
 
     auto common_dict = props.get_all(mc::engine::common_properties_name);
@@ -719,13 +690,11 @@ TEST_F(std_interface_test, CommonPropertiesContextHelpers)
     EXPECT_EQ(all_props.at("ObjectName").as_string(), "TestObjectA");
 
     // GetWithContext 传入 common 接口应直接返回通用属性
-    auto ctx_value =
-        common_props.get_with_context({}, mc::engine::common_properties_name, "ClassName");
+    auto ctx_value = common_props.get_with_context({}, mc::engine::common_properties_name, "ClassName");
     EXPECT_EQ(ctx_value.as_string(), "TestObjectA");
 
     // SetWithContext 在 common 接口下应忽略写入
-    common_props.set_with_context({}, mc::engine::common_properties_name, "ParentPath",
-                                  mc::variant("/tmp/ignored"));
+    common_props.set_with_context({}, mc::engine::common_properties_name, "ParentPath", mc::variant("/tmp/ignored"));
     EXPECT_EQ(common_props.get("ParentPath").as_string(), "/org/openubmc/test_parent");
 }
 
@@ -739,14 +708,14 @@ TEST_F(std_interface_test, CommonPropertiesSetWithoutContextIsSafe)
 TEST_F(std_interface_test, TestGetPrivateProperties)
 {
     auto reply = wait_valid_reply(test_conn, [&]() {
-        auto msg =
-            mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/org/openubmc/test_object_a",
-                                               "bmc.kepler.Object.Properties", "GetPrivateProperties");
+        auto msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/org/openubmc/test_object_a",
+                                                         "bmc.kepler.Object.Properties", "GetPrivateProperties");
         auto writer = msg.writer();
         writer << empty_ctx;
         return msg;
     });
-    ASSERT_TRUE(reply.is_valid() && reply.is_method_return()) << " reply_error=" << (reply.is_error() ? reply.get_error_name() : "");
+    ASSERT_TRUE(reply.is_valid() && reply.is_method_return())
+        << " reply_error=" << (reply.is_error() ? reply.get_error_name() : "");
     std::string result;
     reply >> result;
     EXPECT_EQ(result, R"({"PrivateStrProp":"default_str"})");
@@ -761,7 +730,8 @@ TEST_F(std_interface_test, TestGetPrivateProperties)
         writer << empty_ctx;
         return msg;
     });
-    ASSERT_TRUE(reply.is_valid() && reply.is_method_return()) << " reply_error=" << (reply.is_error() ? reply.get_error_name() : "");
+    ASSERT_TRUE(reply.is_valid() && reply.is_method_return())
+        << " reply_error=" << (reply.is_error() ? reply.get_error_name() : "");
     reply >> result;
     EXPECT_EQ(result, R"({"PrivateStrProp":"new_str_1"})");
 
@@ -772,7 +742,8 @@ TEST_F(std_interface_test, TestGetPrivateProperties)
         writer << empty_ctx;
         return msg;
     });
-    ASSERT_TRUE(reply.is_valid() && reply.is_method_return()) << " reply_error=" << (reply.is_error() ? reply.get_error_name() : "");
+    ASSERT_TRUE(reply.is_valid() && reply.is_method_return())
+        << " reply_error=" << (reply.is_error() ? reply.get_error_name() : "");
     reply >> result;
     EXPECT_EQ(result, "[]");
 }
@@ -788,20 +759,21 @@ TEST_F(std_interface_test, TestGetPropertyDetail)
         writer << empty_ctx << "org.openubmc.test_interface_a" << "Str";
         return msg;
     });
-    ASSERT_TRUE(reply.is_valid() && reply.is_method_return()) << " reply_error=" << (reply.is_error() ? reply.get_error_name() : "");
+    ASSERT_TRUE(reply.is_valid() && reply.is_method_return())
+        << " reply_error=" << (reply.is_error() ? reply.get_error_name() : "");
     std::string result;
     reply >> result;
     ASSERT_EQ(result, ref_source);
 
     reply = wait_valid_reply(test_conn, [&]() {
-        auto msg =
-            mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/org/openubmc/test_object_a",
-                                               "bmc.kepler.Object.Properties", "GetPropertyDetail");
+        auto msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/org/openubmc/test_object_a",
+                                                         "bmc.kepler.Object.Properties", "GetPropertyDetail");
         auto writer = msg.writer();
         writer << empty_ctx << "org.openubmc.test_interface_a" << "Num";
         return msg;
     });
-    ASSERT_TRUE(reply.is_valid() && reply.is_method_return()) << " reply_error=" << (reply.is_error() ? reply.get_error_name() : "");
+    ASSERT_TRUE(reply.is_valid() && reply.is_method_return())
+        << " reply_error=" << (reply.is_error() ? reply.get_error_name() : "");
     reply >> result;
     ASSERT_EQ(result, "[]");
 }
@@ -825,14 +797,15 @@ TEST_F(std_interface_test, TestOverrideSetProperty)
 
     // Override模式设置属性值
     auto reply = wait_valid_reply(test_conn, [&]() {
-        auto msg                     = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/org/openubmc/test_object_a",
-                                                                          "bmc.kepler.Object.Properties", "SetWithContext");
-        auto writer                  = msg.writer();
+        auto msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/org/openubmc/test_object_a",
+                                                         "bmc.kepler.Object.Properties", "SetWithContext");
+        auto writer = msg.writer();
         override_ctx["OverrideMode"] = "set";
         writer << override_ctx << "org.openubmc.test_interface_a" << "Str" << "value1";
         return msg;
     });
-    ASSERT_TRUE(reply.is_valid() && reply.is_method_return()) << " reply_error=" << (reply.is_error() ? reply.get_error_name() : "");
+    ASSERT_TRUE(reply.is_valid() && reply.is_method_return())
+        << " reply_error=" << (reply.is_error() ? reply.get_error_name() : "");
     EXPECT_EQ(shm_value, "value1");
     EXPECT_EQ(changed_value, "value1");
 
@@ -844,7 +817,8 @@ TEST_F(std_interface_test, TestOverrideSetProperty)
         writer << empty_ctx << "org.openubmc.test_interface_a" << "Str" << "value2";
         return msg;
     });
-    ASSERT_TRUE(reply.is_valid() && reply.is_method_return()) << " reply_error=" << (reply.is_error() ? reply.get_error_name() : "");
+    ASSERT_TRUE(reply.is_valid() && reply.is_method_return())
+        << " reply_error=" << (reply.is_error() ? reply.get_error_name() : "");
     EXPECT_EQ(shm_value, "value1");
     EXPECT_EQ(changed_value, "value1");
 
@@ -855,7 +829,8 @@ TEST_F(std_interface_test, TestOverrideSetProperty)
         writer << empty_ctx << "org.openubmc.test_interface_a" << "Str";
         return msg;
     });
-    ASSERT_TRUE(reply.is_valid() && reply.is_method_return()) << " reply_error=" << (reply.is_error() ? reply.get_error_name() : "");
+    ASSERT_TRUE(reply.is_valid() && reply.is_method_return())
+        << " reply_error=" << (reply.is_error() ? reply.get_error_name() : "");
     mc::variant get_result;
     reply >> get_result;
     ASSERT_TRUE(get_result.is_string());
@@ -868,7 +843,8 @@ TEST_F(std_interface_test, TestOverrideSetProperty)
         writer << "org.openubmc.test_interface_a";
         return msg;
     });
-    ASSERT_TRUE(reply.is_valid() && reply.is_method_return()) << " reply_error=" << (reply.is_error() ? reply.get_error_name() : "");
+    ASSERT_TRUE(reply.is_valid() && reply.is_method_return())
+        << " reply_error=" << (reply.is_error() ? reply.get_error_name() : "");
     mc::variants output = reply.read_args();
     ASSERT_EQ(output.size(), 1);
     ASSERT_TRUE(output[0].is_dict());
@@ -877,14 +853,15 @@ TEST_F(std_interface_test, TestOverrideSetProperty)
 
     // 取消Override模式
     reply = wait_valid_reply(test_conn, [&]() {
-        auto msg                     = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/org/openubmc/test_object_a",
-                                                                          "bmc.kepler.Object.Properties", "SetWithContext");
-        auto writer                  = msg.writer();
+        auto msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/org/openubmc/test_object_a",
+                                                         "bmc.kepler.Object.Properties", "SetWithContext");
+        auto writer = msg.writer();
         override_ctx["OverrideMode"] = "unset";
         writer << override_ctx << "org.openubmc.test_interface_a" << "Str" << "";
         return msg;
     });
-    ASSERT_TRUE(reply.is_valid() && reply.is_method_return()) << " reply_error=" << (reply.is_error() ? reply.get_error_name() : "");
+    ASSERT_TRUE(reply.is_valid() && reply.is_method_return())
+        << " reply_error=" << (reply.is_error() ? reply.get_error_name() : "");
     EXPECT_EQ(shm_value, "value2");
     EXPECT_EQ(changed_value, "value2");
 
@@ -895,7 +872,8 @@ TEST_F(std_interface_test, TestOverrideSetProperty)
         writer << empty_ctx << "org.openubmc.test_interface_a" << "Str";
         return msg;
     });
-    ASSERT_TRUE(reply.is_valid() && reply.is_method_return()) << " reply_error=" << (reply.is_error() ? reply.get_error_name() : "");
+    ASSERT_TRUE(reply.is_valid() && reply.is_method_return())
+        << " reply_error=" << (reply.is_error() ? reply.get_error_name() : "");
     mc::variant get_with_context_result;
     reply >> get_with_context_result;
     ASSERT_TRUE(get_with_context_result.is_string());
@@ -921,14 +899,15 @@ TEST_F(std_interface_test, TestLocalSetPropertyWithOverrideValue)
 
     // Override模式设置属性值
     auto reply = wait_valid_reply(test_conn, [&]() {
-        auto msg                     = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/org/openubmc/test_object_a",
-                                                                          "bmc.kepler.Object.Properties", "SetWithContext");
-        auto writer                  = msg.writer();
+        auto msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/org/openubmc/test_object_a",
+                                                         "bmc.kepler.Object.Properties", "SetWithContext");
+        auto writer = msg.writer();
         override_ctx["OverrideMode"] = "set";
         writer << override_ctx << "org.openubmc.test_interface_a" << "Num" << 101;
         return msg;
     });
-    ASSERT_TRUE(reply.is_valid() && reply.is_method_return()) << " reply_error=" << (reply.is_error() ? reply.get_error_name() : "");
+    ASSERT_TRUE(reply.is_valid() && reply.is_method_return())
+        << " reply_error=" << (reply.is_error() ? reply.get_error_name() : "");
     EXPECT_EQ(shm_value, 101);
     EXPECT_EQ(changed_value, 101);
 
@@ -950,14 +929,15 @@ TEST_F(std_interface_test, TestLocalSetPropertyWithOverrideValue)
     EXPECT_EQ(service_1->m_obj_a->m_iface.m_num.value(), 101);
 
     reply = wait_valid_reply(test_conn, [&]() {
-        auto msg                     = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/org/openubmc/test_object_a",
-                                                                          "bmc.kepler.Object.Properties", "SetWithContext");
-        auto writer                  = msg.writer();
+        auto msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/org/openubmc/test_object_a",
+                                                         "bmc.kepler.Object.Properties", "SetWithContext");
+        auto writer = msg.writer();
         override_ctx["OverrideMode"] = "unset";
         writer << override_ctx << "org.openubmc.test_interface_a" << "Num" << 0;
         return msg;
     });
-    ASSERT_TRUE(reply.is_valid() && reply.is_method_return()) << " reply_error=" << (reply.is_error() ? reply.get_error_name() : "");
+    ASSERT_TRUE(reply.is_valid() && reply.is_method_return())
+        << " reply_error=" << (reply.is_error() ? reply.get_error_name() : "");
     EXPECT_EQ(shm_value, 103);
     EXPECT_EQ(changed_value, 103);
     variant_value = service_1->m_obj_a->m_iface.m_num.get_value();
@@ -1003,8 +983,9 @@ TEST_F(std_interface_test, TestNonExistentProperty)
     ASSERT_TRUE(reply.is_error()) << "期望返回错误，但得到: "
                                   << (reply.is_method_return() ? "method_return" : "invalid");
     EXPECT_EQ(reply.get_error_name(), "org.freedesktop.DBus.Error.UnknownProperty");
-    EXPECT_EQ(reply.get_error_message(),
-              R"({"name":"org.freedesktop.DBus.Error.UnknownProperty","format":"Unknown property NonExistentProperty"})");
+    EXPECT_EQ(
+        reply.get_error_message(),
+        R"({"name":"org.freedesktop.DBus.Error.UnknownProperty","format":"Unknown property NonExistentProperty"})");
 
     // 测试 2: SetWithContext 不存在的属性
     reply = wait_valid_reply_or_error([&]() {
@@ -1018,8 +999,9 @@ TEST_F(std_interface_test, TestNonExistentProperty)
     ASSERT_TRUE(reply.is_valid()) << "回复无效";
     ASSERT_TRUE(reply.is_error());
     EXPECT_EQ(reply.get_error_name(), "org.freedesktop.DBus.Error.UnknownProperty");
-    EXPECT_EQ(reply.get_error_message(),
-              R"({"name":"org.freedesktop.DBus.Error.UnknownProperty","format":"Unknown property NonExistentProperty"})");
+    EXPECT_EQ(
+        reply.get_error_message(),
+        R"({"name":"org.freedesktop.DBus.Error.UnknownProperty","format":"Unknown property NonExistentProperty"})");
 
     // 测试 3: Properties.Get 不存在的属性
     reply = wait_valid_reply_or_error([&]() {
@@ -1033,8 +1015,9 @@ TEST_F(std_interface_test, TestNonExistentProperty)
     ASSERT_TRUE(reply.is_valid()) << "回复无效";
     ASSERT_TRUE(reply.is_error());
     EXPECT_EQ(reply.get_error_name(), "org.freedesktop.DBus.Error.UnknownProperty");
-    EXPECT_EQ(reply.get_error_message(),
-              R"({"name":"org.freedesktop.DBus.Error.UnknownProperty","format":"Unknown property NonExistentProperty"})");
+    EXPECT_EQ(
+        reply.get_error_message(),
+        R"({"name":"org.freedesktop.DBus.Error.UnknownProperty","format":"Unknown property NonExistentProperty"})");
 
     // 测试 4: Properties.Set 不存在的属性
     reply = wait_valid_reply_or_error([&]() {
@@ -1048,8 +1031,9 @@ TEST_F(std_interface_test, TestNonExistentProperty)
     ASSERT_TRUE(reply.is_valid()) << "回复无效";
     ASSERT_TRUE(reply.is_error());
     EXPECT_EQ(reply.get_error_name(), "org.freedesktop.DBus.Error.UnknownProperty");
-    EXPECT_EQ(reply.get_error_message(),
-              R"({"name":"org.freedesktop.DBus.Error.UnknownProperty","format":"Unknown property NonExistentProperty"})");
+    EXPECT_EQ(
+        reply.get_error_message(),
+        R"({"name":"org.freedesktop.DBus.Error.UnknownProperty","format":"Unknown property NonExistentProperty"})");
 }
 
 TEST_F(std_interface_test, TestNonExistentInterface)
@@ -1089,8 +1073,9 @@ TEST_F(std_interface_test, TestNonExistentInterface)
     ASSERT_TRUE(reply.is_error()) << "期望返回错误，但得到: "
                                   << (reply.is_method_return() ? "method_return" : "invalid");
     EXPECT_EQ(reply.get_error_name(), "org.freedesktop.DBus.Error.UnknownInterface");
-    EXPECT_EQ(reply.get_error_message(),
-              R"({"name":"org.freedesktop.DBus.Error.UnknownInterface","format":"Unknown interface org.openubmc.NonExistentInterface"})");
+    EXPECT_EQ(
+        reply.get_error_message(),
+        R"({"name":"org.freedesktop.DBus.Error.UnknownInterface","format":"Unknown interface org.openubmc.NonExistentInterface"})");
 
     // 测试 2: SetWithContext 不存在的接口
     reply = wait_valid_reply_or_error([&]() {
@@ -1104,8 +1089,9 @@ TEST_F(std_interface_test, TestNonExistentInterface)
     ASSERT_TRUE(reply.is_valid()) << "回复无效";
     ASSERT_TRUE(reply.is_error());
     EXPECT_EQ(reply.get_error_name(), "org.freedesktop.DBus.Error.UnknownInterface");
-    EXPECT_EQ(reply.get_error_message(),
-              R"({"name":"org.freedesktop.DBus.Error.UnknownInterface","format":"Unknown interface org.openubmc.NonExistentInterface"})");
+    EXPECT_EQ(
+        reply.get_error_message(),
+        R"({"name":"org.freedesktop.DBus.Error.UnknownInterface","format":"Unknown interface org.openubmc.NonExistentInterface"})");
 
     // 测试 3: Properties.Get 不存在的接口
     reply = wait_valid_reply_or_error([&]() {
@@ -1119,8 +1105,9 @@ TEST_F(std_interface_test, TestNonExistentInterface)
     ASSERT_TRUE(reply.is_valid()) << "回复无效";
     ASSERT_TRUE(reply.is_error());
     EXPECT_EQ(reply.get_error_name(), "org.freedesktop.DBus.Error.UnknownInterface");
-    EXPECT_EQ(reply.get_error_message(),
-              R"({"name":"org.freedesktop.DBus.Error.UnknownInterface","format":"Unknown interface org.openubmc.NonExistentInterface"})");
+    EXPECT_EQ(
+        reply.get_error_message(),
+        R"({"name":"org.freedesktop.DBus.Error.UnknownInterface","format":"Unknown interface org.openubmc.NonExistentInterface"})");
 
     // 测试 4: Properties.Set 不存在的接口
     reply = wait_valid_reply_or_error([&]() {
@@ -1134,6 +1121,7 @@ TEST_F(std_interface_test, TestNonExistentInterface)
     ASSERT_TRUE(reply.is_valid()) << "回复无效";
     ASSERT_TRUE(reply.is_error());
     EXPECT_EQ(reply.get_error_name(), "org.freedesktop.DBus.Error.UnknownInterface");
-    EXPECT_EQ(reply.get_error_message(),
-              R"({"name":"org.freedesktop.DBus.Error.UnknownInterface","format":"Unknown interface org.openubmc.NonExistentInterface"})");
+    EXPECT_EQ(
+        reply.get_error_message(),
+        R"({"name":"org.freedesktop.DBus.Error.UnknownInterface","format":"Unknown interface org.openubmc.NonExistentInterface"})");
 }

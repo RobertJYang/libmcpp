@@ -296,14 +296,10 @@ public:
      * @param pos 开始位置，默认为0
      */
     signature_iterator(std::string_view sig, size_t pos = 0);
-    signature_iterator(const char* sig, size_t pos = 0)
-        : signature_iterator(std::string_view(sig), pos)
-    {
-    }
-    signature_iterator(const std::string& sig, size_t pos = 0)
-        : signature_iterator(std::string_view(sig), pos)
-    {
-    }
+    signature_iterator(const char* sig, size_t pos = 0) : signature_iterator(std::string_view(sig), pos)
+    {}
+    signature_iterator(const std::string& sig, size_t pos = 0) : signature_iterator(std::string_view(sig), pos)
+    {}
 
     /**
      * 获取当前类型

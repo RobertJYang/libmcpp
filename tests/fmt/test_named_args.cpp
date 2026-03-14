@@ -19,12 +19,10 @@ using namespace mc::fmt;
 class named_args_test : public testing::Test {
 protected:
     void SetUp() override
-    {
-    }
+    {}
 
     void TearDown() override
-    {
-    }
+    {}
 };
 
 // 测试基本的命名参数功能
@@ -69,10 +67,7 @@ TEST(named_args, nested_braces)
     using namespace mc::fmt;
 
     // 测试命名参数中的动态格式说明符
-    auto result1 = sformat("${value:{width}.{precision}f}",
-                           ("value", 3.14159),
-                           ("width", 8),
-                           ("precision", 3));
+    auto result1 = sformat("${value:{width}.{precision}f}", ("value", 3.14159), ("width", 8), ("precision", 3));
     EXPECT_EQ(result1, "   3.142");
 
     // 测试位置参数中的动态格式说明符
@@ -87,20 +82,15 @@ TEST(named_args, nested_braces)
 // 测试带格式规范的命名参数
 TEST_F(named_args_test, test_named_args_with_format_spec)
 {
-    auto result = sformat("${name} has ${balance:.2f} dollars",
-                          ("name", "David"),
-                          ("balance", 123.456));
+    auto result = sformat("${name} has ${balance:.2f} dollars", ("name", "David"), ("balance", 123.456));
     EXPECT_EQ(result, "David has 123.46 dollars");
 }
 
 // 测试多种数据类型
 TEST_F(named_args_test, test_various_types)
 {
-    auto result = sformat("${name}: int=${int_val}, float=${float_val:.1f}, bool=${bool_val}",
-                          ("name", "Types"),
-                          ("int_val", 42),
-                          ("float_val", 3.14159),
-                          ("bool_val", true));
+    auto result = sformat("${name}: int=${int_val}, float=${float_val:.1f}, bool=${bool_val}", ("name", "Types"),
+                          ("int_val", 42), ("float_val", 3.14159), ("bool_val", true));
     EXPECT_EQ(result, "Types: int=42, float=3.1, bool=true");
 }
 
@@ -110,9 +100,7 @@ TEST_F(named_args_test, test_string_types)
     std::string std_str = "std::string";
     const char* c_str   = "C string";
 
-    auto result = sformat("${std_str} and ${c_str}",
-                          ("std_str", std_str),
-                          ("c_str", c_str));
+    auto result = sformat("${std_str} and ${c_str}", ("std_str", std_str), ("c_str", c_str));
     EXPECT_EQ(result, "std::string and C string");
 }
 

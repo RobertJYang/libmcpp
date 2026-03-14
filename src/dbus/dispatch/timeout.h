@@ -20,10 +20,8 @@ namespace mc::dbus {
 class timeout : public mc::enable_shared_from_this<timeout> {
 public:
     template <typename Executor>
-    timeout(const Executor& executor, DBusTimeout* timeout)
-        : m_timeout(timeout), m_timer(executor)
-    {
-    }
+    timeout(const Executor& executor, DBusTimeout* timeout) : m_timeout(timeout), m_timer(executor)
+    {}
 
     ~timeout();
 

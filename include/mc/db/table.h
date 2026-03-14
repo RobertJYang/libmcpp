@@ -71,8 +71,7 @@ constexpr bool verify_indices_object_type_impl(std::index_sequence<Is...>)
         return true;
     } else {
         using FirstType = typename std::tuple_element_t<0, Tuple>::object_type;
-        return (std::is_same_v<typename std::tuple_element_t<Is, Tuple>::object_type, FirstType> &&
-                ...);
+        return (std::is_same_v<typename std::tuple_element_t<Is, Tuple>::object_type, FirstType> && ...);
     }
 }
 
@@ -82,8 +81,7 @@ constexpr bool verify_indices_object_type_impl(std::index_sequence<Is...>)
 template <typename ObjectType, typename Tuple>
 constexpr bool verify_indices_object_type()
 {
-    return verify_indices_object_type_impl<ObjectType, Tuple>(
-        std::make_index_sequence<std::tuple_size_v<Tuple>>{});
+    return verify_indices_object_type_impl<ObjectType, Tuple>(std::make_index_sequence<std::tuple_size_v<Tuple>>{});
 }
 
 /**
@@ -92,8 +90,8 @@ constexpr bool verify_indices_object_type()
 template <typename ObjectType, typename Alloc>
 auto make_object_id_index(const Alloc& alloc = Alloc())
 {
-    return index<ObjectType, detail::object_id_key<ObjectType>, true, void, Alloc>(
-        detail::object_id_key<ObjectType>{}, alloc, 0);
+    return index<ObjectType, detail::object_id_key<ObjectType>, true, void, Alloc>(detail::object_id_key<ObjectType>{},
+                                                                                   alloc, 0);
 }
 
 /**
@@ -105,8 +103,7 @@ auto make_indices_with_user_indices_impl(std::index_sequence<Is...>, const Alloc
     return std::make_tuple(
         make_object_id_index<ObjectType, Alloc>(alloc),
         index<ObjectType, typename std::tuple_element_t<Is, Tuple>::key_extractor_type,
-              std::tuple_element_t<Is, Tuple>::is_unique,
-              typename std::tuple_element_t<Is, Tuple>::tag_type, Alloc>(
+              std::tuple_element_t<Is, Tuple>::is_unique, typename std::tuple_element_t<Is, Tuple>::tag_type, Alloc>(
             typename std::tuple_element_t<Is, Tuple>::key_extractor_type{}, alloc, Is + 1)...);
 }
 
@@ -122,8 +119,7 @@ bool for_each_index_impl(Tuple& tuple, Func&& func, std::index_sequence<Is...>)
 template <typename Tuple, typename Func>
 bool for_each_index(Tuple& tuple, Func&& func)
 {
-    return for_each_index_impl(tuple, std::forward<Func>(func),
-                               std::make_index_sequence<std::tuple_size_v<Tuple>>{});
+    return for_each_index_impl(tuple, std::forward<Func>(func), std::make_index_sequence<std::tuple_size_v<Tuple>>{});
 }
 
 /**
@@ -138,8 +134,7 @@ void for_each_index_until_impl(Tuple& tuple, Func&& func, std::index_sequence<Is
 template <typename Tuple, typename Func>
 void for_each_index_until(Tuple& tuple, Func&& func)
 {
-    for_each_index_until_impl(tuple, std::forward<Func>(func),
-                              std::make_index_sequence<std::tuple_size_v<Tuple>>{});
+    for_each_index_until_impl(tuple, std::forward<Func>(func), std::make_index_sequence<std::tuple_size_v<Tuple>>{});
 }
 
 /**
@@ -151,8 +146,7 @@ struct has_member_key : std::false_type {};
 template <typename KeyExtractor, typename ObjectType, typename MemberType>
 struct has_member_key<
     KeyExtractor, ObjectType, MemberType,
-    std::void_t<decltype(std::declval<KeyExtractor>()
-                             .template get_property_name<ObjectType, MemberType>())>>
+    std::void_t<decltype(std::declval<KeyExtractor>().template get_property_name<ObjectType, MemberType>())>>
     : std::true_type {};
 
 /**
@@ -176,8 +170,7 @@ struct has_member_function_key : std::false_type {};
 template <typename KeyExtractor, typename ObjectType, typename ReturnType>
 struct has_member_function_key<
     KeyExtractor, ObjectType, ReturnType,
-    std::void_t<decltype(std::declval<KeyExtractor>()
-                             .template get_member_function_name<ObjectType, ReturnType>())>>
+    std::void_t<decltype(std::declval<KeyExtractor>().template get_member_function_name<ObjectType, ReturnType>())>>
     : std::true_type {};
 
 /**
@@ -199,17 +192,15 @@ template <typename KeyExtractor, typename ObjectType, typename = void>
 struct has_composite_key : std::false_type {};
 
 template <typename KeyExtractor, typename ObjectType>
-struct has_composite_key<
-    KeyExtractor, ObjectType,
-    std::void_t<decltype(std::declval<KeyExtractor>().template is_composite_key<ObjectType>())>>
+struct has_composite_key<KeyExtractor, ObjectType,
+                         std::void_t<decltype(std::declval<KeyExtractor>().template is_composite_key<ObjectType>())>>
     : std::true_type {};
 
 template <typename ObjectType, typename = void>
 struct has_createor : std::false_type {};
 
 template <typename ObjectType>
-struct has_createor<ObjectType,
-                    std::void_t<decltype(ObjectType::create(std::declval<mc::variant>()))>>
+struct has_createor<ObjectType, std::void_t<decltype(ObjectType::create(std::declval<mc::variant>()))>>
     : std::true_type {};
 
 } // namespace detail
@@ -219,8 +210,7 @@ struct has_createor<ObjectType,
  * @tparam ObjectType 对象类型
  * @tparam IndexDef 索引定义类型，默认为 no_indices
  */
-template <typename ObjectType, typename IndexDef = no_indices,
-          typename Allocator = std::allocator<char>>
+template <typename ObjectType, typename IndexDef = no_indices, typename Allocator = std::allocator<char>>
 class table : public table_base {
 public:
     using object_type           = ObjectType;
@@ -238,24 +228,21 @@ public:
                   "All indices must use the same object type");
 
     // 索引元组类型
-    using indices_tuple_type = std::conditional_t<
-        std::is_same_v<IndexDef, no_indices>,
-        std::tuple<decltype(detail::make_object_id_index<ObjectType>(std::declval<alloc_type>()))>,
-        decltype(detail::make_indices_with_user_indices_impl<ObjectType, indices_def>(
-            std::make_index_sequence<std::tuple_size_v<indices_def>>{},
-            std::declval<alloc_type>()))>;
+    using indices_tuple_type =
+        std::conditional_t<std::is_same_v<IndexDef, no_indices>,
+                           std::tuple<decltype(detail::make_object_id_index<ObjectType>(std::declval<alloc_type>()))>,
+                           decltype(detail::make_indices_with_user_indices_impl<ObjectType, indices_def>(
+                               std::make_index_sequence<std::tuple_size_v<indices_def>>{},
+                               std::declval<alloc_type>()))>;
 
-    using indices_array_type =
-        std::array<index_base<object_type>*, std::tuple_size_v<indices_tuple_type>>;
+    using indices_array_type = std::array<index_base<object_type>*, std::tuple_size_v<indices_tuple_type>>;
 
     /**
      * 构造函数
      * @param alloc 内存分配器
      */
-    table(std::string_view name = std::string_view(), uint32_t table_id = 0,
-          const alloc_type& alloc = alloc_type())
-        : m_indices(make_indices(alloc)),
-          m_table_id(table_id ? table_id : transaction::alloc_table_id()), m_name(name)
+    table(std::string_view name = std::string_view(), uint32_t table_id = 0, const alloc_type& alloc = alloc_type())
+        : m_indices(make_indices(alloc)), m_table_id(table_id ? table_id : transaction::alloc_table_id()), m_name(name)
     {
         size_t i = 0;
         detail::for_each_index(m_indices, [&i, this](auto& idx) {
@@ -264,14 +251,12 @@ public:
             return true;
         });
         if (m_name.empty()) {
-            m_name = mc::string::join("", "table_", std::to_string(m_table_id),
-                                      mc::pretty_name<object_type>());
+            m_name = mc::string::join("", "table_", std::to_string(m_table_id), mc::pretty_name<object_type>());
         }
     }
 
     ~table()
-    {
-    }
+    {}
 
     /**
      * 向表中添加一条记录
@@ -304,8 +289,8 @@ public:
         // 如果使用事务，先创建资源对象
         std::shared_ptr<db_resource> resource;
         if (need_txn) {
-            resource = std::make_shared<table_add_resource<table>>(m_table_id, *this, obj_ptr,
-                                                                   alloc_savepoint_internal(txn));
+            resource =
+                std::make_shared<table_add_resource<table>>(m_table_id, *this, obj_ptr, alloc_savepoint_internal(txn));
         }
 
         try {
@@ -338,8 +323,7 @@ public:
         return obj_ptr;
     }
 
-    object_ptr_type update(object_ptr_type old_obj_ptr, const object_type& new_obj,
-                           transaction* txn = nullptr)
+    object_ptr_type update(object_ptr_type old_obj_ptr, const object_type& new_obj, transaction* txn = nullptr)
     {
         auto new_obj_ptr = mc::make_shared<object_type>(new_obj);
         new_obj_ptr->set_object_id(old_obj_ptr->get_object_id());
@@ -352,8 +336,7 @@ public:
      * @param new_obj 新记录
      * @return 成功返回true，失败返回false
      */
-    object_ptr_type update(object_ptr_type old_obj_ptr, object_ptr_type new_obj_ptr,
-                           transaction* txn = nullptr)
+    object_ptr_type update(object_ptr_type old_obj_ptr, object_ptr_type new_obj_ptr, transaction* txn = nullptr)
     {
         std::lock_guard lock(m_mutex);
 
@@ -361,8 +344,8 @@ public:
 
         std::shared_ptr<db_resource> resource;
         if (need_txn) {
-            resource = std::make_shared<table_update_resource<table>>(
-                m_table_id, *this, old_obj_ptr, new_obj_ptr, alloc_savepoint_internal(txn));
+            resource = std::make_shared<table_update_resource<table>>(m_table_id, *this, old_obj_ptr, new_obj_ptr,
+                                                                      alloc_savepoint_internal(txn));
         }
 
         try {
@@ -388,8 +371,7 @@ public:
 
         if (!need_txn) {
             commit_internal();
-            on_object_updated(const_cast<object_type&>(*old_obj_ptr),
-                              const_cast<object_type&>(*new_obj_ptr));
+            on_object_updated(const_cast<object_type&>(*old_obj_ptr), const_cast<object_type&>(*new_obj_ptr));
         } else {
             txn->add_resource(resource);
         }
@@ -410,8 +392,8 @@ public:
         // 如果使用事务，创建资源对象
         std::shared_ptr<db_resource> resource;
         if (need_txn) {
-            resource = std::make_shared<table_remove_resource<table>>(
-                m_table_id, *this, obj_ptr, alloc_savepoint_internal(txn));
+            resource = std::make_shared<table_remove_resource<table>>(m_table_id, *this, obj_ptr,
+                                                                      alloc_savepoint_internal(txn));
         }
 
         // 从剩余索引删除
@@ -470,8 +452,7 @@ public:
     }
 
     struct lock_guard {
-        lock_guard(table& t)
-            : m_table(t)
+        lock_guard(table& t) : m_table(t)
         {
             m_table.lock_db();
         }
@@ -690,12 +671,10 @@ public:
      * @param handler 处理函数，返回false表示停止查询
      * @return 是否查询完成
      */
-    template <typename Handler,
-              typename = std::enable_if_t<std::is_invocable_r_v<bool, Handler, object_type&>>>
+    template <typename Handler, typename = std::enable_if_t<std::is_invocable_r_v<bool, Handler, object_type&>>>
     bool query(const query_builder& builder, Handler&& handler)
     {
-        return table_query<table<object_type, IndexDef>>(*this).query(
-            builder, std::forward<Handler>(handler));
+        return table_query<table<object_type, IndexDef>>(*this).query(builder, std::forward<Handler>(handler));
     }
 
     std::vector<object_ptr_type> all()
@@ -710,8 +689,7 @@ public:
      * @param values 要更新的值，支持多种数据源
      * @return 更新的记录数量
      */
-    size_t update(const query_builder& condition, const mc::dict& values,
-                  transaction* txn = nullptr)
+    size_t update(const query_builder& condition, const mc::dict& values, transaction* txn = nullptr)
     {
         std::lock_guard lock(m_mutex);
 
@@ -811,8 +789,7 @@ protected:
 
     object_ptr do_add_object(const mc::dict& var, transaction* txn) override
     {
-        if constexpr (mc::reflect::is_reflectable<object_type>() &&
-                      std::is_constructible_v<object_type>) {
+        if constexpr (mc::reflect::is_reflectable<object_type>() && std::is_constructible_v<object_type>) {
             auto obj = mc::make_shared<object_type>();
             from_variant(var, *obj);
             return add(obj, txn).template static_pointer_cast<object_base>();
@@ -843,20 +820,17 @@ protected:
         return nullptr;
     }
 
-    bool do_query_object(const query_builder&        builder,
-                         table_base::query_handler&& handler) override
+    bool do_query_object(const query_builder& builder, table_base::query_handler&& handler) override
     {
         if constexpr (mc::reflect::is_reflectable<object_type>()) {
-            return query(builder, [handler = std::forward<table_base::query_handler>(handler)](
-                                      object_type& obj) {
+            return query(builder, [handler = std::forward<table_base::query_handler>(handler)](object_type& obj) {
                 return handler(obj);
             });
         }
         return false;
     }
 
-    size_t do_update_object(const query_builder& condition, const mc::dict& values,
-                            transaction* txn) override
+    size_t do_update_object(const query_builder& condition, const mc::dict& values, transaction* txn) override
     {
         if constexpr (mc::reflect::is_reflectable<object_type>()) {
             return update_internal(condition, values, txn);
@@ -866,9 +840,8 @@ protected:
         return 0;
     }
 
-    size_t do_update_object(const query_builder&                  condition,
-                            const std::map<std::string, variant>& values,
-                            transaction*                          txn) override
+    size_t do_update_object(const query_builder& condition, const std::map<std::string, variant>& values,
+                            transaction* txn) override
     {
         if constexpr (mc::reflect::is_reflectable<object_type>()) {
             return update_internal(condition, values, txn);
@@ -904,8 +877,7 @@ private:
             if constexpr (mc::traits::is_copyable_v<object_type>) {
                 auto new_obj = mc::make_shared<object_type>(obj);
                 update_object(*new_obj, values);
-                if (update(mc::shared_ptr<object_type>(const_cast<object_type*>(&obj)), new_obj,
-                           txn)) {
+                if (update(mc::shared_ptr<object_type>(const_cast<object_type*>(&obj)), new_obj, txn)) {
                     updated_count++;
                 }
                 return true;

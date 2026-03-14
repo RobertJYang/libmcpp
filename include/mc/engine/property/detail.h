@@ -31,11 +31,9 @@ namespace detail {
 
 struct empty_observer {
     void notify(const mc::variant& value, const property_base& prop)
-    {
-    }
+    {}
     void notify_update_shm(const mc::variant& value, const property_base& prop)
-    {
-    }
+    {}
 };
 
 // 用于存储函数调用相关的数据
@@ -52,17 +50,16 @@ struct property_extension_data {
     std::function<void(const mc::variant&)> setter;
     std::function<mc::variant()>            outsider_getter; // 外部getter方法
     std::function<bool(const mc::variant&)> outsider_setter; // 外部setter方法，返回false表示不进行实际设置
-    std::unique_ptr<func_data>              function_data;   // 只有需要时才分配
-    std::vector<mc::connection_type>        connection_slots;
-    mutable std::unique_ptr<mc::variant>    ref_object_cache; // 缓存引用对象的 variant
-    mutable std::unique_ptr<T>              override_value;   // 属性的Override值
+    std::unique_ptr<func_data>           function_data;      // 只有需要时才分配
+    std::vector<mc::connection_type>     connection_slots;
+    mutable std::unique_ptr<mc::variant> ref_object_cache; // 缓存引用对象的 variant
+    mutable std::unique_ptr<T>           override_value;   // 属性的Override值
 };
 
 class MC_API interface_observer {
 public:
     interface_observer()
-    {
-    }
+    {}
 
     void set_interface(abstract_interface* interface)
     {

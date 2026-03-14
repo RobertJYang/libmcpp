@@ -28,7 +28,7 @@ public:
 
     static func_collection& get_instance();
 
-    void                                 add(const std::string_view& position, std::shared_ptr<mc::engine::service> service, mc::dict& functions);
+    void add(const std::string_view& position, std::shared_ptr<mc::engine::service> service, mc::dict& functions);
     mc::variant                          get(const std::string_view& position, const std::string_view& func_name);
     std::shared_ptr<mc::engine::service> get_service(const std::string_view& position);
     mc::dict                             get(const std::string_view& position);

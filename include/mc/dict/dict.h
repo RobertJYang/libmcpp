@@ -122,10 +122,8 @@ public:
      *       dict md = {{"key1", 123}, {"key2", "value"}, {"key3", true}};
      */
     template <typename T>
-    dict(std::initializer_list<std::pair<variant, T>> init)
-        : dict(init.begin(), init.end())
-    {
-    }
+    dict(std::initializer_list<std::pair<variant, T>> init) : dict(init.begin(), init.end())
+    {}
 
     /**
      * @brief 从初始化列表构造（模板版本，支持不同类型的键）
@@ -136,10 +134,8 @@ public:
      *       dict md = {{key1_str, 123}, {key2_view, "value"}, {key3_cstr, true}};
      */
     template <typename K, typename T>
-    dict(std::initializer_list<std::pair<K, T>> init)
-        : dict(init.begin(), init.end())
-    {
-    }
+    dict(std::initializer_list<std::pair<K, T>> init) : dict(init.begin(), init.end())
+    {}
 
     /**
      * @brief 从迭代器范围构造
@@ -231,7 +227,7 @@ public:
     variant& operator[](const std::string& key);
     variant& operator[](std::string_view key);
     variant& operator[](const char* key);
-    variant& operator[](int key); // 支持整数键，避免 int 转换为 const char*
+    variant& operator[](int key);     // 支持整数键，避免 int 转换为 const char*
     variant& operator[](int64_t key); // 支持整数键
     variant& operator[](const variant& key);
 
@@ -242,7 +238,7 @@ public:
     const variant& operator[](const std::string& key) const;
     const variant& operator[](std::string_view key) const;
     const variant& operator[](const char* key) const;
-    const variant& operator[](int key) const; // 支持整数键，避免 int 转换为 const char*
+    const variant& operator[](int key) const;     // 支持整数键，避免 int 转换为 const char*
     const variant& operator[](int64_t key) const; // 支持整数键
     const variant& operator[](const variant& key) const;
     /**
@@ -258,7 +254,7 @@ public:
     bool contains(const std::string& key) const;
     bool contains(std::string_view key) const;
     bool contains(const char* key) const;
-    bool contains(int key) const; // 支持整数键，避免 int 转换为 const char*
+    bool contains(int key) const;     // 支持整数键，避免 int 转换为 const char*
     bool contains(int64_t key) const; // 支持整数键
     bool contains(const variant& key) const;
 
@@ -449,8 +445,8 @@ public:
      * @param last 结束迭代器
      */
     template <typename InputIt>
-    auto insert(InputIt first, InputIt last) -> std::enable_if_t<
-                                                 std::is_convertible_v<typename std::iterator_traits<InputIt>::value_type, entry>>;
+    auto insert(InputIt first, InputIt last)
+        -> std::enable_if_t<std::is_convertible_v<typename std::iterator_traits<InputIt>::value_type, entry>>;
 
     /**
      * @brief 插入键值对迭代器范围
@@ -460,10 +456,9 @@ public:
      */
     template <typename InputIt>
     auto insert(InputIt first, InputIt last)
-        -> std::enable_if_t<is_variant_constructible_v<
-                                typename std::iterator_traits<InputIt>::value_type::first_type> &&
-                            is_variant_constructible_v<
-                                typename std::iterator_traits<InputIt>::value_type::second_type>>;
+        -> std::enable_if_t<
+            is_variant_constructible_v<typename std::iterator_traits<InputIt>::value_type::first_type> &&
+            is_variant_constructible_v<typename std::iterator_traits<InputIt>::value_type::second_type>>;
 
     /**
      * @brief 插入初始化列表

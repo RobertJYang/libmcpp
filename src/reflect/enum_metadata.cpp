@@ -81,7 +81,8 @@ void enum_metadata::impl::init_name_to_value_map(const data_t& data) const
     }
 }
 
-std::optional<std::string_view> enum_metadata::impl::get_name_from_cache(const data_t& data, enum_value_type value) const
+std::optional<std::string_view> enum_metadata::impl::get_name_from_cache(const data_t&   data,
+                                                                         enum_value_type value) const
 {
     auto it = data.value_to_name->find(value);
     if (it == data.value_to_name->end()) {
@@ -91,7 +92,8 @@ std::optional<std::string_view> enum_metadata::impl::get_name_from_cache(const d
     return it->second;
 }
 
-std::optional<enum_value_type> enum_metadata::impl::get_value_from_cache(const data_t& data, std::string_view name) const
+std::optional<enum_value_type> enum_metadata::impl::get_value_from_cache(const data_t&    data,
+                                                                         std::string_view name) const
 {
     auto it = data.name_to_value->find(name);
     if (it == data.name_to_value->end()) {
@@ -157,8 +159,7 @@ std::optional<enum_value_type> enum_metadata::impl::get_value(std::string_view e
     });
 }
 
-enum_metadata::enum_metadata(std::string_view name, enum_values values)
-    : m_impl(std::make_unique<impl>())
+enum_metadata::enum_metadata(std::string_view name, enum_values values) : m_impl(std::make_unique<impl>())
 {
     m_impl->name          = name;
     m_impl->values        = values.members;

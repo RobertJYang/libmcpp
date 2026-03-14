@@ -89,8 +89,7 @@ MC_API mc::filesystem::path get_build_root()
             for (const auto& candidate : candidates) {
                 auto dir_name = candidate.filename().string();
                 // 优先选择包含 build 相关关键词的目录
-                if (dir_name.find("build") != std::string::npos ||
-                    dir_name == "builddir" ||
+                if (dir_name.find("build") != std::string::npos || dir_name == "builddir" ||
                     dir_name.find("temp") != std::string::npos) {
                     return candidate;
                 }
@@ -143,8 +142,7 @@ MC_API mc::filesystem::path get_build_root()
             }
             // 检查目录名是否包含构建相关关键词
             auto dir_name = current.filename().string();
-            if (dir_name.find("build") != std::string::npos ||
-                dir_name == "builddir" ||
+            if (dir_name.find("build") != std::string::npos || dir_name == "builddir" ||
                 dir_name.find("temp") != std::string::npos) {
                 return current;
             }

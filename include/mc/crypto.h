@@ -13,8 +13,8 @@
 #ifndef MC_CRYPTO_H
 #define MC_CRYPTO_H
 
-#include <mc/crypto/crc8.h>
 #include <mc/crypto/crc32.h>
+#include <mc/crypto/crc8.h>
 #include <mc/crypto/ecdsa_verify_sha256.h>
 
 #endif

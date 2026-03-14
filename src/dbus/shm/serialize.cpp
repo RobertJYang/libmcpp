@@ -23,10 +23,8 @@ inline static uint8_t pack_value(data_type t, uint8_t value)
     return static_cast<uint8_t>(t) | (value << 3);
 }
 
-write_buffer::write_buffer()
-    : m_head(new data_block()), m_current(m_head), m_len(0), m_offset(0)
-{
-}
+write_buffer::write_buffer() : m_head(new data_block()), m_current(m_head), m_len(0), m_offset(0)
+{}
 
 write_buffer::~write_buffer()
 {
@@ -65,8 +63,7 @@ void write_buffer::write_arg(const variant& arg, int depth)
         write_dict(arg.as_dict(), depth + 1);
         return;
     }
-    MC_THROW(mc::invalid_arg_exception, "unsupported variant type: ${type_id}",
-             ("type_id", arg.get_type()));
+    MC_THROW(mc::invalid_arg_exception, "unsupported variant type: ${type_id}", ("type_id", arg.get_type()));
 }
 
 void write_buffer::write_arg_with_signature(signature_iterator it, const variant& arg, int depth)
@@ -220,8 +217,7 @@ void write_buffer::write_number(const variant& arg)
         write_double(arg.as_double());
         return;
     }
-    if (arg.is_uint64() &&
-        arg.as_uint64() > static_cast<uint64_t>(std::numeric_limits<int64_t>::max())) {
+    if (arg.is_uint64() && arg.as_uint64() > static_cast<uint64_t>(std::numeric_limits<int64_t>::max())) {
         // lua中整数最大为INT64_MAX，超过这个值的整数需要转换为double类型
         write_double(arg.as_double());
     } else {
@@ -307,8 +303,7 @@ void write_buffer::write_variant_elements(signature_iterator it, const variants&
     }
     for (const auto& item : args) {
         signature_iterator item_it(it.current_type());
-        MC_ASSERT(!item_it.at_end() && !it.at_end(),
-                  "invalid number of elements ${size} for signature: ${signature}",
+        MC_ASSERT(!item_it.at_end() && !it.at_end(), "invalid number of elements ${size} for signature: ${signature}",
                   ("size", args.size())("signature", it.str()));
         write_arg_with_signature(item_it, item, depth + 1);
         it.next();
@@ -382,10 +377,8 @@ std::string write_buffer::to_string() const
     return result;
 }
 
-read_buffer::read_buffer(std::string_view msg)
-    : m_buf(msg), m_offset(0)
-{
-}
+read_buffer::read_buffer(std::string_view msg) : m_buf(msg), m_offset(0)
+{}
 
 const char* read_buffer::read(size_t size)
 {
@@ -499,8 +492,7 @@ variant read_buffer::read_value(uint8_t type, uint8_t cookie)
                 return variant(read_string(n));
             } else {
                 if (cookie != 4) {
-                    MC_THROW(mc::invalid_arg_exception, "invalid cookie: ${cookie}",
-                            ("cookie", cookie));
+                    MC_THROW(mc::invalid_arg_exception, "invalid cookie: ${cookie}", ("cookie", cookie));
                 }
                 const void* plen = read(4);
                 MC_ASSERT(plen != nullptr, ERROR_INVALID_FORMAT);
@@ -532,8 +524,7 @@ variant read_buffer::read_gvariant(size_t len)
         }
         (void)memcpy_s(p_data, size, data, size);
     }
-    gvariant_auto_free gvar(g_variant_new_from_data(G_VARIANT_TYPE(t), p_data, size,
-                                                    true, g_free, p_data));
+    gvariant_auto_free gvar(g_variant_new_from_data(G_VARIANT_TYPE(t), p_data, size, true, g_free, p_data));
     if (!gvar.ptr) {
         if (p_data) {
             g_free(p_data);
@@ -551,8 +542,7 @@ variant read_buffer::read_table(int64_t array_size)
         MC_ASSERT(t != nullptr, ERROR_INVALID_FORMAT);
         type           = *t;
         uint8_t cookie = type >> VALUE_SHIFT;
-        MC_ASSERT((type & TYPE_MASK) == static_cast<uint8_t>(data_type::number) &&
-                      cookie != COOKIE_NUMBER_REAL,
+        MC_ASSERT((type & TYPE_MASK) == static_cast<uint8_t>(data_type::number) && cookie != COOKIE_NUMBER_REAL,
                   ERROR_INVALID_FORMAT);
         array_size = read_integer(cookie);
     }

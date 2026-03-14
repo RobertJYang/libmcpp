@@ -19,14 +19,12 @@
 // 测试用的简单类
 class weak_test_object : public mc::enable_shared_from_this<weak_test_object> {
 public:
-    weak_test_object()
-        : m_value(100)
+    weak_test_object() : m_value(100)
     {
         ++s_construct_count;
     }
 
-    explicit weak_test_object(int value)
-        : m_value(value)
+    explicit weak_test_object(int value) : m_value(value)
     {
         ++s_construct_count;
     }
@@ -75,15 +73,11 @@ int weak_test_object::s_destruct_count  = 0;
 // 派生类用于测试类型转换
 class weak_derived_object : public weak_test_object {
 public:
-    weak_derived_object()
-        : weak_test_object(200)
-    {
-    }
+    weak_derived_object() : weak_test_object(200)
+    {}
 
-    weak_derived_object(int value)
-        : weak_test_object(value)
-    {
-    }
+    weak_derived_object(int value) : weak_test_object(value)
+    {}
 
     int get_doubled_value() const
     {

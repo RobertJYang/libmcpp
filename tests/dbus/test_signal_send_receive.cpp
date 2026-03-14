@@ -41,8 +41,7 @@ using namespace mc::dbus;
 class signal_send_receive_test : public mc::test::TestWithDbusDaemon {
 protected:
     signal_send_receive_test()
-    {
-    }
+    {}
 
     static void SetUpTestSuite()
     {
@@ -56,12 +55,10 @@ protected:
     }
 
     void SetUp() override
-    {
-    }
+    {}
 
     void TearDown() override
-    {
-    }
+    {}
 
     mc::io_context& get_io_context()
     {
@@ -123,8 +120,8 @@ TEST_F(signal_send_receive_test, test_two_services_bidirectional_signal)
     rule_a.with_path(signal_path);
     ilog("服务A订阅规则: ${rule}", ("rule", rule_a.as_string()));
 
-    match_cb_t callback_a = [&signal_b_received_count, &signal_b_data_received,
-                             &mutex, &cv, &all_signals_received](message& msg) {
+    match_cb_t callback_a = [&signal_b_received_count, &signal_b_data_received, &mutex, &cv,
+                             &all_signals_received](message& msg) {
         signal_b_received_count.fetch_add(1);
 
         // 读取并验证信号数据
@@ -152,8 +149,8 @@ TEST_F(signal_send_receive_test, test_two_services_bidirectional_signal)
     rule_b.with_path(signal_path);
     ilog("服务B订阅规则: ${rule}", ("rule", rule_b.as_string()));
 
-    match_cb_t callback_b = [&signal_a_received_count, &signal_a_data_received,
-                             &mutex, &cv, &all_signals_received](message& msg) {
+    match_cb_t callback_b = [&signal_a_received_count, &signal_a_data_received, &mutex, &cv,
+                             &all_signals_received](message& msg) {
         signal_a_received_count.fetch_add(1);
 
         // 读取并验证信号数据
@@ -213,16 +210,12 @@ TEST_F(signal_send_receive_test, test_two_services_bidirectional_signal)
     }
 
     // 验证信号接收
-    EXPECT_EQ(signal_a_received_count.load(), 1)
-        << "服务B应该接收到服务A发送的信号";
-    EXPECT_EQ(signal_b_received_count.load(), 1)
-        << "服务A应该接收到服务B发送的信号";
+    EXPECT_EQ(signal_a_received_count.load(), 1) << "服务B应该接收到服务A发送的信号";
+    EXPECT_EQ(signal_b_received_count.load(), 1) << "服务A应该接收到服务B发送的信号";
 
     // 验证信号数据
-    EXPECT_EQ(signal_a_data_received.load(), 1)
-        << "服务B应该接收到服务A发送的信号数据";
-    EXPECT_EQ(signal_b_data_received.load(), 1)
-        << "服务A应该接收到服务B发送的信号数据";
+    EXPECT_EQ(signal_a_data_received.load(), 1) << "服务B应该接收到服务A发送的信号数据";
+    EXPECT_EQ(signal_b_data_received.load(), 1) << "服务A应该接收到服务B发送的信号数据";
 
     // 清理
     conn_a.remove_match(1);
@@ -337,8 +330,7 @@ TEST_F(signal_send_receive_test, test_multiple_signals_bidirectional)
     auto timeout = std::chrono::milliseconds(3000);
 
     while ((std::chrono::steady_clock::now() - start) < timeout) {
-        if (signal_a_received_count.load() >= num_signals &&
-            signal_b_received_count.load() >= num_signals) {
+        if (signal_a_received_count.load() >= num_signals && signal_b_received_count.load() >= num_signals) {
             break;
         }
 
@@ -346,10 +338,8 @@ TEST_F(signal_send_receive_test, test_multiple_signals_bidirectional)
     }
 
     // 验证信号接收
-    EXPECT_EQ(signal_a_received_count.load(), num_signals)
-        << "服务B应该接收到服务A发送的所有信号";
-    EXPECT_EQ(signal_b_received_count.load(), num_signals)
-        << "服务A应该接收到服务B发送的所有信号";
+    EXPECT_EQ(signal_a_received_count.load(), num_signals) << "服务B应该接收到服务A发送的所有信号";
+    EXPECT_EQ(signal_b_received_count.load(), num_signals) << "服务A应该接收到服务B发送的所有信号";
 
     // 验证数据内容正确性
     {
@@ -361,10 +351,8 @@ TEST_F(signal_send_receive_test, test_multiple_signals_bidirectional)
 
         // 验证数据值是否正确（应该是 0, 1, 2, 3, 4）
         for (int i = 0; i < num_signals; ++i) {
-            EXPECT_TRUE(signal_a_data_received.count(i) > 0)
-                << "服务B应该接收到数据 " << i;
-            EXPECT_TRUE(signal_b_data_received.count(i) > 0)
-                << "服务A应该接收到数据 " << i;
+            EXPECT_TRUE(signal_a_data_received.count(i) > 0) << "服务B应该接收到数据 " << i;
+            EXPECT_TRUE(signal_b_data_received.count(i) > 0) << "服务A应该接收到数据 " << i;
         }
     }
 
@@ -428,8 +416,7 @@ TEST_F(signal_send_receive_test, test_signal_subscribe_unsubscribe)
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     // 验证第一个信号被接收
-    EXPECT_EQ(signal_received_count.load(), 1)
-        << "第一个信号应该被接收";
+    EXPECT_EQ(signal_received_count.load(), 1) << "第一个信号应该被接收";
 
     // 取消订阅
     ilog("取消订阅");
@@ -448,8 +435,7 @@ TEST_F(signal_send_receive_test, test_signal_subscribe_unsubscribe)
 
     // 验证第二个信号没有被接收（计数应该保持不变）
     int count_after_unsubscribe = signal_received_count.load();
-    EXPECT_EQ(count_after_unsubscribe, count_before_second_signal)
-        << "取消订阅后，信号不应该被匹配回调接收";
+    EXPECT_EQ(count_after_unsubscribe, count_before_second_signal) << "取消订阅后，信号不应该被匹配回调接收";
 
     // 清理
     conn_a.disconnect();

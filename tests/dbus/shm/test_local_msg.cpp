@@ -37,8 +37,7 @@ protected:
     {
         // 在每个测试前执行
         sample_msg =
-            new dbus::local_msg("bmc.kepler.test", "/bmc/kepler/test/obj",
-                                "bmc.kepler.test.intf", "TestMethod");
+            new dbus::local_msg("bmc.kepler.test", "/bmc/kepler/test/obj", "bmc.kepler.test.intf", "TestMethod");
     }
 
     void TearDown() override
@@ -71,8 +70,7 @@ TEST_F(LocalMsgTest, ErrorInfo)
 // 测试 append 方法
 TEST_F(LocalMsgTest, Append)
 {
-    auto     msg = new dbus::local_msg("bmc.kepler.test", "/bmc/kepler/test/obj",
-                                       "bmc.kepler.test.intf", "TestMethod");
+    auto     msg = new dbus::local_msg("bmc.kepler.test", "/bmc/kepler/test/obj", "bmc.kepler.test.intf", "TestMethod");
     variants arg1;
     arg1.push_back(1);
     arg1.push_back(-2);
@@ -91,8 +89,7 @@ TEST_F(LocalMsgTest, Append)
 // 测试 pack 方法
 TEST_F(LocalMsgTest, Pack)
 {
-    auto msg = new dbus::local_msg("bmc.kepler.test", "/bmc/kepler/test/obj",
-                                   "bmc.kepler.test.intf", "TestMethod");
+    auto msg = new dbus::local_msg("bmc.kepler.test", "/bmc/kepler/test/obj", "bmc.kepler.test.intf", "TestMethod");
     msg->append("a{ss}s", dict({{"a", "str1"}, {"b", "str2"}}), "test");
     auto packed   = msg->pack();
     auto unpacked = dbus::serialize::unpack(packed);
@@ -105,8 +102,7 @@ TEST_F(LocalMsgTest, Pack)
     ASSERT_EQ(args[1].as_string(), "test");
 
     variant arg1 = "str1";
-    variant arg2 =
-        variants{variants{257, false, 3, "abc"}, variants{88, true, 4, "def"}};
+    variant arg2 = variants{variants{257, false, 3, "abc"}, variants{88, true, 4, "def"}};
     variant arg3 = 33;
     variant arg4 = dict({{"a", dict({{"b", "str2"}, {"c", 33}})}});
     variant arg5 = variants{97, 98, 99, 100}; // abcd
@@ -148,8 +144,7 @@ TEST_F(LocalMsgTest, Pack)
 // 测试 append_args 方法
 TEST_F(LocalMsgTest, AppendArgs)
 {
-    auto     msg = new dbus::local_msg("bmc.kepler.test", "/bmc/kepler/test/obj",
-                                       "bmc.kepler.test.intf", "TestMethod");
+    auto     msg = new dbus::local_msg("bmc.kepler.test", "/bmc/kepler/test/obj", "bmc.kepler.test.intf", "TestMethod");
     dict     arg1({{"a", "str1"}, {"b", "str2"}});
     variants arg2;
     arg2.push_back(12);
@@ -170,8 +165,7 @@ TEST_F(LocalMsgTest, AppendArgs)
 TEST_F(LocalMsgTest, NewDBusMsg)
 {
     auto reply_msg =
-        new dbus::local_msg("bmc.kepler.test", "/bmc/kepler/test/obj",
-                            "bmc.kepler.test.intf", "TestMethod");
+        new dbus::local_msg("bmc.kepler.test", "/bmc/kepler/test/obj", "bmc.kepler.test.intf", "TestMethod");
     reply_msg->set_sender(":1.23");
     reply_msg->set_serial(123);
     reply_msg->method_return();
@@ -286,67 +280,62 @@ TEST_F(LocalMsgTest, AppendReturnArgsCases)
 TEST_F(LocalMsgTest, ParseVariantVariousTypes)
 {
     // 验证基础整数类型
-    const auto byte_result = dbus::local_msg::parse_variant(
-        signature_iterator("y"), variant(static_cast<uint8_t>(65)), 0);
+    const auto byte_result =
+        dbus::local_msg::parse_variant(signature_iterator("y"), variant(static_cast<uint8_t>(65)), 0);
     EXPECT_TRUE(byte_result.is_uint8());
     EXPECT_EQ(byte_result.as_uint8(), 65);
 
-    const auto bool_true_result =
-        dbus::local_msg::parse_variant(signature_iterator("b"), variant(true), 0);
+    const auto bool_true_result = dbus::local_msg::parse_variant(signature_iterator("b"), variant(true), 0);
     EXPECT_TRUE(bool_true_result.is_bool());
     EXPECT_TRUE(bool_true_result.as_bool());
 
     // 验证数字解析为布尔值的行为（非零为 true，零为 false）
-    const auto bool_numeric_true_result =
-        dbus::local_msg::parse_variant(signature_iterator("b"), variant(1), 0);
+    const auto bool_numeric_true_result = dbus::local_msg::parse_variant(signature_iterator("b"), variant(1), 0);
     EXPECT_TRUE(bool_numeric_true_result.is_bool());
     EXPECT_TRUE(bool_numeric_true_result.as_bool());
 
-    const auto bool_numeric_false_result =
-        dbus::local_msg::parse_variant(signature_iterator("b"), variant(0), 0);
+    const auto bool_numeric_false_result = dbus::local_msg::parse_variant(signature_iterator("b"), variant(0), 0);
     EXPECT_TRUE(bool_numeric_false_result.is_bool());
     EXPECT_FALSE(bool_numeric_false_result.as_bool());
 
-    const auto int16_result = dbus::local_msg::parse_variant(
-        signature_iterator("n"), variant(static_cast<int16_t>(-123)), 0);
+    const auto int16_result =
+        dbus::local_msg::parse_variant(signature_iterator("n"), variant(static_cast<int16_t>(-123)), 0);
     EXPECT_TRUE(int16_result.is_int16());
     EXPECT_EQ(int16_result.as_int16(), -123);
 
-    const auto uint16_result = dbus::local_msg::parse_variant(
-        signature_iterator("q"), variant(static_cast<uint16_t>(12345)), 0);
+    const auto uint16_result =
+        dbus::local_msg::parse_variant(signature_iterator("q"), variant(static_cast<uint16_t>(12345)), 0);
     EXPECT_TRUE(uint16_result.is_uint16());
     EXPECT_EQ(uint16_result.as_uint16(), 12345);
 
-    const auto int32_result = dbus::local_msg::parse_variant(
-        signature_iterator("i"), variant(static_cast<int32_t>(-123456)), 0);
+    const auto int32_result =
+        dbus::local_msg::parse_variant(signature_iterator("i"), variant(static_cast<int32_t>(-123456)), 0);
     EXPECT_TRUE(int32_result.is_int32());
     EXPECT_EQ(int32_result.as_int32(), -123456);
 
-    const auto uint32_result = dbus::local_msg::parse_variant(
-        signature_iterator("u"), variant(static_cast<uint32_t>(123456)), 0);
+    const auto uint32_result =
+        dbus::local_msg::parse_variant(signature_iterator("u"), variant(static_cast<uint32_t>(123456)), 0);
     EXPECT_TRUE(uint32_result.is_uint32());
     EXPECT_EQ(uint32_result.as_uint32(), 123456U);
 
-    const auto int64_result = dbus::local_msg::parse_variant(
-        signature_iterator("x"), variant(static_cast<int64_t>(-123456789)), 0);
+    const auto int64_result =
+        dbus::local_msg::parse_variant(signature_iterator("x"), variant(static_cast<int64_t>(-123456789)), 0);
     EXPECT_TRUE(int64_result.is_int64());
     EXPECT_EQ(int64_result.as_int64(), -123456789);
 
-    const auto uint64_result = dbus::local_msg::parse_variant(
-        signature_iterator("t"), variant(static_cast<uint64_t>(123456789)), 0);
+    const auto uint64_result =
+        dbus::local_msg::parse_variant(signature_iterator("t"), variant(static_cast<uint64_t>(123456789)), 0);
     EXPECT_TRUE(uint64_result.is_uint64());
     EXPECT_EQ(uint64_result.as_uint64(), 123456789U);
 
-    const auto double_result =
-        dbus::local_msg::parse_variant(signature_iterator("d"), variant(3.14159), 0);
+    const auto double_result = dbus::local_msg::parse_variant(signature_iterator("d"), variant(3.14159), 0);
     EXPECT_TRUE(double_result.is_double());
     EXPECT_NEAR(double_result.as_double(), 3.14159, 1e-9);
 }
 
 TEST_F(LocalMsgTest, AppendArgsSignatureParseError)
 {
-    auto msg =
-        new dbus::local_msg("org.test", "/org/test", "org.test", "Method");
+    auto     msg = new dbus::local_msg("org.test", "/org/test", "org.test", "Method");
     variants args;
     args.push_back(1);
     args.push_back("test");
@@ -357,8 +346,7 @@ TEST_F(LocalMsgTest, AppendArgsSignatureParseError)
 
 TEST_F(LocalMsgTest, AppendArgsSizeMismatch)
 {
-    auto msg =
-        new dbus::local_msg("org.test", "/org/test", "org.test", "Method");
+    auto     msg = new dbus::local_msg("org.test", "/org/test", "org.test", "Method");
     variants args;
     args.push_back(1);
     EXPECT_THROW(msg->append_args("ii", args), std::exception);
@@ -367,8 +355,7 @@ TEST_F(LocalMsgTest, AppendArgsSizeMismatch)
 
 TEST_F(LocalMsgTest, NewDBusMsgInvalidType)
 {
-    auto msg =
-        new dbus::local_msg("org.test", "/org/test", "org.test", "Method");
+    auto     msg = new dbus::local_msg("org.test", "/org/test", "org.test", "Method");
     variants v;
     v.push_back(static_cast<uint32_t>(999));
     v.push_back("org.test");
@@ -389,8 +376,7 @@ TEST_F(LocalMsgTest, NewDBusMsgInvalidType)
 
 TEST_F(LocalMsgTest, AppendReturnArgsMultipleNonArray)
 {
-    auto msg =
-        new dbus::local_msg("org.test", "/org/test", "org.test", "Method");
+    auto    msg      = new dbus::local_msg("org.test", "/org/test", "org.test", "Method");
     variant v_single = 42;
     EXPECT_THROW(msg->append_return_args("isd", v_single), std::exception);
     delete msg;
@@ -445,8 +431,7 @@ TEST_F(LocalMsgTest, ScenarioConcurrentPackUnpack)
     for (int i = 0; i < num_threads; ++i) {
         threads.emplace_back([i, &success_count]() {
             for (int j = 0; j < iterations; ++j) {
-                auto msg = new dbus::local_msg("org.test", "/org/test",
-                                               "org.test", "Method");
+                auto msg = new dbus::local_msg("org.test", "/org/test", "org.test", "Method");
                 msg->set_serial(i * iterations + j);
                 msg->set_sender(":1.100");
 
@@ -460,10 +445,8 @@ TEST_F(LocalMsgTest, ScenarioConcurrentPackUnpack)
                 dbus::local_msg restored_msg(unpacked);
 
                 auto read_args = restored_msg.read();
-                if (read_args.size() == 2 && read_args[0].as_int32() == i &&
-                    read_args[1].as_int32() == j &&
-                    restored_msg.get_serial() == i * iterations + j &&
-                    restored_msg.sender() == ":1.100") {
+                if (read_args.size() == 2 && read_args[0].as_int32() == i && read_args[1].as_int32() == j &&
+                    restored_msg.get_serial() == i * iterations + j && restored_msg.sender() == ":1.100") {
                     success_count.fetch_add(1);
                 }
                 delete msg;
@@ -489,8 +472,7 @@ TEST_F(LocalMsgTest, ScenarioConcurrentConstructFromVariants)
         threads.emplace_back([i, &success_count]() {
             for (int j = 0; j < iterations; ++j) {
                 variants v;
-                v.push_back(
-                    static_cast<uint32_t>(DBUS_MESSAGE_TYPE_METHOD_CALL));
+                v.push_back(static_cast<uint32_t>(DBUS_MESSAGE_TYPE_METHOD_CALL));
                 v.push_back("org.test");
                 v.push_back("/org/test");
                 v.push_back("org.test");
@@ -509,8 +491,7 @@ TEST_F(LocalMsgTest, ScenarioConcurrentConstructFromVariants)
                 dbus::local_msg restored_msg(unpacked);
 
                 auto args = restored_msg.read();
-                if (args.size() == 2 && args[0].as_int32() == i &&
-                    args[1].as_int32() == j) {
+                if (args.size() == 2 && args[0].as_int32() == i && args[1].as_int32() == j) {
                     success_count.fetch_add(1);
                 }
             }
@@ -526,8 +507,7 @@ TEST_F(LocalMsgTest, ScenarioConcurrentConstructFromVariants)
 
 TEST_F(LocalMsgTest, ScenarioLargeMessagePackUnpack)
 {
-    auto msg =
-        new dbus::local_msg("org.test", "/org/test", "org.test", "Method");
+    auto msg = new dbus::local_msg("org.test", "/org/test", "org.test", "Method");
 
     variants large_args;
     for (int i = 0; i < 1000; ++i) {
@@ -659,8 +639,7 @@ TEST_F(LocalMsgTest, IsUniqueNameEmptyString)
 // 测试 local_msg::append() 所有类型
 TEST_F(LocalMsgTest, LocalMsgAppendAllTypes)
 {
-    auto msg = new dbus::local_msg("bmc.kepler.test", "/bmc/kepler/test/obj",
-                                   "bmc.kepler.test.intf", "TestMethod");
+    auto msg = new dbus::local_msg("bmc.kepler.test", "/bmc/kepler/test/obj", "bmc.kepler.test.intf", "TestMethod");
 
     // 测试所有支持的类型
     int8_t   i8  = -10;
@@ -692,8 +671,7 @@ TEST_F(LocalMsgTest, LocalMsgAppendAllTypes)
 // 测试 local_msg::append() 签名不匹配
 TEST_F(LocalMsgTest, LocalMsgAppendInvalidSignature)
 {
-    auto msg = new dbus::local_msg("bmc.kepler.test", "/bmc/kepler/test/obj",
-                                   "bmc.kepler.test.intf", "TestMethod");
+    auto msg = new dbus::local_msg("bmc.kepler.test", "/bmc/kepler/test/obj", "bmc.kepler.test.intf", "TestMethod");
 
     // 传入签名与参数数量不匹配的参数，应该抛出异常
     EXPECT_THROW(msg->append("ii", 1, 2, 3), mc::exception); // 签名只有2个参数，但传入了3个

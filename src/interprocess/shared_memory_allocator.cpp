@@ -32,7 +32,7 @@ shared_memory_allocator::shared_memory_allocator(void* base_addr, size_t size)
         auto header = static_cast<memory_block_header*>(base_addr);
         header->size.store(size, std::memory_order_relaxed);
         header->is_free.store(true, std::memory_order_relaxed);
-        header->magic.store(BLOCK_MAGIC, std::memory_order_relaxed);  // 魔数，用于检查块完整性
+        header->magic.store(BLOCK_MAGIC, std::memory_order_relaxed); // 魔数，用于检查块完整性
     }
 }
 
@@ -73,7 +73,6 @@ void shared_memory_allocator::deallocate(void* ptr)
 
     // 获取块头部
     auto header = get_header(ptr);
-
     // 检查块魔数
     if (header->magic.load(std::memory_order_relaxed) != BLOCK_MAGIC) {
         elog("无效的内存块释放尝试，魔数不匹配");
@@ -123,14 +122,13 @@ shared_memory_allocator::memory_block_header* shared_memory_allocator::find_free
         }
 
         // 检查是否空闲且大小足够
-        if (current->is_free.load(std::memory_order_acquire) &&
-            current->size.load(std::memory_order_relaxed) >= size) {
+        if (current->is_free.load(std::memory_order_acquire) && current->size.load(std::memory_order_relaxed) >= size) {
             return current;
         }
 
         // 移动到下一个块
-        current = reinterpret_cast<memory_block_header*>(
-            reinterpret_cast<char*>(current) + current->size.load(std::memory_order_relaxed));
+        current = reinterpret_cast<memory_block_header*>(reinterpret_cast<char*>(current) +
+                                                         current->size.load(std::memory_order_relaxed));
     }
 
     return nullptr;
@@ -138,8 +136,7 @@ shared_memory_allocator::memory_block_header* shared_memory_allocator::find_free
 
 shared_memory_allocator::memory_block_header* shared_memory_allocator::get_header(void* ptr)
 {
-    return reinterpret_cast<memory_block_header*>(
-        static_cast<char*>(ptr) - sizeof(memory_block_header));
+    return reinterpret_cast<memory_block_header*>(static_cast<char*>(ptr) - sizeof(memory_block_header));
 }
 
 void* shared_memory_allocator::get_user_ptr(memory_block_header* header)
@@ -155,8 +152,7 @@ void shared_memory_allocator::split_block(memory_block_header* block, size_t siz
     block->size.store(size, std::memory_order_relaxed);
 
     // 创建新的块
-    auto new_block = reinterpret_cast<memory_block_header*>(
-        reinterpret_cast<char*>(block) + size);
+    auto new_block = reinterpret_cast<memory_block_header*>(reinterpret_cast<char*>(block) + size);
 
     // 初始化新块
     new_block->size.store(old_size - size, std::memory_order_relaxed);
@@ -179,18 +175,15 @@ void shared_memory_allocator::merge_adjacent_blocks()
         // 如果当前块是空闲的
         if (current->is_free.load(std::memory_order_acquire)) {
             // 查找下一个块
-            auto next = reinterpret_cast<memory_block_header*>(
-                reinterpret_cast<char*>(current) + current->size.load(std::memory_order_relaxed));
-
+            auto next = reinterpret_cast<memory_block_header*>(reinterpret_cast<char*>(current) +
+                                                               current->size.load(std::memory_order_relaxed));
             // 如果下一个块在范围内且也是空闲的，合并它们
-            if (static_cast<void*>(next) < end_addr &&
-                next->magic.load(std::memory_order_relaxed) == BLOCK_MAGIC &&
+            if (static_cast<void*>(next) < end_addr && next->magic.load(std::memory_order_relaxed) == BLOCK_MAGIC &&
                 next->is_free.load(std::memory_order_acquire)) {
                 // 增加当前块的大小以包含下一个块
-                current->size.store(
-                    current->size.load(std::memory_order_relaxed) +
-                        next->size.load(std::memory_order_relaxed),
-                    std::memory_order_relaxed);
+                current->size.store(current->size.load(std::memory_order_relaxed) +
+                                        next->size.load(std::memory_order_relaxed),
+                                    std::memory_order_relaxed);
 
                 // 继续查找更多可合并的块
                 continue;
@@ -198,8 +191,8 @@ void shared_memory_allocator::merge_adjacent_blocks()
         }
 
         // 移动到下一个块
-        current = reinterpret_cast<memory_block_header*>(
-            reinterpret_cast<char*>(current) + current->size.load(std::memory_order_relaxed));
+        current = reinterpret_cast<memory_block_header*>(reinterpret_cast<char*>(current) +
+                                                         current->size.load(std::memory_order_relaxed));
     }
 }
 

@@ -27,10 +27,8 @@ class reference_extension : public variant_extension<reference_extension> {
 public:
     explicit reference_extension(bool allow_ref = false)
         : m_items({mc::variant(1), mc::variant("value"), mc::variant(true)}),
-          m_attrs({{"flag", false}, {"token", "id"}}),
-          m_allow_ref(allow_ref)
-    {
-    }
+          m_attrs({{"flag", false}, {"token", "id"}}), m_allow_ref(allow_ref)
+    {}
 
     reference_extension(const reference_extension&)            = default;
     reference_extension& operator=(const reference_extension&) = default;
@@ -155,12 +153,7 @@ TEST_F(VariantReferenceTest, BasicKeyAccess)
 TEST_F(VariantReferenceTest, TypeConversionMethods)
 {
     variant arr = variants{
-        static_cast<int8_t>(1),
-        static_cast<uint16_t>(100),
-        static_cast<int64_t>(1000),
-        3.14,
-        true,
-        "hello",
+        static_cast<int8_t>(1), static_cast<uint16_t>(100), static_cast<int64_t>(1000), 3.14, true, "hello",
     };
 
     // 测试各种类型转换方法
@@ -212,9 +205,7 @@ TEST_F(VariantReferenceTest, DeepChainedAccess)
 {
     // 创建深层嵌套结构
     variant deep = dict{
-        {"level1",
-         dict{{"level2",
-               variants{dict{{"level3", variants{1, 2, 3}}}}}}},
+        {"level1", dict{{"level2", variants{dict{{"level3", variants{1, 2, 3}}}}}}},
     };
 
     // 测试深层链式访问
@@ -736,11 +727,12 @@ TEST_F(VariantReferenceTest, ChainedOperations)
 {
     // 测试链式操作的综合使用
     variant complex = dict{
-        {"data", variants{
-                     dict{{"value", 10}},
-                     dict{{"value", 20}},
-                     dict{{"value", 30}},
-                 }},
+        {"data",
+         variants{
+             dict{{"value", 10}},
+             dict{{"value", 20}},
+             dict{{"value", 30}},
+         }},
     };
 
     // 复杂的链式访问和操作

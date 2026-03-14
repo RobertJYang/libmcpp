@@ -13,13 +13,13 @@
 #ifndef MC_DBUS_L_INTERFACE_H
 #define MC_DBUS_L_INTERFACE_H
 
-#include <string>
-#include <string_view>
 #include <dbus/dbus.h>
 #include <mc/core/object.h>
 #include <mc/dbus/dynamic_object.h>
 #include <mc/dict.h>
 #include <mc/variant.h>
+#include <string>
+#include <string_view>
 
 extern "C" {
 #include <lua.h>
@@ -52,10 +52,8 @@ struct l_interface {
         impl = mc::make_shared<dynamic_interface>(name);
     }
 
-    l_interface(mc::shared_ptr<dynamic_interface> intf)
-        : impl(intf)
-    {
-    }
+    l_interface(mc::shared_ptr<dynamic_interface> intf) : impl(intf)
+    {}
 
     mc::shared_ptr<dynamic_interface> impl;
 };

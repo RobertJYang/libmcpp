@@ -21,8 +21,7 @@
 namespace mc::core {
 
 service_manager::service_manager()
-{
-}
+{}
 
 service_manager::~service_manager()
 {
@@ -73,8 +72,7 @@ bool service_manager::remove_service(const std::string& name)
             }
         }
     } catch (const std::exception& e) {
-        wlog("stop service '${name}' failed: ${error}, but will remove it",
-             ("name", name)("error", e.what()));
+        wlog("stop service '${name}' failed: ${error}, but will remove it", ("name", name)("error", e.what()));
     }
 
     // 清理资源
@@ -162,12 +160,10 @@ void service_manager::cleanup_services()
 }
 
 // 拓扑排序，返回服务名称列表
-std::vector<std::string>
-service_manager::topological_sort(const std::unordered_map<std::string, service_node>& graph)
+std::vector<std::string> service_manager::topological_sort(const std::unordered_map<std::string, service_node>& graph)
 {
     // 转换数据结构以适配dependency_sorter
-    std::unordered_map<std::string, core::internal::dependency_sorter::dependency_node>
-        dependency_graph;
+    std::unordered_map<std::string, core::internal::dependency_sorter::dependency_node> dependency_graph;
 
     for (const auto& [name, node] : graph) {
         core::internal::dependency_sorter::dependency_node dep_node;
@@ -183,8 +179,7 @@ service_manager::topological_sort(const std::unordered_map<std::string, service_
         return core::internal::dependency_sorter::sort_for_startup(dependency_graph);
     } catch (const mc::parse_error_exception& e) {
         // 重新抛出异常
-        MC_THROW(mc::parse_error_exception, "服务依赖图中存在循环依赖: ${error}",
-                 ("error", e.what()));
+        MC_THROW(mc::parse_error_exception, "服务依赖图中存在循环依赖: ${error}", ("error", e.what()));
     }
 }
 
@@ -205,8 +200,7 @@ service_manager::build_dependency_graph(const std::vector<config::service_config
     };
 
     // 使用 dependency_sorter 构建依赖图
-    auto dependency_graph =
-        core::internal::dependency_sorter::build_dependency_graph(config_map, get_dependencies);
+    auto dependency_graph = core::internal::dependency_sorter::build_dependency_graph(config_map, get_dependencies);
 
     // 转换为 service_node 格式
     std::unordered_map<std::string, service_node> graph;
@@ -220,9 +214,8 @@ service_manager::build_dependency_graph(const std::vector<config::service_config
         node.supervisor     = config.meta.labels->at("supervisor").as<std::string>();
         node.config         = config;
         node.dependents     = dep_node.dependents;
-        node.dependencies =
-            std::unordered_set<std::string>(config.dependencies.begin(), config.dependencies.end());
-        node.in_degree = dep_node.in_degree;
+        node.dependencies   = std::unordered_set<std::string>(config.dependencies.begin(), config.dependencies.end());
+        node.in_degree      = dep_node.in_degree;
 
         dlog("add service node '${name}', dependencies count: ${deps}",
              ("name", name)("deps", node.dependencies.size()));
@@ -239,8 +232,7 @@ service_manager::build_dependency_graph(const std::vector<config::service_config
 
 // 创建单个服务实例
 bool service_manager::create_service_instance(const std::string& name, config_manager& config_mgr,
-                                              supervisor_manager& supervisor_mgr,
-                                              service_factory&    factory)
+                                              supervisor_manager& supervisor_mgr, service_factory& factory)
 {
     // 查找对应的配置
     auto config = config_mgr.get_config<config::service_config>(name);
@@ -250,8 +242,7 @@ bool service_manager::create_service_instance(const std::string& name, config_ma
     }
 
     // 查找监督器
-    auto supervisor =
-        supervisor_mgr.get_supervisor(config->meta.labels->at("supervisor").as<std::string>());
+    auto supervisor = supervisor_mgr.get_supervisor(config->meta.labels->at("supervisor").as<std::string>());
     if (!supervisor) {
         elog("error: cannot find service '${name}' supervisor", ("name", name));
         return false;
@@ -259,8 +250,7 @@ bool service_manager::create_service_instance(const std::string& name, config_ma
 
     // 创建服务
     try {
-        dlog("start to create service '${name}', type: ${type}",
-             ("name", name)("type", config->type));
+        dlog("start to create service '${name}', type: ${type}", ("name", name)("type", config->type));
 
         auto service = factory.create_service(config->type, name, config->properties);
         if (!service) {
@@ -272,8 +262,8 @@ bool service_manager::create_service_instance(const std::string& name, config_ma
         m_services[name] = service;
 
         ilog("create service '${name}' success, type: ${type}, supervisor: ${supervisor}",
-             ("name", name)("type", config->type)(
-                 "supervisor", config->meta.labels->at("supervisor").as<std::string>()));
+             ("name", name)("type", config->type)("supervisor",
+                                                  config->meta.labels->at("supervisor").as<std::string>()));
 
         return true;
     } catch (const std::exception& e) {
@@ -283,9 +273,8 @@ bool service_manager::create_service_instance(const std::string& name, config_ma
 }
 
 // 从配置初始化服务
-bool service_manager::initialize_from_configs(config_manager&     config_mgr,
-                                              supervisor_manager& supervisor_mgr,
-                                              service_factory&    factory)
+bool service_manager::initialize_from_configs(config_manager& config_mgr, supervisor_manager& supervisor_mgr,
+                                              service_factory& factory)
 {
     // 清理现有服务
     m_services.clear();

@@ -25,10 +25,8 @@ struct signal_tag {};
 #define MC_REFLECT_SIGNAL_TYPE static_cast<int>(mc::reflect::member_info_type::custom_start) + 1
 
 struct signal_type_info : public mc::reflect::member_info_base {
-    constexpr signal_type_info(std::string_view n)
-        : mc::reflect::member_info_base(n)
-    {
-    }
+    constexpr signal_type_info(std::string_view n) : mc::reflect::member_info_base(n)
+    {}
 
     virtual std::string_view get_args_signature() const   = 0;
     virtual std::string_view get_result_signature() const = 0;
@@ -54,10 +52,8 @@ struct signal_info_base : public signal_type_info {
     using signal_type_info::connect;
     using signal_type_info::emit;
 
-    constexpr signal_info_base(std::string_view n)
-        : signal_type_info(n)
-    {
-    }
+    constexpr signal_info_base(std::string_view n) : signal_type_info(n)
+    {}
 
     // 使用反射信息基类直接调用对象信号，用于动态反射类型擦除后使用
     virtual mc::variant         emit(Class& obj, const mc::variants& args) const = 0;
@@ -74,10 +70,8 @@ struct signal_info : public signal_info_base<Class> {
 
     signature_type Class::*signal_ptr;
 
-    constexpr signal_info(std::string_view n, signature_type Class::*ptr)
-        : signal_info_base<Class>(n), signal_ptr(ptr)
-    {
-    }
+    constexpr signal_info(std::string_view n, signature_type Class::*ptr) : signal_info_base<Class>(n), signal_ptr(ptr)
+    {}
 
     std::type_index typeinfo() const noexcept override
     {
@@ -105,17 +99,14 @@ struct signal_info : public signal_info_base<Class> {
     }
 
     template <size_t... I>
-    mc::variant call_with_exact_args(Class& obj, const mc::variants& args,
-                                     std::index_sequence<I...>) const
+    mc::variant call_with_exact_args(Class& obj, const mc::variants& args, std::index_sequence<I...>) const
     {
         if constexpr (std::is_void_v<RetType>) {
-            (obj.*signal_ptr)(mc::detail::convert_arg<mc::traits::remove_cvref_t<Args>>(
-                this->name.data(), args[I])...);
+            (obj.*signal_ptr)(mc::detail::convert_arg<mc::traits::remove_cvref_t<Args>>(this->name.data(), args[I])...);
             return mc::variant();
         } else {
             auto ret = (obj.*signal_ptr)(
-                mc::detail::convert_arg<mc::traits::remove_cvref_t<Args>>(this->name.data(),
-                                                                          args[I])...);
+                mc::detail::convert_arg<mc::traits::remove_cvref_t<Args>>(this->name.data(), args[I])...);
             return ret ? mc::variant(*ret) : mc::variant();
         }
     }
@@ -155,18 +146,17 @@ struct signal_info : public signal_info_base<Class> {
 
 inline mc::variant signal_type_info::emit(void* obj, const mc::variants& args) const
 {
-    return reinterpret_cast<const signal_info_base<std::monostate>*>(this)->emit(
-        *static_cast<std::monostate*>(obj), args);
+    return reinterpret_cast<const signal_info_base<std::monostate>*>(this)->emit(*static_cast<std::monostate*>(obj),
+                                                                                 args);
 }
 inline mc::connection_type signal_type_info::connect(void* obj, slot_type slot) const
 {
-    return reinterpret_cast<const signal_info_base<std::monostate>*>(this)->connect(
-        *static_cast<std::monostate*>(obj), slot);
+    return reinterpret_cast<const signal_info_base<std::monostate>*>(this)->connect(*static_cast<std::monostate*>(obj),
+                                                                                    slot);
 }
 
 template <typename Class, typename RetType, typename... Args>
-constexpr auto make_signal_info(mc::signal<RetType(Args...)> Class::*signal_ptr,
-                                std::string_view                     name)
+constexpr auto make_signal_info(mc::signal<RetType(Args...)> Class::*signal_ptr, std::string_view name)
 {
     return std::make_tuple(signal_info<Class, RetType, Args...>(name, signal_ptr));
 }

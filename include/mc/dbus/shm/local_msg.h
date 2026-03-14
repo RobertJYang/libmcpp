@@ -126,14 +126,15 @@ public:
         signature_iterator it(signature);
         auto               func = [this, &it, signature](auto&& arg) {
             signature_iterator item_it(it.current_type());
-            MC_ASSERT(!item_it.at_end() && !it.at_end(),
-                                    "invalid args size for signature: ${signature}", ("signature", signature));
+            MC_ASSERT(!item_it.at_end() && !it.at_end(), "invalid args size for signature: ${signature}",
+                                    ("signature", signature));
             m_args.push_back(parse_variant(item_it, std::forward<decltype(arg)>(arg), 0));
             it.next();
         };
         (func(std::forward<Args>(args)), ...);
         // 检查签名是否还有剩余（参数数量少于签名要求）
-        MC_ASSERT(it.at_end(), "invalid args size for signature: ${signature}, expected more args", ("signature", signature));
+        MC_ASSERT(it.at_end(), "invalid args size for signature: ${signature}, expected more args",
+                  ("signature", signature));
     }
 
     /**

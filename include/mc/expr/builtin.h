@@ -46,10 +46,7 @@ public:
      */
     int register_symbol(std::shared_ptr<function> func);
 
-    template <typename F,
-              std::enable_if_t<
-                  std::is_function_v<std::remove_pointer_t<std::decay_t<F>>>,
-                  int> = 0>
+    template <typename F, std::enable_if_t<std::is_function_v<std::remove_pointer_t<std::decay_t<F>>>, int> = 0>
     int register_symbol(std::string name, F&& func)
     {
         return register_symbol(make_simple_function(std::move(name), std::forward<F>(func)));
@@ -97,12 +94,12 @@ private:
  *
  * 在cpp文件的命名空间外部使用此宏自动注册内建函数或内建变量
  */
-#define MC_REGISTER_BUILTIN_SYMBOL(name, symbol) \
+#define MC_REGISTER_BUILTIN_SYMBOL(name, symbol)                                                                       \
     inline auto name##_symbol_id = mc::expr::builtin::get_instance().register_symbol(#name, symbol);
 
-#define MC_REGISTER_BUILTIN_MODULE(name, module)                                                  \
-    namespace {                                                                                   \
-    inline auto module_##name##_id = mc::expr::builtin::get_instance().register_module<module>(); \
+#define MC_REGISTER_BUILTIN_MODULE(name, module)                                                                       \
+    namespace {                                                                                                        \
+    inline auto module_##name##_id = mc::expr::builtin::get_instance().register_module<module>();                      \
     }
 
 } // namespace mc::expr

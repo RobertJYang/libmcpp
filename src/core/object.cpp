@@ -20,17 +20,14 @@
 namespace mc::core {
 
 object_base::object_base()
-{
-}
+{}
 
 object_base::~object_base()
-{
-}
+{}
 
 object_base::object_base(const object_base& other)
     : enable_shared_from_this<object_base>(other), m_object_id(other.m_object_id)
-{
-}
+{}
 
 object_base::object_base(object_base&& other)
     : enable_shared_from_this<object_base>(std::forward<object_base>(other)), m_object_id(other.m_object_id)
@@ -82,15 +79,12 @@ struct object_data {
     connection_manager connection_mgr; // 连接管理器
     mc::executor       executor;       // 绑定的执行器
 
-    object_data()
-        : parent(nullptr), is_deleted(false)
-    {
-    }
+    object_data() : parent(nullptr), is_deleted(false)
+    {}
 
     // 拷贝构造函数
     object_data(const object_data& other)
-        : name(other.name), parent(other.parent),
-          children(other.children), is_deleted(other.is_deleted)
+        : name(other.name), parent(other.parent), children(other.children), is_deleted(other.is_deleted)
     {
         // 连接管理器不应该被复制，每个对象应该有自己的连接
     }
@@ -135,8 +129,7 @@ public:
     std::pair<child_list, object_ptr> cleanup_data();
 
     // 连接管理方法
-    connection_id_type add_connection(signal_type sig, mc::connection_type conn,
-                                      connection_id_type id);
+    connection_id_type add_connection(signal_type sig, mc::connection_type conn, connection_id_type id);
     void               remove_connection(connection_id_type id);
     size_t             remove_connections(signal_type sig);
     void               clear_connections();
@@ -206,8 +199,7 @@ child_list object_impl::get_children() const
 object_ptr object_impl::find_child(std::string_view name) const
 {
     return m_data.with_lock([name](auto& data) -> object_ptr {
-        auto it = std::find_if(data.children.begin(), data.children.end(),
-                               [name](const object_ptr& child) {
+        auto it = std::find_if(data.children.begin(), data.children.end(), [name](const object_ptr& child) {
             if (!child) {
                 return false;
             }
@@ -272,8 +264,7 @@ std::pair<child_list, object_ptr> object_impl::cleanup_data()
     });
 }
 
-connection_id_type object_impl::add_connection(signal_type sig, mc::connection_type conn,
-                                               connection_id_type id)
+connection_id_type object_impl::add_connection(signal_type sig, mc::connection_type conn, connection_id_type id)
 {
     return m_data.wlock()->connection_mgr.add_connection(sig, std::move(conn), id);
 }
@@ -352,8 +343,7 @@ void object::cleanup_on_destroy() noexcept
     }
 }
 
-object::object(const object& other)
-    : object_base(other)
+object::object(const object& other) : object_base(other)
 {
     auto* impl = other.m_object_impl.load(std::memory_order_acquire);
     if (impl) {
@@ -468,16 +458,14 @@ object_impl& object::ensure_impl() const
     }
 
     impl_ptr new_impl = std::make_unique<object_impl>();
-    if (m_object_impl.compare_exchange_strong(
-            impl, new_impl.get(),
-            std::memory_order_release, std::memory_order_acquire)) {
+    if (m_object_impl.compare_exchange_strong(impl, new_impl.get(), std::memory_order_release,
+                                              std::memory_order_acquire)) {
         impl = new_impl.release();
     }
     return *impl;
 }
 
-connection_id_type object::add_connection(signal_type sig, mc::connection_type conn,
-                                          connection_id_type id)
+connection_id_type object::add_connection(signal_type sig, mc::connection_type conn, connection_id_type id)
 {
     return ensure_impl().add_connection(sig, std::move(conn), id);
 }

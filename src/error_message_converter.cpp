@@ -51,27 +51,21 @@ mc::dict standard_error_message::to_dict() const
     return result;
 }
 
-void error_message_converter::load_registries(std::string_view base_json_path,
-                                              std::string_view custom_json_path)
+void error_message_converter::load_registries(std::string_view base_json_path, std::string_view custom_json_path)
 {
-    ilog("加载标准错误定义: base=${base}, custom=${custom}",
-         ("base", base_json_path)("custom", custom_json_path));
+    ilog("加载标准错误定义: base=${base}, custom=${custom}", ("base", base_json_path)("custom", custom_json_path));
 
     std::lock_guard<std::mutex> lock(m_mutex);
 
-    m_base_registry =
-        error_message_parser::parse_from_file(base_json_path);
+    m_base_registry = error_message_parser::parse_from_file(base_json_path);
 
-    m_custom_registry =
-        error_message_parser::parse_from_file(custom_json_path);
+    m_custom_registry = error_message_parser::parse_from_file(custom_json_path);
 
     ilog("错误定义加载完成: base消息数=${base_count}, custom消息数=${custom_count}",
-         ("base_count", m_base_registry.messages.size())(
-             "custom_count", m_custom_registry.messages.size()));
+         ("base_count", m_base_registry.messages.size())("custom_count", m_custom_registry.messages.size()));
 }
 
-void error_message_converter::load_registries_from_string(std::string_view base_json,
-                                                          std::string_view custom_json)
+void error_message_converter::load_registries_from_string(std::string_view base_json, std::string_view custom_json)
 {
     ilog("从字符串加载标准错误定义");
 
@@ -81,12 +75,10 @@ void error_message_converter::load_registries_from_string(std::string_view base_
     m_custom_registry = error_message_parser::parse_from_string(custom_json);
 
     ilog("错误定义加载完成: base消息数=${base_count}, custom消息数=${custom_count}",
-         ("base_count", m_base_registry.messages.size())(
-             "custom_count", m_custom_registry.messages.size()));
+         ("base_count", m_base_registry.messages.size())("custom_count", m_custom_registry.messages.size()));
 }
 
-std::optional<error_message_definition> error_message_converter::find_definition(
-    std::string_view message_name) const
+std::optional<error_message_definition> error_message_converter::find_definition(std::string_view message_name) const
 {
     std::lock_guard<std::mutex> lock(m_mutex);
 
@@ -100,9 +92,8 @@ std::optional<error_message_definition> error_message_converter::find_definition
     return error_message_parser::find_message(m_base_registry, message_name);
 }
 
-standard_error_message error_message_converter::convert(
-    const mc::error&                err,
-    const std::vector<std::string>& related_properties) const
+standard_error_message error_message_converter::convert(const mc::error&                err,
+                                                        const std::vector<std::string>& related_properties) const
 {
     standard_error_message result;
 
@@ -124,10 +115,8 @@ standard_error_message error_message_converter::convert(
         const auto& definition = def.value();
 
         // 确定使用哪个注册表
-        std::string prefix  = is_custom ? m_custom_registry.registry_prefix
-                                        : m_base_registry.registry_prefix;
-        std::string version = is_custom ? m_custom_registry.registry_version
-                                        : m_base_registry.registry_version;
+        std::string prefix  = is_custom ? m_custom_registry.registry_prefix : m_base_registry.registry_prefix;
+        std::string version = is_custom ? m_custom_registry.registry_version : m_base_registry.registry_version;
 
         result.message_name     = error_name;
         result.message_id       = prefix + "." + version + "." + error_name;
@@ -157,8 +146,7 @@ standard_error_message error_message_converter::convert(
 
         // 使用 base 注册表的信息
         result.message_name = "InternalError";
-        result.message_id   = m_base_registry.registry_prefix + "." +
-                            m_base_registry.registry_version + ".InternalError";
+        result.message_id = m_base_registry.registry_prefix + "." + m_base_registry.registry_version + ".InternalError";
         result.registry_prefix  = m_base_registry.registry_prefix;
         result.registry_version = m_base_registry.registry_version;
         result.severity         = "Critical";
@@ -172,11 +160,9 @@ standard_error_message error_message_converter::convert(
         result.message_args = converted_args;
 
         // 查找 InternalError 的定义
-        auto internal_def =
-            error_message_parser::find_message(m_base_registry, "GeneralError");
+        auto internal_def = error_message_parser::find_message(m_base_registry, "GeneralError");
         if (internal_def.has_value()) {
-            result.message =
-                error_message_parser::format_message(internal_def.value(), result.message_args);
+            result.message = error_message_parser::format_message(internal_def.value(), result.message_args);
         } else {
             result.message = "An internal error occurred: " + err.get_message();
         }
@@ -188,9 +174,8 @@ standard_error_message error_message_converter::convert(
     return result;
 }
 
-mc::dict error_message_converter::convert_to_dict(
-    const mc::error&                err,
-    const std::vector<std::string>& related_properties) const
+mc::dict error_message_converter::convert_to_dict(const mc::error&                err,
+                                                  const std::vector<std::string>& related_properties) const
 {
     standard_error_message std_msg = convert(err, related_properties);
     return std_msg.to_dict();
@@ -202,14 +187,12 @@ error_message_converter& error_message_converter::get_instance()
     return instance;
 }
 
-standard_error_message to_standard_message(const mc::error&                err,
-                                           const std::vector<std::string>& related_properties)
+standard_error_message to_standard_message(const mc::error& err, const std::vector<std::string>& related_properties)
 {
     return error_message_converter::get_instance().convert(err, related_properties);
 }
 
-mc::dict to_standard_message_dict(const mc::error&                err,
-                                  const std::vector<std::string>& related_properties)
+mc::dict to_standard_message_dict(const mc::error& err, const std::vector<std::string>& related_properties)
 {
     return error_message_converter::get_instance().convert_to_dict(err, related_properties);
 }

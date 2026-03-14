@@ -25,10 +25,8 @@ using namespace mc::core;
 // 测试用插件实现
 class test_plugin : public plugin {
 public:
-    test_plugin(const std::string& name, const std::string& version)
-        : m_info{name, version, {}}
-    {
-    }
+    test_plugin(const std::string& name, const std::string& version) : m_info{name, version, {}}
+    {}
 
     const plugin_info& get_info() const override
     {
@@ -267,8 +265,7 @@ TEST_F(plugin_manager_test, load_plugin_without_factory_symbols)
     // 尝试加载系统库（如 libdl.so）应该失败，因为它不包含插件工厂函数
 #ifdef __linux__
     const std::vector<std::string> candidates = {
-        "/usr/lib/x86_64-linux-gnu", "/lib/x86_64-linux-gnu", "/usr/lib64", "/lib64",
-        "/usr/lib", "/lib"};
+        "/usr/lib/x86_64-linux-gnu", "/lib/x86_64-linux-gnu", "/usr/lib64", "/lib64", "/usr/lib", "/lib"};
 #elif defined(__APPLE__)
     const std::vector<std::string> candidates = {"/usr/lib", "/lib"};
 #else

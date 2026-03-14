@@ -40,8 +40,7 @@ struct signal_info : public mc::reflect::member_info_base {
 
     constexpr signal_info(std::string_view n, mc::signal<Signature> C::*ptr)
         : mc::reflect::member_info_base(n), signal_ptr(ptr)
-    {
-    }
+    {}
 
     std::type_index typeinfo() const override
     {
@@ -130,10 +129,9 @@ TEST(CustomMemberInfoTest, SignalMemberInfo)
     EXPECT_TRUE(mc::reflect::is_reflectable<TestValue>());
 
     // 因为 mc::signal 没有实现 to_variant 函数，不能被转换为 mc::variant 类型
-    bool is_property_value_changed =
-        mc::reflect::is_property_v<decltype(&TestValue::value_changed)>;
-    bool is_property_name_changed = mc::reflect::is_property_v<decltype(&TestValue::name_changed)>;
-    bool is_property_value        = mc::reflect::is_property_v<decltype(&TestValue::m_value)>;
+    bool is_property_value_changed = mc::reflect::is_property_v<decltype(&TestValue::value_changed)>;
+    bool is_property_name_changed  = mc::reflect::is_property_v<decltype(&TestValue::name_changed)>;
+    bool is_property_value         = mc::reflect::is_property_v<decltype(&TestValue::m_value)>;
 
     EXPECT_FALSE(is_property_value_changed);
     EXPECT_FALSE(is_property_name_changed);

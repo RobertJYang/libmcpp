@@ -27,12 +27,10 @@ namespace {
 class result_test : public mc::test::TestBase {
 protected:
     void SetUp() override
-    {
-    }
+    {}
 
     void TearDown() override
-    {
-    }
+    {}
 };
 
 constexpr std::string_view TestErrorName = "Test.TestError";
@@ -158,7 +156,8 @@ TEST_F(result_test, test_error_handling)
     auto            future  = promise.get_future();
     mc::result<int> future_result(std::move(future));
 
-    auto chained = future_result.then([](int v) -> int {
+    auto chained = future_result
+                       .then([](int v) -> int {
         MC_THROW(mc::invalid_arg_exception, "test exception");
         return v;
     }).catch_error([](const mc::exception& ex) {
@@ -339,7 +338,7 @@ TEST_F(result_test, test_empty_state_chaining)
     // 然后调用 catch_error 回调，并返回一个有效的 future
     std::atomic<bool>    catch_error_called{false};
     std::atomic<int64_t> exception_code{0};
-    auto                 recovered = empty_result.catch_error([&catch_error_called, &exception_code](const mc::exception& ex) {
+    auto recovered = empty_result.catch_error([&catch_error_called, &exception_code](const mc::exception& ex) {
         catch_error_called.store(true);
         exception_code.store(ex.code());
         return 42;

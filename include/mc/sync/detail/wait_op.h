@@ -51,8 +51,7 @@ inline void cpu_pause() noexcept
  * @tparam SpinLimit 自旋的最大次数，超过后将切换到线程 yield
  * @tparam YieldLimit yield 的最大次数，超过后将切换到 futex 等待
  */
-template <uint32_t SpinLimit  = MC_SYNC_DEFAULT_SPIN_LIMIT,
-          uint32_t YieldLimit = MC_SYNC_DEFAULT_YIELD_LIMIT>
+template <uint32_t SpinLimit = MC_SYNC_DEFAULT_SPIN_LIMIT, uint32_t YieldLimit = MC_SYNC_DEFAULT_YIELD_LIMIT>
 class wait_op {
     static constexpr uint32_t spin_threshold  = SpinLimit;
     static constexpr uint32_t yield_threshold = SpinLimit + YieldLimit;

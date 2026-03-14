@@ -90,10 +90,9 @@ public:
     invoke_result invoke(std::string_view method_name, const mc::variants& args) override;
     async_result  async_invoke(std::string_view method_name, const mc::variants& args) override;
 
-    mc::connection_type connect(std::string_view signal_name, slot_type slot) override;
-    mc::variant         emit(std::string_view signal_name, const mc::variants& args) override;
-    void                notify_property_changed(
-                       const mc::variant& value, const property_base& prop) override;
+    mc::connection_type      connect(std::string_view signal_name, slot_type slot) override;
+    mc::variant              emit(std::string_view signal_name, const mc::variants& args) override;
+    void                     notify_property_changed(const mc::variant& value, const property_base& prop) override;
     property_changed_signal& property_changed() override;
 
     static void from_variant(const mc::dict& d, interface_impl& obj);
@@ -147,9 +146,8 @@ public:
         // 将接口的元数据缓存到 mc::reflect::static_metadata<interface_type>::extension 中，这块内存没有多少
         // 就泄漏掉吧，跟随进程结束释放
         auto  metadatas = detail::make_interface_metadata<inherit_types>();
-        auto* list      = new metadata_list{
-            interface_type::interface_name, &metadatas[0], metadatas.size()};
-        void* expected = nullptr;
+        auto* list      = new metadata_list{interface_type::interface_name, &metadatas[0], metadatas.size()};
+        void* expected  = nullptr;
         if (extension_ref.compare_exchange_strong(expected, list)) {
             return *list;
         }

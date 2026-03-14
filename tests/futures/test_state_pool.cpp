@@ -147,9 +147,8 @@ TEST_F(state_pool_test, pool_reuse_no_value_leak)
     // 第二次使用后，值也应该被析构
     // BUG 存在时：weak2 未过期（m_result 仍然持有值），valgrind 会报告堆内存泄漏
     // BUG 修复后：weak2 过期（m_result 已被清空），valgrind 无泄漏
-    EXPECT_TRUE(weak2.expired())
-        << "第二次（池复用）使用后值应被正确析构；"
-           "若此断言失败，valgrind 将报告 State<T>::reuse() 未恢复 m_destory 导致的内存泄漏";
+    EXPECT_TRUE(weak2.expired()) << "第二次（池复用）使用后值应被正确析构；"
+                                    "若此断言失败，valgrind 将报告 State<T>::reuse() 未恢复 m_destory 导致的内存泄漏";
 }
 
 // 多次复用时值不泄漏：验证第3次、第4次复用同样正确
@@ -170,8 +169,7 @@ TEST_F(state_pool_test, pool_reuse_multiple_times_no_leak)
 
     // 每一轮的值都应该已经被析构
     for (int i = 0; i < rounds; ++i) {
-        EXPECT_TRUE(weaks[i].expired())
-            << "第 " << i + 1 << " 次复用后值应被正确析构";
+        EXPECT_TRUE(weaks[i].expired()) << "第 " << i + 1 << " 次复用后值应被正确析构";
     }
 }
 
@@ -474,8 +472,7 @@ namespace {
 // 平凡析构类型：不会调用 destory_impl，也不需要调用（无副作用析构）
 static_assert(std::is_trivially_destructible_v<std::optional<int>>,
               "State<int>: get_destory_() 返回 nullptr，destory_impl 不被调用");
-static_assert(std::is_trivially_destructible_v<std::optional<double>>,
-              "State<double>: get_destory_() 返回 nullptr");
+static_assert(std::is_trivially_destructible_v<std::optional<double>>, "State<double>: get_destory_() 返回 nullptr");
 static_assert(std::is_trivially_destructible_v<std::optional<std::monostate>>,
               "State<void>: monostate 是平凡析构，get_destory_() 返回 nullptr");
 
@@ -498,8 +495,7 @@ static_assert(!std::is_trivially_destructible_v<std::optional<std::vector<int>>>
 struct user_dtor_empty {
     int x;
     ~user_dtor_empty()
-    {
-    } // 空析构函数 → 非平凡析构
+    {} // 空析构函数 → 非平凡析构
 };
 static_assert(!std::is_trivially_destructible_v<std::optional<user_dtor_empty>>,
               "含用户析构函数（即使为空）的类型是非平凡析构，"
@@ -526,8 +522,7 @@ TEST_F(state_pool_test, get_destory_user_dtor_type_dtor_called_on_pool_reuse)
     struct tracked_struct {
         std::shared_ptr<int> owner; // 通过 weak_ptr 间接观察析构是否发生
         ~tracked_struct()
-        {
-        } // 用户析构函数 → 非平凡析构
+        {} // 用户析构函数 → 非平凡析构
     };
     static_assert(!std::is_trivially_destructible_v<std::optional<tracked_struct>>);
 
@@ -554,9 +549,8 @@ TEST_F(state_pool_test, get_destory_user_dtor_type_dtor_called_on_pool_reuse)
         promise.set_value(tracked_struct{std::move(sp)});
         EXPECT_EQ(*future.get().owner, 2);
     }
-    EXPECT_TRUE(weak2.expired())
-        << "池复用后，含用户析构函数的类型析构仍应被调用；"
-           "若此断言失败，说明 reuse() 未恢复 m_destory，destory_impl 被跳过";
+    EXPECT_TRUE(weak2.expired()) << "池复用后，含用户析构函数的类型析构仍应被调用；"
+                                    "若此断言失败，说明 reuse() 未恢复 m_destory，destory_impl 被跳过";
 }
 
 // 运行期：vector<shared_ptr> 多次复用，确保每轮所有堆对象均被析构
@@ -584,9 +578,8 @@ TEST_F(state_pool_test, get_destory_vector_heap_objects_freed_on_reuse)
     }
 
     for (int i = 0; i < rounds * per_round; ++i) {
-        EXPECT_TRUE(weaks[i].expired())
-            << "第 " << i / per_round + 1 << " 轮第 " << i % per_round + 1
-            << " 个元素应在 destory_impl 调用后析构";
+        EXPECT_TRUE(weaks[i].expired()) << "第 " << i / per_round + 1 << " 轮第 " << i % per_round + 1
+                                        << " 个元素应在 destory_impl 调用后析构";
     }
 }
 
@@ -595,17 +588,15 @@ TEST_F(state_pool_test, get_destory_vector_heap_objects_freed_on_reuse)
 // 验证新一轮始终能获取到正确的新值，而非上一轮残留的旧值。
 TEST_F(state_pool_test, get_destory_trivial_type_no_stale_value_after_reuse)
 {
-    static_assert(std::is_trivially_destructible_v<std::optional<int>>,
-                  "int 是平凡析构：destory_impl 不被调用，"
-                  "reuse() 的显式 placement-new 负责清除旧值");
+    static_assert(std::is_trivially_destructible_v<std::optional<int>>, "int 是平凡析构：destory_impl 不被调用，"
+                                                                        "reuse() 的显式 placement-new 负责清除旧值");
 
     for (int i = 0; i < 5; ++i) {
         auto promise = mc::make_promise<int>(io_context_);
         auto future  = promise.get_future();
         promise.set_value(i * 111);
-        EXPECT_EQ(future.get(), i * 111)
-            << "第 " << i + 1 << " 轮：复用 State 后应读到本轮写入的值 "
-            << i * 111 << "，而不是上一轮的残留值";
+        EXPECT_EQ(future.get(), i * 111) << "第 " << i + 1 << " 轮：复用 State 后应读到本轮写入的值 " << i * 111
+                                         << "，而不是上一轮的残留值";
     }
 }
 

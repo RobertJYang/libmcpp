@@ -479,9 +479,7 @@ TEST_F(config_manager_test, add_config_non_object_variant)
 // 测试添加配置 - 未知类型
 TEST_F(config_manager_test, add_config_unknown_kind)
 {
-    variant config_variant = dict{{"api_version", "v1"},
-                                  {"kind", "Unknown"},
-                                  {"meta", dict{{"name", "mystery"}}}};
+    variant config_variant = dict{{"api_version", "v1"}, {"kind", "Unknown"}, {"meta", dict{{"name", "mystery"}}}};
     bool    result         = manager->add_config(config_variant);
     EXPECT_TRUE(result);
     auto configs = manager->get_configs<config::service_config>();

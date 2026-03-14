@@ -15,16 +15,14 @@
 #include <mc/runtime/runtime_context.h>
 
 namespace mc::runtime {
-executor::executor(const executor& other) noexcept
-    : m_impl(other.m_impl)
+executor::executor(const executor& other) noexcept : m_impl(other.m_impl)
 {
     if (m_impl) {
         m_impl->add_ref();
     }
 }
 
-executor::executor(executor&& other) noexcept
-    : m_impl(other.m_impl)
+executor::executor(executor&& other) noexcept : m_impl(other.m_impl)
 {
     other.m_impl = nullptr;
 }

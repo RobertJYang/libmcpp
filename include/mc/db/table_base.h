@@ -52,14 +52,13 @@ public:
         return do_query_object(builder, std::forward<query_handler>(handler));
     }
 
-    size_t update_object(const query_builder& condition, const mc::dict& values,
-                         transaction* txn = nullptr)
+    size_t update_object(const query_builder& condition, const mc::dict& values, transaction* txn = nullptr)
     {
         return do_update_object(condition, values, txn);
     }
 
-    size_t update_object(const query_builder&                  condition,
-                         const std::map<std::string, variant>& values, transaction* txn = nullptr)
+    size_t update_object(const query_builder& condition, const std::map<std::string, variant>& values,
+                         transaction* txn = nullptr)
     {
         return do_update_object(condition, values, txn);
     }
@@ -80,11 +79,9 @@ protected:
     virtual object_ptr do_find_object(const query_builder& condition)                         = 0;
     virtual bool       do_query_object(const query_builder& builder, query_handler&& handler) = 0;
 
-    virtual size_t do_update_object(const query_builder&                  condition,
-                                    const std::map<std::string, variant>& values,
-                                    transaction*                          txn) = 0;
-    virtual size_t do_update_object(const query_builder& condition, const mc::dict& values,
-                                    transaction* txn) = 0;
+    virtual size_t do_update_object(const query_builder& condition, const std::map<std::string, variant>& values,
+                                    transaction* txn)                                                         = 0;
+    virtual size_t do_update_object(const query_builder& condition, const mc::dict& values, transaction* txn) = 0;
 };
 
 template <typename ObjectType, typename Allocator = std::allocator<char>>

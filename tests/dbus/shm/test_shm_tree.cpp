@@ -30,18 +30,14 @@ namespace {
 
 class dummy_service : public mc::engine::service {
 public:
-    dummy_service()
-        : mc::engine::service("org.openubmc.test_shm_service")
-    {
-    }
+    dummy_service() : mc::engine::service("org.openubmc.test_shm_service")
+    {}
 };
 
 class dummy_object : public mc::engine::object {
 public:
-    dummy_object(mc::engine::service& svc, std::string path)
-        : mc::engine::object(svc, std::move(path))
-    {
-    }
+    dummy_object(mc::engine::service& svc, std::string path) : mc::engine::object(svc, std::move(path))
+    {}
 };
 
 class shm_tree_test : public ::testing::Test {
@@ -54,8 +50,7 @@ protected:
         m_unique_name = ":unique.test";
         m_service     = std::make_unique<dummy_service>();
         m_object      = std::make_unique<dummy_object>(*m_service, "/object/test/path");
-        m_tree        = std::make_unique<mc::dbus::shm_tree>(harbor.get_harbor_name(),
-                                                             m_service->name(), m_unique_name);
+        m_tree = std::make_unique<mc::dbus::shm_tree>(harbor.get_harbor_name(), m_service->name(), m_unique_name);
         harbor.register_unique_name(m_unique_name, m_service->name());
     }
 
@@ -86,16 +81,13 @@ TEST_F(shm_tree_test, register_and_unregister_object)
 
 TEST_F(shm_tree_test, get_property_missing_tree_throws)
 {
-    EXPECT_THROW(
-        mc::dbus::shm_tree::get_property("invalid.service", "/invalid", "iface", "prop"),
-        mc::exception);
+    EXPECT_THROW(mc::dbus::shm_tree::get_property("invalid.service", "/invalid", "iface", "prop"), mc::exception);
 }
 
 TEST_F(shm_tree_test, timeout_call_missing_queue_returns_nullopt)
 {
     mc::variants args;
-    auto         result = m_tree->timeout_call(mc::milliseconds(5), "invalid.service", "/path",
-                                               "iface", "Method", "", args);
+    auto result = m_tree->timeout_call(mc::milliseconds(5), "invalid.service", "/path", "iface", "Method", "", args);
     EXPECT_EQ(result, std::nullopt);
 }
 
@@ -124,8 +116,8 @@ TEST_F(shm_tree_test, timeout_call_success_returns_value)
 
     auto future = std::async(std::launch::async, [this]() {
         mc::variants call_args;
-        return m_tree->timeout_call(mc::milliseconds(50), m_service->name(),
-                                    m_object->get_object_path(), "iface.mock", "Echo", "", call_args);
+        return m_tree->timeout_call(mc::milliseconds(50), m_service->name(), m_object->get_object_path(), "iface.mock",
+                                    "Echo", "", call_args);
     });
 
     std::this_thread::sleep_for(std::chrono::milliseconds(5));
@@ -155,10 +147,9 @@ TEST_F(shm_tree_test, timeout_call_success_returns_value)
 TEST_F(shm_tree_test, timeout_call_wait_timeout_throws)
 {
     mc::variants args;
-    EXPECT_THROW(
-        m_tree->timeout_call(mc::milliseconds(1), m_service->name(),
-                             m_object->get_object_path(), "iface.timeout", "Slow", "", args),
-        mc::exception);
+    EXPECT_THROW(m_tree->timeout_call(mc::milliseconds(1), m_service->name(), m_object->get_object_path(),
+                                      "iface.timeout", "Slow", "", args),
+                 mc::exception);
 }
 
 TEST_F(shm_tree_test, set_property_inner_handles_string_value)

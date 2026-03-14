@@ -29,10 +29,8 @@ namespace {
 // 测试用的服务类
 class test_service : public mc::engine::service {
 public:
-    test_service()
-        : mc::engine::service("org.test.privilege.service")
-    {
-    }
+    test_service() : mc::engine::service("org.test.privilege.service")
+    {}
 
     bool start() override
     {
@@ -79,39 +77,26 @@ TEST(privilege_test, get_privilege_str_single_privilege)
 
 TEST(privilege_test, get_privilege_str_multiple_privileges)
 {
-    std::vector<uint32_t> privileges = {
-        privilege::read_only,
-        privilege::user_mgmt,
-        privilege::power_mgmt};
-    auto result = get_privilege_str(privileges);
+    std::vector<uint32_t> privileges = {privilege::read_only, privilege::user_mgmt, privilege::power_mgmt};
+    auto                  result     = get_privilege_str(privileges);
     // 1 | 16 | 32 = 49
     EXPECT_EQ(result, "49");
 }
 
 TEST(privilege_test, get_privilege_str_all_privileges)
 {
-    std::vector<uint32_t> privileges = {
-        privilege::read_only,
-        privilege::diagnose_mgmt,
-        privilege::security_mgmt,
-        privilege::basic_setting,
-        privilege::user_mgmt,
-        privilege::power_mgmt,
-        privilege::vmm_mgmt,
-        privilege::kvm_mgmt,
-        privilege::configure_self};
-    auto result = get_privilege_str(privileges);
+    std::vector<uint32_t> privileges = {privilege::read_only,     privilege::diagnose_mgmt, privilege::security_mgmt,
+                                        privilege::basic_setting, privilege::user_mgmt,     privilege::power_mgmt,
+                                        privilege::vmm_mgmt,      privilege::kvm_mgmt,      privilege::configure_self};
+    auto                  result     = get_privilege_str(privileges);
     // 1 | 2 | 4 | 8 | 16 | 32 | 64 | 128 | 256 = 511
     EXPECT_EQ(result, "511");
 }
 
 TEST(privilege_test, get_privilege_str_duplicate_privileges)
 {
-    std::vector<uint32_t> privileges = {
-        privilege::read_only,
-        privilege::read_only,
-        privilege::user_mgmt};
-    auto result = get_privilege_str(privileges);
+    std::vector<uint32_t> privileges = {privilege::read_only, privilege::read_only, privilege::user_mgmt};
+    auto                  result     = get_privilege_str(privileges);
     // 1 | 1 | 16 = 17
     EXPECT_EQ(result, "17");
 }

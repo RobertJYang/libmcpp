@@ -20,20 +20,16 @@ using namespace std::chrono;
 
 namespace mc::dbus::lua {
 SkynetSyms::SkynetSyms()
-    : skynet_send(nullptr),
-      skynet_send_with_priority(nullptr),
-      skynet_error(nullptr),
-      skynet_current_handle(nullptr),
-      skynet_context_message_dispatch(nullptr),
-      skynet_globalmq_push(nullptr),
-      m_sm(nullptr)
+    : skynet_send(nullptr), skynet_send_with_priority(nullptr), skynet_error(nullptr), skynet_current_handle(nullptr),
+      skynet_context_message_dispatch(nullptr), skynet_globalmq_push(nullptr), m_sm(nullptr)
 {
-    void *handle                            = dlopen(nullptr, RTLD_NOW);
-    skynet_send                             = (t_skynet_send)dlsym(handle, "skynet_send");
-    skynet_send_with_priority               = (t_skynet_send_with_priority)dlsym(handle, "skynet_send_with_priority");
-    skynet_error                            = (t_skynet_error)dlsym(handle, "skynet_error");
-    skynet_current_handle                   = (t_skynet_current_handle)dlsym(handle, "skynet_current_handle");
-    skynet_context_message_dispatch         = (t_skynet_context_message_dispatch)dlsym(handle, "skynet_context_message_dispatch");
+    void* handle              = dlopen(nullptr, RTLD_NOW);
+    skynet_send               = (t_skynet_send)dlsym(handle, "skynet_send");
+    skynet_send_with_priority = (t_skynet_send_with_priority)dlsym(handle, "skynet_send_with_priority");
+    skynet_error              = (t_skynet_error)dlsym(handle, "skynet_error");
+    skynet_current_handle     = (t_skynet_current_handle)dlsym(handle, "skynet_current_handle");
+    skynet_context_message_dispatch =
+        (t_skynet_context_message_dispatch)dlsym(handle, "skynet_context_message_dispatch");
     t_skynet_monitor_new skynet_monitor_new = (t_skynet_monitor_new)dlsym(handle, "skynet_monitor_new");
     skynet_globalmq_push                    = (t_skynet_globalmq_push)dlsym(handle, "skynet_globalmq_push");
     dlclose(handle);
@@ -61,4 +57,4 @@ void SkynetSyms::run_skynet_context_message_dispatch(uint32_t step_interval, int
     }
 }
 
-}// namespace mc::dbus
+} // namespace mc::dbus::lua

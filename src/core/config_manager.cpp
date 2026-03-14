@@ -41,8 +41,7 @@ variant json_config_loader::load(const std::string& file_path)
     try {
         return json::json_decode(content);
     } catch (const std::exception& e) {
-        MC_THROW(parse_error_exception, "failed to parse json config file: ${error}",
-                 ("error", e.what()));
+        MC_THROW(parse_error_exception, "failed to parse json config file: ${error}", ("error", e.what()));
     }
 }
 
@@ -52,8 +51,8 @@ variant toml_config_loader::load(const std::string& file_path)
 }
 
 config_manager::config_manager()
-    : m_loader(std::make_unique<json_config_loader>()), m_opts("config options"),
-      m_config_file("./config.json"), m_plugin_dir("./plugins")
+    : m_loader(std::make_unique<json_config_loader>()), m_opts("config options"), m_config_file("./config.json"),
+      m_plugin_dir("./plugins")
 {
     m_opts.add_options()("help,h", "show help info")("version,v", "show version info")(
         "config,c", po::value<std::string>()->default_value("./config.json"),
@@ -78,15 +77,13 @@ std::unique_ptr<config_loader> config_manager::create_loader(const std::string& 
 bool config_manager::parse_command_line(int argc, char** argv)
 {
     try {
-        po::parsed_options parsed =
-            po::command_line_parser(argc, argv).options(m_opts).allow_unregistered().run();
+        po::parsed_options parsed = po::command_line_parser(argc, argv).options(m_opts).allow_unregistered().run();
 
         po::store(parsed, m_variables);
         po::notify(m_variables);
 
         // 处理未识别的选项
-        std::vector<std::string> unrecognized =
-            po::collect_unrecognized(parsed.options, po::include_positional);
+        std::vector<std::string> unrecognized = po::collect_unrecognized(parsed.options, po::include_positional);
         if (!unrecognized.empty()) {
             wlog("warning: unrecognized command line options:");
             for (const auto& opt : unrecognized) {
@@ -273,9 +270,6 @@ MC_REFLECT(mc::config::resource_base, (api_version)(kind)(meta))
 MC_REFLECT(mc::config::app_config, MC_BASE_CLASS(mc::config::resource_base),
            (plugin_dir)(plugins)(threads)(work_threads))
 MC_REFLECT_ENUM(mc::config::supervisor_strategy, (one_for_one)(one_for_all)(rest_for_one))
-MC_REFLECT(mc::config::supervisor_config, MC_BASE_CLASS(mc::config::resource_base),
-           (strategy)(max_restarts)(services))
-MC_REFLECT(mc::config::service_config, MC_BASE_CLASS(mc::config::resource_base),
-           (type)(dependencies)(properties))
-MC_REFLECT(mc::config::plugin_config, MC_BASE_CLASS(mc::config::resource_base),
-           (version)(properties))
+MC_REFLECT(mc::config::supervisor_config, MC_BASE_CLASS(mc::config::resource_base), (strategy)(max_restarts)(services))
+MC_REFLECT(mc::config::service_config, MC_BASE_CLASS(mc::config::resource_base), (type)(dependencies)(properties))
+MC_REFLECT(mc::config::plugin_config, MC_BASE_CLASS(mc::config::resource_base), (version)(properties))

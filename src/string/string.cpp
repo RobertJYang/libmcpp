@@ -57,8 +57,7 @@ std::pair<int, std::string_view> detect_number_radix(std::string_view s)
     return {10, s};
 }
 
-std::string_view prepare_number_string(
-    std::string_view s, int radix, char* buffer, std::size_t buffer_size) noexcept
+std::string_view prepare_number_string(std::string_view s, int radix, char* buffer, std::size_t buffer_size) noexcept
 {
     if (s.empty()) {
         return {};
@@ -152,8 +151,7 @@ bool iequals(std::string_view a, std::string_view b)
     }
 
     return std::equal(a.begin(), a.end(), b.begin(), [](char a, char b) {
-        return std::tolower(static_cast<unsigned char>(a)) ==
-               std::tolower(static_cast<unsigned char>(b));
+        return std::tolower(static_cast<unsigned char>(a)) == std::tolower(static_cast<unsigned char>(b));
     });
 }
 
@@ -266,8 +264,7 @@ void rtrim_inplace(std::string& s)
     s.erase(std::find_if(s.rbegin(), s.rend(),
                          [](unsigned char ch) {
         return !std::isspace(ch);
-    })
-                .base(),
+    }).base(),
             s.end());
 }
 
@@ -428,8 +425,7 @@ bool icontains(std::string_view s, std::string_view substring)
 
     // 对于较大的字符串，使用滑动窗口方法避免完整转换
     auto is_equal_ignore_case = [](char a, char b) {
-        return std::tolower(static_cast<unsigned char>(a)) ==
-               std::tolower(static_cast<unsigned char>(b));
+        return std::tolower(static_cast<unsigned char>(a)) == std::tolower(static_cast<unsigned char>(b));
     };
 
     for (size_t i = 0; i <= s.size() - substring.size(); ++i) {
@@ -454,7 +450,6 @@ bool icontains(std::string_view s, std::string_view substring)
 std::string_view substr(std::string_view s, int start, int end)
 {
     const std::size_t length = s.length();
-
     // 空字符串直接返回
     if (length == 0) {
         return "";
@@ -501,7 +496,6 @@ std::string_view substr(std::string_view s, int start, int end)
 std::string_view substring(std::string_view s, int start, std::size_t length)
 {
     const std::size_t str_length = s.length();
-
     // 空字符串直接返回
     if (str_length == 0) {
         return "";
@@ -524,8 +518,7 @@ std::string_view substring(std::string_view s, int start, std::size_t length)
     }
 
     // 调整长度（如果超出字符串范围）
-    if (length == std::string::npos ||
-        adjusted_start + static_cast<std::size_t>(length) > str_length) {
+    if (length == std::string::npos || adjusted_start + static_cast<std::size_t>(length) > str_length) {
         length = str_length - adjusted_start;
     }
 
@@ -570,7 +563,6 @@ bool is_valid_utf8(std::string_view s)
             i += 1;
             continue;
         }
-
         // 检查双字节字符（110xxxxx 10xxxxxx）
         else if ((bytes[i] & 0xE0) == 0xC0) {
             // 需要至少2个字节
@@ -591,7 +583,6 @@ bool is_valid_utf8(std::string_view s)
 
             i += 2;
         }
-
         // 检查三字节字符（1110xxxx 10xxxxxx 10xxxxxx）
         else if ((bytes[i] & 0xF0) == 0xE0) {
             // 需要至少3个字节
@@ -605,15 +596,13 @@ bool is_valid_utf8(std::string_view s)
             }
 
             // 检查是否为过长编码，以及是否为代理区间（U+D800-U+DFFF）
-            unsigned int code_point =
-                ((bytes[i] & 0x0F) << 12) | ((bytes[i + 1] & 0x3F) << 6) | (bytes[i + 2] & 0x3F);
+            unsigned int code_point = ((bytes[i] & 0x0F) << 12) | ((bytes[i + 1] & 0x3F) << 6) | (bytes[i + 2] & 0x3F);
             if (code_point < 0x800 || (code_point >= 0xD800 && code_point <= 0xDFFF)) {
                 return false; // 过长编码或代理区间
             }
 
             i += 3;
         }
-
         // 检查四字节字符（11110xxx 10xxxxxx 10xxxxxx 10xxxxxx）
         else if ((bytes[i] & 0xF8) == 0xF0) {
             // 需要至少4个字节
@@ -622,8 +611,7 @@ bool is_valid_utf8(std::string_view s)
             }
 
             // 检查第二、三、四个字节是否符合 10xxxxxx 格式
-            if ((bytes[i + 1] & 0xC0) != 0x80 || (bytes[i + 2] & 0xC0) != 0x80 ||
-                (bytes[i + 3] & 0xC0) != 0x80) {
+            if ((bytes[i + 1] & 0xC0) != 0x80 || (bytes[i + 2] & 0xC0) != 0x80 || (bytes[i + 3] & 0xC0) != 0x80) {
                 return false;
             }
 
@@ -636,7 +624,6 @@ bool is_valid_utf8(std::string_view s)
 
             i += 4;
         }
-
         // 无效的 UTF-8 起始字节
         else {
             return false;

@@ -94,11 +94,11 @@ struct service_impl {
 
     void adjust_object_parent(abstract_object& obj);
 
-    invoke_method_result       invoke_method(std::string_view path, std::string_view interface, std::string_view method,
-                                             const variants& args);
-    mc::variant                timeout_call(mc::milliseconds timeout, std::string_view service_name, std::string_view path,
-                                            std::string_view interface, std::string_view method, std::string_view signature,
-                                            const variants& args);
+    invoke_method_result invoke_method(std::string_view path, std::string_view interface, std::string_view method,
+                                       const variants& args);
+    mc::variant          timeout_call(mc::milliseconds timeout, std::string_view service_name, std::string_view path,
+                                      std::string_view interface, std::string_view method, std::string_view signature,
+                                      const variants& args);
     std::optional<mc::variant> shm_timeout_call(mc::milliseconds timeout, std::string_view service_name,
                                                 std::string_view path, std::string_view interface,
                                                 std::string_view method, std::string_view signature,
@@ -128,8 +128,7 @@ using service_table =
 namespace mc::engine {
 
 service_impl::service_impl()
-{
-}
+{}
 
 bool service_impl::init(service* s)
 {
@@ -522,15 +521,13 @@ void service_impl::remove_match(uint64_t id)
     m_connection.remove_rule(id);
 }
 
-service::service(std::string_view name)
-    : mc::core::service_base(std::string(name))
+service::service(std::string_view name) : mc::core::service_base(std::string(name))
 {
     m_impl = std::make_unique<service_impl>();
 }
 
 service::~service()
-{
-}
+{}
 
 bool service::init(dict args)
 {
@@ -574,8 +571,7 @@ bool service::stop()
 }
 
 void service::cleanup()
-{
-}
+{}
 
 bool service::is_healthy() const
 {
@@ -583,12 +579,10 @@ bool service::is_healthy() const
 }
 
 void service::on_dump(std::map<std::string, std::string> context, std::string filepath)
-{
-}
+{}
 
 void service::on_detach_debug_console(std::map<std::string, std::string> context)
-{
-}
+{}
 
 int32_t service::on_reboot_prepare(std::map<std::string, std::string> context)
 {
@@ -606,8 +600,7 @@ int32_t service::on_reboot_action(std::map<std::string, std::string> context)
 }
 
 void service::on_reboot_cancel(std::map<std::string, std::string> context)
-{
-}
+{}
 
 void service::register_object(abstract_object& obj)
 {

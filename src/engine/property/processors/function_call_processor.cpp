@@ -26,8 +26,7 @@ namespace mc::engine {
 function_call_processor::function_call_processor()
     : m_sync_processor(std::make_unique<sync_property_processor>()),
       m_ref_processor(std::make_unique<ref_property_processor>())
-{
-}
+{}
 
 bool function_call_processor::matches(const std::string& value_str) const
 {

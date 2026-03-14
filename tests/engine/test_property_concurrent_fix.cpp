@@ -30,10 +30,8 @@ private:
     mutable std::size_t             m_generation;
 
 public:
-    explicit sync_barrier(std::size_t count)
-        : m_threshold(count), m_count(count), m_generation(0)
-    {
-    }
+    explicit sync_barrier(std::size_t count) : m_threshold(count), m_count(count), m_generation(0)
+    {}
 
     void arrive_and_wait() const
     {
@@ -60,10 +58,8 @@ private:
     mutable std::string m_cached_name;
 
 public:
-    explicit concurrent_string_test(const std::string& name)
-        : m_base_name(name)
-    {
-    }
+    explicit concurrent_string_test(const std::string& name) : m_base_name(name)
+    {}
 
     std::string get_object_name() const
     {
@@ -118,8 +114,7 @@ TEST_F(PropertyConcurrentFixTest, GetObjectNameConcurrentSafety)
                     // 验证对象名称的正确性
                     if (name != expected_name) {
                         error_count.fetch_add(1);
-                        std::cout << "Error: Expected '" << expected_name
-                                  << "', got '" << name << "' in thread " << t
+                        std::cout << "Error: Expected '" << expected_name << "', got '" << name << "' in thread " << t
                                   << ", iteration " << i << std::endl;
                     }
 
@@ -129,8 +124,7 @@ TEST_F(PropertyConcurrentFixTest, GetObjectNameConcurrentSafety)
                     }
                 } catch (const std::exception& e) {
                     error_count.fetch_add(1);
-                    std::cout << "Exception in thread " << t << ", iteration " << i
-                              << ": " << e.what() << std::endl;
+                    std::cout << "Exception in thread " << t << ", iteration " << i << ": " << e.what() << std::endl;
                 }
             }
         });
@@ -185,8 +179,7 @@ TEST_F(PropertyConcurrentFixTest, HighConcurrencyStressTest)
         thread.join();
     }
 
-    std::cout << "成功次数: " << success_count.load()
-              << ", 错误次数: " << error_count.load() << std::endl;
+    std::cout << "成功次数: " << success_count.load() << ", 错误次数: " << error_count.load() << std::endl;
 
     // 验证成功率
     int    total        = success_count.load() + error_count.load();

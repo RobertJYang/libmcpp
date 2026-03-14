@@ -16,9 +16,9 @@
 #include <memory>
 #include <string>
 
+#include "../utils/variant_utils.h"
 #include "mc/mdb/mdb_access.h"
 #include "mc/mdb/proxy_object.h"
-#include "../utils/variant_utils.h"
 #include <mc/dbus/connection.h>
 
 extern "C" {
@@ -37,13 +37,10 @@ struct proxy_object_wrapper {
     explicit proxy_object_wrapper(proxy_object* obj)
         : obj_ptr(std::shared_ptr<proxy_object>(obj, [](proxy_object*) {
           }))
-    {
-    }
+    {}
 
-    explicit proxy_object_wrapper(std::shared_ptr<proxy_object> obj)
-        : obj_ptr(std::move(obj))
-    {
-    }
+    explicit proxy_object_wrapper(std::shared_ptr<proxy_object> obj) : obj_ptr(std::move(obj))
+    {}
 
     proxy_object& get()
     {
@@ -78,8 +75,7 @@ inline int push_proxy_object(lua_State* L, std::shared_ptr<proxy_object> obj)
 // 从 Lua 栈获取 proxy_object
 inline proxy_object_wrapper* check_proxy_object(lua_State* L, int index = 1)
 {
-    return static_cast<proxy_object_wrapper*>(
-        luaL_checkudata(L, index, PROXY_OBJECT_METATABLE));
+    return static_cast<proxy_object_wrapper*>(luaL_checkudata(L, index, PROXY_OBJECT_METATABLE));
 }
 
 // 注册 proxy_object metatable

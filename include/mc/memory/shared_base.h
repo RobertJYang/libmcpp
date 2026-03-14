@@ -108,23 +108,18 @@ public:
     static constexpr counter_type INVALID   = std::numeric_limits<counter_type>::max();
     static constexpr counter_type DESTROYED = 0;
 
-    shared_counter()
-        : m_ref_count(INVALID), m_weak_count(1)
-    {
-    }
+    shared_counter() : m_ref_count(INVALID), m_weak_count(1)
+    {}
 
     virtual ~shared_counter()
-    {
-    }
+    {}
 
     // 弱引用计数保底设置为 1，这是因为 shared_ptr 需要两阶段销毁对象：
     // 第一阶段：调用 Deleter 的 destroy 方法处理对象析构
     // 第二阶段：归还保底弱引用，如果弱引用计数为 0 则释放内存
     // 保底弱引用策略可以保证第一阶段析构对象时不会因为其他 weak_ptr 销毁而导致内存提前被释放
-    shared_counter(const shared_counter&)
-        : m_ref_count(INVALID), m_weak_count(1)
-    {
-    }
+    shared_counter(const shared_counter&) : m_ref_count(INVALID), m_weak_count(1)
+    {}
 
     shared_counter& operator=(const shared_counter&)
     {
@@ -132,10 +127,8 @@ public:
         return *this;
     }
 
-    shared_counter(shared_counter&&) noexcept
-        : m_ref_count(INVALID), m_weak_count(1)
-    {
-    }
+    shared_counter(shared_counter&&) noexcept : m_ref_count(INVALID), m_weak_count(1)
+    {}
 
     shared_counter& operator=(shared_counter&&) noexcept
     {
@@ -152,9 +145,7 @@ public:
         while (current != DESTROYED) {
             // 如果引用计数为初始值，由第一个 shared_ptr 将其引用计数设置为 1，否则增加引用计数
             counter_type next = current == INVALID ? 1 : current + 1;
-            if (ref.compare_exchange_weak(
-                    current, next, std::memory_order_acq_rel,
-                    std::memory_order_acquire)) {
+            if (ref.compare_exchange_weak(current, next, std::memory_order_acq_rel, std::memory_order_acquire)) {
                 return;
             }
         }
@@ -170,9 +161,7 @@ public:
         counter_type       current = ref.load(std::memory_order_acquire);
 
         while (current != DESTROYED && current != INVALID) {
-            if (ref.compare_exchange_weak(
-                    current, current - 1, std::memory_order_acq_rel,
-                    std::memory_order_acquire)) {
+            if (ref.compare_exchange_weak(current, current - 1, std::memory_order_acq_rel, std::memory_order_acquire)) {
                 return current == 1; // 前一个引用计数为 1，对象可以销毁了
             }
         }
@@ -217,9 +206,7 @@ public:
         counter_type       current = ref.load(std::memory_order_acquire);
 
         while (current != DESTROYED && current != INVALID) {
-            if (ref.compare_exchange_weak(
-                    current, current + 1, std::memory_order_acq_rel,
-                    std::memory_order_acquire)) {
+            if (ref.compare_exchange_weak(current, current + 1, std::memory_order_acq_rel, std::memory_order_acquire)) {
                 return true;
             }
         }
@@ -259,9 +246,7 @@ using shared_base = shared_counter<>;
 /*
  * 与 std::enable_shared_from_this 类似，提供 shared_from_this 方法
  */
-template <typename T,
-          typename Deleter     = mc::default_deleter<T>,
-          typename PointerType = T*,
+template <typename T, typename Deleter = mc::default_deleter<T>, typename PointerType = T*,
           typename CounterType = uint32_t>
 class enable_shared_from_this : public shared_counter<CounterType> {
 public:

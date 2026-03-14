@@ -62,11 +62,7 @@ public:
 };
 
 // 测试枚举
-enum class sensor_status {
-    ACTIVE,
-    INACTIVE,
-    ERROR
-};
+enum class sensor_status { ACTIVE, INACTIVE, ERROR };
 
 // 没有指定命名空间的类型（应该注册失败）
 class invalid_type_for_devices {
@@ -89,26 +85,19 @@ public:
 MC_REFLECTABLE("mc.devices.SensorStatus", test_reflection_namespace::sensor_status)
 
 // 正确的命名空间注册
-MC_REFLECT_WITH_NAMESPACE(
-    test_reflection_namespace::mc_devices_namespace,
-    test_reflection_namespace::device_sensor,
-    ((m_name, "name"))((m_value, "value")))
+MC_REFLECT_WITH_NAMESPACE(test_reflection_namespace::mc_devices_namespace, test_reflection_namespace::device_sensor,
+                          ((m_name, "name"))((m_value, "value")))
 
-MC_REFLECT_WITH_NAMESPACE(
-    test_reflection_namespace::mc_devices_sensors_namespace,
-    test_reflection_namespace::temperature_sensor,
-    ((m_name, "name"))((m_temperature, "temperature"))((m_unit, "unit")))
+MC_REFLECT_WITH_NAMESPACE(test_reflection_namespace::mc_devices_sensors_namespace,
+                          test_reflection_namespace::temperature_sensor,
+                          ((m_name, "name"))((m_temperature, "temperature"))((m_unit, "unit")))
 
-MC_REFLECT_WITH_NAMESPACE(
-    test_reflection_namespace::mc_drivers_namespace,
-    test_reflection_namespace::driver_base,
-    ((m_name, "name"))((m_version, "version")))
+MC_REFLECT_WITH_NAMESPACE(test_reflection_namespace::mc_drivers_namespace, test_reflection_namespace::driver_base,
+                          ((m_name, "name"))((m_version, "version")))
 
 // 枚举注册到 mc.devices 命名空间下
-MC_REFLECT_ENUM_WITH_NAMESPACE(
-    test_reflection_namespace::mc_devices_namespace,
-    test_reflection_namespace::sensor_status,
-    (ACTIVE)(INACTIVE)(ERROR))
+MC_REFLECT_ENUM_WITH_NAMESPACE(test_reflection_namespace::mc_devices_namespace,
+                               test_reflection_namespace::sensor_status, (ACTIVE)(INACTIVE)(ERROR))
 
 // 错误的命名空间注册（这些应该导致注册失败）
 MC_REFLECT(test_reflection_namespace::invalid_type_for_devices, ((m_name, "name")))
@@ -117,13 +106,8 @@ MC_REFLECT(test_reflection_namespace::wrong_prefix_type, ((m_name, "name")))
 
 namespace test_reflection_namespace {
 
-using test_types = std::tuple<
-    device_sensor,
-    temperature_sensor,
-    driver_base,
-    sensor_status,
-    invalid_type_for_devices,
-    wrong_prefix_type>;
+using test_types = std::tuple<device_sensor, temperature_sensor, driver_base, sensor_status, invalid_type_for_devices,
+                              wrong_prefix_type>;
 
 class reflection_factory_advanced_test : public mc::test::TestBase {
 protected:
@@ -238,13 +222,13 @@ TEST_F(reflection_factory_advanced_test, FactoryRegistration)
     auto& sensors_factory = mc::reflect::reflection_factory::instance<mc_devices_sensors_namespace>();
 
     // 将 devices 工厂注册到全局工厂
-    auto devices_id = global_factory.register_factory(
-        mc::reflect::reflection_factory::instance_ptr<mc_devices_namespace>());
+    auto devices_id =
+        global_factory.register_factory(mc::reflect::reflection_factory::instance_ptr<mc_devices_namespace>());
     EXPECT_NE(devices_id, mc::reflect::INVALID_FACTORY_ID);
 
     // 将 sensors 工厂注册到 devices 工厂
-    auto sensors_id = devices_factory.register_factory(
-        mc::reflect::reflection_factory::instance_ptr<mc_devices_sensors_namespace>());
+    auto sensors_id =
+        devices_factory.register_factory(mc::reflect::reflection_factory::instance_ptr<mc_devices_sensors_namespace>());
     EXPECT_NE(sensors_id, mc::reflect::INVALID_FACTORY_ID);
 
     // 验证工厂可以被找到
@@ -261,17 +245,13 @@ TEST_F(reflection_factory_advanced_test, FactoryRegistration)
     EXPECT_EQ(found_global_sensors.get(), &sensors_factory);
 
     // 测试工厂名称列表
-    auto factory_names      = global_factory.get_factory_names();
-    bool found_devices_name = std::find(
-                                  factory_names.begin(),
-                                  factory_names.end(),
-                                  "mc.devices") != factory_names.end();
+    auto factory_names = global_factory.get_factory_names();
+    bool found_devices_name =
+        std::find(factory_names.begin(), factory_names.end(), "mc.devices") != factory_names.end();
     EXPECT_TRUE(found_devices_name);
 
-    bool found_sensors_name = std::find(
-                                  factory_names.begin(),
-                                  factory_names.end(),
-                                  "mc.devices.sensors") != factory_names.end();
+    bool found_sensors_name =
+        std::find(factory_names.begin(), factory_names.end(), "mc.devices.sensors") != factory_names.end();
     EXPECT_TRUE(found_sensors_name);
 
     auto factory_names2 = devices_factory.get_factory_names();
@@ -287,18 +267,18 @@ TEST_F(reflection_factory_advanced_test, FactoryRegistrationNamingRequirement)
     auto& drivers_factory = mc::reflect::reflection_factory::instance<mc_drivers_namespace>();
 
     // 正确的命名空间前缀注册应该成功
-    auto devices_id = global_factory.register_factory(
-        mc::reflect::reflection_factory::instance_ptr<mc_devices_namespace>());
+    auto devices_id =
+        global_factory.register_factory(mc::reflect::reflection_factory::instance_ptr<mc_devices_namespace>());
     EXPECT_NE(devices_id, mc::reflect::INVALID_FACTORY_ID);
 
     // 尝试将 drivers 工厂注册到 devices 工厂应该失败（不匹配前缀）
-    auto invalid_id = devices_factory.register_factory(
-        mc::reflect::reflection_factory::instance_ptr<mc_drivers_namespace>());
+    auto invalid_id =
+        devices_factory.register_factory(mc::reflect::reflection_factory::instance_ptr<mc_drivers_namespace>());
     EXPECT_EQ(invalid_id, mc::reflect::INVALID_FACTORY_ID);
 
     // 同一个工厂重复注册可以成功
-    auto duplicate_id = global_factory.register_factory(
-        mc::reflect::reflection_factory::instance_ptr<mc_devices_namespace>());
+    auto duplicate_id =
+        global_factory.register_factory(mc::reflect::reflection_factory::instance_ptr<mc_devices_namespace>());
     EXPECT_EQ(duplicate_id, devices_id);
 
     // 重复注册另一个同名的工厂应该失败
@@ -315,10 +295,8 @@ TEST_F(reflection_factory_advanced_test, CrossFactoryObjectCreation)
     auto& sensors_factory = mc::reflect::reflection_factory::instance<mc_devices_sensors_namespace>();
 
     // 注册工厂层次结构
-    global_factory.register_factory(
-        mc::reflect::reflection_factory::instance_ptr<mc_devices_namespace>());
-    devices_factory.register_factory(
-        mc::reflect::reflection_factory::instance_ptr<mc_devices_sensors_namespace>());
+    global_factory.register_factory(mc::reflect::reflection_factory::instance_ptr<mc_devices_namespace>());
+    devices_factory.register_factory(mc::reflect::reflection_factory::instance_ptr<mc_devices_sensors_namespace>());
 
     // 通过全局工厂访问设备类型
     auto device_obj = global_factory.try_create_object("mc.devices.Sensor");
@@ -356,9 +334,8 @@ TEST_F(reflection_factory_advanced_test, EnumMetadataAutoUnregister)
     EXPECT_NE(metadata, nullptr);
 
     // 销毁枚举元数据单例
-    using meta_singleton_type = mc::singleton<
-        mc::reflect::reflection<sensor_status>::reflection_ptr>;
-    auto* meta_ptr = meta_singleton_type::try_get();
+    using meta_singleton_type = mc::singleton<mc::reflect::reflection<sensor_status>::reflection_ptr>;
+    auto* meta_ptr            = meta_singleton_type::try_get();
     EXPECT_NE(meta_ptr, nullptr);
     mc::reflect::reflector<sensor_status>::unregister_type();
     meta_ptr = meta_singleton_type::try_get();
@@ -379,9 +356,8 @@ TEST_F(reflection_factory_advanced_test, SubFactoryAutoUnregister)
 
     // 创建一个新的传感器工厂实例并注册
     {
-        auto sensors_factory_ptr = mc::reflect::reflection_factory::instance_ptr<
-            mc_devices_sensors_namespace>();
-        auto sensors_id = devices_factory.register_factory(sensors_factory_ptr);
+        auto sensors_factory_ptr = mc::reflect::reflection_factory::instance_ptr<mc_devices_sensors_namespace>();
+        auto sensors_id          = devices_factory.register_factory(sensors_factory_ptr);
         EXPECT_NE(sensors_id, mc::reflect::INVALID_FACTORY_ID);
 
         // 验证工厂已注册
@@ -405,25 +381,18 @@ TEST_F(reflection_factory_advanced_test, FactoryHierarchyAndModulePaths)
     auto& sensors_factory = mc::reflect::reflection_factory::instance<mc_devices_sensors_namespace>();
 
     // 建立工厂层次结构
-    global_factory.register_factory(
-        mc::reflect::reflection_factory::instance_ptr<mc_devices_namespace>());
-    devices_factory.register_factory(
-        mc::reflect::reflection_factory::instance_ptr<mc_devices_sensors_namespace>());
+    global_factory.register_factory(mc::reflect::reflection_factory::instance_ptr<mc_devices_namespace>());
+    devices_factory.register_factory(mc::reflect::reflection_factory::instance_ptr<mc_devices_sensors_namespace>());
 
     // 验证全局工厂的模块路径
     auto global_paths     = global_factory.get_module_paths();
-    bool has_devices_path = std::find(
-                                global_paths.begin(),
-                                global_paths.end(),
-                                "mc.devices") != global_paths.end();
+    bool has_devices_path = std::find(global_paths.begin(), global_paths.end(), "mc.devices") != global_paths.end();
     EXPECT_TRUE(has_devices_path);
 
     // 验证设备工厂的模块路径
-    auto devices_paths    = devices_factory.get_module_paths();
-    bool has_sensors_path = std::find(
-                                devices_paths.begin(),
-                                devices_paths.end(),
-                                "mc.devices.sensors") != devices_paths.end();
+    auto devices_paths = devices_factory.get_module_paths();
+    bool has_sensors_path =
+        std::find(devices_paths.begin(), devices_paths.end(), "mc.devices.sensors") != devices_paths.end();
     EXPECT_TRUE(has_sensors_path);
 
     // 验证模块存在性
@@ -432,13 +401,11 @@ TEST_F(reflection_factory_advanced_test, FactoryHierarchyAndModulePaths)
     EXPECT_FALSE(devices_factory.has_module("nonexistent"));
 
     // 验证跨层级类型访问
-    auto registered_types  = global_factory.get_registered_types();
-    bool has_device_sensor = std::find(registered_types.begin(),
-                                       registered_types.end(),
-                                       "mc.devices.Sensor") != registered_types.end();
-    bool has_temp_sensor   = std::find(registered_types.begin(),
-                                       registered_types.end(),
-                                       "mc.devices.sensors.TemperatureSensor") != registered_types.end();
+    auto registered_types = global_factory.get_registered_types();
+    bool has_device_sensor =
+        std::find(registered_types.begin(), registered_types.end(), "mc.devices.Sensor") != registered_types.end();
+    bool has_temp_sensor = std::find(registered_types.begin(), registered_types.end(),
+                                     "mc.devices.sensors.TemperatureSensor") != registered_types.end();
 
     EXPECT_TRUE(has_device_sensor);
     EXPECT_TRUE(has_temp_sensor);
@@ -451,8 +418,8 @@ TEST_F(reflection_factory_advanced_test, FactoryUnregistration)
     auto& devices_factory = mc::reflect::reflection_factory::instance<mc_devices_namespace>();
 
     // 注册工厂
-    auto devices_id = global_factory.register_factory(
-        mc::reflect::reflection_factory::instance_ptr<mc_devices_namespace>());
+    auto devices_id =
+        global_factory.register_factory(mc::reflect::reflection_factory::instance_ptr<mc_devices_namespace>());
     EXPECT_NE(devices_id, mc::reflect::INVALID_FACTORY_ID);
 
     // 验证工厂存在
@@ -467,11 +434,9 @@ TEST_F(reflection_factory_advanced_test, FactoryUnregistration)
     EXPECT_EQ(not_found_factory, nullptr);
 
     // 验证工厂名称列表中不再包含该工厂
-    auto factory_names      = global_factory.get_factory_names();
-    bool found_devices_name = std::find(
-                                  factory_names.begin(),
-                                  factory_names.end(),
-                                  "mc.devices") != factory_names.end();
+    auto factory_names = global_factory.get_factory_names();
+    bool found_devices_name =
+        std::find(factory_names.begin(), factory_names.end(), "mc.devices") != factory_names.end();
     EXPECT_FALSE(found_devices_name);
 }
 

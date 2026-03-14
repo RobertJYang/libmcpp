@@ -18,10 +18,8 @@ namespace mc::im {
 // radix_tree 实现部分
 
 template <typename Config>
-radix_tree<Config>::radix_tree(node_ptr root, size_t size)
-    : m_root(std::move(root)), m_size(size)
-{
-}
+radix_tree<Config>::radix_tree(node_ptr root, size_t size) : m_root(std::move(root)), m_size(size)
+{}
 
 template <typename Config>
 size_t radix_tree<Config>::size() const
@@ -142,11 +140,9 @@ typename radix_tree<Config>::iterator radix_tree<Config>::lower_bound(key_view k
         key_pos = current.prefix_size;
 
         // 找到第一个大于等于key当前位置的边
-        auto s = edges.begin() + current.edge_index;
-        auto it =
-            key_pos < key.size()
-                ? std::lower_bound(s, edges.end(), static_cast<uint8_t>(key[key_pos]), compare)
-                : s; // 如果key已经用完，从当前位置开始
+        auto s  = edges.begin() + current.edge_index;
+        auto it = key_pos < key.size() ? std::lower_bound(s, edges.end(), static_cast<uint8_t>(key[key_pos]), compare)
+                                       : s; // 如果key已经用完，从当前位置开始
 
         if (it == edges.end()) {
             // 没有找到合适的边，需要回溯
@@ -238,8 +234,8 @@ typename radix_tree<Config>::iterator radix_tree<Config>::upper_bound(key_view k
 
 // 创建一个迭代器并设置其状态
 template <typename Config>
-typename radix_tree<Config>::iterator
-radix_tree<Config>::make_iterator(node_ptr n, key_buffer<>&& key_buf, path_type&& path)
+typename radix_tree<Config>::iterator radix_tree<Config>::make_iterator(node_ptr n, key_buffer<>&& key_buf,
+                                                                        path_type&& path)
 {
     iterator result;
     result.m_is_end       = false;

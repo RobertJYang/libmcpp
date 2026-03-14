@@ -90,13 +90,11 @@ protected:
     void SetUp() override
     {
         // 加载测试用的错误定义
-        mc::error_message_converter::get_instance().load_registries_from_string(
-            test_base_json, test_custom_json);
+        mc::error_message_converter::get_instance().load_registries_from_string(test_base_json, test_custom_json);
     }
 
     void TearDown() override
-    {
-    }
+    {}
 };
 
 // 测试解析 base.json
@@ -155,14 +153,12 @@ TEST_F(ErrorMessageTest, FormatMessage)
     // 测试单参数消息
     mc::dict args;
     args[0]          = "TestProperty";
-    std::string msg2 = mc::error_message_parser::format_message(
-        "The property %1 was duplicated in the request.", args);
+    std::string msg2 = mc::error_message_parser::format_message("The property %1 was duplicated in the request.", args);
     EXPECT_EQ(msg2, "The property TestProperty was duplicated in the request.");
 
     // 测试双参数消息
     std::string msg3 = mc::error_message_parser::format_message(
-        "The value '%1' for the property %2 is not in the supported range.",
-        {{0, "100"}, {1, "Threshold"}});
+        "The value '%1' for the property %2 is not in the supported range.", {{0, "100"}, {1, "Threshold"}});
     EXPECT_EQ(msg3, "The value '100' for the property Threshold is not in the supported range.");
 }
 
@@ -392,8 +388,7 @@ TEST_F(ErrorMessageTest, RegistryLoadingPerformance)
 {
     auto start = std::chrono::high_resolution_clock::now();
 
-    mc::error_message_converter::get_instance().load_registries_from_string(
-        test_base_json, test_custom_json);
+    mc::error_message_converter::get_instance().load_registries_from_string(test_base_json, test_custom_json);
 
     auto end      = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
@@ -446,8 +441,7 @@ TEST_F(ErrorMessageTest, CustomRegistryOverride)
         }
     })";
 
-    mc::error_message_converter::get_instance().load_registries_from_string(
-        base_json, custom_json);
+    mc::error_message_converter::get_instance().load_registries_from_string(base_json, custom_json);
 
     // 查找 TestError，应该返回 custom 中的定义
     auto def = mc::error_message_converter::get_instance().find_definition("TestError");
@@ -463,9 +457,7 @@ TEST_F(ErrorMessageTest, CustomRegistryOverride)
 TEST_F(ErrorMessageTest, MissingErrorDefinitionFiles)
 {
     // 尝试从不存在的文件加载
-    EXPECT_THROW(
-        mc::error_message_parser::parse_from_file("/nonexistent/path/to/base.json"),
-        mc::exception);
+    EXPECT_THROW(mc::error_message_parser::parse_from_file("/nonexistent/path/to/base.json"), mc::exception);
 }
 
 // T021: 测试边缘情况 - 格式错误的 JSON
@@ -484,9 +476,7 @@ TEST_F(ErrorMessageTest, MalformedJson)
         }
     })"; // JSON 结构不完整
 
-    EXPECT_THROW(
-        mc::error_message_parser::parse_from_string(malformed_json),
-        mc::exception);
+    EXPECT_THROW(mc::error_message_parser::parse_from_string(malformed_json), mc::exception);
 
     // 测试无效的 JSON 语法
     constexpr std::string_view invalid_json = R"({
@@ -502,9 +492,7 @@ TEST_F(ErrorMessageTest, MalformedJson)
         }
     })";
 
-    EXPECT_THROW(
-        mc::error_message_parser::parse_from_string(invalid_json),
-        mc::exception);
+    EXPECT_THROW(mc::error_message_parser::parse_from_string(invalid_json), mc::exception);
 }
 
 // T022: 测试边缘情况 - 无效占位符语法
@@ -513,9 +501,7 @@ TEST_F(ErrorMessageTest, InvalidPlaceholderSyntax)
     // 测试各种无效的占位符格式
     std::string template_msg = "Test %1 %2 %invalid % % %9 %10 %11";
 
-    mc::dict args = {
-        {0, "value1"},
-        {1, "value2"}};
+    mc::dict args = {{0, "value1"}, {1, "value2"}};
 
     std::string result = mc::error_message_parser::format_message(template_msg, args);
 

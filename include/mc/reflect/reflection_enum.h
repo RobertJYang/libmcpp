@@ -159,8 +159,7 @@ private:
         });
     }
 
-    reflection()
-        : m_data(reflector<T>::get_metadata())
+    reflection() : m_data(reflector<T>::get_metadata())
     {
         m_is_enum = true;
     }

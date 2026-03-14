@@ -51,10 +51,8 @@ static bool is_whitespace(char c)
     return c == ' ' || c == '\r' || c == '\t' || c == '\n';
 }
 
-lexer::lexer(std::string_view source)
-    : m_source(source), m_current(0), m_start(0)
-{
-}
+lexer::lexer(std::string_view source) : m_source(source), m_current(0), m_start(0)
+{}
 
 bool lexer::is_at_end() const
 {
@@ -333,8 +331,7 @@ void lexer::scan_template_string(char delimiter)
                 }
 
                 // 如果找到下一个 ${，添加中间部分并递归处理
-                if (next_char == '$' && m_current + 1 < m_source.size() &&
-                    m_source[m_current + 1] == '{') {
+                if (next_char == '$' && m_current + 1 < m_source.size() && m_source[m_current + 1] == '{') {
                     auto middle_text = lexeme(string_start, m_current);
                     add_token(token_type::template_middle, middle_text);
 
@@ -428,8 +425,7 @@ void lexer::scan_string()
 
     // 跳过字符直到遇到未转义的结束引号
     skip_until([delimiter, this](char c) {
-        return c == delimiter ||
-               (c == '\\' && this->peek_next() == delimiter && this->advance() && false);
+        return c == delimiter || (c == '\\' && this->peek_next() == delimiter && this->advance() && false);
     });
 
     if (is_at_end()) {
@@ -511,8 +507,7 @@ int lexer::detect_number_radix()
     }
 
     skip_while(is_digit);
-    if (!is_at_end() && peek() == '.' && m_current + 1 < m_source.size() &&
-        is_digit(m_source[m_current + 1])) {
+    if (!is_at_end() && peek() == '.' && m_current + 1 < m_source.size() && is_digit(m_source[m_current + 1])) {
         advance(); // 消费 '.'
         skip_while(is_digit);
         return -1; // 浮点数
@@ -556,9 +551,8 @@ void lexer::scan_number()
     }
 
     int64_t value;
-    MC_ASSERT_THROW(mc::string::try_to_number<int64_t>(num_str, value, radix),
-                    parse_error_exception, "表达式解析错误: 无法解析数字 ${num}",
-                    ("num", lexeme()));
+    MC_ASSERT_THROW(mc::string::try_to_number<int64_t>(num_str, value, radix), parse_error_exception,
+                    "表达式解析错误: 无法解析数字 ${num}", ("num", lexeme()));
     add_token(token_type::number, mc::variant(value));
 }
 

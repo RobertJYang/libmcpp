@@ -118,8 +118,7 @@ TEST(ErrorTest, SetErrorWithDict)
     args["param"] = "value";
     args["count"] = 42;
 
-    err.set_error("org.freedesktop.DBus.Error.Failed",
-                  "Error: ${param} = ${count}", args);
+    err.set_error("org.freedesktop.DBus.Error.Failed", "Error: ${param} = ${count}", args);
 
     EXPECT_TRUE(err.is_set());
     EXPECT_STREQ(err.name, "org.freedesktop.DBus.Error.Failed");
@@ -133,8 +132,7 @@ TEST(ErrorTest, SetErrorWithEmptyDict)
     error    err;
     mc::dict args;
 
-    err.set_error("org.freedesktop.DBus.Error.Failed", "Test error message",
-                  args);
+    err.set_error("org.freedesktop.DBus.Error.Failed", "Test error message", args);
 
     EXPECT_TRUE(err.is_set());
     EXPECT_STREQ(err.name, "org.freedesktop.DBus.Error.Failed");
@@ -158,52 +156,28 @@ TEST(ErrorTest, SetErrorConst)
 // 测试错误名称常量
 TEST(ErrorTest, ErrorNames)
 {
-    EXPECT_EQ(std::string(error_names::failed),
-              "org.freedesktop.DBus.Error.Failed");
-    EXPECT_EQ(std::string(error_names::no_memory),
-              "org.freedesktop.DBus.Error.NoMemory");
-    EXPECT_EQ(std::string(error_names::service_unknown),
-              "org.freedesktop.DBus.Error.ServiceUnknown");
-    EXPECT_EQ(std::string(error_names::name_has_no_owner),
-              "org.freedesktop.DBus.Error.NameHasNoOwner");
-    EXPECT_EQ(std::string(error_names::no_reply),
-              "org.freedesktop.DBus.Error.NoReply");
-    EXPECT_EQ(std::string(error_names::io_error),
-              "org.freedesktop.DBus.Error.IOError");
-    EXPECT_EQ(std::string(error_names::bad_address),
-              "org.freedesktop.DBus.Error.BadAddress");
-    EXPECT_EQ(std::string(error_names::not_supported),
-              "org.freedesktop.DBus.Error.NotSupported");
-    EXPECT_EQ(std::string(error_names::limits_exceeded),
-              "org.freedesktop.DBus.Error.LimitsExceeded");
-    EXPECT_EQ(std::string(error_names::access_denied),
-              "org.freedesktop.DBus.Error.AccessDenied");
-    EXPECT_EQ(std::string(error_names::auth_failed),
-              "org.freedesktop.DBus.Error.AuthFailed");
-    EXPECT_EQ(std::string(error_names::no_server),
-              "org.freedesktop.DBus.Error.NoServer");
-    EXPECT_EQ(std::string(error_names::timeout),
-              "org.freedesktop.DBus.Error.Timeout");
-    EXPECT_EQ(std::string(error_names::no_network),
-              "org.freedesktop.DBus.Error.NoNetwork");
-    EXPECT_EQ(std::string(error_names::address_in_use),
-              "org.freedesktop.DBus.Error.AddressInUse");
-    EXPECT_EQ(std::string(error_names::disconnected),
-              "org.freedesktop.DBus.Error.Disconnected");
-    EXPECT_EQ(std::string(error_names::invalid_args),
-              "org.freedesktop.DBus.Error.InvalidArgs");
-    EXPECT_EQ(std::string(error_names::file_not_found),
-              "org.freedesktop.DBus.Error.FileNotFound");
-    EXPECT_EQ(std::string(error_names::file_exists),
-              "org.freedesktop.DBus.Error.FileExists");
-    EXPECT_EQ(std::string(error_names::unknown_method),
-              "org.freedesktop.DBus.Error.UnknownMethod");
-    EXPECT_EQ(std::string(error_names::unknown_object),
-              "org.freedesktop.DBus.Error.UnknownObject");
-    EXPECT_EQ(std::string(error_names::unknown_interface),
-              "org.freedesktop.DBus.Error.UnknownInterface");
-    EXPECT_EQ(std::string(error_names::unknown_property),
-              "org.freedesktop.DBus.Error.UnknownProperty");
-    EXPECT_EQ(std::string(error_names::property_read_only),
-              "org.freedesktop.DBus.Error.PropertyReadOnly");
+    EXPECT_EQ(std::string(error_names::failed), "org.freedesktop.DBus.Error.Failed");
+    EXPECT_EQ(std::string(error_names::no_memory), "org.freedesktop.DBus.Error.NoMemory");
+    EXPECT_EQ(std::string(error_names::service_unknown), "org.freedesktop.DBus.Error.ServiceUnknown");
+    EXPECT_EQ(std::string(error_names::name_has_no_owner), "org.freedesktop.DBus.Error.NameHasNoOwner");
+    EXPECT_EQ(std::string(error_names::no_reply), "org.freedesktop.DBus.Error.NoReply");
+    EXPECT_EQ(std::string(error_names::io_error), "org.freedesktop.DBus.Error.IOError");
+    EXPECT_EQ(std::string(error_names::bad_address), "org.freedesktop.DBus.Error.BadAddress");
+    EXPECT_EQ(std::string(error_names::not_supported), "org.freedesktop.DBus.Error.NotSupported");
+    EXPECT_EQ(std::string(error_names::limits_exceeded), "org.freedesktop.DBus.Error.LimitsExceeded");
+    EXPECT_EQ(std::string(error_names::access_denied), "org.freedesktop.DBus.Error.AccessDenied");
+    EXPECT_EQ(std::string(error_names::auth_failed), "org.freedesktop.DBus.Error.AuthFailed");
+    EXPECT_EQ(std::string(error_names::no_server), "org.freedesktop.DBus.Error.NoServer");
+    EXPECT_EQ(std::string(error_names::timeout), "org.freedesktop.DBus.Error.Timeout");
+    EXPECT_EQ(std::string(error_names::no_network), "org.freedesktop.DBus.Error.NoNetwork");
+    EXPECT_EQ(std::string(error_names::address_in_use), "org.freedesktop.DBus.Error.AddressInUse");
+    EXPECT_EQ(std::string(error_names::disconnected), "org.freedesktop.DBus.Error.Disconnected");
+    EXPECT_EQ(std::string(error_names::invalid_args), "org.freedesktop.DBus.Error.InvalidArgs");
+    EXPECT_EQ(std::string(error_names::file_not_found), "org.freedesktop.DBus.Error.FileNotFound");
+    EXPECT_EQ(std::string(error_names::file_exists), "org.freedesktop.DBus.Error.FileExists");
+    EXPECT_EQ(std::string(error_names::unknown_method), "org.freedesktop.DBus.Error.UnknownMethod");
+    EXPECT_EQ(std::string(error_names::unknown_object), "org.freedesktop.DBus.Error.UnknownObject");
+    EXPECT_EQ(std::string(error_names::unknown_interface), "org.freedesktop.DBus.Error.UnknownInterface");
+    EXPECT_EQ(std::string(error_names::unknown_property), "org.freedesktop.DBus.Error.UnknownProperty");
+    EXPECT_EQ(std::string(error_names::property_read_only), "org.freedesktop.DBus.Error.PropertyReadOnly");
 }

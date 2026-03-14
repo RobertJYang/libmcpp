@@ -51,7 +51,6 @@ std::string extension(const fs::path& path)
 
     // 获取扩展名（包括点）
     std::string ext = fs::path(path).extension().string();
-
     // 移除开头的点
     if (!ext.empty() && ext[0] == '.') {
         return ext.substr(1);
@@ -204,8 +203,7 @@ std::optional<uint64_t> remove_all(const path& p)
 bool copy_file(const path& from, const path& to, bool overwrite)
 {
     try {
-        fs::copy_options options =
-            overwrite ? fs::copy_options::overwrite_existing : fs::copy_options::none;
+        fs::copy_options options = overwrite ? fs::copy_options::overwrite_existing : fs::copy_options::none;
         fs::copy_file(from, to, options);
         return true;
     } catch (const std::exception& e) {
@@ -302,7 +300,8 @@ fs::path normalize(const fs::path& path)
                 elements.push_back(part);
             }
             // 绝对路径中忽略多余的".."
-        } else if (!part_str.empty() && part_str != path.root_name().string() && part_str != path.root_directory().string()) {
+        } else if (!part_str.empty() && part_str != path.root_name().string() &&
+                   part_str != path.root_directory().string()) {
             // 添加有效路径片段
             elements.push_back(part);
         }

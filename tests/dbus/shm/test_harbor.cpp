@@ -67,8 +67,7 @@ TEST_F(HarborTest, HarborLifecycleAndNaming)
         harbor_instance.stop();
     } catch (const std::exception& e) {
         harbor_instance.stop();
-        GTEST_SKIP() << "harbor start failed: " << e.what()
-                     << " (可能缺少共享内存环境)";
+        GTEST_SKIP() << "harbor start failed: " << e.what() << " (可能缺少共享内存环境)";
     }
 }
 

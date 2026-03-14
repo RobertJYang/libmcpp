@@ -24,12 +24,11 @@ enum future_exception_codes {
     invalid_future_code           = 5003, // 无效的 Future 异常
 };
 
-MC_DECLARE_EXCEPTION_CLASS(future_already_retrieved, future_already_retrieved_code,
-                           "Future 已被获取", "future_already_retrieved")
-MC_DECLARE_EXCEPTION_CLASS(promise_already_satisfied, promise_already_set_code,
-                           "Promise 值已被设置", "promise_already_satisfied")
-MC_DECLARE_EXCEPTION_CLASS(invalid_future_exception, invalid_future_code,
-                           "Future 无效", "invalid_future_exception")
+MC_DECLARE_EXCEPTION_CLASS(future_already_retrieved, future_already_retrieved_code, "Future 已被获取",
+                           "future_already_retrieved")
+MC_DECLARE_EXCEPTION_CLASS(promise_already_satisfied, promise_already_set_code, "Promise 值已被设置",
+                           "promise_already_satisfied")
+MC_DECLARE_EXCEPTION_CLASS(invalid_future_exception, invalid_future_code, "Future 无效", "invalid_future_exception")
 
 } // namespace mc::futures
 

@@ -74,12 +74,8 @@ struct signature_helper<T, std::enable_if_t<std::is_arithmetic_v<T>>> {
 
 // 对字符串类型的特化
 template <typename T>
-struct signature_helper<
-    T, std::enable_if_t<
-           std::is_same_v<T, std::string> ||
-           std::is_same_v<T, std::string_view> ||
-           std::is_same_v<T, const char*> ||
-           std::is_same_v<T, char*>>> {
+struct signature_helper<T, std::enable_if_t<std::is_same_v<T, std::string> || std::is_same_v<T, std::string_view> ||
+                                            std::is_same_v<T, const char*> || std::is_same_v<T, char*>>> {
     static void apply(std::string& sig)
     {
         sig += type_to_char(type_code::string_type);

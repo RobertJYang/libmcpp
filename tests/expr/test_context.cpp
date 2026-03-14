@@ -21,10 +21,8 @@ namespace tests::expr::context_test {
 class TestObjectForRegister : public mc::engine::object<TestObjectForRegister> {
 public:
     MC_OBJECT(TestObjectForRegister, "TestObjectForRegister", "/org/test/TestObjectForRegister")
-    TestObjectForRegister(mc::engine::core_object* parent = nullptr)
-        : mc::engine::object<TestObjectForRegister>(parent)
-    {
-    }
+    TestObjectForRegister(mc::engine::core_object* parent = nullptr) : mc::engine::object<TestObjectForRegister>(parent)
+    {}
 };
 
 class TestInterfaceForVariable : public mc::engine::interface<TestInterfaceForVariable> {
@@ -37,10 +35,8 @@ class TestObjectForVariable : public mc::engine::object<TestObjectForVariable> {
 public:
     MC_OBJECT(TestObjectForVariable, "TestObjectForVariable", "/org/test/TestObjectForVariable",
               (TestInterfaceForVariable))
-    TestObjectForVariable(mc::engine::core_object* parent = nullptr)
-        : mc::engine::object<TestObjectForVariable>(parent)
-    {
-    }
+    TestObjectForVariable(mc::engine::core_object* parent = nullptr) : mc::engine::object<TestObjectForVariable>(parent)
+    {}
     TestInterfaceForVariable m_iface;
 };
 
@@ -57,10 +53,8 @@ class TestObjectForFunction : public mc::engine::object<TestObjectForFunction> {
 public:
     MC_OBJECT(TestObjectForFunction, "TestObjectForFunction", "/org/test/TestObjectForFunction",
               (TestInterfaceForFunction))
-    TestObjectForFunction(mc::engine::core_object* parent = nullptr)
-        : mc::engine::object<TestObjectForFunction>(parent)
-    {
-    }
+    TestObjectForFunction(mc::engine::core_object* parent = nullptr) : mc::engine::object<TestObjectForFunction>(parent)
+    {}
     TestInterfaceForFunction m_iface;
 };
 
@@ -75,12 +69,9 @@ public:
 
 class TestObjectForInvoke : public mc::engine::object<TestObjectForInvoke> {
 public:
-    MC_OBJECT(TestObjectForInvoke, "TestObjectForInvoke", "/org/test/TestObjectForInvoke",
-              (TestInterfaceForInvoke))
-    TestObjectForInvoke(mc::engine::core_object* parent = nullptr)
-        : mc::engine::object<TestObjectForInvoke>(parent)
-    {
-    }
+    MC_OBJECT(TestObjectForInvoke, "TestObjectForInvoke", "/org/test/TestObjectForInvoke", (TestInterfaceForInvoke))
+    TestObjectForInvoke(mc::engine::core_object* parent = nullptr) : mc::engine::object<TestObjectForInvoke>(parent)
+    {}
     TestInterfaceForInvoke m_iface;
 };
 
@@ -89,8 +80,7 @@ public:
     MC_OBJECT(TestObjectForGetObject, "TestObjectForGetObject", "/org/test/TestObjectForGetObject")
     TestObjectForGetObject(mc::engine::core_object* parent = nullptr)
         : mc::engine::object<TestObjectForGetObject>(parent)
-    {
-    }
+    {}
 };
 } // namespace tests::expr::context_test
 
@@ -108,16 +98,13 @@ namespace {
 class expr_context_test : public ::testing::Test {
 protected:
     expr_context_test()
-    {
-    }
+    {}
 
     void SetUp() override
-    {
-    }
+    {}
 
     void TearDown() override
-    {
-    }
+    {}
 
     mc::expr::engine engine;
 };

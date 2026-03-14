@@ -21,16 +21,13 @@ namespace {
 class parser_test : public ::testing::Test {
 protected:
     parser_test()
-    {
-    }
+    {}
 
     void SetUp() override
-    {
-    }
+    {}
 
     void TearDown() override
-    {
-    }
+    {}
 
     mc::expr::node_ptr parse_expr(const std::string& expr)
     {

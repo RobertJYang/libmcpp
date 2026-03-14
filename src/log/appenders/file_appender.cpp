@@ -10,34 +10,28 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include <cerrno>
+#include <cstring>
 #include <dlfcn.h>
 #include <mc/engine/context.h>
 #include <mc/engine/service.h>
 #include <mc/filesystem.h>
 #include <mc/log/appenders/file_appender.h>
 #include <mc/log/log_level.h>
+#include <ostream>
 #include <stdarg.h>
 #include <stdio.h>
-#include <ostream>
 #include <string>
-#include <syslog.h>
-#include <cerrno>
-#include <cstring>
-#include <unistd.h>
 #include <sys/stat.h>
+#include <syslog.h>
+#include <unistd.h>
 
 #include <logging_internal.h>
 
 #if __has_include(<logging.h>)
 #include <logging.h>
 #else
-typedef enum {
-    DLOG_ERROR,
-    DLOG_WARN,
-    DLOG_NOTICE,
-    DLOG_INFO,
-    DLOG_DEBUG
-} DLOG_LEVEL_E;
+typedef enum { DLOG_ERROR, DLOG_WARN, DLOG_NOTICE, DLOG_INFO, DLOG_DEBUG } DLOG_LEVEL_E;
 #endif
 
 typedef void (*debug_log_func_t)(DLOG_LEVEL_E, const char*, int, const char*, ...);
@@ -76,8 +70,7 @@ namespace mc {
 namespace log {
 
 file_appender::file_appender()
-{
-}
+{}
 
 bool file_appender::init(const variant& args)
 {
@@ -167,7 +160,7 @@ void append_debug(const message& msg, std::ostream* fallback_out)
     // 过滤无效字符，避免写入包含控制字符的内容
     logging::filter_invalid_chars(message_str);
 
-    logging::LogRecord record = {};  // 使用空花括号进行零初始化，避免编译器警告
+    logging::LogRecord record = {}; // 使用空花括号进行零初始化，避免编译器警告
     record.lineno             = ctx.m_line;
     record.module_name        = module_name;
     record.level              = level;
@@ -181,8 +174,8 @@ void append_debug(const message& msg, std::ostream* fallback_out)
     // 有文件流时始终写入，便于测试读文件断言（与 internal_log_handler 并行）
     if (fallback_out) {
         std::string level_str(mc::log::to_string(msg.get_level()));
-        *fallback_out << module_name << " " << level_str << " " << file_str << "(" << ctx.m_line
-                      << "): " << message_str << "\n";
+        *fallback_out << module_name << " " << level_str << " " << file_str << "(" << ctx.m_line << "): " << message_str
+                      << "\n";
         fallback_out->flush();
     }
 }
@@ -255,8 +248,8 @@ void append_operation(const message& msg, std::ostream* fallback_out)
     if (get_log_time_str_ptr) {
         const char* time_str = get_log_time_str_ptr(LOG_US_TIME);
         if (time_str) {
-            syslog(LOG_LOCAL5 | LOG_INFO, "%s %s,%s@%s,%s,%s", time_str,
-                   interface_name.c_str(), username.c_str(), client_addr.c_str(), module_name.c_str(), message_str.c_str());
+            syslog(LOG_LOCAL5 | LOG_INFO, "%s %s,%s@%s,%s,%s", time_str, interface_name.c_str(), username.c_str(),
+                   client_addr.c_str(), module_name.c_str(), message_str.c_str());
         }
     }
     if (fallback_out) {
@@ -300,8 +293,8 @@ void append_hw_stream(const message& msg, std::ostream* fallback_out)
         }
     }
     if (fallback_out) {
-        *fallback_out << module_name << " " << level_str << " " << file_str << "(" << ctx.m_line
-                      << "): " << message_str << "\n";
+        *fallback_out << module_name << " " << level_str << " " << file_str << "(" << ctx.m_line << "): " << message_str
+                      << "\n";
         fallback_out->flush();
     }
 }
@@ -406,8 +399,8 @@ void append_mc_stream(const message& msg, std::ostream* fallback_out)
         }
     }
     if (fallback_out) {
-        *fallback_out << module_name << " " << level_str << " " << file_str << "(" << ctx.m_line
-                      << "): " << message_str << "\n";
+        *fallback_out << module_name << " " << level_str << " " << file_str << "(" << ctx.m_line << "): " << message_str
+                      << "\n";
         fallback_out->flush();
     }
 }
@@ -462,12 +455,8 @@ void file_appender::set_filename(const std::string& filename)
     }
 
     // 如果 filename 改变，或者文件没有打开，或者文件流状态异常，或者文件不存在，都需要重新打开
-    bool need_reopen = (m_file_config.filename != filename) ||
-                       !m_file.is_open() ||
-                       m_file.fail() ||
-                       m_file.bad() ||
+    bool need_reopen = (m_file_config.filename != filename) || !m_file.is_open() || m_file.fail() || m_file.bad() ||
                        (!filename.empty() && !file_exists);
-
     if (need_reopen) {
         std::string reopen_reason;
         if (m_file_config.filename != filename) {

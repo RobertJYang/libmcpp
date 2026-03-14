@@ -93,11 +93,11 @@ struct standard_error_message {
  */
 class error_message_converter {
 public:
-    error_message_converter()                                       = default;
-    ~error_message_converter()                                      = default;
-    error_message_converter(const error_message_converter&)         = delete;
-    error_message_converter& operator=(const error_message_converter&) = delete;
-    error_message_converter(error_message_converter&&) noexcept      = default;
+    error_message_converter()                                              = default;
+    ~error_message_converter()                                             = default;
+    error_message_converter(const error_message_converter&)                = delete;
+    error_message_converter& operator=(const error_message_converter&)     = delete;
+    error_message_converter(error_message_converter&&) noexcept            = default;
     error_message_converter& operator=(error_message_converter&&) noexcept = default;
 
     /**
@@ -106,8 +106,7 @@ public:
      * @param base_json_path base.json 文件路径
      * @param custom_json_path custom.json 文件路径
      */
-    MC_API void load_registries(std::string_view base_json_path,
-                                std::string_view custom_json_path);
+    MC_API void load_registries(std::string_view base_json_path, std::string_view custom_json_path);
 
     /**
      * @brief 从字符串加载标准错误定义
@@ -115,8 +114,7 @@ public:
      * @param base_json base.json 内容
      * @param custom_json custom.json 内容
      */
-    MC_API void load_registries_from_string(std::string_view base_json,
-                                             std::string_view custom_json);
+    MC_API void load_registries_from_string(std::string_view base_json, std::string_view custom_json);
 
     /**
      * @brief 将 error 转换为标准消息格式
@@ -125,8 +123,8 @@ public:
      * @param related_properties 相关属性列表（Redfish 规范）
      * @return 标准错误消息
      */
-    MC_API standard_error_message convert(const mc::error& err,
-                                  const std::vector<std::string>& related_properties = {}) const;
+    MC_API standard_error_message convert(const mc::error&                err,
+                                          const std::vector<std::string>& related_properties = {}) const;
 
     /**
      * @brief 将 error 转换为标准消息格式（dict 格式）
@@ -135,8 +133,8 @@ public:
      * @param related_properties 相关属性列表（Redfish 规范）
      * @return dict 格式的错误消息
      */
-    MC_API mc::dict convert_to_dict(const mc::error& err,
-                                  const std::vector<std::string>& related_properties = {}) const;
+    MC_API mc::dict convert_to_dict(const mc::error&                err,
+                                    const std::vector<std::string>& related_properties = {}) const;
 
     /**
      * @brief 查找错误定义
@@ -144,8 +142,7 @@ public:
      * @param message_name 消息名称
      * @return 错误定义，如果未找到返回 std::nullopt
      */
-    MC_API std::optional<error_message_definition> find_definition(
-        std::string_view message_name) const;
+    MC_API std::optional<error_message_definition> find_definition(std::string_view message_name) const;
 
     /**
      * @brief 获取单例实例
@@ -153,7 +150,7 @@ public:
     static MC_API error_message_converter& get_instance();
 
 private:
-    mutable std::mutex m_mutex;  // 保护注册表访问的互斥锁
+    mutable std::mutex     m_mutex; // 保护注册表访问的互斥锁
     error_message_registry m_base_registry;
     error_message_registry m_custom_registry;
 };
@@ -165,8 +162,8 @@ private:
  * @param related_properties 相关属性列表（Redfish 规范）
  * @return 标准错误消息
  */
-MC_API standard_error_message to_standard_message(const mc::error& err,
-                                         const std::vector<std::string>& related_properties = {});
+MC_API standard_error_message to_standard_message(const mc::error&                err,
+                                                  const std::vector<std::string>& related_properties = {});
 
 /**
  * @brief 辅助函数：快速转换 error 为 dict 格式
@@ -175,8 +172,7 @@ MC_API standard_error_message to_standard_message(const mc::error& err,
  * @param related_properties 相关属性列表（Redfish 规范）
  * @return dict 格式的错误消息
  */
-MC_API mc::dict to_standard_message_dict(const mc::error& err,
-                                     const std::vector<std::string>& related_properties = {});
+MC_API mc::dict to_standard_message_dict(const mc::error& err, const std::vector<std::string>& related_properties = {});
 
 } // namespace mc
 

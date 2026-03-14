@@ -31,8 +31,7 @@ public:
     conditional_node(node_ptr condition, node_ptr true_branch, node_ptr false_branch)
         : m_condition(std::move(condition)), m_true_branch(std::move(true_branch)),
           m_false_branch(std::move(false_branch))
-    {
-    }
+    {}
 
     node_type get_type() const override
     {

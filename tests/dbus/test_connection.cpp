@@ -51,9 +51,8 @@ namespace {
  */
 template <typename Builder>
 mc::dbus::message wait_method_return(mc::dbus::connection& conn, Builder&& builder,
-                                     mc::milliseconds timeout      = mc::milliseconds(2000),
-                                     int              max_attempts = 5,
-                                     mc::milliseconds retry_delay  = mc::milliseconds(100))
+                                     mc::milliseconds timeout = mc::milliseconds(2000), int max_attempts = 5,
+                                     mc::milliseconds retry_delay = mc::milliseconds(100))
 {
     mc::dbus::message reply;
     for (int attempt = 0; attempt < max_attempts; ++attempt) {
@@ -72,8 +71,7 @@ mc::dbus::message wait_method_return(mc::dbus::connection& conn, Builder&& build
 class connection_test : public mc::test::TestWithDbusDaemon {
 protected:
     connection_test()
-    {
-    }
+    {}
 
     static void SetUpTestSuite()
     {
@@ -134,15 +132,12 @@ TEST_F(connection_test, test_list_names)
     // 增加等待时间，确保服务名称已注册
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-    auto reply = wait_method_return(
-        conn,
-        []() {
+    auto reply = wait_method_return(conn, []() {
         return mc::dbus::message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
                                                   "org.freedesktop.DBus", "ListNames");
     });
     ASSERT_TRUE(reply.is_valid() && reply.is_method_return())
-        << "reply_valid=" << reply.is_valid()
-        << " reply_type=" << static_cast<int>(reply.get_type())
+        << "reply_valid=" << reply.is_valid() << " reply_type=" << static_cast<int>(reply.get_type())
         << " reply_error=" << (reply.is_error() ? reply.get_error_name() : "");
 
     std::set<std::string> names;
@@ -161,8 +156,8 @@ TEST_F(connection_test, test_disconnect)
         ASSERT_TRUE(tmp.is_connected());
         EXPECT_TRUE(REQUEST_NAME_SUCCESS(tmp, "org.test.Connection"));
 
-        auto msg = mc::dbus::message::new_method_call(
-            "org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "ListNames");
+        auto msg    = mc::dbus::message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
+                                                         "org.freedesktop.DBus", "ListNames");
         auto future = tmp.async_send_with_reply(std::move(msg), mc::milliseconds(1000));
         conn        = tmp;
         tmp.disconnect();
@@ -225,8 +220,7 @@ TEST_F(connection_test, scenario_full_dbus_flow)
     ASSERT_TRUE(conn.start());
     ASSERT_TRUE(conn.is_connected());
 
-    auto ticks = static_cast<uint64_t>(
-        std::chrono::steady_clock::now().time_since_epoch().count());
+    auto               ticks = static_cast<uint64_t>(std::chrono::steady_clock::now().time_since_epoch().count());
     std::ostringstream oss;
     oss << std::hex << ticks;
     auto suffix = oss.str();
@@ -248,9 +242,7 @@ TEST_F(connection_test, scenario_full_dbus_flow)
     const std::string signal_kw = "FullScenarioSignal";
 
     std::atomic<int> handler_calls{0};
-    conn.register_path(
-        path,
-        [local_conn = conn, &handler_calls](message& msg) mutable -> DBusHandlerResult {
+    conn.register_path(path, [local_conn = conn, &handler_calls](message& msg) mutable -> DBusHandlerResult {
         handler_calls.fetch_add(1);
         if (msg.is_method_call()) {
             std::string payload;
@@ -277,10 +269,8 @@ TEST_F(connection_test, scenario_full_dbus_flow)
 
     auto& match_iface = conn.get_match();
     auto  rule_match  = match_rule::new_signal(signal_kw, interface);
-    match_iface.add_rule(rule_match,
-                         [](message&) {
-    },
-                         43);
+    match_iface.add_rule(rule_match, [](message&) {
+    }, 43);
 
     std::atomic<int> filter_hits{0};
     conn.filter_message().connect([&filter_hits](message& msg) {
@@ -292,8 +282,7 @@ TEST_F(connection_test, scenario_full_dbus_flow)
 
     // 同步调用核心 D-Bus 服务，确保 send_with_reply 覆盖
     auto sync_call =
-        message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
-                                 "org.freedesktop.DBus", "GetId");
+        message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "GetId");
     auto sync_reply = conn.send_with_reply(std::move(sync_call), mc::milliseconds(1000));
     ASSERT_TRUE(sync_reply.is_valid());
     std::string bus_id;
@@ -308,7 +297,8 @@ TEST_F(connection_test, scenario_full_dbus_flow)
     std::condition_variable cv;
     bool                    async_done = false;
     std::string             async_text;
-    future.then([&](const message& reply) {
+    future
+        .then([&](const message& reply) {
         auto reader = reply.reader();
         reader >> async_text;
         {
@@ -384,8 +374,7 @@ TEST_F(connection_test, test_send)
     EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Connection"));
 
     // 发送一个信号消息
-    auto msg    = mc::dbus::message::new_signal("/org/test/Connection",
-                                                "org.test.Connection", "TestSignal");
+    auto msg    = mc::dbus::message::new_signal("/org/test/Connection", "org.test.Connection", "TestSignal");
     bool result = conn.send(std::move(msg));
     EXPECT_TRUE(result);
     conn.disconnect();
@@ -402,8 +391,8 @@ TEST_F(connection_test, scenario_connection_lifecycle)
     EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Connection"));
     std::string_view unique_name = conn.get_unique_name();
     EXPECT_FALSE(unique_name.empty());
-    auto msg = message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
-                                        "org.freedesktop.DBus", "ListNames");
+    auto msg =
+        message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "ListNames");
     EXPECT_TRUE(conn.send(std::move(msg)));
     conn.disconnect();
     EXPECT_FALSE(conn.is_connected());
@@ -416,15 +405,15 @@ TEST_F(connection_test, scenario_mixed_sync_async_calls)
     ASSERT_TRUE(conn.is_connected());
     EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Connection"));
     auto build_list_names_call = []() {
-        return message::new_method_call(
-            "org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "ListNames");
+        return message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus",
+                                        "ListNames");
     };
     auto reply1 = wait_method_return(conn, build_list_names_call, mc::milliseconds(2000), 5);
     ASSERT_TRUE(reply1.is_valid() && reply1.is_method_return())
         << "ListNames 同步调用失败，reply_valid=" << reply1.is_valid()
         << " reply_type=" << (reply1.is_valid() ? static_cast<int>(reply1.get_type()) : -1);
-    auto              msg2 = message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
-                                                      "org.freedesktop.DBus", "ListNames");
+    auto msg2 =
+        message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "ListNames");
     std::atomic<bool> async_done{false};
     auto              future = conn.async_send_with_reply(std::move(msg2), mc::milliseconds(1000));
     future.then([&async_done](const message&) {
@@ -450,8 +439,7 @@ TEST_F(connection_test, scenario_signal_subscription)
         signal_count.fetch_add(1);
     };
     conn.add_match(rule, std::move(callback), 1);
-    auto signal = message::new_signal("/org/test/Connection",
-                                      "org.freedesktop.DBus.Properties", "PropertiesChanged");
+    auto signal = message::new_signal("/org/test/Connection", "org.freedesktop.DBus.Properties", "PropertiesChanged");
     EXPECT_TRUE(conn.send(std::move(signal)));
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
     conn.dispatch();
@@ -466,8 +454,8 @@ TEST_F(connection_test, scenario_error_handling_retry)
     ASSERT_TRUE(conn.is_connected());
     EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Connection"));
     // 测试调用不存在的方法，应该返回错误
-    auto msg   = message::new_method_call("org.test.Connection", "/org/test/Connection",
-                                          "org.test.Connection", "NonExistentMethod");
+    auto msg   = message::new_method_call("org.test.Connection", "/org/test/Connection", "org.test.Connection",
+                                          "NonExistentMethod");
     auto reply = conn.send_with_reply(std::move(msg), mc::milliseconds(1000));
     EXPECT_TRUE(reply.is_valid());
     EXPECT_TRUE(reply.is_error());
@@ -556,9 +544,9 @@ TEST_F(connection_test, test_path_handler_exception_method_call)
     };
 
     conn.register_path("/org/test/Connection", std::move(handler));
-    auto method_call = message::new_method_call("org.test.Connection", "/org/test/Connection",
-                                                "org.test.Connection", "TestMethod");
-    auto reply       = conn.send_with_reply(std::move(method_call), mc::milliseconds(1000));
+    auto method_call =
+        message::new_method_call("org.test.Connection", "/org/test/Connection", "org.test.Connection", "TestMethod");
+    auto reply = conn.send_with_reply(std::move(method_call), mc::milliseconds(1000));
     EXPECT_TRUE(reply.is_valid());
     EXPECT_TRUE(reply.is_error());
     conn.unregister_path("/org/test/Connection");
@@ -623,8 +611,8 @@ TEST_F(connection_test, test_async_send_when_disconnected)
 {
     auto conn = connection::open_session_bus(*s_io_context);
     EXPECT_FALSE(conn.is_connected());
-    auto                    msg    = message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
-                                                              "org.freedesktop.DBus", "ListNames");
+    auto msg =
+        message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "ListNames");
     auto                    future = conn.async_send_with_reply(std::move(msg), mc::milliseconds(1000));
     std::mutex              mutex;
     std::condition_variable cv;
@@ -740,8 +728,8 @@ TEST_F(connection_test, test_filter_message)
     });
 
     // 发送一个消息，应该触发 filter
-    auto msg = message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
-                                        "org.freedesktop.DBus", "GetId");
+    auto msg =
+        message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "GetId");
     conn.send(std::move(msg));
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
     conn.dispatch();
@@ -786,9 +774,7 @@ TEST_F(connection_test, test_process_message_no_reply_serial)
     EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Connection"));
 
     // 发送一个 signal 消息，它不会进入 process_reply 分支，而是通过 filter_message 处理
-    auto signal = message::new_signal("/org/test/Connection",
-                                      "org.test.Connection",
-                                      "TestSignal");
+    auto signal = message::new_signal("/org/test/Connection", "org.test.Connection", "TestSignal");
     conn.send(std::move(signal));
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
     conn.dispatch();
@@ -805,9 +791,8 @@ TEST_F(connection_test, test_process_reply_serial_not_found)
     EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Connection"));
 
     // 创建一个带有不存在的 reply_serial 的消息
-    auto method_call = message::new_method_call("org.test.Connection",
-                                                "/org/test/Connection",
-                                                "org.test.Connection", "Test");
+    auto method_call =
+        message::new_method_call("org.test.Connection", "/org/test/Connection", "org.test.Connection", "Test");
     // 设置一个不存在的 serial（不会在 pending_calls 中）
     method_call.set_serial(99999);
     auto msg = message::new_method_return(method_call);
@@ -907,8 +892,7 @@ TEST_F(connection_test, test_process_message_method_return_no_reply_serial)
     auto&             filter = conn.filter_message();
     filter.connect([&filter_called](message& msg) {
         // 检查是否是 method_return 或 error 类型但没有 reply_serial
-        if ((msg.get_type() == message_type::method_return ||
-             msg.get_type() == message_type::error) &&
+        if ((msg.get_type() == message_type::method_return || msg.get_type() == message_type::error) &&
             msg.get_reply_serial() == 0) {
             filter_called.store(true);
         }
@@ -917,9 +901,8 @@ TEST_F(connection_test, test_process_message_method_return_no_reply_serial)
 
     // 创建一个 method_call，然后创建一个 method_return
     // 但 D-Bus 库会自动设置 reply_serial，所以这个测试主要验证 filter_message 的处理
-    auto method_call = message::new_method_call("org.test.Connection",
-                                                "/org/test/Connection",
-                                                "org.test.Connection", "Test");
+    auto method_call =
+        message::new_method_call("org.test.Connection", "/org/test/Connection", "org.test.Connection", "Test");
     // 发送消息并等待处理
     conn.send(std::move(method_call));
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -941,8 +924,8 @@ TEST_F(connection_test, test_dispatch_status_changed_other_status)
     // 正常操作会触发 dispatch_status_changed，但通常状态是 DBUS_DISPATCH_DATA_REMAINS
     // 其他状态（如 DBUS_DISPATCH_COMPLETE）的分支很难直接测试
     // 这个测试主要确保代码不会崩溃
-    auto msg = message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
-                                        "org.freedesktop.DBus", "GetId");
+    auto msg =
+        message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "GetId");
     conn.send(std::move(msg));
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
     conn.dispatch();

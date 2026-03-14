@@ -20,8 +20,7 @@ namespace detail {
 
 CombinatorState::CombinatorState(std::size_t total_count, any_promise promise)
     : m_total_count(total_count), m_promise(std::move(promise))
-{
-}
+{}
 
 void CombinatorState::add_cancel_callback(any_future& future)
 {
@@ -45,8 +44,7 @@ void CombinatorState::execute_cancel_callbacks()
 
 AllStateBase::AllStateBase(std::size_t total_count, any_promise promise)
     : CombinatorState(total_count, std::move(promise))
-{
-}
+{}
 
 void AllStateBase::set_exception(const mc::exception& e)
 {
@@ -91,8 +89,7 @@ bool AllStateBase::set_completed(std::size_t index)
 
 AnyStateBase::AnyStateBase(std::size_t total_count, any_promise promise)
     : CombinatorState(total_count, std::move(promise))
-{
-}
+{}
 
 void AnyStateBase::set_exception(const mc::exception& e)
 {

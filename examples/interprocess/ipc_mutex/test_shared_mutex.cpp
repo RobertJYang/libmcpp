@@ -30,8 +30,7 @@ void test_shared_mutex()
     size_t            shm_size = 256 * 1024; // 256KB
 
     // 使用shared_memory_manager管理共享内存
-    shared_memory_manager shm_manager(shm_name, shm_size,
-                                      shared_memory_manager::REMOVE_ON_EXIT);
+    shared_memory_manager shm_manager(shm_name, shm_size, shared_memory_manager::REMOVE_ON_EXIT);
 
     auto shm = shm_manager.get_shared_memory();
     if (!shm) {
@@ -39,8 +38,7 @@ void test_shared_mutex()
         return;
     }
 
-    ilog("共享内存创建成功，名称: ${name}, 大小: ${size}字节",
-         ("name", shm->get_name())("size", shm->get_size()));
+    ilog("共享内存创建成功，名称: ${name}, 大小: ${size}字节", ("name", shm->get_name())("size", shm->get_size()));
 
     // 获取分配器
     auto& allocator = shm->get_allocator();

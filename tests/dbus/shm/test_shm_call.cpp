@@ -106,8 +106,9 @@ public:
     TestInterfaceC m_iface;
 };
 
-MC_REFLECT(TestInterfaceA, ((add, "Add"))((set_num, "SetNum"))((set_str, "SetStr"))(
-                               (get_num_and_str, "GetNumAndStr"))((m_num, "Num"))((m_str, "Str")))
+MC_REFLECT(TestInterfaceA,
+           ((add, "Add"))((set_num, "SetNum"))((set_str, "SetStr"))((get_num_and_str,
+                                                                     "GetNumAndStr"))((m_num, "Num"))((m_str, "Str")))
 MC_REFLECT(TestInterfaceB, ((increment, "Increment"))((m_cnt, "Cnt"))((m_arr, "Arr")))
 MC_REFLECT(TestObjectA, ((m_iface, "InterfaceA")))
 MC_REFLECT(TestObjectB, ((m_iface, "InterfaceB")))
@@ -115,10 +116,8 @@ MC_REFLECT(TestInterfaceC, ((m_prop1, "Prop1")))
 MC_REFLECT(TestObjectC, ((m_iface, "InterfaceC")))
 
 struct test_service_1 : public mc::engine::service {
-    test_service_1()
-        : mc::engine::service("org.openubmc.test_service_1")
-    {
-    }
+    test_service_1() : mc::engine::service("org.openubmc.test_service_1")
+    {}
 
     bool init(mc::dict args = {}) override
     {
@@ -158,10 +157,8 @@ struct test_service_1 : public mc::engine::service {
 };
 
 struct test_service_2 : public mc::engine::service {
-    test_service_2()
-        : mc::engine::service("org.openubmc.test_service_2")
-    {
-    }
+    test_service_2() : mc::engine::service("org.openubmc.test_service_2")
+    {}
 
     bool init(mc::dict args = {}) override
     {
@@ -213,69 +210,64 @@ protected:
 
 TEST_F(ShmCallTest, TestRegisterProperties)
 {
-    mc::variant result = mc::dbus::shm_tree::get_property("org.openubmc.test_service_1",
-                                                          "/org/openubmc/test_object_a", "org.openubmc.test_interface_a", "Num");
+    mc::variant result = mc::dbus::shm_tree::get_property("org.openubmc.test_service_1", "/org/openubmc/test_object_a",
+                                                          "org.openubmc.test_interface_a", "Num");
     ASSERT_EQ(result.as_int32(), 100);
 
-    result = mc::dbus::shm_tree::get_property("org.openubmc.test_service_1",
-                                              "/org/openubmc/test_object_a", "org.openubmc.test_interface_a", "Str");
+    result = mc::dbus::shm_tree::get_property("org.openubmc.test_service_1", "/org/openubmc/test_object_a",
+                                              "org.openubmc.test_interface_a", "Str");
     ASSERT_EQ(result.as_string(), "default");
 
-    result = mc::dbus::shm_tree::get_property("org.openubmc.test_service_1",
-                                              "/org/openubmc/test_object_a", "bmc.kepler.Object.Properties", "ObjectName");
+    result = mc::dbus::shm_tree::get_property("org.openubmc.test_service_1", "/org/openubmc/test_object_a",
+                                              "bmc.kepler.Object.Properties", "ObjectName");
     ASSERT_EQ(result.as_string(), "TestObjectA");
 
-    result = mc::dbus::shm_tree::get_property("org.openubmc.test_service_1",
-                                              "/org/openubmc/test_object_a", "bmc.kepler.Object.Properties", "ClassName");
+    result = mc::dbus::shm_tree::get_property("org.openubmc.test_service_1", "/org/openubmc/test_object_a",
+                                              "bmc.kepler.Object.Properties", "ClassName");
     ASSERT_EQ(result.as_string(), "TestObjectA");
 
-    result = mc::dbus::shm_tree::get_property("org.openubmc.test_service_2",
-                                              "/org/openubmc/test_object_b",
+    result = mc::dbus::shm_tree::get_property("org.openubmc.test_service_2", "/org/openubmc/test_object_b",
                                               "org.openubmc.test_interface_b", "Cnt");
     ASSERT_EQ(result.as_int32(), 0);
 
-    result = mc::dbus::shm_tree::get_property("org.openubmc.test_service_2",
-                                              "/org/openubmc/test_object_b", "bmc.kepler.Object.Properties", "ObjectName");
+    result = mc::dbus::shm_tree::get_property("org.openubmc.test_service_2", "/org/openubmc/test_object_b",
+                                              "bmc.kepler.Object.Properties", "ObjectName");
     ASSERT_EQ(result.as_string(), "TestObjectB");
 
-    result = mc::dbus::shm_tree::get_property("org.openubmc.test_service_2",
-                                              "/org/openubmc/test_object_b", "bmc.kepler.Object.Properties", "ClassName");
+    result = mc::dbus::shm_tree::get_property("org.openubmc.test_service_2", "/org/openubmc/test_object_b",
+                                              "bmc.kepler.Object.Properties", "ClassName");
     ASSERT_EQ(result.as_string(), "TestObjectB");
 }
 
 TEST_F(ShmCallTest, TestIncrement)
 {
-    mc::variant result =
-        service_1->timeout_call(mc::milliseconds(CALL_TIMEOUT), "org.openubmc.test_service_2",
-                                "/org/openubmc/test_object_b", "org.openubmc.test_interface_b",
-                                "Increment", "", mc::variants{});
+    mc::variant result = service_1->timeout_call(mc::milliseconds(CALL_TIMEOUT), "org.openubmc.test_service_2",
+                                                 "/org/openubmc/test_object_b", "org.openubmc.test_interface_b",
+                                                 "Increment", "", mc::variants{});
     ASSERT_EQ(result.as_int32(), 1);
 
     result = service_1->timeout_call(mc::milliseconds(CALL_TIMEOUT), "org.openubmc.test_service_2",
-                                     "/org/openubmc/test_object_b", "org.openubmc.test_interface_b",
-                                     "Increment", "", mc::variants{});
+                                     "/org/openubmc/test_object_b", "org.openubmc.test_interface_b", "Increment", "",
+                                     mc::variants{});
     ASSERT_EQ(result.as_int32(), 2);
 
-    auto opt =
-        service_1->shm_timeout_call(mc::milliseconds(CALL_TIMEOUT), "org.openubmc.test_service_2",
-                                    "/org/openubmc/test_object_b", "org.openubmc.test_interface_b",
-                                    "Increment", "", mc::variants{});
+    auto opt = service_1->shm_timeout_call(mc::milliseconds(CALL_TIMEOUT), "org.openubmc.test_service_2",
+                                           "/org/openubmc/test_object_b", "org.openubmc.test_interface_b", "Increment",
+                                           "", mc::variants{});
     ASSERT_TRUE(opt.has_value());
     result = opt.value();
     ASSERT_EQ(result.as_int32(), 3);
 
-    result = mc::dbus::shm_tree::get_property("org.openubmc.test_service_2",
-                                              "/org/openubmc/test_object_b",
+    result = mc::dbus::shm_tree::get_property("org.openubmc.test_service_2", "/org/openubmc/test_object_b",
                                               "org.openubmc.test_interface_b", "Cnt");
     ASSERT_EQ(result.as_int32(), 3);
 }
 
 TEST_F(ShmCallTest, TestNumAndStr)
 {
-    mc::variant result =
-        service_2->timeout_call(mc::milliseconds(CALL_TIMEOUT), "org.openubmc.test_service_1",
-                                "/org/openubmc/test_object_a", "org.openubmc.test_interface_a",
-                                "GetNumAndStr", "", mc::variants{});
+    mc::variant result = service_2->timeout_call(mc::milliseconds(CALL_TIMEOUT), "org.openubmc.test_service_1",
+                                                 "/org/openubmc/test_object_a", "org.openubmc.test_interface_a",
+                                                 "GetNumAndStr", "", mc::variants{});
     ASSERT_EQ(result.get_type(), mc::type_id::array_type);
     auto arr = result.as_array();
     ASSERT_EQ(arr.size(), 2);
@@ -283,19 +275,18 @@ TEST_F(ShmCallTest, TestNumAndStr)
     ASSERT_EQ(arr[1].as_string(), "default");
 
     result = service_2->timeout_call(mc::milliseconds(CALL_TIMEOUT), "org.openubmc.test_service_1",
-                                     "/org/openubmc/test_object_a", "org.openubmc.test_interface_a",
-                                     "SetNum", "y", mc::variants{200});
+                                     "/org/openubmc/test_object_a", "org.openubmc.test_interface_a", "SetNum", "y",
+                                     mc::variants{200});
     ASSERT_TRUE(result.is_null());
 
     result = service_2->timeout_call(mc::milliseconds(CALL_TIMEOUT), "org.openubmc.test_service_1",
-                                     "/org/openubmc/test_object_a", "org.openubmc.test_interface_a",
-                                     "SetStr", "s", mc::variants{"new_str"});
+                                     "/org/openubmc/test_object_a", "org.openubmc.test_interface_a", "SetStr", "s",
+                                     mc::variants{"new_str"});
     ASSERT_TRUE(result.is_null());
 
-    auto opt =
-        service_2->shm_timeout_call(mc::milliseconds(CALL_TIMEOUT), "org.openubmc.test_service_1",
-                                    "/org/openubmc/test_object_a", "org.openubmc.test_interface_a",
-                                    "GetNumAndStr", "", mc::variants{});
+    auto opt = service_2->shm_timeout_call(mc::milliseconds(CALL_TIMEOUT), "org.openubmc.test_service_1",
+                                           "/org/openubmc/test_object_a", "org.openubmc.test_interface_a",
+                                           "GetNumAndStr", "", mc::variants{});
     ASSERT_TRUE(opt.has_value());
     result = opt.value();
     ASSERT_EQ(result.get_type(), mc::type_id::array_type);
@@ -304,22 +295,19 @@ TEST_F(ShmCallTest, TestNumAndStr)
     ASSERT_EQ(arr[0].as_uint8(), 200);
     ASSERT_EQ(arr[1].as_string(), "new_str");
 
-    result =
-        service_2->shm_timeout_call(mc::milliseconds(CALL_TIMEOUT), "org.openubmc.test_service_1",
-                                    "/org/openubmc/test_object_a", "org.openubmc.test_interface_a",
-                                    "SetNum", "y", mc::variants{69});
+    result = service_2->shm_timeout_call(mc::milliseconds(CALL_TIMEOUT), "org.openubmc.test_service_1",
+                                         "/org/openubmc/test_object_a", "org.openubmc.test_interface_a", "SetNum", "y",
+                                         mc::variants{69});
     ASSERT_TRUE(result.is_null());
 
-    result =
-        service_2->shm_timeout_call(mc::milliseconds(CALL_TIMEOUT), "org.openubmc.test_service_1",
-                                    "/org/openubmc/test_object_a", "org.openubmc.test_interface_a",
-                                    "SetStr", "s", mc::variants{"new_str_2"});
+    result = service_2->shm_timeout_call(mc::milliseconds(CALL_TIMEOUT), "org.openubmc.test_service_1",
+                                         "/org/openubmc/test_object_a", "org.openubmc.test_interface_a", "SetStr", "s",
+                                         mc::variants{"new_str_2"});
     ASSERT_TRUE(result.is_null());
 
-    opt =
-        service_2->shm_timeout_call(mc::milliseconds(CALL_TIMEOUT), "org.openubmc.test_service_1",
-                                    "/org/openubmc/test_object_a", "org.openubmc.test_interface_a",
-                                    "GetNumAndStr", "", mc::variants{});
+    opt = service_2->shm_timeout_call(mc::milliseconds(CALL_TIMEOUT), "org.openubmc.test_service_1",
+                                      "/org/openubmc/test_object_a", "org.openubmc.test_interface_a", "GetNumAndStr",
+                                      "", mc::variants{});
     ASSERT_TRUE(opt.has_value());
     result = opt.value();
     ASSERT_EQ(result.get_type(), mc::type_id::array_type);
@@ -328,34 +316,30 @@ TEST_F(ShmCallTest, TestNumAndStr)
     ASSERT_EQ(arr[0].as_uint8(), 69);
     ASSERT_EQ(arr[1].as_string(), "new_str_2");
 
-    result = mc::dbus::shm_tree::get_property("org.openubmc.test_service_1",
-                                              "/org/openubmc/test_object_a",
+    result = mc::dbus::shm_tree::get_property("org.openubmc.test_service_1", "/org/openubmc/test_object_a",
                                               "org.openubmc.test_interface_a", "Num");
     ASSERT_EQ(result.as_uint8(), 69);
 
-    result = mc::dbus::shm_tree::get_property("org.openubmc.test_service_1",
-                                              "/org/openubmc/test_object_a",
+    result = mc::dbus::shm_tree::get_property("org.openubmc.test_service_1", "/org/openubmc/test_object_a",
                                               "org.openubmc.test_interface_a", "Str");
     ASSERT_EQ(result.as_string(), "new_str_2");
 }
 
 TEST_F(ShmCallTest, TestAdd)
 {
-    mc::variant result =
-        service_2->timeout_call(mc::milliseconds(CALL_TIMEOUT), "org.openubmc.test_service_1",
-                                "/org/openubmc/test_object_a", "org.openubmc.test_interface_a",
-                                "Add", "ii", mc::variants{1, 2});
+    mc::variant result = service_2->timeout_call(mc::milliseconds(CALL_TIMEOUT), "org.openubmc.test_service_1",
+                                                 "/org/openubmc/test_object_a", "org.openubmc.test_interface_a", "Add",
+                                                 "ii", mc::variants{1, 2});
     ASSERT_EQ(result.as_int32(), 3);
 
     result = service_2->timeout_call(mc::milliseconds(CALL_TIMEOUT), "org.openubmc.test_service_1",
-                                     "/org/openubmc/test_object_a", "org.openubmc.test_interface_a",
-                                     "Add", "ii", mc::variants{77, 23});
+                                     "/org/openubmc/test_object_a", "org.openubmc.test_interface_a", "Add", "ii",
+                                     mc::variants{77, 23});
     ASSERT_EQ(result.as_int32(), 100);
 
-    auto opt =
-        service_2->shm_timeout_call(mc::milliseconds(CALL_TIMEOUT), "org.openubmc.test_service_1",
-                                    "/org/openubmc/test_object_a", "org.openubmc.test_interface_a",
-                                    "Add", "ii", mc::variants{89, 23});
+    auto opt = service_2->shm_timeout_call(mc::milliseconds(CALL_TIMEOUT), "org.openubmc.test_service_1",
+                                           "/org/openubmc/test_object_a", "org.openubmc.test_interface_a", "Add", "ii",
+                                           mc::variants{89, 23});
     ASSERT_EQ(opt.has_value(), true);
     result = opt.value();
     ASSERT_EQ(result.as_int32(), 112);
@@ -363,8 +347,8 @@ TEST_F(ShmCallTest, TestAdd)
 
 TEST_F(ShmCallTest, TestSubscribePropertiesChanged)
 {
-    mc::dbus::match_rule rule = mc::dbus::match_rule::new_signal(
-        mc::dbus::PROPERTIES_CHANGED_MEMBER, mc::dbus::DBUS_PROPERTIES_INTERFACE);
+    mc::dbus::match_rule rule =
+        mc::dbus::match_rule::new_signal(mc::dbus::PROPERTIES_CHANGED_MEMBER, mc::dbus::DBUS_PROPERTIES_INTERFACE);
     rule.with_path("/org/openubmc/test_object_a");
     mc::dbus::message msg;
     service_2->add_match(rule, [&msg](mc::dbus::message& signal_msg) {

@@ -51,8 +51,7 @@ bool plugin_manager::register_plugin(std::shared_ptr<plugin> plugin)
         return false;
     }
 
-    dlog("register plugin '${name}', version '${version}'",
-         ("name", name)("version", info.version));
+    dlog("register plugin '${name}', version '${version}'", ("name", name)("version", info.version));
     m_plugins[name] = std::move(plugin);
     return true;
 }
@@ -210,8 +209,7 @@ bool plugin_manager::load_dynamic_library(const std::string& plugin_name, void*&
     // 加载动态库
     handle = dlopen(lib_path.c_str(), RTLD_LAZY | RTLD_LOCAL);
     if (!handle) {
-        elog("load dynamic library failed: ${path}, error: ${error}",
-             ("path", lib_path)("error", dlerror()));
+        elog("load dynamic library failed: ${path}, error: ${error}", ("path", lib_path)("error", dlerror()));
         return false;
     }
 

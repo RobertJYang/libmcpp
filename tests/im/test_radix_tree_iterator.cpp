@@ -27,14 +27,10 @@ struct test_value {
     std::string text;
     int         number;
 
-    test_value()
-        : text(), number(0)
-    {
-    }
-    test_value(const std::string& t, int n)
-        : text(t), number(n)
-    {
-    }
+    test_value() : text(), number(0)
+    {}
+    test_value(const std::string& t, int n) : text(t), number(n)
+    {}
 
     bool operator==(const test_value& other) const
     {
@@ -462,8 +458,7 @@ TEST(RadixTreeIteratorTest, ComplexLowerBound)
         ASSERT_NE(it, tree.end());
 
         // 验证后续元素
-        std::vector<std::string> expected_keys   = {"abcde", "abcde1", "abcde2",
-                                                    "abcdef", "abcdefg", "abcdefgh"};
+        std::vector<std::string> expected_keys   = {"abcde", "abcde1", "abcde2", "abcdef", "abcdefg", "abcdefgh"};
         std::vector<int>         expected_values = {9, 10, 11, 6, 7, 8};
 
         for (size_t i = 0; i < expected_keys.size(); ++i) {
@@ -610,8 +605,7 @@ TEST(RadixTreeIteratorTest, ComplexUpperBound)
         ASSERT_NE(it, tree.end());
 
         // 验证后续元素
-        std::vector<std::string> expected_keys   = {"abcde1", "abcde2", "abcdef", "abcdefg",
-                                                    "abcdefgh"};
+        std::vector<std::string> expected_keys   = {"abcde1", "abcde2", "abcdef", "abcdefg", "abcdefgh"};
         std::vector<int>         expected_values = {10, 11, 6, 7, 8};
 
         for (size_t i = 0; i < expected_keys.size(); ++i) {

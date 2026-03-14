@@ -37,8 +37,7 @@ void error_engine::reset_for_test()
 struct error_info_data {
     error_info_data(std::string name, std::string format, error_level level)
         : name(std::move(name)), format(std::move(format)), level(level)
-    {
-    }
+    {}
 
     std::string name;
     std::string format;
@@ -59,22 +58,18 @@ struct error_engine::error_engine_impl {
 
 thread_local error_ptr error_engine::error_engine_impl::s_last_error;
 
-error_engine::error_engine()
-    : m_impl(std::make_unique<error_engine_impl>())
-{
-}
+error_engine::error_engine() : m_impl(std::make_unique<error_engine_impl>())
+{}
 
 error_engine::~error_engine()
-{
-}
+{}
 
 error_info error_engine::register_const_error(const error_info& info)
 {
     return register_const_error(info.name, info.format, info.level);
 }
 
-error_info error_engine::register_const_error(std::string_view name, std::string_view format,
-                                              error_level level)
+error_info error_engine::register_const_error(std::string_view name, std::string_view format, error_level level)
 {
     std::lock_guard lock(m_impl->m_mutex);
 
@@ -121,8 +116,7 @@ error_ptr error_engine::report_error(std::string_view name, mc::dict args)
         std::lock_guard lock(m_impl->m_mutex);
 
         auto it = m_impl->m_errors.find(name);
-        MC_ASSERT(it != m_impl->m_errors.end(), "error name ${name} not registered",
-                  ("name", name));
+        MC_ASSERT(it != m_impl->m_errors.end(), "error name ${name} not registered", ("name", name));
         format = it->second.format;
         level  = it->second.level;
     }

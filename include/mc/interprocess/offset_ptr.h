@@ -38,10 +38,8 @@ public:
     /**
      * @brief 默认构造函数，创建空指针
      */
-    offset_ptr() noexcept
-        : m_offset(0), m_shm(nullptr)
-    {
-    }
+    offset_ptr() noexcept : m_offset(0), m_shm(nullptr)
+    {}
 
     /**
      * @brief 从共享内存和真实指针构造
@@ -131,8 +129,7 @@ private:
 
 // offset_ptr模板类的实现
 template <typename T>
-offset_ptr<T>::offset_ptr(const shared_memory* shm, T* ptr) noexcept
-    : m_offset(0), m_shm(shm)
+offset_ptr<T>::offset_ptr(const shared_memory* shm, T* ptr) noexcept : m_offset(0), m_shm(shm)
 {
     if (shm && ptr) {
         m_offset = shm->get_offset(ptr);
@@ -140,10 +137,8 @@ offset_ptr<T>::offset_ptr(const shared_memory* shm, T* ptr) noexcept
 }
 
 template <typename T>
-offset_ptr<T>::offset_ptr(const shared_memory* shm, size_t offset) noexcept
-    : m_offset(offset), m_shm(shm)
-{
-}
+offset_ptr<T>::offset_ptr(const shared_memory* shm, size_t offset) noexcept : m_offset(offset), m_shm(shm)
+{}
 
 template <typename T>
 T& offset_ptr<T>::operator*() const

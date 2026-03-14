@@ -36,8 +36,7 @@ struct property_info {
     bool is_volatile() const
     {
         auto it = options.find("volatile");
-        return it != options.end() &&
-               (it->second == "true" || it->second == "1");
+        return it != options.end() && (it->second == "true" || it->second == "1");
     }
 };
 

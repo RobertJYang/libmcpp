@@ -182,10 +182,9 @@ TEST_F(LogInterfaceTest, debug_log_easy_all_levels)
     const auto& messages = m_memory_appender->get_messages();
     ASSERT_EQ(messages.size(), 7);
 
-    const mc::log::level levels[] = {
-        mc::log::level::trace, mc::log::level::debug, mc::log::level::info,
-        mc::log::level::notice, mc::log::level::warn, mc::log::level::error,
-        mc::log::level::fatal};
+    const mc::log::level levels[] = {mc::log::level::trace,  mc::log::level::debug, mc::log::level::info,
+                                     mc::log::level::notice, mc::log::level::warn,  mc::log::level::error,
+                                     mc::log::level::fatal};
 
     for (size_t i = 0; i < 7; ++i) {
         EXPECT_EQ(messages[i].get_level(), levels[i]);
