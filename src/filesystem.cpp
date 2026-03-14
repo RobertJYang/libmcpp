@@ -340,8 +340,15 @@ path join(const std::vector<path>& paths)
 
 std::optional<std::string> read_file(const path& p)
 {
+    if (p.empty()) {
+        return std::nullopt;
+    }
     try {
-        std::ifstream file(p, std::ios::binary);
+        path normalized_p = normalize(p);
+        if (!fs::is_regular_file(normalized_p)) {
+            return std::nullopt;
+        }
+        std::ifstream file(normalized_p, std::ios::binary);
         if (!file) {
             return std::nullopt;
         }
@@ -355,8 +362,12 @@ std::optional<std::string> read_file(const path& p)
 
 bool write_file(const path& p, const std::string& content)
 {
+    if (p.empty()) {
+        return false;
+    }
     try {
-        std::ofstream file(p, std::ios::binary);
+        path normalized_p = normalize(p);
+        std::ofstream file(normalized_p, std::ios::binary);
         if (!file) {
             return false;
         }
@@ -369,8 +380,12 @@ bool write_file(const path& p, const std::string& content)
 
 bool append_file(const path& p, const std::string& content)
 {
+    if (p.empty()) {
+        return false;
+    }
     try {
-        std::ofstream file(p, std::ios::binary | std::ios::app);
+        path normalized_p = normalize(p);
+        std::ofstream file(normalized_p, std::ios::binary | std::ios::app);
         if (!file) {
             return false;
         }

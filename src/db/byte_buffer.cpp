@@ -11,6 +11,7 @@
  */
 
 #include <mc/db/byte_buffer.h>
+#include <mc/exception.h>
 #include "securec.h"
 #include <algorithm>
 
@@ -126,10 +127,14 @@ void byte_buffer::truncate(size_t n)
 void byte_buffer::write(const uint8_t* p, size_t size)
 {
     size_t old_size = grow_internal(size);
+    errno_t ret;
     if (m_using_bootstrap) {
-        (void)memcpy_s(m_bootstrap + old_size, sizeof(m_bootstrap) - old_size, p, size);
+        ret = memcpy_s(m_bootstrap + old_size, sizeof(m_bootstrap) - old_size, p, size);
     } else {
-        (void)memcpy_s(m_buf.data() + old_size, m_buf.size() - old_size, p, size);
+        ret = memcpy_s(m_buf.data() + old_size, m_buf.size() - old_size, p, size);
+    }
+    if (ret != EOK) {
+        MC_THROW(mc::runtime_exception, "memcpy_s failed with error code ${code}", ("code", ret));
     }
 }
 

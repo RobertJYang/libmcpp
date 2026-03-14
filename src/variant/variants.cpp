@@ -14,6 +14,7 @@
 
 #include <mc/array.h>
 #include <mc/dict.h>
+#include <mc/exception.h>
 #include <mc/variant/variant_base.h>
 #include <mc/variant/variant_common.h>
 #include <mc/variant/variant_reference.h>
@@ -381,13 +382,13 @@ variants_iterator variants_iterator::operator--(int)
 
 variants_iterator& variants_iterator::operator+=(difference_type n)
 {
-    m_index += n;
+    m_index = static_cast<size_t>(static_cast<difference_type>(m_index) + n);
     return *this;
 }
 
 variants_iterator& variants_iterator::operator-=(difference_type n)
 {
-    m_index -= n;
+    m_index = static_cast<size_t>(static_cast<difference_type>(m_index) - n);
     return *this;
 }
 
@@ -496,13 +497,13 @@ variants_const_iterator variants_const_iterator::operator--(int)
 
 variants_const_iterator& variants_const_iterator::operator+=(difference_type n)
 {
-    m_index += n;
+    m_index = static_cast<size_t>(static_cast<difference_type>(m_index) + n);
     return *this;
 }
 
 variants_const_iterator& variants_const_iterator::operator-=(difference_type n)
 {
-    m_index -= n;
+    m_index = static_cast<size_t>(static_cast<difference_type>(m_index) - n);
     return *this;
 }
 
@@ -608,8 +609,8 @@ variants_iterator variants::erase(variants_const_iterator pos)
     if (!m_data) {
         throw_runtime_error("variants is empty");
     }
-    size_t index = pos - begin();
-    m_data->do_erase(index);
+    variants_const_iterator::difference_type index = pos - begin();
+    m_data->do_erase(static_cast<size_t>(index));
     return begin() + index;
 }
 
@@ -618,9 +619,9 @@ variants_iterator variants::erase(variants_const_iterator first, variants_const_
     if (!m_data) {
         throw_runtime_error("variants is empty");
     }
-    size_t first_index = first - begin();
-    size_t last_index  = last - begin();
-    m_data->do_erase(first_index, last_index);
+    variants_const_iterator::difference_type first_index = first - begin();
+    variants_const_iterator::difference_type last_index  = last - begin();
+    m_data->do_erase(static_cast<size_t>(first_index), static_cast<size_t>(last_index));
     return begin() + first_index;
 }
 

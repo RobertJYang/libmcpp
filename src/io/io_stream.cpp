@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <limits>
 #include <mc/io/io_stream.h>
+#include <mc/exception.h>
 #include "securec.h"
 
 namespace mc {
@@ -166,7 +167,7 @@ std::size_t io_stream::seek_write(std::int64_t pos, seek_mode mode)
 
     // 检查边界
     if (new_pos < 0) {
-        auto head_size = std::abs(new_pos);
+        const std::size_t head_size = static_cast<std::size_t>(std::abs(new_pos));
         if (m_buffer->headroom() < head_size) {
             m_buffer->reserve(head_size, 0);
         }
@@ -292,7 +293,10 @@ std::size_t io_stream::align(std::size_t alignment)
             m_buffer->reserve(m_buffer->headroom(), padding);
         }
 
-        (void)memset_s(m_buffer->mutable_data() + m_write_pos, m_buffer->tailroom(), 0, padding);
+        errno_t ret = memset_s(m_buffer->mutable_data() + m_write_pos, m_buffer->tailroom(), 0, padding);
+        if (ret != EOK) {
+            MC_THROW(mc::runtime_exception, "memset_s failed with error code ${code}", ("code", ret));
+        }
         m_write_pos += padding;
     }
 

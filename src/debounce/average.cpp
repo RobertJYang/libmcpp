@@ -30,11 +30,12 @@ std::optional<int> Average::get_debounce_val(int raw_val)
     }
     m_data.push_back(new_val);
     // 如果窗口超过指定大小，移除最旧的数据
-    if (m_data.size() > m_size) {
+    const std::size_t window_size = static_cast<std::size_t>(m_size);
+    if (m_data.size() > window_size) {
         m_data.pop_front();
     }
 
-    if (m_data.size() < m_size) {
+    if (m_data.size() < window_size) {
         return std::nullopt;
     }
     int dbd_val;

@@ -11,6 +11,7 @@
  */
 
 #include <mc/log/appenders/socket_client.h>
+#include <mc/exception.h>
 
 #include <cerrno>
 #include <cstdint>
@@ -74,7 +75,10 @@ bool unix_socket::connect(std::string_view path)
 
     sockaddr_un addr{};
     addr.sun_family = AF_UNIX;
-    (void)memcpy_s(addr.sun_path, sizeof(addr.sun_path), path.data(), path.size());
+    errno_t ret = memcpy_s(addr.sun_path, sizeof(addr.sun_path), path.data(), path.size());
+    if (ret != EOK) {
+        MC_THROW(mc::runtime_exception, "memcpy_s failed with error code ${code}", ("code", ret));
+    }
     addr.sun_path[path.size()] = '\0';
 
     if (::connect(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(sockaddr_un)) != 0) {
