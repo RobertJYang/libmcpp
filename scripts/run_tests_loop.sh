@@ -83,6 +83,12 @@ handle_sigint() {
 
 trap handle_sigint INT TERM
 
+old_umask=$(umask)
+umask 0077
+bt_tmpdir=$(mktemp -d)
+umask "${old_umask}"
+trap '[[ -n "${bt_tmpdir:-}" && -d "${bt_tmpdir}" ]] && rm -rf "${bt_tmpdir}"' EXIT
+
 while [[ $# -gt 0 ]]; do
     case $1 in
         -n|--no-build)
@@ -234,7 +240,10 @@ for iteration in $(seq 1 ${MAX_ITERATIONS}); do
     
     # 创建 GDB 命令脚本
     # 使用 continue 让程序运行直到退出，并捕获所有信号
-    gdb_script=$(mktemp)
+    old_umask=$(umask)
+    umask 0077
+    gdb_script=$(mktemp -p "${bt_tmpdir}")
+    umask "${old_umask}"
     cat > "${gdb_script}" << GDBEOF
 set confirm off
 set pagination off
@@ -489,7 +498,10 @@ GDBEOF
                 echo "找到测试进程 PID: ${test_pid}"
                 
                 # 创建 GDB 命令来获取 backtrace
-                bt_script=$(mktemp)
+                old_umask=$(umask)
+                umask 0077
+                bt_script=$(mktemp -p "${bt_tmpdir}")
+                umask "${old_umask}"
                 cat > "${bt_script}" << BTEOF
 set confirm off
 set pagination off
@@ -560,8 +572,7 @@ BTEOF
                     } > "${bt_log}" 2>&1 || true
                     rm -f "${bt_log}.tmp"
                 fi
-                rm -f "${bt_script}"
-                
+
                 # 如果进程还在运行，终止它
                 if kill -0 ${test_pid} 2>/dev/null; then
                     echo "终止测试进程..."
@@ -603,10 +614,7 @@ BTEOF
             fi
         fi
     }
-    
-    # 清理临时文件
-    rm -f "${gdb_script}"
-    
+
     if [ "${test_failed}" = false ]; then
         # 测试成功，删除所有相关日志，避免重复占用空间
         rm -f "${test_log}" "${gdb_log}" "${bt_log}" "${full_log}"
