@@ -53,6 +53,11 @@ void test_shared_memory_long_running()
     ilog("程序正在运行中，按Ctrl+C终止...");
     int counter = 0;
     while (g_running && counter < 60) {
+        if (g_signal_received) {
+            g_running = false;
+            ilog("接收到终止信号，正在清理资源...");
+            break;
+        }
         std::this_thread::sleep_for(std::chrono::seconds(1));
         counter++;
         if (counter % 5 == 0) {

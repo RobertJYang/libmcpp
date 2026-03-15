@@ -59,6 +59,7 @@ enum class TestType {
 
 // 信号处理函数变量声明
 extern std::atomic<bool> g_running;
+extern volatile sig_atomic_t g_signal_received;
 extern void              signal_handler(int signum);
 
 // 共享内存辅助函数声明

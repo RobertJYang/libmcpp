@@ -389,7 +389,11 @@ public:
 
         ~write_length_guard()
         {
-            fire();
+            try {
+                fire();
+            } catch (...) {
+                // 不应在析构函数中抛出异常
+            }
         }
 
         /**

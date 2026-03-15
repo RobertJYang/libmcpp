@@ -98,7 +98,7 @@ public:
 
 protected:
     std::string& m_output;
-    std::tm      m_tm;
+    std::tm      m_tm{};  // 显式零初始化
     bool         m_tm_valid = false;
     std::time_t  m_time_t   = 0;
 
