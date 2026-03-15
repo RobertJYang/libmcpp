@@ -17,7 +17,7 @@
 
 namespace mc::db {
 
-byte_buffer::byte_buffer() : m_size(0), m_capacity(64), m_using_bootstrap(true)
+byte_buffer::byte_buffer() : m_bootstrap{}, m_size(0), m_capacity(64), m_using_bootstrap(true)
 {}
 
 void byte_buffer::reset()
