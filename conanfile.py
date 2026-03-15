@@ -10,6 +10,18 @@ required_conan_version = ">=2.13.0"
 class AppConan(ConanBase):
     language = "c++"
     generators = "CMakeDeps", "VirtualBuildEnv", "PkgConfigDeps"
+    options = {
+        "asan": [True, False],
+        "gcov": [True, False],
+        "test": [True, False],
+        "enable_luajit": [True, False],
+    }
+    default_options = {
+        "asan": False,
+        "gcov": False,
+        "test": False,
+        "enable_luajit": False,
+    }
 
 # 基于meson构建的基类，适用于libmcpp项目
     def layout(self):
