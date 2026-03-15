@@ -278,6 +278,9 @@ public:
     friend inline void from_variant(const mc::variant& v, property_type& value)
     {
         if (!v.is_string()) {
+            if (value.has_extension_data() && value.m_extension_data->setter) {
+                value.m_extension_data->setter(v);
+            }
             value.set_value_impl(v.as<T>());
             return;
         }
@@ -290,6 +293,9 @@ public:
         }
 
         // 如果没有匹配的处理器，按普通值处理
+        if (value.has_extension_data() && value.m_extension_data->setter) {
+            value.m_extension_data->setter(v);
+        }
         value.set_value_impl(v.as<T>());
     }
 

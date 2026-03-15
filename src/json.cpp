@@ -14,6 +14,7 @@
  * @file json.cpp
  * @brief 实现JSON编解码功能
  */
+#include <cstdint>
 #include <iomanip>
 #include <mc/dict.h>
 #include <mc/exception.h>
@@ -398,18 +399,19 @@ public:
         }
 
         try {
-            int code_point = std::stoi(hex, nullptr, 16);
-            if (code_point <= 0x7F) {
-                result += static_cast<char>(code_point);
-            } else if (code_point <= 0x7FF) {
-                result += static_cast<char>(0xC0 | (code_point >> 6));
-                result += static_cast<char>(0x80 | (code_point & 0x3F));
-            } else if (code_point <= 0xFFFF) {
-                result += static_cast<char>(0xE0 | (code_point >> 12));
-                result += static_cast<char>(0x80 | ((code_point >> 6) & 0x3F));
-                result += static_cast<char>(0x80 | (code_point & 0x3F));
-            } else {
+            uint32_t code_point = static_cast<uint32_t>(std::stoul(hex, nullptr, 16));
+            if (code_point > 0xFFFFu) {
                 MC_THROW(mc::parse_error_exception, "Unsupported Unicode character");
+            }
+            if (code_point <= 0x7Fu) {
+                result += static_cast<char>(code_point);
+            } else if (code_point <= 0x7FFu) {
+                result += static_cast<char>(0xC0u | (code_point >> 6u));
+                result += static_cast<char>(0x80u | (code_point & 0x3Fu));
+            } else {
+                result += static_cast<char>(0xE0u | (code_point >> 12u));
+                result += static_cast<char>(0x80u | ((code_point >> 6u) & 0x3Fu));
+                result += static_cast<char>(0x80u | (code_point & 0x3Fu));
             }
             m_pos += 4;
         } catch (const std::exception&) {

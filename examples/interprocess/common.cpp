@@ -19,12 +19,13 @@
 // 全局变量
 std::atomic<bool> g_running{true};
 
+volatile sig_atomic_t g_signal_received = 0;
+
 // 信号处理函数，用于处理Ctrl+C
 void signal_handler(int signum)
 {
     if (signum == SIGINT || signum == SIGTERM) {
-        g_running = false;
-        ilog("接收到终止信号，正在清理资源...");
+        g_signal_received = 1;
     }
 }
 
