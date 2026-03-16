@@ -9,9 +9,9 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#include "securec.h"
 #include <mc/fmt/format.h>
 #include <mc/fmt/formatter_chrono.h>
+#include "securec.h"
 
 namespace mc::fmt::detail {
 
