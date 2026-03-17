@@ -354,9 +354,8 @@ static const method_type_info* find_method_info(context& ctx, abstract_object& o
 invoke_method_result service_impl::invoke_method(std::string_view path, std::string_view interface,
                                                  std::string_view method, const variants& args)
 {
-    auto& idx = m_object_table->get<by_path>();
-    auto  it  = idx.find(std::string(path));
-    if (it == idx.end()) {
+    auto it = m_object_table->find<by_path>(path);
+    if (it.is_end()) {
         MC_THROW(mc::exception, "failed to find object: ${path}", ("path", path));
     }
     auto& obj = const_cast<abstract_object&>(*it);
