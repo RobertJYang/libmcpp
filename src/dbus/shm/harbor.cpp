@@ -18,8 +18,8 @@
 #include <mc/runtime.h>
 #include <memory>
 #include <regex>
+#include <securec.h>
 #include <sys/file.h>
-#include "securec.h"
 
 #ifndef BUILD_TYPE_DEBUG
 #define BUILD_TYPE_DEBUG (0x0b)
@@ -83,6 +83,19 @@ static bool is_dbus_message(const std::string_view& data)
     return head == DBUS_LITTLE_ENDIAN || head == DBUS_BIG_ENDIAN;
 }
 
+static void free_message_data(message_data& msg)
+{
+    if (msg.ptr == nullptr) {
+        return;
+    }
+    if (msg.size < 0) {
+        dbus_message_unref(reinterpret_cast<DBusMessage*>(msg.ptr));
+    } else {
+        free(msg.ptr);
+    }
+    msg.ptr = nullptr;
+}
+
 void message_queue::dispatch(int timeout_ms, int max_read_count, std::function<void(message_data&)> handler)
 {
     if (!m_mutex.try_lock_for(std::chrono::milliseconds(100))) {
@@ -114,8 +127,8 @@ void message_queue::dispatch(int timeout_ms, int max_read_count, std::function<v
     if (!m_msg_queue.pop_front(f, timeout_ms, max_read_count, m_read_buf)) {
         return;
     }
-    for (auto& msg_data : m_messages) {
-        handler(msg_data);
+    for (size_t i = 0; i < m_messages.size(); ++i) {
+        handler(m_messages[i]);
     }
 }
 
@@ -326,11 +339,27 @@ void harbor::invoke_method(local_msg* msg)
 void harbor::process_message(message_data& msg_data)
 {
     if (msg_data.size < 0) {
-        process_dbus_message(reinterpret_cast<DBusMessage*>(msg_data.ptr));
+        try {
+            process_dbus_message(reinterpret_cast<DBusMessage*>(msg_data.ptr));
+        } catch (const std::exception& e) {
+            elog("process dbus message failed: ${error}", ("error", e.what()));
+        } catch (...) {
+            elog("process dbus message failed: unknown error");
+        }
+        msg_data.ptr = nullptr;
     } else {
-        auto unpacked = serialize::unpack(std::string_view(static_cast<char*>(msg_data.ptr), msg_data.size));
-        free(msg_data.ptr);
-        process_local_message(unpacked);
+        try {
+            auto unpacked = serialize::unpack(std::string_view(static_cast<char*>(msg_data.ptr), msg_data.size));
+            free(msg_data.ptr);
+            msg_data.ptr = nullptr;
+            process_local_message(unpacked);
+        } catch (const std::exception& e) {
+            elog("process local message failed: ${error}", ("error", e.what()));
+            free_message_data(msg_data);
+        } catch (...) {
+            elog("process local message failed: unknown error");
+            free_message_data(msg_data);
+        }
     }
 }
 
@@ -339,16 +368,22 @@ void harbor::process_dbus_message(DBusMessage* msg)
     int msg_type = dbus_message_get_type(msg);
     if (msg_type == DBUS_MESSAGE_TYPE_SIGNAL) {
         // 异步处理 signal 消息，避免阻塞 harbor 线程
-        dbus_message_ref(msg); // 增加引用计数，传递到异步任务
-        boost::asio::post(mc::get_work_context(), [this, msg]() mutable {
-            try {
-                auto& match = m_connection.get_match();
-                match.run_msg(msg);
-                dbus_message_unref(msg); // 在异步任务中释放引用
-            } catch (const std::exception& e) {
-                elog("failed to process signal, error: ${error}", ("error", e.what()));
-            }
-        });
+        dbus_message_ref(msg);
+        try {
+            boost::asio::post(mc::get_work_context(), [this, msg]() mutable {
+                try {
+                    auto& match = m_connection.get_match();
+                    match.run_msg(msg);
+                } catch (const std::exception& e) {
+                    elog("failed to process signal, error: ${error}", ("error", e.what()));
+                }
+                dbus_message_unref(msg);
+            });
+        } catch (...) {
+            // post 失败，lambda 不会执行，回退 async ref
+            dbus_message_unref(msg);
+            elog("failed to post signal to work context");
+        }
     } else {
         elog("invalid message type ${type} for shared memory queue", ("type", msg_type));
     }
@@ -428,9 +463,15 @@ void harbor::start()
     for (int i = 0; i < 3; ++i) {
         m_workers.emplace_back(std::make_unique<std::thread>([this]() {
             while (m_is_running) {
-                m_mq->dispatch(1000, 1000, [this](message_data& msg_data) {
-                    process_message(msg_data);
-                });
+                try {
+                    m_mq->dispatch(1000, 1000, [this](message_data& msg_data) {
+                        process_message(msg_data);
+                    });
+                } catch (const std::exception& e) {
+                    elog("harbor worker dispatch failed: ${error}", ("error", e.what()));
+                } catch (...) {
+                    elog("harbor worker dispatch failed: unknown error");
+                }
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
         }));

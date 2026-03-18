@@ -17,7 +17,6 @@
 #include <mc/reflect/metadata_info.h>
 #include <mc/runtime.h>
 
-#include <cstdlib>
 #include <cstring>
 #include <memory>
 #include <thread>
@@ -305,3 +304,64 @@ TEST_F(HarborTest, MockSharedMemoryGetHarborNameEmpty)
     EXPECT_EQ(harbor_name, "harbor.bmc.kepler.mock");
 }
 #endif
+
+// 验证 handler 内部 catch 异常后线程不会 abort，模拟 process_message 的行为
+TEST_F(HarborTest, handler_self_catch_no_abort)
+{
+    auto& ins       = shm::shared_memory::get_instance();
+    auto* tree      = ins.get_tree("harbor.catch.test");
+    auto& queue_raw = tree->create_message_queue(ins, 1024);
+
+    queue_raw.push_back("trigger", 100);
+
+    message_queue     mq(queue_raw);
+    std::atomic<bool> thread_survived{false};
+    std::atomic<bool> exception_caught{false};
+
+    std::thread worker([&]() {
+        mq.dispatch(100, 10, [&](message_data& msg_data) {
+            try {
+                throw std::runtime_error("模拟 process_message 中异常");
+            } catch (const std::exception&) {
+                exception_caught = true;
+                free(msg_data.ptr);
+                msg_data.ptr = nullptr;
+            }
+        });
+        thread_survived = true;
+    });
+    worker.join();
+
+    EXPECT_TRUE(thread_survived) << "handler 内部 catch 后线程不应 abort";
+    EXPECT_TRUE(exception_caught) << "handler 应捕获到异常";
+}
+
+// 验证 handler 内部 catch 后 dispatch 继续处理后续消息
+TEST_F(HarborTest, dispatch_continues_when_handler_catches_internally)
+{
+    auto& ins       = shm::shared_memory::get_instance();
+    auto* tree      = ins.get_tree("harbor.continue.test");
+    auto& queue_raw = tree->create_message_queue(ins, 1024);
+
+    queue_raw.push_back("msg1", 100);
+    queue_raw.push_back("msg2", 100);
+    queue_raw.push_back("msg3", 100);
+
+    message_queue    mq(queue_raw);
+    std::atomic<int> handler_call_count{0};
+
+    mq.dispatch(100, 10, [&](message_data& msg_data) {
+        int count = ++handler_call_count;
+        try {
+            if (count == 1) {
+                throw std::runtime_error("第一条消息处理失败");
+            }
+        } catch (const std::exception&) {
+            // 模拟 process_message: 内部 catch 并清理资源
+        }
+        free(msg_data.ptr);
+        msg_data.ptr = nullptr;
+    });
+
+    EXPECT_EQ(handler_call_count, 3) << "handler 内部 catch 后 dispatch 应继续处理后续消息";
+}
