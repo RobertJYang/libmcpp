@@ -421,13 +421,21 @@ public:
     bool pop_front(std::function<void(const std::string_view&, int)> handler, int timeout_ms, int max_read_count,
                    std::string& read_buf)
     {
+        for (auto& data : m_test_data) {
+            handler(data, 0);
+        }
+        m_test_data.clear();
         return true;
     }
 
     bool push_back(const std::string_view& data, int timeout_ms)
     {
+        m_test_data.emplace_back(data);
         return true;
     }
+
+private:
+    std::vector<std::string> m_test_data;
 };
 
 class property {
