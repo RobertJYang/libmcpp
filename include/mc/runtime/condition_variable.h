@@ -199,27 +199,21 @@ std::cv_status condition_variable::wait_until_on_worker(Lock& lock, thread_pool:
 
     lock.unlock();
 
-    // 使用定时器来触发超时
+    // timer 仅作为唤醒 io_context 的手段，handler 不捕获任何栈变量
     boost::asio::basic_waitable_timer<Clock> timer(shard->ctx->get_executor(), abs_time);
-    bool                                     timed_out = false;
-    timer.async_wait([&](const boost::system::error_code& ec) {
-        if (!ec) {
-            timed_out = true;
-        }
+    timer.async_wait([](const boost::system::error_code&) {
     });
 
     shard->pool.poll_until(shard, [&]() {
-        return node.notified.load(std::memory_order_acquire) || timed_out || Clock::now() >= abs_time;
+        return node.notified.load(std::memory_order_acquire) || Clock::now() >= abs_time;
     });
 
-    if (!node.notified.load(std::memory_order_acquire)) {
-        timed_out = true;
-    }
+    bool notified = node.notified.load(std::memory_order_acquire);
 
     timer.cancel();
     lock.lock();
     cleanup.remove();
-    return timed_out ? std::cv_status::timeout : std::cv_status::no_timeout;
+    return notified ? std::cv_status::no_timeout : std::cv_status::timeout;
 }
 
 template <typename Lock>
