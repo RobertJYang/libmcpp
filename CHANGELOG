@@ -1,0 +1,4 @@
+# Changelog
+All notable changes to this project will be documented in this file.
+## [1.2.64] - 2026-03-19
+修复自定义信号回调后提前返回，未写入共享内存问题

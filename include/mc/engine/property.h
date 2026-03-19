@@ -544,7 +544,6 @@ protected:
         mc::variant value(m_value);
         if (m_signal) {
             (*m_signal)(value, *this);
-            return;
         }
         if (has_extension_data() && m_extension_data->override_value) {
             mc::variant override_variant(*m_extension_data->override_value);
