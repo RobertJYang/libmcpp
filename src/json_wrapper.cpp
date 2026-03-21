@@ -730,13 +730,11 @@ template JsonValue& JsonValue::operator=(const std::vector<int>&);
 template JsonValue& JsonValue::operator=(const std::vector<unsigned int>&);
 template JsonValue& JsonValue::operator=(const std::vector<long>&);
 template JsonValue& JsonValue::operator=(const std::vector<unsigned long>&);
-template JsonValue& JsonValue::operator=(const std::vector<long long>&);
 template JsonValue& JsonValue::operator=(const std::vector<unsigned long long>&);
 template JsonValue::JsonValue(const std::vector<int>&);
 template JsonValue::JsonValue(const std::vector<unsigned int>&);
 template JsonValue::JsonValue(const std::vector<long>&);
 template JsonValue::JsonValue(const std::vector<unsigned long>&);
-template JsonValue::JsonValue(const std::vector<long long>&);
 template JsonValue::JsonValue(const std::vector<unsigned long long>&);
 
 JsonValue JsonValue::make_null()

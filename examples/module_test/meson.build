@@ -5,11 +5,7 @@ subdir('network')
 subdir('protocol')
 subdir('test/database')
 
-# 构建 include_directories 列表（使用根目录定义的 stubdir_global）
 example_inc_dirs = [incdir, include_directories('.')]
-if not enable_conan_compile
-  example_inc_dirs += [stubdir_global]
-endif
 
 executable(
     'module_test_example',

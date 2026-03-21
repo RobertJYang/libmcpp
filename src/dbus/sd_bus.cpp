@@ -107,7 +107,7 @@ std::optional<variants> sd_bus::shm_timeout_call(mc::milliseconds timeout, const
 
 variants sd_bus::timeout_call_impl(mc::milliseconds timeout, const method_call_params& params)
 {
-    if (m_is_blocking || m_service_name.empty()) {
+    if (m_is_blocking || m_service_name.empty() || !m_enable_local_request) {
         return dbus_call(timeout, params);
     }
     auto result = shm_timeout_call(timeout, params);

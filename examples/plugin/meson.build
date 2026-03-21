@@ -2,11 +2,7 @@
 
 dep_arr = [boost_dep, boost_program_options_dep, dbus_dep, glib_dep, libmcpp_dep]
 
-# 构建 include_directories 列表（使用根目录定义的 stubdir_global）
 example_inc_dirs = [incdir]
-if not enable_conan_compile
-  example_inc_dirs += [stubdir_global]
-endif
 
 # 创建插件示例可执行文件
 executable(

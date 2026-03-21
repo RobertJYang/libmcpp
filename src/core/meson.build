@@ -11,11 +11,7 @@ core_src_files = files(
   'timer.cpp',
 )
 
-# 构建 include_directories 列表（使用根目录定义的 stubdir_global）
 base_inc_dirs = [incdir, srcdir]
-if not enable_conan_compile
-  base_inc_dirs += [stubdir_global]
-endif
 
 libmcpp_core_lib = library(
   'mcpp_core',

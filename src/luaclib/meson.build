@@ -12,25 +12,16 @@ subdir('mdb')
 subdir('json')
 subdir('error')
 
-# 构建 include_directories 列表（使用根目录定义的 stubdir_global）
 base_inc_dirs1 = [incdir, srcdir]
-if not enable_conan_compile
-  base_inc_dirs1 += [stubdir_global]
-endif
 
 if lua_dep.found()
   # 获取可选的 libsomp 依赖
   libsomp_dep = dependency('libsomp', required: false)
-  # 获取可选的 securec 依赖
-  securec_dep = dependency('securec', required: false)
 
   # 基础依赖列表（仅用于编译时头文件）
   lua_base_deps = [mcbase_dep, dbus_dep, boost_dep, glib_dep, lua_dep]
   if libsomp_dep.found()
     lua_base_deps += [libsomp_dep]
-  endif
-  if securec_dep.found()
-    lua_base_deps += [securec_dep]
   endif
 
   # 编译 lutils.so 动态库（Lua C 模块）

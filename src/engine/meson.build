@@ -28,11 +28,7 @@ engine_src_files = files(
 engine_src_files += dbus_src_files
 engine_src_files += mdb_src_files
 
-# 构建 include_directories 列表（使用根目录定义的 stubdir_global）
 base_inc_dirs = [incdir, srcdir]
-if not enable_conan_compile
-  base_inc_dirs += [stubdir_global]
-endif
 
 libmcpp_engine_lib = library(
   'mcpp_engine',
