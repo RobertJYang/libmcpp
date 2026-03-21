@@ -15,7 +15,6 @@
 #include <cstdio>
 #include <dlfcn.h>
 #include <mc/filesystem.h>
-#include <mc/log/appender_factory.h>
 #include <mc/log/log_level.h>
 #include <mc/time.h>
 
@@ -264,16 +263,3 @@ std::string socket_appender::format_message(const message& msg) const
 
 } // namespace log
 } // namespace mc
-
-// 自动注册 socket_appender
-namespace {
-struct socket_appender_registrar {
-    socket_appender_registrar() {
-        auto& factory = mc::log::appender_factory::instance();
-        factory.register_creator("socket", []() {
-            return std::make_shared<mc::log::socket_appender>();
-        });
-    }
-};
-static socket_appender_registrar g_socket_appender_registrar;
-} // namespace

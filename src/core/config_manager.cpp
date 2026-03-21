@@ -17,6 +17,7 @@
 #include <mc/log.h>
 
 #include <fstream>
+#include <log/builtin_appenders.h>
 #include <sstream>
 
 namespace mc::core {
