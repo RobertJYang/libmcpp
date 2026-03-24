@@ -145,6 +145,23 @@ TEST_F(VariantComparisonTest, VariantToStringComparison)
     ASSERT_NE(v3, test_str) << "非字符串或blob类型的variant不应该与字符串相等";
 }
 
+TEST_F(VariantComparisonTest, StdStringLeftComparison)
+{
+    std::string test_str = "Hello, World!";
+    std::string lower    = "Alpha";
+    std::string upper    = "Zulu";
+    variant     value(test_str);
+    variant     non_string(42);
+
+    EXPECT_TRUE(test_str == value);
+    EXPECT_FALSE(test_str != value);
+    EXPECT_TRUE(test_str <= value);
+    EXPECT_TRUE(test_str >= value);
+    EXPECT_TRUE(lower < value);
+    EXPECT_TRUE(upper > value);
+    EXPECT_TRUE(test_str != non_string);
+}
+
 /**
  * @brief 测试variant与其他类型的比较（需类型和值都匹配）
  */
@@ -768,6 +785,65 @@ TEST_F(VariantComparisonTest, StringViewComparison)
     EXPECT_FALSE(v_str == empty_sv);
     EXPECT_TRUE(v_empty < sv1);
     EXPECT_TRUE(empty_sv < v_str);
+}
+
+TEST_F(VariantComparisonTest, StdStringViewComparison)
+{
+    std::string_view sv1 = "hello";
+    std::string_view sv2 = "world";
+    std::string_view sv3 = "abc";
+
+    variant v_str("hello");
+
+    EXPECT_TRUE(v_str == sv1);
+    EXPECT_FALSE(v_str == sv2);
+    EXPECT_TRUE(v_str != sv2);
+    EXPECT_TRUE(v_str < sv2);
+    EXPECT_TRUE(v_str <= sv1);
+    EXPECT_TRUE(v_str > sv3);
+    EXPECT_TRUE(v_str >= sv1);
+
+    EXPECT_TRUE(sv1 == v_str);
+    EXPECT_FALSE(sv2 == v_str);
+    EXPECT_TRUE(sv2 != v_str);
+    EXPECT_TRUE(sv2 > v_str);
+    EXPECT_TRUE(sv1 >= v_str);
+    EXPECT_TRUE(sv3 < v_str);
+    EXPECT_TRUE(sv1 <= v_str);
+
+    std::string_view empty_sv;
+    variant          v_empty("");
+
+    EXPECT_TRUE(v_empty == empty_sv);
+    EXPECT_TRUE(empty_sv == v_empty);
+    EXPECT_FALSE(v_str == empty_sv);
+    EXPECT_TRUE(v_empty < sv1);
+    EXPECT_TRUE(empty_sv < v_str);
+}
+
+TEST_F(VariantComparisonTest, StdStringBidirectionalComparisonPreservesEmbeddedNull)
+{
+    std::string      text("ab\0c", 4);
+    std::string      greater("ab\0d", 4);
+    std::string_view text_view(text.data(), text.size());
+    std::string_view greater_view(greater.data(), greater.size());
+    variant          value(text);
+    variant          greater_value(greater);
+
+    EXPECT_TRUE(value == text);
+    EXPECT_TRUE(text == value);
+    EXPECT_FALSE(value != text);
+    EXPECT_FALSE(text != value);
+
+    EXPECT_TRUE(value == text_view);
+    EXPECT_TRUE(text_view == value);
+    EXPECT_FALSE(value != text_view);
+    EXPECT_FALSE(text_view != value);
+
+    EXPECT_TRUE(value < greater);
+    EXPECT_TRUE(text < greater_value);
+    EXPECT_TRUE(value < greater_view);
+    EXPECT_TRUE(text_view < greater_value);
 }
 
 /**

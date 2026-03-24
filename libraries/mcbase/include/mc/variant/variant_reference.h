@@ -51,7 +51,7 @@ private:
     // 存储访问信息的结构
     struct extension_accessor {
         mc::shared_ptr<variant_extension_base> extension;
-        std::variant<std::size_t, mc::string> key;
+        std::variant<std::size_t, mc::string>  key;
         mutable std::optional<variant_type>    cached_value; // 缓存获取的值
 
         extension_accessor(mc::shared_ptr<variant_extension_base> ext, std::size_t idx)
@@ -231,8 +231,8 @@ public:
     uint64_t as_uint64() const;
 
     // 其他基础类型转换
-    bool        as_bool(bool strict = false) const;
-    double      as_double() const;
+    bool       as_bool(bool strict = false) const;
+    double     as_double() const;
     mc::string as_string() const;
 
     // 容器类型转换
@@ -246,19 +246,19 @@ public:
     typename variant_type::extension_ptr_type as_extension() const;
 
     // ========== getter 方法 ==========
-    mc::string_view                         get_string() const;
+    mc::string_view                          get_string() const;
     const typename variant_type::blob_type&  get_blob() const;
     const typename variant_type::array_type& get_array() const;
     const mc::dict&                          get_object() const;
 
     // ========== 其他常用方法 ==========
     mc::string_view get_type_name() const;
-    type_id          get_type() const;
-    bool             contains(mc::string_view key) const;
-    std::size_t      size() const;
-    size_t           hash() const;
-    variant_type     deep_copy(mc::detail::copy_context* ctx = nullptr) const;
-    void             clear();
+    type_id         get_type() const;
+    bool            contains(mc::string_view key) const;
+    std::size_t     size() const;
+    size_t          hash() const;
+    variant_type    deep_copy(mc::detail::copy_context* ctx = nullptr) const;
+    void            clear();
 
     // ========== 算术操作符 ==========
 
@@ -289,7 +289,10 @@ public:
     variant_type operator%(T other) const;
 
     // 字符串拼接
+    variant_type operator+(const mc::string& other) const;
     variant_type operator+(mc::string_view other) const;
+    variant_type operator+(std::string_view other) const;
+    variant_type operator+(const std::string& other) const;
     variant_type operator+(const char* other) const;
 
     // ========== 位操作符 ==========
@@ -370,7 +373,10 @@ public:
     variant_reference& operator>>=(const T& other);
 
     // 字符串拼接复合赋值
+    variant_reference& operator+=(const mc::string& other);
     variant_reference& operator+=(mc::string_view other);
+    variant_reference& operator+=(std::string_view other);
+    variant_reference& operator+=(const std::string& other);
     variant_reference& operator+=(const char* other);
 
     // ========== 自增自减操作符 ==========
@@ -553,9 +559,24 @@ inline typename variant_reference::variant_type variant_reference::operator%(T o
     return get() % other;
 }
 
+inline typename variant_reference::variant_type variant_reference::operator+(const mc::string& other) const
+{
+    return get() + mc::string_view(other);
+}
+
 inline typename variant_reference::variant_type variant_reference::operator+(mc::string_view other) const
 {
     return get() + other;
+}
+
+inline typename variant_reference::variant_type variant_reference::operator+(std::string_view other) const
+{
+    return get() + mc::string_view(other);
+}
+
+inline typename variant_reference::variant_type variant_reference::operator+(const std::string& other) const
+{
+    return get() + mc::string_view(other.data(), other.size());
 }
 
 inline typename variant_reference::variant_type variant_reference::operator+(const char* other) const
@@ -842,9 +863,27 @@ inline variant_reference& variant_reference::operator>>=(const T& other)
     return *this;
 }
 
+inline variant_reference& variant_reference::operator+=(const mc::string& other)
+{
+    *this = get() + mc::string_view(other);
+    return *this;
+}
+
 inline variant_reference& variant_reference::operator+=(mc::string_view other)
 {
     *this = get() + other;
+    return *this;
+}
+
+inline variant_reference& variant_reference::operator+=(std::string_view other)
+{
+    *this = get() + mc::string_view(other);
+    return *this;
+}
+
+inline variant_reference& variant_reference::operator+=(const std::string& other)
+{
+    *this = get() + mc::string_view(other.data(), other.size());
     return *this;
 }
 
@@ -1610,9 +1649,21 @@ inline bool operator>=(const variant_base& lhs, const variant_reference& rhs)
 }
 
 // 字符串拼接：string_view op variant_reference
+inline variant_base operator+(const mc::string& lhs, const variant_reference& rhs)
+{
+    return mc::string_view(lhs) + rhs.get();
+}
 inline variant_base operator+(mc::string_view lhs, const variant_reference& rhs)
 {
     return lhs + rhs.get();
+}
+inline variant_base operator+(std::string_view lhs, const variant_reference& rhs)
+{
+    return mc::string_view(lhs) + rhs.get();
+}
+inline variant_base operator+(const std::string& lhs, const variant_reference& rhs)
+{
+    return mc::string_view(lhs.data(), lhs.size()) + rhs.get();
 }
 inline variant_base operator+(const char* lhs, const variant_reference& rhs)
 {
@@ -1687,6 +1738,31 @@ inline bool operator<=(const mc::string& lhs, const variant_reference& rhs)
     return lhs <= rhs.get();
 }
 inline bool operator>=(const mc::string& lhs, const variant_reference& rhs)
+{
+    return lhs >= rhs.get();
+}
+
+inline bool operator==(const std::string& lhs, const variant_reference& rhs)
+{
+    return lhs == rhs.get();
+}
+inline bool operator!=(const std::string& lhs, const variant_reference& rhs)
+{
+    return lhs != rhs.get();
+}
+inline bool operator<(const std::string& lhs, const variant_reference& rhs)
+{
+    return lhs < rhs.get();
+}
+inline bool operator>(const std::string& lhs, const variant_reference& rhs)
+{
+    return lhs > rhs.get();
+}
+inline bool operator<=(const std::string& lhs, const variant_reference& rhs)
+{
+    return lhs <= rhs.get();
+}
+inline bool operator>=(const std::string& lhs, const variant_reference& rhs)
 {
     return lhs >= rhs.get();
 }

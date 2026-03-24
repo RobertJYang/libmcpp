@@ -17,8 +17,11 @@
 
 #include <gtest/gtest.h>
 
+#include <mc/exception.h>
 #include <mc/variant.h>
 #include <mc/variant/variant_extension.h>
+#include <string>
+#include <string_view>
 
 using namespace mc;
 
@@ -285,6 +288,145 @@ TEST_F(VariantReferenceTest, StringConcatenation)
     EXPECT_EQ((arr[0] + " World").as_string(), "Hello World");
 }
 
+TEST_F(VariantReferenceTest, McStringCompatibilityOperators)
+{
+    variant    arr    = variants{"Hello", "Alice"};
+    variant    obj    = dict{{"greeting", "Hi"}, {"name", "Alice"}};
+    mc::string suffix = " World";
+    mc::string prefix = "Say: ";
+    mc::string name   = "Alice";
+
+    EXPECT_EQ((arr[0] + suffix).as_string(), "Hello World");
+
+    obj["greeting"] += suffix;
+    EXPECT_EQ(obj["greeting"].as_string(), "Hi World");
+
+    EXPECT_EQ((prefix + arr[0]).as_string(), "Say: Hello");
+
+    EXPECT_TRUE(obj["name"] == name);
+    EXPECT_TRUE(name == obj["name"]);
+}
+
+TEST_F(VariantReferenceTest, StringViewCompatibilityOperators)
+{
+    variant          arr        = variants{"Hello", "Alice"};
+    variant          obj        = dict{{"greeting", "Hi"}};
+    mc::string_view  suffix_sv  = " World";
+    std::string_view suffix_std = "!";
+    std::string_view prefix_std = "Say: ";
+
+    EXPECT_EQ((arr[0] + suffix_sv).as_string(), "Hello World");
+    EXPECT_EQ((suffix_sv + arr[0]).as_string(), " WorldHello");
+
+    EXPECT_EQ((arr[0] + suffix_std).as_string(), "Hello!");
+    EXPECT_EQ((prefix_std + arr[0]).as_string(), "Say: Hello");
+
+    obj["greeting"] += suffix_sv;
+    EXPECT_EQ(obj["greeting"].as_string(), "Hi World");
+
+    obj["greeting"] += suffix_std;
+    EXPECT_EQ(obj["greeting"].as_string(), "Hi World!");
+}
+
+TEST_F(VariantReferenceTest, StdStringCompatibilityOperators)
+{
+    variant     arr    = variants{"Hello", 42};
+    variant     obj    = dict{{"greeting", "Hi"}, {"name", "Alice"}, {"number", 7}};
+    std::string suffix = " World";
+    std::string prefix = "Say: ";
+
+    EXPECT_EQ((arr[0] + suffix).as_string(), "Hello World");
+    EXPECT_EQ((prefix + arr[0]).as_string(), "Say: Hello");
+
+    obj["greeting"] += suffix;
+    EXPECT_EQ(obj["greeting"].as_string(), "Hi World");
+
+    EXPECT_EQ((std::string("id:") + obj["number"]).as_string(), "id:7");
+    EXPECT_EQ((std::string_view("ref:") + arr[1]).as_string(), "ref:42");
+}
+
+TEST_F(VariantReferenceTest, StringOperatorsWithProxyAndTemporaryVariant)
+{
+    variant arr = variants{"Hello", 42};
+    variant obj = dict{{"greeting", "Hi"}, {"number", 7}};
+
+    EXPECT_EQ((std::string("Say: ") + arr[0]).as_string(), "Say: Hello");
+    EXPECT_EQ((std::string_view("id:") + obj["number"]).as_string(), "id:7");
+    EXPECT_EQ((mc::string("mc:") + arr[0]).as_string(), "mc:Hello");
+    EXPECT_EQ((mc::string_view("mv:") + arr[1]).as_string(), "mv:42");
+
+    EXPECT_EQ((arr[0] + variant("!")).as_string(), "Hello!");
+    EXPECT_EQ((obj["number"] + variant(" items")).as_string(), "7 items");
+    EXPECT_EQ((obj["greeting"] + variant(std::string_view(" all"))).as_string(), "Hi all");
+
+    EXPECT_EQ((variant(">< ") + arr[0]).as_string(), ">< Hello");
+    EXPECT_EQ((variant("n=") + obj["number"]).as_string(), "n=7");
+
+    EXPECT_EQ((variant("(") + arr[0] + variant(")")).as_string(), "(Hello)");
+
+    EXPECT_EQ((std::string("city:") + nested_object["address"]["city"]).as_string(), "city:Beijing");
+    EXPECT_EQ((nested_object["address"]["city"] + variant("_cn")).as_string(), "Beijing_cn");
+    EXPECT_EQ((variant("zip:") + nested_object["address"]["zip"]).as_string(), "zip:100000");
+}
+
+TEST_F(VariantReferenceTest, StringCompatibilityEdgeCasesForArrayAndObjectProxy)
+{
+    variant root = dict{
+        {"nested",
+         dict{
+             {"items", variants{1}},
+             {"meta", dict{{"a", 1}}},
+         }},
+    };
+
+    variant root_expected = root.deep_copy();
+    variant root_actual   = root.deep_copy();
+
+    variant expected = root_expected["nested"]["items"] + mc::string_view("tail");
+    variant actual   = root_actual["nested"]["items"] + std::string("tail");
+    EXPECT_EQ(actual, expected);
+
+    expected = root_expected["nested"]["items"] + mc::string("view");
+    actual   = root_actual["nested"]["items"] + std::string_view("view");
+    EXPECT_EQ(actual, expected);
+
+    variant root_with_public_api  = root.deep_copy();
+    variant root_with_std_string  = root.deep_copy();
+    variant root_with_string_view = root.deep_copy();
+
+    root_with_public_api["nested"]["items"] += mc::string_view("tail");
+    root_with_std_string["nested"]["items"] += std::string("tail");
+    root_with_string_view["nested"]["items"] += mc::string_view("tail");
+    EXPECT_EQ(root_with_std_string["nested"]["items"].get(), root_with_public_api["nested"]["items"].get());
+    EXPECT_EQ(root_with_string_view["nested"]["items"].get(), root_with_public_api["nested"]["items"].get());
+
+    root_expected = root.deep_copy();
+    root_actual   = root.deep_copy();
+    expected      = root_expected["nested"]["meta"] + mc::string_view("tail");
+    actual        = root_actual["nested"]["meta"] + std::string("tail");
+    EXPECT_EQ(actual, expected);
+
+    variant root_meta_public_api  = root.deep_copy();
+    variant root_meta_std_string  = root.deep_copy();
+    variant root_meta_string_view = root.deep_copy();
+
+    root_meta_public_api["nested"]["meta"] += mc::string_view("tail");
+    root_meta_std_string["nested"]["meta"] += std::string("tail");
+    root_meta_string_view["nested"]["meta"] += mc::string_view("tail");
+    EXPECT_EQ(root_meta_std_string["nested"]["meta"].get(), root_meta_public_api["nested"]["meta"].get());
+    EXPECT_EQ(root_meta_string_view["nested"]["meta"].get(), root_meta_public_api["nested"]["meta"].get());
+}
+
+TEST_F(VariantReferenceTest, StdStringLeftCompatibilityPreservesEmbeddedNull)
+{
+    variant          obj(dict{{"text", std::string("cd\0e", 4)}});
+    std::string      prefix("ab\0", 3);
+    std::string_view prefix_view(prefix.data(), prefix.size());
+
+    EXPECT_EQ((prefix + obj["text"]).as_string().view(), mc::string_view("ab\0cd\0e", 7));
+    EXPECT_EQ((prefix_view + obj["text"]).as_string().view(), mc::string_view("ab\0cd\0e", 7));
+}
+
 // ========== 位操作符测试 ==========
 
 TEST_F(VariantReferenceTest, BitwiseOperators_BothReferences)
@@ -434,6 +576,151 @@ TEST_F(VariantReferenceTest, ComparisonOperators_StringView)
     EXPECT_TRUE("Abc" < obj["city"]); // "Abc" < "Beijing"
 }
 
+TEST_F(VariantReferenceTest, ComparisonOperators_McStringView)
+{
+    variant         obj(dict{{"name", "Alice"}, {"city", "Beijing"}});
+    mc::string_view name = "Alice";
+    mc::string_view city = "Beijing";
+    mc::string_view bob  = "Bob";
+    mc::string_view abc  = "Abc";
+
+    EXPECT_TRUE(obj["name"] == name);
+    EXPECT_TRUE(obj["city"] == city);
+    EXPECT_TRUE(obj["name"] != bob);
+    EXPECT_TRUE(obj["name"] < bob);
+    EXPECT_TRUE(obj["city"] > abc);
+
+    EXPECT_TRUE(name == obj["name"]);
+    EXPECT_TRUE(city == obj["city"]);
+    EXPECT_TRUE(bob != obj["name"]);
+    EXPECT_TRUE(bob > obj["name"]);
+    EXPECT_TRUE(abc < obj["city"]);
+}
+
+TEST_F(VariantReferenceTest, ComparisonOperators_StdStringView)
+{
+    variant          obj(dict{{"name", "Alice"}, {"city", "Beijing"}});
+    std::string_view name = "Alice";
+    std::string_view city = "Beijing";
+    std::string_view bob  = "Bob";
+    std::string_view abc  = "Abc";
+
+    EXPECT_TRUE(obj["name"] == name);
+    EXPECT_TRUE(obj["city"] == city);
+    EXPECT_TRUE(obj["name"] != bob);
+    EXPECT_TRUE(obj["name"] < bob);
+    EXPECT_TRUE(obj["city"] > abc);
+
+    EXPECT_TRUE(name == obj["name"]);
+    EXPECT_TRUE(city == obj["city"]);
+    EXPECT_TRUE(bob != obj["name"]);
+    EXPECT_TRUE(bob > obj["name"]);
+    EXPECT_TRUE(abc < obj["city"]);
+}
+
+TEST_F(VariantReferenceTest, ComparisonOperators_StdStringLeftValue)
+{
+    variant     obj(dict{{"name", "Alice"}});
+    std::string name  = "Alice";
+    std::string lower = "Aaron";
+    std::string upper = "Bob";
+
+    EXPECT_TRUE(name == obj["name"]);
+    EXPECT_FALSE(name != obj["name"]);
+    EXPECT_TRUE(name <= obj["name"]);
+    EXPECT_TRUE(name >= obj["name"]);
+    EXPECT_TRUE(lower < obj["name"]);
+    EXPECT_TRUE(upper > obj["name"]);
+}
+
+TEST_F(VariantReferenceTest, ComparisonOperators_StdStringRightValue)
+{
+    variant     obj(dict{{"name", "Alice"}});
+    std::string name  = "Alice";
+    std::string lower = "Aaron";
+    std::string upper = "Bob";
+
+    EXPECT_TRUE(obj["name"] == name);
+    EXPECT_FALSE(obj["name"] != name);
+    EXPECT_TRUE(obj["name"] <= name);
+    EXPECT_TRUE(obj["name"] >= name);
+    EXPECT_TRUE(obj["name"] > lower);
+    EXPECT_TRUE(obj["name"] < upper);
+}
+
+TEST_F(VariantReferenceTest, ComparisonOperators_StdStringPreserveEmbeddedNull)
+{
+    variant          obj(dict{{"text", std::string("ab\0cd", 5)}, {"other", std::string("ab\0ce", 5)}});
+    std::string      same("ab\0cd", 5);
+    std::string      other("ab\0ce", 5);
+    std::string_view same_view(same.data(), same.size());
+    std::string_view other_view(other.data(), other.size());
+
+    EXPECT_TRUE(obj["text"] == same);
+    EXPECT_TRUE(same == obj["text"]);
+    EXPECT_TRUE(obj["text"] == same_view);
+    EXPECT_TRUE(same_view == obj["text"]);
+    EXPECT_TRUE(obj["text"] < other);
+    EXPECT_TRUE(same < obj["other"]);
+    EXPECT_TRUE(obj["text"] < other_view);
+    EXPECT_TRUE(same_view < obj["other"]);
+}
+
+TEST_F(VariantReferenceTest, ComparisonOperators_TemporaryStringAndVariantOperands)
+{
+    variant obj(dict{{"name", "Alice"}, {"text", std::string("ab\0cd", 5)}});
+
+    EXPECT_TRUE(obj["name"] == std::string("Alice"));
+    EXPECT_TRUE(std::string("Alice") == obj["name"]);
+    EXPECT_TRUE(obj["name"] < std::string("Bob"));
+    EXPECT_TRUE(std::string("Aaron") < obj["name"]);
+
+    EXPECT_TRUE(obj["name"] == mc::string("Alice"));
+    EXPECT_TRUE(mc::string("Alice") == obj["name"]);
+
+    EXPECT_TRUE(obj["name"] == variant(std::string("Alice")));
+    EXPECT_TRUE(variant(std::string("Alice")) == obj["name"]);
+    EXPECT_TRUE(obj["name"] < variant(std::string("Bob")));
+    EXPECT_TRUE(variant(std::string("Aaron")) < obj["name"]);
+
+    EXPECT_TRUE(std::string("Beijing") == nested_object["address"]["city"]);
+    EXPECT_TRUE(variant(std::string("Beijing")) == nested_object["address"]["city"]);
+    EXPECT_TRUE(nested_object["address"]["city"] < variant(std::string("Shanghai")));
+
+    EXPECT_TRUE(obj["text"] == std::string("ab\0cd", 5));
+    EXPECT_TRUE(std::string("ab\0cd", 5) == obj["text"]);
+    EXPECT_TRUE(obj["text"] < std::string("ab\0ce", 5));
+    EXPECT_TRUE(std::string("ab\0cc", 5) < obj["text"]);
+}
+
+TEST_F(VariantReferenceTest, ComparisonOperators_TemporaryRelationalCompleteness)
+{
+    variant obj(dict{{"name", "Alice"}});
+
+    EXPECT_FALSE(obj["name"] != std::string("Alice"));
+    EXPECT_TRUE(obj["name"] <= std::string("Alice"));
+    EXPECT_TRUE(obj["name"] >= std::string("Alice"));
+    EXPECT_TRUE(obj["name"] > std::string("Aaron"));
+    EXPECT_TRUE(obj["name"] < std::string("Bob"));
+
+    EXPECT_FALSE(std::string("Alice") != obj["name"]);
+    EXPECT_TRUE(std::string("Alice") <= obj["name"]);
+    EXPECT_TRUE(std::string("Alice") >= obj["name"]);
+    EXPECT_TRUE(std::string("Bob") > obj["name"]);
+    EXPECT_TRUE(std::string("Aaron") < obj["name"]);
+
+    EXPECT_TRUE(obj["name"] <= mc::string("Alice"));
+    EXPECT_TRUE(mc::string("Alice") >= obj["name"]);
+    EXPECT_TRUE(obj["name"] < variant(std::string("Bob")));
+    EXPECT_TRUE(variant(std::string("Bob")) > obj["name"]);
+    EXPECT_TRUE(obj["name"] <= variant(std::string("Alice")));
+    EXPECT_TRUE(variant(std::string("Alice")) >= obj["name"]);
+
+    EXPECT_TRUE(nested_object["address"]["city"] >= std::string("Beijing"));
+    EXPECT_TRUE(std::string("Beijing") <= nested_object["address"]["city"]);
+    EXPECT_TRUE(variant(std::string("Shanghai")) > nested_object["address"]["city"]);
+}
+
 TEST_F(VariantReferenceTest, ComparisonOperators_Array)
 {
     variant arr = variants{variants{1, 2, 3}, variants{1, 2, 3}, variants{1, 2, 4}};
@@ -534,11 +821,42 @@ TEST_F(VariantReferenceTest, CompoundAssignmentOperators_Bitwise)
 
 TEST_F(VariantReferenceTest, CompoundAssignmentOperators_String)
 {
-    variant obj(dict{{"greeting", "Hello"}});
+    variant          obj(dict{{"greeting", "Hello"}});
+    std::string      suffix = " World";
+    std::string_view label  = "!";
 
     // 字符串拼接复合赋值
     obj["greeting"] += " World";
     EXPECT_EQ(obj["greeting"], "Hello World");
+
+    obj["greeting"] += suffix;
+    EXPECT_EQ(obj["greeting"], "Hello World World");
+
+    obj["greeting"] += label;
+    EXPECT_EQ(obj["greeting"], "Hello World World!");
+}
+
+TEST_F(VariantReferenceTest, CompoundAssignmentOperators_StringTemporaryOperands)
+{
+    variant obj(dict{{"greeting", "Hello"}, {"text", std::string("ab\0", 3)}});
+
+    obj["greeting"] += std::string(" World");
+    EXPECT_EQ(obj["greeting"], "Hello World");
+
+    obj["greeting"] += std::string_view("!");
+    EXPECT_EQ(obj["greeting"], "Hello World!");
+
+    obj["greeting"] += mc::string("_mc");
+    EXPECT_EQ(obj["greeting"], "Hello World!_mc");
+
+    obj["greeting"] += variant(std::string("_tail"));
+    EXPECT_EQ(obj["greeting"], "Hello World!_mc_tail");
+
+    nested_object["address"]["city"] += std::string("_CN");
+    EXPECT_EQ(nested_object["address"]["city"], "Beijing_CN");
+
+    obj["text"] += variant(std::string("cd\0e", 4));
+    EXPECT_EQ(obj["text"].as_string().view(), mc::string_view("ab\0cd\0e", 7));
 }
 
 // ========== 自增自减操作符测试 ==========
@@ -641,6 +959,31 @@ TEST_F(VariantReferenceTest, UtilityMethods)
     EXPECT_EQ(obj["name"].get_type_name(), mc::string_view("string"));
     EXPECT_EQ(obj["age"].get_type_name(), mc::string_view("int32"));
     EXPECT_EQ(obj["scores"].get_type_name(), mc::string_view("array"));
+}
+
+TEST_F(VariantReferenceTest, StdStringKeyCompatibility)
+{
+    std::string      embedded_key("a\0b", 3);
+    std::string_view embedded_key_view(embedded_key.data(), embedded_key.size());
+    variant          obj(dict{{"name", "Alice"}, {mc::string(embedded_key), 7}, {"nested", dict{{"city", "Beijing"}}}});
+    variant          fallback("fallback");
+
+    EXPECT_TRUE(obj.contains(std::string("name")));
+    EXPECT_TRUE(obj.contains(std::string_view("name")));
+    EXPECT_TRUE(obj.contains(embedded_key));
+    EXPECT_TRUE(obj.contains(embedded_key_view));
+    EXPECT_FALSE(obj.contains(std::string("a")));
+
+    EXPECT_EQ(obj[std::string("name")].as_string(), "Alice");
+    EXPECT_EQ(obj[embedded_key].as_int32(), 7);
+    EXPECT_EQ(obj[std::string("nested")][std::string_view("city")].as_string(), "Beijing");
+
+    EXPECT_EQ(obj.get(std::string("name"), fallback).as_string(), "Alice");
+    EXPECT_EQ(obj.get(embedded_key, fallback).as_int32(), 7);
+    EXPECT_EQ(obj.get(std::string("missing"), fallback).as_string(), "fallback");
+
+    EXPECT_TRUE(obj[std::string("nested")].contains(std::string("city")));
+    EXPECT_TRUE(obj[std::string("nested")].contains(std::string_view("city")));
 }
 
 TEST_F(VariantReferenceTest, GetterMethods)
@@ -798,8 +1141,8 @@ TEST_F(VariantReferenceTest, FromVariantConversion)
     variant arr = variants{10, 20, 30};
 
     // 测试 from_variant 重载
-    int         val1 = 0;
-    double      val2 = 0.0;
+    int        val1 = 0;
+    double     val2 = 0.0;
     mc::string val3;
 
     from_variant(arr[0], val1);

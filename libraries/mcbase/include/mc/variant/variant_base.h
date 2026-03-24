@@ -204,7 +204,7 @@ public:
         virtual void handle(const uint64_t& v) const               = 0;
         virtual void handle(const double& v) const                 = 0;
         virtual void handle(const bool& v) const                   = 0;
-        virtual void handle(mc::string_view v) const              = 0;
+        virtual void handle(mc::string_view v) const               = 0;
         virtual void handle(const object_type& v) const            = 0;
         virtual void handle(const array_type& v) const             = 0;
         virtual void handle(const blob_type& v) const              = 0;
@@ -863,6 +863,10 @@ public:
 
     // ======== 字符串操作 ========
     variant_base operator+(mc::string_view other) const;
+    variant_base operator+(const mc::string& other) const
+    {
+        return operator+(mc::string_view(other));
+    }
     variant_base operator+(std::string_view other) const
     {
         return operator+(mc::string_view(other));
@@ -963,6 +967,10 @@ public:
 
     // 字符串的复合赋值
     variant_base& operator+=(const char* other)
+    {
+        return operator+=(mc::string_view(other));
+    }
+    variant_base& operator+=(const mc::string& other)
     {
         return operator+=(mc::string_view(other));
     }
@@ -1289,6 +1297,31 @@ public:
         return var.operator<=(val);
     }
 
+    friend bool operator==(const std::string& val, const variant_base& var)
+    {
+        return var.operator==(val);
+    }
+    friend bool operator!=(const std::string& val, const variant_base& var)
+    {
+        return !(var.operator==(val));
+    }
+    friend bool operator<(const std::string& val, const variant_base& var)
+    {
+        return var.operator>(val);
+    }
+    friend bool operator>(const std::string& val, const variant_base& var)
+    {
+        return var.operator<(val);
+    }
+    friend bool operator<=(const std::string& val, const variant_base& var)
+    {
+        return var.operator>=(val);
+    }
+    friend bool operator>=(const std::string& val, const variant_base& var)
+    {
+        return var.operator<=(val);
+    }
+
     /*
      * @brief 添加用于与 mc::blob_base 的比较
      */
@@ -1581,7 +1614,7 @@ protected:
         int64_t            m_int64;
         uint64_t           m_uint64;
         bool               m_bool;
-        string_type m_string; ///< 与 m_array 相同：内嵌 string_type，非堆指针
+        string_type        m_string; ///< 与 m_array 相同：内嵌 string_type，非堆指针
         blob_ptr_type      m_blob_ptr;
         array_type         m_array; // array 本身就是引用语义，不需要指针
         object_type        m_object;

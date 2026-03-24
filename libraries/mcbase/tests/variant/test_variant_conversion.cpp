@@ -127,6 +127,41 @@ TEST_F(VariantConversionTest, FromNumericVariantToStdString)
     EXPECT_EQ(double_string, "60.8");
 }
 
+TEST_F(VariantConversionTest, FromVariantStringOutputsPreserveEmbeddedNull)
+{
+    mc::variant string_variant = mc::string("ab\0cd", 5);
+
+    std::string std_string;
+    mc::from_variant(string_variant, std_string);
+    EXPECT_EQ(std::string_view(std_string.data(), std_string.size()), std::string_view("ab\0cd", 5));
+
+    std::string_view std_view;
+    mc::from_variant(string_variant, std_view);
+    EXPECT_EQ(std_view, std::string_view("ab\0cd", 5));
+
+    mc::string mc_string;
+    mc::from_variant(string_variant, mc_string);
+    EXPECT_EQ(mc_string.view(), mc::string_view("ab\0cd", 5));
+}
+
+TEST_F(VariantConversionTest, FromVariantStringViewFallbackForNonString)
+{
+    mc::variant int_variant    = 42;
+    mc::variant double_variant = 3.5;
+
+    std::string_view int_view;
+    mc::from_variant(int_variant, int_view);
+    EXPECT_EQ(int_view, "42");
+
+    std::string_view double_view;
+    mc::from_variant(double_variant, double_view);
+    EXPECT_EQ(double_view, "3.5");
+
+    mc::string mc_string;
+    mc::from_variant(int_variant, mc_string);
+    EXPECT_EQ(mc_string, "42");
+}
+
 TEST_F(VariantConversionTest, VariantHeaderExposesCompleteDictStdFindBridge)
 {
     mc::dict d{{"alpha", 1}, {"beta", 2}};

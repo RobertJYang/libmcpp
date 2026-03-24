@@ -200,8 +200,8 @@ TEST(DictStringViewTest, MutableDictConstCharSupport)
 TEST(DictStringViewTest, MixedStringTypes)
 {
     // 使用不同类型的字符串作为键
-    mc::string key1_str  = "key1";
-    mc::string key2_view = "key2";
+    mc::string  key1_str  = "key1";
+    mc::string  key2_view = "key2";
     const char* key3_cstr = "key3";
 
     dict md({{key1_str, 123}, {key2_view, "value"}, {key3_cstr, true}});
@@ -209,7 +209,7 @@ TEST(DictStringViewTest, MixedStringTypes)
     // 使用不同类型的字符串访问键值对
     mc::string      key1_str_copy  = "key1";
     mc::string_view key2_view_copy = "key2";
-    const char*      key3_cstr_copy = "key3";
+    const char*     key3_cstr_copy = "key3";
 
     EXPECT_EQ(md[key1_str_copy].as<int>(), 123);
     EXPECT_EQ(md[mc::string_view(key1_str_copy)].as<int>(), 123);
@@ -273,4 +273,46 @@ TEST(DictStringViewTest, DictStdStringSupport)
     EXPECT_TRUE(d.contains(key3));
     EXPECT_TRUE(d.erase(key3));
     EXPECT_FALSE(d.contains(key3));
+}
+
+TEST(DictStringViewTest, DictStdStringEmbeddedNullSupport)
+{
+    std::string embedded_key("a\0b", 3);
+    std::string missing_key("a\0c", 3);
+    dict        d({{mc::string(embedded_key), 123}});
+
+    EXPECT_TRUE(d.contains(embedded_key));
+    EXPECT_EQ(d.find(embedded_key)->value.as<int>(), 123);
+    EXPECT_EQ(d.get(embedded_key, 0).as<int>(), 123);
+    EXPECT_EQ(d.find_index(embedded_key), 0);
+
+    EXPECT_FALSE(d.contains(missing_key));
+    EXPECT_EQ(d.get(missing_key, 456).as<int>(), 456);
+
+    d[embedded_key] = 789;
+    EXPECT_EQ(d[embedded_key].as<int>(), 789);
+    EXPECT_TRUE(d.erase(embedded_key));
+    EXPECT_FALSE(d.contains(embedded_key));
+}
+
+TEST(DictStringViewTest, DictStdStringViewEmbeddedNullSupport)
+{
+    std::string      embedded_key_storage("a\0b", 3);
+    std::string_view embedded_key(embedded_key_storage.data(), embedded_key_storage.size());
+    std::string      missing_key_storage("a\0c", 3);
+    std::string_view missing_key(missing_key_storage.data(), missing_key_storage.size());
+    dict             d({{mc::string(embedded_key), 123}});
+
+    EXPECT_TRUE(d.contains(embedded_key));
+    EXPECT_EQ(d.find(embedded_key)->value.as<int>(), 123);
+    EXPECT_EQ(d.get(embedded_key, 0).as<int>(), 123);
+    EXPECT_EQ(d.find_index(embedded_key), 0);
+
+    EXPECT_FALSE(d.contains(missing_key));
+    EXPECT_EQ(d.get(missing_key, 456).as<int>(), 456);
+
+    d[embedded_key] = 789;
+    EXPECT_EQ(d[embedded_key].as<int>(), 789);
+    EXPECT_TRUE(d.erase(embedded_key));
+    EXPECT_FALSE(d.contains(embedded_key));
 }

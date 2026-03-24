@@ -62,11 +62,6 @@ public:
     string& operator=(const string& other) noexcept;
     string& operator=(string&& other) noexcept;
 
-    /**
-     * @brief 从 std::string 拷贝构造；按字节引用其存储并复制到 mc::string（与 string_view 路径一致，不做 locale
-     * 转码）。
-     * @see to_std_string()
-     */
     inline string(const std::string& str) : string(mc::string_view(str))
     {}
 
@@ -149,6 +144,11 @@ public:
         return result;
     }
 
+    static string concat(std::vector<mc::string>& parts)
+    {
+        return concat(static_cast<const std::vector<mc::string>&>(parts));
+    }
+
     static string concat(const std::vector<std::string>& parts)
     {
         string result;
@@ -156,6 +156,11 @@ public:
             result.append(part);
         }
         return result;
+    }
+
+    static string concat(std::vector<std::string>& parts)
+    {
+        return concat(static_cast<const std::vector<std::string>&>(parts));
     }
 
     static mc::string_view substring(mc::string_view s, int start, size_type count = npos)
@@ -308,17 +313,17 @@ public:
         return !(*this == rhs);
     }
 
-    string          to_lower() const;
-    string          to_upper() const;
-    string          trim() const;
-    string          ltrim() const;
-    string          rtrim() const;
-    string          substr(size_type pos = 0, size_type count = npos) const;
-    bool            starts_with(mc::string_view prefix) const;
-    bool            ends_with(mc::string_view suffix) const;
-    bool            contains(mc::string_view substring) const;
-    bool            icontains(mc::string_view substring) const;
-    string          replace_all(mc::string_view from, mc::string_view to) const;
+    string to_lower() const;
+    string to_upper() const;
+    string trim() const;
+    string ltrim() const;
+    string rtrim() const;
+    string substr(size_type pos = 0, size_type count = npos) const;
+    bool   starts_with(mc::string_view prefix) const;
+    bool   ends_with(mc::string_view suffix) const;
+    bool   contains(mc::string_view substring) const;
+    bool   icontains(mc::string_view substring) const;
+    string replace_all(mc::string_view from, mc::string_view to) const;
 
     void to_lower_inplace();
     void to_upper_inplace();
@@ -412,9 +417,6 @@ private:
     mc::shared_ptr<detail::string_storage> m_storage{};
 };
 
-/**
- * @brief 与 std::string 互操作：头文件内联，不单独导出符号（与 string(const std::string&) 对称）。
- */
 inline std::string to_std_string(const string& s)
 {
     mc::string_view v = s.view();
@@ -431,6 +433,10 @@ MC_API bool operator>=(const string& lhs, const string& rhs) noexcept;
 MC_API string operator+(const string& lhs, const string& rhs);
 MC_API string operator+(const string& lhs, mc::string_view rhs);
 MC_API string operator+(mc::string_view lhs, const string& rhs);
+inline string operator+(mc::string_view lhs, mc::string_view rhs)
+{
+    return string(lhs) + rhs;
+}
 inline string operator+(const char* lhs, mc::string_view rhs)
 {
     return string(lhs) + rhs;
@@ -444,7 +450,11 @@ inline string operator+(mc::string_view lhs, const char* rhs)
 MC_API string operator+(const string& lhs, const char* rhs);
 MC_API string operator+(const char* lhs, const string& rhs);
 
-/** @brief 与 std::string 拼接：头文件内联，转发到 string + string_view */
+inline string operator+(const std::string& lhs, mc::string_view rhs)
+{
+    return mc::string_view(lhs.data(), lhs.size()) + rhs;
+}
+
 inline string operator+(const string& lhs, const std::string& rhs)
 {
     return lhs + mc::string_view(rhs.data(), rhs.size());
@@ -453,6 +463,26 @@ inline string operator+(const string& lhs, const std::string& rhs)
 inline string operator+(const std::string& lhs, const string& rhs)
 {
     return mc::string_view(lhs.data(), lhs.size()) + rhs;
+}
+
+inline string operator+(mc::string_view lhs, const std::string& rhs)
+{
+    return lhs + mc::string_view(rhs.data(), rhs.size());
+}
+
+inline string operator+(std::string_view lhs, mc::string_view rhs)
+{
+    return mc::string_view(lhs.data(), lhs.size()) + rhs;
+}
+
+inline string operator+(std::string_view lhs, const string& rhs)
+{
+    return mc::string_view(lhs.data(), lhs.size()) + rhs;
+}
+
+inline string operator+(std::string_view lhs, const std::string& rhs)
+{
+    return mc::string_view(lhs.data(), lhs.size()) + mc::string_view(rhs.data(), rhs.size());
 }
 
 template <typename T, std::enable_if_t<std::is_same_v<std::decay_t<T>, string>, int> = 0>

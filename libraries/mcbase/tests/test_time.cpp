@@ -242,7 +242,7 @@ TEST(TimeTest, TimePointSecTest)
 TEST(TimeTest, IsoStringTest)
 {
     // 时间点与字符串转换 (注意：这个值是1970年开始往后的特定时间戳)
-    time_point  tp1(milliseconds(1577836800000)); // 2020-01-01T00:00:00
+    time_point tp1(milliseconds(1577836800000)); // 2020-01-01T00:00:00
     mc::string iso_str = mc::string(tp1);
     EXPECT_EQ(iso_str, "2020-01-01T00:00:00.000");
 
@@ -251,7 +251,7 @@ TEST(TimeTest, IsoStringTest)
     EXPECT_EQ(tp2.time_since_epoch().count(), 1577836800000);
 
     // 带毫秒的转换测试
-    time_point  tp3(milliseconds(1577836800123)); // 2020-01-01T00:00:00.123
+    time_point tp3(milliseconds(1577836800123)); // 2020-01-01T00:00:00.123
     mc::string iso_str_ms = mc::string(tp3);
     EXPECT_EQ(iso_str_ms, "2020-01-01T00:00:00.123");
 
@@ -260,11 +260,26 @@ TEST(TimeTest, IsoStringTest)
 
     // 秒级时间点的ISO字符串转换
     time_point_sec tps1(1577836800); // 2020-01-01T00:00:00
-    mc::string    tps_iso(tps1.to_iso_string());
+    mc::string     tps_iso(tps1.to_iso_string());
     EXPECT_EQ(tps_iso, "2020-01-01T00:00:00");
 
     time_point_sec tps2 = time_point_sec::from_iso_string("2020-01-01T00:00:00");
     EXPECT_EQ(tps2.sec_since_epoch(), 1577836800);
+}
+
+TEST(TimeTest, TimePointSecStdStringViewCompatibility)
+{
+    std::string      iso_std_string = "2020-01-01T00:00:00";
+    std::string_view iso_std_view(iso_std_string.data(), iso_std_string.size());
+
+    time_point_sec from_std_string = time_point_sec::from_iso_string(iso_std_string);
+    time_point_sec from_std_view   = time_point_sec::from_iso_string(iso_std_view);
+    EXPECT_EQ(from_std_string.sec_since_epoch(), 1577836800);
+    EXPECT_EQ(from_std_view.sec_since_epoch(), 1577836800);
+
+    time_point_sec   tps(1577836800);
+    std::string_view exported_view = static_cast<std::string_view>(tps);
+    EXPECT_EQ(exported_view, "2020-01-01T00:00:00");
 }
 
 // 测试variant转换
@@ -321,9 +336,9 @@ TEST(TimeTest, SystemTimeTest)
     EXPECT_GE(diff.count(), 100); // 至少过了100毫秒
 
     // 测试ISO字符串解析和格式化的一致性
-    time_point  now     = time_point::from_iso_string("2020-01-01T12:00:00");
+    time_point now     = time_point::from_iso_string("2020-01-01T12:00:00");
     mc::string iso_str = mc::string(now);
-    time_point  parsed  = time_point::from_iso_string(iso_str);
+    time_point parsed  = time_point::from_iso_string(iso_str);
 
     // 检查两个时间点是否相同
     auto time_diff = now - parsed;

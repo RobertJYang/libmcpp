@@ -234,10 +234,21 @@ TEST(format_std_test, string_view_basic)
     mc::string_view sv = "abc";
     EXPECT_EQ(sformat("{}", sv), "abc");
 
-    std::string std_string = "hello";
-    std::string_view std_view = "world";
+    std::string      std_string = "hello";
+    std::string_view std_view   = "world";
     EXPECT_EQ(sformat("{}", std_string), "hello");
     EXPECT_EQ(sformat("{}", std_view), "world");
+}
+
+TEST(format_std_test, string_interop_mixed_arguments)
+{
+    mc::string       mc_text  = "mc";
+    std::string      std_text = "std";
+    mc::string_view  mc_view  = "mv";
+    std::string_view std_view = "sv";
+
+    EXPECT_EQ(sformat("{}|{}|{}|{}", mc_text, std_text, mc_view, std_view), "mc|std|mv|sv");
+    EXPECT_EQ(sformat("[{}:{}]", std_view, mc_text), "[sv:mc]");
 }
 
 TEST(format_std_test, pair_char_int)

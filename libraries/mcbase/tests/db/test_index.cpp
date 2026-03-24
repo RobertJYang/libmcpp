@@ -23,6 +23,7 @@
 #include <mc/db/key_extractor.h>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <test_utilities/base.h>
 #include <unordered_map>
 #include <vector>
@@ -41,8 +42,8 @@ struct user : mc::db::object_base {
     }
 
     mc::string m_name;
-    int         m_age;
-    double      m_score;
+    int        m_age;
+    double     m_score;
     mc::string m_city;
     mc::string m_department;
 
@@ -145,6 +146,54 @@ TEST_F(database_index_test, mc_database_index_std_string_key_compatibility)
     auto found = index->find(std::string("李四"));
     ASSERT_NE(found, index->end());
     EXPECT_EQ(found->get_object_id(), 2);
+}
+
+TEST_F(database_index_test, mdb_key_append_value_std_string_compatibility)
+{
+    std::string      std_text("ab\0cd", 5);
+    std::string_view std_view(std_text.data(), std_text.size());
+
+    mc::db::mdb_key key_from_mc_string;
+    key_from_mc_string.init(1, true);
+    key_from_mc_string.append_value(mc::string("ab\0cd", 5));
+
+    mc::db::mdb_key key_from_mc_view;
+    key_from_mc_view.init(1, true);
+    key_from_mc_view.append_value(mc::string_view("ab\0cd", 5));
+
+    mc::db::mdb_key key_from_std_string;
+    key_from_std_string.init(1, true);
+    key_from_std_string.append_value(std_text);
+
+    mc::db::mdb_key key_from_std_view;
+    key_from_std_view.init(1, true);
+    key_from_std_view.append_value(std_view);
+
+    EXPECT_EQ(key_from_std_string.key(), key_from_mc_string.key());
+    EXPECT_EQ(key_from_std_view.key(), key_from_mc_view.key());
+    EXPECT_EQ(key_from_std_string.key(), key_from_std_view.key());
+}
+
+TEST_F(database_index_test, mdb_key_write_value_std_string_compatibility)
+{
+    std::string      std_text("ab\0cd", 5);
+    std::string_view std_view(std_text.data(), std_text.size());
+
+    mc::db::mdb_key key_from_mc_string;
+    key_from_mc_string.write_value(mc::string("ab\0cd", 5));
+
+    mc::db::mdb_key key_from_mc_view;
+    key_from_mc_view.write_value(mc::string_view("ab\0cd", 5));
+
+    mc::db::mdb_key key_from_std_string;
+    key_from_std_string.write_value(std_text);
+
+    mc::db::mdb_key key_from_std_view;
+    key_from_std_view.write_value(std_view);
+
+    EXPECT_EQ(key_from_std_string.key(), key_from_mc_string.key());
+    EXPECT_EQ(key_from_std_view.key(), key_from_mc_view.key());
+    EXPECT_EQ(key_from_std_string.key(), key_from_std_view.key());
 }
 
 // 测试 mc::db 复合操作

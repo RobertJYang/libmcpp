@@ -83,13 +83,13 @@ TEST(signature_test, static_checks)
 TEST(signature_test, first_type_empty_string)
 {
     mc::string empty_sig;
-    char        first = mc::reflect::first_type(empty_sig);
+    char       first = mc::reflect::first_type(empty_sig);
     EXPECT_EQ(first, '\0');
 }
 
 TEST(signature_test, assign_string_view)
 {
-    signature        sig("(is)");
+    signature       sig("(is)");
     mc::string_view sv("(isd)");
     sig = sv;
     EXPECT_EQ(sig.str(), "(isd)");
@@ -97,10 +97,26 @@ TEST(signature_test, assign_string_view)
 
 TEST(signature_test, assign_string)
 {
-    signature   sig("(is)");
+    signature  sig("(is)");
     mc::string str("(isb)");
     sig = str;
     EXPECT_EQ(sig.str(), "(isb)");
+}
+
+TEST(signature_test, assign_std_string)
+{
+    signature   sig("(is)");
+    std::string str("(isb)");
+    sig = str;
+    EXPECT_EQ(sig.str(), "(isb)");
+}
+
+TEST(signature_test, assign_std_string_view)
+{
+    signature                  sig("(is)");
+    constexpr std::string_view sv("(isv)");
+    sig = sv;
+    EXPECT_EQ(sig.str(), "(isv)");
 }
 
 TEST(signature_test, from_variant)

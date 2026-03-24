@@ -65,8 +65,7 @@ public:
     constexpr string_view(const char (&literal)[N]) noexcept : string_view(literal, N - 1)
     {}
 
-    constexpr string_view(const char* value) noexcept
-        : string_view(value, detail::cstring_length(value))
+    constexpr string_view(const char* value) noexcept : string_view(value, detail::cstring_length(value))
     {}
 
     constexpr string_view(std::string_view value) noexcept : string_view(value.data(), value.size())
@@ -158,6 +157,26 @@ public:
     bool operator!=(std::string_view rhs) const noexcept
     {
         return !(*this == rhs);
+    }
+
+    bool operator<(std::string_view rhs) const noexcept
+    {
+        return std::string_view(*this) < rhs;
+    }
+
+    bool operator>(std::string_view rhs) const noexcept
+    {
+        return std::string_view(*this) > rhs;
+    }
+
+    bool operator<=(std::string_view rhs) const noexcept
+    {
+        return std::string_view(*this) <= rhs;
+    }
+
+    bool operator>=(std::string_view rhs) const noexcept
+    {
+        return std::string_view(*this) >= rhs;
     }
 
     bool operator==(const std::string& rhs) const noexcept
