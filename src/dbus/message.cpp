@@ -924,12 +924,22 @@ const message_writer& operator<<(const message_writer& writer, const std::string
     return operator<<(writer, std::string_view(v));
 }
 
+const message_writer& operator<<(const message_writer& writer, const mc::string& v)
+{
+    return operator<<(writer, std::string_view(v));
+}
+
 const message_writer& operator<<(const message_writer& writer, const char* str)
 {
     if (str == nullptr) {
         return writer;
     }
     return operator<<(writer, std::string_view(str));
+}
+
+const message_writer& operator<<(const message_writer& writer, mc::string_view v)
+{
+    return operator<<(writer, std::string_view(v));
 }
 
 const message_writer& operator<<(const message_writer& writer, const std::string_view& v)

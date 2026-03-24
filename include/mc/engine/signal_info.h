@@ -25,11 +25,11 @@ struct signal_tag {};
 #define MC_REFLECT_SIGNAL_TYPE static_cast<int>(mc::reflect::member_info_type::custom_start) + 1
 
 struct signal_type_info : public mc::reflect::member_info_base {
-    constexpr signal_type_info(std::string_view n) : mc::reflect::member_info_base(n)
+    constexpr signal_type_info(mc::string_view n) : mc::reflect::member_info_base(n)
     {}
 
-    virtual std::string_view get_args_signature() const   = 0;
-    virtual std::string_view get_result_signature() const = 0;
+    virtual mc::string_view get_args_signature() const   = 0;
+    virtual mc::string_view get_result_signature() const = 0;
     virtual size_t           arg_count() const            = 0;
 
     mc::variant         emit(void* obj, const mc::variants& args) const;
@@ -52,7 +52,7 @@ struct signal_info_base : public signal_type_info {
     using signal_type_info::connect;
     using signal_type_info::emit;
 
-    constexpr signal_info_base(std::string_view n) : signal_type_info(n)
+    constexpr signal_info_base(mc::string_view n) : signal_type_info(n)
     {}
 
     // 使用反射信息基类直接调用对象信号，用于动态反射类型擦除后使用
@@ -70,14 +70,14 @@ struct signal_info : public signal_info_base<Class> {
 
     signature_type Class::*signal_ptr;
 
-    constexpr signal_info(std::string_view n, signature_type Class::*ptr) : signal_info_base<Class>(n), signal_ptr(ptr)
+    constexpr signal_info(mc::string_view n, signature_type Class::*ptr) : signal_info_base<Class>(n), signal_ptr(ptr)
     {}
 
     std::type_index typeinfo() const noexcept override
     {
         return typeid(signature_type);
     }
-    std::string_view type_name() const noexcept override
+    mc::string_view type_name() const noexcept override
     {
         return mc::pretty_name<signature_type>();
     }
@@ -133,12 +133,12 @@ struct signal_info : public signal_info_base<Class> {
         });
     }
 
-    std::string_view get_args_signature() const override
+    mc::string_view get_args_signature() const override
     {
         return mc::reflect::get_signature<args_type>();
     }
 
-    std::string_view get_result_signature() const override
+    mc::string_view get_result_signature() const override
     {
         return mc::reflect::get_signature<result_type>();
     }
@@ -156,7 +156,7 @@ inline mc::connection_type signal_type_info::connect(void* obj, slot_type slot) 
 }
 
 template <typename Class, typename RetType, typename... Args>
-constexpr auto make_signal_info(mc::signal<RetType(Args...)> Class::*signal_ptr, std::string_view name)
+constexpr auto make_signal_info(mc::signal<RetType(Args...)> Class::*signal_ptr, mc::string_view name)
 {
     return std::make_tuple(signal_info<Class, RetType, Args...>(name, signal_ptr));
 }
@@ -165,7 +165,7 @@ constexpr auto make_signal_info(mc::signal<RetType(Args...)> Class::*signal_ptr,
 namespace mc::reflect {
 template <typename T, typename Signature>
 struct member_info_creator<T, mc::signal<Signature>> {
-    static constexpr auto create(mc::signal<Signature> T::*signal_ptr, std::string_view name)
+    static constexpr auto create(mc::signal<Signature> T::*signal_ptr, mc::string_view name)
     {
         return mc::engine::make_signal_info(signal_ptr, name);
     }

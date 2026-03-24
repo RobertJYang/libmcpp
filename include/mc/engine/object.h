@@ -21,8 +21,6 @@
 #include <mc/log.h>
 
 namespace mc::engine {
-using mc::string::starts_with;
-
 namespace detail {
 
 template <typename ObjectType>

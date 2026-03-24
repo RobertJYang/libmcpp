@@ -65,14 +65,14 @@ public:
     // 获取被引用的对象指针（可能为空）
     abstract_object* get_object() const;
 
-    std::string as_string() const override;
+    mc::string as_string() const override;
 
     bool equals(const variant_extension_base& other) const override;
 
     // 实现 variant_extension_base 的纯虚函数
     mc::shared_ptr<variant_extension_base> copy() const override;
 
-    std::string_view get_type_name() const override;
+    mc::string_view get_type_name() const override;
 
 private:
     std::string        m_object_name;

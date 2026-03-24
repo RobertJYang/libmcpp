@@ -160,7 +160,7 @@ abstract_object* ref_object::get_object() const
     return find_related_object();
 }
 
-std::string ref_object::as_string() const
+mc::string ref_object::as_string() const
 {
     return m_object_name;
 }
@@ -178,7 +178,7 @@ mc::shared_ptr<variant_extension_base> ref_object::copy() const
     return mc::make_shared<ref_object>(m_object_name, m_object_finder);
 }
 
-std::string_view ref_object::get_type_name() const
+mc::string_view ref_object::get_type_name() const
 {
     return "ref_object";
 }

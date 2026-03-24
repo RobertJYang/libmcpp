@@ -193,7 +193,7 @@ namespace detail {
 // 对 path 的特化
 template <>
 struct signature_helper<mc::engine::path> {
-    static void apply(std::string& sig)
+    static void apply(mc::string& sig)
     {
         sig += mc::reflect::type_to_char(mc::reflect::type_code::object_path_type);
     }

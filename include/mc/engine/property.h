@@ -644,7 +644,7 @@ private:
 namespace mc::reflect::detail {
 template <typename T, typename Observer>
 struct signature_helper<mc::engine::property<T, Observer>> {
-    static void apply(std::string& sig)
+    static void apply(mc::string& sig)
     {
         sig += mc::reflect::get_signature<T>();
     }

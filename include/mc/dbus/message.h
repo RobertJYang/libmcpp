@@ -68,7 +68,7 @@ void ensure_container_max_length(T& container)
 }
 
 template <typename T>
-inline const std::string& get_signature()
+inline mc::string_view get_signature()
 {
     return mc::reflect::get_signature<T>();
 }
@@ -950,8 +950,10 @@ MC_API const message_writer& operator<<(const message_writer& writer, const mc::
 MC_API const message_writer& operator<<(const message_writer& writer, const mc::variant& v);
 MC_API const message_writer& operator<<(const message_writer& writer, const mc::variants& v);
 MC_API const message_writer& operator<<(const message_writer& writer, const mc::dict& v);
+MC_API const message_writer& operator<<(const message_writer& writer, const mc::string& v);
 MC_API const message_writer& operator<<(const message_writer& writer, const std::string& v);
 MC_API const message_writer& operator<<(const message_writer& writer, const char* str);
+MC_API const message_writer& operator<<(const message_writer& writer, mc::string_view v);
 MC_API const message_writer& operator<<(const message_writer& writer, const std::string_view& v);
 
 // 写入标准库类型
@@ -959,7 +961,7 @@ MC_API const message_writer& operator<<(const message_writer& writer, const std:
 template <typename T, bool IsContiguous, typename Container>
 const message_writer& write_array(const message_writer& writer, const Container& v)
 {
-    const std::string& sig = get_signature<T>();
+    auto sig = get_signature<T>();
 
     message_writer sub_writer(writer.m_iter, DBUS_TYPE_ARRAY, sig);
     if constexpr (std::is_trivially_copyable_v<T> && IsContiguous && !std::is_pointer_v<T>) {
@@ -1054,7 +1056,7 @@ const message_writer& write_dict(const message_writer& writer, const Container& 
 {
     ensure_container_max_length(v);
 
-    auto           sig = get_signature<Container>();
+    auto sig = get_signature<Container>();
     message_writer sub_writer(writer.m_iter, DBUS_TYPE_ARRAY, sig.substr(1));
     for (const auto& item : v) {
         message_writer entry_writer(sub_writer.m_iter, DBUS_TYPE_DICT_ENTRY);

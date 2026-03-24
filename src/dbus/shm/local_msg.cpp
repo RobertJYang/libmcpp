@@ -161,16 +161,16 @@ void local_msg::append_args(std::string_view signature, const variants& args)
 }
 
 template <typename T>
-static auto parse_variant_basic(const variant& v)
+static variant parse_variant_basic(const variant& v)
 {
     if constexpr (std::is_arithmetic_v<T>) {
-        return v.as<T>();
+        return variant(v.as<T>());
     } else if constexpr (std::is_same_v<T, std::string_view> || std::is_same_v<T, std::string> ||
                          std::is_same_v<T, mc::dbus::path> || std::is_same_v<T, mc::dbus::signature>) {
         if (v.is_string()) {
-            return v.get_string();
+            return variant(v.get_string());
         } else {
-            return v.as<std::string>();
+            return variant(v.as<std::string>());
         }
     } else {
         static_assert(std::is_same_v<T, void>, "unsupported type");
