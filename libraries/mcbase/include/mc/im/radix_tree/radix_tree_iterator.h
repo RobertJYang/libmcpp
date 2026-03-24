@@ -174,7 +174,7 @@ public:
     }
 
     // 跳到下一个前缀
-    void to_next_prefix(std::string_view key)
+    void to_next_prefix(mc::string_view key)
     {
         if (m_is_end || !mc::im::has_prefix(m_key_buffer, key)) {
             return;

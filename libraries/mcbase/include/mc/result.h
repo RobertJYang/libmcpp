@@ -418,7 +418,7 @@ namespace reflect::detail {
 
 template <typename FutureType>
 struct signature_helper<FutureType, std::enable_if_t<mc::futures::detail::is_future_v<FutureType>>> {
-    static void apply(std::string& sig)
+    static void apply(mc::string& sig)
     {
         sig = mc::reflect::detail::get_signature<typename FutureType::value_type>();
     }
@@ -426,7 +426,7 @@ struct signature_helper<FutureType, std::enable_if_t<mc::futures::detail::is_fut
 
 template <typename T>
 struct signature_helper<result<T>, void> {
-    static void apply(std::string& sig)
+    static void apply(mc::string& sig)
     {
         sig = mc::reflect::detail::get_signature<T>();
     }

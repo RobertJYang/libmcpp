@@ -12,7 +12,7 @@
 
 /**
  * @file string.h
- * @brief 定义了 mc 命名空间下的字符串处理函数
+ * @brief 定义了 mc 字符串公开入口与字符串工具函数
  */
 #ifndef MC_STRING_H
 #define MC_STRING_H
@@ -30,787 +30,475 @@
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
-#include <mc/common.h>
-#include <mc/pretty_name.h>
 #include "securec.h"
+#include <mc/common.h>
+#include <mc/memory.h>
+#include <mc/pretty_name.h>
+#include <mc/string_view.h>
 
-namespace mc::string {
+namespace mc {
 
 namespace detail {
-template <typename T>
-void append_formatted_number(std::string& result, T val, const char* format)
-{
-    constexpr std::size_t BUFFER_SIZE = 64;
-    char                  buffer[BUFFER_SIZE];
-    // securec 的 snprintf_s 需要同时指定目标缓冲区大小与最大写入字符数
-    int                   len = snprintf_s(buffer, BUFFER_SIZE, BUFFER_SIZE, format, val);
-    if (len > 0) {
-        result.append(buffer, len);
-    }
-}
-
-[[noreturn]] MC_API void throw_bad_cast_error(const char* type);
-[[noreturn]] MC_API void throw_overflow_error(const char* type, std::string_view s);
-
-MC_API std::pair<int, std::string_view> detect_number_radix(std::string_view s);
-
-/**
- * @brief 准备一个以尾0结尾的字符串，用于安全地转换为数字
- * @param s 输入字符串
- * @param radix 进制
- * @param buffer 栈上分配的缓冲区
- * @return 可以安全用于 std::strtoX 函数的字符串指针，如果字符串无效则返回 nullptr
- */
-MC_API std::string_view prepare_number_string(std::string_view s, int radix, char* buffer,
-                                              std::size_t buffer_size) noexcept;
+// 仅用于 mcbase 内部在 .cpp 中访问可变存储；不在公开头文件中暴露 std::string& 等签名。
+struct string_mutable_impl;
+struct string_storage;
 } // namespace detail
 
-template <typename T>
-auto to_string(std::string& result, T value) -> std::enable_if_t<std::is_integral_v<T> && std::is_signed_v<T>, void>
-{
-    detail::append_formatted_number(result, static_cast<long long>(value), "%lld");
-}
-
-template <typename T>
-auto to_string(T value) -> std::enable_if_t<std::is_integral_v<T> && std::is_signed_v<T>, std::string>
-{
-    std::string result;
-    to_string(result, value);
-    return result;
-}
-
-template <typename T>
-auto to_string(std::string& result, T value) -> std::enable_if_t<std::is_integral_v<T> && std::is_unsigned_v<T>, void>
-{
-    detail::append_formatted_number(result, static_cast<unsigned long long>(value), "%llu");
-}
-
-template <typename T>
-auto to_string(T value) -> std::enable_if_t<std::is_integral_v<T> && std::is_unsigned_v<T>, std::string>
-{
-    std::string result;
-    to_string(result, value);
-    return result;
-}
-
-MC_API std::string to_string(double value);
-MC_API void        to_string(std::string& result, double value);
-
-MC_API std::string to_string(bool value);
-MC_API void        to_string(std::string& result, bool value);
-
-/**
- * @brief 忽略大小写比较两个字符串是否相等
- * @param a 第一个字符串
- * @param b 第二个字符串
- * @return 如果两个字符串忽略大小写后相等则返回 true，否则返回 false
- */
-MC_API bool iequals(std::string_view a, std::string_view b);
-
-/**
- * @brief 忽略大小写比较两个 C 风格字符串是否相等
- * @param a 第一个 C 风格字符串
- * @param b 第二个 C 风格字符串
- * @return 如果两个 C 风格字符串忽略大小写后相等则返回 true，否则返回 false
- */
-MC_API bool iequals(const char* a, const char* b);
-
-/**
- * @brief 将字符串转换为小写
- * @param s 要转换的字符串
- * @return 转换后的小写字符串
- */
-MC_API std::string to_lower(std::string_view s);
-
-/**
- * @brief 将字符串转换为大写
- * @param s 要转换的字符串
- * @return 转换后的大写字符串
- */
-MC_API std::string to_upper(std::string_view s);
-
-/**
- * @brief 原地将字符串转换为小写
- * @param s 要转换的字符串
- */
-MC_API void to_lower_inplace(std::string& s);
-
-/**
- * @brief 原地将字符串转换为大写
- * @param s 要转换的字符串
- */
-MC_API void to_upper_inplace(std::string& s);
-
-/**
- * @brief 去除字符串两端的空白字符
- * @param s 要处理的字符串
- * @return 处理后的字符串
- */
-MC_API std::string trim(std::string_view s);
-
-/**
- * @brief 原地去除字符串两端的空白字符
- * @param s 要处理的字符串
- */
-MC_API void trim_inplace(std::string& s);
-
-/**
- * @brief 去除字符串左侧的空白字符
- * @param s 要处理的字符串
- * @return 处理后的字符串
- */
-MC_API std::string ltrim(std::string_view s);
-
-/**
- * @brief 原地去除字符串左侧的空白字符
- * @param s 要处理的字符串
- */
-MC_API void ltrim_inplace(std::string& s);
-
-/**
- * @brief 去除字符串右侧的空白字符
- * @param s 要处理的字符串
- * @return 处理后的字符串
- */
-MC_API std::string rtrim(std::string_view s);
-
-/**
- * @brief 原地去除字符串右侧的空白字符
- * @param s 要处理的字符串
- */
-MC_API void rtrim_inplace(std::string& s);
-
-/**
- * @brief 按指定分隔符分割字符串
- * @param s 要分割的字符串
- * @param delim 分隔符
- * @return 分割后的字符串数组
- */
-MC_API std::vector<std::string> split(std::string_view s, char delim);
-
-/**
- * @brief 按指定分隔符分割字符串
- * @param s 要分割的字符串
- * @param delim 分隔符字符串
- * @return 分割后的字符串数组
- */
-MC_API std::vector<std::string> split(std::string_view s, std::string_view delim);
-
-/**
- * @brief 获取子字符串，支持负数索引
- * @param s 源字符串
- * @param start 起始位置（索引从0开始）
- *        - 正数表示从字符串开头计数的位置（0表示第一个字符）
- *        - 负数表示从字符串末尾计数的位置（-1表示最后一个字符）
- * @param end 结束位置（索引从0开始，默认为-1，表示到字符串末尾）
- *        - 正数表示从字符串开头计数的位置
- *        - 负数表示从字符串末尾计数的位置（-1表示最后一个字符）
- * @return 提取的子字符串
- *
- * 示例:
- * @code
- * // 获取完整字符串
- * std::string_view s1 = mc::string::substr("hello", 0, -1);  // "hello"
- *
- * // 获取前三个字符
- * std::string_view s2 = mc::string::substr("hello", 0, 2);   // "hel"
- *
- * // 获取最后三个字符
- * std::string_view s3 = mc::string::substr("hello", -3);     // "llo"
- *
- * // 获取从第二个到倒数第二个字符
- * std::string_view s4 = mc::string::substr("hello", 1, -2);  // "ell"
- * @endcode
- */
-MC_API std::string_view substr(std::string_view s, int start, int end = -1);
-
-/**
- * @brief 获取子字符串，第二个参数指定长度而非结束位置
- * @param s 源字符串
- * @param start 起始位置（索引从0开始）
- *        - 正数表示从字符串开头计数的位置（0表示第一个字符）
- *        - 负数表示从字符串末尾计数的位置（-1表示最后一个字符）
- * @param length 要提取的字符数量，默认为 std::string::npos 表示提取到字符串末尾
- * @return 提取的子字符串
- *
- * 示例:
- * @code
- * // 获取完整字符串
- * std::string_view s1 = mc::string::substring("hello", 0);  // "hello"
- *
- * // 获取前三个字符
- * std::string_view s2 = mc::string::substring("hello", 0, 3);  // "hel"
- *
- * // 获取最后三个字符
- * std::string_view s3 = mc::string::substring("hello", -3);  // "llo"
- *
- * // 获取从第二个字符开始的三个字符
- * std::string_view s4 = mc::string::substring("hello", 1, 3);  // "ell"
- * @endcode
- */
-MC_API std::string_view substring(std::string_view s, int start, std::size_t length = std::string::npos);
-
-/**
- * @brief 将一个或多个值追加到字符串中
- * @param result 要追加到的字符串
- * @param value 要追加的值
- * @param args 要追加的值
- */
-template <typename T>
-void append(std::string& result, T&& value)
-{
-    if constexpr (std::is_same_v<std::decay_t<T>, std::string> || std::is_same_v<std::decay_t<T>, std::string_view>) {
-        // 对于字符串和字符串视图，直接追加
-        result.append(value);
-    } else if constexpr (std::is_same_v<std::decay_t<T>, const char*>) {
-        // 对于C风格字符串，直接追加
-        result.append(value);
-    } else if constexpr (std::is_same_v<std::decay_t<T>, char>) {
-        // 对于单个字符，使用append(1, char)
-        result.append(1, value);
-    } else if constexpr (std::is_arithmetic_v<std::decay_t<T>>) {
-        // 对于数值类型，转换为字符串后追加
-        result.append(to_string(value));
-    } else {
-        // 对于其他类型，尝试使用std::ostringstream
-        std::ostringstream oss;
-        oss << value;
-        result.append(oss.str());
-    }
-}
-template <typename T, typename... Args>
-void append(std::string& result, T&& value, Args&&... args)
-{
-    append(result, std::forward<T>(value));
-    append(result, std::forward<Args>(args)...);
-}
-
-/**
- * @brief 将字符串数组连接成一个字符串
- * @param v 字符串数组
- * @param delim 连接符
- * @return 连接后的字符串
- */
-MC_API std::string join(const std::vector<std::string>& v, std::string_view delim);
-
-template <typename... Args>
-std::string join(std::string_view delim, Args&&... args)
-{
-    std::string result;
-    if constexpr (sizeof...(args) == 0) {
-        // 无参数时返回空字符串
-    } else if constexpr (sizeof...(args) == 1) {
-        // 单个参数时直接转换并追加
-        append(result, args...);
-    } else if constexpr (sizeof...(args) > 1) {
-        // 多个参数时，先添加第一个参数
-        auto add_with_delim = [&result, delim](const auto& arg) {
-            if (!result.empty()) {
-                result.append(delim);
-            }
-            append(result, arg);
-        };
-        (add_with_delim(args), ...);
-    }
-    return result;
-}
-
-/**
- * @brief 将字符串数组连接成一个字符串
- * @param v 字符串数组
- * @return 连接后的字符串
- */
-inline std::string concat(const std::vector<std::string>& v)
-{
-    std::string result;
-    result.reserve(std::accumulate(v.begin(), v.end(), size_t{0}, [](size_t sum, const std::string& s) {
-        return sum + s.size();
-    }));
-    for (const auto& s : v) {
-        result.append(s);
-    }
-    return result;
-}
-
-/**
- * @brief 将多个参数连接成一个字符串
- * @param args 要连接的参数
- * @return 连接后的字符串
- */
-template <typename T, typename... Args,
-          typename = std::enable_if_t<!std::is_same_v<std::decay_t<T>, std::vector<std::string>>>>
-std::string concat(T&& first, Args&&... args)
-{
-    std::string result;
-    append(result, std::forward<T>(first));
-    if constexpr (sizeof...(args) > 0) {
-        append(result, std::forward<Args>(args)...);
-    }
-    return result;
-}
-
-/**
- * @brief 使用固定宽度格式化字符串，不足用空格填充，并追加到目标字符串
- * @param result 要追加结果的目标字符串
- * @param width 目标宽度
- * @param s 要格式化的字符串
- * @param left_align 是否左对齐，默认为true
- */
-MC_API void fixed_width_append(std::string& result, size_t width, std::string_view s, bool left_align = true);
-
-/**
- * @brief 检查字符串是否以指定前缀开始
- * @param s 要检查的字符串
- * @param prefix 前缀
- * @return 如果字符串以指定前缀开始则返回 true，否则返回 false
- */
-MC_API bool starts_with(std::string_view s, std::string_view prefix);
-
-/**
- * @brief 检查字符串是否以指定后缀结束
- * @param s 要检查的字符串
- * @param suffix 后缀
- * @return 如果字符串以指定后缀结束则返回 true，否则返回 false
- */
-MC_API bool ends_with(std::string_view s, std::string_view suffix);
-
-/**
- * @brief 查找两个字符串的最长公共前缀
- * @param s1 第一个字符串
- * @param s2 第二个字符串
- * @return 两个字符串的最长公共前缀
- *
- * 示例:
- * @code
- * std::string_view prefix = mc::string::longest_common_prefix("hello", "help");  // "hel"
- * std::string_view empty = mc::string::longest_common_prefix("hello", "world");  // ""
- * @endcode
- */
-MC_API std::string_view longest_common_prefix(std::string_view s1, std::string_view s2);
-
-/**
- * @brief 替换字符串中的所有指定子串
- * @param s 要处理的字符串
- * @param from 要替换的子串
- * @param to 替换成的子串
- * @return 处理后的字符串
- */
-MC_API std::string replace_all(std::string_view s, std::string_view from, std::string_view to);
-
-/**
- * @brief 原地替换字符串中的所有指定子串
- * @param s 要处理的字符串
- * @param from 要替换的子串
- * @param to 替换成的子串
- */
-MC_API void replace_all_inplace(std::string& s, std::string_view from, std::string_view to);
-
-/**
- * @brief 检查字符串是否包含指定子串
- * @param s 要检查的字符串
- * @param substring 子串
- * @return 如果字符串包含指定子串则返回 true，否则返回 false
- */
-MC_API bool contains(std::string_view s, std::string_view substring);
-
-/**
- * @brief 忽略大小写检查字符串是否包含指定子串
- * @param s 要检查的字符串
- * @param substring 子串
- * @return 如果字符串忽略大小写后包含指定子串则返回 true，否则返回 false
- */
-MC_API bool icontains(std::string_view s, std::string_view substring);
-
-MC_API bool try_to_bool(std::string_view s, bool& result);
-
-/**
- * @brief 将字符串转换为布尔值，如果转换失败则返回默认值
- * @param s 要转换的字符串
- * @param default_value 转换失败时返回的默认值
- * @return 转换结果或默认值
- */
-MC_API bool to_bool_with_default(std::string_view s, bool default_value);
-
-/**
- * @brief 将字符串转换为布尔值，如果转换失败则抛出异常
- * @param s 要转换的字符串
- * @return 转换结果
- */
-MC_API bool to_bool(std::string_view s);
-
-/**
- * @brief 尝试将字符串转换为数字
- * @param s 要转换的字符串
- * @param result 转换结果的引用
- * @return 是否转换成功
- * 注意：这个函数底层使用了 std::strtod 和 std::strtol 等的 C
- * 风格版本，必须确保字符串能以尾0结尾，否则存在安全风险，因为 string_view
- * 不保证以尾0结尾，建议后续用 std::from_chars 替代
- */
-template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-bool try_to_number_unsafe(std::string_view s, T& result, int radix = 0)
-{
-    errno = 0;
-    if (s.empty()) {
-        return false;
-    }
-
-    if (radix == 0) {
-        auto v = detail::detect_number_radix(s);
-        radix  = v.first;
-        s      = v.second;
-    } else if (radix != 2 && radix != 8 && radix != 10 && radix != 16) {
-        radix = 10;
-    }
-
-    char* end;
-    if constexpr (std::is_floating_point_v<T>) {
-        result = std::strtod(s.data(), &end);
-    } else if constexpr (std::is_integral_v<T> && std::is_signed_v<T>) {
-        if constexpr (sizeof(T) == sizeof(long long)) {
-            result = std::strtoll(s.data(), &end, radix);
-        } else {
-            auto v = std::strtol(s.data(), &end, radix);
-            if (v < std::numeric_limits<T>::min() || v > std::numeric_limits<T>::max()) {
-                return false;
-            }
-            result = static_cast<T>(v);
-        }
-    } else if constexpr (std::is_integral_v<T> && std::is_unsigned_v<T>) {
-        if constexpr (sizeof(T) == sizeof(unsigned long long)) {
-            result = std::strtoull(s.data(), &end, radix);
-        } else {
-            auto v = std::strtoul(s.data(), &end, radix);
-            if (v > std::numeric_limits<T>::max()) {
-                return false;
-            }
-            result = static_cast<T>(v);
-        }
-    }
-
-    if (errno == ERANGE) {
-        return false;
-    }
-
-    return end != s.data() && end == s.data() + s.size();
-}
-
-#ifndef MC_NUMBER_STRING_BUFFER_SIZE
-#define MC_NUMBER_STRING_BUFFER_SIZE 128
-#endif
-
-/**
- * @brief 尝试安全的将字符串转换为数字，使用栈上分配的缓冲区
- * @param s 要转换的字符串
- * @param result 转换结果的引用
- * @param radix 进制
- * @return 是否转换成功
- */
-template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-bool try_to_number_safe(std::string_view s, T& result, int radix = 0)
-{
-    char buffer[MC_NUMBER_STRING_BUFFER_SIZE];
-    auto str_data = detail::prepare_number_string(s, radix, buffer, sizeof(buffer));
-    return try_to_number_unsafe(str_data, result, radix);
-}
-
-/**
- * @brief 尝试将C风格字符串转换为数字
- * @param s 要转换的C风格字符串
- * @param result 转换结果的引用
- * @return 是否转换成功
- */
-template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-bool try_to_number(const char* s, T& result, int radix = 0)
-{
-    return try_to_number_safe<T>(std::string_view(s), result, radix);
-}
-
-/**
- * @brief 尝试将字符串转换为数字
- * @param s 要转换的字符串
- * @param result 转换结果的引用
- * @param radix 进制
- * @return 是否转换成功
- */
-template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-bool try_to_number(std::string_view s, T& result, int radix = 0)
-{
-    return try_to_number_safe<T>(s, result, radix);
-}
-
-/**
- * @brief 尝试将标准字符串转换为数字
- * @param s 要转换的标准字符串
- * @param result 转换结果的引用
- * @return 是否转换成功
- */
-template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-bool try_to_number(const std::string& s, T& result, int radix = 0)
-{
-    return try_to_number_unsafe<T>(s, result, radix);
-}
-
-/**
- * @brief 将字符串转换为数字，如果转换失败则抛出异常
- * @param s 要转换的字符串
- * @return 转换结果
- */
-
-template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-T to_number(std::string_view s, int radix = 0)
-{
-    T result{};
-    if (try_to_number<T>(s, result, radix)) {
-        return result;
-    }
-
-    if (errno == ERANGE) {
-        detail::throw_overflow_error(mc::pretty_name<T>(), s);
-    }
-
-    detail::throw_bad_cast_error(mc::pretty_name<T>());
-}
-
-/**
- * @brief 将标准字符串转换为数字
- * @param s 要转换的标准字符串
- * @param radix 进制
- * @return 转换结果
- */
-template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-T to_number(const std::string& s, int radix = 0)
-{
-    T result{};
-    if (try_to_number<T>(s, result, radix)) {
-        return result;
-    }
-
-    if (errno == ERANGE) {
-        detail::throw_overflow_error(mc::pretty_name<T>(), s);
-    }
-
-    detail::throw_bad_cast_error(mc::pretty_name<T>());
-}
-
-/**
- * @brief 将C风格字符串转换为数字
- * @param s 要转换的C风格字符串
- * @param radix 进制
- * @return 转换结果
- */
-template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-T to_number(const char* s, int radix = 0)
-{
-    return to_number<T>(std::string_view(s), radix);
-}
-
-/**
- * @brief 将字符串转换为数字，如果转换失败则返回默认值
- * @param s 要转换的字符串
- * @param default_value 转换失败时返回的默认值
- * @return 转换结果或默认值
- */
-template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-T to_number_with_default(std::string_view s, T default_value, int radix = 0)
-{
-    T result{};
-    if (try_to_number<T>(s, result, radix)) {
-        return result;
-    }
-
-    return default_value;
-}
-
-/**
- * @brief 将标准字符串转换为数字，如果转换失败则返回默认值
- * @param s 要转换的标准字符串
- * @param default_value 转换失败时返回的默认值
- * @param radix 进制
- * @return 转换结果或默认值
- */
-template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-T to_number_with_default(const std::string& s, T default_value, int radix = 0)
-{
-    T result{};
-    if (try_to_number<T>(s, result, radix)) {
-        return result;
-    }
-
-    return default_value;
-}
-
-/**
- * @brief 将C风格字符串转换为数字，如果转换失败则返回默认值
- * @param s 要转换的C风格字符串
- * @param default_value 转换失败时返回的默认值
- * @param radix 进制
- * @return 转换结果或默认值
- */
-template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-T to_number_with_default(const char* s, T default_value, int radix = 0)
-{
-    return to_number_with_default<T>(std::string_view(s), default_value, radix);
-}
-
-MC_API bool is_valid_utf8(std::string_view s);
-
-/**
- * @brief 字符串分割迭代器
- * 用于高效地遍历分隔符分割的字符串片段
- */
-class MC_API split_iterator {
+// `mc::string` 持有由 mcbase 管理的稳定存储；与 array/dict 等一致使用 mc::shared_ptr 共享底层缓冲。
+class MC_API string {
 public:
-    using iterator_category = std::forward_iterator_tag;
-    using value_type        = std::string_view;
-    using difference_type   = std::ptrdiff_t;
+    using size_type                 = std::size_t;
+    static constexpr size_type npos = static_cast<size_type>(-1);
+
+    string() noexcept;
+    string(mc::string_view view);
+    string(const string& other) noexcept;
+    string(string&& other) noexcept;
+    ~string();
+
+    string& operator=(const string& other) noexcept;
+    string& operator=(string&& other) noexcept;
 
     /**
-     * @brief 默认构造函数，构造一个结束迭代器
+     * @brief 从 std::string 拷贝构造；按字节引用其存储并复制到 mc::string（与 string_view 路径一致，不做 locale
+     * 转码）。
+     * @see to_std_string()
      */
-    constexpr split_iterator() noexcept
+    inline string(const std::string& str) : string(mc::string_view(str))
     {}
 
-    /**
-     * @brief 构造函数
-     * @param str 要分割的字符串
-     * @param delims 分隔符集合，其中的任意字符都视为分隔符
-     */
-    constexpr split_iterator(std::string_view str, std::string_view delims = " ") noexcept
-        : m_str(str), m_delims(delims)
+    inline string(const char* value) : string(mc::string_view(value))
+    {}
+
+    std::size_t size() const noexcept;
+    std::size_t capacity() const noexcept;
+    bool        empty() const noexcept;
+    char*       data() noexcept;
+    const char* data() const noexcept;
+    const char* c_str() const noexcept
     {
-        find_next();
+        return data();
+    }
+    std::size_t length() const noexcept
+    {
+        return size();
+    }
+    mc::string_view view() const noexcept;
+    int             compare(mc::string_view other) const noexcept;
+    std::size_t     hash() const noexcept;
+    void            swap(string& other) noexcept;
+
+    /** @brief 隐式转换为 std::string；头文件内联，便于与现有代码兼容 */
+    operator std::string() const noexcept
+    {
+        mc::string_view v = view();
+        return std::string(v.data(), v.size());
     }
 
-    constexpr value_type operator*() const noexcept
+    operator std::string_view() const noexcept
     {
-        return std::string_view(m_str.data() + m_pos, m_end - m_pos);
+        mc::string_view v = view();
+        return std::string_view(v.data(), v.size());
     }
 
-    constexpr value_type operator->() const noexcept
+    static string join(const std::vector<mc::string>& parts, mc::string_view delim)
     {
-        return operator*();
-    }
-
-    constexpr split_iterator& operator++() noexcept
-    {
-        find_next();
-        return *this;
-    }
-
-    constexpr split_iterator operator++(int) noexcept
-    {
-        auto tmp = *this;
-        ++(*this);
-        return tmp;
-    }
-
-    constexpr bool operator==(const split_iterator& other) const noexcept
-    {
-        if (is_end() && other.is_end()) {
-            return true;
-        } else if (is_end() || other.is_end()) {
-            return false;
+        string result;
+        bool   first = true;
+        for (const auto& part : parts) {
+            if (!first) {
+                result.append(delim);
+            }
+            result.append(part);
+            first = false;
         }
-        return m_str.data() == other.m_str.data() && m_pos == other.m_pos;
+        return result;
     }
 
-    constexpr bool operator!=(const split_iterator& other) const noexcept
+    static string join(const std::vector<std::string>& parts, mc::string_view delim)
     {
-        return !(*this == other);
+        string result;
+        bool   first = true;
+        for (const auto& part : parts) {
+            if (!first) {
+                result.append(delim);
+            }
+            result.append(mc::string_view(part.data(), part.size()));
+            first = false;
+        }
+        return result;
     }
 
-    constexpr bool is_end() const noexcept
+    template <typename... Args>
+    static string concat(Args&&... args)
     {
-        return m_pos >= m_str.size();
+        string result;
+        (result.append(std::forward<Args>(args)), ...);
+        return result;
     }
 
-    static constexpr split_iterator end() noexcept
+    static string concat(const std::vector<mc::string>& parts)
     {
-        return split_iterator();
+        string result;
+        for (const auto& part : parts) {
+            result.append(part);
+        }
+        return result;
     }
 
-    /**
-     * @brief 获取当前位置在原字符串中的起始偏移
-     * @return 当前片段在原字符串中的起始位置
-     */
-    constexpr std::size_t current_pos() const noexcept
+    static string concat(const std::vector<std::string>& parts)
     {
-        return m_pos;
+        string result;
+        for (const auto& part : parts) {
+            result.append(part);
+        }
+        return result;
     }
 
-    /**
-     * @brief 获取当前位置在原字符串中的结束偏移
-     * @return 当前片段在原字符串中的结束位置
-     */
-    constexpr std::size_t end_pos() const noexcept
+    static mc::string_view substring(mc::string_view s, int start, size_type count = npos)
     {
-        return m_end;
-    }
-
-    /**
-     * @brief 获取当前位置在原字符串中的剩余部分
-     * @return 当前片段在原字符串中的剩余部分，会跳过分隔符
-     */
-    constexpr std::string_view tail() const noexcept
-    {
-        if (is_end()) {
+        const auto size = s.size();
+        if (size == 0) {
             return {};
         }
 
-        auto pos = skip_delims(m_str, m_pos, m_delims);
-        return m_str.substr(pos);
+        long long pos = start >= 0 ? static_cast<long long>(start) : static_cast<long long>(size) + start;
+        if (pos < 0 || static_cast<size_type>(pos) >= size) {
+            return {};
+        }
+
+        const auto begin = static_cast<size_type>(pos);
+        const auto limit = count == npos || begin + count > size ? size - begin : count;
+        return mc::string_view(s.data() + begin, limit);
     }
 
-    /**
-     * @brief 获取当前位置在原字符串中的前置部分
-     * @return 当前片段在原字符串中的前置部分
-     */
-    constexpr std::string_view head() const noexcept
+    static string to_lower(mc::string_view s)
     {
-        return m_str.substr(0, m_pos);
+        string result(s);
+        for (size_type i = 0; i < result.size(); ++i) {
+            result[i] = static_cast<char>(std::tolower(static_cast<unsigned char>(result[i])));
+        }
+        return result;
+    }
+
+    static string to_upper(mc::string_view s)
+    {
+        string result(s);
+        for (size_type i = 0; i < result.size(); ++i) {
+            result[i] = static_cast<char>(std::toupper(static_cast<unsigned char>(result[i])));
+        }
+        return result;
+    }
+
+    static string trim(mc::string_view s)
+    {
+        size_type begin = 0;
+        size_type end   = s.size();
+        while (begin < end && std::isspace(static_cast<unsigned char>(s[begin]))) {
+            ++begin;
+        }
+        while (end > begin && std::isspace(static_cast<unsigned char>(s[end - 1]))) {
+            --end;
+        }
+        return string(mc::string_view(s.data() + begin, end - begin));
+    }
+
+    static void ltrim_inplace(string& s)
+    {
+        s.ltrim_inplace();
+    }
+
+    static void rtrim_inplace(string& s)
+    {
+        s.rtrim_inplace();
+    }
+
+    static void trim_inplace(string& s)
+    {
+        s.trim_inplace();
+    }
+
+    static void ltrim_inplace(std::string& s)
+    {
+        size_type begin = 0;
+        while (begin < s.size() && std::isspace(static_cast<unsigned char>(s[begin]))) {
+            ++begin;
+        }
+        s.erase(0, begin);
+    }
+
+    static void rtrim_inplace(std::string& s)
+    {
+        size_type end = s.size();
+        while (end > 0 && std::isspace(static_cast<unsigned char>(s[end - 1]))) {
+            --end;
+        }
+        s.erase(end);
+    }
+
+    static void trim_inplace(std::string& s)
+    {
+        size_type begin = 0;
+        size_type end   = s.size();
+        while (begin < end && std::isspace(static_cast<unsigned char>(s[begin]))) {
+            ++begin;
+        }
+        while (end > begin && std::isspace(static_cast<unsigned char>(s[end - 1]))) {
+            --end;
+        }
+        s = s.substr(begin, end - begin);
+    }
+
+    static bool starts_with(mc::string_view s, mc::string_view prefix) noexcept
+    {
+        if (prefix.size() > s.size()) {
+            return false;
+        }
+        for (size_type i = 0; i < prefix.size(); ++i) {
+            if (s[i] != prefix[i]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    bool operator==(mc::string_view rhs) const noexcept
+    {
+        return view() == rhs;
+    }
+
+    bool operator!=(mc::string_view rhs) const noexcept
+    {
+        return !(*this == rhs);
+    }
+
+    bool operator==(const char* rhs) const noexcept
+    {
+        if (rhs == nullptr) {
+            return empty();
+        }
+        return view() == mc::string_view(rhs);
+    }
+
+    bool operator!=(const char* rhs) const noexcept
+    {
+        return !(*this == rhs);
+    }
+
+    bool operator==(std::string_view rhs) const noexcept
+    {
+        return std::string_view(*this) == rhs;
+    }
+
+    bool operator!=(std::string_view rhs) const noexcept
+    {
+        return !(*this == rhs);
+    }
+
+    bool operator==(const std::string& rhs) const noexcept
+    {
+        return std::string_view(*this) == std::string_view(rhs);
+    }
+
+    bool operator!=(const std::string& rhs) const noexcept
+    {
+        return !(*this == rhs);
+    }
+
+    string          to_lower() const;
+    string          to_upper() const;
+    string          trim() const;
+    string          ltrim() const;
+    string          rtrim() const;
+    string          substr(size_type pos = 0, size_type count = npos) const;
+    bool            starts_with(mc::string_view prefix) const;
+    bool            ends_with(mc::string_view suffix) const;
+    bool            contains(mc::string_view substring) const;
+    bool            icontains(mc::string_view substring) const;
+    string          replace_all(mc::string_view from, mc::string_view to) const;
+
+    void to_lower_inplace();
+    void to_upper_inplace();
+    void trim_inplace();
+    void ltrim_inplace();
+    void rtrim_inplace();
+    void replace_all_inplace(mc::string_view from, mc::string_view to);
+
+    static bool iequals(mc::string_view a, mc::string_view b);
+    static bool iequals(const char* a, const char* b);
+
+    template <typename T>
+    static string to_string(T value);
+
+    static bool try_to_bool(mc::string_view s, bool& result);
+    static bool to_bool(mc::string_view s);
+    static bool to_bool_with_default(mc::string_view s, bool default_value);
+
+    template <typename T>
+    static bool try_to_number(mc::string_view s, T& result, int radix = 0);
+
+    template <typename T>
+    static T to_number(mc::string_view s, int radix = 0);
+
+    template <typename T>
+    static T to_number_with_default(mc::string_view s, T default_value, int radix = 0);
+
+    static bool is_valid_utf8(mc::string_view s);
+
+    string(const char* first, const char* last);
+    string(const char* data, std::size_t count);
+    string(std::size_t count, char ch);
+
+    const char* begin() const noexcept;
+    const char* end() const noexcept;
+    char*       begin() noexcept;
+    char*       end() noexcept;
+
+    void clear() noexcept;
+    void push_back(char c);
+    void pop_back() noexcept;
+    void reserve(std::size_t new_capacity);
+    void shrink_to_fit();
+    void resize(size_type n, char ch = '\0');
+    void insert(size_type pos, size_type count, char ch);
+
+    char&       operator[](size_type index);
+    const char& operator[](size_type index) const;
+    char&       at(size_type index);
+    const char& at(size_type index) const;
+    char&       front();
+    const char& front() const;
+    char&       back();
+    const char& back() const;
+
+    void append(const char* str);
+    void append(const char* str, std::size_t count);
+    void append(std::size_t count, char ch);
+    void append(mc::string_view str);
+    void append(const string& str);
+    void append(const string& str, size_type pos, size_type n = npos);
+
+    /** @brief 追加 std::string；头文件内联，委托 append(string_view)。 */
+    inline void append(const std::string& str)
+    {
+        append(mc::string_view(str.data(), str.size()));
+    }
+
+    void      replace(size_type pos, size_type count, mc::string_view str);
+    void      erase(size_type pos = 0, size_type n = npos);
+    char*     erase(char* first, char* last);
+    size_type find(mc::string_view v, size_type pos = 0) const noexcept;
+    size_type find(char c, size_type pos = 0) const noexcept;
+    size_type find_first_not_of(char c, size_type pos = 0) const noexcept;
+
+    string& operator+=(char c);
+    string& operator+=(mc::string_view v);
+    string& operator+=(const string& v);
+    string& operator+=(const char* str);
+
+    /** @brief 追加 std::string；头文件内联，委托 operator+=(string_view)。 */
+    inline string& operator+=(const std::string& str)
+    {
+        *this += mc::string_view(str.data(), str.size());
+        return *this;
     }
 
 private:
-    static constexpr std::size_t skip_delims(std::string_view str, std::size_t pos, std::string_view delims)
-    {
-        while (pos < str.size() && delims.find(str[pos]) != std::string_view::npos) {
-            ++pos;
-        }
-        return pos;
-    }
+    friend struct detail::string_mutable_impl;
 
-    static constexpr std::size_t find_next_delim(std::string_view str, std::size_t pos, std::string_view delims)
-    {
-        while (pos < str.size() && delims.find(str[pos]) == std::string_view::npos) {
-            ++pos;
-        }
-        return pos;
-    }
-
-    constexpr void find_next() noexcept
-    {
-        m_pos = m_end;
-        m_pos = skip_delims(m_str, m_pos, m_delims);
-        m_end = find_next_delim(m_str, m_pos, m_delims);
-    }
-
-    std::string_view m_str;    ///< 要分割的字符串
-    std::string_view m_delims; ///< 分隔符集合
-    std::size_t      m_pos{0}; ///< 当前片段的起始位置
-    std::size_t      m_end{0}; ///< 当前片段的结束位置
+    mc::shared_ptr<detail::string_storage> m_storage{};
 };
-} // namespace mc::string
 
-namespace mc {
-using mc::string::to_bool;
-using mc::string::to_bool_with_default;
-using mc::string::to_number;
-using mc::string::to_number_with_default;
-using mc::string::to_string;
-using mc::string::try_to_number;
+/**
+ * @brief 与 std::string 互操作：头文件内联，不单独导出符号（与 string(const std::string&) 对称）。
+ */
+inline std::string to_std_string(const string& s)
+{
+    mc::string_view v = s.view();
+    return std::string(v.data(), v.size());
+}
+
+MC_API bool operator==(const string& lhs, const string& rhs) noexcept;
+MC_API bool operator!=(const string& lhs, const string& rhs) noexcept;
+MC_API bool operator<(const string& lhs, const string& rhs) noexcept;
+MC_API bool operator<=(const string& lhs, const string& rhs) noexcept;
+MC_API bool operator>(const string& lhs, const string& rhs) noexcept;
+MC_API bool operator>=(const string& lhs, const string& rhs) noexcept;
+
+MC_API string operator+(const string& lhs, const string& rhs);
+MC_API string operator+(const string& lhs, mc::string_view rhs);
+MC_API string operator+(mc::string_view lhs, const string& rhs);
+inline string operator+(const char* lhs, mc::string_view rhs)
+{
+    return string(lhs) + rhs;
+}
+
+inline string operator+(mc::string_view lhs, const char* rhs)
+{
+    return string(lhs) + mc::string_view(rhs);
+}
+
+MC_API string operator+(const string& lhs, const char* rhs);
+MC_API string operator+(const char* lhs, const string& rhs);
+
+/** @brief 与 std::string 拼接：头文件内联，转发到 string + string_view */
+inline string operator+(const string& lhs, const std::string& rhs)
+{
+    return lhs + mc::string_view(rhs.data(), rhs.size());
+}
+
+inline string operator+(const std::string& lhs, const string& rhs)
+{
+    return mc::string_view(lhs.data(), lhs.size()) + rhs;
+}
+
+template <typename T, std::enable_if_t<std::is_same_v<std::decay_t<T>, string>, int> = 0>
+inline bool operator==(const char* lhs, const T& rhs) noexcept
+{
+    return mc::string_view(lhs) == rhs.view();
+}
+
+template <typename T, std::enable_if_t<std::is_same_v<std::decay_t<T>, string>, int> = 0>
+inline bool operator!=(const char* lhs, const T& rhs) noexcept
+{
+    return !(lhs == rhs);
+}
+
+MC_API std::ostream& operator<<(std::ostream& os, const string& s);
+
+inline void swap(string& lhs, string& rhs) noexcept
+{
+    lhs.swap(rhs);
+}
+
+inline string_view::string_view(const string& value) noexcept : string_view(value.view())
+{}
+
+inline bool string_view::operator==(const string& rhs) const noexcept
+{
+    return *this == rhs.view();
+}
+
+inline bool string_view::operator!=(const string& rhs) const noexcept
+{
+    return !(*this == rhs);
+}
+
 } // namespace mc
+
+namespace std {
+
+template <>
+struct hash<mc::string> {
+    size_t operator()(const mc::string& value) const noexcept
+    {
+        return value.hash();
+    }
+};
+
+} // namespace std
 
 #endif // MC_STRING_H

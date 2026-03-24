@@ -30,41 +30,53 @@
 #endif
 
 #include <mc/filesystem.h>
+#include <mc/string.h>
 #include <test_utilities/base.h>
 
 namespace mc {
 namespace test {
 
-MC_API std::string get_executable_path() {
+MC_API mc::string get_executable_path()
+{
 #ifdef __APPLE__
     char     path[PATH_MAX];
     uint32_t size = PATH_MAX;
     if (_NSGetExecutablePath(path, &size) == 0) {
-        return std::string(path);
+        return mc::string(path);
     }
 #elif defined(_WIN32)
     char  path[MAX_PATH];
     DWORD size = GetModuleFileNameA(NULL, path, MAX_PATH);
     if (size > 0) {
-        return std::string(path, size);
+        return mc::string(path, size);
     }
 #else
     char    path[PATH_MAX];
     ssize_t count = readlink("/proc/self/exe", path, PATH_MAX);
     if (count > 0) {
-        return std::string(path, count);
+        return mc::string(path, count);
     }
 #endif
     return "";
 }
 
-MC_API mc::filesystem::path get_build_root() {
+MC_API mc::filesystem::path get_build_root()
+{
     // 优先通过可执行文件路径推断
     auto exe_path_str = get_executable_path();
     if (!exe_path_str.empty()) {
-        auto exe_path = mc::filesystem::path(exe_path_str);
+        auto exe_path = mc::filesystem::path(exe_path_str.c_str());
         if (exe_path.is_absolute()) {
             auto exe_dir = exe_path.parent_path();
+#if defined(__APPLE__)
+            constexpr const char* k_mock_module_file = "mc.dylib";
+#else
+            constexpr const char* k_mock_module_file = "mc.so";
+#endif
+            // mcbase_test 与 mock：.../tests/mcbase_test 与 .../tests/module/mc.dylib
+            if (mc::filesystem::exists(exe_dir / "module" / k_mock_module_file)) {
+                return exe_dir.parent_path();
+            }
             // 如果可执行文件在 tests 目录下，构建根目录是 tests 的父目录
             if (exe_dir.filename() == "tests") {
                 auto build_root = exe_dir.parent_path();

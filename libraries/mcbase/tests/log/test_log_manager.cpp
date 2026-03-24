@@ -73,7 +73,7 @@ private:
     mc::log::messages m_messages;
 };
 
-std::string make_unique_name(const std::string& prefix) {
+mc::string make_unique_name(const mc::string& prefix) {
     static std::atomic<uint32_t> counter{0};
     return prefix + "_" + std::to_string(++counter);
 }
@@ -299,7 +299,7 @@ TEST_F(log_manager_test, LoadAppenderLibrary)
 TEST_F(log_manager_test, FactoryCreateAppender)
 {
     // 使用唯一的名称避免冲突
-    std::string unique_prefix = "factory_test_" + std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
+    mc::string unique_prefix = "factory_test_" + std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
 
     // 使用 appender_factory 创建 console appender
     mc::dict config;
@@ -476,7 +476,7 @@ TEST_F(log_manager_test, ApplyConfigHandlesPartialAppenderFailures) {
 
     EXPECT_TRUE(log_manager::instance().apply_config(config));
 
-    auto logger_instance = log_manager::instance().get_logger(logger_name.c_str());
+    auto logger_instance = log_manager::instance().get_logger(logger_name);
     ASSERT_EQ(logger_instance.get_appenders().size(), 1);
     auto tracking = std::dynamic_pointer_cast<tracking_appender>(appender_factory::instance().get_appender(valid_app));
     ASSERT_NE(tracking, nullptr);
@@ -510,7 +510,7 @@ TEST_F(log_manager_test, ApplyConfigUpdatesAndRemovesAppenders)
 
     EXPECT_TRUE(log_manager::instance().apply_config(first_config));
 
-    auto logger_instance = log_manager::instance().get_logger(logger_name.c_str());
+    auto logger_instance = log_manager::instance().get_logger(logger_name);
     ASSERT_EQ(logger_instance.get_appenders().size(), 1);
 
     logging_config second_config;
@@ -519,7 +519,7 @@ TEST_F(log_manager_test, ApplyConfigUpdatesAndRemovesAppenders)
     second_config.loggers.push_back(remove_cfg);
 
     EXPECT_TRUE(log_manager::instance().apply_config(second_config));
-    logger_instance = log_manager::instance().get_logger(logger_name.c_str());
+    logger_instance = log_manager::instance().get_logger(logger_name);
     EXPECT_TRUE(logger_instance.get_appenders().empty());
     EXPECT_EQ(logger_instance.get_level(), level::error);
 
@@ -530,7 +530,7 @@ TEST_F(log_manager_test, ApplyConfigUpdatesAndRemovesAppenders)
     third_config.loggers.push_back(missing_cfg);
 
     EXPECT_TRUE(log_manager::instance().apply_config(third_config));
-    logger_instance = log_manager::instance().get_logger(logger_name.c_str());
+    logger_instance = log_manager::instance().get_logger(logger_name);
     EXPECT_TRUE(logger_instance.get_appenders().empty());
     EXPECT_EQ(logger_instance.get_level(), level::warn);
 }
@@ -554,7 +554,7 @@ TEST_F(log_manager_test, ApplyConfigExternalLibraryLoadFailure)
 
     EXPECT_TRUE(log_manager::instance().apply_config(config));
 
-    auto logger_instance = log_manager::instance().get_logger(logger_name.c_str());
+    auto logger_instance = log_manager::instance().get_logger(logger_name);
     EXPECT_TRUE(logger_instance.get_appenders().empty());
     EXPECT_EQ(appender_factory::instance().get_appender(ext_app_name), nullptr);
 }
@@ -584,13 +584,13 @@ TEST_F(log_manager_test, ApplyConfigSkipRedundantAppenderUpdates)
 
     ASSERT_TRUE(log_manager::instance().apply_config(config));
 
-    auto logger_before = log_manager::instance().get_logger(logger_name.c_str());
+    auto logger_before = log_manager::instance().get_logger(logger_name);
     ASSERT_EQ(logger_before.get_appenders().size(), 1);
     auto first_ptr = logger_before.get_appenders().front();
 
     EXPECT_TRUE(log_manager::instance().apply_config(config));
 
-    auto logger_after = log_manager::instance().get_logger(logger_name.c_str());
+    auto logger_after = log_manager::instance().get_logger(logger_name);
     ASSERT_EQ(logger_after.get_appenders().size(), 1);
     EXPECT_EQ(logger_after.get_appenders().front().get(), first_ptr.get());
 }
@@ -763,7 +763,7 @@ TEST_F(log_manager_test, UpdateExistingLoggerAddAppender)
 
     // 先创建一个 logger
     auto logger_name = make_unique_name("update_logger");
-    auto logger      = manager.get_logger(logger_name.c_str());
+    auto logger      = manager.get_logger(logger_name);
 
     // 然后通过配置添加 appender
     logging_config config;
@@ -775,7 +775,7 @@ TEST_F(log_manager_test, UpdateExistingLoggerAddAppender)
 
     EXPECT_TRUE(manager.apply_config(config));
 
-    auto updated_logger = manager.get_logger(logger_name.c_str());
+    auto updated_logger = manager.get_logger(logger_name);
     EXPECT_FALSE(updated_logger.get_appenders().empty());
 }
 
@@ -815,7 +815,7 @@ TEST_F(log_manager_test, UpdateExistingLoggerRemoveAppender)
 
     EXPECT_TRUE(manager.apply_config(second_config));
 
-    auto updated_logger = manager.get_logger(logger_name.c_str());
+    auto updated_logger = manager.get_logger(logger_name);
     EXPECT_TRUE(updated_logger.get_appenders().empty());
     EXPECT_EQ(updated_logger.get_level(), level::warn);
 }

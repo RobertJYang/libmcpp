@@ -14,15 +14,53 @@
 #define MC_IM_PREFIX_H
 
 #include <string>
-#include <string_view>
+
+#include <mc/string_view.h>
 
 namespace mc::im {
 
 // 别名，可以作为key_type使用
-using key_view = std::string_view;
+using key_view = mc::string_view;
 
 template <typename Alloc = std::allocator<char>>
-using key_buffer = std::basic_string<char, std::char_traits<char>, Alloc>;
+class key_buffer : public std::basic_string<char, std::char_traits<char>, Alloc> {
+public:
+    using base_type      = std::basic_string<char, std::char_traits<char>, Alloc>;
+    using allocator_type = typename base_type::allocator_type;
+
+    using base_type::base_type;
+    using base_type::operator=;
+
+    key_buffer() = default;
+
+    explicit key_buffer(key_view view) : base_type(view.data(), view.size())
+    {}
+
+    key_buffer(key_view view, const allocator_type& alloc) : base_type(view.data(), view.size(), alloc)
+    {}
+
+    explicit key_buffer(const allocator_type& alloc) : base_type(alloc)
+    {}
+
+    key_buffer(const allocator_type& alloc, key_view view) : base_type(view.data(), view.size(), alloc)
+    {}
+
+    key_buffer(const allocator_type& alloc, const key_buffer& other) : base_type(other, alloc)
+    {}
+
+    key_buffer(const allocator_type& alloc, key_buffer&& other) : base_type(std::move(other), alloc)
+    {}
+
+    constexpr operator key_view() const noexcept
+    {
+        return key_view(this->data(), this->size());
+    }
+
+    constexpr key_view view() const noexcept
+    {
+        return key_view(this->data(), this->size());
+    }
+};
 
 // 便捷函数
 inline key_buffer<> to_key_buffer(key_view view)

@@ -29,7 +29,7 @@ TEST_F(VariantConversionTest, CopyOnVariousTypes)
     EXPECT_TRUE(c1 == v_num);
 
     // 字符串
-    mc::variant v_str = std::string("hello");
+    mc::variant v_str = mc::string("hello");
     auto        c2    = v_str.copy();
     EXPECT_TRUE(c2 == v_str);
 
@@ -57,14 +57,14 @@ TEST_F(VariantConversionTest, ToVariantOverloads)
     const char* s1 = "abc";
     mc::to_variant(s1, v2);
     EXPECT_TRUE(v2.is_string());
-    EXPECT_TRUE(v2 == std::string("abc"));
+    EXPECT_TRUE(v2 == mc::string("abc"));
 
     // char* -> variant（可变 C 字符串）
     char        buf[] = {'x', 'y', 'z', '\0'};
     mc::variant v3;
     mc::to_variant(buf, v3);
     EXPECT_TRUE(v3.is_string());
-    EXPECT_TRUE(v3 == std::string("xyz"));
+    EXPECT_TRUE(v3 == mc::string("xyz"));
 
     // variants -> variant
     mc::variants arr{1, 2, 3};
@@ -78,13 +78,13 @@ TEST_F(VariantConversionTest, ToVariantOverloads)
     const char* pnull = nullptr;
     mc::to_variant(pnull, v5);
     EXPECT_TRUE(v5.is_string());
-    EXPECT_EQ(v5.as_string(), std::string(""));
+    EXPECT_EQ(v5.as_string(), mc::string(""));
 }
 
 TEST_F(VariantConversionTest, FromVariantOverloads)
 {
     // string -> const char* / char*
-    mc::variant vs  = std::string("hello");
+    mc::variant vs  = mc::string("hello");
     const char* pcs = nullptr;
     mc::from_variant(vs, pcs);
     ASSERT_NE(pcs, nullptr);
@@ -114,6 +114,30 @@ TEST_F(VariantConversionTest, FromVariantOverloads)
     EXPECT_EQ(out.size(), 2u);
 }
 
+TEST_F(VariantConversionTest, FromNumericVariantToStdString)
+{
+    mc::variant int_variant = 42;
+    std::string int_string;
+    mc::from_variant(int_variant, int_string);
+    EXPECT_EQ(int_string, "42");
+
+    mc::variant double_variant = 60.8;
+    std::string double_string;
+    mc::from_variant(double_variant, double_string);
+    EXPECT_EQ(double_string, "60.8");
+}
+
+TEST_F(VariantConversionTest, VariantHeaderExposesCompleteDictStdFindBridge)
+{
+    mc::dict d{{"alpha", 1}, {"beta", 2}};
+
+    std::string key = "beta";
+    auto        it  = d.find(key);
+
+    ASSERT_NE(it, d.end());
+    EXPECT_EQ(it->value.as<int>(), 2);
+}
+
 TEST_F(VariantConversionTest, StreamOutputFormatting)
 {
     // 覆盖 operator<< 的多个分支
@@ -134,7 +158,7 @@ TEST_F(VariantConversionTest, StreamOutputFormatting)
     mc::variant vdouble = 3.14;
     os << vdouble; // double
 
-    mc::variant vstr = std::string("abc");
+    mc::variant vstr = mc::string("abc");
     os << vstr; // string
 
     mc::variant varr = mc::variants{1, 2, 3};
@@ -148,8 +172,8 @@ TEST_F(VariantConversionTest, StreamOutputFormatting)
     mc::variant        vblob = b;
     std::ostringstream os_blob;
     os_blob << vblob;
-    auto blob_out = os_blob.str();
-    EXPECT_NE(blob_out.find("blob[2]"), std::string::npos);
+    mc::string blob_out = os_blob.str();
+    EXPECT_NE(blob_out.find("blob[2]"), mc::string::npos);
 }
 
 TEST_F(VariantConversionTest, CopyBlobShouldBeEqual)
@@ -180,7 +204,7 @@ TEST_F(VariantConversionTest, StdVectorConversionTypeMismatch)
 TEST_F(VariantConversionTest, VectorByteFromString)
 {
     const char*         raw_str1 = "abcd";
-    mc::variant         var1     = std::string(raw_str1, 4);
+    mc::variant         var1     = mc::string(raw_str1, 4);
     std::vector<int8_t> arr1;
     mc::from_variant(var1, arr1);
     EXPECT_EQ(arr1.size(), 4);
@@ -190,7 +214,7 @@ TEST_F(VariantConversionTest, VectorByteFromString)
     EXPECT_EQ(arr1[3], 100);
 
     const char*          raw_str2 = "\x01\x02\x03\x00\x04";
-    mc::variant          var3     = std::string(raw_str2, 5);
+    mc::variant          var3     = mc::string(raw_str2, 5);
     std::vector<uint8_t> arr_unsigned;
     mc::from_variant(var3, arr_unsigned);
     EXPECT_EQ(arr_unsigned.size(), 5);

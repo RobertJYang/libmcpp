@@ -31,7 +31,7 @@ public:
 
     test_object() = default;
 
-    test_object(uint32_t id, std::string name, int value) : m_id(id), m_name(std::move(name)), m_value(value)
+    test_object(uint32_t id, mc::string name, int value) : m_id(id), m_name(std::move(name)), m_value(value)
     {}
 
     ~test_object() override
@@ -42,7 +42,7 @@ public:
         return m_id;
     }
 
-    const std::string& name() const
+    const mc::string& name() const
     {
         return m_name;
     }
@@ -53,7 +53,7 @@ public:
     }
 
     uint32_t    m_id;
-    std::string m_name;
+    mc::string m_name;
     int         m_value;
 };
 } // namespace
@@ -228,7 +228,7 @@ TEST_F(database_test, update_operations)
     }
 
     // 使用map更新
-    std::map<std::string, variant> updates3{{"name", "map_updated"}, {"value", 888}};
+    std::map<mc::string, variant> updates3{{"name", "map_updated"}, {"value", 888}};
     EXPECT_TRUE(db.update("test_table", field_id == 3, updates3));
 
     // 验证更新结果

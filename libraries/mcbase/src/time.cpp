@@ -17,13 +17,77 @@
 #include "mc/time.h"
 #include "mc/exception.h"
 #include "mc/variant.h"
+#include <cctype>
+#include <cerrno>
 #include <chrono>
+#include <cstdlib>
+#include <cstring>
 #include <ctime>
 #include <iomanip>
 #include <regex>
 #include <sstream>
 
 namespace mc {
+
+namespace {
+
+// 使用 const char* 区间 + std::cmatch，避免为 regex 构造额外字符串；数值用栈缓冲 + strtol，兼容无 from_chars 的工具链
+bool submatch_to_long(const std::csub_match& sm, long min_v, long max_v, long& out)
+{
+    if (!sm.matched || sm.length() == 0 || sm.length() > 16) {
+        return false;
+    }
+    char buf[17];
+    std::memcpy(buf, sm.first, static_cast<std::size_t>(sm.length()));
+    buf[static_cast<std::size_t>(sm.length())] = '\0';
+    errno                                     = 0;
+    char* end = nullptr;
+    long  v   = std::strtol(buf, &end, 10);
+    if (errno == ERANGE || end != buf + sm.length()) {
+        return false;
+    }
+    if (v < min_v || v > max_v) {
+        return false;
+    }
+    out = v;
+    return true;
+}
+
+bool parse_fractional_seconds_submatch(const std::csub_match& sm, int64_t& ms_out)
+{
+    if (!sm.matched) {
+        ms_out = 0;
+        return true;
+    }
+    const std::size_t len = static_cast<std::size_t>(sm.length());
+    if (len < 1 || len > 3) {
+        return false;
+    }
+    char buf[4];
+    std::memcpy(buf, sm.first, len);
+    buf[len] = '\0';
+    for (std::size_t i = 0; i < len; ++i) {
+        if (std::isdigit(static_cast<unsigned char>(buf[i])) == 0) {
+            return false;
+        }
+    }
+    errno     = 0;
+    char* end = nullptr;
+    long  v   = std::strtol(buf, &end, 10);
+    if (errno == ERANGE || end != buf + len || v < 0) {
+        return false;
+    }
+    if (len == 1) {
+        ms_out = v * 100;
+    } else if (len == 2) {
+        ms_out = v * 10;
+    } else {
+        ms_out = v;
+    }
+    return true;
+}
+
+} // namespace
 
 // 定义跨平台timegm替代函数
 // timegm是一个GNU扩展，非标准C/C++函数
@@ -52,38 +116,38 @@ static time_t portable_timegm(struct tm* tm)
 
 // 工具函数：解析ISO 8601日期时间字符串
 // 支持格式："2020-01-01T12:30:45" 或 "2020-01-01T12:30:45.123"
-static bool parse_iso_datetime(const std::string& iso_str, std::tm& tm_result, int64_t& milliseconds)
+static bool parse_iso_datetime(mc::string_view iso_str, std::tm& tm_result, int64_t& milliseconds)
 {
-    // 正则表达式匹配ISO 8601格式
-    std::regex  iso_regex(R"((\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?Z?)");
-    std::smatch matches;
+    static const std::regex iso_regex(
+        R"((\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?Z?)");
+    std::cmatch matches;
 
-    if (!std::regex_match(iso_str, matches, iso_regex)) {
+    const char* const b = iso_str.data();
+    const char* const e = b + iso_str.size();
+    if (!std::regex_match(b, e, matches, iso_regex)) {
         return false;
     }
 
-    // 解析年月日时分秒
-    tm_result.tm_year = std::stoi(matches[1].str()) - 1900; // 年份从1900年开始
-    tm_result.tm_mon  = std::stoi(matches[2].str()) - 1;    // 月份从0开始
-    tm_result.tm_mday = std::stoi(matches[3].str());
-    tm_result.tm_hour = std::stoi(matches[4].str());
-    tm_result.tm_min  = std::stoi(matches[5].str());
-    tm_result.tm_sec  = std::stoi(matches[6].str());
-
-    // 解析毫秒部分（如果存在）
-    milliseconds = 0;
-    if (matches[7].matched) {
-        std::string ms_str = matches[7].str();
-        // 补齐到三位
-        if (ms_str.length() == 1) {
-            ms_str += "00";
-        } else if (ms_str.length() == 2) {
-            ms_str += "0";
-        }
-        milliseconds = std::stoi(ms_str);
+    long y = 0;
+    long mo = 0;
+    long d = 0;
+    long h = 0;
+    long mi = 0;
+    long se = 0;
+    if (!submatch_to_long(matches[1], 0L, 9999L, y) || !submatch_to_long(matches[2], 1L, 12L, mo) ||
+        !submatch_to_long(matches[3], 1L, 31L, d) || !submatch_to_long(matches[4], 0L, 23L, h) ||
+        !submatch_to_long(matches[5], 0L, 59L, mi) || !submatch_to_long(matches[6], 0L, 60L, se)) {
+        return false;
     }
 
-    return true;
+    tm_result.tm_year = static_cast<int>(y) - 1900;
+    tm_result.tm_mon  = static_cast<int>(mo) - 1;
+    tm_result.tm_mday = static_cast<int>(d);
+    tm_result.tm_hour = static_cast<int>(h);
+    tm_result.tm_min  = static_cast<int>(mi);
+    tm_result.tm_sec  = static_cast<int>(se);
+
+    return parse_fractional_seconds_submatch(matches[7], milliseconds);
 }
 
 time_point time_point::now()
@@ -91,7 +155,7 @@ time_point time_point::now()
     return time_point(std::chrono::steady_clock::now());
 }
 
-time_point time_point::from_iso_string(const std::string& s)
+time_point time_point::from_iso_string(mc::string_view s)
 {
     try {
         // 检查字符串是否为空
@@ -117,7 +181,7 @@ time_point time_point::from_iso_string(const std::string& s)
 
         return time_point(milliseconds(ms_since_epoch));
     } catch (const mc::exception& e) {
-        std::string msg = "无法将ISO格式字符串转换为时间点: ";
+        mc::string msg = "无法将ISO格式字符串转换为时间点: ";
         msg += e.what();
         throw mc::exception(e.code(), msg);
     } catch (const std::exception& e) {
@@ -127,7 +191,7 @@ time_point time_point::from_iso_string(const std::string& s)
 
 // 更新日期/时间的特定部分
 template <int offset>
-void update_time_part(std::string& str, int value, int& cache_value)
+void update_time_part(mc::string& str, int value, int& cache_value)
 {
     if (value != cache_value) {
         str[offset]     = '0' + (value / 10);
@@ -143,7 +207,7 @@ void update_time_part(std::string& str, int value, int& cache_value)
 template <bool WithMilliseconds>
 struct time_cache {
     // 根据是否包含毫秒预设字符串初始值和长度
-    std::string str      = WithMilliseconds ? "0000-00-00T00:00:00.000" : "0000-00-00T00:00:00";
+    mc::string str      = WithMilliseconds ? "0000-00-00T00:00:00.000" : "0000-00-00T00:00:00";
     int64_t     ms_epoch = -1;
     int64_t     seconds  = -1;
     int         minute   = -1;
@@ -159,10 +223,10 @@ struct time_cache {
  * @tparam WithMilliseconds 是否包含毫秒部分（决定缓存结构的字符串长度）
  * @param seconds 从纪元开始的秒数
  * @param cache 时间缓存结构
- * @return std::string_view 指向缓存字符串的视图
+ * @return mc::string_view 指向缓存字符串的视图
  */
 template <bool WithMilliseconds>
-static std::string_view format_cached_iso_datetime(int64_t seconds, time_cache<WithMilliseconds>& cache)
+static mc::string_view format_cached_iso_datetime(int64_t seconds, time_cache<WithMilliseconds>& cache)
 {
     if (seconds < 0) {
         MC_THROW(mc::parse_error_exception, "不支持负时间点转换为ISO字符串");
@@ -204,10 +268,10 @@ static std::string_view format_cached_iso_datetime(int64_t seconds, time_cache<W
     }
 
     // 返回缓存字符串，不处理毫秒
-    return std::string_view(cache.str);
+    return mc::string_view(cache.str);
 }
 
-std::string_view time_point::to_string() const
+mc::string_view time_point::to_string() const
 {
     try {
         // 使用带毫秒的缓存
@@ -235,23 +299,23 @@ std::string_view time_point::to_string() const
             cache.ms_epoch = ms_since_epoch;
         }
 
-        return std::string_view(cache.str);
+        return mc::string_view(cache.str);
     } catch (const std::exception& e) {
         MC_THROW(mc::bad_cast_exception, "转换时间点为ISO字符串失败: ${error}", ("error", e.what()));
     }
 }
 
-time_point::operator std::string_view() const
+time_point::operator mc::string_view() const
 {
     return to_string();
 }
 
-std::string_view time_point::to_iso_string() const
+mc::string_view time_point::to_iso_string() const
 {
     return to_string();
 }
 
-time_point_sec time_point_sec::from_iso_string(const std::string& s)
+time_point_sec time_point_sec::from_iso_string(mc::string_view s)
 {
     try {
         std::tm tm_result    = {};
@@ -273,7 +337,7 @@ time_point_sec time_point_sec::from_iso_string(const std::string& s)
     }
 }
 
-std::string_view time_point_sec::to_string() const
+mc::string_view time_point_sec::to_string() const
 {
     try {
         // 使用不带毫秒的缓存
@@ -299,12 +363,12 @@ time_point_sec time_point_sec::now()
     return time_point_sec(now_tp);
 }
 
-time_point_sec::operator std::string_view() const
+time_point_sec::operator mc::string_view() const
 {
     return to_string();
 }
 
-std::string_view time_point_sec::to_iso_string() const
+mc::string_view time_point_sec::to_iso_string() const
 {
     return to_string();
 }
@@ -322,22 +386,22 @@ void from_variant(const variant& v, milliseconds& ms)
 
 void to_variant(const time_point& tp, variant& v)
 {
-    v = std::string(tp.to_string());
+    v = mc::string(tp.to_string());
 }
 
 void from_variant(const variant& v, time_point& tp)
 {
-    tp = time_point::from_iso_string(v.as<std::string>());
+    tp = time_point::from_iso_string(v.as<mc::string>());
 }
 
 void to_variant(const time_point_sec& tps, variant& v)
 {
-    v = std::string(tps.to_string());
+    v = mc::string(tps.to_string());
 }
 
 void from_variant(const variant& v, time_point_sec& tps)
 {
-    tps = time_point_sec::from_iso_string(v.as<std::string>());
+    tps = time_point_sec::from_iso_string(v.as<mc::string>());
 }
 
 } // namespace mc

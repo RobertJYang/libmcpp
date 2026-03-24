@@ -34,11 +34,11 @@ struct MC_API runtime_arg_store : public arg_store<format_arg> {
     void set_dict_args(const mc::dict* args);
     bool get_arg(size_t index, format_arg& arg) const;
     bool get_positional(size_t index, format_arg& arg) const;
-    bool get_named(std::string_view name, format_arg& arg, size_t& index) const;
-    bool resolve_dynamic_param(size_t index, std::string_view name, int& out);
+    bool get_named(mc::string_view name, format_arg& arg, size_t& index) const;
+    bool resolve_dynamic_param(size_t index, mc::string_view name, int& out);
 
     const mc::variant* get_variant(size_t index) const;
-    const mc::variant* get_variant(std::string_view name) const;
+    const mc::variant* get_variant(mc::string_view name) const;
 
     const dict* named_args{nullptr};
     bool        icase{false};
@@ -52,25 +52,25 @@ class MC_API format_context {
 public:
     using arg_type = detail::format_arg;
 
-    explicit format_context(std::string& out, detail::runtime_arg_store& args);
-    explicit format_context(std::string& out);
+    explicit format_context(mc::string& out, detail::runtime_arg_store& args);
+    explicit format_context(mc::string& out);
 
-    std::string& out();
+    mc::string& out();
 
     bool get_arg(size_t index, detail::format_arg& arg) const;
-    bool get_named_arg(std::string_view name, detail::format_arg& arg, size_t& index) const;
+    bool get_named_arg(mc::string_view name, detail::format_arg& arg, size_t& index) const;
     void set_used(size_t index);
-    bool resolve_dynamic_param(size_t index, std::string_view name, int& out);
+    bool resolve_dynamic_param(size_t index, mc::string_view name, int& out);
 
     void format_arg(const detail::format_arg& arg, detail::format_spec& spec);
     void append(char c);
-    void append(std::string_view s);
+    void append(mc::string_view s);
 
     bool process_result(const detail::parser_result& result);
     void raise_error(const detail::parser_result& result);
 
 private:
-    std::string&               m_out;
+    mc::string&               m_out;
     detail::runtime_arg_store& m_args;
 };
 

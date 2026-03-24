@@ -19,6 +19,7 @@
 
 #include <ostream>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace mc {
@@ -28,7 +29,7 @@ constexpr char   empty_signature      = '\0';
 constexpr size_t max_signature_length = 255;
 constexpr size_t max_path_length      = 1023;
 
-inline char first_type(const std::string& sig)
+inline char first_type(mc::string_view sig)
 {
     if (sig.empty()) {
         return '\0';
@@ -53,7 +54,7 @@ public:
      * @param sig 签名字符串
      * @throws invalid_signature_exception 如果签名格式无效
      */
-    explicit signature(std::string sig);
+    explicit signature(mc::string sig);
 
     /**
      * 使用C风格字符串构造签名
@@ -96,7 +97,7 @@ public:
         return signature(*this) += type_to_char(c);
     }
 
-    signature operator+(std::string_view str) const
+    signature operator+(mc::string_view str) const
     {
         return signature(*this) += str;
     }
@@ -119,7 +120,7 @@ public:
      * @param str 要追加的字符串
      * @return 追加后的签名引用
      */
-    signature& operator+=(std::string_view str);
+    signature& operator+=(mc::string_view str);
 
     /**
      * 连接两个签名
@@ -129,38 +130,46 @@ public:
      */
     signature operator+(const signature& other) const;
 
-    signature& operator=(std::string_view str);
-    signature& operator=(std::string str);
+    signature& operator=(mc::string_view str);
+    signature& operator=(mc::string str);
+    signature& operator=(std::string_view str)
+    {
+        return operator=(mc::string_view(str));
+    }
+    signature& operator=(const std::string& str)
+    {
+        return operator=(mc::string_view(str.data(), str.size()));
+    }
     signature& operator=(const char* str)
     {
-        return operator=(std::string_view(str));
+        return operator=(mc::string_view(str));
     }
 
-    bool operator==(std::string_view str) const
+    bool operator==(mc::string_view str) const
     {
         return m_sig == str;
     }
-    bool operator!=(std::string_view str) const
+    bool operator!=(mc::string_view str) const
     {
         return m_sig != str;
     }
-    friend bool operator==(std::string_view str, const signature& sig)
+    friend bool operator==(mc::string_view str, const signature& sig)
     {
         return sig.m_sig == str;
     }
-    friend bool operator!=(std::string_view str, const signature& sig)
+    friend bool operator!=(mc::string_view str, const signature& sig)
     {
         return sig.m_sig != str;
     }
 
-    operator std::string_view() const;
+    operator mc::string_view() const;
 
     /**
      * 获取签名字符串
      *
      * @return 签名字符串
      */
-    const std::string& str() const;
+    mc::string_view str() const;
 
     /**
      * 获取签名长度
@@ -205,7 +214,7 @@ public:
      * @param sig 要验证的签名字符串
      * @return 如果签名有效返回true
      */
-    static bool is_valid(std::string_view sig);
+    static bool is_valid(mc::string_view sig);
 
     /**
      * 检查字符是否为完整类型
@@ -240,7 +249,7 @@ public:
      * @param sig 要检查的签名
      * @return 如果签名是单一完整类型返回true
      */
-    static bool is_single_complete_type(std::string_view sig);
+    static bool is_single_complete_type(mc::string_view sig);
 
     /**
      * 获取一个完整类型的长度
@@ -249,7 +258,7 @@ public:
      * @param start_pos 起始位置
      * @return 完整类型的长度
      */
-    static size_t get_complete_type_length(std::string_view sig, size_t start_pos = 0);
+    static size_t get_complete_type_length(mc::string_view sig, size_t start_pos = 0);
 
     /**
      * 获取签名的所有完整类型
@@ -259,13 +268,13 @@ public:
     std::vector<signature> get_complete_types() const;
 
     void        validate() const;
-    static void validate(std::string_view sig);
+    static void validate(mc::string_view sig);
 
     type_code first_type_code() const;
     char      first_type() const;
 
 private:
-    std::string m_sig;
+    mc::string m_sig;
 };
 
 /**
@@ -294,10 +303,14 @@ public:
      * @param sig 要遍历的签名
      * @param pos 开始位置，默认为0
      */
-    signature_iterator(std::string_view sig, size_t pos = 0);
-    signature_iterator(const char* sig, size_t pos = 0) : signature_iterator(std::string_view(sig), pos)
+    signature_iterator(mc::string_view sig, size_t pos = 0);
+    signature_iterator(std::string_view sig, size_t pos = 0) : signature_iterator(mc::string_view(sig), pos)
     {}
-    signature_iterator(const std::string& sig, size_t pos = 0) : signature_iterator(std::string_view(sig), pos)
+    signature_iterator(const char* sig, size_t pos = 0) : signature_iterator(mc::string_view(sig), pos)
+    {}
+    signature_iterator(const std::string& sig, size_t pos = 0) : signature_iterator(mc::string_view(sig.data(), sig.size()), pos)
+    {}
+    signature_iterator(const mc::string& sig, size_t pos = 0) : signature_iterator(mc::string_view(sig), pos)
     {}
 
     /**
@@ -305,7 +318,7 @@ public:
      *
      * @return 当前类型的签名
      */
-    std::string_view current_type() const;
+    mc::string_view current_type() const;
 
     /**
      * 获取当前类型字符
@@ -383,11 +396,11 @@ public:
      * @return 值类型的迭代器
      */
     signature_iterator get_dict_value_iterator() const;
-    std::string_view   str() const;
+    mc::string_view   str() const;
     size_t             pos() const;
 
 private:
-    std::string_view m_sig{};
+    mc::string_view m_sig{};
     size_t           m_pos{0};
 };
 
@@ -395,7 +408,7 @@ namespace detail {
 // 对 signature 的特化
 template <>
 struct signature_helper<mc::reflect::signature> {
-    static void apply(std::string& sig)
+    static void apply(mc::string& sig)
     {
         sig += type_to_char(mc::reflect::type_code::signature_type);
     }

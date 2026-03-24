@@ -15,16 +15,17 @@
 
 namespace mc::reflect {
 
-static void append_path(std::string& path, std::string_view name)
+static void append_path(mc::string& path, mc::string_view name)
 {
     if (!path.empty()) {
-        mc::string::append(path, ".", name);
+        path.push_back('.');
+        path.append(name.data(), name.size());
     } else {
         path = name;
     }
 }
 
-reflection_metadata_ptr module_node::get_metadata(std::string_view type_name) const
+reflection_metadata_ptr module_node::get_metadata(mc::string_view type_name) const
 {
     auto it = types.find(type_name);
     if (it != types.end()) {
@@ -84,7 +85,7 @@ reflection_metadata_ptr module_node::get_metadata(split_iterator& type_it) const
     return nullptr;
 }
 
-void module_node::collect_module_paths(std::string& path, std::vector<std::string>& paths) const
+void module_node::collect_module_paths(mc::string& path, std::vector<mc::string>& paths) const
 {
     auto old_size = path.size();
     if (!name.empty()) {
@@ -104,7 +105,7 @@ void module_node::collect_module_paths(std::string& path, std::vector<std::strin
     path.resize(old_size);
 }
 
-void module_node::collect_sub_factory_module_paths(std::string& path, std::vector<std::string>& paths) const
+void module_node::collect_sub_factory_module_paths(mc::string& path, std::vector<mc::string>& paths) const
 {
     if (!sub_factory) {
         return;
@@ -120,7 +121,7 @@ void module_node::collect_sub_factory_module_paths(std::string& path, std::vecto
     });
 }
 
-void module_node::collect_module_types(std::string& path, std::vector<std::string>& all) const
+void module_node::collect_module_types(mc::string& path, std::vector<mc::string>& all) const
 {
     for (const auto& [name, info] : types) {
         all.push_back(make_full_path(path, name));
@@ -239,12 +240,12 @@ bool module_node::unregister_factory(split_iterator& type_it)
     return false;
 }
 
-module_node* module_node::new_module_node(std::string_view name)
+module_node* module_node::new_module_node(mc::string_view name)
 {
     auto node = std::make_unique<module_node>(name);
 
-    std::string_view name_view = node->name;
-    module_node*     ptr       = node.get();
+    mc::string_view name_view = node->name;
+    module_node*    ptr       = node.get();
     submodules.emplace(name_view, std::move(node));
     return ptr;
 }

@@ -53,6 +53,10 @@ struct is_container<
     : std::true_type {};
 
 template <>
+struct is_container<mc::string> : std::false_type {};
+template <>
+struct is_container<mc::string_view> : std::false_type {};
+template <>
 struct is_container<std::string> : std::false_type {};
 template <>
 struct is_container<std::string_view> : std::false_type {};

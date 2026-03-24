@@ -37,7 +37,7 @@ public:
 
     test_user() = default;
 
-    test_user(uint32_t id, std::string name, int age, std::string city, double score = 0.0)
+    test_user(uint32_t id, mc::string name, int age, mc::string city, double score = 0.0)
         : m_id(id), m_name(std::move(name)), m_age(age), m_city(std::move(city)), m_score(score)
     {}
 
@@ -51,7 +51,7 @@ public:
     }
 
     // 获取用户名
-    const std::string& name() const
+    const mc::string& name() const
     {
         return m_name;
     }
@@ -63,7 +63,7 @@ public:
     }
 
     // 获取城市
-    const std::string& city() const
+    const mc::string& city() const
     {
         return m_city;
     }
@@ -81,9 +81,9 @@ public:
 
     // 成员变量
     uint32_t    m_id;
-    std::string m_name;
+    mc::string m_name;
     int         m_age;
-    std::string m_city;
+    mc::string m_city;
     double      m_score;
 };
 
@@ -295,7 +295,7 @@ TEST_F(table_query_test, query_limit_and_custom_handler)
         auto city_field = mc::db::field(&test_user::m_city);
         auto expr       = city_field == "北京";
 
-        std::vector<std::string> names;
+        std::vector<mc::string> names;
         users.query(expr, [&names](const test_user& user) {
             names.push_back(user.name());
             return true;

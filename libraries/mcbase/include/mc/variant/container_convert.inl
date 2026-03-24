@@ -440,7 +440,13 @@ template <typename... T>
 void to_variant(const std::tuple<T...>& var, variant& vo) {
     variants vars;
     mc::traits::tuple_for_each(var, [&](const auto& item) {
-        vars.emplace_back(item);
+        variant value;
+        if constexpr (std::is_constructible_v<variant, decltype(item)>) {
+            value = variant(item);
+        } else {
+            to_variant(item, value);
+        }
+        vars.emplace_back(std::move(value));
     });
     vo = std::move(vars);
 }
@@ -581,8 +587,8 @@ void from_variant(const mc::variant& var, std::variant<T...>& vo) {
     }
 }
 
-// std::string_view 的转换函数
-inline void from_variant(const mc::variant& var, std::string_view& vo) {
+// mc::string_view 的转换函数
+inline void from_variant(const mc::variant& var, mc::string_view& vo) {
     if (var.is_null()) {
         vo = {};
     } else {

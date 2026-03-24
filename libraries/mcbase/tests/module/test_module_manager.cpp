@@ -17,8 +17,9 @@
 #include <mc/filesystem.h>
 #include <mc/module.h>
 #include <mc/reflect/reflection_factory.h>
-#include <mc/string.h>
+#include <mc/string_utils.h>
 #include <stdexcept>
+#include <string>
 #include <test_utilities/base.h>
 #include <thread>
 #include <vector>
@@ -77,7 +78,8 @@ protected:
         MC_UNREGISTER_BUILTIN_MODULE(mc_test_module);
     }
 
-    static void SetUpTestSuite() {
+    static void SetUpTestSuite()
+    {
         mc::test::TestWithRuntime::SetUpTestSuite();
         // 销毁全局反射工厂，避免其他测试污染当前测试
         mc::reflect::reflection_factory::reset_global();
@@ -122,12 +124,12 @@ public:
     }
 
 private:
-    std::string m_name;
-    std::string m_old_value;
+    mc::string m_name;
+    mc::string m_old_value;
     bool        m_has_backup{false};
 };
 
-std::string_view shared_lib_ext()
+mc::string_view shared_lib_ext()
 {
 #if defined(__APPLE__)
     return ".dylib";
@@ -136,23 +138,27 @@ std::string_view shared_lib_ext()
 #endif
 }
 
-mc::filesystem::path dynamic_module_source_path(const mc::filesystem::path& build_root) {
-    // 模块现在直接构建为 mc.dylib
-    return build_root / "tests" / "module" / (std::string("mc") + std::string(shared_lib_ext()));
+mc::filesystem::path dynamic_module_source_path(const mc::filesystem::path& build_root)
+{
+    // 模块现在直接构建为 mc.dylib；这里仅在 path 适配边界转成原生字符串。
+    const auto ext = mc::to_std_string(mc::string(shared_lib_ext()));
+    return build_root / "tests" / "module" / ("mc" + ext);
 }
 
 mc::filesystem::path dynamic_module_target_path(const mc::filesystem::path& build_root)
 {
-    auto modules_dir = build_root / "modules" / "mc" / "test";
-    return modules_dir / (std::string("dynamic") + std::string(shared_lib_ext()));
+    auto       modules_dir = build_root / "modules" / "mc" / "test";
+    const auto ext         = mc::to_std_string(mc::string(shared_lib_ext()));
+    return modules_dir / ("dynamic" + ext);
 }
 
-std::string dynamic_module_search_path()
+mc::string dynamic_module_search_path()
 {
     auto build_root = mc::test::get_build_root();
     // build_root 是 builddir/libraries/mcbase
     // 动态模块在 builddir/libraries/mcbase/tests/module/ 下
-    return (build_root / "tests" / "module" / (std::string("?") + std::string(shared_lib_ext()))).string();
+    const auto ext = mc::to_std_string(mc::string(shared_lib_ext()));
+    return mc::string((build_root / "tests" / "module" / ("?" + ext)).string());
 }
 
 void copy_dynamic_module_if_needed(const mc::filesystem::path& build_root)
@@ -250,11 +256,11 @@ TEST_F(ModuleManagerTest, TestAddSearchPath)
     auto& manager = mc::get_module_manager();
 
     // 添加搜索路径
-    manager.add_search_path(std::string("/custom/path/?") + std::string(shared_lib_ext()));
+    manager.add_search_path(mc::string("/custom/path/?") + mc::string(shared_lib_ext()));
 
     // 这个功能主要影响动态库加载，对于内置模块影响不大
     // 但我们可以验证方法不会崩溃
-    EXPECT_NO_THROW(manager.add_search_path(std::string("/another/path/?") + std::string(shared_lib_ext())));
+    EXPECT_NO_THROW(manager.add_search_path(mc::string("/another/path/?") + mc::string(shared_lib_ext())));
 }
 
 /**
@@ -427,19 +433,24 @@ TEST_F(ModuleManagerTest, TestReflection)
     auto& direct_factory = mc::reflect::reflection_factory::instance<test_module_ns>();
     auto  direct_types   = direct_factory.get_registered_types();
 
-    if (!std::any_of(direct_types.begin(), direct_types.end(), [](const std::string& name) {
+    if (!std::any_of(direct_types.begin(), direct_types.end(), [](const mc::string& name) {
         return name == "mc.test.module.TestClass" || name == "TestClass" || name == "mc.test.module::TestClass";
     })) {
         direct_factory.register_type<mc::test_module::test_class>();
         direct_types = direct_factory.get_registered_types();
     }
 
-    const auto is_target_type = [](const std::string& name) {
+    const auto is_target_type = [](const mc::string& name) {
         return name == "mc.test.module.TestClass" || name == "TestClass" || name == "mc.test.module::TestClass";
     };
     const bool found_in_direct_factory = std::any_of(direct_types.begin(), direct_types.end(), is_target_type);
+    std::vector<mc::string> direct_type_std;
+    direct_type_std.reserve(direct_types.size());
+    for (const auto& n : direct_types) {
+        direct_type_std.push_back(n);
+    }
     ASSERT_TRUE(found_in_direct_factory) << "类型未能注册到模块工厂, 已注册类型: "
-                                         << mc::string::join(direct_types, ", ");
+                                         << mc::strings::join(direct_type_std, ", ");
 
     // 确认两个工厂是同一个实例
     ASSERT_EQ(&direct_factory, factory_from_module) << "模块管理器返回的工厂与类型注册的工厂不是同一个实例";

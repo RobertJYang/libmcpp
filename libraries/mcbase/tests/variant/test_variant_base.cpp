@@ -80,7 +80,7 @@ public:
         return &m_items[index];
     }
 
-    mc::variant* get_ptr(std::string_view key) override
+    mc::variant* get_ptr(mc::string_view key) override
     {
         if (!m_allow_reference) {
             return nullptr;
@@ -99,7 +99,7 @@ public:
         return nullptr;
     }
 
-    const mc::variant* get_ptr(std::string_view key) const override
+    const mc::variant* get_ptr(mc::string_view key) const override
     {
         if (!m_allow_reference) {
             return nullptr;
@@ -131,7 +131,7 @@ public:
         }
     }
 
-    mc::variant get(std::string_view key) const override
+    mc::variant get(mc::string_view key) const override
     {
         if (key == "value") {
             return current_variant();
@@ -144,7 +144,7 @@ public:
         return {};
     }
 
-    void set(std::string_view key, const mc::variant& value) override
+    void set(mc::string_view key, const mc::variant& value) override
     {
         if (key == "value") {
             update_cached_value(value);
@@ -156,7 +156,7 @@ public:
                 return;
             }
         }
-        m_attrs.emplace_back(std::string(key), value);
+        m_attrs.emplace_back(mc::string(key), value);
     }
 
     int64_t as_int64() const override
@@ -179,7 +179,7 @@ public:
         return current_value() != 0;
     }
 
-    std::string as_string() const override
+    mc::string as_string() const override
     {
         return std::to_string(current_value());
     }
@@ -193,7 +193,7 @@ private:
     int64_t                                          m_value;
     bool                                             m_allow_reference;
     std::vector<mc::variant>                         m_items;
-    std::vector<std::pair<std::string, mc::variant>> m_attrs;
+    std::vector<std::pair<mc::string, mc::variant>> m_attrs;
 
     void update_cached_value(const mc::variant& value)
     {
@@ -283,7 +283,7 @@ public:
     {
         m_last_type = "bool";
     }
-    void handle(const std::string&) const override
+    void handle(mc::string_view) const override
     {
         m_last_type = "string";
     }
@@ -304,13 +304,13 @@ public:
         m_last_type = "extension";
     }
 
-    std::string get_last_type() const
+    mc::string get_last_type() const
     {
         return m_last_type;
     }
 
 private:
-    mutable std::string m_last_type;
+    mutable mc::string m_last_type;
 };
 } // namespace
 
@@ -494,7 +494,7 @@ TEST(VariantBaseTest, SetValueForDifferentTypes)
     EXPECT_TRUE(extension_v.is_null());
 
     variant_base text("base");
-    text = std::string_view("updated");
+    text = mc::string_view("updated");
     EXPECT_TRUE(text.is_string());
     EXPECT_EQ(text.get_string(), "updated");
 
@@ -609,7 +609,7 @@ TEST(VariantBaseTest, SwapAndTypeName)
 
     auto         extension_ptr = mc::make_shared<simple_extension>(8);
     variant_base extension_value(extension_ptr);
-    EXPECT_STREQ(extension_value.get_type_name(), extension_ptr->get_type_name().data());
+    EXPECT_EQ(extension_value.get_type_name(), extension_ptr->get_type_name());
 }
 
 TEST(VariantBaseTest, AsArrayAndExtension)
@@ -631,7 +631,7 @@ TEST(VariantBaseTest, AsArrayAndExtension)
 
     // 测试 as_string 中 extension_type 的 null 分支
     variant_base empty_ext(type_id::extension_type);
-    std::string  result = empty_ext.as_string();
+    mc::string  result = empty_ext.as_string();
     EXPECT_TRUE(result.empty());
 
     // 测试 operator<< 中 extension_type 的 null 分支
@@ -742,7 +742,7 @@ TEST(VariantBaseTest, ToVariantAndFromVariantHelpers)
 TEST(VariantBaseTest, VisitWithHelper)
 {
     variant_base string_value("visit");
-    auto         result = string_value.visit_with([](const std::string& v) -> std::string {
+    auto         result = string_value.visit_with([](const mc::string& v) -> mc::string {
         return v + "_suffix";
     });
     EXPECT_EQ(result, "visit_suffix");

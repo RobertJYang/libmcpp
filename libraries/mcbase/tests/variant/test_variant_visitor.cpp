@@ -35,7 +35,7 @@ protected:
     // 自定义访问者类
     class TestVisitor : public variant::visitor {
     public:
-        mutable std::string result;
+        mutable mc::string result;
 
         void handle() const override
         {
@@ -62,9 +62,9 @@ protected:
             result = value ? "bool: true" : "bool: false";
         }
 
-        void handle(const std::string& value) const override
+        void handle(mc::string_view value) const override
         {
-            result = "string: " + value;
+            result = "string: " + mc::string(value);
         }
 
         void handle(const dict& value) const override
@@ -188,7 +188,7 @@ TEST_F(VariantVisitorTest, VisitWithNull)
 TEST_F(VariantVisitorTest, VisitWithInt32)
 {
     variant v(42); // int32
-    auto    result = v.visit_with([](int64_t value) -> std::string {
+    auto    result = v.visit_with([](int64_t value) -> mc::string {
         return "int64: " + std::to_string(value);
     });
     EXPECT_EQ(result, "int64: 42");
@@ -197,7 +197,7 @@ TEST_F(VariantVisitorTest, VisitWithInt32)
 TEST_F(VariantVisitorTest, VisitWithUInt32)
 {
     variant v(42u); // uint32
-    auto    result = v.visit_with([](uint64_t value) -> std::string {
+    auto    result = v.visit_with([](uint64_t value) -> mc::string {
         return "uint64: " + std::to_string(value);
     });
     EXPECT_EQ(result, "uint64: 42");
@@ -206,7 +206,7 @@ TEST_F(VariantVisitorTest, VisitWithUInt32)
 TEST_F(VariantVisitorTest, VisitWithDouble)
 {
     variant v(3.14); // double
-    auto    result = v.visit_with([](auto&& value) -> std::string {
+    auto    result = v.visit_with([](auto&& value) -> mc::string {
         using T = std::decay_t<decltype(value)>;
         if constexpr (std::is_same_v<T, double>) {
             return "double: " + std::to_string(value);
@@ -220,7 +220,7 @@ TEST_F(VariantVisitorTest, VisitWithDouble)
 TEST_F(VariantVisitorTest, VisitWithBool)
 {
     variant v(true); // bool
-    auto    result = v.visit_with([](bool value) -> std::string {
+    auto    result = v.visit_with([](bool value) -> mc::string {
         return value ? "bool: true" : "bool: false";
     });
     EXPECT_EQ(result, "bool: true");
@@ -229,7 +229,7 @@ TEST_F(VariantVisitorTest, VisitWithBool)
 TEST_F(VariantVisitorTest, VisitWithString)
 {
     variant v("hello"); // string
-    auto    result = v.visit_with([](const std::string& value) -> std::string {
+    auto    result = v.visit_with([](const mc::string& value) -> mc::string {
         return "string: " + value;
     });
     EXPECT_EQ(result, "string: hello");
@@ -241,7 +241,7 @@ TEST_F(VariantVisitorTest, VisitWithDict)
     md["key"] = "value";
     dict    d = md;
     variant v(d); // dict
-    auto    result = v.visit_with([](const dict& value) -> std::string {
+    auto    result = v.visit_with([](const dict& value) -> mc::string {
         return "dict: " + std::to_string(value.size()) + " items";
     });
     EXPECT_EQ(result, "dict: 1 items");
@@ -253,7 +253,7 @@ TEST_F(VariantVisitorTest, VisitWithArray)
     arr.push_back(1);
     arr.push_back(2);
     variant v(arr); // array
-    auto    result = v.visit_with([](const variants& value) -> std::string {
+    auto    result = v.visit_with([](const variants& value) -> mc::string {
         return "array: " + std::to_string(value.size()) + " items";
     });
     EXPECT_EQ(result, "array: 2 items");
@@ -264,7 +264,7 @@ TEST_F(VariantVisitorTest, VisitWithBlob)
     blob b;
     b.data = {'a', 'b', 'c'};
     variant v(b); // blob
-    auto    result = v.visit_with([](const blob& value) -> std::string {
+    auto    result = v.visit_with([](const blob& value) -> mc::string {
         return "blob: " + std::to_string(value.data.size()) + " bytes";
     });
     EXPECT_EQ(result, "blob: 3 bytes");
@@ -278,7 +278,7 @@ TEST_F(VariantVisitorTest, GlobalVisit)
     // 测试不同类型的 variant
     {
         variant v; // null
-        auto    result = v.visit_with([](std::nullptr_t) -> std::string {
+        auto    result = v.visit_with([](std::nullptr_t) -> mc::string {
             return "null";
         });
         EXPECT_EQ(result, "null");
@@ -286,7 +286,7 @@ TEST_F(VariantVisitorTest, GlobalVisit)
 
     {
         variant v(42); // int32
-        auto    result = v.visit_with([](int64_t value) -> std::string {
+        auto    result = v.visit_with([](int64_t value) -> mc::string {
             return "int64: " + std::to_string(value);
         });
         EXPECT_EQ(result, "int64: 42");
@@ -299,7 +299,7 @@ TEST_F(VariantVisitorTest, GlobalVisit)
         variant v3("hello"); // string
         variant v4(true);    // bool
 
-        auto visitor = [](auto&& value) -> std::string {
+        auto visitor = [](auto&& value) -> mc::string {
             using T = std::decay_t<decltype(value)>;
             if constexpr (std::is_same_v<T, int64_t>) {
                 return "int64: " + std::to_string(value);
@@ -309,7 +309,7 @@ TEST_F(VariantVisitorTest, GlobalVisit)
                 return "double: " + std::to_string(value);
             } else if constexpr (std::is_same_v<T, bool>) {
                 return value ? "bool: true" : "bool: false";
-            } else if constexpr (std::is_same_v<T, std::string>) {
+            } else if constexpr (std::is_same_v<T, mc::string>) {
                 return "string: " + value;
             } else if constexpr (std::is_same_v<T, dict>) {
                 return "dict: " + std::to_string(value.size()) + " items";
@@ -349,7 +349,7 @@ TEST_F(VariantVisitorTest, VisitWithReturnType)
         });
         EXPECT_DOUBLE_EQ(result2, 42.0);
 
-        auto result3 = v.visit_with([](int64_t value) -> std::string {
+        auto result3 = v.visit_with([](int64_t value) -> mc::string {
             return std::to_string(value);
         });
         EXPECT_EQ(result3, "42");

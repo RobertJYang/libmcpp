@@ -13,8 +13,10 @@
 #include <algorithm>
 #include <boost/asio/post.hpp>
 #include <boost/asio/recycling_allocator.hpp>
+#include <mc/common.h>
 #include <mc/log/log.h>
 #include <mc/runtime/thread_pool.h>
+#include <string_view>
 
 namespace mc::runtime {
 thread_local thread_pool::shard_t* t_current_shard = nullptr;
@@ -45,10 +47,10 @@ boost::asio::detail::scheduler& get_or_create_scheduler(boost::asio::execution_c
 
 // 生成符合长度限制的线程名称
 // 格式：name-idx，如果过长则截断为 name..-idx
-std::string make_thread_name(const std::string& base_name, std::size_t index)
+mc::string make_thread_name(const mc::string& base_name, std::size_t index)
 {
-    std::string suffix = "-" + std::to_string(index);
-    std::string tname  = base_name;
+    mc::string suffix = "-" + mc::to_string(index);
+    mc::string tname  = base_name;
 
     // 限制总长度为 15 (pthread 限制通常是 16 字节包含 null)
     if (tname.length() + suffix.length() > 15) {
@@ -56,7 +58,10 @@ std::string make_thread_name(const std::string& base_name, std::size_t index)
         // 预留 2 字节给 ".."
         int keep_len = 15 - static_cast<int>(suffix.length()) - 2;
         if (keep_len > 0) {
-            tname = tname.substr(0, keep_len) + "..";
+            mc::string_view prefix = tname.view().substr(0, static_cast<std::size_t>(keep_len));
+            tname.clear();
+            tname.append(prefix.data(), prefix.size());
+            tname.append("..");
         } else {
             // 极端情况：连 ID 都快放不下了，优先保证 ID
             tname = tname.substr(0, 15 - suffix.length());
@@ -68,7 +73,7 @@ std::string make_thread_name(const std::string& base_name, std::size_t index)
 
 } // namespace
 
-thread_pool::thread_pool(std::size_t num_threads, const std::string& name)
+thread_pool::thread_pool(std::size_t num_threads, mc::string_view name)
     : boost::asio::execution_context(), m_scheduler(get_or_create_scheduler(*this)), m_num_threads(num_threads),
       m_name(name)
 {
@@ -113,7 +118,8 @@ void thread_pool::start()
     m_threads.reserve(m_num_threads);
     for (std::size_t i = 0; i < m_num_threads; ++i) {
         m_threads.emplace_back([this, i]() {
-            set_current_thread_name(make_thread_name(m_name, i));
+            const mc::string tname = make_thread_name(m_name, i);
+            set_current_thread_name(tname.view());
             dlog("${name} 线程 ${idx} 启动", ("name", m_name)("idx", i));
             try {
                 worker_loop(m_shards[i].get());

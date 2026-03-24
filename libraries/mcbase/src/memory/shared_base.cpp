@@ -15,7 +15,7 @@
 
 namespace mc::memory::detail {
 
-void throw_invalid_op_exception(const char* msg)
+void throw_invalid_op_exception(mc::string_view msg)
 {
     MC_THROW(mc::invalid_op_exception, "invalid operation: {msg}", ("msg", msg));
 }

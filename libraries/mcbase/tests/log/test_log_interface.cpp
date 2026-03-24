@@ -57,8 +57,8 @@ protected:
         m_memory_appender->clear();
     }
 
-    bool message_contains(const mc::log::message& msg, const std::string& text) {
-        return msg.get_message().find(text) != std::string::npos;
+    bool message_contains(const mc::log::message& msg, const mc::string& text) {
+        return mc::string_view(msg.get_message()).find(text) != mc::string_view::npos;
     }
 
     std::shared_ptr<memory_appender> m_memory_appender;

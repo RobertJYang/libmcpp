@@ -34,13 +34,13 @@ class user : public mdb::object_base {
 public:
     user() = default;
 
-    user(std::string name, int age) : m_name(std::move(name)), m_age(age)
+    user(mc::string name, int age) : m_name(std::move(name)), m_age(age)
     {}
 
     ~user() override
     {}
 
-    const std::string& name() const
+    const mc::string& name() const
     {
         return m_name;
     }
@@ -50,7 +50,7 @@ public:
         return m_age;
     }
 
-    std::string m_name;
+    mc::string m_name;
     int         m_age;
 };
 

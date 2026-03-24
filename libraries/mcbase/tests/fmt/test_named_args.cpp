@@ -99,13 +99,13 @@ TEST_F(named_args_test, test_various_types) {
 
 // 测试字符串类型
 TEST_F(named_args_test, test_string_types) {
-    std::string std_str = "std::string";
+    mc::string std_str = "mc::string";
     const char* c_str   = "C string";
 
     auto result = sformat("${std_str} and ${c_str}",
                           ("std_str", std_str),
                           ("c_str", c_str));
-    EXPECT_EQ(result, "std::string and C string");
+    EXPECT_EQ(result, "mc::string and C string");
 }
 
 // // 测试指针类型
@@ -115,7 +115,7 @@ TEST_F(named_args_test, test_string_types) {
 
 //     // 指针地址会变化，所以只检查格式是否正确
 //     EXPECT_TRUE(result.find("Value at ") == 0);
-//     EXPECT_TRUE(result.find("0x") != std::string::npos || result.find("0X") != std::string::npos);
+//     EXPECT_TRUE(result.find("0x") != mc::string::npos || result.find("0X") != mc::string::npos);
 // }
 
 // 测试字符类型

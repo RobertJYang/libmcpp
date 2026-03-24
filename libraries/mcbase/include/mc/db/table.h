@@ -24,6 +24,7 @@
 #include <mc/memory.h>
 #include <mc/reflect.h>
 #include <mc/signal_slot.h>
+#include <mc/string_utils.h>
 #include <mc/traits.h>
 
 #include <atomic>
@@ -153,7 +154,7 @@ struct has_member_key<
  * 获取成员键名
  */
 template <typename KeyExtractor, typename ObjectType, typename MemberType>
-std::string get_property_name()
+mc::string get_property_name()
 {
     if constexpr (has_member_key<KeyExtractor, ObjectType, MemberType>::value) {
         return KeyExtractor::template get_property_name<ObjectType, MemberType>();
@@ -177,7 +178,7 @@ struct has_member_function_key<
  * 获取成员函数键名
  */
 template <typename KeyExtractor, typename ObjectType, typename ReturnType>
-std::string get_member_function_name()
+mc::string get_member_function_name()
 {
     if constexpr (has_member_function_key<KeyExtractor, ObjectType, ReturnType>::value) {
         return KeyExtractor::template get_member_function_name<ObjectType, ReturnType>();
@@ -241,7 +242,7 @@ public:
      * 构造函数
      * @param alloc 内存分配器
      */
-    table(std::string_view name = std::string_view(), uint32_t table_id = 0, const alloc_type& alloc = alloc_type())
+    table(mc::string_view name = mc::string_view(), uint32_t table_id = 0, const alloc_type& alloc = alloc_type())
         : m_indices(make_indices(alloc)), m_table_id(table_id ? table_id : transaction::alloc_table_id()), m_name(name)
     {
         size_t i = 0;
@@ -251,7 +252,7 @@ public:
             return true;
         });
         if (m_name.empty()) {
-            m_name = mc::string::join("", "table_", std::to_string(m_table_id), mc::pretty_name<object_type>());
+            m_name = mc::strings::join("", "table_", mc::to_string(m_table_id), mc::pretty_name<object_type>());
         }
     }
 
@@ -639,7 +640,7 @@ public:
      * 获取表名
      * @return 表名
      */
-    std::string_view get_table_name() const override
+    mc::string_view get_table_name() const override
     {
         return m_name;
     }
@@ -696,7 +697,7 @@ public:
         return update_internal(condition, values, txn);
     }
 
-    size_t update(const query_builder& condition, const std::map<std::string, variant>& values,
+    size_t update(const query_builder& condition, const std::map<mc::string, variant>& values,
                   transaction* txn = nullptr)
     {
         std::lock_guard lock(m_mutex);
@@ -840,7 +841,7 @@ protected:
         return 0;
     }
 
-    size_t do_update_object(const query_builder& condition, const std::map<std::string, variant>& values,
+    size_t do_update_object(const query_builder& condition, const std::map<mc::string, variant>& values,
                             transaction* txn) override
     {
         if constexpr (mc::reflect::is_reflectable<object_type>()) {
@@ -861,7 +862,7 @@ private:
     }
 
     // 从 map 更新对象
-    void update_object(object_type& obj, const std::map<std::string, variant>& values)
+    void update_object(object_type& obj, const std::map<mc::string, variant>& values)
     {
         for (auto& entry : values) {
             mc::reflect::set_property(obj, entry.first, entry.second);
@@ -912,7 +913,7 @@ private:
     indices_tuple_type           m_indices;
     indices_array_type           m_indices_array;
     uint32_t                     m_table_id = {0}; ///< 表ID
-    std::string                  m_name;           ///< 表名
+    mc::string                  m_name;           ///< 表名
 
     int32_t m_txn_savepoint_id   = {-1}; ///< 事务保存点ID
     int32_t m_index_savepoint_id = {-1}; ///< 索引保存点ID

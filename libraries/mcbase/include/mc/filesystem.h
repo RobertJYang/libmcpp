@@ -17,9 +17,10 @@
 #ifndef MC_FILESYSTEM_H
 #define MC_FILESYSTEM_H
 #include <optional>
+#include <string_view>
 #include <vector>
 
-#include <mc/common.h>
+#include <mc/string.h>
 
 // 检测文件系统库的可用性
 #if defined(__cpp_lib_filesystem)
@@ -70,33 +71,41 @@ using filesystem_error             = fs::filesystem_error;
  * @brief 从路径中提取文件名部分（不含目录）
  *
  * @param path 文件路径
- * @return std::string 文件名部分
+ * @return mc::string 文件名部分
  */
-MC_API std::string basename(const fs::path& path);
+MC_API mc::string basename(const fs::path& path);
+
+/**
+ * @brief 从 mc::string 路径提取文件名部分（不含目录）
+ */
+inline mc::string basename(const mc::string& path)
+{
+    return basename(fs::path(mc::to_std_string(path)));
+}
 
 /**
  * @brief 从路径中提取目录部分
  *
  * @param path 文件路径
- * @return std::string 目录部分
+ * @return mc::string 目录部分
  */
-MC_API std::string dirname(const fs::path& path);
+MC_API mc::string dirname(const fs::path& path);
 
 /**
  * @brief 获取文件扩展名
  *
  * @param path 文件路径
- * @return std::string 扩展名（不含点）
+ * @return mc::string 扩展名（不含点）
  */
-MC_API std::string extension(const fs::path& path);
+MC_API mc::string extension(const fs::path& path);
 
 /**
  * @brief 获取不带扩展名的文件名
  *
  * @param path 文件路径
- * @return std::string 不带扩展名的文件名
+ * @return mc::string 不带扩展名的文件名
  */
-MC_API std::string stem(const fs::path& path);
+MC_API mc::string stem(const fs::path& path);
 
 /**
  * @brief 检查路径是否存在
@@ -274,9 +283,9 @@ MC_API fs::path join(const std::vector<path>& paths);
  * @brief 读取整个文件内容到字符串
  *
  * @param path 文件路径
- * @return std::optional<std::string> 文件内容，如果失败返回空
+ * @return std::optional<mc::string> 文件内容，如果失败返回空
  */
-MC_API std::optional<std::string> read_file(const path& p);
+MC_API std::optional<mc::string> read_file(const path& p);
 
 /**
  * @brief 将内容写入文件（覆盖已有内容）
@@ -285,7 +294,7 @@ MC_API std::optional<std::string> read_file(const path& p);
  * @param content 要写入的内容
  * @return bool 成功返回true，失败返回false
  */
-MC_API bool write_file(const path& p, const std::string& content);
+MC_API bool write_file(const path& p, mc::string_view content);
 
 /**
  * @brief 将内容追加到文件
@@ -294,7 +303,7 @@ MC_API bool write_file(const path& p, const std::string& content);
  * @param content 要追加的内容
  * @return bool 成功返回true，失败返回false
  */
-MC_API bool append_file(const path& p, const std::string& content);
+MC_API bool append_file(const path& p, mc::string_view content);
 
 /**
  * @brief 获取文件最后修改时间（Unix时间戳）

@@ -78,14 +78,14 @@ public:
         m_items.set(index, value);
     }
 
-    variant get(std::string_view key) const override
+    variant get(mc::string_view key) const override
     {
         return m_attrs.at(key);
     }
 
-    void set(std::string_view key, const variant& value) override
+    void set(mc::string_view key, const variant& value) override
     {
-        m_attrs[std::string(key)] = value;
+        m_attrs[mc::string(key)] = value;
     }
 
 private:
@@ -638,9 +638,9 @@ TEST_F(VariantReferenceTest, UtilityMethods)
     EXPECT_FALSE(obj.contains("not_exist"));
 
     // 测试 get_type_name
-    EXPECT_STREQ(obj["name"].get_type_name(), "string");
-    EXPECT_STREQ(obj["age"].get_type_name(), "int32");
-    EXPECT_STREQ(obj["scores"].get_type_name(), "array");
+    EXPECT_EQ(obj["name"].get_type_name(), mc::string_view("string"));
+    EXPECT_EQ(obj["age"].get_type_name(), mc::string_view("int32"));
+    EXPECT_EQ(obj["scores"].get_type_name(), mc::string_view("array"));
 }
 
 TEST_F(VariantReferenceTest, GetterMethods)
@@ -800,7 +800,7 @@ TEST_F(VariantReferenceTest, FromVariantConversion)
     // 测试 from_variant 重载
     int         val1 = 0;
     double      val2 = 0.0;
-    std::string val3;
+    mc::string val3;
 
     from_variant(arr[0], val1);
     EXPECT_EQ(val1, 10);

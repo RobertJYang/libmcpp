@@ -23,6 +23,7 @@
 #include <typeinfo>
 
 #include <mc/memory.h>
+#include <mc/string.h>
 #include <mc/traits.h>
 #include <mc/variant/copy_context.h>
 #include <mc/variant/variant_common.h>
@@ -189,7 +190,7 @@ public:
 
     // 类型信息
     virtual std::type_index element_type() const      = 0;
-    virtual std::string     element_type_name() const = 0;
+    virtual mc::string     element_type_name() const = 0;
 
     // 引用访问支持（用于 variant_reference）
     virtual bool           supports_reference_access() const = 0;
@@ -324,7 +325,7 @@ public:
 
     // 类型信息
     std::type_index element_type() const;
-    std::string     element_type_name() const;
+    mc::string     element_type_name() const;
 
     // 引用访问支持
     bool           supports_reference_access() const;

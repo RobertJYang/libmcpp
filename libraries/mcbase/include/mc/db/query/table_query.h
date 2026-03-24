@@ -158,7 +158,7 @@ private:
     /**
      * 检查字段是否为非唯一字段
      */
-    bool is_field_non_unique(std::string_view field_name) const
+    bool is_field_non_unique(mc::string_view field_name) const
     {
         const auto& metadata = get_metadata();
         return metadata.has_non_unique_index(field_name);
@@ -169,7 +169,7 @@ private:
      * @param field 字段名
      * @return 索引ID，如果没有匹配的索引则返回-1
      */
-    int find_index_by_metadata(std::string_view field) const
+    int find_index_by_metadata(mc::string_view field) const
     {
         const auto& metadata = get_metadata();
         return metadata.find_best_index_id(field);
@@ -181,7 +181,7 @@ private:
      * @param field 字段名
      * @return 索引ID，如果没有匹配的索引则返回-1
      */
-    int find_index(std::string_view field) const
+    int find_index(mc::string_view field) const
     {
         const auto& metadata = get_metadata();
         return metadata.find_best_index_id(field);
@@ -251,9 +251,9 @@ private:
      */
     template <typename Handler>
     bool query_by_single_value(const query_builder& builder, size_t index_id,
-                               const std::vector<std::string_view>& fields, const mc::variant& value, Handler&& handler)
+                               const std::vector<mc::string_view>& fields, const mc::variant& value, Handler&& handler)
     {
-        std::string_view field_name          = fields.empty() ? std::string_view() : fields[0];
+        mc::string_view field_name          = fields.empty() ? mc::string_view() : fields[0];
         bool             is_non_unique_field = is_field_non_unique(field_name);
 
         if (is_non_unique_field) {
@@ -371,10 +371,10 @@ private:
      */
     template <typename Handler>
     bool query_by_multiple_values(const query_builder& builder, size_t index_id,
-                                  const std::vector<std::string_view>& fields, const mc::variants& values,
+                                  const std::vector<mc::string_view>& fields, const mc::variants& values,
                                   Handler&& handler)
     {
-        std::string_view field_name          = fields.empty() ? std::string_view() : fields[0];
+        mc::string_view field_name          = fields.empty() ? mc::string_view() : fields[0];
         bool             is_non_unique_field = is_field_non_unique(field_name);
 
         bool found = false;

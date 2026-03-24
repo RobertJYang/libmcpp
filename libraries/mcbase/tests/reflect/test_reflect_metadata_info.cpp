@@ -27,7 +27,7 @@ public:
     MC_REFLECTABLE("test_metadata_info.test_class");
 
     int         m_id;
-    std::string m_name;
+    mc::string m_name;
     double      m_score;
 
     int get_id() const
@@ -51,7 +51,7 @@ public:
         return a + b;
     }
 
-    static std::string static_format(const std::string& prefix, int value)
+    static mc::string static_format(const mc::string& prefix, int value)
     {
         return prefix + std::to_string(value);
     }
@@ -62,7 +62,7 @@ public:
         return a + b + m_id;
     }
 
-    std::string format(const std::string& prefix)
+    mc::string format(const mc::string& prefix)
     {
         return prefix + std::to_string(m_id);
     }
@@ -92,13 +92,13 @@ TEST(ReflectMetadataInfoTest, PropertyInfoTypeInfo)
     EXPECT_EQ(id_type, typeid(int));
 
     // 测试 type_name()
-    std::string_view id_type_name = id_prop->type_name();
+    mc::string_view id_type_name = id_prop->type_name();
     EXPECT_FALSE(id_type_name.empty());
 
     // 测试其他属性
     auto* name_prop = mc::reflect::get_reflection<test_class>().get_property_info(&test_class::m_name);
     ASSERT_NE(name_prop, nullptr);
-    EXPECT_EQ(name_prop->typeinfo(), typeid(std::string));
+    EXPECT_EQ(name_prop->typeinfo(), typeid(mc::string));
     EXPECT_FALSE(name_prop->type_name().empty());
 
     auto* score_prop = mc::reflect::get_reflection<test_class>().get_property_info(&test_class::m_score);
@@ -125,11 +125,11 @@ TEST(ReflectMetadataInfoTest, ComputedPropertyInfoMethods)
     EXPECT_EQ(id_type, typeid(int));
 
     // 测试 type_name()
-    std::string_view id_type_name = id_prop->type_name();
+    mc::string_view id_type_name = id_prop->type_name();
     EXPECT_FALSE(id_type_name.empty());
 
     // 测试 get_signature()
-    std::string_view id_signature = id_prop->get_signature();
+    mc::string_view id_signature = id_prop->get_signature();
     EXPECT_FALSE(id_signature.empty());
 
     // 测试只读计算属性
@@ -180,7 +180,7 @@ TEST(ReflectMetadataInfoTest, MethodInfoMethods)
     EXPECT_EQ(return_type, typeid(int));
 
     // 测试 type_name() - 返回类型名称
-    std::string_view return_type_name = static_add_method->type_name();
+    mc::string_view return_type_name = static_add_method->type_name();
     EXPECT_FALSE(return_type_name.empty());
 
     // 测试 arg_count()
@@ -225,13 +225,13 @@ TEST(ReflectMetadataInfoTest, MethodInfoMethods)
     auto* static_format_method = mc::reflect::get_method_info<test_class>("static_format");
     ASSERT_NE(static_format_method, nullptr);
     EXPECT_TRUE(static_format_method->is_static());
-    EXPECT_EQ(static_format_method->typeinfo(), typeid(std::string));
+    EXPECT_EQ(static_format_method->typeinfo(), typeid(mc::string));
     EXPECT_EQ(static_format_method->arg_count(), 2U);
 
     {
         mc::variants args   = {mc::variant("prefix_"), mc::variant(100)};
         mc::variant  result = static_format_method->invoke(args);
-        EXPECT_EQ(result.as<std::string>(), "prefix_100");
+        EXPECT_EQ(result.as<mc::string>(), "prefix_100");
     }
 }
 

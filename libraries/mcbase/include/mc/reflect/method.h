@@ -29,7 +29,7 @@ namespace mc::reflect {
  * @return const method_info_base<T>* 方法信息指针，如果不存在则返回nullptr
  */
 template <typename T>
-const method_info_base<T>* get_method_info(std::string_view method_name)
+const method_info_base<T>* get_method_info(mc::string_view method_name)
 {
     using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
     return get_reflection<clean_type>().get_method_info(method_name);
@@ -68,14 +68,14 @@ const method_info_base<T>* get_method_info(M T::*member_ptr)
  * ```
  */
 template <typename T>
-mc::variant invoke(T& obj, std::string_view method_name, const mc::variants& args = {})
+mc::variant invoke(T& obj, mc::string_view method_name, const mc::variants& args = {})
 {
     using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
     return get_reflection<clean_type>().invoke_method(obj, method_name, args);
 }
 
 template <typename T>
-mc::variant invoke(std::string_view method_name, const mc::variants& args = {})
+mc::variant invoke(mc::string_view method_name, const mc::variants& args = {})
 {
     using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
     return get_reflection<clean_type>().invoke_method(method_name, args);
@@ -91,14 +91,14 @@ mc::variant invoke(std::string_view method_name, const mc::variants& args = {})
  * @return mc::variant 方法返回值
  */
 template <typename T>
-async_result async_invoke(T& obj, std::string_view method_name, const mc::variants& args = {})
+async_result async_invoke(T& obj, mc::string_view method_name, const mc::variants& args = {})
 {
     using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
     return get_reflection<clean_type>().async_invoke_method(obj, method_name, args);
 }
 
 template <typename T>
-async_result async_invoke(std::string_view method_name, const mc::variants& args = {})
+async_result async_invoke(mc::string_view method_name, const mc::variants& args = {})
 {
     using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
     return get_reflection<clean_type>().async_invoke_method(method_name, args);
@@ -112,7 +112,7 @@ async_result async_invoke(std::string_view method_name, const mc::variants& args
  * @return bool 是否存在方法
  */
 template <typename T>
-bool has_method(std::string_view method_name)
+bool has_method(mc::string_view method_name)
 {
     using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
     return get_reflection<clean_type>().get_method_info(method_name) != nullptr;
@@ -126,7 +126,7 @@ bool has_method(std::string_view method_name)
  * @return size_t 参数数量，如果方法不存在返回size_t(-1)
  */
 template <typename T>
-size_t method_arg_count(std::string_view method_name)
+size_t method_arg_count(mc::string_view method_name)
 {
     using clean_type   = std::remove_cv_t<std::remove_reference_t<T>>;
     const auto* method = get_reflection<clean_type>().get_method_info(method_name);
@@ -138,14 +138,14 @@ size_t method_arg_count(std::string_view method_name)
  *
  * @tparam T 对象类型
  * @param method_name 方法名
- * @return std::string_view 返回类型名称，如果方法不存在返回空字符串
+ * @return mc::string_view 返回类型名称，如果方法不存在返回空字符串
  */
 template <typename T>
-std::string_view method_return_type(std::string_view method_name)
+mc::string_view method_return_type(mc::string_view method_name)
 {
     using clean_type   = std::remove_cv_t<std::remove_reference_t<T>>;
     const auto* method = get_reflection<clean_type>().get_method_info(method_name);
-    return method ? method->get_result_signature() : std::string_view{};
+    return method ? method->get_result_signature() : mc::string_view{};
 }
 
 } // namespace mc::reflect

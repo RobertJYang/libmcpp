@@ -199,7 +199,7 @@ std::type_index variants::element_type() const
     return m_data ? m_data->element_type() : typeid(void);
 }
 
-std::string variants::element_type_name() const
+mc::string variants::element_type_name() const
 {
     return m_data ? m_data->element_type_name() : "void";
 }

@@ -48,16 +48,16 @@ public:
     /**
      * @brief 获取追加器名称
      *
-     * @return const std::string& 追加器名称
+     * @return mc::string_view 追加器名称
      */
-    const std::string& get_name() const;
+    mc::string_view get_name() const;
 
     /**
      * @brief 设置追加器名称
      *
      * @param name 追加器名称
      */
-    void set_name(const std::string& name);
+    void set_name(mc::string_view name);
 
     /**
      * @brief 设置追加器级别
@@ -67,7 +67,7 @@ public:
     virtual void set_level(level lvl);
 
 protected:
-    std::string m_name; // 追加器名称
+    mc::string m_name; // 追加器名称
 };
 
 using appender_ptr = std::shared_ptr<appender>;

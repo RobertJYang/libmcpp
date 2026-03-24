@@ -51,7 +51,7 @@ struct field_tag : public tag_base<field_tag<FieldName>> {
      * 获取字段名称列表
      * @return 字段名称列表
      */
-    static std::vector<std::string> get_field_names()
+    static std::vector<mc::string> get_field_names()
     {
         return {field_name};
     }

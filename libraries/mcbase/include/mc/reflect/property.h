@@ -29,7 +29,7 @@ namespace mc::reflect {
  * @return const property_info_base<T>* 成员信息指针，如果不存在则返回nullptr
  */
 template <typename T>
-const property_info_base<T>* get_property_info(std::string_view name)
+const property_info_base<T>* get_property_info(mc::string_view name)
 {
     using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
     return get_reflection<clean_type>().get_property_info(name);
@@ -40,10 +40,10 @@ const property_info_base<T>* get_property_info(std::string_view name)
  *
  * @tparam T 类型
  * @param offset 偏移量
- * @return std::string_view 成员名称
+ * @return mc::string_view 成员名称
  */
 template <typename T>
-std::string_view get_property_name(size_t offset)
+mc::string_view get_property_name(size_t offset)
 {
     using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
     return get_reflection<clean_type>().get_property_name(offset);
@@ -55,10 +55,10 @@ std::string_view get_property_name(size_t offset)
  * @tparam T 类型
  * @tparam M 成员类型
  * @param member 成员指针
- * @return std::string_view 成员名称
+ * @return mc::string_view 成员名称
  */
 template <typename T, typename M, typename BaseT>
-std::string_view get_property_name(M BaseT::*member)
+mc::string_view get_property_name(M BaseT::*member)
 {
     using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
     return get_reflection<clean_type>().get_property_name(member);
@@ -72,7 +72,7 @@ std::string_view get_property_name(M BaseT::*member)
  * @return 返回 mc::variant
  */
 template <typename T, typename = std::enable_if_t<is_reflectable<std::remove_cv_t<std::remove_reference_t<T>>>()>>
-mc::variant get_property(const T& obj, std::string_view key)
+mc::variant get_property(const T& obj, mc::string_view key)
 {
     using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
     return get_reflection<clean_type>().get_property(obj, key);
@@ -87,7 +87,7 @@ mc::variant get_property(const T& obj, std::string_view key)
  * @return 返回 mc::variant
  */
 template <typename T, typename = std::enable_if_t<is_reflectable<std::remove_cv_t<std::remove_reference_t<T>>>()>>
-mc::variant get_property(const T& obj, std::string_view key, std::string_view base_class_name)
+mc::variant get_property(const T& obj, mc::string_view key, mc::string_view base_class_name)
 {
     using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
     return get_reflection<clean_type>().get_property(obj, key, base_class_name);
@@ -115,7 +115,7 @@ mc::dict get_all_properties(const T& obj)
  * @return 设置是否成功
  */
 template <typename T, typename = std::enable_if_t<is_reflectable<std::remove_cv_t<std::remove_reference_t<T>>>()>>
-bool set_property(T& obj, std::string_view key, const mc::variant& value)
+bool set_property(T& obj, mc::string_view key, const mc::variant& value)
 {
     using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
     try {
@@ -135,7 +135,7 @@ bool set_property(T& obj, std::string_view key, const mc::variant& value)
  * @return 设置是否成功
  */
 template <typename T, typename = std::enable_if_t<is_reflectable<std::remove_cv_t<std::remove_reference_t<T>>>()>>
-bool set_property(T& obj, std::string_view key, std::string_view base_class_name, const mc::variant& value)
+bool set_property(T& obj, mc::string_view key, mc::string_view base_class_name, const mc::variant& value)
 {
     using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
     try {

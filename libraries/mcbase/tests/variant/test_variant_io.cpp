@@ -20,6 +20,7 @@
 #include <sstream>
 
 using namespace mc;
+// 流输出测试使用标准库 stringstream（mc 命名空间不再提供 stringstream 别名）
 
 // 测试基本数据类型的variant流输出
 TEST(VariantIOTest, BasicTypes)
@@ -88,7 +89,8 @@ TEST(VariantIOTest, BasicTypes)
     variant double_var(3.14159);
     ss << double_var;
     // 浮点数输出可能因平台不同而略有差异，所以使用包含关系检查
-    EXPECT_TRUE(ss.str().find("3.14159") != std::string::npos);
+    mc::string double_str = ss.str();
+    EXPECT_TRUE(double_str.find("3.14159") != mc::string::npos);
     ss.str("");
 
     // 测试字符串类型
@@ -111,10 +113,10 @@ TEST(VariantIOTest, ComplexTypes)
     variant array_var(array_data);
     ss << array_var;
     // 转换为字符串后应包含所有元素
-    std::string array_str = ss.str();
-    EXPECT_TRUE(array_str.find("1") != std::string::npos);
-    EXPECT_TRUE(array_str.find("字符串") != std::string::npos);
-    EXPECT_TRUE(array_str.find("true") != std::string::npos);
+    mc::string array_str = ss.str();
+    EXPECT_TRUE(array_str.find("1") != mc::string::npos);
+    EXPECT_TRUE(array_str.find("字符串") != mc::string::npos);
+    EXPECT_TRUE(array_str.find("true") != mc::string::npos);
     ss.str("");
 
     // 测试字典类型
@@ -122,13 +124,13 @@ TEST(VariantIOTest, ComplexTypes)
     variant dict_var(dict_data);
     ss << dict_var;
     // 转换为字符串后应包含所有键值对
-    std::string dict_str = ss.str();
-    EXPECT_TRUE(dict_str.find("姓名") != std::string::npos);
-    EXPECT_TRUE(dict_str.find("张三") != std::string::npos);
-    EXPECT_TRUE(dict_str.find("年龄") != std::string::npos);
-    EXPECT_TRUE(dict_str.find("30") != std::string::npos);
-    EXPECT_TRUE(dict_str.find("是否学生") != std::string::npos);
-    EXPECT_TRUE(dict_str.find("false") != std::string::npos);
+    mc::string dict_str = ss.str();
+    EXPECT_TRUE(dict_str.find("姓名") != mc::string::npos);
+    EXPECT_TRUE(dict_str.find("张三") != mc::string::npos);
+    EXPECT_TRUE(dict_str.find("年龄") != mc::string::npos);
+    EXPECT_TRUE(dict_str.find("30") != mc::string::npos);
+    EXPECT_TRUE(dict_str.find("是否学生") != mc::string::npos);
+    EXPECT_TRUE(dict_str.find("false") != mc::string::npos);
     ss.str("");
 
     // 测试二进制数据类型
@@ -159,16 +161,16 @@ TEST(VariantIOTest, NestedTypes)
     ss << nested_var;
 
     // 检查输出字符串中包含关键信息
-    std::string nested_str = ss.str();
-    EXPECT_TRUE(nested_str.find("个人信息") != std::string::npos);
-    EXPECT_TRUE(nested_str.find("张三") != std::string::npos);
-    EXPECT_TRUE(nested_str.find("联系方式") != std::string::npos);
-    EXPECT_TRUE(nested_str.find("12345678901") != std::string::npos);
-    EXPECT_TRUE(nested_str.find("爱好") != std::string::npos);
-    EXPECT_TRUE(nested_str.find("阅读") != std::string::npos);
-    EXPECT_TRUE(nested_str.find("工作经历") != std::string::npos);
-    EXPECT_TRUE(nested_str.find("A公司") != std::string::npos);
-    EXPECT_TRUE(nested_str.find("2020") != std::string::npos);
+    mc::string nested_str = ss.str();
+    EXPECT_TRUE(nested_str.find("个人信息") != mc::string::npos);
+    EXPECT_TRUE(nested_str.find("张三") != mc::string::npos);
+    EXPECT_TRUE(nested_str.find("联系方式") != mc::string::npos);
+    EXPECT_TRUE(nested_str.find("12345678901") != mc::string::npos);
+    EXPECT_TRUE(nested_str.find("爱好") != mc::string::npos);
+    EXPECT_TRUE(nested_str.find("阅读") != mc::string::npos);
+    EXPECT_TRUE(nested_str.find("工作经历") != mc::string::npos);
+    EXPECT_TRUE(nested_str.find("A公司") != mc::string::npos);
+    EXPECT_TRUE(nested_str.find("2020") != mc::string::npos);
 }
 
 // 测试在其他流操作中使用variant

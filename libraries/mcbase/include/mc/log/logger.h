@@ -46,7 +46,7 @@ public:
      * @param name 日志记录器名称
      * @return logger 日志记录器
      */
-    static logger get(const char* name = MC_LOG_DEFAULT_LOGGER);
+    static logger get(mc::string_view name = MC_LOG_DEFAULT_LOGGER);
 
     logger();
 
@@ -55,7 +55,7 @@ public:
      *
      * @param name 日志记录器名称
      */
-    logger(const std::string& name);
+    logger(mc::string_view name);
 
     /**
      * @brief 复制构造函数
@@ -107,14 +107,14 @@ public:
      *
      * @param name 日志记录器名称
      */
-    void set_name(const std::string& name);
+    void set_name(mc::string_view name);
 
     /**
      * @brief 获取日志记录器名称
      *
-     * @return const std::string& 日志记录器名称
+     * @return mc::string_view 日志记录器名称
      */
-    const std::string& get_name() const;
+    mc::string_view get_name() const;
 
     /**
      * @brief 检查指定日志级别是否启用
@@ -170,7 +170,7 @@ public:
      * @param args 参数字典，用于替换格式模板中的占位符
      * @throw runtime_exception 总是抛出运行时异常
      */
-    void raise(const std::string& fmt_template, const mc::dict& args = mc::dict());
+    void raise(mc::string_view fmt_template, const mc::dict& args = mc::dict());
 
     /**
      * @brief 记录日志消息
@@ -240,7 +240,7 @@ public:
      * @param name 日志追加器名称
      * @return bool 是否成功删除
      */
-    bool remove_appender(const std::string& name);
+    bool remove_appender(mc::string_view name);
 
     /**
      * @brief 查找指定名称的日志追加器
@@ -248,7 +248,7 @@ public:
      * @param name 日志追加器名称
      * @return appender_ptr 日志追加器指针，如果未找到则返回nullptr
      */
-    appender_ptr find_appender(const std::string& name) const;
+    appender_ptr find_appender(mc::string_view name) const;
 
     /**
      * @brief 获取所有日志追加器

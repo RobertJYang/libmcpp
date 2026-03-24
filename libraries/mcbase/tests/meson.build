@@ -10,6 +10,7 @@ subdir('string')
 subdir('variant')
 subdir('db')
 subdir('futures')
+subdir('im')
 subdir('io')
 
 # 测试源文件列表（不包括 main.cpp，因为主项目会有自己的 main）
@@ -18,6 +19,7 @@ mcbase_test_sources = [
   'test_pretty_name.cpp',
   'test_signal_slot.cpp',
   'test_json.cpp',
+  'test_json_public_header.cpp',
   'test_time.cpp',
   'test_error.cpp',
 
@@ -26,6 +28,7 @@ mcbase_test_sources = [
   test_dict_files,
   test_fmt_files,
   test_futures_files,
+  test_im_files,
   test_log_files,
   test_memory_files,
   test_module_files,
@@ -108,8 +111,14 @@ mcbase_test_exe = executable(
   install: false,
 )
 
-# 注册 mcbase 测试到 meson 测试系统
+# 注册 mcbase 测试：先构建 mock 动态库；MC_BUILD_ROOT 与 dynamic-sdk-phase1/主仓一致，供 ModuleManagerTest 解析模块路径
+mcbase_test_env = environment()
+mcbase_test_env.set('MC_BUILD_ROOT', meson.project_build_root())
+
 test(
   'mcbase unit tests',
   mcbase_test_exe,
+  depends: mock_dynamic_module,
+  env: mcbase_test_env,
 )
+

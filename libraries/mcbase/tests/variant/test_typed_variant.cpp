@@ -58,7 +58,7 @@ TEST_F(typed_variant_test, Creation)
     typed_variant tv4(true);
     ASSERT_EQ(tv4.get_type(), type_id::bool_type) << "从布尔值创建的 typed_variant 类型应该是 bool_type";
 
-    typed_variant tv5(std::string("hello"));
+    typed_variant tv5(mc::string("hello"));
     ASSERT_EQ(tv5.get_type(), type_id::string_type) << "从字符串创建的 typed_variant 类型应该是 string_type";
 
     // 从 variant 创建
@@ -253,7 +253,7 @@ TEST_F(typed_variant_test, StringTypeLocking)
     tv_string = 3.14159;
     ASSERT_EQ(tv_string.get_type(), type_id::string_type);
     // 浮点数转字符串可能有精度问题，所以使用 ASSERT_TRUE 和 find
-    ASSERT_TRUE(tv_string.as_string().find("3.14159") != std::string::npos);
+    ASSERT_TRUE(tv_string.as_string().find("3.14159") != mc::string::npos);
 
     // 赋值一个布尔值，类型应该保持为 string_type，但值会被转换
     tv_string = true;
@@ -536,7 +536,7 @@ TEST_F(typed_variant_test, ComplexConversions)
     typed_variant tv_string(type_id::string_type);
     tv_string = v_double;
     ASSERT_EQ(tv_string.get_type(), type_id::string_type);
-    ASSERT_TRUE(tv_string.as_string().find("3.14159") != std::string::npos);
+    ASSERT_TRUE(tv_string.as_string().find("3.14159") != mc::string::npos);
 
     typed_variant tv_int8(type_id::int8_type);
     tv_int8 = v_bool;

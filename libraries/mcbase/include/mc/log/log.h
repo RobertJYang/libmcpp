@@ -25,6 +25,7 @@
 #include <mc/log/log_manager.h>
 #include <mc/log/log_message.h>
 #include <mc/log/logger.h>
+#include <mc/string_view.h>
 
 namespace mc {
 
@@ -33,7 +34,8 @@ namespace mc {
  *
  * @return log::logger 默认日志记录器
  */
-inline log::logger get_default_logger() {
+inline log::logger get_default_logger()
+{
     return log::logger::get();
 }
 
@@ -43,8 +45,9 @@ inline log::logger get_default_logger() {
  * @param name 日志记录器名称
  * @return log::logger 日志记录器
  */
-inline log::logger get_logger(const char* name) {
-    return log::logger::get(name);
+inline log::logger get_logger(mc::string_view name)
+{
+    return log::log_manager::instance().get_logger(name);
 }
 
 namespace log {
@@ -54,7 +57,8 @@ namespace log {
  *
  * @return logger& 默认日志记录器引用
  */
-inline logger default_logger() {
+inline logger default_logger()
+{
     return log_manager::instance().get_logger();
 }
 

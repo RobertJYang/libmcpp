@@ -44,7 +44,7 @@ class reflection;
         MC_REFLECTABLE("test.MyClass"); // 声明反射
 
         int a;
-        std::string b;
+        mc::string b;
     };
 
     // 定义反射，以下建议放在源文件中
@@ -66,7 +66,7 @@ class reflection;
     std::cout << mc::pretty_name<decltype(mc::reflect::get_static_members<MyClass>())>()
                   << std::endl;
     // 这会输出：
-    // const std::tuple<mc::reflect::property_info<MyClass, int>, mc::reflect::property_info<MyClass, std::string>> &
+    // const std::tuple<mc::reflect::property_info<MyClass, int>, mc::reflect::property_info<MyClass, mc::string>> &
 */
 
 /**
@@ -160,10 +160,10 @@ using custom_list = member_list;
 
 class MC_API struct_metadata {
 public:
-    struct_metadata(std::string_view name, type_id_type type_id);
+    struct_metadata(mc::string_view name, type_id_type type_id);
 
     template <typename T, typename Members>
-    struct_metadata(std::string_view name, const Members& members, const T* o)
+    struct_metadata(mc::string_view name, const Members& members, const T* o)
         : struct_metadata(name, mc::reflect::reflector<T>::get_type_id())
     {
         add_members(members, o);
@@ -171,15 +171,15 @@ public:
 
     ~struct_metadata();
 
-    std::string_view get_name() const noexcept;
+    mc::string_view get_name() const noexcept;
     type_id_type     get_type_id() const noexcept;
 
-    const property_type_info*   get_property_info(std::string_view name) const;
+    const property_type_info*   get_property_info(mc::string_view name) const;
     const property_type_info*   get_property_info(size_t offset) const;
-    const method_type_info*     get_method_info(std::string_view name) const;
+    const method_type_info*     get_method_info(mc::string_view name) const;
     const method_type_info*     get_method_info(size_t offset) const;
-    const base_class_type_info* get_base_class_info(std::string_view name) const;
-    const member_info_base*     get_custom_info(std::string_view name, size_t reflect_type) const;
+    const base_class_type_info* get_base_class_info(mc::string_view name) const;
+    const member_info_base*     get_custom_info(mc::string_view name, size_t reflect_type) const;
 
     using property_visitor_t   = std::function<visit_status(const property_type_info*)>;
     using method_visitor_t     = std::function<visit_status(const method_type_info*)>;
@@ -250,21 +250,21 @@ struct enum_values {
 
 class MC_API enum_metadata {
 public:
-    enum_metadata(std::string_view name, enum_values values);
+    enum_metadata(mc::string_view name, enum_values values);
     ~enum_metadata();
 
-    enum_value_type  get_value(std::string_view name) const;
+    enum_value_type  get_value(mc::string_view name) const;
     enum_value_type  get_value_from_variant(const mc::variant& var) const;
-    std::string_view get_name(enum_value_type value) const;
+    mc::string_view get_name(enum_value_type value) const;
 
-    std::optional<enum_value_type>  try_get_value(std::string_view name) const;
+    std::optional<enum_value_type>  try_get_value(mc::string_view name) const;
     std::optional<enum_value_type>  try_get_value_from_variant(const mc::variant& var) const;
-    std::optional<std::string_view> try_get_name(enum_value_type value) const;
+    std::optional<mc::string_view> try_get_name(enum_value_type value) const;
 
-    bool has_value(std::string_view name) const;
+    bool has_value(mc::string_view name) const;
     bool has_value(enum_value_type value) const;
 
-    std::vector<std::string_view> get_names() const;
+    std::vector<mc::string_view> get_names() const;
     enum_values                   get_values() const;
 
 private:

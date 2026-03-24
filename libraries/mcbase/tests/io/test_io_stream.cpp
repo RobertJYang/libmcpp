@@ -93,7 +93,7 @@ TEST(io_stream_test, string_operations)
     mc::io::io_stream stream(1024);
 
     // 写入普通字符串
-    std::string_view test_str = "这是一个测试字符串";
+    mc::string_view test_str = "这是一个测试字符串";
     EXPECT_EQ(stream.write(test_str), test_str.size());
 
     // 将读取位置移动到 0，准备从头读取
@@ -439,7 +439,7 @@ TEST(io_stream_test, alignment_need_expand)
         stream.reserve(0, 32);
 
         // 先写入一些数据让尾部空间变小
-        std::string payload(stream.get_tailroom() - 3, '0');
+        mc::string payload(stream.get_tailroom() - 3, '0');
         stream.write(payload);
         std::size_t pos_before_align = stream.get_write_pos();
         EXPECT_EQ(pos_before_align, payload.size());
@@ -464,7 +464,7 @@ TEST(io_stream_test, alignment_need_expand)
         stream.reserve(0, 32);
 
         // 先写入一些数据让尾部空间变小
-        std::string payload(stream.get_tailroom() - 2, '0');
+        mc::string payload(stream.get_tailroom() - 2, '0');
         stream.write(payload);
 
         // 故意移动到非尾部，测试中间数据对齐
@@ -487,7 +487,7 @@ TEST(io_stream_test, alignment_need_expand)
 TEST(io_stream_test, try_align_read_behavior)
 {
     mc::io::io_stream stream(32);
-    std::string       payload = "ABCDEFGHIJ"; // 10 字节
+    mc::string       payload = "ABCDEFGHIJ"; // 10 字节
     stream.write(payload);
 
     stream.seek_read(1);
@@ -512,7 +512,7 @@ TEST(io_stream_test, front_space_operations)
     EXPECT_EQ(stream.get_headroom(), front_size);
 
     // 写入一些数据
-    const std::string_view payload = "有效载荷数据";
+    const mc::string_view payload = "有效载荷数据";
     stream.write(payload);
 
     // 往 headroom 写入数据（front_size 还足够不需要扩容）
@@ -527,7 +527,7 @@ TEST(io_stream_test, front_space_operations)
     EXPECT_EQ(stream.read(payload.length()), payload);
 
     // 往 headroom 写入数据（front_size 不够需要扩容）
-    const std::string header(front_size, 'A');
+    const mc::string header(front_size, 'A');
     stream.seek_write(-header.size(), mc::io::seek_mode::begin);
     stream.write(header);
     EXPECT_EQ(stream.get_write_pos(), header.size());
@@ -557,7 +557,7 @@ TEST(io_stream_test, peek_and_get_writeable_data)
 
     auto mutable_ptr = const_cast<char*>(writable_span.data());
     std::memcpy(mutable_ptr, "world", 5);
-    stream.write(std::string_view(mutable_ptr, 5));
+    stream.write(mc::string_view(mutable_ptr, 5));
 
     stream.seek_read(0);
     EXPECT_EQ(stream.read(stream.length()), "helloworld");

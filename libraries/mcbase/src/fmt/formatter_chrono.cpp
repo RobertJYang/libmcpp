@@ -15,7 +15,7 @@
 
 namespace mc::fmt::detail {
 
-static void pad_number(std::string& out, int value, int width, pad_type pad)
+static void pad_number(mc::string& out, int value, int width, pad_type pad)
 {
     char buffer[32];
     int  len = snprintf_s(buffer, sizeof(buffer), sizeof(buffer), "%d", value);
@@ -30,7 +30,7 @@ static void pad_number(std::string& out, int value, int width, pad_type pad)
     }
 }
 
-void format_float(std::string& out, double value, int precision, bool has_precision)
+void format_float(mc::string& out, double value, int precision, bool has_precision)
 {
     detail::format_spec spec;
     format_context      ctx(out);
@@ -41,11 +41,11 @@ void format_float(std::string& out, double value, int precision, bool has_precis
     detail::format_to(ctx, spec, value);
 }
 
-duration_format_handler_base::duration_format_handler_base(std::string& output, int precision, bool has_precision)
+duration_format_handler_base::duration_format_handler_base(mc::string& output, int precision, bool has_precision)
     : m_output(output), m_precision(precision), m_has_precision(has_precision)
 {}
 
-void duration_format_handler_base::on_text(std::string_view text)
+void duration_format_handler_base::on_text(mc::string_view text)
 {
     m_output.append(text);
 }
@@ -178,10 +178,10 @@ void duration_format_handler_base::on_incomplete_spec()
     // 在实际格式化时不需要做任何操作，错误检查在编译期完成
 }
 
-time_point_format_handler_base::time_point_format_handler_base(std::string& output) : m_output(output)
+time_point_format_handler_base::time_point_format_handler_base(mc::string& output) : m_output(output)
 {}
 
-void time_point_format_handler_base::on_text(std::string_view text)
+void time_point_format_handler_base::on_text(mc::string_view text)
 {
     m_output.append(text);
 }
@@ -240,7 +240,7 @@ void time_point_format_handler_base::on_second(numeric_system, pad_type pad)
     uint32_t subsec_ns = get_subseconds_ns();
     if (subsec_ns > 0) {
         m_output += '.';
-        std::string subsec_str = std::to_string(subsec_ns);
+        mc::string subsec_str = mc::to_string(subsec_ns);
         // 补齐前导零
         while (subsec_str.length() < 9) {
             subsec_str = "0" + subsec_str;
@@ -343,8 +343,14 @@ void time_point_format_handler_base::on_timezone_offset(numeric_system)
     int hours   = std::abs(offset_minutes) / 60;
     int minutes = std::abs(offset_minutes) % 60;
     m_output += (offset_minutes >= 0 ? "+" : "-");
-    m_output += (hours < 10 ? "0" : "") + std::to_string(hours);
-    m_output += (minutes < 10 ? "0" : "") + std::to_string(minutes);
+    if (hours < 10) {
+        m_output += '0';
+    }
+    m_output += mc::to_string(hours);
+    if (minutes < 10) {
+        m_output += '0';
+    }
+    m_output += mc::to_string(minutes);
 }
 
 void time_point_format_handler_base::on_timezone_name(numeric_system)
@@ -383,8 +389,14 @@ void time_point_format_handler_base::on_timezone_name(numeric_system)
             int hours   = std::abs(offset_minutes) / 60;
             int minutes = std::abs(offset_minutes) % 60;
             m_output += (offset_minutes >= 0 ? "+" : "-");
-            m_output += (hours < 10 ? "0" : "") + std::to_string(hours);
-            m_output += (minutes < 10 ? "0" : "") + std::to_string(minutes);
+            if (hours < 10) {
+                m_output += '0';
+            }
+            m_output += mc::to_string(hours);
+            if (minutes < 10) {
+                m_output += '0';
+            }
+            m_output += mc::to_string(minutes);
             return;
         }
     }

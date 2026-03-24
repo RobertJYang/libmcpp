@@ -20,6 +20,7 @@
 #include <vector>
 
 #include <mc/common.h>
+#include <mc/string_view.h>
 
 namespace mc::db {
 
@@ -65,7 +66,7 @@ public:
      * 获取缓冲区数据
      * @return 缓冲区数据视图
      */
-    std::string_view bytes() const;
+    mc::string_view bytes() const;
 
     /**
      * 获取缓冲区数据指针
@@ -109,7 +110,7 @@ public:
      * 写入字符串
      * @param v 要写入的字符串
      */
-    void write_string(std::string_view v);
+    void write_string(mc::string_view v);
 
     /**
      * 写入16位无符号整数

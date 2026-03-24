@@ -495,7 +495,7 @@ TEST_F(FuturesTest, FutureCatchErrorHandlesUnknownException)
         // 如果代码为 0，至少验证异常消息不为空
         if (ex.code() == 0) {
             // 验证异常消息不为空（未知异常应该被包装）
-            EXPECT_FALSE(ex.what() == nullptr || std::string(ex.what()).empty());
+            EXPECT_FALSE(ex.what() == nullptr || mc::string(ex.what()).empty());
             return 1; // 返回非零值表示异常被正确处理
         }
         return static_cast<int>(ex.code());
@@ -712,7 +712,7 @@ TEST_F(FuturesTest, AllWithSuccess)
 {
     auto p1 = mc::make_promise<int>(get_io_context());
     auto p2 = mc::make_promise<double>(get_io_context());
-    auto p3 = mc::make_promise<std::string>(get_io_context());
+    auto p3 = mc::make_promise<mc::string>(get_io_context());
 
     auto all_future = mc::all(p1.get_future(), p2.get_future(), p3.get_future(),
                               mc::delay() // 添加一个 mc::delay() 在末尾验证 void 类型的 future 也可以被组合
@@ -739,7 +739,7 @@ TEST_F(FuturesTest, AllWithException)
 {
     auto p1 = mc::make_promise<int>(get_io_context());
     auto p2 = mc::make_promise<double>(get_io_context());
-    auto p3 = mc::make_promise<std::string>(get_io_context());
+    auto p3 = mc::make_promise<mc::string>(get_io_context());
 
     auto all_future = mc::all(p1.get_future(), p2.get_future(), p3.get_future());
 
@@ -756,7 +756,7 @@ TEST_F(FuturesTest, AllCancelPropagation)
     // 测试当all返回的future被取消时，子future也被取消
     auto p1 = mc::make_promise<int>(get_io_context());
     auto p2 = mc::make_promise<double>(get_io_context());
-    auto p3 = mc::make_promise<std::string>(get_io_context());
+    auto p3 = mc::make_promise<mc::string>(get_io_context());
 
     auto f1 = p1.get_future();
     auto f2 = p2.get_future();
@@ -891,7 +891,7 @@ TEST_F(FuturesTest, AnyWithSuccess)
 {
     auto p1 = mc::make_promise<int>(get_io_context());
     auto p2 = mc::make_promise<double>(get_io_context());
-    auto p3 = mc::make_promise<std::string>(get_io_context());
+    auto p3 = mc::make_promise<mc::string>(get_io_context());
 
     auto any_future = mc::any(p1.get_future(), p2.get_future(), p3.get_future());
 
@@ -908,7 +908,7 @@ TEST_F(FuturesTest, AnyCancelPropagation)
 {
     auto p1 = mc::make_promise<int>(get_io_context());
     auto p2 = mc::make_promise<double>(get_io_context());
-    auto p3 = mc::make_promise<std::string>(get_io_context());
+    auto p3 = mc::make_promise<mc::string>(get_io_context());
 
     auto f1 = p1.get_future();
     auto f2 = p2.get_future();
@@ -951,7 +951,7 @@ TEST_F(FuturesTest, AnyAllChildrenCanceled)
 {
     auto p1 = mc::make_promise<int>(get_io_context());
     auto p2 = mc::make_promise<double>(get_io_context());
-    auto p3 = mc::make_promise<std::string>(get_io_context());
+    auto p3 = mc::make_promise<mc::string>(get_io_context());
 
     auto any_future = mc::any(p1.get_future(), p2.get_future(), p3.get_future());
 
@@ -1264,7 +1264,7 @@ TEST_F(FuturesTest, AnyFirstSuccessCancel)
     // 测试any中第一个成功时，其他future被取消
     auto p1 = mc::make_promise<int>(get_io_context());
     auto p2 = mc::make_promise<double>(get_io_context());
-    auto p3 = mc::make_promise<std::string>(get_io_context());
+    auto p3 = mc::make_promise<mc::string>(get_io_context());
 
     auto f1 = p1.get_future();
     auto f2 = p2.get_future();
@@ -1303,7 +1303,7 @@ TEST_F(FuturesTest, AllOneChildCancelPropagation)
     // 测试all中一个子future被取消时，其他也被取消
     auto p1 = mc::make_promise<int>(get_io_context());
     auto p2 = mc::make_promise<double>(get_io_context());
-    auto p3 = mc::make_promise<std::string>(get_io_context());
+    auto p3 = mc::make_promise<mc::string>(get_io_context());
 
     auto f1 = p1.get_future();
     auto f2 = p2.get_future();
@@ -1345,7 +1345,7 @@ TEST_F(FuturesTest, AnySuccessAfterSomeCanceled)
     // 测试any中部分future被取消，但仍有成功的情况
     auto p1 = mc::make_promise<int>(get_io_context());
     auto p2 = mc::make_promise<double>(get_io_context());
-    auto p3 = mc::make_promise<std::string>(get_io_context());
+    auto p3 = mc::make_promise<mc::string>(get_io_context());
 
     auto f1 = p1.get_future();
     auto f2 = p2.get_future();
@@ -1370,7 +1370,7 @@ TEST_F(FuturesTest, AllPartialSuccessThenException)
 {
     auto p1 = mc::make_promise<int>(get_io_context());
     auto p2 = mc::make_promise<double>(get_io_context());
-    auto p3 = mc::make_promise<std::string>(get_io_context());
+    auto p3 = mc::make_promise<mc::string>(get_io_context());
 
     auto all_future = mc::all(p1.get_future(), p2.get_future(), p3.get_future());
 
@@ -1389,7 +1389,7 @@ TEST_F(FuturesTest, AllMultipleSimultaneousExceptions)
 {
     auto p1 = mc::make_promise<int>(get_io_context());
     auto p2 = mc::make_promise<double>(get_io_context());
-    auto p3 = mc::make_promise<std::string>(get_io_context());
+    auto p3 = mc::make_promise<mc::string>(get_io_context());
 
     auto f1         = p1.get_future();
     auto f2         = p2.get_future();
@@ -1410,7 +1410,7 @@ TEST_F(FuturesTest, AllMixedExceptionAndCancel)
 {
     auto p1 = mc::make_promise<int>(get_io_context());
     auto p2 = mc::make_promise<double>(get_io_context());
-    auto p3 = mc::make_promise<std::string>(get_io_context());
+    auto p3 = mc::make_promise<mc::string>(get_io_context());
 
     auto f1 = p1.get_future();
     auto f2 = p2.get_future();
@@ -1456,7 +1456,7 @@ TEST_F(FuturesTest, AnySuccessAfterSomeExceptions)
 {
     auto p1 = mc::make_promise<int>(get_io_context());
     auto p2 = mc::make_promise<double>(get_io_context());
-    auto p3 = mc::make_promise<std::string>(get_io_context());
+    auto p3 = mc::make_promise<mc::string>(get_io_context());
 
     auto any_future = mc::any(p1.get_future(), p2.get_future(), p3.get_future());
 
@@ -1470,7 +1470,7 @@ TEST_F(FuturesTest, AnySuccessAfterSomeExceptions)
     // 任何一个成功都算整体成功
     auto result = any_future.get();
     EXPECT_EQ(result.first, 2); // 第三个的索引
-    EXPECT_EQ(std::get<std::string>(result.second), "success");
+    EXPECT_EQ(std::get<mc::string>(result.second), "success");
 }
 
 // 测试多种异常混合的情况
@@ -1478,7 +1478,7 @@ TEST_F(FuturesTest, AnyWithMixedExceptions)
 {
     auto p1 = mc::make_promise<int>(get_io_context());
     auto p2 = mc::make_promise<double>(get_io_context());
-    auto p3 = mc::make_promise<std::string>(get_io_context());
+    auto p3 = mc::make_promise<mc::string>(get_io_context());
 
     auto f1         = p1.get_future();
     auto f2         = p2.get_future();
@@ -2163,7 +2163,7 @@ TEST_F(FuturesTest, stress_all_with_inline_temporaries)
     for (int i = 0; i < 300; ++i) {
         auto p1 = mc::make_promise<int>(get_io_context());
         auto p2 = mc::make_promise<double>(get_io_context());
-        auto p3 = mc::make_promise<std::string>(get_io_context());
+        auto p3 = mc::make_promise<mc::string>(get_io_context());
 
         auto f = mc::all(p1.get_future().then([](int v) {
             return v + 1;
@@ -2171,7 +2171,7 @@ TEST_F(FuturesTest, stress_all_with_inline_temporaries)
                          p2.get_future().then([](double v) {
             return v + 1.0;
         }),
-                         p3.get_future().then([](std::string v) {
+                         p3.get_future().then([](mc::string v) {
             return v + "!";
         }));
 

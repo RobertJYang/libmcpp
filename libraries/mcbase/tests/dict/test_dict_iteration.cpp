@@ -27,7 +27,7 @@ TEST(DictIterationTest, CorrectIteration)
     dict["key3"] = "value3";
 
     // 测试正确的迭代方式：使用 entry.key 和 entry.value
-    std::map<std::string, std::string> result;
+    std::map<mc::string, mc::string> result;
     for (const auto& entry : dict) {
         result[entry.key] = entry.value.as_string();
     }
@@ -51,7 +51,7 @@ TEST(DictIterationTest, StructuredBindingNotSupported)
     // }
 
     // 正确的方式：
-    std::vector<std::pair<std::string, std::string>> pairs;
+    std::vector<std::pair<mc::string, mc::string>> pairs;
     for (const auto& entry : dict) {
         pairs.emplace_back(entry.key, entry.value.as_string());
     }
@@ -91,8 +91,8 @@ TEST(DictIterationTest, ConstDictIteration)
     const mc::dict& const_dict = dict;
 
     // 测试 const 迭代
-    std::vector<std::string> keys;
-    std::vector<std::string> values;
+    std::vector<mc::string> keys;
+    std::vector<mc::string> values;
 
     for (const auto& entry : const_dict) {
         keys.push_back(entry.key);
@@ -115,7 +115,7 @@ TEST(DictIterationTest, ComplexObjectIteration)
     mc::dict dict;
 
     // 添加不同类型的值
-    dict["string_val"] = std::string("text");
+    dict["string_val"] = mc::string("text");
     dict["int_val"]    = 42;
     dict["bool_val"]   = true;
     dict["double_val"] = 3.14;
@@ -126,7 +126,7 @@ TEST(DictIterationTest, ComplexObjectIteration)
     dict["nested_dict"]  = nested;
 
     // 迭代并验证类型
-    std::map<std::string, mc::type_id> type_map;
+    std::map<mc::string, mc::type_id> type_map;
     for (const auto& entry : dict) {
         type_map[entry.key] = entry.value.get_type();
     }
@@ -169,7 +169,7 @@ TEST(DictIterationTest, IteratorPerformance)
     for (const auto& entry : large_dict) {
         count++;
         // 验证键值对的正确性
-        std::string expected_key = "key" + std::to_string(entry.value.as_int32());
+        mc::string expected_key = "key" + std::to_string(entry.value.as_int32());
         EXPECT_EQ(entry.key, expected_key);
     }
 
@@ -201,7 +201,7 @@ TEST(DictIterationTest, DictConstReverseIterator)
     const dict d({{"key1", 1}, {"key2", 2}, {"key3", 3}});
 
     // 使用反向迭代器遍历
-    std::vector<std::string> reverse_keys;
+    std::vector<mc::string> reverse_keys;
     for (auto it = d.rbegin(); it != d.rend(); ++it) {
         reverse_keys.push_back(it->key.as_string());
     }
@@ -216,7 +216,7 @@ TEST(DictIterationTest, DictConstReverseIterator)
     EXPECT_TRUE(std::find(reverse_keys.begin(), reverse_keys.end(), "key3") != reverse_keys.end());
 
     // 验证反向迭代器与正向迭代器的顺序相反
-    std::vector<std::string> forward_keys;
+    std::vector<mc::string> forward_keys;
     for (const auto& entry : d) {
         forward_keys.push_back(entry.key.as_string());
     }
@@ -248,7 +248,7 @@ TEST(DictIterationTest, DictFindWithVariantKey)
 
     auto it2 = const_d.find(key2);
     ASSERT_NE(it2, const_d.end());
-    EXPECT_EQ(it2->value.as<std::string>(), "value");
+    EXPECT_EQ(it2->value.as<mc::string>(), "value");
 
     auto it3 = const_d.find(key3);
     EXPECT_EQ(it3, const_d.end());
@@ -281,7 +281,7 @@ TEST(DictIterationTest, MutableDictFindWithVariantKey)
 
     auto it2 = md.find(key2);
     ASSERT_NE(it2, md.end());
-    EXPECT_EQ(it2->value.as<std::string>(), "value");
+    EXPECT_EQ(it2->value.as<mc::string>(), "value");
 
     auto it3 = md.find(key3);
     EXPECT_EQ(it3, md.end());

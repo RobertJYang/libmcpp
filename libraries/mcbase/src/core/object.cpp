@@ -22,7 +22,7 @@ namespace mc::core {
 /* ------------------------ object_data & object_impl ----------------------- */
 
 struct object_data {
-    std::string        name;           // 对象名称
+    mc::string        name;           // 对象名称
     object_weak_ptr    parent;         // 父对象指针
     child_list         children;       // 子对象列表
     bool               is_deleted;     // 标记对象是否已被删除
@@ -64,12 +64,12 @@ public:
     object_impl& operator=(object_impl&& other) = delete;
 
     // 线程安全的数据访问方法
-    std::string_view get_name() const;
-    void             set_name(std::string_view name);
+    mc::string_view get_name() const;
+    void             set_name(mc::string_view name);
     object_ptr       get_parent() const;
     void             set_parent(object* parent);
     child_list       get_children() const;
-    object_ptr       find_child(std::string_view name) const;
+    object_ptr       find_child(mc::string_view name) const;
     void             add_child(object* child);
     void             remove_child(object* child);
     void             set_executor(mc::executor executor);
@@ -113,22 +113,22 @@ object_impl& object_impl::operator=(const object_impl& other)
     return *this;
 }
 
-std::string_view object_impl::get_name() const
+mc::string_view object_impl::get_name() const
 {
     // 使用 thread_local 存储确保 string_view 的生命周期安全
-    thread_local std::string cached_name;
+    thread_local mc::string cached_name;
     cached_name = m_data.rlock()->name;
     return cached_name;
 }
 
-void object_impl::set_name(std::string_view name)
+void object_impl::set_name(mc::string_view name)
 {
     // 在同一个锁保护下进行检查和设置，确保原子性
     auto data = m_data.wlock();
     MC_ASSERT(data->name.empty(), "对象名称已设置，不能重复设置: 当前名称='${current}', 尝试设置='${new}'",
               ("current", data->name)("new", name));
 
-    data->name = std::string(name);
+    data->name = mc::string(name);
 }
 
 object_ptr object_impl::get_parent() const
@@ -146,7 +146,7 @@ child_list object_impl::get_children() const
     return m_data.rlock()->children;
 }
 
-object_ptr object_impl::find_child(std::string_view name) const
+object_ptr object_impl::find_child(mc::string_view name) const
 {
     return m_data.with_lock([name](auto& data) -> object_ptr {
         auto it = std::find_if(data.children.begin(), data.children.end(), [name](const object_ptr& child) {
@@ -357,12 +357,12 @@ object_ptr object::get_parent() const
     return impl->get_parent();
 }
 
-void object::set_name(std::string_view name)
+void object::set_name(mc::string_view name)
 {
     ensure_impl().set_name(name);
 }
 
-std::string_view object::get_name() const
+mc::string_view object::get_name() const
 {
     return ensure_impl().get_name();
 }
@@ -376,7 +376,7 @@ child_list object::get_children() const
     return impl->get_children();
 }
 
-object_ptr object::find_child(std::string_view name) const
+object_ptr object::find_child(mc::string_view name) const
 {
     auto* impl = m_object_impl.load(std::memory_order_acquire);
     if (!impl) {

@@ -22,37 +22,38 @@ namespace mc {
 namespace filesystem {
 
 // 获取路径中的文件名部分
-std::string basename(const fs::path& path)
+mc::string basename(const fs::path& path)
 {
     if (path.empty()) {
         return "";
     }
 
-    return fs::path(path).filename().string();
+    auto native_name = fs::path(path).filename().string();
+    return mc::string(std::move(native_name));
 }
 
 // 获取路径中的目录部分
-std::string dirname(const fs::path& path)
+mc::string dirname(const fs::path& path)
 {
     if (path.empty()) {
         return ".";
     }
 
     auto parent = fs::path(path).parent_path().string();
-    return parent.empty() ? "." : parent;
+    return parent.empty() ? mc::string(".") : mc::string(std::move(parent));
 }
 
 // 获取文件扩展名，不包含点号
-std::string extension(const fs::path& path)
+mc::string extension(const fs::path& path)
 {
     if (path.empty()) {
         return "";
     }
 
     // 获取扩展名（包括点）
-    std::string ext = fs::path(path).extension().string();
+    mc::string ext = mc::string(fs::path(path).extension().string());
     // 移除开头的点
-    if (!ext.empty() && ext[0] == '.') {
+    if (!ext.empty() && ext.view()[0] == '.') {
         return ext.substr(1);
     }
 
@@ -60,14 +61,15 @@ std::string extension(const fs::path& path)
 }
 
 // 获取文件名主干部分（不含扩展名）
-std::string stem(const fs::path& path)
+mc::string stem(const fs::path& path)
 {
     if (path.empty()) {
         return "";
     }
 
     // 获取文件名主干部分（不含扩展名）
-    return fs::path(path).stem().string();
+    auto native_stem = fs::path(path).stem().string();
+    return mc::string(std::move(native_stem));
 }
 
 // 检查文件或目录是否存在
@@ -287,7 +289,7 @@ fs::path normalize(const fs::path& path)
 
     // 处理每个路径片段
     for (const auto& part : path) {
-        std::string part_str = part.string();
+        mc::string part_str = part.string();
         if (part_str == ".") {
             // 跳过当前目录
             continue;
@@ -338,7 +340,7 @@ path join(const std::vector<path>& paths)
     return result;
 }
 
-std::optional<std::string> read_file(const path& p)
+std::optional<mc::string> read_file(const path& p)
 {
     if (p.empty()) {
         return std::nullopt;
@@ -354,13 +356,13 @@ std::optional<std::string> read_file(const path& p)
         }
         std::stringstream buffer;
         buffer << file.rdbuf();
-        return buffer.str();
+        return mc::string(buffer.str());
     } catch (const std::exception& e) {
         return std::nullopt;
     }
 }
 
-bool write_file(const path& p, const std::string& content)
+bool write_file(const path& p, mc::string_view content)
 {
     if (p.empty()) {
         return false;
@@ -378,7 +380,7 @@ bool write_file(const path& p, const std::string& content)
     }
 }
 
-bool append_file(const path& p, const std::string& content)
+bool append_file(const path& p, mc::string_view content)
 {
     if (p.empty()) {
         return false;

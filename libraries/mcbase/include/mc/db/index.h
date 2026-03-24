@@ -20,6 +20,7 @@
 #include <mc/db/key_extractor.h>
 #include <mc/db/table_base.h>
 #include <mc/exception.h>
+#include <mc/string_utils.h>
 
 #include <functional>
 #include <memory>
@@ -373,21 +374,21 @@ public:
         return m_txn->root().size();
     }
 
-    std::string index_name() const
+    mc::string index_name() const
     {
         if constexpr (is_field_tag_v<Tag>) {
-            return mc::string::join(Tag::get_field_names(), ",");
+            return mc::strings::join(Tag::get_field_names(), ",");
         } else {
             auto names = m_extractor.get_field_names();
             if (names.empty()) {
-                return "index_" + std::to_string(m_index_id);
+                return "index_" + mc::to_string(m_index_id);
             }
 
-            return mc::string::join(names, ",");
+            return mc::strings::join(names, ",");
         }
     }
 
-    std::string_view table_name() const
+    mc::string_view table_name() const
     {
         return m_table ? m_table->get_table_name() : "anonymous_table";
     }

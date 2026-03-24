@@ -96,7 +96,7 @@ public:
      * @brief 获取类型名称
      * @return 返回类型名称字符串
      */
-    virtual std::string_view get_type_name() const
+    virtual mc::string_view get_type_name() const
     {
         return get_type_info().name;
     }
@@ -133,9 +133,9 @@ public:
     {
         return false;
     }
-    virtual std::string as_string() const
+    virtual mc::string as_string() const
     {
-        return std::string(get_type_name());
+        return mc::string(get_type_name());
     }
     virtual void visit(std::function<void(const mc::variant&)>&& visitor) const
     {
@@ -181,7 +181,7 @@ public:
      * @return 返回指向内部 variant 的指针，如果不支持则返回 nullptr
      * @note 只有 supports_reference_access() 返回 true 时才会被调用
      */
-    virtual mc::variant* get_ptr(std::string_view key)
+    virtual mc::variant* get_ptr(mc::string_view key)
     {
         MC_UNUSED(key);
         return nullptr; // 默认不支持
@@ -190,7 +190,7 @@ public:
     /**
      * @brief 通过键获取元素指针（const 版本）
      */
-    virtual const mc::variant* get_ptr(std::string_view key) const
+    virtual const mc::variant* get_ptr(mc::string_view key) const
     {
         MC_UNUSED(key);
         return nullptr; // 默认不支持
@@ -218,7 +218,7 @@ public:
      * @return 返回指定键对应的元素（值类型）
      * @throw mc::invalid_op_exception 如果不支持键访问
      */
-    virtual mc::variant get(std::string_view key) const;
+    virtual mc::variant get(mc::string_view key) const;
 
     /**
      * @brief 通过键设置元素（用于支持 operator[](string_view) 赋值）
@@ -226,7 +226,7 @@ public:
      * @param value 要设置的值
      * @throw mc::invalid_op_exception 如果不支持键访问
      */
-    virtual void set(std::string_view key, const mc::variant& value);
+    virtual void set(mc::string_view key, const mc::variant& value);
 
     // ==================== GC 追踪支持 ====================
 

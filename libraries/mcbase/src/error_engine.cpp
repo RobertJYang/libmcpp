@@ -35,19 +35,19 @@ void error_engine::reset_for_test()
 }
 
 struct error_info_data {
-    error_info_data(std::string name, std::string format, error_level level)
+    error_info_data(mc::string name, mc::string format, error_level level)
         : name(std::move(name)), format(std::move(format)), level(level)
     {}
 
-    std::string name;
-    std::string format;
+    mc::string name;
+    mc::string format;
     error_level level;
 };
 
 // TODO:: 后续应该放到共享内存中全局有效
 struct error_engine::error_engine_impl {
     using error_infos = std::list<error_info_data>; // 非常量的错误名称和格式化字符串持有在这里
-    using error_map   = std::unordered_map<std::string_view, error_info>;
+    using error_map   = std::unordered_map<mc::string_view, error_info>;
 
     std::mutex  m_mutex;
     error_infos m_infos;
@@ -69,7 +69,7 @@ error_info error_engine::register_const_error(const error_info& info)
     return register_const_error(info.name, info.format, info.level);
 }
 
-error_info error_engine::register_const_error(std::string_view name, std::string_view format, error_level level)
+error_info error_engine::register_const_error(mc::string_view name, mc::string_view format, error_level level)
 {
     std::lock_guard lock(m_impl->m_mutex);
 
@@ -82,7 +82,7 @@ error_info error_engine::register_const_error(std::string_view name, std::string
     return ret.second ? ret.first->second : error_info();
 }
 
-error_info error_engine::register_error(std::string name, std::string format, error_level level)
+error_info error_engine::register_error(mc::string_view name, mc::string_view format, error_level level)
 {
     std::lock_guard lock(m_impl->m_mutex);
 
@@ -91,12 +91,12 @@ error_info error_engine::register_error(std::string name, std::string format, er
         return error_info();
     }
 
-    auto& info = m_impl->m_infos.emplace_back(std::move(name), std::move(format), level);
+    auto& info = m_impl->m_infos.emplace_back(mc::string(name), mc::string(format), level);
     auto  ret  = m_impl->m_errors.emplace(info.name, error_info(info.name, info.format, info.level));
     return ret.second ? ret.first->second : error_info();
 }
 
-error_info error_engine::get_error_info(std::string_view name)
+error_info error_engine::get_error_info(mc::string_view name)
 {
     std::lock_guard lock(m_impl->m_mutex);
 
@@ -108,9 +108,9 @@ error_info error_engine::get_error_info(std::string_view name)
     return it->second;
 }
 
-error_ptr error_engine::report_error(std::string_view name, mc::dict args)
+error_ptr error_engine::report_error(mc::string_view name, mc::dict args)
 {
-    std::string_view format;
+    mc::string_view format;
     error_level      level;
     {
         std::lock_guard lock(m_impl->m_mutex);
@@ -165,14 +165,14 @@ error_ptr error_engine::last_error()
     return m_impl->s_last_error;
 }
 
-bool error_engine::is_registered(std::string_view name)
+bool error_engine::is_registered(mc::string_view name)
 {
     std::lock_guard lock(m_impl->m_mutex);
 
     return m_impl->m_errors.find(name) != m_impl->m_errors.end();
 }
 
-error_ptr make_error(std::string_view name, std::string_view format)
+error_ptr make_error(mc::string_view name, mc::string_view format)
 {
     MC_ASSERT(is_valid_error_name(name), "error name ${name} is invalid", ("name", name));
 
@@ -184,7 +184,7 @@ error_ptr make_error(const error_info& info)
     return make_error(info.name, info.format);
 }
 
-bool is_valid_error_name(std::string_view name)
+bool is_valid_error_name(mc::string_view name)
 {
     return mc::is_valid_interface_name(name);
 }

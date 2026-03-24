@@ -34,7 +34,7 @@ struct templated_type {
 // 测试用的自定义类型
 struct test_user {
     int         id;
-    std::string name;
+    mc::string name;
     int         age;
 };
 
@@ -57,31 +57,31 @@ protected:
 TEST_F(pretty_name_test, basic_types)
 {
     // 基本类型
-    std::string int_name    = mc::pretty_name<int>();
-    std::string double_name = mc::pretty_name<double>();
-    std::string bool_name   = mc::pretty_name<bool>();
+    mc::string int_name    = mc::pretty_name<int>();
+    mc::string double_name = mc::pretty_name<double>();
+    mc::string bool_name   = mc::pretty_name<bool>();
 
     // 检查名称中是否包含基本类型的核心部分
-    EXPECT_TRUE(int_name.find("int") != std::string::npos);
-    EXPECT_TRUE(double_name.find("double") != std::string::npos);
-    EXPECT_TRUE(bool_name.find("bool") != std::string::npos);
+    EXPECT_TRUE(int_name.find("int") != mc::string::npos);
+    EXPECT_TRUE(double_name.find("double") != mc::string::npos);
+    EXPECT_TRUE(bool_name.find("bool") != mc::string::npos);
 }
 
 // 测试自定义类型的名称
 TEST_F(pretty_name_test, custom_types)
 {
-    std::string user_name = mc::pretty_name<test_user>();
-    EXPECT_TRUE(user_name.find("test_user") != std::string::npos);
+    mc::string user_name = mc::pretty_name<test_user>();
+    EXPECT_TRUE(user_name.find("test_user") != mc::string::npos);
 }
 
 // 测试模板类型的名称
 TEST_F(pretty_name_test, template_types)
 {
-    std::string int_wrapper = mc::pretty_name<wrapper<int>>();
-    EXPECT_TRUE(int_wrapper.find("wrapper") != std::string::npos);
-    EXPECT_TRUE(int_wrapper.find("int") != std::string::npos);
+    mc::string int_wrapper = mc::pretty_name<wrapper<int>>();
+    EXPECT_TRUE(int_wrapper.find("wrapper") != mc::string::npos);
+    EXPECT_TRUE(int_wrapper.find("int") != mc::string::npos);
 
-    std::string string_wrapper = mc::pretty_name<wrapper<std::string>>();
-    EXPECT_TRUE(string_wrapper.find("wrapper") != std::string::npos);
-    EXPECT_TRUE(string_wrapper.find("string") != std::string::npos);
+    mc::string string_wrapper = mc::pretty_name<wrapper<mc::string>>();
+    EXPECT_TRUE(string_wrapper.find("wrapper") != mc::string::npos);
+    EXPECT_TRUE(string_wrapper.find("string") != mc::string::npos);
 }

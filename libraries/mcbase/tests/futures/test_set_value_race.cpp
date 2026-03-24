@@ -30,10 +30,10 @@ namespace {
 // 精确模拟 shm_pending_msgs 的并发行为
 class test_pending_msgs {
 public:
-    bool send(std::string_view name, uint32_t serial, mc::promise<int> promise)
+    bool send(mc::string_view name, uint32_t serial, mc::promise<int> promise)
     {
         std::lock_guard lock(m_mutex);
-        auto&           serial_map = m_pending[std::string(name)];
+        auto&           serial_map = m_pending[mc::string(name)];
         if (serial_map.find(serial) != serial_map.end()) {
             return false;
         }
@@ -44,10 +44,10 @@ public:
 
     // 与 shm_pending_msgs::reply 完全一致的模式:
     //   持有 m_mutex → move promise → erase → set_value → 释放 m_mutex
-    bool reply(std::string_view name, uint32_t serial, int value)
+    bool reply(mc::string_view name, uint32_t serial, int value)
     {
         std::lock_guard lock(m_mutex);
-        auto&           serial_map = m_pending[std::string(name)];
+        auto&           serial_map = m_pending[mc::string(name)];
         auto            it         = serial_map.find(serial);
         if (it == serial_map.end()) {
             return false;
@@ -58,25 +58,25 @@ public:
         return true;
     }
 
-    void remove(std::string_view name, uint32_t serial)
+    void remove(mc::string_view name, uint32_t serial)
     {
         std::lock_guard lock(m_mutex);
-        auto            it = m_pending.find(std::string(name));
+        auto            it = m_pending.find(mc::string(name));
         if (it == m_pending.end()) {
             return;
         }
         it->second.erase(serial);
     }
 
-    void clear(std::string_view name)
+    void clear(mc::string_view name)
     {
         std::lock_guard lock(m_mutex);
-        m_pending.erase(std::string(name));
+        m_pending.erase(mc::string(name));
     }
 
 private:
     std::mutex                                                                      m_mutex;
-    std::unordered_map<std::string, std::unordered_map<uint32_t, mc::promise<int>>> m_pending;
+    std::unordered_map<mc::string, std::unordered_map<uint32_t, mc::promise<int>>> m_pending;
 };
 
 class SetValueRaceTest : public mc::test::TestWithRuntime {
@@ -129,7 +129,7 @@ TEST_F(SetValueRaceTest, devmon_harbor_reply_pattern)
     std::atomic<int>      sent_count{0};
     std::atomic<int>      done_count{0};
 
-    std::string service_name = ":1.100";
+    mc::string service_name = ":1.100";
 
     // 启动 harbor worker 线程（非 pool 线程，与 devmon 一致）
     // harbor worker 从队列读消息后调用 reply
@@ -206,7 +206,7 @@ TEST_F(SetValueRaceTest, devmon_unregister_during_reply)
     constexpr int  batch_size = 100;
     constexpr auto wait_time  = 10ms;
 
-    std::string service_name = ":1.200";
+    mc::string service_name = ":1.200";
 
     for (int round = 0; round < num_rounds; ++round) {
         std::atomic<int> done_count{0};
@@ -353,7 +353,7 @@ TEST_F(SetValueRaceTest, cancel_vs_reply_race_with_pool_recycle)
     constexpr int  num_iterations = 30000;
     constexpr auto short_timeout  = 500us;
 
-    std::string service_name = ":1.300";
+    mc::string service_name = ":1.300";
 
     std::atomic<bool>     running{true};
     std::atomic<uint32_t> reply_serial{0};

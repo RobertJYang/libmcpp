@@ -12,6 +12,7 @@
 
 #ifndef MC_REFLECT_TYPE_CODE_H
 #define MC_REFLECT_TYPE_CODE_H
+#include <mc/string_view.h>
 #include <string_view>
 
 namespace mc::reflect {
@@ -62,10 +63,10 @@ inline type_code char_to_type(char c)
 
 // 类型组合
 namespace container {
-constexpr std::string_view array_of_byte    = "ay";    // 字节数组
-constexpr std::string_view array_of_string  = "as";    // 字符串数组
-constexpr std::string_view array_of_variant = "av";    // 变体数组
-constexpr std::string_view dict_string_var  = "a{sv}"; // 字符串到变体的字典
+constexpr mc::string_view array_of_byte{"ay", 2};       // 字节数组
+constexpr mc::string_view array_of_string{"as", 2};     // 字符串数组
+constexpr mc::string_view array_of_variant{"av", 2};   // 变体数组
+constexpr mc::string_view dict_string_var{"a{sv}", 5}; // 字符串到变体的字典
 } // namespace container
 
 /**

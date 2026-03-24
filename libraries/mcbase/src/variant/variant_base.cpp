@@ -16,18 +16,26 @@
  */
 
 #include <mc/dict/entry.h>
+#include <mc/json.h>
+#include <mc/string_utils.h>
 #include <mc/traits.h>
 #include <mc/variant/variant_base.h>
 #include <mc/variant/variant_reference.h>
+#include <string>
+#include <string_view>
 
 namespace mc {
 
+mc::string variant_base::to_string() const
+{
+    return json::json_encode(*this);
+}
+
 variant_base::variant_base(type_id type) : m_uint64(0), m_type(type), m_is_fixed(false)
 {
-    static_assert(sizeof(variant_base) <= 16, "variant_base size is too large");
     switch (type) {
         case type_id::string_type:
-            m_string_ptr = mc::allocate_ptr<string_type>(allocator_type());
+            new (&m_string) string_type();
             break;
         case type_id::array_type:
             new (&m_array) array_type();
@@ -70,8 +78,7 @@ variant_base::variant_base(const variant_base& other) : m_type(other.m_type), m_
             m_bool = other.m_bool;
             break;
         case type_id::string_type:
-            m_string_ptr =
-                mc::allocate_ptr<string_type>(allocator_type(), other.m_string_ptr->data(), other.m_string_ptr->size());
+            new (&m_string) string_type(other.m_string);
             break;
         case type_id::array_type:
             new (&m_array) array_type(other.m_array);
@@ -117,7 +124,7 @@ variant_base::variant_base(variant_base&& other) noexcept
             m_bool = other.m_bool;
             break;
         case type_id::string_type:
-            m_string_ptr = other.m_string_ptr;
+            new (&m_string) string_type(std::move(other.m_string));
             break;
         case type_id::array_type:
             new (&m_array) array_type(std::move(other.m_array));
@@ -133,6 +140,11 @@ variant_base::variant_base(variant_base&& other) noexcept
             break;
         default:
             break;
+    }
+
+    if (other.m_type == type_id::string_type) {
+        // 已从 other 移走内容，须显式析构内嵌 string，避免随后 m_uint64=0 覆盖未析构对象
+        other.m_string.~string_type();
     }
 
     other.m_type     = type_id::null_type;
@@ -157,7 +169,7 @@ void variant_base::clear()
 {
     switch (m_type) {
         case type_id::string_type:
-            mc::destroy_ptr(allocator_type(), m_string_ptr);
+            m_string.~string_type();
             break;
         case type_id::array_type:
             m_array.~array_type();
@@ -186,7 +198,7 @@ size_t variant_base::size() const
         case type_id::object_type:
             return m_object.size();
         case type_id::string_type:
-            return m_string_ptr->size();
+            return m_string.size();
         case type_id::blob_type:
             return m_blob_ptr->data.size();
         default:
@@ -194,7 +206,7 @@ size_t variant_base::size() const
     }
 }
 
-variant_reference variant_base::operator[](std::string_view key)
+variant_reference variant_base::operator[](mc::string_view key)
 {
     if (is_object()) {
         return variant_reference(m_object[key]);
@@ -209,13 +221,13 @@ variant_reference variant_base::operator[](std::string_view key)
             }
         }
         // 否则使用值访问模式（有拷贝开销）
-        return variant_reference(m_extension, std::string(key));
+        return variant_reference(m_extension, key);
     } else {
         throw_type_error("object", get_type());
     }
 }
 
-variant_reference variant_base::operator[](std::string_view key) const
+variant_reference variant_base::operator[](mc::string_view key) const
 {
     if (is_object()) {
         return variant_reference(const_cast<variant_base&>((m_object)[key]));
@@ -230,13 +242,13 @@ variant_reference variant_base::operator[](std::string_view key) const
             }
         }
         // 否则使用值访问模式（有拷贝开销）
-        return variant_reference(m_extension, std::string(key));
+        return variant_reference(m_extension, key);
     } else {
         throw_type_error("object", get_type());
     }
 }
 
-const variant_base& variant_base::get(std::string_view key, const variant_base& default_value) const
+const variant_base& variant_base::get(mc::string_view key, const variant_base& default_value) const
 {
     if (!is_object()) {
         return default_value;
@@ -245,7 +257,7 @@ const variant_base& variant_base::get(std::string_view key, const variant_base& 
     return m_object.get(key, default_value);
 }
 
-bool variant_base::contains(std::string_view key) const
+bool variant_base::contains(mc::string_view key) const
 {
     if (!is_object()) {
         return false;
@@ -306,7 +318,7 @@ variant_base& variant_base::set_value(const variant_base& other)
             break;
         }
         case type_id::string_type: {
-            *m_string_ptr = other.as_string();
+            m_string = other.as_string();
             break;
         }
         case type_id::array_type: {
@@ -370,7 +382,7 @@ void variant_base::visit(const visitor& v) const
             v.handle(m_bool);
             break;
         case type_id::string_type:
-            v.handle(*m_string_ptr);
+            v.handle(m_string.view());
             break;
         case type_id::object_type:
             v.handle(m_object);
@@ -459,9 +471,9 @@ int64_t variant_base::as_int64() const
         case type_id::bool_type:
             return m_bool ? 1 : 0;
         case type_id::string_type:
-            return mc::string::to_number<int64_t>(*m_string_ptr);
+            return mc::strings::to_number<int64_t>(m_string.view());
         case type_id::blob_type:
-            return mc::string::to_number<int64_t>(m_blob_ptr->as_string_view());
+            return mc::strings::to_number<int64_t>(m_blob_ptr->as_string_view());
         case type_id::extension_type:
             return m_extension ? m_extension->as_int64() : 0;
         default:
@@ -487,9 +499,9 @@ uint64_t variant_base::as_uint64() const
         case type_id::bool_type:
             return m_bool ? 1 : 0;
         case type_id::string_type:
-            return mc::string::to_number<uint64_t>(*m_string_ptr);
+            return mc::strings::to_number<uint64_t>(m_string.view());
         case type_id::blob_type:
-            return mc::string::to_number<uint64_t>(m_blob_ptr->as_string_view());
+            return mc::strings::to_number<uint64_t>(m_blob_ptr->as_string_view());
         case type_id::extension_type:
             return m_extension ? m_extension->as_uint64() : 0;
         default:
@@ -516,10 +528,10 @@ bool variant_base::as_bool(bool strict) const
         case type_id::double_type:
             return m_double != 0;
         case type_id::string_type: {
-            return mc::string::to_bool_with_default(*m_string_ptr, !strict);
+            return mc::strings::to_bool_with_default(m_string.view(), !strict);
         }
         case type_id::blob_type: {
-            return mc::string::to_bool_with_default(m_blob_ptr->as_string_view(), !strict);
+            return mc::strings::to_bool_with_default(m_blob_ptr->as_string_view(), !strict);
         }
         case type_id::extension_type:
             return m_extension ? m_extension->as_bool() : false;
@@ -552,10 +564,10 @@ double variant_base::as_double() const
         case type_id::bool_type:
             return m_bool ? 1.0 : 0.0;
         case type_id::string_type: {
-            return mc::string::to_number<double>(*m_string_ptr);
+            return mc::strings::to_number<double>(m_string.view());
         }
         case type_id::blob_type: {
-            return mc::string::to_number<double>(m_blob_ptr->as_string_view());
+            return mc::strings::to_number<double>(m_blob_ptr->as_string_view());
         }
         case type_id::extension_type:
             return m_extension ? m_extension->as_double() : 0.0;
@@ -572,7 +584,7 @@ variant_base::blob_type variant_base::as_blob() const
             return *m_blob_ptr;
         case type_id::string_type: {
             blob_type b;
-            b.data.assign(m_string_ptr->begin(), m_string_ptr->end());
+            b.data.assign(m_string.begin(), m_string.end());
             return b;
         }
         case type_id::extension_type: {
@@ -590,21 +602,21 @@ variant_base::blob_type variant_base::as_blob() const
     }
 }
 
-std::string variant_base::as_string() const
+mc::string variant_base::as_string() const
 {
     switch (m_type) {
         case type_id::string_type:
-            return *m_string_ptr;
+            return m_string;
         case type_id::int8_type:
         case type_id::int16_type:
         case type_id::int32_type:
         case type_id::int64_type:
-            return std::to_string(m_int64);
+            return mc::to_string(m_int64);
         case type_id::uint8_type:
         case type_id::uint16_type:
         case type_id::uint32_type:
         case type_id::uint64_type:
-            return std::to_string(m_uint64);
+            return mc::to_string(m_uint64);
         case type_id::double_type: {
             return mc::to_string(m_double);
         }
@@ -613,10 +625,10 @@ std::string variant_base::as_string() const
         case type_id::null_type:
             return "null";
         case type_id::blob_type: {
-            return std::string(m_blob_ptr->as_string_view());
+            return mc::string(m_blob_ptr->as_string_view());
         }
         case type_id::extension_type:
-            return m_extension ? m_extension->as_string() : std::string();
+            return m_extension ? m_extension->as_string() : mc::string();
         default:
             return to_string();
     }
@@ -713,7 +725,7 @@ variant_base& variant_base::operator=(variant_base&& other)
 variant_base& variant_base::operator=(const char* s)
 {
     if (s) {
-        return operator=(std::string_view(s));
+        return operator=(mc::string_view(s));
     }
 
     switch (m_type) {
@@ -747,7 +759,7 @@ variant_base& variant_base::operator=(const char* s)
                 variant_base().swap(*this);
             } else if (is_string()) {
                 // 对于固定类型来说，给字符串赋值 0(nullptr) 会清空字符串
-                m_string_ptr->clear();
+                m_string.clear();
             } else {
                 throw_type_error(get_type_name(), type_id::string_type);
             }
@@ -757,10 +769,11 @@ variant_base& variant_base::operator=(const char* s)
     return *this;
 }
 
-variant_base& variant_base::operator=(std::string_view s)
+variant_base& variant_base::operator=(mc::string_view s)
 {
     if (is_string()) {
-        m_string_ptr->assign(s.begin(), s.end());
+        m_string.clear();
+        m_string.append(s.data(), s.size());
     } else if (is_blob()) {
         // 字符串可以赋值给二进制类型
         m_blob_ptr->data.assign(s.begin(), s.end());
@@ -854,10 +867,10 @@ void variant_base::swap(variant_base& other) noexcept
 
 // 类型名获取函数
 
-const char* variant_base::get_type_name() const
+mc::string_view variant_base::get_type_name() const
 {
     if (is_extension() && m_extension) {
-        return m_extension->get_type_name().data();
+        return m_extension->get_type_name();
     }
     return get_type_name_internal(get_type());
 }
@@ -882,8 +895,7 @@ size_t variant_base::hash() const
         case type_id::double_type:
             return std::hash<double>{}(m_double);
         case type_id::string_type: {
-            const auto& str_data = *m_string_ptr;
-            return calculate_str_hash(str_data);
+            return calculate_str_hash(m_string.view());
         }
         case type_id::blob_type: {
             const auto& blob_data = *m_blob_ptr;
@@ -920,12 +932,12 @@ typename variant_base::array_type variant_base::as_array() const
     throw_type_error("array", get_type());
 }
 
-const std::string& variant_base::get_string() const
+mc::string_view variant_base::get_string() const
 {
     if (!is_string()) {
         throw_type_error("string", get_type());
     }
-    return *m_string_ptr;
+    return m_string.view();
 }
 
 const typename variant_base::blob_type& variant_base::get_blob() const
@@ -1092,7 +1104,9 @@ variant_base variant_base::operator+(detail::numeric_t rhs) const
     return numeric_op(*this, [&](auto&& other) -> variant_base {
         using T = std::decay_t<decltype(other)>;
         if (is_string()) {
-            return variant_base(get_string() + std::to_string(other));
+            mc::string concat(get_string());
+            concat += mc::to_string(other);
+            return variant_base(concat);
         } else if (is_array()) {
             return *this + variant(other);
         } else if (is_object()) {
@@ -1270,21 +1284,21 @@ void from_variant(const variant_base& var, variants& vo)
 // const char*
 void to_variant(const char* var, variant_base& vo)
 {
-    variant_base(var ? std::string_view(var) : std::string_view()).swap(vo);
+    variant_base(var ? mc::string_view(var) : mc::string_view()).swap(vo);
 }
 void from_variant(const variant_base& var, const char*& vo)
 {
-    vo = var.get_string().c_str();
+    vo = var.get_string().data();
 }
 
 // char *
 void to_variant(char* var, variant_base& vo)
 {
-    variant_base(var ? std::string_view(var) : std::string_view()).swap(vo);
+    variant_base(var ? mc::string_view(var) : mc::string_view()).swap(vo);
 }
 void from_variant(const variant_base& var, char*& vo)
 {
-    vo = const_cast<char*>(var.get_string().c_str());
+    vo = const_cast<char*>(var.get_string().data());
 }
 
 // bool
@@ -1297,7 +1311,7 @@ void from_variant(const variant_base& var, bool& vo)
     vo = var.as_bool();
 }
 
-std::string to_string(const variant_base& v)
+mc::string to_string(const variant_base& v)
 {
     return v.to_string();
 }

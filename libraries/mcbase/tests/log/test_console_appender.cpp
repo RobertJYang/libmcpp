@@ -50,14 +50,14 @@ protected:
     }
 
     // 创建一个测试消息
-    message create_test_message(level lvl, const std::string& msg)
+    message create_test_message(level lvl, const mc::string& msg)
     {
         mc::log::context ctx("test_file.cpp", "test_function", 123);
         return message(lvl, msg, ctx);
     }
 
     // 创建一个格式化测试消息
-    message create_format_message(level lvl, const std::string& fmt, const mc::dict& args)
+    message create_format_message(level lvl, const mc::string& fmt, const mc::dict& args)
     {
         mc::log::context ctx("test_file.cpp", "test_function", 123);
         return message(lvl, ctx, fmt, args);
@@ -83,20 +83,20 @@ protected:
         m_capture_active  = false;
     }
 
-    std::string consume_stderr()
+    mc::string consume_stderr()
     {
         stop_capture();
-        std::string output = m_captured_stderr;
+        mc::string output = m_captured_stderr;
         m_captured_stdout.clear();
         m_captured_stderr.clear();
         start_capture();
         return output;
     }
 
-    std::string consume_stdout()
+    mc::string consume_stdout()
     {
         stop_capture();
-        std::string output = m_captured_stdout;
+        mc::string output = m_captured_stdout;
         m_captured_stdout.clear();
         m_captured_stderr.clear();
         start_capture();
@@ -105,8 +105,8 @@ protected:
 
     std::shared_ptr<console_appender> m_appender;
     bool                              m_capture_active{false};
-    std::string                       m_captured_stdout;
-    std::string                       m_captured_stderr;
+    mc::string                       m_captured_stdout;
+    mc::string                       m_captured_stderr;
 };
 
 // 测试默认构造函数
@@ -214,9 +214,9 @@ TEST_F(console_appender_test, InitWithInvalidArgs)
     // 使用无效的 variant 类型触发异常
     mc::variant invalid_args = 42; // 非对象类型，会触发异常
     bool        result       = m_appender->init(invalid_args);
-    std::string captured_log = consume_stderr();
+    mc::string captured_log = consume_stderr();
     EXPECT_FALSE(result);
-    EXPECT_NE(captured_log.find("console_appender 初始化失败"), std::string::npos);
+    EXPECT_NE(captured_log.find("console_appender 初始化失败"), mc::string::npos);
 }
 
 // 测试配置 - level_colors 配置处理
@@ -445,10 +445,10 @@ TEST_F(console_appender_test, FormatMessageEmptyFileUsesUnknown)
 
     // 追加消息，应该使用 "unknown" 作为文件名
     m_appender->append(msg);
-    std::string output = consume_stdout();
+    mc::string output = consume_stdout();
 
     // 验证输出包含 "unknown"（因为文件名为空）
-    EXPECT_TRUE(output.find("unknown") != std::string::npos || output.find(":123") != std::string::npos);
+    EXPECT_TRUE(output.find("unknown") != mc::string::npos || output.find(":123") != mc::string::npos);
 }
 
 // 测试通过伪终端让 isatty 返回 true，覆盖颜色输出分支
@@ -519,10 +519,10 @@ TEST_F(console_appender_test, ColorOutputWithPseudoTerminal)
     ssize_t bytes_read = read(master_fd, buffer, sizeof(buffer) - 1);
     if (bytes_read > 0) {
         buffer[bytes_read] = '\0';
-        std::string output(buffer);
+        mc::string output(buffer);
 
         // 验证输出包含 ANSI 颜色代码（以 \033[ 开头）
-        EXPECT_TRUE(output.find("\033[") != std::string::npos) << "输出应该包含 ANSI 颜色代码";
+        EXPECT_TRUE(output.find("\033[") != mc::string::npos) << "输出应该包含 ANSI 颜色代码";
     }
 
     // 恢复原始的 stdout

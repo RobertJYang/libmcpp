@@ -47,17 +47,28 @@ variant_base variant_base::operator+(const variant_base& other) const
     // 任意一个是字符串，使用字符串拼接
     if (is_string()) {
         if (other.is_string()) {
-            return {get_string() + other.get_string()};
+            mc::string tmp;
+            tmp.reserve(size() + other.size());
+            tmp += get_string();
+            tmp += other.get_string();
+            return {std::move(tmp)};
         } else if (other.is_blob()) {
-            std::string tmp;
+            mc::string tmp;
             tmp.reserve(size() + other.size());
             tmp += get_string();
             tmp += other.get_blob().as_string_view();
             return {std::move(tmp)};
         }
-        return {get_string() + other.as_string()};
+        mc::string tmp;
+        auto       other_string = other.as_string();
+        tmp.reserve(size() + other_string.size());
+        tmp += get_string();
+        tmp += other_string;
+        return {std::move(tmp)};
     } else if (other.is_string()) {
-        return {as_string() + other.get_string()};
+        mc::string tmp = as_string();
+        tmp += other.get_string();
+        return {std::move(tmp)};
     }
 
     // blob 只允许与 blob 或 string 相加
@@ -299,11 +310,12 @@ variant_base& variant_base::operator+=(const variant_base& other)
 {
     if (is_string()) {
         if (other.is_string()) {
-            m_string_ptr->append(*other.m_string_ptr);
+            m_string.append(other.m_string);
         } else if (other.is_blob()) {
-            m_string_ptr->append(other.get_blob().as_string_view());
+            m_string.append(other.get_blob().as_string_view());
         } else {
-            m_string_ptr->append(other.as_string());
+            mc::string other_string = other.as_string();
+            m_string.append(other_string.data(), other_string.size());
         }
         return *this;
     }
@@ -396,10 +408,10 @@ variant_base& variant_base::operator>>=(const variant_base& other)
     return *this;
 }
 
-variant_base variant_base::operator+(std::string_view other) const
+variant_base variant_base::operator+(mc::string_view other) const
 {
     if (is_string()) {
-        std::string tmp;
+        mc::string tmp;
         tmp.reserve(size() + other.size());
         tmp += get_string();
         tmp += other;
@@ -416,9 +428,9 @@ variant_base variant_base::operator+(std::string_view other) const
     }
 }
 
-MC_API variant_base operator+(std::string_view lhs, const variant_base& rhs)
+MC_API variant_base operator+(mc::string_view lhs, const variant_base& rhs)
 {
-    std::string tmp;
+    mc::string tmp;
     if (rhs.is_string()) {
         tmp.reserve(lhs.size() + rhs.get_string().size());
         tmp += lhs;

@@ -76,7 +76,7 @@ protected:
  * @brief 获取当前可执行文件的路径
  * @return 可执行文件的绝对路径，失败时返回空字符串
  */
-MC_API std::string get_executable_path();
+MC_API mc::string get_executable_path();
 
 /**
  * @brief 获取构建根目录

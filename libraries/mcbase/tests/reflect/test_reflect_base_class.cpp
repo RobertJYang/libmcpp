@@ -20,7 +20,7 @@ public:
     MC_REFLECTABLE("test.test_person_base");
 
     int         m_id;
-    std::string m_name;
+    mc::string m_name;
 
     void set_id(int id)
     {
@@ -57,8 +57,8 @@ class test_company {
 public:
     MC_REFLECTABLE("test_reflect_base_class.test_company");
 
-    std::string m_name;
-    std::string m_address;
+    mc::string m_name;
+    mc::string m_address;
     int         m_employee_count;
 };
 

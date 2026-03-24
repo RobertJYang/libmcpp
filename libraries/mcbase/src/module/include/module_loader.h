@@ -32,8 +32,8 @@ namespace fs = mc::filesystem;
 using open_func_t  = mc::reflect::reflection_factory* (*)();
 using close_func_t = void (*)();
 struct library_info : mc::shared_base {
-    std::string                      module_name;         // 动态库文件名
-    std::string                      path;                // 动态库文件路径
+    mc::string                      module_name;         // 动态库文件名
+    mc::string                      path;                // 动态库文件路径
     void*                            handle{nullptr};     // 动态库句柄
     open_func_t                      open_func{nullptr};  // 导出函数名
     close_func_t                     close_func{nullptr}; // 清理函数名
@@ -42,9 +42,9 @@ struct library_info : mc::shared_base {
 using library_info_ptr = mc::shared_ptr<library_info>;
 
 using unload_func_t      = void (*)(void*);
-using load_func_t        = void* (*)(std::string_view, bool glb);
-using sym_func_t         = void* (*)(void*, std::string_view);
-using is_readable_func_t = bool (*)(std::string_view);
+using load_func_t        = void* (*)(mc::string_view, bool glb);
+using sym_func_t         = void* (*)(void*, mc::string_view);
+using is_readable_func_t = bool (*)(mc::string_view);
 struct load_lib_func_t {
     unload_func_t      unload;
     load_func_t        load;
@@ -83,30 +83,30 @@ public:
     ~module_loader();
 
     using load_callback = std::function<bool(library_info_ptr, bool& is_resuse)>;
-    bool load_module(std::string_view module_name, load_callback callback) const;
+    bool load_module(mc::string_view module_name, load_callback callback) const;
 
     // 添加自定义搜索路径
-    void add_search_path(std::string_view path);
+    void add_search_path(mc::string_view path);
 
     // 清除所有搜索路径
     void clear_search_paths();
 
     // 获取当前的搜索路径列表
-    const std::vector<std::string>& search_paths() const;
+    const std::vector<mc::string>& search_paths() const;
 
     // 设置加载库函数，默认使用 dlopen/dlsym/dlclose
     void             set_load_lib_func(load_lib_func_t func);
     load_lib_func_t& get_load_lib_func();
 
 private:
-    void add_load_paths(const std::string& paths);
-    void add_load_path(const std::string& path);
+    void add_load_paths(const mc::string& paths);
+    void add_load_path(const mc::string& path);
     bool is_readable(const mc::filesystem::path& path) const;
 
-    bool load_path(const fs::path& lib_path, const std::string& lib_name, const std::string& template_path,
+    bool load_path(const fs::path& lib_path, const mc::string& lib_name, const mc::string& template_path,
                    load_callback callback) const;
 
-    std::vector<std::string> m_search_paths;
+    std::vector<mc::string> m_search_paths;
     load_lib_func_t          m_load_lib_func;
 };
 

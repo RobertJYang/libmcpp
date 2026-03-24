@@ -82,7 +82,7 @@ TEST_F(state_pool_test, pool_reuse)
 
     // 创建并完成一个 future
     {
-        auto promise = mc::make_promise<std::string>(io_context_);
+        auto promise = mc::make_promise<mc::string>(io_context_);
         auto future  = promise.get_future();
         promise.set_value("test");
         EXPECT_EQ(future.get(), "test");
@@ -90,7 +90,7 @@ TEST_F(state_pool_test, pool_reuse)
 
     // 再次创建相同类型的 future，应该重用池中的 State
     {
-        auto promise = mc::make_promise<std::string>(io_context_);
+        auto promise = mc::make_promise<mc::string>(io_context_);
         auto future  = promise.get_future();
         promise.set_value("reused");
         EXPECT_EQ(future.get(), "reused");
@@ -173,15 +173,15 @@ TEST_F(state_pool_test, pool_reuse_multiple_times_no_leak)
     }
 }
 
-// 非平凡类型（std::string）复用时不泄漏：string 在堆上有动态分配，valgrind 可检测
+// 非平凡类型（mc::string）复用时不泄漏：string 在堆上有动态分配，valgrind 可检测
 TEST_F(state_pool_test, pool_reuse_string_no_leak)
 {
-    // std::string 是非平凡类型，m_destory 必须被正确恢复才能释放其堆内存
+    // mc::string 是非平凡类型，m_destory 必须被正确恢复才能释放其堆内存
     for (int i = 0; i < 3; ++i) {
-        auto promise = mc::make_promise<std::string>(io_context_);
+        auto promise = mc::make_promise<mc::string>(io_context_);
         auto future  = promise.get_future();
         // 超过 SSO 阈值，确保堆上有动态分配
-        promise.set_value(std::string(64, 'a' + i));
+        promise.set_value(mc::string(64, 'a' + i));
         EXPECT_EQ(future.get().size(), 64u);
     }
     // valgrind 应无 "definitely lost" 报告
@@ -486,7 +486,7 @@ static_assert(std::is_trivially_destructible_v<std::optional<trivial_pod>>,
 // 非平凡析构类型：必须调用 destory_impl 才能释放资源
 static_assert(!std::is_trivially_destructible_v<std::optional<std::shared_ptr<int>>>,
               "State<shared_ptr>: get_destory_() 必须返回 &destory_impl");
-static_assert(!std::is_trivially_destructible_v<std::optional<std::string>>,
+static_assert(!std::is_trivially_destructible_v<std::optional<mc::string>>,
               "State<string>: get_destory_() 必须返回 &destory_impl");
 static_assert(!std::is_trivially_destructible_v<std::optional<std::vector<int>>>,
               "State<vector>: get_destory_() 必须返回 &destory_impl");

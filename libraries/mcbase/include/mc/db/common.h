@@ -45,7 +45,7 @@ using query::field;
 template <typename ObjectType, typename KeyType>
 static auto field(KeyType ObjectType::*member)
 {
-    std::string_view name;
+    mc::string_view name;
     if constexpr (mc::reflect::is_reflectable<ObjectType>()) {
         name = mc::reflect::get_property_name<ObjectType>(member);
     }

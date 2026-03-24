@@ -28,6 +28,7 @@
 #include <mc/reflect/metadata.h>
 #include <mc/reflect/metadata_info.h>
 #include <mc/reflect/reflection.h>
+#include <mc/reflect/reflection_factory.h>
 #include <mc/reflect/reflection_enum.h>
 #include <mc/reflect/signature.h>
 #include <mc/traits.h>
@@ -76,27 +77,51 @@
 namespace mc::reflect::detail {
 // 创建成员元数据（根据成员类型分发到属性、方法或用户自定义的成员信息）
 template <typename T, typename M, typename BaseT>
-constexpr auto create_member_info(M BaseT::*member_ptr, std::string_view name = {})
+constexpr auto create_member_info(M BaseT::*member_ptr, mc::string_view name = {})
 {
     return member_info_creator<T, M, BaseT>::create(member_ptr, name);
 }
 
+template <typename T, typename M, typename BaseT, std::size_t N>
+constexpr auto create_member_info(M BaseT::*member_ptr, const char (&name)[N])
+{
+    return create_member_info<T, M, BaseT>(member_ptr, reflect_name_from_literal(name));
+}
+
 template <typename T, typename Getter, typename Setter>
-constexpr auto create_member_info(Getter getter, Setter setter, std::string_view name)
+constexpr auto create_member_info(Getter getter, Setter setter, mc::string_view name)
 {
     return computed_property_info_creator::create<T>(getter, setter, name);
 }
 
+template <typename T, typename Getter, typename Setter, std::size_t N>
+constexpr auto create_member_info(Getter getter, Setter setter, const char (&name)[N])
+{
+    return create_member_info<T>(getter, setter, reflect_name_from_literal(name));
+}
+
 template <typename T, typename R, typename... Args>
-constexpr auto create_member_info(R (*static_func)(Args...), std::string_view name = {})
+constexpr auto create_member_info(R (*static_func)(Args...), mc::string_view name = {})
 {
     return member_info_creator<T, R (*)(Args...), void>::create(static_func, name);
 }
 
+template <typename T, typename R, typename... Args, std::size_t N>
+constexpr auto create_member_info(R (*static_func)(Args...), const char (&name)[N])
+{
+    return create_member_info<T>(static_func, reflect_name_from_literal(name));
+}
+
 template <typename T, typename BaseT>
-constexpr auto create_base_class_info(std::string_view base_class_name = {})
+constexpr auto create_base_class_info(mc::string_view base_class_name = {})
 {
     return base_class_info_creator<T, BaseT>::create(base_class_name);
+}
+
+template <typename T, typename BaseT, std::size_t N>
+constexpr auto create_base_class_info(const char (&base_class_name)[N])
+{
+    return create_base_class_info<T, BaseT>(reflect_name_from_literal(base_class_name));
 }
 
 template <typename T, typename... Args>
@@ -105,9 +130,15 @@ constexpr auto create_type_info(Args...) {
 }
 
 template <typename EnumType>
-constexpr auto create_enum_member_info(EnumType value, std::string_view name)
+constexpr auto create_enum_member_info(EnumType value, mc::string_view name)
 {
     return enum_member_info(name, value);
+}
+
+template <typename EnumType, std::size_t N>
+constexpr auto create_enum_member_info(EnumType value, const char (&name)[N])
+{
+    return create_enum_member_info(value, reflect_name_from_literal(name));
 }
 
 template <size_t Index, typename... Tuples>
@@ -268,7 +299,7 @@ void from_variant(const variant& var, T& obj)
     } else if (var.is_array()) {
         // 支持从[value1, value2, ...]数组转换为对象,每个成员的顺序必须和反射时一致
         std::size_t index = 0;
-        reflector<T>::visit([&](std::string_view, auto, auto setter) {
+        reflector<T>::visit([&](mc::string_view, auto, auto setter) {
             if (index < var.size()) {
                 setter(obj, var[index]);
             }
@@ -325,7 +356,7 @@ namespace mc::reflect::detail {
 // 对反射类型的特化
 template <typename T>
 struct signature_helper<T, std::enable_if_t<mc::reflect::is_reflectable<T>()>> {
-    static void apply(std::string& sig)
+    static void apply(mc::string& sig)
     {
         if constexpr (mc::reflect::is_enum<T>()) {
             // 可反射的枚举类型用的是 string
@@ -341,7 +372,7 @@ struct signature_helper<T, std::enable_if_t<mc::reflect::is_reflectable<T>()>> {
 // 普通的枚举类型用 int32_t 表示，可反射的枚举类型用的是 string
 template <typename T>
 struct signature_helper<T, std::enable_if_t<mc::reflect::is_normal_enum<T>()>> {
-    static void apply(std::string& sig)
+    static void apply(mc::string& sig)
     {
         sig += type_to_char(type_code::int32_type);
     }
@@ -360,10 +391,10 @@ template <typename T>
 struct MC_API reflector<T, std::enable_if_t<mc::reflect::is_reflectable<T>() && !mc::reflect::is_enum<T>(), void>> {
     using getter_t  = std::function<mc::variant(const T&)>;
     using setter_t  = std::function<void(T&, const mc::variant&)>;
-    using visitor_t = std::function<void(std::string_view, getter_t, setter_t)>;
+    using visitor_t = std::function<void(mc::string_view, getter_t, setter_t)>;
     using member_t  = std::pair<const void*, size_t>;
 
-    static std::string_view    get_name();
+    static mc::string_view    get_name();
     static type_id_type        get_type_id();
     static metadata_extension& get_extension();
 
@@ -373,12 +404,12 @@ struct MC_API reflector<T, std::enable_if_t<mc::reflect::is_reflectable<T>() && 
     static void visit(const visitor_t& visitor);
 
     // 辅助版本，包装其他 visitor 类型到 visitor_t，防止隐式构造 visitor_t 时拷贝 visitor 参数
-    template <typename Visitor, std::enable_if_t<std::is_invocable_v<Visitor, std::string_view, getter_t, setter_t> &&
+    template <typename Visitor, std::enable_if_t<std::is_invocable_v<Visitor, mc::string_view, getter_t, setter_t> &&
                                                      !std::is_same_v<std::decay_t<Visitor>, visitor_t>,
                                                  int> = 0>
     static void visit(Visitor&& visitor)
     {
-        visit(visitor_t([&](std::string_view name, getter_t getter, setter_t setter) {
+        visit(visitor_t([&](mc::string_view name, getter_t getter, setter_t setter) {
             visitor(name, getter, setter);
         }));
     }
@@ -388,12 +419,12 @@ struct MC_API reflector<T, std::enable_if_t<mc::reflect::is_reflectable<T>() && 
 
     static const struct_metadata& get_metadata();
     static reflection<T>&         get_reflection();
-    static void                   get_signature(std::string& sig);
+    static void                   get_signature(mc::string& sig);
 };
 
 template <typename T>
 struct MC_API reflector<T, std::enable_if_t<mc::reflect::is_reflectable<T>() && mc::reflect::is_enum<T>(), void>> {
-    static std::string_view get_name();
+    static mc::string_view get_name();
     static type_id_type     get_type_id();
 
     static type_id_type register_type();
@@ -422,7 +453,9 @@ struct MC_API reflector<T, std::enable_if_t<mc::reflect::is_reflectable<T>() && 
     BOOST_PP_IF(BOOST_PP_GREATER(BOOST_PP_VARIADIC_SIZE(dummy, ##__VA_ARGS__), 2), MEMBER(TYPE, __VA_ARGS__),          \
                 BOOST_PP_IF(BOOST_PP_GREATER(BOOST_PP_VARIADIC_SIZE(dummy, ##__VA_ARGS__), 1),                         \
                             mc::reflect::detail::create_member_info<TYPE>(&TYPE::MEMBER, __VA_ARGS__),                 \
-                            mc::reflect::detail::create_member_info<TYPE>(&TYPE::MEMBER, #MEMBER)))
+                            mc::reflect::detail::create_member_info<TYPE>(&TYPE::MEMBER,                    \
+                                                                        mc::reflect::detail::reflect_name_from_literal( \
+                                                                            #MEMBER))))
 
 // MC_REFLECT_EXPAND_PARAM_I：仅为了接收 MC_REFLECT_EXPAND_PARAM 构造的 (TYPE, 展开的 MEMBER 参数包) 再调用下一个宏
 // 我们中转一次而不是直接在 MC_REFLECT_EXPAND_PARAM 调用下一个宏的目的是避免编译器将 (TYPE, 展开的 MEMBER 参数包)
@@ -470,7 +503,7 @@ struct MC_API reflector<T, std::enable_if_t<mc::reflect::is_reflectable<T>() && 
         get_reflect_factory<TYPE>().template register_type<TYPE>();                                                    \
     metadata_extension mc::reflect::static_metadata<TYPE>::extension = {nullptr, nullptr};                             \
     template <>                                                                                                        \
-    [[maybe_unused]] std::string_view reflector<TYPE>::get_name()                                                      \
+    [[maybe_unused]] mc::string_view reflector<TYPE>::get_name()                                                      \
     {                                                                                                                  \
         return get_type_name<TYPE>();                                                                                  \
     }                                                                                                                  \
@@ -523,7 +556,7 @@ struct MC_API reflector<T, std::enable_if_t<mc::reflect::is_reflectable<T>() && 
         if constexpr (mc::reflect::detail::has_custom_to_variant_v<TYPE>) {                                            \
             mc::reflect::detail::custom_to_variant(obj, dict);                                                         \
         } else {                                                                                                       \
-            visit([&](std::string_view name, auto getter, auto) {                                                      \
+            visit([&](mc::string_view name, auto getter, auto) {                                                      \
                 if (!dict.contains(name)) {                                                                            \
                     dict[name] = getter(obj);                                                                          \
                 }                                                                                                      \
@@ -536,7 +569,7 @@ struct MC_API reflector<T, std::enable_if_t<mc::reflect::is_reflectable<T>() && 
         if constexpr (mc::reflect::detail::has_custom_from_variant_v<TYPE>) {                                          \
             mc::reflect::detail::custom_from_variant(d, obj);                                                          \
         } else {                                                                                                       \
-            visit([&](std::string_view name, auto, auto setter) {                                                      \
+            visit([&](mc::string_view name, auto, auto setter) {                                                      \
                 if (d.contains(name)) {                                                                                \
                     setter(obj, d[name]);                                                                              \
                 }                                                                                                      \
@@ -549,7 +582,7 @@ struct MC_API reflector<T, std::enable_if_t<mc::reflect::is_reflectable<T>() && 
         return mc::reflect::reflection<TYPE>::instance();                                                              \
     }                                                                                                                  \
     template <>                                                                                                        \
-    [[maybe_unused]] void reflector<TYPE>::get_signature(std::string& sig)                                             \
+    [[maybe_unused]] void reflector<TYPE>::get_signature(mc::string& sig)                                             \
     {                                                                                                                  \
         get_metadata().visit_properties([&](const property_type_info* property) {                                      \
             sig += property->get_signature();                                                                          \
@@ -618,7 +651,8 @@ struct MC_API reflector<T, std::enable_if_t<mc::reflect::is_reflectable<T>() && 
  * @brief 定义枚举成员（不带别名）
  */
 #define MC_REFLECT_ENUM_MEMBER_WITHOUT_NAME(r, ENUM_TYPE, VALUE)                                                       \
-    std::make_tuple(mc::reflect::detail::create_enum_member_info(ENUM_TYPE::VALUE, BOOST_PP_STRINGIZE(VALUE))),
+    std::make_tuple(mc::reflect::detail::create_enum_member_info(                                                       \
+        ENUM_TYPE::VALUE, mc::reflect::detail::reflect_name_from_literal(BOOST_PP_STRINGIZE(VALUE)))),
 
 /**
  * @brief 定义枚举成员（带别名）
@@ -638,7 +672,7 @@ struct MC_API reflector<T, std::enable_if_t<mc::reflect::is_reflectable<T>() && 
     template <>                                                                                                        \
     struct static_metadata<TYPE> {                                                                                     \
         static type_id_type     type_id;                                                                               \
-        static std::string_view name;                                                                                  \
+        static mc::string_view name;                                                                                  \
         static constexpr auto   members = detail::enum_tuple_to_array(                                                 \
             std::tuple_cat(BOOST_PP_SEQ_FOR_EACH(MC_REFLECT_ENUM_ELEMENT, TYPE, VALUES) std::tuple<>{}));            \
     }
@@ -654,7 +688,7 @@ struct MC_API reflector<T, std::enable_if_t<mc::reflect::is_reflectable<T>() && 
     type_id_type mc::reflect::static_metadata<TYPE>::type_id =                                                         \
         get_reflect_factory<TYPE>().template register_type<TYPE>();                                                    \
     template <>                                                                                                        \
-    [[maybe_unused]] std::string_view reflector<TYPE>::get_name()                                                      \
+    [[maybe_unused]] mc::string_view reflector<TYPE>::get_name()                                                      \
     {                                                                                                                  \
         return get_type_name<TYPE>();                                                                                  \
     }                                                                                                                  \

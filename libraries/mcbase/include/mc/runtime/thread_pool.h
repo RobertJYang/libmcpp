@@ -239,7 +239,7 @@ public:
         }
     };
 
-    explicit thread_pool(std::size_t num_threads, const std::string& name = "pool");
+    explicit thread_pool(std::size_t num_threads, mc::string_view name = "pool");
     ~thread_pool();
 
     executor_type get_executor() noexcept;
@@ -297,7 +297,7 @@ public:
     template <typename Predicate>
     void poll_until(shard_t* shard, Predicate pred);
 
-    const std::string& get_name() const noexcept
+    mc::string_view get_name() const noexcept
     {
         return m_name;
     }
@@ -305,7 +305,7 @@ public:
 private:
     boost::asio::detail::scheduler& m_scheduler;
     std::size_t                     m_num_threads; // 由 thread_pool 创建的线程数
-    std::string                     m_name;
+    mc::string                     m_name;
 
     void     worker_loop(shard_t* shard);
     void     push_idle(shard_t* shard);

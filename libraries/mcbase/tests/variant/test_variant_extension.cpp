@@ -84,7 +84,7 @@ public:
         return m_value != 0;
     }
 
-    std::string as_string() const override
+    mc::string as_string() const override
     {
         return "test_extension(" + std::to_string(m_value) + ")";
     }
@@ -103,7 +103,7 @@ class complex_extension : public variant_extension<complex_extension> {
 public:
     complex_extension() : m_name(""), m_count(0)
     {}
-    complex_extension(std::string name, int count) : m_name(std::move(name)), m_count(count)
+    complex_extension(mc::string name, int count) : m_name(std::move(name)), m_count(count)
     {}
     complex_extension(const complex_extension& other) : m_name(other.m_name), m_count(other.m_count)
     {}
@@ -123,17 +123,17 @@ public:
 
     std::size_t hash() const override
     {
-        std::size_t h1 = std::hash<std::string>()(m_name);
+        std::size_t h1 = std::hash<mc::string>()(m_name);
         std::size_t h2 = std::hash<int>()(m_count);
         return h1 ^ (h2 << 1);
     }
 
-    std::string as_string() const override
+    mc::string as_string() const override
     {
         return "complex_extension(name=" + m_name + ", count=" + std::to_string(m_count) + ")";
     }
 
-    const std::string& get_name() const
+    const mc::string& get_name() const
     {
         return m_name;
     }
@@ -143,7 +143,7 @@ public:
     }
 
 private:
-    std::string m_name;
+    mc::string m_name;
     int         m_count;
 };
 
@@ -171,7 +171,7 @@ public:
     }
 
     // 返回内部 variant 指针（键访问，零开销）
-    mc::variant* get_ptr(std::string_view key) override
+    mc::variant* get_ptr(mc::string_view key) override
     {
         if (m_allow_reference && key == "value") {
             return &m_value_variant;
@@ -179,7 +179,7 @@ public:
         return nullptr;
     }
 
-    const mc::variant* get_ptr(std::string_view key) const override
+    const mc::variant* get_ptr(mc::string_view key) const override
     {
         if (m_allow_reference && key == "value") {
             return &m_value_variant;
@@ -188,7 +188,7 @@ public:
     }
 
     // 值访问（向后兼容）
-    mc::variant get(std::string_view key) const override
+    mc::variant get(mc::string_view key) const override
     {
         if (key == "value") {
             return m_value_variant;
@@ -196,7 +196,7 @@ public:
         throw std::out_of_range("键不存在");
     }
 
-    void set(std::string_view key, const mc::variant& value) override
+    void set(mc::string_view key, const mc::variant& value) override
     {
         if (key == "value") {
             m_value_variant = value;
@@ -205,7 +205,7 @@ public:
         }
     }
 
-    std::string as_string() const override
+    mc::string as_string() const override
     {
         return "simple_extension(value=" + std::to_string(current_value()) + ")";
     }
@@ -287,7 +287,7 @@ public:
         return h;
     }
 
-    std::string as_string() const override
+    mc::string as_string() const override
     {
         return "variant_array_extension[" + std::to_string(m_data.size()) + "]";
     }
@@ -321,7 +321,7 @@ public:
     }
 
     // ✅ 返回内部 variant 指针（键访问，零开销）
-    mc::variant* get_ptr(std::string_view key) override
+    mc::variant* get_ptr(mc::string_view key) override
     {
         if (m_data.contains(key)) {
             return &m_data[key];
@@ -329,7 +329,7 @@ public:
         return nullptr;
     }
 
-    const mc::variant* get_ptr(std::string_view key) const override
+    const mc::variant* get_ptr(mc::string_view key) const override
     {
         if (m_data.contains(key)) {
             return &const_cast<dict&>(m_data)[key];
@@ -338,7 +338,7 @@ public:
     }
 
     // 值访问（向后兼容，但优化路径不会使用）
-    mc::variant get(std::string_view key) const override
+    mc::variant get(mc::string_view key) const override
     {
         if (!m_data.contains(key)) {
             throw std::out_of_range("键不存在");
@@ -346,9 +346,9 @@ public:
         return m_data[key];
     }
 
-    void set(std::string_view key, const mc::variant& value) override
+    void set(mc::string_view key, const mc::variant& value) override
     {
-        m_data[std::string(key)] = value;
+        m_data[mc::string(key)] = value;
     }
 
     std::size_t hash() const override
@@ -356,7 +356,7 @@ public:
         return m_data.hash();
     }
 
-    std::string as_string() const override
+    mc::string as_string() const override
     {
         return "variant_object_extension{" + std::to_string(m_data.size()) + " keys}";
     }
@@ -374,7 +374,7 @@ private:
 class fallback_object_extension : public variant_extension<fallback_object_extension> {
 public:
     fallback_object_extension() = default;
-    explicit fallback_object_extension(std::unordered_map<std::string, mc::variant> entries)
+    explicit fallback_object_extension(std::unordered_map<mc::string, mc::variant> entries)
         : m_entries(std::move(entries))
     {}
 
@@ -389,27 +389,27 @@ public:
         return m_entries.size();
     }
 
-    mc::variant get(std::string_view key) const override
+    mc::variant get(mc::string_view key) const override
     {
-        auto it = m_entries.find(std::string(key));
+        auto it = m_entries.find(mc::string(key));
         if (it == m_entries.end()) {
             throw std::out_of_range("key not found");
         }
         return it->second;
     }
 
-    void set(std::string_view key, const mc::variant& value) override
+    void set(mc::string_view key, const mc::variant& value) override
     {
-        m_entries[std::string(key)] = value;
+        m_entries[mc::string(key)] = value;
     }
 
-    const std::unordered_map<std::string, mc::variant>& entries() const
+    const std::unordered_map<mc::string, mc::variant>& entries() const
     {
         return m_entries;
     }
 
 private:
-    std::unordered_map<std::string, mc::variant> m_entries;
+    std::unordered_map<mc::string, mc::variant> m_entries;
 };
 
 // 不支持零开销引用访问的数组扩展（走值访问路径）
@@ -624,7 +624,7 @@ TEST_F(VariantExtensionTest, ExtensionTypeInObject)
 }
 
 TEST_F(VariantExtensionTest, ExtensionReferenceFallbackByKey) {
-    std::unordered_map<std::string, mc::variant> entries{
+    std::unordered_map<mc::string, mc::variant> entries{
         {"count", 7},
         {"desc", "value"}};
     auto    ext = mc::make_shared<fallback_object_extension>(entries);
@@ -680,10 +680,10 @@ TEST_F(VariantExtensionTest, ExtensionSerialization)
     variant v(std::move(ext));
 
     // 转换为字符串
-    std::string serialized = v.to_string();
+    mc::string serialized = v.to_string();
     EXPECT_FALSE(serialized.empty());
-    EXPECT_TRUE(serialized.find("serialization_test") != std::string::npos);
-    EXPECT_TRUE(serialized.find("42") != std::string::npos);
+    EXPECT_TRUE(serialized.find("serialization_test") != mc::string::npos);
+    EXPECT_TRUE(serialized.find("42") != mc::string::npos);
 
     // 验证扩展类型的类型信息
     EXPECT_EQ(v.get_type_name(), mc::pretty_name<complex_extension>());
@@ -1007,11 +1007,11 @@ TEST_F(VariantExtensionTest, BuiltinArrayToTypedArray)
     EXPECT_EQ(int_arr[0], 1);
     EXPECT_EQ(int_arr[4], 5);
 
-    // mc::variants -> mc::array<std::string>
+    // mc::variants -> mc::array<mc::string>
     mc::variants str_var_arr = {"hello", "world", "test"};
     mc::variant  v2          = str_var_arr;
 
-    mc::array<std::string> str_arr;
+    mc::array<mc::string> str_arr;
     EXPECT_NO_THROW({ from_variant(v2, str_arr); });
     EXPECT_EQ(str_arr.size(), 3);
     EXPECT_EQ(str_arr[0], "hello");

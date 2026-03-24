@@ -13,6 +13,7 @@
 #include <mc/dict.h>
 #include <mc/variant.h>
 #include <stdexcept>
+#include <string>
 
 namespace mc {
 
@@ -30,12 +31,12 @@ dict& dict::operator=(std::initializer_list<std::pair<variant, variant>> init)
     return *this;
 }
 
-dict::entry* dict::find_entry(const std::string& key)
+dict::entry* dict::find_entry(const mc::string& key)
 {
-    return find_entry(std::string_view(key));
+    return find_entry(mc::string_view(key));
 }
 
-dict::entry* dict::find_entry(std::string_view key)
+dict::entry* dict::find_entry(mc::string_view key)
 {
     if (!m_data) {
         return nullptr;
@@ -50,7 +51,7 @@ dict::entry* dict::find_entry(const char* key)
     if (key == nullptr) {
         throw std::invalid_argument("键不能为空指针");
     }
-    return find_entry(std::string_view(key));
+    return find_entry(mc::string_view(key));
 }
 
 dict::entry* dict::find_entry(const variant& key)
@@ -77,12 +78,12 @@ dict& dict::operator()(variant key, variant value)
     return *this;
 }
 
-variant& dict::operator[](const std::string& key)
+variant& dict::operator[](const mc::string& key)
 {
-    return (*this)[std::string_view(key)];
+    return (*this)[mc::string_view(key)];
 }
 
-variant& dict::operator[](std::string_view key)
+variant& dict::operator[](mc::string_view key)
 {
     auto* e = find_entry(key);
     if (e) {
@@ -90,7 +91,7 @@ variant& dict::operator[](std::string_view key)
     }
 
     auto&  data      = ensure_data();
-    entry* new_entry = new entry(std::string(key), variant());
+    entry* new_entry = new entry(mc::string(key), variant());
     data.entries.push_back(*new_entry);
     data.index.insert(*new_entry);
     return new_entry->value;
@@ -101,7 +102,7 @@ variant& dict::operator[](const char* key)
     if (key == nullptr) {
         throw std::invalid_argument("键不能为空指针");
     }
-    return (*this)[std::string_view(key)];
+    return (*this)[mc::string_view(key)];
 }
 
 variant& dict::operator[](const variant& key)
@@ -133,12 +134,12 @@ variant& dict::operator[](int64_t key)
     return (*this)[mc::variant(key)];
 }
 
-bool dict::erase(const std::string& key)
+bool dict::erase(const mc::string& key)
 {
-    return erase(std::string_view(key));
+    return erase(mc::string_view(key));
 }
 
-bool dict::erase(std::string_view key)
+bool dict::erase(mc::string_view key)
 {
     auto* e = find_entry(key);
     if (e) {
@@ -155,7 +156,7 @@ bool dict::erase(const char* key)
     if (key == nullptr) {
         throw std::invalid_argument("键不能为空指针");
     }
-    return erase(std::string_view(key));
+    return erase(mc::string_view(key));
 }
 
 bool dict::erase(const variant& key)
@@ -199,16 +200,16 @@ dict_types::entry& dict::at_index(size_t index)
     return *it;
 }
 
-variant& dict::at(const std::string& key)
+variant& dict::at(const mc::string& key)
 {
-    return at(std::string_view(key));
+    return at(mc::string_view(key));
 }
 
-variant& dict::at(std::string_view key)
+variant& dict::at(mc::string_view key)
 {
     auto* e = find_entry(key);
     if (!e) {
-        throw std::out_of_range("字典中不存在键: " + std::string(key));
+        throw std::out_of_range(mc::to_std_string(mc::string("字典中不存在键: ") + key));
     }
     return e->value;
 }
@@ -218,24 +219,24 @@ variant& dict::at(const char* key)
     if (key == nullptr) {
         throw std::invalid_argument("键不能为空指针");
     }
-    return at(std::string_view(key));
+    return at(mc::string_view(key));
 }
 
 variant& dict::at(const variant& key)
 {
     auto* e = find_entry(key);
     if (!e) {
-        throw std::out_of_range("字典中不存在键: " + key.to_string());
+        throw std::out_of_range(mc::to_std_string(mc::string("字典中不存在键: ") + key.to_string()));
     }
     return e->value;
 }
 
-dict::iterator dict::find(const std::string& key)
+dict::iterator dict::find(const mc::string& key)
 {
-    return find(std::string_view(key));
+    return find(mc::string_view(key));
 }
 
-dict::iterator dict::find(std::string_view key)
+dict::iterator dict::find(mc::string_view key)
 {
     if (!m_data) {
         return end();
@@ -253,7 +254,7 @@ dict::iterator dict::find(const char* key)
     if (key == nullptr) {
         throw std::invalid_argument("键不能为空指针");
     }
-    return find(std::string_view(key));
+    return find(mc::string_view(key));
 }
 
 dict::iterator dict::find(const variant& key)

@@ -10,6 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "mc/signal_slot.h"
+#include <mc/string.h>
 #include <gtest/gtest.h>
 
 // 不使用using namespace mc;，避免命名冲突
@@ -138,12 +139,12 @@ TEST(SignalSlotTest, ConnectionManager)
 // 测试多参数信号
 TEST(SignalSlotTest, MultipleParameters)
 {
-    mc::signal<void(int, std::string)> sig;
+    mc::signal<void(int, mc::string)> sig;
     int                                value = 0;
-    std::string                        text;
+    mc::string                        text;
 
     // 连接信号到槽
-    sig.connect([&value, &text](int v, const std::string& t) {
+    sig.connect([&value, &text](int v, const mc::string& t) {
         value = v;
         text  = t;
     });

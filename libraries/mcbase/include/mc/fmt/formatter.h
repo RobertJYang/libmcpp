@@ -13,6 +13,8 @@
 #ifndef MC_FMT_FORMATTER_H
 #define MC_FMT_FORMATTER_H
 
+#include <mc/string.h>
+
 #include <type_traits>
 
 namespace mc::fmt {
@@ -76,6 +78,7 @@ constexpr bool is_integer_v = is_integer<T>::value;
 
 template <typename T>
 constexpr bool is_string_v =
+    std::is_same_v<std::decay_t<T>, mc::string> || std::is_same_v<std::decay_t<T>, mc::string_view> ||
     std::is_same_v<std::decay_t<T>, std::string> || std::is_same_v<std::decay_t<T>, std::string_view> ||
     std::is_same_v<std::decay_t<T>, const char*> || std::is_same_v<std::decay_t<T>, char*>;
 
@@ -84,7 +87,7 @@ constexpr bool isdigit(char c)
     return c >= '0' && c <= '9';
 }
 
-constexpr bool to_integer(std::string_view s, size_t& out)
+constexpr bool to_integer(mc::string_view s, size_t& out)
 {
     size_t value = 0;
     for (char c : s) {

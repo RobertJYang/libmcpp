@@ -163,7 +163,7 @@ public:
      * 获取键数据
      * @return 键数据视图
      */
-    std::string_view key() const
+    mc::string_view key() const
     {
         return m_buf.bytes();
     }
@@ -201,7 +201,7 @@ public:
      * 添加字符串
      * @param val 字符串
      */
-    void append_string(std::string_view val)
+    void append_string(mc::string_view val)
     {
         write_head(val.size());
         m_buf.write_string(val);
@@ -345,7 +345,8 @@ public:
             append_float32(val);
         } else if constexpr (std::is_same<T, double>::value) {
             append_float64(val);
-        } else if constexpr (std::is_same<T, std::string>::value || std::is_same<T, std::string_view>::value) {
+        } else if constexpr (std::is_same<T, mc::string>::value || std::is_same<T, mc::string_view>::value ||
+                             std::is_same<T, std::string>::value || std::is_same<T, std::string_view>::value) {
             append_string(val);
         } else if constexpr (std::is_same<T, const char*>::value) {
             append_string(val);
@@ -388,7 +389,8 @@ public:
             write_float32(val);
         } else if constexpr (std::is_same<T, double>::value) {
             write_float64(val);
-        } else if constexpr (std::is_same<T, std::string>::value || std::is_same<T, std::string_view>::value) {
+        } else if constexpr (std::is_same<T, mc::string>::value || std::is_same<T, mc::string_view>::value ||
+                             std::is_same<T, std::string>::value || std::is_same<T, std::string_view>::value) {
             write_string(val);
         } else if constexpr (std::is_same<T, const char*>::value) {
             write_string(val);
@@ -513,7 +515,7 @@ public:
      * 直接写入字符串，不添加类型头信息
      * @param val 字符串值
      */
-    void write_string(std::string_view val)
+    void write_string(mc::string_view val)
     {
         m_buf.write_string(val);
     }
@@ -525,7 +527,7 @@ public:
      */
     void write_bytes(const uint8_t* data, size_t size)
     {
-        m_buf.write_string(std::string_view(reinterpret_cast<const char*>(data), size));
+        m_buf.write_string(mc::string_view(reinterpret_cast<const char*>(data), size));
     }
 
 private:

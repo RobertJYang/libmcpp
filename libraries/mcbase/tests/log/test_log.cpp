@@ -74,21 +74,21 @@ protected:
         m_memory_appender->clear();
     }
 
-    bool message_contains(const mc::log::message& msg, const std::string& text)
+    bool message_contains(const mc::log::message& msg, const mc::string& text)
     {
-        return msg.get_message().find(text) != std::string::npos;
+        return mc::string_view(msg.get_message()).find(text) != mc::string_view::npos;
     }
 
-    bool message_matches(const mc::log::message& msg, const std::string& pattern)
+    bool message_matches(const mc::log::message& msg, const mc::string& pattern)
     {
-        std::regex regex(pattern);
-        return std::regex_search(msg.get_message(), regex);
+        std::regex regex(pattern.data(), pattern.size());
+        return std::regex_search(mc::to_std_string(msg.get_message()), regex);
     }
 
-    std::string get_last_message()
+    mc::string get_last_message()
     {
         const auto& messages = m_memory_appender->get_messages();
-        return messages.empty() ? std::string{} : messages.back().get_message();
+        return messages.empty() ? mc::string{} : mc::string(messages.back().get_message());
     }
 
     std::shared_ptr<memory_appender> m_memory_appender;
@@ -182,8 +182,8 @@ TEST_F(LogTest, log_with_optional_attrs)
     m_test_logger.set_level(mc::log::level::info);
 
     mc::dict attrs;
-    attrs["trace_id"] = std::string("abc-123");
-    attrs["span_id"]  = std::string("span-1");
+    attrs["trace_id"] = mc::string("abc-123");
+    attrs["span_id"]  = mc::string("span-1");
     attrs["count"]    = 42;
 
     mc_ilog(m_test_logger, "count=${i}", ("i", 1), attrs);
@@ -193,12 +193,12 @@ TEST_F(LogTest, log_with_optional_attrs)
     auto& last_msg = messages.back();
     EXPECT_EQ(mc::log::level::info, last_msg.get_level());
     EXPECT_TRUE(message_contains(last_msg, "count=1"));
-    EXPECT_NE(last_msg.get_message().find("trace_id"), std::string::npos);
-    EXPECT_NE(last_msg.get_message().find("abc-123"), std::string::npos);
-    EXPECT_NE(last_msg.get_message().find("span_id"), std::string::npos);
-    EXPECT_NE(last_msg.get_message().find("span-1"), std::string::npos);
-    EXPECT_NE(last_msg.get_message().find("count"), std::string::npos);
-    EXPECT_NE(last_msg.get_message().find("42"), std::string::npos);
+    EXPECT_NE(mc::string_view(last_msg.get_message()).find("trace_id"), mc::string_view::npos);
+    EXPECT_NE(mc::string_view(last_msg.get_message()).find("abc-123"), mc::string_view::npos);
+    EXPECT_NE(mc::string_view(last_msg.get_message()).find("span_id"), mc::string_view::npos);
+    EXPECT_NE(mc::string_view(last_msg.get_message()).find("span-1"), mc::string_view::npos);
+    EXPECT_NE(mc::string_view(last_msg.get_message()).find("count"), mc::string_view::npos);
+    EXPECT_NE(mc::string_view(last_msg.get_message()).find("42"), mc::string_view::npos);
     EXPECT_FALSE(last_msg.get_attrs().empty());
     EXPECT_EQ(last_msg.get_attrs()["trace_id"].as_string(), "abc-123");
     EXPECT_EQ(last_msg.get_attrs()["count"].as_int64(), 42);
@@ -225,8 +225,8 @@ TEST_F(LogTest, log_with_multiple_format_args_and_attrs)
     m_test_logger.set_level(mc::log::level::info);
 
     mc::dict attrs;
-    attrs["trace_id"] = std::string("abc-123");
-    attrs["span_id"]  = std::string("span-1");
+    attrs["trace_id"] = mc::string("abc-123");
+    attrs["span_id"]  = mc::string("span-1");
 
     // 多个格式参数 + attrs
     mc_ilog(m_test_logger, "count=${i}, value=${a}", ("i", 1)("a", 2), attrs);
@@ -237,8 +237,8 @@ TEST_F(LogTest, log_with_multiple_format_args_and_attrs)
     EXPECT_EQ(mc::log::level::info, last_msg.get_level());
     EXPECT_TRUE(message_contains(last_msg, "count=1"));
     EXPECT_TRUE(message_contains(last_msg, "value=2"));
-    EXPECT_NE(last_msg.get_message().find("trace_id"), std::string::npos);
-    EXPECT_NE(last_msg.get_message().find("abc-123"), std::string::npos);
+    EXPECT_NE(mc::string_view(last_msg.get_message()).find("trace_id"), mc::string_view::npos);
+    EXPECT_NE(mc::string_view(last_msg.get_message()).find("abc-123"), mc::string_view::npos);
     EXPECT_FALSE(last_msg.get_attrs().empty());
     EXPECT_EQ(last_msg.get_attrs()["trace_id"].as_string(), "abc-123");
 }
@@ -271,7 +271,7 @@ TEST_F(LogTest, message_without_attrs_unchanged)
 
     const auto& messages = m_memory_appender->get_messages();
     ASSERT_FALSE(messages.empty());
-    EXPECT_EQ(messages.back().get_message(), "no attrs");
+    EXPECT_EQ(mc::string_view(messages.back().get_message()), mc::string_view("no attrs"));
     EXPECT_TRUE(messages.back().get_attrs().empty());
 }
 
@@ -330,8 +330,8 @@ TEST_F(LogTest, ContextInfo)
     EXPECT_GT(ctx.m_line, 0);
 
     // 检查原始消息不包含上下文信息（因为使用延迟合并）
-    EXPECT_EQ(msg.get_message().find(ctx.m_file), std::string::npos);
-    EXPECT_EQ(msg.get_message().find(ctx.m_function), std::string::npos);
+    EXPECT_EQ(mc::string_view(msg.get_message()).find(ctx.m_file.view()), mc::string_view::npos);
+    EXPECT_EQ(mc::string_view(msg.get_message()).find(ctx.m_function.view()), mc::string_view::npos);
 }
 
 // 测试全局日志宏
@@ -628,7 +628,7 @@ TEST(LogMessageTest, structured_data_and_lazy_formatting)
     EXPECT_EQ(args_dict.at("value").as_int32(), 42);
 
     // 再次获取消息应返回相同的格式化结果
-    EXPECT_EQ(msg.get_message(), "用户 alice 值 42");
+    EXPECT_EQ(mc::string_view(msg.get_message()), mc::string_view("用户 alice 值 42"));
 }
 
 TEST(LogMessageTest, structured_data_without_format_template)

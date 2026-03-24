@@ -13,6 +13,7 @@
 #include <mc/common.h>
 #include <mc/futures/any_future.h>
 #include <mc/gc/gc_head.h>
+#include <mc/string.h>
 
 #ifdef __linux__
 #include <sys/syscall.h>
@@ -26,6 +27,16 @@
 #endif
 
 namespace mc {
+
+class scope_timer::impl {
+public:
+    explicit impl(mc::string_view name)
+        : m_name(name), m_start(std::chrono::high_resolution_clock::now())
+    {}
+
+    mc::string                                                 m_name;
+    std::chrono::time_point<std::chrono::high_resolution_clock> m_start;
+};
 
 thread_id get_thread_id()
 {
@@ -52,12 +63,27 @@ thread_id get_thread_id()
 #endif
 }
 
-void set_current_thread_name(const std::string& name)
+scope_timer::scope_timer(mc::string_view name) : m_impl(std::make_unique<impl>(name))
+{}
+
+scope_timer::~scope_timer()
+{
+    auto end      = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - m_impl->m_start).count();
+
+    MC_UNUSED(end);
+    MC_UNUSED(duration);
+}
+
+scope_timer::scope_timer(scope_timer&&) noexcept            = default;
+scope_timer& scope_timer::operator=(scope_timer&&) noexcept = default;
+
+void set_current_thread_name(mc::string_view name)
 {
 #if defined(__linux__)
-    pthread_setname_np(pthread_self(), name.c_str());
+    pthread_setname_np(pthread_self(), mc::string(name).c_str());
 #elif defined(__APPLE__)
-    pthread_setname_np(name.c_str());
+    pthread_setname_np(mc::string(name).c_str());
 #else
     MC_UNUSED(name);
 #endif

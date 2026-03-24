@@ -17,6 +17,7 @@
 #include <mc/log/appender_factory.h>
 #include <mc/log/logger.h>
 #include <mc/reflect.h>
+#include <mc/string_view.h>
 #include <mc/variant.h>
 #include <memory>
 #include <mutex>
@@ -31,22 +32,22 @@ namespace log {
  * @brief appender配置结构
  */
 struct appender_config {
-    std::string name;       // appender名称
-    std::string type;       // appender类型
+    mc::string name;       // appender名称
+    mc::string type;       // appender类型
     mc::dict    properties; // appender属性配置
-    std::string lib_path;   // 外部appender动态库路径，为空表示内部appender
+    mc::string lib_path;   // 外部appender动态库路径，为空表示内部appender
 };
 
 /**
  * @brief logger配置结构
  */
 struct logger_config {
-    std::string              name;      // logger名称
+    mc::string              name;      // logger名称
     log::level               level;     // 日志级别
-    std::vector<std::string> appenders; // 关联的appender名称列表
+    std::vector<mc::string> appenders; // 关联的appender名称列表
     bool                     condition; // 是否输出日志，false 时不打印
 
-    logger_config(const std::string& name = MC_LOG_DEFAULT_LOGGER) : name(name), condition(true)
+    logger_config(mc::string_view name = MC_LOG_DEFAULT_LOGGER) : name(name), condition(true)
     {}
 };
 
@@ -78,7 +79,7 @@ public:
      * @param name 日志记录器名称
      * @return logger 日志记录器
      */
-    logger get_logger(const char* name = MC_LOG_DEFAULT_LOGGER);
+    logger get_logger(mc::string_view name = MC_LOG_DEFAULT_LOGGER);
 
     /**
      * @brief 加载追加器
@@ -87,14 +88,14 @@ public:
      * @param appender_name 追加器名称
      * @return bool 是否成功加载
      */
-    bool load_appender(const std::string& lib_path, const std::string& appender_name);
+    bool load_appender(mc::string_view lib_path, mc::string_view appender_name);
 
     /**
      * @brief 从目录加载所有追加器
      *
      * @param dir_path 目录路径
      */
-    void load_appenders(const std::string& dir_path);
+    void load_appenders(mc::string_view dir_path);
 
     /**
      * @brief 创建追加器
@@ -103,7 +104,7 @@ public:
      * @return appender_ptr 追加器指针
      */
     template <typename T>
-    std::shared_ptr<T> create_appender(const std::string& type)
+    std::shared_ptr<T> create_appender(mc::string_view type)
     {
         return appender_factory::instance().create_by_type<T>(type);
     }
@@ -129,7 +130,7 @@ private:
     bool load_single_appender(const appender_config& app_config);
     void update_existing_logger(logger& log, const logger_config& log_config);
 
-    std::unordered_map<std::string, logger> m_loggers; // 日志记录器映射
+    std::unordered_map<mc::string, logger> m_loggers; // 日志记录器映射
     std::mutex                              m_mutex;   // 互斥锁
 };
 

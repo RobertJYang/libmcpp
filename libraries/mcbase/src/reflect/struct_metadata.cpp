@@ -17,7 +17,7 @@
 namespace mc::reflect {
 
 struct struct_metadata::impl {
-    using members_map_t        = std::unordered_map<std::string_view, member_node<member_info_base>>;
+    using members_map_t        = std::unordered_map<mc::string_view, member_node<member_info_base>>;
     using offset_members_map_t = std::unordered_map<std::uintptr_t, const member_info_base*>;
     using owner_members_t      = std::vector<const member_info_base*>;
 
@@ -44,7 +44,7 @@ struct struct_metadata::impl {
 
     static void load_base_class_members(data_t& data, const base_class_type_info* base_class);
 
-    std::string_view name;
+    mc::string_view name;
     type_id_type     type_id;
 
     // TODO:: 理论上这里也是不需要锁的，元数据缓存在构建单例的时候一次性创建，之后不会再有变化。
@@ -166,7 +166,7 @@ void struct_metadata::impl::load_base_class_members(data_t& data, const base_cla
     });
 }
 
-struct_metadata::struct_metadata(std::string_view name, type_id_type type_id) : m_impl(std::make_unique<impl>())
+struct_metadata::struct_metadata(mc::string_view name, type_id_type type_id) : m_impl(std::make_unique<impl>())
 {
     m_impl->name    = name;
     m_impl->type_id = type_id;
@@ -198,7 +198,7 @@ type_id_type struct_metadata::get_type_id() const noexcept
     return m_impl->type_id;
 }
 
-std::string_view struct_metadata::get_name() const noexcept
+mc::string_view struct_metadata::get_name() const noexcept
 {
     return m_impl->name;
 }
@@ -233,7 +233,7 @@ void struct_metadata::add_members_finish()
     data.ordered_customs.reverse();
 }
 
-const property_type_info* struct_metadata::get_property_info(std::string_view name) const
+const property_type_info* struct_metadata::get_property_info(mc::string_view name) const
 {
     auto& data = m_impl->m_data.unsafe_get_data();
     auto  it   = data.name_to_members.find(name);
@@ -244,7 +244,7 @@ const property_type_info* struct_metadata::get_property_info(std::string_view na
     return static_cast<const property_type_info*>(it->second.member);
 }
 
-const method_type_info* struct_metadata::get_method_info(std::string_view name) const
+const method_type_info* struct_metadata::get_method_info(mc::string_view name) const
 {
     auto& data = m_impl->m_data.unsafe_get_data();
     auto  it   = data.name_to_members.find(name);
@@ -266,7 +266,7 @@ const method_type_info* struct_metadata::get_method_info(size_t offset) const
     return static_cast<const method_type_info*>(it->second);
 }
 
-const base_class_type_info* struct_metadata::get_base_class_info(std::string_view name) const
+const base_class_type_info* struct_metadata::get_base_class_info(mc::string_view name) const
 {
     auto& data = m_impl->m_data.unsafe_get_data();
     auto  it   = data.name_to_members.find(name);
@@ -288,7 +288,7 @@ const property_type_info* struct_metadata::get_property_info(size_t offset) cons
     return static_cast<const property_type_info*>(it->second);
 }
 
-const member_info_base* struct_metadata::get_custom_info(std::string_view name, size_t reflect_type) const
+const member_info_base* struct_metadata::get_custom_info(mc::string_view name, size_t reflect_type) const
 {
     auto& data = m_impl->m_data.unsafe_get_data();
     auto  it   = data.name_to_members.find(name);

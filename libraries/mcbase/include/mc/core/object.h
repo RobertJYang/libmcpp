@@ -94,13 +94,13 @@ public:
      * @brief 获取对象名称
      * @return 对象名称的视图
      */
-    std::string_view get_name() const;
+    mc::string_view get_name() const;
 
     /**
      * @brief 设置对象名称
      * @param name 新的对象名称
      */
-    void set_name(std::string_view name);
+    void set_name(mc::string_view name);
 
     /**
      * @brief 获取父对象
@@ -139,7 +139,7 @@ public:
      * @param name 子对象名称
      * @return 子对象指针，如果未找到则返回nullptr
      */
-    object_ptr find_child(std::string_view name) const;
+    object_ptr find_child(mc::string_view name) const;
 
     /**
      * @brief 连接信号和槽

@@ -31,12 +31,12 @@ public:
     /**
      * @brief 获取模块名称
      */
-    virtual std::string_view name() const = 0;
+    virtual mc::string_view name() const = 0;
 
     /**
      * @brief 获取模块版本
      */
-    virtual std::string_view version() const = 0;
+    virtual mc::string_view version() const = 0;
 
     /**
      * @brief 获取模块的反射工厂 - 供脚本使用

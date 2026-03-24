@@ -105,7 +105,7 @@ struct edge_less {
     // 添加对key_view和key_buffer的比较支持
     bool operator()(const key_view& a, const key_view& b) const
     {
-        return std::less<std::string_view>()(a, b);
+        return std::less<mc::string_view>()(a, b);
     }
 
     bool operator()(const key_buffer<>& a, const key_view& b) const
@@ -149,7 +149,7 @@ struct edge_greater {
     // 添加对key_view和key_buffer的比较支持
     bool operator()(const key_view& a, const key_view& b) const
     {
-        return std::greater<std::string_view>()(a, b);
+        return std::greater<mc::string_view>()(a, b);
     }
 
     bool operator()(const key_buffer<>& a, const key_view& b) const

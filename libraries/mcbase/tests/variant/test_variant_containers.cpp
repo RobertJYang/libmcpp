@@ -134,6 +134,14 @@ TEST_F(VariantContainersTest, DictAccess)
     ASSERT_TRUE(d.at_index(index).value.as_bool()) << "通过索引访问的值不匹配";
 }
 
+TEST_F(VariantContainersTest, VariantsInitializerListPreservesStringLiteralAsSingleString)
+{
+    variants args{"111"};
+    ASSERT_EQ(args.size(), 1u);
+    EXPECT_TRUE(args[0].is_string());
+    EXPECT_EQ(args[0].as_string(), "111");
+}
+
 /**
  * @brief 测试 dict 转换
  */

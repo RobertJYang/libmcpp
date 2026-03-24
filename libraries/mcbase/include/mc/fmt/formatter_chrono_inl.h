@@ -1,3 +1,5 @@
+#ifndef MC_FMT_FORMATTER_CHRONO_INL_H
+#define MC_FMT_FORMATTER_CHRONO_INL_H
 /*
  * Copyright (c) 2024 Huawei Technologies Co., Ltd.
  * openUBMC is licensed under Mulan PSL v2.
@@ -21,14 +23,14 @@
 
 namespace mc::fmt {
 namespace detail {
-MC_API void format_float(std::string& out, double value, int precision, bool has_precision);
+MC_API void format_float(mc::string& out, double value, int precision, bool has_precision);
 
 class MC_API duration_format_handler_base {
 public:
-    duration_format_handler_base(std::string& output, int precision, bool has_precision);
+    duration_format_handler_base(mc::string& output, int precision, bool has_precision);
     virtual ~duration_format_handler_base() = default;
 
-    void on_text(std::string_view text);
+    void on_text(mc::string_view text);
     void on_year(numeric_system, pad_type);
     void on_short_year(numeric_system);
     void on_month(numeric_system, pad_type);
@@ -53,7 +55,7 @@ public:
     void on_incomplete_spec();
 
 protected:
-    std::string& m_output;
+    mc::string& m_output;
     int          m_precision;
     bool         m_has_precision;
 
@@ -69,10 +71,10 @@ protected:
 
 class MC_API time_point_format_handler_base {
 public:
-    time_point_format_handler_base(std::string& output);
+    time_point_format_handler_base(mc::string& output);
     ~time_point_format_handler_base() = default;
 
-    void on_text(std::string_view text);
+    void on_text(mc::string_view text);
     void on_year(numeric_system, pad_type);
     void on_short_year(numeric_system);
     void on_month(numeric_system, pad_type);
@@ -97,7 +99,7 @@ public:
     void on_incomplete_spec();
 
 protected:
-    std::string& m_output;
+    mc::string& m_output;
     std::tm      m_tm{};  // 显式零初始化
     bool         m_tm_valid = false;
     std::time_t  m_time_t   = 0;
@@ -112,7 +114,7 @@ private:
     const std::chrono::duration<Rep, Period>& m_duration;
 
 public:
-    duration_format_handler(const std::chrono::duration<Rep, Period>& d, std::string& output, int precision,
+    duration_format_handler(const std::chrono::duration<Rep, Period>& d, mc::string& output, int precision,
                             bool has_precision)
         : duration_format_handler_base(output, precision, has_precision), m_duration(d)
     {}
@@ -183,7 +185,9 @@ protected:
         if constexpr (std::is_floating_point_v<Rep>) {
             detail::format_float(m_output, static_cast<double>(m_duration.count()), m_precision, m_has_precision);
         } else {
-            detail::format_to(m_output, m_duration.count());
+            std::ostringstream os;
+            os << m_duration.count();
+            m_output.append(os.str());
         }
     }
 };
@@ -194,7 +198,7 @@ private:
     const std::chrono::time_point<Clock, Duration>& m_time_point;
 
 public:
-    time_point_format_handler(const std::chrono::time_point<Clock, Duration>& tp, std::string& output)
+    time_point_format_handler(const std::chrono::time_point<Clock, Duration>& tp, mc::string& output)
         : time_point_format_handler_base(output), m_time_point(tp)
     {}
 
@@ -245,7 +249,9 @@ void formatter<std::chrono::duration<Rep, Period>>::format(const std::chrono::du
         if (std::is_floating_point_v<Rep>) {
             detail::format_float(out, static_cast<double>(std::abs(count)), custom.precision, custom.has_precision);
         } else {
-            detail::format_to(out, std::abs(count));
+            std::ostringstream os;
+            os << std::abs(count);
+            out.append(os.str());
         }
         out.append(detail::get_unit_str<Period>());
     } else {
@@ -267,10 +273,9 @@ void formatter<std::chrono::time_point<Clock, Duration>>::format(const std::chro
         auto    sys_tp = std::chrono::time_point_cast<std::chrono::system_clock::duration>(tp);
         auto    time_t = std::chrono::system_clock::to_time_t(sys_tp);
         std::tm tm     = *std::gmtime(&time_t);
-
-        direct_outputbuf buf(out);
-        std::ostream     os(&buf);
-        os << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
+        char    buffer[32] = {};
+        size_t  length     = std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &tm);
+        out.append(buffer, length);
     } else {
         detail::time_point_format_handler handler(tp, out);
         detail::parse_chrono_format(custom.format_str, handler);
@@ -278,3 +283,5 @@ void formatter<std::chrono::time_point<Clock, Duration>>::format(const std::chro
 }
 
 } // namespace mc::fmt
+
+#endif // MC_FMT_FORMATTER_CHRONO_INL_H

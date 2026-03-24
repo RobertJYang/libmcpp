@@ -16,13 +16,14 @@
 #include <mc/fmt/format_dict.h>
 #include <mc/json.h>
 #include <mc/log/log.h>
-#include <mc/string.h>
+#include <mc/string_utils.h>
 
 #include <algorithm>
 #include <cxxabi.h>
 #include <execinfo.h>
 #include <regex>
 #include <sstream>
+#include <string>
 #include <string_view>
 #include <unordered_map>
 
@@ -30,42 +31,43 @@ namespace mc {
 
 namespace {
 
-std::string format_percent_placeholders(std::string_view template_msg, const mc::dict& args)
+mc::string format_percent_placeholders(mc::string_view template_msg, const mc::dict& args)
 {
-    std::string result(template_msg);
+    mc::string  result(template_msg);
+    std::string result_std(mc::to_std_string(result));
 
     static const std::regex placeholder_pattern("%(\\d+)");
 
-    std::string output;
-    auto        begin = std::sregex_iterator(result.begin(), result.end(), placeholder_pattern);
-    auto        end   = std::sregex_iterator();
+    mc::string output;
+    auto       begin = std::sregex_iterator(result_std.begin(), result_std.end(), placeholder_pattern);
+    auto       end   = std::sregex_iterator();
 
     size_t last_pos = 0;
     for (auto it = begin; it != end; ++it) {
         const std::smatch& match = *it;
-        output.append(result, last_pos, match.position() - last_pos);
+        output.append(result_std.data() + last_pos, static_cast<std::size_t>(match.position() - last_pos));
 
         int key_index = std::stoi(match.str(1)) - 1;
         if (args.contains(key_index)) {
             const mc::variant& arg_value = args[key_index];
             switch (arg_value.get_type()) {
                 case mc::type_id::string_type:
-                    output += arg_value.as<std::string>();
+                    output += arg_value.as<mc::string>();
                     break;
                 case mc::type_id::int8_type:
                 case mc::type_id::int16_type:
                 case mc::type_id::int32_type:
                 case mc::type_id::int64_type:
-                    output += std::to_string(arg_value.as<int64_t>());
+                    output += mc::to_string(arg_value.as<int64_t>());
                     break;
                 case mc::type_id::uint8_type:
                 case mc::type_id::uint16_type:
                 case mc::type_id::uint32_type:
                 case mc::type_id::uint64_type:
-                    output += std::to_string(arg_value.as<uint64_t>());
+                    output += mc::to_string(arg_value.as<uint64_t>());
                     break;
                 case mc::type_id::double_type:
-                    output += std::to_string(arg_value.as<double>());
+                    output += mc::to_string(arg_value.as<double>());
                     break;
                 case mc::type_id::bool_type:
                     output += arg_value.as<bool>() ? "true" : "false";
@@ -76,14 +78,17 @@ std::string format_percent_placeholders(std::string_view template_msg, const mc:
             }
         } else {
             wlog("消息格式化缺少参数: 占位符 ${placeholder} 没有对应的参数值", ("placeholder", match.str()));
-            output.append(match.str());
+            {
+                const auto placeholder = match.str();
+                output.append(placeholder.data(), placeholder.size());
+            }
         }
 
         last_pos = match.position() + match.length();
     }
 
-    if (last_pos < result.length()) {
-        output.append(result, last_pos, result.length() - last_pos);
+    if (last_pos < result_std.length()) {
+        output.append(result_std.data() + last_pos, result_std.length() - last_pos);
     }
 
     return output;
@@ -96,7 +101,7 @@ error::error() = default;
 error::error(const error_info& info) : mc::enable_shared_from_this<error>(), error_info(info)
 {}
 
-error::error(std::string_view name, std::string_view format, error_level level)
+error::error(mc::string_view name, mc::string_view format, error_level level)
     : mc::enable_shared_from_this<error>(), error_info(name, format, level)
 {
     // 存储 name 和 format 的副本，确保 string_view 的生命周期
@@ -197,12 +202,12 @@ error& error::operator=(const error& other)
     return *this;
 }
 
-std::string_view error::get_name() const
+mc::string_view error::get_name() const
 {
     return this->name;
 }
 
-std::string_view error::get_format() const
+mc::string_view error::get_format() const
 {
     return this->format;
 }
@@ -217,16 +222,16 @@ const mc::dict& error::get_args_with_index() const
     return m_args_with_index;
 }
 
-std::string error::get_message() const
+mc::string error::get_message() const
 {
     // 懒加载：如果缓存中有格式化消息，直接返回
     if (m_cached_message.has_value()) {
-        return m_cached_message.value();
+        return mc::string(m_cached_message.value());
     }
 
     // 获取 format：如果为空，尝试从错误引擎查找
-    std::string_view format_to_use = this->format;
-    bool             from_registry = false;
+    mc::string_view format_to_use = this->format;
+    bool            from_registry = false;
     if (format_to_use.empty() && !this->name.empty()) {
         auto info = mc::error_engine::get_instance().get_error_info(this->name);
         if (info.is_valid()) {
@@ -236,11 +241,11 @@ std::string error::get_message() const
     }
 
     if (format_to_use.empty()) {
-        return {};
+        return mc::string();
     }
 
     // 首次访问时格式化消息并缓存
-    std::string formatted;
+    mc::string formatted;
     // 检测是否包含 %数字 占位符
     static const std::regex placeholder_pattern("%(\\d+)");
     bool has_percent_placeholder = std::regex_search(format_to_use.begin(), format_to_use.end(), placeholder_pattern);
@@ -252,7 +257,7 @@ std::string error::get_message() const
         formatted = mc::format_dict(format_to_use, args);
     }
     m_cached_message = formatted;
-    return formatted;
+    return mc::string(formatted);
 }
 
 error_level error::get_level() const
@@ -265,24 +270,24 @@ void error::set_level(error_level level)
     this->level = level;
 }
 
-void error::set_name(std::string_view name)
+void error::set_name(mc::string_view name)
 {
     m_name_storage = name;
     this->name     = m_name_storage;
 }
 
-void error::set_format(std::string_view format)
+void error::set_format(mc::string_view format)
 {
     m_format_storage = format;
     this->format     = m_format_storage;
 }
 
-const std::string& error::get_registry_prefix() const
+mc::string_view error::get_registry_prefix() const
 {
     return this->registry_prefix;
 }
 
-void error::set_registry_prefix(std::string_view prefix)
+void error::set_registry_prefix(mc::string_view prefix)
 {
     this->registry_prefix = prefix;
 }
@@ -309,26 +314,26 @@ error& error::set_args(const mc::dict& args)
     return *this;
 }
 
-std::string error::to_string() const
+mc::string error::to_string() const
 {
     std::ostringstream oss;
 
     // 输出错误名称和消息
-    oss << get_name() << ": " << get_message();
+    oss << get_name() << ": " << get_message().view();
 
     // 如果有调用栈信息，追加显示
     if (!m_traceback.empty()) {
         oss << "\n" << m_traceback;
     }
 
-    return oss.str();
+    return mc::string(oss.str());
 }
 
-std::string error::to_string_format_inplace() const
+mc::string error::to_string_format_inplace() const
 {
     mc::dict error_data;
     error_data["name"]   = this->name;
-    error_data["format"] = get_message();
+    error_data["format"] = mc::string_view(get_message().view());
     return error_data.to_string();
 }
 
@@ -345,7 +350,7 @@ bool error::is_set() const
     return false;
 }
 
-bool error::has_error(std::string_view name) const
+bool error::has_error(mc::string_view name) const
 {
     if (this->name == name) {
         return true;
@@ -370,21 +375,20 @@ bool error::operator!=(const error& other) const
 
 mc::log::message error::to_log_message() const
 {
-    return mc::log::message(this->level, mc::log::context("", std::string(this->name), 0), std::string(this->format),
-                            this->args);
+    return mc::log::message(this->level, mc::log::context("", this->name, 0), mc::string(this->format), this->args);
 }
 
 error_with_owner::error_with_owner()
 {}
 
-error_with_owner::error_with_owner(std::string name, std::string format)
-    : m_name_owner(std::move(name)), m_format_owner(std::move(format))
+error_with_owner::error_with_owner(mc::string_view name, mc::string_view format)
+    : m_name_owner(name), m_format_owner(format)
 {
     this->name   = m_name_owner;
     this->format = m_format_owner;
 }
 
-bool get_error_format_args(std::string_view format, mc::dict& arg_names)
+bool get_error_format_args(mc::string_view format, mc::dict& arg_names)
 {
     return mc::fmt::get_format_args(format, arg_names);
 }
@@ -396,7 +400,7 @@ bool get_error_format_args(std::string_view format, mc::dict& arg_names)
 /**
  * @brief 查找参数位置索引(string版本)
  */
-int error::get_param_index(std::string_view param_name, std::string_view param_value)
+int error::get_param_index(mc::string_view param_name, mc::string_view param_value)
 {
     if (param_name == param_value) {
         return 0;
@@ -409,7 +413,7 @@ int error::get_param_index(std::string_view param_name, std::string_view param_v
  * param_struct 是一个数组，每个元素是一个 dict，包含 name 字段
  * 遍历数组，找到 name 字段匹配的元素索引
  */
-int error::get_param_index(std::string_view param_name, const mc::dict& param_struct)
+int error::get_param_index(mc::string_view param_name, const mc::dict& param_struct)
 {
     if (param_name.empty()) {
         return -1;
@@ -432,7 +436,7 @@ int error::get_param_index(std::string_view param_name, const mc::dict& param_st
 
                     // 比较 name 字段与 param_name
                     if (name_variant.is_string()) {
-                        std::string name_str = name_variant.get_string();
+                        mc::string name_str(name_variant.get_string());
                         if (name_str == param_name) {
                             // 返回位置索引（从 0 开始，对应 Lua 的从 1 开始）
                             return static_cast<int>(key.as<int64_t>()) - 1;
@@ -449,9 +453,9 @@ int error::get_param_index(std::string_view param_name, const mc::dict& param_st
 /**
  * @brief 参数名映射为位置索引(string版本)
  */
-void error::post_process(const std::string& param_struct)
+void error::post_process(mc::string_view param_struct)
 {
-    post_process_impl([&param_struct](std::string_view param_name) {
+    post_process_impl([&param_struct](mc::string_view param_name) {
         return get_param_index(param_name, param_struct);
     });
 }
@@ -461,7 +465,7 @@ void error::post_process(const std::string& param_struct)
  */
 void error::post_process(const mc::dict& param_struct)
 {
-    post_process_impl([&param_struct](std::string_view param_name) {
+    post_process_impl([&param_struct](mc::string_view param_name) {
         return get_param_index(param_name, param_struct);
     });
 }
@@ -490,27 +494,28 @@ void error::post_process_impl(IndexLookupFunc&& index_lookup)
         const mc::variant& key   = entry.key;
 
         if (value.is_string()) {
-            std::string arg_value = value.get_string();
-            std::smatch match;
+            mc::string        arg_value(value.get_string());
+            const std::string arg_std = mc::to_std_string(arg_value);
+            std::smatch       match;
             try {
-                if (std::regex_search(arg_value, match, param_pattern) && match.size() > 1) {
+                if (std::regex_search(arg_std, match, param_pattern) && match.size() > 1) {
                     // 提取参数名 (第一个捕获组)
-                    std::string param_name = match.str(1);
-                    int         pos        = index_lookup(param_name);
+                    mc::string param_name = match.str(1);
+                    int        pos        = index_lookup(param_name);
                     if (pos >= 0) {
                         has_index_flag = true;
                         // 更新 args: 提取冒号后的内容，或者去掉%
-                        size_t colon_pos = arg_value.find(':');
+                        const size_t colon_pos = arg_std.find(':');
                         if (colon_pos != std::string::npos) {
-                            new_args[key] = arg_value.substr(colon_pos + 1);
+                            new_args[key] = mc::string(arg_std.substr(colon_pos + 1));
                         } else {
                             // 去掉所有的 %
-                            std::string cleaned = arg_value;
+                            mc::string cleaned = arg_value;
                             cleaned.erase(std::remove(cleaned.begin(), cleaned.end(), '%'), cleaned.end());
                             new_args[key] = cleaned;
                         }
                         // 创建 args_with_index: 将参数名替换为位置索引
-                        std::string new_format = "%" + std::to_string(pos + 1); // 位置索引从1开始
+                        mc::string new_format  = "%" + mc::to_string(pos + 1); // 位置索引从1开始
                         args_with_index[index] = new_format;
                         index++;
                         continue;
@@ -536,14 +541,14 @@ void error::post_process_impl(IndexLookupFunc&& index_lookup)
 /**
  * @brief 序列化为 JSON
  */
-std::string error::encode(const mc::json::json_encode_options& options) const
+mc::string error::encode(const mc::json::json_encode_options& options) const
 {
     mc::dict result;
 
     // 序列化 name, message, args, format
-    result["name"]    = std::string(get_name());
-    result["message"] = get_message();
-    result["format"]  = std::string(get_format());
+    result["name"]    = mc::string(get_name());
+    result["message"] = mc::string_view(get_message().view());
+    result["format"]  = mc::string(get_format());
     result["params"]  = get_args();
 
     // 序列化 registry_prefix (如果存在)
@@ -567,7 +572,7 @@ std::string error::encode(const mc::json::json_encode_options& options) const
 /**
  * @brief 从 JSON 反序列化(静态方法)
  */
-mc::shared_ptr<error> error::decode(std::string_view json, const mc::json::json_decode_options& options)
+mc::shared_ptr<error> error::decode(mc::string_view json, const mc::json::json_decode_options& options)
 {
     // 解析 JSON 字符串
     mc::variant var = mc::json::json_decode(json, options);
@@ -585,15 +590,15 @@ mc::shared_ptr<error> error::decode(std::string_view json, const mc::json::json_
     }
 
     // 创建新的 error 对象
-    std::string name    = data["name"].as<std::string>();
-    std::string message = data["message"].as<std::string>();
+    mc::string name    = data["name"].as<mc::string>();
+    mc::string message = data["message"].as<mc::string>();
 
     auto err = mc::make_shared<error_with_owner>(std::move(name), std::move(message));
 
     // 还原 format (如果存在)
     if (data.contains("format")) {
         if (data["format"].get_type() == mc::type_id::string_type) {
-            err->set_format(data["format"].as<std::string>());
+            err->set_format(data["format"].as<mc::string>());
         }
     }
 
@@ -607,7 +612,7 @@ mc::shared_ptr<error> error::decode(std::string_view json, const mc::json::json_
     // 还原 traceback (如果存在)
     if (data.contains("traceback")) {
         if (data["traceback"].get_type() == mc::type_id::string_type) {
-            err->m_traceback = data["traceback"].as<std::string>();
+            err->m_traceback = data["traceback"].as<mc::string>();
         }
     }
 
@@ -642,9 +647,9 @@ void error::traceback()
 
     // 格式化调用栈信息
     for (int i = 0; i < ntrs; i++) {
-        // 使用 abi::__cxa_demangle 符号化 C++ 函数名
+        // 使用 __cxxabiv1::__cxa_demangle 符号化 C++ 函数名
         int   status;
-        char* demangled = abi::__cxa_demangle(strings[i], nullptr, nullptr, &status);
+        char* demangled = __cxxabiv1::__cxa_demangle(strings[i], nullptr, nullptr, &status);
         if (demangled != nullptr && status == 0) {
             oss << "[" << i << "] " << demangled << "\n";
         } else {
@@ -652,7 +657,7 @@ void error::traceback()
         }
     }
 
-    m_traceback = oss.str();
+    m_traceback = mc::string(oss.str());
 }
 
 /**
@@ -661,7 +666,7 @@ void error::traceback()
 [[noreturn]] void error::raise() const
 {
     // 将 error 对象序列化为 JSON 字符串
-    std::string error_json = encode();
+    mc::string error_json = encode();
     throw mc::error_exception(this->name.data(), error_json, mc::error_engine_exception_code);
 }
 

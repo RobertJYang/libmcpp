@@ -51,7 +51,7 @@ struct index_metadata {
     size_t                   index_id       = 0;                              // 索引ID
     index_type               type           = index_type::ordered_unique;     // 索引类型
     key_extractor_type       extractor_type = key_extractor_type::member_key; // 键提取类型
-    std::vector<std::string> field_names; // 相关字段名称(对于复合键可能有多个)
+    std::vector<mc::string> field_names; // 相关字段名称(对于复合键可能有多个)
     std::type_index          key_type  = std::type_index(typeid(void)); // 键类型的类型索引
     bool                     is_unique = true;                          // 是否唯一索引
 };
@@ -83,7 +83,7 @@ public:
      * @param field_name 字段名
      * @return 是否有非唯一索引
      */
-    bool has_non_unique_index(std::string_view field_name) const
+    bool has_non_unique_index(mc::string_view field_name) const
     {
         auto it = m_field_to_indices.find(field_name);
         if (it == m_field_to_indices.end()) {
@@ -104,7 +104,7 @@ public:
      * @param prefer_unique 是否优先选择唯一索引
      * @return 索引ID，如果没有找到则返回-1
      */
-    int find_best_index_id(std::string_view field_name, bool prefer_unique = true) const
+    int find_best_index_id(mc::string_view field_name, bool prefer_unique = true) const
     {
         auto it = m_field_to_indices.find(field_name);
         if (it == m_field_to_indices.end()) {
@@ -153,7 +153,7 @@ public:
     }
 
 private:
-    using field_to_indices_map = std::unordered_map<std::string_view, std::vector<size_t>>;
+    using field_to_indices_map = std::unordered_map<mc::string_view, std::vector<size_t>>;
 
     index_metadata_list  m_indices;          // 所有索引元数据
     field_to_indices_map m_field_to_indices; // 字段到索引的映射

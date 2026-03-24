@@ -36,8 +36,8 @@ TEST(format_dict_test, named_format_use_dict) {
               "   1.235"); // 动态参数支持从字典读取
 }
 
-static bool contains(std::string_view str, std::string_view substr) {
-    return str.find(substr) != std::string_view::npos;
+static bool contains(mc::string_view str, mc::string_view substr) {
+    return str.find(substr) != mc::string_view::npos;
 }
 
 /**
@@ -52,7 +52,7 @@ TEST(format_dict_test, FormatWithDictTest) {
                   {"ratio", 0.75}};
 
     // 基本替换测试
-    std::string result = mc::format_dict("连接到 ${host}:${port}", args);
+    mc::string result = mc::format_dict("连接到 ${host}:${port}", args);
     ASSERT_EQ(result, "连接到 example.com:8080") << "基本替换应该正确";
 
     // 测试不同类型的值
@@ -82,13 +82,13 @@ TEST(format_dict_test, FormatWithDictTest) {
     ASSERT_EQ(result, "简单替换: simple_value") << "简单替换应该正确";
 
     // 测试新format重载函数，将结果追加到现有字符串
-    std::string append_result = "前缀：";
+    mc::string append_result = "前缀：";
     mc::format_dict(append_result, "连接到 ${host}:${port}",
                     mc::dict()("host", "example.com")("port", "8080"));
     ASSERT_EQ(append_result, "前缀：连接到 example.com:8080") << "追加格式化结果应该正确";
 
     // 测试新format重载函数，使用空字符串
-    std::string empty_result;
+    mc::string empty_result;
     mc::format_dict(empty_result, "协议: ${protocol}", mc::dict()("protocol", "https"));
     ASSERT_EQ(empty_result, "协议: https") << "从空字符串开始格式化应该正确";
 
@@ -109,7 +109,7 @@ TEST(format_dict_test, FormatIcaseTest) {
                   {"enabled", true},
                   {"ratio", 0.75}};
 
-    std::string result = mc::format_dict_icase("${host}:${port}", args);
+    mc::string result = mc::format_dict_icase("${host}:${port}", args);
     ASSERT_EQ(result, "example.com:8080") << "大小写不敏感格式化应该正确";
 
     result = mc::format_dict_icase("${HOST}:${port}", args);
@@ -131,7 +131,7 @@ TEST(format_dict_test, DynamicWidthAndPrecisionFromDict) {
                   {"WIDTH", 10},
                   {"precision", 4}};
 
-    std::string result = mc::format_dict_icase("${value:{WIDTH}.{precision}f}", args);
+    mc::string result = mc::format_dict_icase("${value:{WIDTH}.{precision}f}", args);
     EXPECT_EQ(result, "    3.1416");
 }
 
@@ -146,7 +146,7 @@ TEST(format_dict_test, DynamicParameterTypeError) {
 // 验证 format_dict_icase 追加重载覆盖率，并确保大小写忽略逻辑生效
 TEST(format_dict_test, AppendIcaseOverload) {
     mc::dict args{{"path", "/tmp/FILE"}};
-    std::string buffer = "prefix:";
+    mc::string buffer = "prefix:";
     mc::format_dict_icase(buffer, "${PATH}", args);
     EXPECT_EQ(buffer, "prefix:/tmp/FILE");
     mc::format_dict_icase(buffer, " ${path}", args);
@@ -185,8 +185,8 @@ TEST(format_dict_test, DictNonStringKeyFallback) {
     dict.insert(mc::variant(static_cast<int64_t>(456)), "value2");
 
     // 格式化 dict，应该使用 fallback 格式化非字符串键
-    std::string result = sformat("{}", dict);
+    mc::string result = sformat("{}", dict);
     // 验证输出包含十进制键
-    EXPECT_TRUE(result.find("123") != std::string::npos || result.find("value1") != std::string::npos);
-    EXPECT_TRUE(result.find("456") != std::string::npos || result.find("value2") != std::string::npos);
+    EXPECT_TRUE(result.find("123") != mc::string::npos || result.find("value1") != mc::string::npos);
+    EXPECT_TRUE(result.find("456") != mc::string::npos || result.find("value2") != mc::string::npos);
 }

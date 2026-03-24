@@ -21,15 +21,15 @@ namespace reflect {
 signature::signature()
 {}
 
-signature::signature(std::string sig) : m_sig(std::move(sig))
+signature::signature(mc::string sig) : m_sig(std::move(sig))
 {}
 
-signature::signature(const char* sig) : signature(std::string(sig))
+signature::signature(const char* sig) : signature(mc::string(sig))
 {}
 
 signature::signature(type_code type)
 {
-    m_sig = type_to_char(type);
+    m_sig = mc::string(1, type_to_char(type));
 }
 
 signature& signature::operator+=(const signature& other)
@@ -44,7 +44,7 @@ signature& signature::operator+=(char c)
     return *this;
 }
 
-signature& signature::operator+=(std::string_view str)
+signature& signature::operator+=(mc::string_view str)
 {
     m_sig += str;
     return *this;
@@ -57,7 +57,7 @@ signature signature::operator+(const signature& other) const
     return result;
 }
 
-const std::string& signature::str() const
+mc::string_view signature::str() const
 {
     return m_sig;
 }
@@ -77,19 +77,19 @@ bool signature::operator!=(const signature& other) const
     return !(*this == other);
 }
 
-signature& signature::operator=(std::string_view str)
+signature& signature::operator=(mc::string_view str)
 {
     m_sig = str;
     return *this;
 }
 
-signature& signature::operator=(std::string str)
+signature& signature::operator=(mc::string str)
 {
     m_sig = std::move(str);
     return *this;
 }
 
-signature::operator std::string_view() const
+signature::operator mc::string_view() const
 {
     return m_sig;
 }
@@ -109,7 +109,7 @@ bool signature::is_valid() const
     return is_valid(m_sig);
 }
 
-bool signature::is_valid(std::string_view sig)
+bool signature::is_valid(mc::string_view sig)
 {
     // 签名的最大长度为255
     if (sig.size() > max_signature_length) {
@@ -191,7 +191,7 @@ bool signature::is_container_type(type_code type)
     return is_container_type(type_to_char(type));
 }
 
-bool signature::is_single_complete_type(std::string_view sig)
+bool signature::is_single_complete_type(mc::string_view sig)
 {
     if (sig.empty()) {
         return false;
@@ -200,7 +200,7 @@ bool signature::is_single_complete_type(std::string_view sig)
     return get_complete_type_length(sig) == sig.size();
 }
 
-size_t signature::get_complete_type_length(std::string_view sig, size_t start_pos)
+size_t signature::get_complete_type_length(mc::string_view sig, size_t start_pos)
 {
     if (start_pos >= sig.size()) {
         return 0;
@@ -303,7 +303,7 @@ void signature::validate() const
     validate(m_sig);
 }
 
-void signature::validate(std::string_view sig)
+void signature::validate(mc::string_view sig)
 {
     if (!is_valid(sig)) {
         MC_THROW(mc::invalid_arg_exception, "invalid signature: ${sig}", ("sig", sig));
@@ -342,12 +342,12 @@ signature_iterator::signature_iterator()
 signature_iterator::signature_iterator(const signature& sig, size_t pos) : signature_iterator(sig.str(), pos)
 {}
 
-signature_iterator::signature_iterator(std::string_view sig, size_t pos) : m_sig(sig), m_pos(pos)
+signature_iterator::signature_iterator(mc::string_view sig, size_t pos) : m_sig(sig), m_pos(pos)
 {
     signature::validate(sig);
 }
 
-std::string_view signature_iterator::current_type() const
+mc::string_view signature_iterator::current_type() const
 {
     size_t type_len = signature::get_complete_type_length(m_sig, m_pos);
     return m_sig.substr(m_pos, type_len);
@@ -446,7 +446,7 @@ signature_iterator signature_iterator::get_dict_value_iterator() const
     return signature_iterator(m_sig, key_pos + key_len);
 }
 
-std::string_view signature_iterator::str() const
+mc::string_view signature_iterator::str() const
 {
     return m_sig;
 }

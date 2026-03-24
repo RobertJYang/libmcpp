@@ -27,7 +27,7 @@
 using namespace mc;
 
 // 辅助函数：生成随机字符串
-std::string random_string(size_t length)
+mc::string random_string(size_t length)
 {
     static const char alphanum[] = "0123456789"
                                    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -37,7 +37,7 @@ std::string random_string(size_t length)
     std::mt19937                    gen(rd());
     std::uniform_int_distribution<> dis(0, sizeof(alphanum) - 2);
 
-    std::string result;
+    mc::string result;
     result.reserve(length);
 
     for (size_t i = 0; i < length; ++i) {
@@ -48,9 +48,9 @@ std::string random_string(size_t length)
 }
 
 // 辅助函数：生成随机键值对
-std::vector<std::pair<std::string, variant>> generate_random_pairs(size_t count)
+std::vector<std::pair<mc::string, variant>> generate_random_pairs(size_t count)
 {
-    std::vector<std::pair<std::string, variant>> pairs;
+    std::vector<std::pair<mc::string, variant>> pairs;
     pairs.reserve(count);
 
     std::random_device              rd;
@@ -58,8 +58,8 @@ std::vector<std::pair<std::string, variant>> generate_random_pairs(size_t count)
     std::uniform_int_distribution<> type_dis(0, 3);
 
     for (size_t i = 0; i < count; ++i) {
-        std::string key = "key_" + std::to_string(i);
-        variant     value;
+        mc::string key = "key_" + std::to_string(i);
+        variant    value;
 
         switch (type_dis(gen)) {
             case 0:
@@ -102,7 +102,7 @@ TEST(DictPerformanceTest, DISABLED_InsertionPerformance)
     // 测试 std::map 插入性能
     start = std::chrono::high_resolution_clock::now();
 
-    std::map<std::string, variant> m;
+    std::map<mc::string, variant> m;
     for (const auto& pair : pairs) {
         m[pair.first] = pair.second;
     }
@@ -113,7 +113,7 @@ TEST(DictPerformanceTest, DISABLED_InsertionPerformance)
     // 测试 std::unordered_map 插入性能
     start = std::chrono::high_resolution_clock::now();
 
-    std::unordered_map<std::string, variant> um;
+    std::unordered_map<mc::string, variant> um;
     for (const auto& pair : pairs) {
         um[pair.first] = pair.second;
     }
@@ -140,9 +140,9 @@ TEST(DictPerformanceTest, DISABLED_LookupPerformance)
     auto         pairs = generate_random_pairs(count);
 
     // 准备测试数据
-    dict                                     md;
-    std::map<std::string, variant>           m;
-    std::unordered_map<std::string, variant> um;
+    dict                                    md;
+    std::map<mc::string, variant>           m;
+    std::unordered_map<mc::string, variant> um;
 
     for (const auto& pair : pairs) {
         md[pair.first] = pair.second;
@@ -155,8 +155,8 @@ TEST(DictPerformanceTest, DISABLED_LookupPerformance)
     std::mt19937                    gen(rd());
     std::uniform_int_distribution<> dis(0, count - 1);
 
-    const size_t             lookup_count = 1000;
-    std::vector<std::string> lookup_keys;
+    const size_t            lookup_count = 1000;
+    std::vector<mc::string> lookup_keys;
     lookup_keys.reserve(lookup_count);
 
     for (size_t i = 0; i < lookup_count; ++i) {
@@ -215,9 +215,9 @@ TEST(DictPerformanceTest, DISABLED_IterationPerformance)
     auto         pairs = generate_random_pairs(count);
 
     // 准备测试数据
-    dict                                     md;
-    std::map<std::string, variant>           m;
-    std::unordered_map<std::string, variant> um;
+    dict                                    md;
+    std::map<mc::string, variant>           m;
+    std::unordered_map<mc::string, variant> um;
 
     for (const auto& pair : pairs) {
         md[pair.first] = pair.second;
@@ -275,9 +275,9 @@ TEST(DictPerformanceTest, DISABLED_ErasurePerformance)
     auto         pairs = generate_random_pairs(count);
 
     // 准备测试数据
-    dict                                     md;
-    std::map<std::string, variant>           m;
-    std::unordered_map<std::string, variant> um;
+    dict                                    md;
+    std::map<mc::string, variant>           m;
+    std::unordered_map<mc::string, variant> um;
 
     for (const auto& pair : pairs) {
         md[pair.first] = pair.second;
@@ -290,8 +290,8 @@ TEST(DictPerformanceTest, DISABLED_ErasurePerformance)
     std::mt19937                    gen(rd());
     std::uniform_int_distribution<> dis(0, count - 1);
 
-    const size_t             erase_count = 1000;
-    std::vector<std::string> erase_keys;
+    const size_t            erase_count = 1000;
+    std::vector<mc::string> erase_keys;
     erase_keys.reserve(erase_count);
 
     for (size_t i = 0; i < erase_count; ++i) {

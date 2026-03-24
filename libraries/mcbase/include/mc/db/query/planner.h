@@ -64,7 +64,7 @@ struct query_plan {
     mc::variant                   key_value;                              // 用于精确匹配的键值
     mc::variants                  values;                                 // 用于IN查询的多个值
     query_range                   range;                                  // 用于范围查询的范围
-    std::vector<std::string_view> fields;                                 // 涉及的字段
+    std::vector<mc::string_view> fields;                                 // 涉及的字段
 };
 
 /**
@@ -189,7 +189,7 @@ private:
     {
         query_plan       plan;
         compare_op       op    = cond.get_op();
-        std::string_view field = cond.get_field();
+        mc::string_view field = cond.get_field();
 
         // 查找字段相关的索引
         auto index_id = m_metadata.find_best_index_id(field);
@@ -312,7 +312,7 @@ private:
         query_plan plan;
 
         // 收集所有等值条件的相同字段
-        std::string_view common_field;
+        mc::string_view common_field;
         bool             has_common_field = find_common_field_for_or(conditions, common_field);
 
         if (has_common_field) {
@@ -359,7 +359,7 @@ private:
      * @param out_field 输出参数，找到的公共字段
      * @return 是否找到公共字段
      */
-    bool find_common_field_for_or(const std::vector<condition>& conditions, std::string_view& out_field) const
+    bool find_common_field_for_or(const std::vector<condition>& conditions, mc::string_view& out_field) const
     {
         if (conditions.empty()) {
             return false;

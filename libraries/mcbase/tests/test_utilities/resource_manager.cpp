@@ -31,16 +31,16 @@ resource_manager::~resource_manager() {
     }
 }
 
-void resource_manager::add_temp_file(const std::string& path) {
+void resource_manager::add_temp_file(const mc::string& path) {
     if (!path.empty()) {
         m_temp_files.push_back(path);
         ilog("添加临时文件到清理列表: ${file}", ("file", path));
     }
 }
 
-bool resource_manager::create_temp_file(const std::string& path, const std::string& content) {
+bool resource_manager::create_temp_file(const mc::string& path, const mc::string& content) {
     try {
-        std::ofstream file(path);
+        std::ofstream file(path.c_str());
         if (!file) {
             elog("无法创建临时文件: ${path}, 错误: ${error}",
                  ("path", path)("error", std::strerror(errno)));

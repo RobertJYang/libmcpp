@@ -17,9 +17,9 @@
 
 namespace mc::fmt::detail {
 
-void throw_format_error(std::string_view fmt_str, const mc::dict& args)
+void throw_format_error(mc::string_view fmt_str, const mc::dict& args)
 {
-    throw mc::format_error(mc::log::message(mc::log::level::error, std::string(fmt_str),
+    throw mc::format_error(mc::log::message(mc::log::level::error, mc::string(fmt_str),
                                             mc::log::context(__FILE__, __FUNCTION__, __LINE__), args.as_mut()));
 }
 

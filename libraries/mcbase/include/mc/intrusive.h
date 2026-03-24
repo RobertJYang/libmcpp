@@ -13,7 +13,7 @@
 #ifndef MC_INTRUSIVE_H
 #define MC_INTRUSIVE_H
 
-#include <mc/im/hook.h>
+#include <mc/intrusive/hook.h>
 #include <mc/im/key_buffer.h>
 #include <mc/im/radix_tree.h>
 #include <mc/im/ref_list.h>

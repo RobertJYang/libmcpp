@@ -34,13 +34,13 @@ public:
 
     user() = default;
 
-    user(std::string name, int age, double score = 0.0) : m_name(std::move(name)), m_age(age), m_score(score)
+    user(mc::string name, int age, double score = 0.0) : m_name(std::move(name)), m_age(age), m_score(score)
     {}
 
     ~user() override
     {}
 
-    const std::string& name() const
+    const mc::string& name() const
     {
         return m_name;
     }
@@ -55,7 +55,7 @@ public:
         return m_score;
     }
 
-    std::string m_name;
+    mc::string m_name;
     int         m_age;
     double      m_score;
 };
@@ -107,7 +107,7 @@ TEST_F(table_test, create_table)
 
     // 通过年龄索引查找（成员函数）
     auto                     age_range = users.template get<2>().equal_range(25);
-    std::vector<std::string> names;
+    std::vector<mc::string> names;
     for (auto it = age_range.first; it != age_range.second; ++it) {
         names.push_back((*it).name());
     }
@@ -293,7 +293,7 @@ TEST_F(table_test, advanced_query)
 
     // 使用自定义处理函数的查询
     {
-        std::vector<std::string> names;
+        std::vector<mc::string> names;
         users.query(field_score >= 85.0, [&names](const user& u) {
             names.push_back(u.name());
             return true; // 继续处理下一条记录
@@ -366,7 +366,7 @@ TEST_F(table_test, advanced_update)
 
     // 使用 map 更新
     {
-        std::map<std::string, mc::variant> update_values = {{"score", 88.0}};
+        std::map<mc::string, mc::variant> update_values = {{"score", 88.0}};
         size_t                             updated       = users.update(field_name == "Bob", update_values);
         EXPECT_EQ(updated, 1);
 

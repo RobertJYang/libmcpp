@@ -44,7 +44,7 @@
  * ```cpp
  * // 创建线程安全的数据容器
  * mutex_box<int> counter(0);
- * mutex_box<std::string> message("hello");
+ * mutex_box<mc::string> message("hello");
  *
  * // 独占访问 (写锁)
  * {

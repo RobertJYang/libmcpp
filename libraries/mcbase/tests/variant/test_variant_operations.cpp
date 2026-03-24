@@ -20,6 +20,8 @@
 #include <limits>
 #include <mc/exception.h>
 #include <mc/variant.h>
+#include <string>
+#include <string_view>
 #include <test_utilities/base.h>
 
 namespace mc {
@@ -530,14 +532,14 @@ TEST_F(VariantOperationsTest, StringConcatenationFriend)
     ASSERT_TRUE(result.is_string());
     ASSERT_EQ(result, "Hello, World");
 
-    // std::string + variant
-    std::string prefix = "Goodbye, ";
+    // mc::string + variant
+    mc::string prefix = "Goodbye, ";
     result             = prefix + v1;
     ASSERT_TRUE(result.is_string());
     ASSERT_EQ(result, "Goodbye, World");
 
     // string_view + variant
-    std::string_view view = "Hi, ";
+    mc::string_view view = "Hi, ";
     result                = view + v1;
     ASSERT_TRUE(result.is_string());
     ASSERT_EQ(result, "Hi, World");
@@ -1267,12 +1269,12 @@ TEST_F(VariantOperationsTest, BlobPlusStringKeepsBinary)
     variant v_blob(blob_data);
 
     // blob + string_view
-    variant result1 = v_blob + std::string_view(", world");
+    variant result1 = v_blob + mc::string_view(", world");
     EXPECT_TRUE(result1.is_blob());
     EXPECT_EQ(result1.get_blob().as_string_view(), "hello, world");
 
     // string_view + blob
-    variant result2 = std::string_view("prefix: ") + v_blob;
+    variant result2 = mc::string_view("prefix: ") + v_blob;
     EXPECT_TRUE(result2.is_string());
     EXPECT_EQ(result2.as_string(), "prefix: hello");
 
@@ -1318,12 +1320,47 @@ TEST_F(VariantOperationsTest, StringViewPlusVariantFallback)
 {
     // 使用 bool 与 string_view 相加，触发 fallback
     variant          v_bool(true);
-    std::string_view sv = "test";
+    mc::string_view sv = "test";
 
     // bool + string_view 应该触发 fallback: return *this + variant(other)
     variant result = v_bool + sv;
     EXPECT_TRUE(result.is_string());
     EXPECT_EQ(result.as_string(), "truetest");
+}
+
+TEST_F(VariantOperationsTest, StdStringCompatibilityOperators)
+{
+    variant      value("head");
+    std::string  suffix = "tail";
+    std::string  prefix = "say:";
+    std::string_view infix = "-";
+
+    value += suffix;
+    EXPECT_EQ(value.as_string(), "headtail");
+
+    variant combined = value + suffix;
+    EXPECT_EQ(combined.as_string(), "headtailtail");
+
+    combined = prefix + value;
+    EXPECT_EQ(combined.as_string(), "say:headtail");
+
+    combined = value + infix;
+    EXPECT_EQ(combined.as_string(), "headtail-");
+}
+
+TEST_F(VariantOperationsTest, StringVariantPlusEqualsNumericVariant)
+{
+    variant result("Value: ");
+    result += variant(42);
+    EXPECT_EQ(result.as_string(), "Value: 42");
+
+    result = variant("Pi: ");
+    result += variant(3.14159);
+    EXPECT_EQ(result.as_string(), "Pi: 3.14159");
+
+    result = variant("Boolean: ");
+    result += variant(true);
+    EXPECT_EQ(result.as_string(), "Boolean: true");
 }
 
 /**

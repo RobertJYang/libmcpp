@@ -20,7 +20,7 @@
 namespace {
 
 // 封装 format_vv(bool) 版本，便于在测试中构造 va_list
-bool call_format_vv(std::string& out, const char* fmt, ...) {
+bool call_format_vv(mc::string& out, const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
     bool ret = mc::fmt::format_vv(out, fmt, args);
@@ -28,25 +28,25 @@ bool call_format_vv(std::string& out, const char* fmt, ...) {
     return ret;
 }
 
-std::string call_format_vv_to_string(const char* fmt, ...) {
+mc::string call_format_vv_to_string(const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
-    std::string result = mc::fmt::format_vv(fmt, args);
+    mc::string result = mc::fmt::format_vv(fmt, args);
     va_end(args);
     return result;
 }
 
 } // namespace
 
-// 测试 format_v 返回 std::string 的功能
+// 测试 format_v 返回 mc::string 的功能
 TEST(format_v_test, c_style_variadic_string) {
-    std::string result = mc::fmt::format_v("%d-%s-%.1f", 42, "cpu", 3.5);
+    mc::string result = mc::fmt::format_v("%d-%s-%.1f", 42, "cpu", 3.5);
     EXPECT_EQ(result, "42-cpu-3.5");
 }
 
 // 测试 format_v 将结果写入外部字符串
 TEST(format_v_test, c_style_variadic_to_buffer) {
-    std::string result;
+    mc::string result;
     bool        ok = mc::fmt::format_v(result, "%04d %s", 7, "ready");
     ASSERT_TRUE(ok);
     EXPECT_EQ(result, "0007 ready");
@@ -54,17 +54,17 @@ TEST(format_v_test, c_style_variadic_to_buffer) {
 
 // 测试 format_vv 在结果缓冲区上运行成功路径
 TEST(format_v_test, format_vv_string_and_buffer) {
-    std::string buffer;
+    mc::string buffer;
     ASSERT_TRUE(call_format_vv(buffer, "%s %d", "task", 8));
     EXPECT_EQ(buffer, "task 8");
 
-    std::string direct = call_format_vv_to_string("%08X", 0x3AF);
+    mc::string direct = call_format_vv_to_string("%08X", 0x3AF);
     EXPECT_EQ(direct, "000003AF");
 }
 
 // 测试 format_vv 在空格式字符串情况下返回 false
 TEST(format_v_test, format_vv_empty_format_returns_false) {
-    std::string buffer = "original";
+    mc::string buffer = "original";
     EXPECT_FALSE(call_format_vv(buffer, ""));
     EXPECT_TRUE(buffer.empty());
 }

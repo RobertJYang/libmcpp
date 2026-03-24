@@ -45,7 +45,7 @@ struct error_info {
     error_info(error_info&& other) noexcept            = default;
     error_info& operator=(error_info&& other) noexcept = default;
 
-    constexpr explicit error_info(std::string_view name, std::string_view format = {},
+    constexpr explicit error_info(mc::string_view name, mc::string_view format = {},
                                   error_level level = error_level::error)
         : name(name), format(format), level(level)
     {}
@@ -68,12 +68,12 @@ struct error_info {
     /**
      * @brief 错误名称
      */
-    std::string_view name;
+    mc::string_view name;
 
     /**
      * @brief 错误格式
      */
-    std::string_view format;
+    mc::string_view format;
 
     /**
      * @brief 错误级别
@@ -97,33 +97,33 @@ struct MC_API error : public mc::enable_shared_from_this<error>, public error_in
 
     error();
     error(const error_info& info);
-    error(std::string_view name, std::string_view format, error_level level = error_level::error);
+    error(mc::string_view name, mc::string_view format, error_level level = error_level::error);
 
     error(const error& other);
     error& operator=(const error& other);
     error(error&& other) noexcept            = default;
     error& operator=(error&& other) noexcept = default;
 
-    std::string_view   get_name() const;
-    std::string_view   get_format() const;
-    const mc::dict&    get_args() const;
-    const mc::dict&    get_args_with_index() const;
-    std::string        get_message() const;
-    const std::string& get_registry_prefix() const;
-    void               set_registry_prefix(std::string_view prefix);
+    mc::string_view get_name() const;
+    mc::string_view get_format() const;
+    const mc::dict&  get_args() const;
+    const mc::dict&  get_args_with_index() const;
+    mc::string       get_message() const;
+    mc::string_view  get_registry_prefix() const;
+    void             set_registry_prefix(mc::string_view prefix);
 
     error_level get_level() const;
     void        set_level(error_level level);
 
-    void set_name(std::string_view name);
-    void set_format(std::string_view format);
+    void set_name(mc::string_view name);
+    void set_format(mc::string_view format);
     void reset();
 
     void set_prev_error(mc::shared_ptr<error> other);
 
     // 添加参数
     template <typename T>
-    error& operator()(std::string_view key, T&& value)
+    error& operator()(mc::string_view key, T&& value)
     {
         args[key] = std::forward<T>(value);
         invalidate_cache();
@@ -131,7 +131,7 @@ struct MC_API error : public mc::enable_shared_from_this<error>, public error_in
     }
 
     template <typename T>
-    error& append_arg(std::string_view key, T&& value)
+    error& append_arg(mc::string_view key, T&& value)
     {
         args[key] = std::forward<T>(value);
         invalidate_cache();
@@ -156,10 +156,10 @@ struct MC_API error : public mc::enable_shared_from_this<error>, public error_in
 
     error& set_args(const mc::dict& args);
 
-    std::string to_string() const;
-    std::string to_string_format_inplace() const;
-    bool        is_set() const;
-    bool        has_error(std::string_view name) const;
+    mc::string to_string() const;
+    mc::string to_string_format_inplace() const;
+    bool       is_set() const;
+    bool       has_error(mc::string_view name) const;
 
     bool operator==(const error& other) const;
     bool operator!=(const error& other) const;
@@ -178,7 +178,7 @@ struct MC_API error : public mc::enable_shared_from_this<error>, public error_in
      * @param options 编码选项
      * @return JSON 字符串
      */
-    std::string
+    mc::string
     encode(const mc::json::json_encode_options& options = mc::json::json_encode_options::default_encode_options) const;
 
     /**
@@ -189,7 +189,7 @@ struct MC_API error : public mc::enable_shared_from_this<error>, public error_in
      * @throw mc::parse_error_exception 当解码失败时
      */
     static mc::shared_ptr<error>
-    decode(std::string_view                     json,
+    decode(mc::string_view                     json,
            const mc::json::json_decode_options& options = mc::json::json_decode_options::default_decode_options);
 
     /**
@@ -201,7 +201,7 @@ struct MC_API error : public mc::enable_shared_from_this<error>, public error_in
      * @brief 获取调用栈信息
      * @return 调用栈字符串
      */
-    const std::string& get_traceback() const noexcept
+    mc::string_view get_traceback() const noexcept
     {
         return m_traceback;
     }
@@ -216,7 +216,7 @@ struct MC_API error : public mc::enable_shared_from_this<error>, public error_in
      * @brief 参数名映射为位置索引(string版本)
      * @param param_struct 参数字符串
      */
-    void post_process(const std::string& param_struct);
+    void post_process(mc::string_view param_struct);
 
     /**
      * @brief 抛出异常
@@ -230,7 +230,7 @@ struct MC_API error : public mc::enable_shared_from_this<error>, public error_in
     /**
      * @brief 注册表前缀
      */
-    std::string registry_prefix;
+    mc::string registry_prefix;
 
     /**
      * @brief 前一个错误
@@ -241,7 +241,7 @@ private:
     /**
      * @brief 缓存的格式化消息（懒加载）
      */
-    mutable std::optional<std::string> m_cached_message;
+    mutable std::optional<mc::string> m_cached_message;
 
     /**
      * @brief 使缓存失效（当参数改变时调用）
@@ -254,7 +254,7 @@ private:
     /**
      * @brief 调用栈信息字符串
      */
-    std::string m_traceback;
+    mc::string m_traceback;
 
     /**
      * @brief 使用位置索引的参数表
@@ -264,12 +264,12 @@ private:
     /**
      * @brief 存储 name 的副本（确保 string_view 的生命周期）
      */
-    std::string m_name_storage;
+    mc::string m_name_storage;
 
     /**
      * @brief 存储 format 的副本（确保 string_view 的生命周期）
      */
-    std::string m_format_storage;
+    mc::string m_format_storage;
 
     /**
      * @brief 查找参数位置索引 (私有静态辅助函数,string版本)
@@ -277,7 +277,7 @@ private:
      * @param param_value 参数值(字符串)
      * @return 位置索引 (从0开始) 或 -1 (未找到)
      */
-    static int get_param_index(std::string_view param_name, std::string_view param_value);
+    static int get_param_index(mc::string_view param_name, mc::string_view param_value);
 
     /**
      * @brief 查找参数位置索引 (私有静态辅助函数,dict版本)
@@ -285,7 +285,7 @@ private:
      * @param param_struct 参数结构体
      * @return 位置索引 (从0开始) 或 -1 (未找到)
      */
-    static int get_param_index(std::string_view param_name, const mc::dict& param_struct);
+    static int get_param_index(mc::string_view param_name, const mc::dict& param_struct);
 
     /**
      * @brief post_process 通用实现 (私有辅助函数)
@@ -302,11 +302,11 @@ using error_ptr = mc::shared_ptr<error>;
 class MC_API error_with_owner : public error {
 public:
     error_with_owner();
-    error_with_owner(std::string name, std::string format);
+    error_with_owner(mc::string_view name, mc::string_view format);
 
 private:
-    std::string m_name_owner;
-    std::string m_format_owner;
+    mc::string m_name_owner;
+    mc::string m_format_owner;
 };
 
 /*------------------- 一些辅助函数 -------------------*/
@@ -316,7 +316,7 @@ private:
  * @param name 错误名称
  * @return 如果有效返回 true，否则返回 false
  */
-MC_API bool is_valid_error_name(std::string_view name);
+MC_API bool is_valid_error_name(mc::string_view name);
 
 /**
  * @brief 解析 format 字符串，找到 ${name} 格式的占位符，并将其添加到 arg_names 中
@@ -325,7 +325,7 @@ MC_API bool is_valid_error_name(std::string_view name);
  * @param arg_names 存储占位符名称的字典
  * @return 如果解析成功返回 true，否则返回 false
  */
-MC_API bool get_error_format_args(std::string_view format, mc::dict& arg_names);
+MC_API bool get_error_format_args(mc::string_view format, mc::dict& arg_names);
 
 /*
  * 创建错误，如果 name 不满足要求抛出错误
@@ -336,7 +336,7 @@ MC_API bool get_error_format_args(std::string_view format, mc::dict& arg_names);
  *
  * 注意：这个方法可以创建任意错误，并不要求错误必须注册到错误引擎中
  */
-MC_API error_ptr make_error(std::string_view name, std::string_view format);
+MC_API error_ptr make_error(mc::string_view name, mc::string_view format);
 MC_API error_ptr make_error(const error_info& info);
 
 } // namespace mc

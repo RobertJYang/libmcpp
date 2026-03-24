@@ -29,13 +29,13 @@ namespace {
 class mock_lib_loader_for_reused {
 public:
     struct mock_lib_info {
-        std::string           path;
-        std::set<std::string> exported_symbols;
+        mc::string           path;
+        std::set<mc::string> exported_symbols;
         void*                 mock_open_func  = nullptr;
         void*                 mock_close_func = nullptr;
     };
 
-    void add_mock_lib(const std::string& path, const std::set<std::string>& symbols)
+    void add_mock_lib(const mc::string& path, const std::set<mc::string>& symbols)
     {
         mock_lib_info info;
         info.path             = path;
@@ -57,13 +57,13 @@ public:
         return m_loaded_libs.size();
     }
 
-    size_t unload_count_for_path(const std::string& path) const
+    size_t unload_count_for_path(const mc::string& path) const
     {
         auto it = m_unload_count.find(path);
         return (it != m_unload_count.end()) ? it->second : 0;
     }
 
-    static void* mock_load(std::string_view path, bool /*glb*/)
+    static void* mock_load(mc::string_view path, bool /*glb*/)
     {
         return instance().load_impl(path);
     }
@@ -73,12 +73,12 @@ public:
         instance().unload_impl(handle);
     }
 
-    static void* mock_sym(void* handle, std::string_view symbol_name)
+    static void* mock_sym(void* handle, mc::string_view symbol_name)
     {
         return instance().sym_impl(handle, symbol_name);
     }
 
-    static bool mock_is_readable(std::string_view path)
+    static bool mock_is_readable(mc::string_view path)
     {
         return instance().is_readable_impl(path);
     }
@@ -90,15 +90,15 @@ public:
     }
 
 private:
-    void* load_impl(std::string_view path)
+    void* load_impl(mc::string_view path)
     {
-        std::string path_str(path);
+        mc::string path_str(path);
         auto        it = m_mock_libs.find(path_str);
         if (it == m_mock_libs.end()) {
             return nullptr;
         }
 
-        void* handle          = reinterpret_cast<void*>(std::hash<std::string>{}(path_str));
+        void* handle          = reinterpret_cast<void*>(std::hash<mc::string>{}(path_str));
         m_loaded_libs[handle] = path_str;
         return handle;
     }
@@ -112,7 +112,7 @@ private:
         }
     }
 
-    void* sym_impl(void* handle, std::string_view symbol_name)
+    void* sym_impl(void* handle, mc::string_view symbol_name)
     {
         auto lib_it = m_loaded_libs.find(handle);
         if (lib_it == m_loaded_libs.end()) {
@@ -125,7 +125,7 @@ private:
         }
 
         const auto& symbols = mock_it->second.exported_symbols;
-        std::string symbol_str(symbol_name);
+        mc::string symbol_str(symbol_name);
         if (symbols.find(symbol_str) == symbols.end()) {
             return nullptr;
         }
@@ -139,19 +139,19 @@ private:
         return reinterpret_cast<void*>(0x3000);
     }
 
-    bool is_readable_impl(std::string_view path)
+    bool is_readable_impl(mc::string_view path)
     {
-        std::string path_str(path);
+        mc::string path_str(path);
         return m_mock_libs.find(path_str) != m_mock_libs.end();
     }
 
-    std::map<std::string, mock_lib_info> m_mock_libs;
-    std::map<void*, std::string>         m_loaded_libs;
-    std::map<std::string, size_t>        m_unload_count;
+    std::map<mc::string, mock_lib_info> m_mock_libs;
+    std::map<void*, mc::string>         m_loaded_libs;
+    std::map<mc::string, size_t>        m_unload_count;
 };
 
 // 辅助函数：用于测试 is_readable 异常处理
-bool throw_exception_is_readable(std::string_view)
+bool throw_exception_is_readable(mc::string_view)
 {
     throw std::runtime_error("filesystem error");
 }

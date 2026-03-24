@@ -70,11 +70,11 @@ struct key_hash {
     {
         return e.key.hash();
     }
-    std::size_t operator()(const std::string& key) const
+    std::size_t operator()(const mc::string& key) const
     {
         return calculate_str_hash(key);
     }
-    std::size_t operator()(std::string_view key) const
+    std::size_t operator()(mc::string_view key) const
     {
         return calculate_str_hash(key);
     }
@@ -93,18 +93,19 @@ struct key_equal {
     {
         return lhs.key == rhs.key;
     }
-    bool operator()(const std::string& key, const entry& e) const
+    bool operator()(const mc::string& key, const entry& e) const
     {
         return key == e.key;
     }
-    bool operator()(const entry& e, const std::string& key) const
+    bool operator()(const entry& e, const mc::string& key) const
     {
         return e.key == key;
     }
-    // bool operator()(std::string_view key, const entry& e) const {
-    //     return key == e.key;
-    // }
-    bool operator()(const entry& e, std::string_view key) const
+    bool operator()(mc::string_view key, const entry& e) const
+    {
+        return key == e.key;
+    }
+    bool operator()(const entry& e, mc::string_view key) const
     {
         return e.key == key;
     }

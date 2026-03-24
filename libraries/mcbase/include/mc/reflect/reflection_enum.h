@@ -43,7 +43,7 @@ public:
      * @param name 枚举值名称
      * @return uint64_t 枚举值
      */
-    uint64_t get_enum_value(std::string_view name) const override
+    uint64_t get_enum_value(mc::string_view name) const override
     {
         return m_data.get_value(name);
     }
@@ -51,18 +51,18 @@ public:
     /**
      * @brief 通过枚举值获取名称
      * @param value 枚举值
-     * @return std::string_view 枚举值名称
+     * @return mc::string_view 枚举值名称
      */
-    std::string_view get_enum_name(uint64_t value) const override
+    mc::string_view get_enum_name(uint64_t value) const override
     {
         return m_data.get_name(value);
     }
 
     /**
      * @brief 获取所有枚举值名称
-     * @return std::vector<std::string_view> 枚举值名称列表
+     * @return std::vector<mc::string_view> 枚举值名称列表
      */
-    std::vector<std::string_view> get_enum_names() const override
+    std::vector<mc::string_view> get_enum_names() const override
     {
         return m_data.get_names();
     }
@@ -72,7 +72,7 @@ public:
      * @param name 枚举值名称
      * @return bool 是否包含
      */
-    bool has_enum_value(std::string_view name) const override
+    bool has_enum_value(mc::string_view name) const override
     {
         return m_data.has_value(name);
     }
@@ -88,7 +88,7 @@ public:
         throw_enum_not_support_create_object(get_type_name());
     }
 
-    std::string_view get_type_name() const override
+    mc::string_view get_type_name() const override
     {
         return reflector<T>::get_name();
     }
@@ -108,33 +108,33 @@ public:
         return false; // 枚举类型不继承任何类型
     }
 
-    const property_type_info* get_property_info(std::string_view name) const override {
+    const property_type_info* get_property_info(mc::string_view name) const override {
         MC_UNUSED(name);
         return nullptr; // 枚举类型没有属性
     }
 
-    const method_type_info* get_method_info(std::string_view name) const override {
+    const method_type_info* get_method_info(mc::string_view name) const override {
         MC_UNUSED(name);
         return nullptr; // 枚举类型没有方法
     }
 
-    const base_class_type_info* get_base_class_info(std::string_view name) const override {
+    const base_class_type_info* get_base_class_info(mc::string_view name) const override {
         MC_UNUSED(name);
         return nullptr; // 枚举类型没有基类
     }
 
-    const member_info_base* get_custom_info(std::string_view name, size_t reflect_type) const override {
+    const member_info_base* get_custom_info(mc::string_view name, size_t reflect_type) const override {
         MC_UNUSED(name);
         MC_UNUSED(reflect_type);
         return nullptr; // 枚举类型没有自定义信息
     }
 
-    std::vector<std::string_view> get_property_names() const override
+    std::vector<mc::string_view> get_property_names() const override
     {
         return {}; // 枚举类型没有属性
     }
 
-    std::vector<std::string_view> get_method_names() const override
+    std::vector<mc::string_view> get_method_names() const override
     {
         return {}; // 枚举类型没有方法
     }

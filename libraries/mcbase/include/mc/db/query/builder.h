@@ -66,7 +66,7 @@ public:
      * @param value 比较值
      * @return 查询构建器引用，用于链式调用
      */
-    query_builder& where(std::string_view field, const mc::variant& value)
+    query_builder& where(mc::string_view field, const mc::variant& value)
     {
         return where(field, compare_op::eq, value);
     }
@@ -80,9 +80,9 @@ public:
      * @param value 比较值
      * @return 查询构建器引用，用于链式调用
      */
-    query_builder& where(std::string_view field, compare_op op, const mc::variant& value)
+    query_builder& where(mc::string_view field, compare_op op, const mc::variant& value)
     {
-        condition cond(op, std::string(field), value);
+        condition cond(op, mc::string(field), value);
         return add_condition(cond);
     }
 
@@ -93,7 +93,7 @@ public:
      * @param value 比较值
      * @return 查询构建器引用，用于链式调用
      */
-    query_builder& or_where(std::string_view field, const mc::variant& value)
+    query_builder& or_where(mc::string_view field, const mc::variant& value)
     {
         return or_where(field, compare_op::eq, value);
     }
@@ -106,9 +106,9 @@ public:
      * @param value 比较值
      * @return 查询构建器引用，用于链式调用
      */
-    query_builder& or_where(std::string_view field, compare_op op, const mc::variant& value)
+    query_builder& or_where(mc::string_view field, compare_op op, const mc::variant& value)
     {
-        condition cond(op, std::string(field), value);
+        condition cond(op, mc::string(field), value);
         if (!m_condition.has_value()) {
             m_condition = cond;
         } else {
@@ -145,17 +145,17 @@ public:
      * @return 查询构建器引用，用于链式调用
      */
     template <typename T>
-    query_builder& where_in(std::string_view field, const std::vector<T>& values)
+    query_builder& where_in(mc::string_view field, const std::vector<T>& values)
     {
         if (values.empty()) {
             // 空值列表总是返回空结果
             // 添加一个永假条件
-            condition false_cond(compare_op::eq, std::string(field), mc::variant{});
+            condition false_cond(compare_op::eq, mc::string(field), mc::variant{});
             return add_condition(conditions::not_cond(false_cond));
         }
 
         // 创建IN条件
-        condition in_cond = conditions::in(std::string(field), values);
+        condition in_cond = conditions::in(mc::string(field), values);
         return add_condition(in_cond);
     }
 
@@ -168,9 +168,9 @@ public:
      * @return 查询构建器引用，用于链式调用
      */
     template <typename T>
-    query_builder& where_between(std::string_view field, const T& lower, const T& upper)
+    query_builder& where_between(mc::string_view field, const T& lower, const T& upper)
     {
-        condition between_cond = conditions::between(std::string(field), lower, upper);
+        condition between_cond = conditions::between(mc::string(field), lower, upper);
         return add_condition(between_cond);
     }
 
@@ -182,7 +182,7 @@ public:
      * @return 查询构建器引用，用于链式调用
      */
     template <typename T>
-    query_builder& where_gt(std::string_view field, const T& value)
+    query_builder& where_gt(mc::string_view field, const T& value)
     {
         return where(field, compare_op::gt, mc::variant(value));
     }
@@ -195,7 +195,7 @@ public:
      * @return 查询构建器引用，用于链式调用
      */
     template <typename T>
-    query_builder& where_ge(std::string_view field, const T& value)
+    query_builder& where_ge(mc::string_view field, const T& value)
     {
         return where(field, compare_op::ge, mc::variant(value));
     }
@@ -208,7 +208,7 @@ public:
      * @return 查询构建器引用，用于链式调用
      */
     template <typename T>
-    query_builder& where_lt(std::string_view field, const T& value)
+    query_builder& where_lt(mc::string_view field, const T& value)
     {
         return where(field, compare_op::lt, mc::variant(value));
     }
@@ -221,7 +221,7 @@ public:
      * @return 查询构建器引用，用于链式调用
      */
     template <typename T>
-    query_builder& where_le(std::string_view field, const T& value)
+    query_builder& where_le(mc::string_view field, const T& value)
     {
         return where(field, compare_op::le, mc::variant(value));
     }
@@ -233,9 +233,9 @@ public:
      * @param pattern 模式字符串 (包含%通配符)
      * @return 查询构建器引用，用于链式调用
      */
-    query_builder& where_like(std::string_view field, std::string_view pattern)
+    query_builder& where_like(mc::string_view field, mc::string_view pattern)
     {
-        condition like_cond = conditions::like(std::string(field), std::string(pattern));
+        condition like_cond = conditions::like(mc::string(field), mc::string(pattern));
         return add_condition(like_cond);
     }
 
@@ -297,7 +297,7 @@ public:
     /**
      * 获取条件的字符串表示（用于调试）
      */
-    std::string to_string() const
+    mc::string to_string() const
     {
         if (!has_condition()) {
             return "空条件";

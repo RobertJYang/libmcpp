@@ -73,13 +73,14 @@ constexpr bool has_trait(extension_type_trait traits, extension_type_trait trait
  */
 struct extension_type_info {
     extension_type_id_t  id;     // 类型ID
-    std::string_view     name;   // 类型名称
+    mc::string_view     name;   // 类型名称
     extension_type_trait traits; // 类型特征
 
-    constexpr extension_type_info() : id(0), name("unknown"), traits(extension_type_trait::none)
+    constexpr extension_type_info()
+        : id(0), name("unknown", 7), traits(extension_type_trait::none)
     {}
 
-    constexpr extension_type_info(extension_type_id_t id_, std::string_view name_,
+    constexpr extension_type_info(extension_type_id_t id_, mc::string_view name_,
                                   extension_type_trait traits_ = extension_type_trait::none)
         : id(id_), name(name_), traits(traits_)
     {}

@@ -13,6 +13,7 @@
 #ifndef MC_FMT_FORMAT_H
 #define MC_FMT_FORMAT_H
 
+#include <mc/string.h>
 #include <mc/fmt/format_compile.h>
 #include <mc/fmt/format_context.h>
 #include <mc/fmt/format_parser.h>
@@ -43,13 +44,13 @@
 #endif
 
 namespace mc::fmt {
-using string_view = std::string_view;
+using string_view = mc::string_view;
 using monostate   = std::monostate;
 using format_spec = detail::format_spec;
 
 class direct_outputbuf : public std::streambuf {
 public:
-    explicit direct_outputbuf(std::string& target) : m_target(target)
+    explicit direct_outputbuf(mc::string& target) : m_target(target)
     {
         setp(nullptr, nullptr);
     }
@@ -71,20 +72,20 @@ protected:
     }
 
 private:
-    std::string& m_target;
+    mc::string& m_target;
 };
 
 namespace detail {
 
 template <typename T>
-std::string& format_to(std::string& out, const T& value)
+mc::string& format_to(mc::string& out, const T& value)
 {
     format_context ctx(out);
     return format_to(ctx, format_spec{}, value);
 }
 
 template <typename Context, typename T>
-std::string& format_to(Context& ctx, const format_spec& spec, const T& value)
+mc::string& format_to(Context& ctx, const format_spec& spec, const T& value)
 {
     mc::fmt::formatter<T>{}.format(value, ctx, spec);
     return ctx.out();
@@ -92,7 +93,7 @@ std::string& format_to(Context& ctx, const format_spec& spec, const T& value)
 } // namespace detail
 
 template <typename... Args>
-std::string& format_to(std::string& out, std::string_view fmt, Args&&... args)
+mc::string& format_to(mc::string& out, mc::string_view fmt, Args&&... args)
 {
     detail::runtime_arg_store store(std::forward<Args>(args)...);
     format_context            ctx(out, store);
@@ -158,7 +159,7 @@ std::string& format_to(std::string& out, std::string_view fmt, Args&&... args)
 #define MC_FORMAT_IMPL_WITH_ARGS(COMPILE_CHECK, fmt_str, ...)                                                          \
     [&] {                                                                                                              \
         static_assert(COMPILE_CHECK(fmt_str, __VA_ARGS__), "格式化字符串或参数错误");                                  \
-        std::string result;                                                                                            \
+        mc::string result;                                                                                            \
         mc::fmt::format_to(result, fmt_str,                                                                            \
                            BOOST_PP_SEQ_FOR_EACH(MC_FORMAT_CHECK_ARG, MC_FORMAT_APPLY_ARG_NAMED,                       \
                                                  BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)) std::monostate{});             \
@@ -186,7 +187,6 @@ std::string& format_to(std::string& out, std::string_view fmt, Args&&... args)
 
 #include <mc/fmt/format_compile.h>
 #include <mc/fmt/formatter_chrono.h>
-#include <mc/fmt/formatter_chrono_inl.h>
 #include <mc/fmt/formatter_mc.h>
 #include <mc/fmt/formatter_std.h>
 #endif // MC_FMT_FORMAT_H

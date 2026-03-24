@@ -91,7 +91,9 @@ typename radix_tree<Config>::iterator radix_tree<Config>::find(key_view key)
         key_buf.append(edge.m_node->m_prefix);
         path.push_back({edge.m_node, 0, key_buf.size()});
 
-        if (edge.m_node->m_prefix == key.substr(key_pos)) {
+        const mc::string_view node_prefix(edge.m_node->m_prefix.data(), edge.m_node->m_prefix.size());
+        const auto            key_tail = key.substr(key_pos);
+        if (node_prefix == key_tail) {
             if (!edge.m_node->is_leaf()) {
                 break;
             }
@@ -161,7 +163,7 @@ typename radix_tree<Config>::iterator radix_tree<Config>::lower_bound(key_view k
         path.push_back({edge.m_node, 0, key_buf.size()});
 
         // 如果找到叶子节点且键满足要求，返回迭代器
-        if (edge.m_node->is_leaf() && (key_buf == key || !compare(key_buf, key))) {
+        if (edge.m_node->is_leaf() && (mc::string_view(key_buf.data(), key_buf.size()) == key || !compare(key_buf, key))) {
             return make_iterator(edge.m_node, std::move(key_buf), std::move(path));
         }
     }

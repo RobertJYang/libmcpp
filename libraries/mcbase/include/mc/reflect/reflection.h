@@ -45,14 +45,14 @@ public:
 
     type_id_type get_type_id() const override;
 
-    variant get_property(std::string_view name) const override;
-    void    set_property(std::string_view name, const variant& value) override;
+    variant get_property(mc::string_view name) const override;
+    void    set_property(mc::string_view name, const variant& value) override;
 
-    variant      invoke_method(std::string_view name, const std::vector<variant>& args) override;
-    async_result async_invoke_method(std::string_view name, const std::vector<variant>& args) override;
+    variant      invoke_method(mc::string_view name, const std::vector<variant>& args) override;
+    async_result async_invoke_method(mc::string_view name, const std::vector<variant>& args) override;
 
-    std::vector<std::string_view> get_property_names() const override;
-    std::vector<std::string_view> get_method_names() const override;
+    std::vector<mc::string_view> get_property_names() const override;
+    std::vector<mc::string_view> get_method_names() const override;
 
     const std::shared_ptr<T>& get_object() const;
 
@@ -80,7 +80,7 @@ public:
      * @param name 成员名称
      * @return const property_info_base<T>* 成员信息指针，如果不存在则返回nullptr
      */
-    const property_info_base<T>* get_property_info(std::string_view name) const override
+    const property_info_base<T>* get_property_info(mc::string_view name) const override
     {
         return static_cast<const property_info_base<T>*>(m_data.get_property_info(name));
     }
@@ -91,7 +91,7 @@ public:
      * @param name 方法名称
      * @return const method_info_base<T>* 方法信息指针，如果不存在则返回nullptr
      */
-    const method_info_base<T>* get_method_info(std::string_view name) const override
+    const method_info_base<T>* get_method_info(mc::string_view name) const override
     {
         return static_cast<const method_info_base<T>*>(m_data.get_method_info(name));
     }
@@ -128,7 +128,7 @@ public:
      * @param key 属性名
      * @return mc::variant 属性值，如果不存在返回mc::variant::null_type
      */
-    mc::variant get_property(const T& obj, std::string_view key) const
+    mc::variant get_property(const T& obj, mc::string_view key) const
     {
         const property_info_base<T>* property = get_property_info(key);
         if (property) {
@@ -137,7 +137,7 @@ public:
         return mc::variant();
     }
 
-    const base_class_info_base<T>* get_base_class_info(std::string_view name) const override
+    const base_class_info_base<T>* get_base_class_info(mc::string_view name) const override
     {
         return static_cast<const base_class_info_base<T>*>(m_data.get_base_class_info(name));
     }
@@ -150,7 +150,7 @@ public:
      * @param base_class_name 基类名称
      * @return mc::variant 属性值，如果不存在返回mc::variant::null_type
      */
-    mc::variant get_property(const T& obj, std::string_view key, std::string_view base_class_name) const
+    mc::variant get_property(const T& obj, mc::string_view key, mc::string_view base_class_name) const
     {
         const auto* base_class_info = get_base_class_info(base_class_name);
         if (base_class_info) {
@@ -185,7 +185,7 @@ public:
      * @param args 方法参数
      * @return mc::variant 方法返回值，如果方法不存在则返回mc::variant::null_type
      */
-    mc::variant invoke_method(T& obj, std::string_view method_name, const mc::variants& args = {}) const
+    mc::variant invoke_method(T& obj, mc::string_view method_name, const mc::variants& args = {}) const
     {
         const method_info_base<T>* method = get_method_info(method_name);
         if (method) {
@@ -195,7 +195,7 @@ public:
         throw_method_not_exist(method_name);
     }
 
-    mc::variant invoke_method(std::string_view method_name, const mc::variants& args = {}) const
+    mc::variant invoke_method(mc::string_view method_name, const mc::variants& args = {}) const
     {
         const method_info_base<T>* method = get_method_info(method_name);
         if (method && method->is_static()) {
@@ -205,7 +205,7 @@ public:
         throw_method_not_exist(method_name);
     }
 
-    async_result async_invoke_method(T& obj, std::string_view method_name, const mc::variants& args = {}) const
+    async_result async_invoke_method(T& obj, mc::string_view method_name, const mc::variants& args = {}) const
     {
         const method_info_base<T>* method = get_method_info(method_name);
         if (method) {
@@ -215,7 +215,7 @@ public:
         throw_method_not_exist(method_name);
     }
 
-    async_result async_invoke_method(std::string_view method_name, const mc::variants& args = {}) const
+    async_result async_invoke_method(mc::string_view method_name, const mc::variants& args = {}) const
     {
         const method_info_base<T>* method = get_method_info(method_name);
         if (method && method->is_static()) {
@@ -233,7 +233,7 @@ public:
      * @param value 属性值
      * @return bool 设置是否成功
      */
-    bool set_property(T& obj, std::string_view key, const mc::variant& value) const
+    bool set_property(T& obj, mc::string_view key, const mc::variant& value) const
     {
         const property_info_base<T>* property = get_property_info(key);
         if (property) {
@@ -252,7 +252,7 @@ public:
      * @param value 属性值
      * @return bool 设置是否成功
      */
-    bool set_property(T& obj, std::string_view key, std::string_view base_class_name, const mc::variant& value) const
+    bool set_property(T& obj, mc::string_view key, mc::string_view base_class_name, const mc::variant& value) const
     {
         const auto* base_class_info = get_base_class_info(base_class_name);
         if (base_class_info) {
@@ -266,9 +266,9 @@ public:
      * @brief 获取成员名称
      *
      * @param offset 成员偏移量
-     * @return std::string_view 成员名称，如果不存在则返回空字符串
+     * @return mc::string_view 成员名称，如果不存在则返回空字符串
      */
-    std::string_view get_property_name(size_t offset) const
+    mc::string_view get_property_name(size_t offset) const
     {
         const property_info_base<T>* property = get_property_info(offset);
         if (property) {
@@ -279,7 +279,7 @@ public:
 
     template <typename M, typename BaseT,
               typename = std::enable_if_t<std::is_same_v<T, BaseT> || std::is_base_of_v<BaseT, T>>>
-    std::string_view get_property_name(M BaseT::*member)
+    mc::string_view get_property_name(M BaseT::*member)
     {
         return get_property_name(MC_MEMBER_OFFSETOF(T, member));
     }
@@ -293,7 +293,7 @@ public:
         }
     }
 
-    std::string_view get_type_name() const override
+    mc::string_view get_type_name() const override
     {
         return reflector<T>::get_name();
     }
@@ -326,9 +326,9 @@ public:
         return found;
     }
 
-    std::vector<std::string_view> get_property_names() const override
+    std::vector<mc::string_view> get_property_names() const override
     {
-        std::vector<std::string_view> names;
+        std::vector<mc::string_view> names;
         m_data.visit_properties([&](const property_type_info* property) {
             names.push_back(property->name);
             return visit_status::VS_CONTINUE;
@@ -336,9 +336,9 @@ public:
         return names;
     }
 
-    std::vector<std::string_view> get_method_names() const override
+    std::vector<mc::string_view> get_method_names() const override
     {
-        std::vector<std::string_view> names;
+        std::vector<mc::string_view> names;
         m_data.visit_methods([&](const method_type_info* method) {
             names.push_back(method->name);
             return visit_status::VS_CONTINUE;
@@ -346,7 +346,7 @@ public:
         return names;
     }
 
-    const member_info_base* get_custom_info(std::string_view name, size_t reflect_type) const override
+    const member_info_base* get_custom_info(mc::string_view name, size_t reflect_type) const override
     {
         return m_data.get_custom_info(name, reflect_type);
     }
@@ -393,25 +393,25 @@ auto& get_reflection()
 }
 
 template <typename C, typename BaseT>
-mc::variant base_class_info<C, BaseT>::get_value(const C& obj, std::string_view name) const
+mc::variant base_class_info<C, BaseT>::get_value(const C& obj, mc::string_view name) const
 {
     return get_reflection<BaseT>().get_property(get_object(obj), name);
 }
 
 template <typename C, typename BaseT>
-void base_class_info<C, BaseT>::set_value(C& obj, std::string_view name, const mc::variant& value) const
+void base_class_info<C, BaseT>::set_value(C& obj, mc::string_view name, const mc::variant& value) const
 {
     get_reflection<BaseT>().set_property(get_object(obj), name, value);
 }
 
 template <typename C, typename BaseT>
-mc::variant base_class_info<C, BaseT>::invoke(C& obj, std::string_view name, const mc::variants& args) const
+mc::variant base_class_info<C, BaseT>::invoke(C& obj, mc::string_view name, const mc::variants& args) const
 {
     return get_reflection<BaseT>().invoke_method(get_object(obj), name, args);
 }
 
 template <typename C, typename BaseT>
-async_result base_class_info<C, BaseT>::async_invoke(C& obj, std::string_view name, const mc::variants& args) const
+async_result base_class_info<C, BaseT>::async_invoke(C& obj, mc::string_view name, const mc::variants& args) const
 {
     return get_reflection<BaseT>().async_invoke_method(get_object(obj), name, args);
 }
@@ -427,7 +427,7 @@ type_id_type reflected_object_impl<T>::get_type_id() const
 }
 
 template <typename T>
-variant reflected_object_impl<T>::get_property(std::string_view name) const
+variant reflected_object_impl<T>::get_property(mc::string_view name) const
 {
     auto prop_info = get_reflection<T>().get_property_info(name);
     if (prop_info) {
@@ -437,7 +437,7 @@ variant reflected_object_impl<T>::get_property(std::string_view name) const
 }
 
 template <typename T>
-void reflected_object_impl<T>::set_property(std::string_view name, const variant& value)
+void reflected_object_impl<T>::set_property(mc::string_view name, const variant& value)
 {
     auto prop_info = get_reflection<T>().get_property_info(name);
     if (prop_info) {
@@ -448,7 +448,7 @@ void reflected_object_impl<T>::set_property(std::string_view name, const variant
 }
 
 template <typename T>
-variant reflected_object_impl<T>::invoke_method(std::string_view name, const std::vector<variant>& args)
+variant reflected_object_impl<T>::invoke_method(mc::string_view name, const std::vector<variant>& args)
 {
     auto method_info = get_reflection<T>().get_method_info(name);
     if (method_info) {
@@ -458,7 +458,7 @@ variant reflected_object_impl<T>::invoke_method(std::string_view name, const std
 }
 
 template <typename T>
-async_result reflected_object_impl<T>::async_invoke_method(std::string_view name, const std::vector<variant>& args)
+async_result reflected_object_impl<T>::async_invoke_method(mc::string_view name, const std::vector<variant>& args)
 {
     auto method_info = get_reflection<T>().get_method_info(name);
     if (method_info) {
@@ -468,13 +468,13 @@ async_result reflected_object_impl<T>::async_invoke_method(std::string_view name
 }
 
 template <typename T>
-std::vector<std::string_view> reflected_object_impl<T>::get_property_names() const
+std::vector<mc::string_view> reflected_object_impl<T>::get_property_names() const
 {
     return get_reflection<T>().get_property_names();
 }
 
 template <typename T>
-std::vector<std::string_view> reflected_object_impl<T>::get_method_names() const
+std::vector<mc::string_view> reflected_object_impl<T>::get_method_names() const
 {
     return get_reflection<T>().get_method_names();
 }

@@ -13,10 +13,10 @@
 #define MC_REFLECT_BASE_H
 
 #include <mc/memory.h>
+#include <mc/string_utils.h>
 #include <mc/variant.h>
 
 #include <memory>
-#include <string_view>
 #include <vector>
 
 #include <boost/preprocessor/cat.hpp>
@@ -43,6 +43,25 @@ class result;
 
 namespace mc::reflect {
 
+namespace detail {
+// 反射名称来自宏参数中的字符串字面量；经函数模板推导为数组长度，避免退化为 const char* 导致失去 constexpr。
+template <std::size_t N>
+constexpr mc::string_view reflect_name_from_literal(const char (&s)[N]) noexcept
+{
+    return mc::string_view(s, N - 1);
+}
+
+constexpr mc::string_view reflect_name_from_literal(mc::string_view s) noexcept
+{
+    return s;
+}
+
+constexpr mc::string_view reflect_name_from_literal(std::string_view s) noexcept
+{
+    return reflect_name_from_literal(mc::string_view(s));
+}
+} // namespace detail
+
 using async_result = mc::result<mc::variant>;
 struct property_type_info;
 struct method_type_info;
@@ -50,16 +69,16 @@ struct base_class_type_info;
 struct member_info_base;
 
 // 异常抛出辅助函数
-[[noreturn]] MC_API void throw_method_arg_not_enough(std::string_view method_name, size_t expect_count,
+[[noreturn]] MC_API void throw_method_arg_not_enough(mc::string_view method_name, size_t expect_count,
                                                      size_t actual_count);
-[[noreturn]] MC_API void throw_method_not_exist(std::string_view method_name);
-[[noreturn]] MC_API void throw_not_enum_type(std::string_view type_name);
-[[noreturn]] MC_API void throw_enum_value_not_found(std::string_view type_name, std::string_view value_name);
-[[noreturn]] MC_API void throw_enum_value_not_found(std::string_view type_name, uint64_t value);
-[[noreturn]] MC_API void throw_bad_enum_cast(int64_t i, const char* e);
-[[noreturn]] MC_API void throw_bad_enum_cast(const char* k, const char* e);
-[[noreturn]] MC_API void throw_variant_cast(const char* k, const char* e);
-[[noreturn]] MC_API void throw_enum_not_support_create_object(std::string_view type_name);
+[[noreturn]] MC_API void throw_method_not_exist(mc::string_view method_name);
+[[noreturn]] MC_API void throw_not_enum_type(mc::string_view type_name);
+[[noreturn]] MC_API void throw_enum_value_not_found(mc::string_view type_name, mc::string_view value_name);
+[[noreturn]] MC_API void throw_enum_value_not_found(mc::string_view type_name, uint64_t value);
+[[noreturn]] MC_API void throw_bad_enum_cast(int64_t i, mc::string_view e);
+[[noreturn]] MC_API void throw_bad_enum_cast(mc::string_view k, mc::string_view e);
+[[noreturn]] MC_API void throw_variant_cast(mc::string_view k, mc::string_view e);
+[[noreturn]] MC_API void throw_enum_not_support_create_object(mc::string_view type_name);
 
 using type_id_type       = int64_t;
 using local_type_id_type = int32_t;
@@ -130,7 +149,7 @@ constexpr bool is_normal_enum()
 }
 
 template <typename T>
-constexpr std::string_view get_type_name()
+constexpr mc::string_view get_type_name()
 {
     if constexpr (detail::has_reflectable<T>::value) {
         return T::reflect_name;
@@ -153,7 +172,7 @@ constexpr std::string_view get_type_name()
  * - mc::devices.sensors.TemperatureSensor：表示 mc.devices.sensors 命名空间下的 TemperatureSensor 类型
  */
 constexpr std::size_t max_type_name_length = 255;
-constexpr inline bool is_valid_type_name(std::string_view name)
+constexpr inline bool is_valid_type_name(mc::string_view name)
 {
     // 类型名称不能为空
     if (name.empty() || name.size() > max_type_name_length) {
@@ -203,7 +222,7 @@ constexpr inline bool is_valid_type_name(std::string_view name)
     return true;
 }
 
-constexpr inline std::string_view longest_common_prefix(std::string_view s1, std::string_view s2)
+constexpr inline mc::string_view longest_common_prefix(mc::string_view s1, mc::string_view s2)
 {
     size_t i = 0;
     while (i < s1.size() && i < s2.size() && s1[i] == s2[i]) {
@@ -212,7 +231,7 @@ constexpr inline std::string_view longest_common_prefix(std::string_view s1, std
     return s1.substr(0, i);
 }
 
-constexpr inline std::string_view remove_common_namespace(std::string_view s1, std::string_view s2)
+constexpr inline mc::string_view remove_common_namespace(mc::string_view s1, mc::string_view s2)
 {
     auto prefix = longest_common_prefix(s1, s2);
     if (prefix.empty()) {
@@ -220,7 +239,7 @@ constexpr inline std::string_view remove_common_namespace(std::string_view s1, s
     }
 
     auto pos = prefix.find_last_of(':');
-    if (pos == std::string_view::npos) {
+    if (pos == mc::string_view::npos) {
         return s1;
     }
 
@@ -250,15 +269,15 @@ struct has_reflect_namespace<T, std::enable_if_t<!std::is_same_v<typename reflec
  * @param namespace_name 命名空间名，格式为：mc.devices
  * @return 如果类型在命名空间中则返回true，否则返回false
  */
-constexpr bool type_in_namespace(std::string_view type_name, std::string_view namespace_name)
+constexpr bool type_in_namespace(mc::string_view type_name, mc::string_view namespace_name)
 {
     if (!is_valid_type_name(type_name) || !is_valid_type_name(namespace_name)) {
         return false;
     }
 
-    std::size_t segment_count     = 0;
-    auto        type_name_it      = mc::string::split_iterator(type_name, "::.");
-    auto        namespace_name_it = mc::string::split_iterator(namespace_name, ".");
+    std::size_t segment_count = 0;
+    auto        type_name_it      = mc::strings::split_iterator(type_name, "::.");
+    auto        namespace_name_it = mc::strings::split_iterator(namespace_name, ".");
     while (!type_name_it.is_end() && !namespace_name_it.is_end()) {
         if (*type_name_it != *namespace_name_it) {
             // 如果第一段就不匹配，那整个类型会放到命名空间之下，这也是允许的
@@ -285,7 +304,7 @@ constexpr bool type_in_namespace(std::string_view type_name, std::string_view na
 }
 
 template <typename T>
-constexpr bool check_type_namespace(std::string_view type_name)
+constexpr bool check_type_namespace(mc::string_view type_name)
 {
     if constexpr (has_reflect_namespace<T>::value) {
         using namespace_type = typename reflect_namespace<T>::type;
@@ -317,14 +336,14 @@ public:
      * @param name 属性名
      * @return variant 属性值
      */
-    virtual variant get_property(std::string_view name) const = 0;
+    virtual variant get_property(mc::string_view name) const = 0;
 
     /**
      * @brief 设置属性值
      * @param name 属性名
      * @param value 属性值
      */
-    virtual void set_property(std::string_view name, const variant& value) = 0;
+    virtual void set_property(mc::string_view name, const variant& value) = 0;
 
     /**
      * @brief 调用方法
@@ -332,20 +351,20 @@ public:
      * @param args 参数列表
      * @return variant 返回值
      */
-    virtual variant      invoke_method(std::string_view name, const std::vector<variant>& args)       = 0;
-    virtual async_result async_invoke_method(std::string_view name, const std::vector<variant>& args) = 0;
+    virtual variant      invoke_method(mc::string_view name, const std::vector<variant>& args)       = 0;
+    virtual async_result async_invoke_method(mc::string_view name, const std::vector<variant>& args) = 0;
 
     /**
      * @brief 获取所有属性名
-     * @return std::vector<std::string_view> 属性名列表
+     * @return std::vector<mc::string_view> 属性名列表
      */
-    virtual std::vector<std::string_view> get_property_names() const = 0;
+    virtual std::vector<mc::string_view> get_property_names() const = 0;
 
     /**
      * @brief 获取所有方法名
-     * @return std::vector<std::string_view> 方法名列表
+     * @return std::vector<mc::string_view> 方法名列表
      */
-    virtual std::vector<std::string_view> get_method_names() const = 0;
+    virtual std::vector<mc::string_view> get_method_names() const = 0;
 };
 
 /**
@@ -365,9 +384,9 @@ public:
 
     /**
      * @brief 获取类型名
-     * @return std::string_view 类型名
+     * @return mc::string_view 类型名
      */
-    virtual std::string_view get_type_name() const = 0;
+    virtual mc::string_view get_type_name() const = 0;
 
     /**
      * @brief 获取类型ID
@@ -393,21 +412,21 @@ public:
      * @param name 属性名
      * @return const property_type_info* 属性信息指针，需要转换为具体类型
      */
-    virtual const property_type_info* get_property_info(std::string_view name) const = 0;
+    virtual const property_type_info* get_property_info(mc::string_view name) const = 0;
 
     /**
      * @brief 获取方法信息
      * @param name 方法名
      * @return const method_type_info* 方法信息指针，需要转换为具体类型
      */
-    virtual const method_type_info* get_method_info(std::string_view name) const = 0;
+    virtual const method_type_info* get_method_info(mc::string_view name) const = 0;
 
     /**
      * @brief 获取基类信息
      * @param name 基类名
      * @return const base_class_type_info* 基类信息指针，需要转换为具体类型
      */
-    virtual const base_class_type_info* get_base_class_info(std::string_view name) const = 0;
+    virtual const base_class_type_info* get_base_class_info(mc::string_view name) const = 0;
 
     /**
      * @brief 获取自定义信息
@@ -415,19 +434,19 @@ public:
      * @param reflect_type 反射类型
      * @return const member_info_base* 自定义信息指针，需要转换为具体类型
      */
-    virtual const member_info_base* get_custom_info(std::string_view name, size_t reflect_type) const = 0;
+    virtual const member_info_base* get_custom_info(mc::string_view name, size_t reflect_type) const = 0;
 
     /**
      * @brief 获取所有属性名
-     * @return std::vector<std::string_view> 属性名列表
+     * @return std::vector<mc::string_view> 属性名列表
      */
-    virtual std::vector<std::string_view> get_property_names() const = 0;
+    virtual std::vector<mc::string_view> get_property_names() const = 0;
 
     /**
      * @brief 获取所有方法名
-     * @return std::vector<std::string_view> 方法名列表
+     * @return std::vector<mc::string_view> 方法名列表
      */
-    virtual std::vector<std::string_view> get_method_names() const = 0;
+    virtual std::vector<mc::string_view> get_method_names() const = 0;
 
     /**
      * @brief 获取是否为枚举类型
@@ -438,23 +457,27 @@ public:
         return m_is_enum;
     }
 
-    virtual uint64_t get_enum_value(std::string_view name) const {
+    virtual uint64_t get_enum_value(mc::string_view name) const
+    {
         MC_UNUSED(name);
         throw_not_enum_type(get_type_name());
     }
-    virtual std::string_view get_enum_name(uint64_t value) const {
+    virtual mc::string_view get_enum_name(uint64_t value) const
+    {
         MC_UNUSED(value);
         throw_not_enum_type(get_type_name());
     }
-    virtual std::vector<std::string_view> get_enum_names() const
+    virtual std::vector<mc::string_view> get_enum_names() const
     {
         throw_not_enum_type(get_type_name());
     }
-    virtual bool has_enum_value(std::string_view name) const {
+    virtual bool has_enum_value(mc::string_view name) const
+    {
         MC_UNUSED(name);
         throw_not_enum_type(get_type_name());
     }
-    virtual bool has_enum_value(uint64_t value) const {
+    virtual bool has_enum_value(uint64_t value) const
+    {
         MC_UNUSED(value);
         throw_not_enum_type(get_type_name());
     }
@@ -476,7 +499,7 @@ using reflection_metadata_wptr = mc::weak_ptr<reflection_base>;
     struct mc::reflect::reflectable<TYPE> {                                                                            \
         using is_defined = std::true_type;                                                                             \
         using is_enum    = std::conditional_t<std::is_enum_v<TYPE>, std::true_type, std::false_type>;                  \
-        constexpr static std::string_view reflect_name = name;                                                         \
+        constexpr static mc::string_view reflect_name = mc::reflect::detail::reflect_name_from_literal(name);          \
     };
 
 #define MC_CLASS_REFLECTABLE(name)                                                                                     \
@@ -485,7 +508,7 @@ using reflection_metadata_wptr = mc::weak_ptr<reflection_base>;
     friend struct mc::reflect::reflector;                                                                              \
     template <typename>                                                                                                \
     friend struct mc::reflect::static_metadata;                                                                        \
-    constexpr static std::string_view reflect_name = name;
+    constexpr static mc::string_view reflect_name = mc::reflect::detail::reflect_name_from_literal(name);
 
 // 声明类型或者枚举是可反射的
 // @param name 反射名称，用于在反射系统中标识类型或者枚举，支持多级命名空间，以 . 或 ::

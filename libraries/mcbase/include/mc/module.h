@@ -17,6 +17,7 @@
 #include <array>
 #include <iostream>
 #include <mc/module/module_manager.h>
+#include <mc/string_view.h>
 #include <string>
 
 namespace mc::module {
@@ -24,7 +25,7 @@ namespace detail {
 
 #define MAX_MODULE_NAME_LENGTH 64
 
-constexpr inline bool is_valid_module_name(std::string_view name)
+constexpr inline bool is_valid_module_name(mc::string_view name)
 {
     if (name.empty() || name.size() > MAX_MODULE_NAME_LENGTH) {
         return false;
@@ -62,6 +63,12 @@ constexpr inline bool is_valid_module_name(std::string_view name)
     return true;
 }
 
+template <std::size_t N>
+constexpr inline bool is_valid_module_name(const char (&name)[N])
+{
+    return is_valid_module_name(mc::string_view(name, N > 0 ? N - 1U : 0U));
+}
+
 // 编译时字符串长度计算
 constexpr size_t str_len(const char* str)
 {
@@ -86,8 +93,8 @@ constexpr auto convert_underscore_to_dot(const char* str)
 // 模块命名空间结构
 template <const char* RawName>
 struct module_namespace {
-    static constexpr auto             converted_name = convert_underscore_to_dot(RawName);
-    static constexpr std::string_view factory_name{converted_name.data(), str_len(converted_name.data())};
+    static constexpr auto            converted_name = convert_underscore_to_dot(RawName);
+    static constexpr mc::string_view factory_name{converted_name.data(), str_len(converted_name.data())};
 };
 
 } // namespace detail
@@ -192,7 +199,7 @@ struct module_namespace {
     }                                                                                                                  \
     MC_API void mc_close_##module_name()                                                                               \
     {                                                                                                                  \
-        /* 空实现：模块的清理由 module_manager 通过引用计数管理 */                                   \
+        /* 空实现：模块的清理由 module_manager 通过引用计数管理 */                                                     \
     }                                                                                                                  \
     }
 } // namespace mc::module
@@ -203,7 +210,7 @@ namespace module {
 /**
  * @brief 加载模块
  */
-inline mc::module::module_ptr load_module(std::string_view module_name)
+inline mc::module::module_ptr load_module(mc::string_view module_name)
 {
     return mc::module::module_manager::instance().require(module_name);
 }

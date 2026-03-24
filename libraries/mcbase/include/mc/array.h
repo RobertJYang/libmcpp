@@ -21,6 +21,7 @@
 #include <initializer_list>
 #include <memory>
 #include <stdexcept>
+#include <string_view>
 #include <vector>
 
 #include <mc/common.h>
@@ -38,7 +39,7 @@ namespace detail {
  *
  * @param msg 异常消息
  */
-[[noreturn]] MC_API void throw_array_out_of_range(const char* msg);
+[[noreturn]] MC_API void throw_array_out_of_range(mc::string_view msg);
 
 /**
  * @brief array 的内部实现类
@@ -125,7 +126,7 @@ public:
         return typeid(T);
     }
 
-    std::string element_type_name() const override
+    mc::string element_type_name() const override
     {
         return mc::pretty_name<T>();
     }

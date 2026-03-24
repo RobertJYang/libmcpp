@@ -27,8 +27,8 @@ namespace detail {
  */
 class exception_impl {
 public:
-    std::string   m_name; // 异常名称
-    std::string   m_what; // 异常描述
+    mc::string   m_name; // 异常名称
+    mc::string   m_what; // 异常描述
     int64_t       m_code; // 异常代码
     log::messages m_logs; // 日志消息列表
 };
@@ -37,29 +37,28 @@ public:
 
 // 异常基类实现
 
-exception::exception(int64_t code, const std::string& name_value, const std::string& what_value)
+exception::exception(int64_t code, mc::string_view name_value, mc::string_view what_value)
     : m_impl(new detail::exception_impl())
 {
-    m_impl->m_name = name_value;
-    m_impl->m_what = what_value;
+    m_impl->m_name = mc::string(name_value);
+    m_impl->m_what = mc::string(what_value);
     m_impl->m_code = code;
 }
 
-exception::exception(mc::log::message&& msg, int64_t code, const std::string& name_value, const std::string& what_value)
+exception::exception(mc::log::message&& msg, int64_t code, mc::string_view name_value, mc::string_view what_value)
     : exception(code, name_value, what_value)
 {
     m_impl->m_logs.emplace_back(std::move(msg));
 }
 
-exception::exception(mc::log::messages&& msgs, int64_t code, const std::string& name_value,
-                     const std::string& what_value)
+exception::exception(mc::log::messages&& msgs, int64_t code, mc::string_view name_value, mc::string_view what_value)
     : exception(code, name_value, what_value)
 {
     m_impl->m_logs = std::move(msgs);
 }
 
-exception::exception(const mc::log::messages& msgs, int64_t code, const std::string& name_value,
-                     const std::string& what_value)
+exception::exception(const mc::log::messages& msgs, int64_t code, mc::string_view name_value,
+                     mc::string_view what_value)
     : exception(code, name_value, what_value)
 {
     m_impl->m_logs = msgs;
@@ -84,19 +83,19 @@ void exception::set_code(int64_t code)
     m_impl->m_code = code;
 }
 
-std::string_view exception::name() const noexcept
+mc::string_view exception::name() const noexcept
 {
     return m_impl->m_name;
 }
 
-void exception::set_name(std::string_view name)
+void exception::set_name(mc::string_view name)
 {
     m_impl->m_name = name;
 }
 
 const char* exception::what() const noexcept
 {
-    return top_message().c_str();
+    return top_message().data();
 }
 
 void exception::append_log(mc::log::message msg) const
@@ -117,7 +116,7 @@ void exception::append_log(mc::log::messages msgs) const
     }
 }
 
-std::string exception::to_detail_string(mc::log::level ll) const
+mc::string exception::to_detail_string(mc::log::level ll) const
 {
     std::stringstream ss;
     ss << m_impl->m_code << " " << m_impl->m_name << ": " << m_impl->m_what << "\n";
@@ -162,17 +161,17 @@ std::string exception::to_detail_string(mc::log::level ll) const
         // 添加文件和行号信息
         auto ctx = log.get_context();
         if (!ctx.m_file.empty()) {
-            ss << ctx.m_file << ":" << ctx.m_line << " ";
+            ss << ctx.m_file.view() << ":" << ctx.m_line << " ";
         }
 
         // 添加日志消息
         ss << log.get_message() << "\n";
     }
 
-    return ss.str();
+    return mc::string(ss.str());
 }
 
-std::string exception::to_string(mc::log::level ll) const
+mc::string exception::to_string(mc::log::level ll) const
 {
     std::stringstream ss;
     ss << m_impl->m_name << ": " << m_impl->m_what;
@@ -186,7 +185,7 @@ std::string exception::to_string(mc::log::level ll) const
             // 添加文件名和行号信息
             auto ctx = log.get_context();
             if (!ctx.m_file.empty()) {
-                ss << " at " << ctx.m_file;
+                ss << " at " << ctx.m_file.view();
                 if (ctx.m_line > 0) {
                     ss << ":" << ctx.m_line;
                 }
@@ -196,10 +195,10 @@ std::string exception::to_string(mc::log::level ll) const
         }
     }
 
-    return ss.str();
+    return mc::string(ss.str());
 }
 
-const std::string& exception::top_message() const
+mc::string_view exception::top_message() const
 {
     if (m_impl->m_logs.empty()) {
         return m_impl->m_what;
@@ -265,8 +264,8 @@ std::shared_ptr<exception> unhandled_exception::dynamic_copy_exception() const
 
 // 标准异常包装类实现
 
-std_exception_wrapper::std_exception_wrapper(mc::log::message&& msg, std::exception_ptr e,
-                                             const std::string& name_value, const std::string& what_value)
+std_exception_wrapper::std_exception_wrapper(mc::log::message&& msg, std::exception_ptr e, mc::string_view name_value,
+                                             mc::string_view what_value)
     : exception(std::move(msg), std_exception_code, name_value, what_value), m_inner(e)
 {}
 
@@ -294,37 +293,37 @@ std::shared_ptr<exception> std_exception_wrapper::dynamic_copy_exception() const
     return std::make_shared<std_exception_wrapper>(*this);
 }
 
-std::string std_exception_wrapper::to_detail_string(mc::log::level ll) const
+mc::string std_exception_wrapper::to_detail_string(mc::log::level ll) const
 {
-    std::string result = exception::to_detail_string(ll);
+    mc::string result(exception::to_detail_string(ll).view());
 
     // 添加内部异常信息
     if (m_inner) {
         try {
             std::rethrow_exception(m_inner);
         } catch (const std::exception& e) {
-            result += "内部异常: " + std::string(e.what()) + "\n";
+            result += "内部异常: " + mc::string(e.what()) + "\n";
         } catch (...) {
             result += "内部异常: 未知类型\n";
         }
     }
 
-    return result;
+    return mc::string(result);
 }
 
 MC_STD_EXCEPTION_CLASS(MC_IMPLEMENT_EXCEPTION_CLASS)
 
 // 错误引擎异常类实现
 
-error_exception::error_exception(const char* error_name, const mc::dict& args, int64_t code)
+error_exception::error_exception(mc::string_view error_name, const mc::dict& args, int64_t code)
     : exception(code, error_name), args_(args), has_json_error_(false)
 {}
 
-error_exception::error_exception(const char* error_name, const std::string& error_json, int64_t code)
+error_exception::error_exception(mc::string_view error_name, mc::string_view error_json, int64_t code)
     : exception(code, error_name), args_(), error_json_(error_json), has_json_error_(true)
 {}
 
-error_exception::error_exception(const char* error_name, mc::log::message&& message, int64_t code)
+error_exception::error_exception(mc::string_view error_name, mc::log::message&& message, int64_t code)
     : exception(std::move(message), code, error_name), args_(), has_json_error_(false)
 {
     // 委托给父类exception的log::message构造函数

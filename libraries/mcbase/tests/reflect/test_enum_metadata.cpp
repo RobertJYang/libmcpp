@@ -13,6 +13,7 @@
 #include <gtest/gtest.h>
 
 #include <array>
+#include <mc/reflect/base.h>
 #include <mc/reflect/metadata.h>
 #include <mc/variant.h>
 #include <string>
@@ -26,9 +27,9 @@ enum class color {
 };
 
 constexpr std::array members{
-    mc::reflect::enum_member_info{"red", color::red},
-    mc::reflect::enum_member_info{"green", color::green},
-    mc::reflect::enum_member_info{"blue", color::blue},
+    mc::reflect::enum_member_info{mc::reflect::detail::reflect_name_from_literal("red"), color::red},
+    mc::reflect::enum_member_info{mc::reflect::detail::reflect_name_from_literal("green"), color::green},
+    mc::reflect::enum_member_info{mc::reflect::detail::reflect_name_from_literal("blue"), color::blue},
 };
 
 mc::reflect::enum_metadata make_color_metadata()
@@ -82,7 +83,7 @@ TEST(enum_metadata_test, get_values_snapshot)
     auto values = meta.get_values();
 
     ASSERT_EQ(values.count, members.size());
-    std::vector<std::string_view> collected;
+    std::vector<mc::string_view> collected;
     for (size_t i = 0; i < values.count; ++i) {
         collected.emplace_back(values.members[i].name);
     }

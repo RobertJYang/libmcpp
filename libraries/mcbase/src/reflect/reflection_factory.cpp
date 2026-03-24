@@ -14,13 +14,13 @@
 
 namespace mc::reflect {
 
-static void unique_sort(std::vector<std::string>& paths)
+static void unique_sort(std::vector<mc::string>& paths)
 {
     std::sort(paths.begin(), paths.end());
     paths.erase(std::unique(paths.begin(), paths.end()), paths.end());
 }
 
-static std::optional<std::string_view> remove_prefix_if_matches(std::string_view text, std::string_view prefix)
+static std::optional<mc::string_view> remove_prefix_if_matches(mc::string_view text, mc::string_view prefix)
 {
     if (prefix.empty()) {
         return text;
@@ -48,7 +48,7 @@ static std::optional<std::string_view> remove_prefix_if_matches(std::string_view
     }
 
     if (text_it.is_end()) {
-        return std::string_view{}; // 完全匹配，返回一个空字符串，实际也不允许，因为不允许空类型名
+        return mc::string_view{}; // 完全匹配，返回一个空字符串，实际也不允许，因为不允许空类型名
     }
 
     return text_it.tail();
@@ -77,8 +77,7 @@ void reflection_factory::reset_global()
     mc::singleton<factory_ptr, global_namespace>::reset_for_test();
 }
 
-reflection_factory::reflection_factory(std::string_view factory_name, std::string_view factory_type_name,
-                                       bool is_global)
+reflection_factory::reflection_factory(mc::string_view factory_name, mc::string_view factory_type_name, bool is_global)
     : m_impl(std::make_unique<impl>(factory_name, factory_type_name, is_global))
 {}
 
@@ -91,7 +90,7 @@ reflection_metadata_ptr reflection_factory::get_metadata(type_id_type type_id)
     });
 }
 
-reflection_metadata_ptr reflection_factory::get_metadata(std::string_view type_name)
+reflection_metadata_ptr reflection_factory::get_metadata(mc::string_view type_name)
 {
     auto result = remove_prefix_if_matches(type_name, get_factory_name());
     if (!result) {
@@ -115,7 +114,7 @@ reflected_object_ptr reflection_factory::try_create_object(type_id_type type_id)
     });
 }
 
-reflected_object_ptr reflection_factory::try_create_object(std::string_view type_name)
+reflected_object_ptr reflection_factory::try_create_object(mc::string_view type_name)
 {
     auto result = remove_prefix_if_matches(type_name, get_factory_name());
     if (!result) {
@@ -141,7 +140,7 @@ reflected_object_ptr reflection_factory::create_object(type_id_type type_id)
     return obj;
 }
 
-reflected_object_ptr reflection_factory::create_object(std::string_view type_name)
+reflected_object_ptr reflection_factory::create_object(mc::string_view type_name)
 {
     auto obj = try_create_object(type_name);
     if (!obj) {
@@ -150,7 +149,7 @@ reflected_object_ptr reflection_factory::create_object(std::string_view type_nam
     return obj;
 }
 
-type_id_type reflection_factory::get_type_id(std::string_view type_name) const
+type_id_type reflection_factory::get_type_id(mc::string_view type_name) const
 {
     auto result = remove_prefix_if_matches(type_name, get_factory_name());
     if (!result) {
@@ -167,9 +166,9 @@ type_id_type reflection_factory::get_type_id(std::string_view type_name) const
     });
 }
 
-std::vector<std::string> reflection_factory::get_registered_types() const
+std::vector<mc::string> reflection_factory::get_registered_types() const
 {
-    std::vector<std::string> types;
+    std::vector<mc::string> types;
     m_impl->m_data.with_rlock([&](auto& data) {
         m_impl->get_registered_types(data, types);
     });
@@ -177,7 +176,7 @@ std::vector<std::string> reflection_factory::get_registered_types() const
     return types;
 }
 
-std::vector<std::string> reflection_factory::get_module_types(std::string_view module_path) const
+std::vector<mc::string> reflection_factory::get_module_types(mc::string_view module_path) const
 {
     if (module_path.empty()) {
         module_path = get_factory_name();
@@ -188,24 +187,24 @@ std::vector<std::string> reflection_factory::get_module_types(std::string_view m
         return {};
     }
 
-    std::vector<std::string> types;
+    std::vector<mc::string> types;
     m_impl->m_data.with_rlock([&](auto& data) {
         auto* node = m_impl->find_module_node(*result, data);
         if (!node) {
             return;
         }
 
-        std::string path = make_full_path(get_factory_name(), *result);
+        mc::string path = make_full_path(get_factory_name(), *result);
         node->collect_module_types(path, types);
     });
     unique_sort(types);
     return types;
 }
 
-std::vector<std::string> reflection_factory::get_module_paths() const
+std::vector<mc::string> reflection_factory::get_module_paths() const
 {
     auto paths = m_impl->m_data.with_rlock([&](auto& data) {
-        std::vector<std::string> paths;
+        std::vector<mc::string> paths;
         m_impl->collect_module_paths(paths, data);
         return paths;
     });
@@ -213,7 +212,7 @@ std::vector<std::string> reflection_factory::get_module_paths() const
     return paths;
 }
 
-bool reflection_factory::has_module(std::string_view module_path) const
+bool reflection_factory::has_module(mc::string_view module_path) const
 {
     auto result = remove_prefix_if_matches(module_path, get_factory_name());
     if (!result) {
@@ -290,7 +289,7 @@ factory_id_type reflection_factory::register_factory(factory_ptr factory)
     });
 }
 
-void reflection_factory::unregister_factory(std::string_view factory_name)
+void reflection_factory::unregister_factory(mc::string_view factory_name)
 {
     auto result = remove_prefix_if_matches(factory_name, get_factory_name());
     if (!result) {
@@ -307,7 +306,7 @@ void reflection_factory::unregister_factory(std::string_view factory_name)
     }
 }
 
-factory_ptr reflection_factory::get_factory(std::string_view factory_name) const
+factory_ptr reflection_factory::get_factory(mc::string_view factory_name) const
 {
     auto result = remove_prefix_if_matches(factory_name, get_factory_name());
     if (!result) {
@@ -333,21 +332,21 @@ factory_ptr reflection_factory::get_parent_factory() const
     });
 }
 
-std::vector<std::string> reflection_factory::get_factory_names() const
+std::vector<mc::string> reflection_factory::get_factory_names() const
 {
     return m_impl->m_data.with_rlock([&](auto& data) {
-        std::vector<std::string> names;
+        std::vector<mc::string> names;
         m_impl->collect_factory_names(get_factory_name(), names, data);
         return names;
     });
 }
 
-const std::string& reflection_factory::get_factory_name() const
+mc::string_view reflection_factory::get_factory_name() const
 {
     return m_impl->m_factory_name;
 }
 
-const std::string& reflection_factory::get_namespace_type_name() const
+mc::string_view reflection_factory::get_namespace_type_name() const
 {
     return m_impl->m_namespace_type_name;
 }
@@ -357,7 +356,7 @@ factory_id_type reflection_factory::get_factory_id() const
     return m_impl->m_data.unsafe_get_data().m_factory_id;
 }
 
-type_id_type reflection_factory::register_type_impl(std::string_view type_name, type_id_type old_type_id,
+type_id_type reflection_factory::register_type_impl(mc::string_view type_name, type_id_type old_type_id,
                                                     std::function<reflection_metadata_ptr()>&& creator)
 {
     if (type_name.empty()) {
@@ -388,7 +387,7 @@ type_id_type reflection_factory::register_type_impl(std::string_view type_name, 
     return type_id;
 }
 
-void reflection_factory::unregister_type_impl(std::string_view type_name)
+void reflection_factory::unregister_type_impl(mc::string_view type_name)
 {
     if (type_name.empty()) {
         return;
@@ -415,7 +414,7 @@ reflected_object_ptr try_create_object(type_id_type type_id)
     return reflection_factory::global().try_create_object(type_id);
 }
 
-reflected_object_ptr try_create_object(std::string_view type_name)
+reflected_object_ptr try_create_object(mc::string_view type_name)
 {
     return reflection_factory::global().try_create_object(type_name);
 }
@@ -425,7 +424,7 @@ reflected_object_ptr create_object(type_id_type type_id)
     return reflection_factory::global().create_object(type_id);
 }
 
-reflected_object_ptr create_object(std::string_view type_name)
+reflected_object_ptr create_object(mc::string_view type_name)
 {
     return reflection_factory::global().create_object(type_name);
 }

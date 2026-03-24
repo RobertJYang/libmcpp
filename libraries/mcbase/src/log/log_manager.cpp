@@ -54,26 +54,27 @@ log_manager::log_manager()
     m_loggers[MC_LOG_DEFAULT_LOGGER] = default_logger;
 }
 
-logger log_manager::get_logger(const char* name)
+logger log_manager::get_logger(mc::string_view name)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
+    const mc::string           logger_name(name);
 
-    auto it = m_loggers.find(name);
+    auto it = m_loggers.find(logger_name);
     if (it != m_loggers.end()) {
         return it->second;
     }
 
     logger new_logger(name);
-    m_loggers.emplace(name, name);
+    m_loggers.emplace(logger_name, new_logger);
     return new_logger;
 }
 
-bool log_manager::load_appender(const std::string& lib_path, const std::string& appender_name)
+bool log_manager::load_appender(mc::string_view lib_path, mc::string_view appender_name)
 {
     return appender_factory::instance().load(lib_path, appender_name);
 }
 
-void log_manager::load_appenders(const std::string& dir_path)
+void log_manager::load_appenders(mc::string_view dir_path)
 {
     appender_factory::instance().load_all(dir_path);
 }
@@ -117,16 +118,16 @@ void log_manager::update_existing_logger(logger& log, const logger_config& log_c
     log.condition(log_config.condition);
 
     // 找出要删除的appender（在当前列表中但不在配置中）
-    std::vector<std::string> to_remove;
+    std::vector<mc::string> to_remove;
     for (const auto& appender : log.get_appenders()) {
-        const std::string& name = appender->get_name();
+        const mc::string name(appender->get_name());
         if (std::find(log_config.appenders.begin(), log_config.appenders.end(), name) == log_config.appenders.end()) {
             to_remove.push_back(name);
         }
     }
 
     // 找出要新增的appender（在配置中但不在当前列表中）
-    std::vector<std::string> to_add;
+    std::vector<mc::string> to_add;
     for (const auto& config_name : log_config.appenders) {
         if (!log.find_appender(config_name)) {
             to_add.push_back(config_name);
@@ -210,7 +211,7 @@ bool log_manager::apply_config(const logging_config& config)
 
 void log_manager::set_dlog_level(level lvl)
 {
-    std::vector<std::string> logger_names;
+    std::vector<mc::string> logger_names;
     {
         std::lock_guard<std::mutex> lock(m_mutex);
 

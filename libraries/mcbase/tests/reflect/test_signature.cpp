@@ -16,6 +16,8 @@
 #include <mc/exception.h>
 #include <mc/reflect/signature.h>
 #include <mc/variant.h>
+#include <string>
+#include <string_view>
 
 using mc::reflect::signature;
 using mc::reflect::signature_iterator;
@@ -37,7 +39,7 @@ TEST(signature_test, invalid_signature_handling)
     EXPECT_THROW(signature::validate("("), mc::invalid_arg_exception);
 
     signature assigned;
-    assigned = std::string_view("(i");
+    assigned = mc::string_view("(i");
     EXPECT_FALSE(assigned.is_valid());
     EXPECT_THROW(signature::validate(assigned.str()), mc::invalid_arg_exception);
 
@@ -80,7 +82,7 @@ TEST(signature_test, static_checks)
 
 TEST(signature_test, first_type_empty_string)
 {
-    std::string empty_sig;
+    mc::string empty_sig;
     char        first = mc::reflect::first_type(empty_sig);
     EXPECT_EQ(first, '\0');
 }
@@ -88,7 +90,7 @@ TEST(signature_test, first_type_empty_string)
 TEST(signature_test, assign_string_view)
 {
     signature        sig("(is)");
-    std::string_view sv("(isd)");
+    mc::string_view sv("(isd)");
     sig = sv;
     EXPECT_EQ(sig.str(), "(isd)");
 }
@@ -96,7 +98,7 @@ TEST(signature_test, assign_string_view)
 TEST(signature_test, assign_string)
 {
     signature   sig("(is)");
-    std::string str("(isb)");
+    mc::string str("(isb)");
     sig = str;
     EXPECT_EQ(sig.str(), "(isb)");
 }
@@ -107,4 +109,22 @@ TEST(signature_test, from_variant)
     signature   sig;
     mc::from_variant(var, sig);
     EXPECT_EQ(sig.str(), "(isb)");
+}
+
+TEST(signature_test, iterator_constructs_from_std_string)
+{
+    std::string input = "a{si}";
+
+    signature_iterator it(input);
+    ASSERT_TRUE(it.is_valid());
+    EXPECT_EQ(it.current_type(), "a{si}");
+}
+
+TEST(signature_test, iterator_constructs_from_std_string_view)
+{
+    constexpr std::string_view input = "a{sv}";
+
+    signature_iterator it(input);
+    ASSERT_TRUE(it.is_valid());
+    EXPECT_EQ(it.current_type(), "a{sv}");
 }

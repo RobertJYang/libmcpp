@@ -29,8 +29,8 @@ public:
     MC_REFLECTABLE("mc.test.Calculator");
 
     int                      m_base_value;
-    std::string              m_last_operation;
-    std::vector<std::string> m_history;
+    mc::string              m_last_operation;
+    std::vector<mc::string> m_history;
 
     Calculator() : m_base_value(0)
     {}
@@ -65,15 +65,15 @@ public:
     }
 
     // 多参数字符串方法
-    std::string format_result(int value, std::string prefix, std::string suffix)
+    mc::string format_result(int value, mc::string prefix, mc::string suffix)
     {
-        std::string result = prefix + ": " + std::to_string(value) + suffix;
+        mc::string result = prefix + ": " + std::to_string(value) + suffix;
         record_operation("format");
         return result;
     }
 
 private:
-    void record_operation(const std::string& op)
+    void record_operation(const mc::string& op)
     {
         m_last_operation = op;
         m_history.push_back(op);

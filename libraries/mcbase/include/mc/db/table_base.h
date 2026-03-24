@@ -26,7 +26,7 @@ public:
 
     virtual uint32_t         get_table_id() const      = 0;
     virtual void             set_table_id(uint32_t id) = 0;
-    virtual std::string_view get_table_name() const    = 0;
+    virtual mc::string_view get_table_name() const    = 0;
     virtual bool             empty() const             = 0;
     virtual size_t           size() const              = 0;
     virtual void             clear()                   = 0;
@@ -57,7 +57,7 @@ public:
         return do_update_object(condition, values, txn);
     }
 
-    size_t update_object(const query_builder& condition, const std::map<std::string, variant>& values,
+    size_t update_object(const query_builder& condition, const std::map<mc::string, variant>& values,
                          transaction* txn = nullptr)
     {
         return do_update_object(condition, values, txn);
@@ -79,7 +79,7 @@ protected:
     virtual object_ptr do_find_object(const query_builder& condition)                         = 0;
     virtual bool       do_query_object(const query_builder& builder, query_handler&& handler) = 0;
 
-    virtual size_t do_update_object(const query_builder& condition, const std::map<std::string, variant>& values,
+    virtual size_t do_update_object(const query_builder& condition, const std::map<mc::string, variant>& values,
                                     transaction* txn)                                                         = 0;
     virtual size_t do_update_object(const query_builder& condition, const mc::dict& values, transaction* txn) = 0;
 };

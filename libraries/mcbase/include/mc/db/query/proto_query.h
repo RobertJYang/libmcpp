@@ -41,16 +41,16 @@ namespace dsl {
  */
 class field_ref {
 public:
-    explicit field_ref(std::string_view name) : m_name(name)
+    explicit field_ref(mc::string_view name) : m_name(name)
     {}
 
-    const std::string& name() const
+    mc::string_view name() const
     {
         return m_name;
     }
 
 private:
-    std::string m_name;
+    mc::string m_name;
 };
 
 /**
@@ -100,13 +100,13 @@ struct condition_context;
 
 class filed_expr {
 public:
-    explicit filed_expr(std::string_view name) : m_field(name)
+    explicit filed_expr(mc::string_view name) : m_field(name)
     {}
     const field_ref& ref() const
     {
         return m_field;
     }
-    const std::string& name() const
+    mc::string_view name() const
     {
         return m_field.name();
     }
@@ -118,7 +118,7 @@ private:
 /**
  * 创建字段引用表达式
  */
-inline filed_expr field(std::string_view name)
+inline filed_expr field(mc::string_view name)
 {
     return filed_expr(name);
 }
@@ -139,7 +139,7 @@ template <typename T>
 inline condition between(const filed_expr& field_expr, const T& lower, const T& upper)
 {
     mc::variants range = {mc::variant(lower), mc::variant(upper)};
-    return condition(compare_op::between, std::string(field_expr.name()), mc::variant(range));
+    return condition(compare_op::between, mc::string(field_expr.name()), mc::variant(range));
 }
 
 /**
@@ -152,23 +152,23 @@ inline condition in(const filed_expr& field_expr, const std::initializer_list<T>
     for (const auto& value : values) {
         variants.push_back(mc::variant(value));
     }
-    return condition(compare_op::in, std::string(field_expr.name()), mc::variant(variants));
+    return condition(compare_op::in, mc::string(field_expr.name()), mc::variant(variants));
 }
 
 /**
  * 特殊操作：LIKE
  */
-inline condition like(const filed_expr& field_expr, const std::string& pattern)
+inline condition like(const filed_expr& field_expr, mc::string_view pattern)
 {
-    return condition(compare_op::like, std::string(field_expr.name()), mc::variant(pattern));
+    return condition(compare_op::like, mc::string(field_expr.name()), mc::variant(pattern));
 }
 
 /**
  * 特殊操作：CONTAINS
  */
-inline condition contains(const filed_expr& field_expr, const std::string& substring)
+inline condition contains(const filed_expr& field_expr, mc::string_view substring)
 {
-    return condition(compare_op::contains, std::string(field_expr.name()), mc::variant(substring));
+    return condition(compare_op::contains, mc::string(field_expr.name()), mc::variant(substring));
 }
 
 /**
@@ -192,13 +192,13 @@ struct convert_value : proto::callable {
     // 字符串字面量特化
     mc::variant operator()(const char* value) const
     {
-        return mc::variant(std::string(value));
+        return mc::variant(mc::string(value));
     }
 
-    // 字符串视图特化，复制为 std::string
-    mc::variant operator()(std::string_view value) const
+    // 字符串视图特化，复制为 mc::string
+    mc::variant operator()(mc::string_view value) const
     {
-        return mc::variant(std::string(value));
+        return mc::variant(mc::string(value));
     }
 };
 
@@ -207,62 +207,62 @@ template <typename T>
 inline condition operator==(const filed_expr& field_expr, const T& value)
 {
     auto val = convert_value{}(value);
-    return conditions::eq(std::string(field_expr.name()), std::move(val));
+    return conditions::eq(mc::string(field_expr.name()), std::move(val));
 }
 
 inline condition operator==(const filed_expr& field_expr, int value)
 {
-    return conditions::eq(std::string(field_expr.name()), mc::variant(value));
+    return conditions::eq(mc::string(field_expr.name()), mc::variant(value));
 }
 
 inline condition operator==(const filed_expr& field_expr, double value)
 {
-    return conditions::eq(std::string(field_expr.name()), mc::variant(value));
+    return conditions::eq(mc::string(field_expr.name()), mc::variant(value));
 }
 
 inline condition operator==(const filed_expr& field_expr, const char* value)
 {
-    return conditions::eq(std::string(field_expr.name()), mc::variant(std::string(value)));
+    return conditions::eq(mc::string(field_expr.name()), mc::variant(mc::string(value)));
 }
 
-inline condition operator==(const filed_expr& field_expr, std::string_view value)
+inline condition operator==(const filed_expr& field_expr, mc::string_view value)
 {
-    return conditions::eq(std::string(field_expr.name()), mc::variant(std::string(value)));
+    return conditions::eq(mc::string(field_expr.name()), mc::variant(mc::string(value)));
 }
 
 template <typename T>
 inline condition operator!=(const filed_expr& field_expr, const T& value)
 {
     auto val = convert_value{}(value);
-    return conditions::ne(std::string(field_expr.name()), std::move(val));
+    return conditions::ne(mc::string(field_expr.name()), std::move(val));
 }
 
 template <typename T>
 inline condition operator>(const filed_expr& field_expr, const T& value)
 {
     auto val = convert_value{}(value);
-    return conditions::gt(std::string(field_expr.name()), std::move(val));
+    return conditions::gt(mc::string(field_expr.name()), std::move(val));
 }
 
 template <typename T>
 inline condition operator>=(const filed_expr& field_expr, const T& value)
 {
     auto val = convert_value{}(value);
-    return conditions::ge(std::string(field_expr.name()), std::move(val));
+    return conditions::ge(mc::string(field_expr.name()), std::move(val));
 }
 
 template <typename T>
 inline condition operator<(const filed_expr& field_expr, const T& value)
 {
     auto val = convert_value{}(value);
-    return conditions::lt(std::string(field_expr.name()), std::move(val));
+    return conditions::lt(mc::string(field_expr.name()), std::move(val));
 }
 
 template <typename T>
 inline condition operator<=(const filed_expr& field_expr, const T& value)
 {
     auto val = convert_value{}(value);
-    return conditions::le(std::string(field_expr.name()), std::move(val));
+    return conditions::le(mc::string(field_expr.name()), std::move(val));
 }
 
 // 为两侧均为 query_expr 的逻辑操作提供重载，避免生成 Proto 逻辑表达式
@@ -320,7 +320,7 @@ struct condition_context : boost::proto::callable_context<condition_context> {
         const field_ref& fld   = boost::proto::value(left);
         const auto&      right = boost::proto::right(expr);
         auto             val   = convert_value{}(boost::proto::value(right));
-        return conditions::eq(std::string(fld.name()), std::move(val));
+        return conditions::eq(mc::string(fld.name()), std::move(val));
     }
 
     // 不等于操作符
@@ -335,7 +335,7 @@ struct condition_context : boost::proto::callable_context<condition_context> {
 
         const field_ref& field = boost::proto::value(left);
         auto             val   = convert_value{}(boost::proto::value(right));
-        return conditions::ne(std::string(field.name()), std::move(val));
+        return conditions::ne(mc::string(field.name()), std::move(val));
     }
 
     // 大于操作符
@@ -350,7 +350,7 @@ struct condition_context : boost::proto::callable_context<condition_context> {
 
         const field_ref& field = boost::proto::value(left);
         auto             val   = convert_value{}(boost::proto::value(right));
-        return conditions::gt(std::string(field.name()), std::move(val));
+        return conditions::gt(mc::string(field.name()), std::move(val));
     }
 
     // 大于等于操作符
@@ -366,7 +366,7 @@ struct condition_context : boost::proto::callable_context<condition_context> {
 
         const field_ref& field = boost::proto::value(left);
         auto             val   = convert_value{}(boost::proto::value(right));
-        return conditions::ge(std::string(field.name()), std::move(val));
+        return conditions::ge(mc::string(field.name()), std::move(val));
     }
 
     // 小于操作符
@@ -381,7 +381,7 @@ struct condition_context : boost::proto::callable_context<condition_context> {
 
         const field_ref& field = boost::proto::value(left);
         auto             val   = convert_value{}(boost::proto::value(right));
-        return conditions::lt(std::string(field.name()), std::move(val));
+        return conditions::lt(mc::string(field.name()), std::move(val));
     }
 
     // 小于等于操作符
@@ -396,7 +396,7 @@ struct condition_context : boost::proto::callable_context<condition_context> {
 
         const field_ref& field = boost::proto::value(left);
         auto             val   = convert_value{}(boost::proto::value(right));
-        return conditions::le(std::string(field.name()), std::move(val));
+        return conditions::le(mc::string(field.name()), std::move(val));
     }
 
     // 逻辑与操作符

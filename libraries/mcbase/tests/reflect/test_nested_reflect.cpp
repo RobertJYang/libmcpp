@@ -36,13 +36,13 @@ class test_address {
 public:
     MC_REFLECTABLE("test_nested_reflect.test_address");
 
-    std::string m_city;
-    std::string m_street;
+    mc::string m_city;
+    mc::string m_street;
     int         m_number;
 
     test_address() : m_city(""), m_street(""), m_number(0)
     {}
-    test_address(const std::string& city, const std::string& street, int number)
+    test_address(const mc::string& city, const mc::string& street, int number)
         : m_city(city), m_street(street), m_number(number)
     {}
 
@@ -57,13 +57,13 @@ class test_contact {
 public:
     MC_REFLECTABLE("test_nested_reflect.test_contact");
 
-    std::string  m_email;
-    std::string  m_phone;
+    mc::string  m_email;
+    mc::string  m_phone;
     test_address m_address; // 嵌套对象
 
     test_contact() : m_email(""), m_phone("")
     {}
-    test_contact(const std::string& email, const std::string& phone, const test_address& address)
+    test_contact(const mc::string& email, const mc::string& phone, const test_address& address)
         : m_email(email), m_phone(phone), m_address(address)
     {}
 
@@ -78,16 +78,16 @@ class test_user {
 public:
     MC_REFLECTABLE("test_nested_reflect.test_user");
 
-    std::string                         m_username;
+    mc::string                         m_username;
     test_contact                        m_contact;     // 嵌套对象
     test_status                         m_status;      // 嵌套枚举
     std::vector<test_permission>        m_permissions; // 枚举数组
-    std::map<std::string, test_address> m_addresses;   // 键值对嵌套
+    std::map<mc::string, test_address> m_addresses;   // 键值对嵌套
 
     test_user() : m_username(""), m_status(test_status::INACTIVE)
     {}
-    test_user(const std::string& username, const test_contact& contact, test_status status,
-              const std::vector<test_permission>& permissions, const std::map<std::string, test_address>& addresses)
+    test_user(const mc::string& username, const test_contact& contact, test_status status,
+              const std::vector<test_permission>& permissions, const std::map<mc::string, test_address>& addresses)
         : m_username(username), m_contact(contact), m_status(status), m_permissions(permissions), m_addresses(addresses)
     {}
 
@@ -162,7 +162,7 @@ TEST(NestedReflectTest, NestedEnumReflection)
     test_address                        address("上海", "南京路", 456);
     test_contact                        contact("admin@example.com", "98765432101", address);
     std::vector<test_permission>        permissions = {test_permission::READ, test_permission::WRITE};
-    std::map<std::string, test_address> addresses   = {{"home", test_address("北京", "中关村", 123)},
+    std::map<mc::string, test_address> addresses   = {{"home", test_address("北京", "中关村", 123)},
                                                        {"work", test_address("上海", "南京路", 456)}};
     test_user                           user("admin", contact, test_status::ACTIVE, permissions, addresses);
 
@@ -201,7 +201,7 @@ TEST(NestedReflectTest, PartialNestedUpdate)
     test_address                        address("北京", "中关村", 123);
     test_contact                        contact("test@example.com", "12345678901", address);
     std::vector<test_permission>        permissions = {test_permission::READ};
-    std::map<std::string, test_address> addresses   = {{"home", test_address("北京", "中关村", 123)}};
+    std::map<mc::string, test_address> addresses   = {{"home", test_address("北京", "中关村", 123)}};
     test_user                           user("user1", contact, test_status::INACTIVE, permissions, addresses);
 
     // 使用初始化列表构造字典并更新对象
@@ -229,7 +229,7 @@ TEST(NestedReflectTest, ComplexNestedSerialization)
     test_contact                        contact("admin@example.com", "12345678901", home);
     std::vector<test_permission>        permissions = {test_permission::READ, test_permission::WRITE,
                                                        test_permission::EXECUTE};
-    std::map<std::string, test_address> addresses   = {{"home", home}, {"work", work}};
+    std::map<mc::string, test_address> addresses   = {{"home", home}, {"work", work}};
     test_user                           user("admin", contact, test_status::ACTIVE, permissions, addresses);
 
     // 转换为变体
@@ -307,7 +307,7 @@ TEST(NestedReflectTest, NestedCollections)
     test_address                        home("北京", "中关村", 123);
     test_address                        work("上海", "南京路", 456);
     std::vector<test_permission>        permissions = {test_permission::READ, test_permission::WRITE};
-    std::map<std::string, test_address> addresses   = {{"home", home}, {"work", work}};
+    std::map<mc::string, test_address> addresses   = {{"home", home}, {"work", work}};
 
     // 使用初始化列表构造复杂嵌套结构
     mc::dict complex_dict{
