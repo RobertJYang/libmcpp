@@ -12,165 +12,246 @@
 
 #include <algorithm>
 #include <chrono>
-#include <ctime>
 #include <fstream>
-#include <mc/filesystem.h>
 #include <sstream>
-#include <stdexcept>
+#include <vector>
+
+#if defined(__cpp_lib_filesystem)
+#include <filesystem>
+namespace fs = std::filesystem;
+#elif defined(__cpp_lib_experimental_filesystem)
+#include <experimental/filesystem>
+namespace fs = std::experimental::filesystem;
+#elif defined(_MSC_VER) && _MSC_VER >= 1900
+#include <filesystem>
+namespace fs = std::filesystem;
+#elif defined(__has_include)
+#if __has_include(<filesystem>)
+#include <filesystem>
+namespace fs = std::filesystem;
+#elif __has_include(<experimental/filesystem>)
+#include <experimental/filesystem>
+namespace fs = std::experimental::filesystem;
+#else
+#error "无法找到文件系统库，请确保编译器支持 C++17 std::filesystem 或 std::experimental::filesystem"
+#endif
+#else
+#error "无法找到文件系统库，请确保编译器支持 C++17 std::filesystem 或 std::experimental::filesystem"
+#endif
+
+#include <mc/filesystem.h>
 
 namespace mc {
 namespace filesystem {
 
-// 获取路径中的文件名部分
-mc::string basename(const fs::path& path)
-{
-    if (path.empty()) {
-        return "";
-    }
+namespace {
 
-    auto native_name = fs::path(path).filename().string();
-    return mc::string(std::move(native_name));
+fs::path to_native_path(const path& p)
+{
+    return fs::path(mc::to_std_string(p.string()));
 }
 
-// 获取路径中的目录部分
-mc::string dirname(const fs::path& path)
+path from_native_path(const fs::path& p)
 {
-    if (path.empty()) {
-        return ".";
-    }
-
-    auto parent = fs::path(path).parent_path().string();
-    return parent.empty() ? mc::string(".") : mc::string(std::move(parent));
+    return path(mc::string(p.string()));
 }
 
-// 获取文件扩展名，不包含点号
-mc::string extension(const fs::path& path)
+template <typename Predicate>
+bool visit_directory_entries(const path& p, path_visit_fn visitor, void* userdata, Predicate predicate)
 {
-    if (path.empty()) {
-        return "";
+    if (visitor == nullptr) {
+        return false;
     }
 
-    // 获取扩展名（包括点）
-    mc::string ext = mc::string(fs::path(path).extension().string());
-    // 移除开头的点
-    if (!ext.empty() && ext.view()[0] == '.') {
-        return ext.substr(1);
-    }
-
-    return ext;
-}
-
-// 获取文件名主干部分（不含扩展名）
-mc::string stem(const fs::path& path)
-{
-    if (path.empty()) {
-        return "";
-    }
-
-    // 获取文件名主干部分（不含扩展名）
-    auto native_stem = fs::path(path).stem().string();
-    return mc::string(std::move(native_stem));
-}
-
-// 检查文件或目录是否存在
-bool exists(const fs::path& p)
-{
     try {
-        return fs::exists(p);
-    } catch (const std::exception& e) {
+        const fs::path native_path = to_native_path(p);
+        if (!fs::is_directory(native_path)) {
+            return false;
+        }
+
+        std::error_code ec;
+        for (const auto& entry : fs::directory_iterator(native_path, ec)) {
+            if (ec) {
+                return false;
+            }
+
+            if (!predicate(entry)) {
+                continue;
+            }
+
+            if (!visitor(from_native_path(entry.path()), userdata)) {
+                break;
+            }
+        }
+
+        return !ec;
+    } catch (const std::exception&) {
         return false;
     }
 }
 
-bool is_regular_file(const fs::path& p)
+} // namespace
+
+path path::parent_path() const
+{
+    return dirname(*this);
+}
+
+path path::filename() const
+{
+    return basename(*this);
+}
+
+path path::root_path() const
+{
+    return from_native_path(to_native_path(*this).root_path());
+}
+
+path path::extension() const
+{
+    return filesystem::extension(*this);
+}
+
+path path::stem() const
+{
+    return filesystem::stem(*this);
+}
+
+path& path::append_path(const path& rhs)
+{
+    if (rhs.empty()) {
+        return *this;
+    }
+
+    if (empty() || is_absolute_path(rhs.view())) {
+        m_path = rhs.m_path;
+        return *this;
+    }
+
+    const bool lhs_has_sep = is_separator(view().back());
+    const bool rhs_has_sep = is_separator(rhs.view().front());
+
+    if (!lhs_has_sep && !rhs_has_sep) {
+        m_path += '/';
+        m_path += rhs.m_path;
+        return *this;
+    }
+
+    if (lhs_has_sep && rhs_has_sep) {
+        m_path += rhs.m_path.substr(1);
+        return *this;
+    }
+
+    m_path += rhs.m_path;
+    return *this;
+}
+
+path basename(const path& p)
+{
+    if (p.empty()) {
+        return {};
+    }
+
+    return from_native_path(to_native_path(p).filename());
+}
+
+path dirname(const path& p)
+{
+    if (p.empty()) {
+        return path(".");
+    }
+
+    const fs::path parent = to_native_path(p).parent_path();
+    return parent.empty() ? path(".") : from_native_path(parent);
+}
+
+path extension(const path& p)
+{
+    if (p.empty()) {
+        return {};
+    }
+
+    mc::string ext(to_native_path(p).extension().string());
+    if (!ext.empty() && ext.view().front() == '.') {
+        ext = ext.substr(1);
+    }
+
+    return path(std::move(ext));
+}
+
+path stem(const path& p)
+{
+    if (p.empty()) {
+        return {};
+    }
+
+    return from_native_path(to_native_path(p).stem());
+}
+
+bool exists(const path& p)
 {
     try {
-        return fs::is_regular_file(p);
-    } catch (const std::exception& e) {
+        return fs::exists(to_native_path(p));
+    } catch (const std::exception&) {
         return false;
     }
 }
 
-bool is_directory(const fs::path& p)
+bool is_regular_file(const path& p)
 {
     try {
-        return fs::is_directory(p);
-    } catch (const std::exception& e) {
+        return fs::is_regular_file(to_native_path(p));
+    } catch (const std::exception&) {
         return false;
     }
 }
 
-std::optional<uint64_t> file_size(const fs::path& p)
+bool is_directory(const path& p)
 {
     try {
-        return static_cast<uint64_t>(fs::file_size(p));
-    } catch (const std::exception& e) {
-        return std::nullopt;
+        return fs::is_directory(to_native_path(p));
+    } catch (const std::exception&) {
+        return false;
     }
 }
 
-// 列出目录中的所有项目（文件和子目录）
-std::vector<fs::path> list_directory(const fs::path& path)
+bool file_size(const path& p, uint64_t& out_size)
 {
-    std::vector<fs::path> result;
-
-    if (!fs::is_directory(path)) {
-        return result;
+    out_size = 0;
+    try {
+        out_size = static_cast<uint64_t>(fs::file_size(to_native_path(p)));
+        return true;
+    } catch (const std::exception&) {
+        return false;
     }
-
-    std::error_code ec;
-    for (const auto& entry : fs::directory_iterator(path, ec)) {
-        if (!ec) {
-            result.push_back(entry.path());
-        }
-    }
-
-    return result;
 }
 
-// 列出目录中的所有普通文件
-std::vector<path> list_files(const path& path)
+bool visit_directory(const path& p, path_visit_fn visitor, void* userdata)
 {
-    std::vector<fs::path> result;
-
-    if (!fs::is_directory(path)) {
-        return result;
-    }
-
-    std::error_code ec;
-    for (const auto& entry : fs::directory_iterator(path, ec)) {
-        if (!ec && entry.status().type() == fs::file_type::regular && !ec) {
-            result.push_back(entry.path());
-        }
-    }
-
-    return result;
+    return visit_directory_entries(p, visitor, userdata, [](const fs::directory_entry&) {
+        return true;
+    });
 }
 
-// 列出目录中的所有子目录
-std::vector<path> list_directories(const path& path)
+bool visit_files(const path& p, path_visit_fn visitor, void* userdata)
 {
-    std::vector<fs::path> result;
+    return visit_directory_entries(p, visitor, userdata, [](const fs::directory_entry& entry) {
+        return entry.is_regular_file();
+    });
+}
 
-    if (!fs::is_directory(path)) {
-        return result;
-    }
-
-    std::error_code ec;
-    for (const auto& entry : fs::directory_iterator(path, ec)) {
-        if (!ec && entry.status().type() == fs::file_type::directory && !ec) {
-            result.push_back(entry.path());
-        }
-    }
-
-    return result;
+bool visit_directories(const path& p, path_visit_fn visitor, void* userdata)
+{
+    return visit_directory_entries(p, visitor, userdata, [](const fs::directory_entry& entry) {
+        return entry.is_directory();
+    });
 }
 
 bool create_directory(const path& p)
 {
     try {
-        return fs::create_directory(p);
-    } catch (const std::exception& e) {
+        return fs::create_directory(to_native_path(p));
+    } catch (const std::exception&) {
         return false;
     }
 }
@@ -178,8 +259,8 @@ bool create_directory(const path& p)
 bool create_directories(const path& p)
 {
     try {
-        return fs::create_directories(p);
-    } catch (const std::exception& e) {
+        return fs::create_directories(to_native_path(p));
+    } catch (const std::exception&) {
         return false;
     }
 }
@@ -187,178 +268,165 @@ bool create_directories(const path& p)
 bool remove(const path& p)
 {
     try {
-        return fs::remove(p);
-    } catch (const std::exception& e) {
+        return fs::remove(to_native_path(p));
+    } catch (const std::exception&) {
         return false;
     }
 }
 
-std::optional<uint64_t> remove_all(const path& p)
+bool remove_all(const path& p, uint64_t& out_removed_count)
 {
+    out_removed_count = 0;
     try {
-        return static_cast<uint64_t>(fs::remove_all(p));
-    } catch (const std::exception& e) {
-        return std::nullopt;
+        out_removed_count = static_cast<uint64_t>(fs::remove_all(to_native_path(p)));
+        return true;
+    } catch (const std::exception&) {
+        return false;
     }
 }
 
 bool copy_file(const path& from, const path& to, bool overwrite)
 {
     try {
-        fs::copy_options options = overwrite ? fs::copy_options::overwrite_existing : fs::copy_options::none;
-        fs::copy_file(from, to, options);
+        const fs::copy_options options = overwrite ? fs::copy_options::overwrite_existing : fs::copy_options::none;
+        fs::copy_file(to_native_path(from), to_native_path(to), options);
         return true;
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         return false;
     }
 }
 
 void rename(const path& from, const path& to)
 {
-    fs::rename(from, to);
+    fs::rename(to_native_path(from), to_native_path(to));
 }
 
 bool create_symlink(const path& target, const path& link)
 {
     try {
-        fs::create_symlink(target, link);
+        fs::create_symlink(to_native_path(target), to_native_path(link));
         return true;
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         return false;
     }
 }
 
-std::optional<fs::path> read_symlink(const path& path)
+bool read_symlink(const path& p, path& out_target)
 {
+    out_target.clear();
     try {
-        return fs::read_symlink(path);
-    } catch (const std::exception& e) {
-        return std::nullopt;
+        out_target = from_native_path(fs::read_symlink(to_native_path(p)));
+        return true;
+    } catch (const std::exception&) {
+        return false;
     }
 }
 
 path current_path()
 {
-    return fs::current_path();
+    return from_native_path(fs::current_path());
 }
 
 void current_path(const path& p)
 {
-    fs::current_path(p);
+    fs::current_path(to_native_path(p));
 }
 
 path absolute(const path& p)
 {
     try {
-        return fs::absolute(p);
-    } catch (const std::exception& e) {
+        return from_native_path(fs::absolute(to_native_path(p)));
+    } catch (const std::exception&) {
         return p;
     }
 }
-#if defined(MC_HAS_STD_FILESYSTEM)
-fs::path normalize(const fs::path& path)
+
+path normalize(const path& p)
 {
-    if (path.empty()) {
-        return ".";
+    if (p.empty()) {
+        return path(".");
     }
-    return path.lexically_normal();
-}
+
+    const fs::path native_path = to_native_path(p);
+
+#if defined(__cpp_lib_filesystem) || defined(_MSC_VER)
+    return from_native_path(native_path.lexically_normal());
 #else
-fs::path normalize(const fs::path& path)
-{
-    if (path.empty()) {
-        return ".";
-    }
-
-    // 自定义路径规范化实现，用于不支持lexically_normal的编译器
-    fs::path result;
-    bool     is_absolute        = path.is_absolute();
-    bool     has_root_name      = !path.root_name().empty();
-    bool     has_root_directory = !path.root_directory().empty();
-
-    // 保留根部分
-    if (has_root_name) {
-        result /= path.root_name();
-    }
-
-    if (has_root_directory) {
-        result /= path.root_directory();
-    }
-
+    fs::path              result;
+    const bool            is_absolute_path = native_path.is_absolute();
+    const fs::path        root_name        = native_path.root_name();
+    const fs::path        root_directory   = native_path.root_directory();
     std::vector<fs::path> elements;
 
-    // 处理每个路径片段
-    for (const auto& part : path) {
-        mc::string part_str = part.string();
+    if (!root_name.empty()) {
+        result /= root_name;
+    }
+
+    if (!root_directory.empty()) {
+        result /= root_directory;
+    }
+
+    for (const auto& part : native_path) {
+        const std::string part_str = part.string();
         if (part_str == ".") {
-            // 跳过当前目录
             continue;
-        } else if (part_str == "..") {
-            // 处理父目录
+        }
+
+        if (part_str == "..") {
             if (!elements.empty() && elements.back().string() != "..") {
                 elements.pop_back();
-            } else if (!is_absolute) {
-                // 相对路径中保留前导的".."
+            } else if (!is_absolute_path) {
                 elements.push_back(part);
             }
-            // 绝对路径中忽略多余的".."
-        } else if (!part_str.empty() && part_str != path.root_name().string() &&
-                   part_str != path.root_directory().string()) {
-            // 添加有效路径片段
+            continue;
+        }
+
+        if (!part_str.empty() && part_str != root_name.string() && part_str != root_directory.string()) {
             elements.push_back(part);
         }
     }
 
-    // 构建最终路径
     for (const auto& element : elements) {
         result /= element;
     }
 
-    // 处理空路径的情况
     if (result.empty()) {
-        return ".";
+        return path(".");
     }
 
-    return result;
-}
+    return from_native_path(result);
 #endif
+}
+
 path join(const path& base, const path& p)
 {
     return base / p;
 }
 
-path join(const std::vector<path>& paths)
+bool read_file(const path& p, mc::string& out_content)
 {
-    if (paths.empty()) {
-        return path();
-    }
-
-    path result = paths[0];
-    for (size_t i = 1; i < paths.size(); ++i) {
-        result /= paths[i];
-    }
-    return result;
-}
-
-std::optional<mc::string> read_file(const path& p)
-{
+    out_content.clear();
     if (p.empty()) {
-        return std::nullopt;
+        return false;
     }
+
     try {
-        path normalized_p = normalize(p);
-        if (!fs::is_regular_file(normalized_p)) {
-            return std::nullopt;
+        const path normalized_path = normalize(p);
+        if (!fs::is_regular_file(to_native_path(normalized_path))) {
+            return false;
         }
-        std::ifstream file(normalized_p, std::ios::binary);
+
+        std::ifstream file(to_native_path(normalized_path), std::ios::binary);
         if (!file) {
-            return std::nullopt;
+            return false;
         }
+
         std::stringstream buffer;
         buffer << file.rdbuf();
-        return mc::string(buffer.str());
-    } catch (const std::exception& e) {
-        return std::nullopt;
+        out_content = mc::string(buffer.str());
+        return true;
+    } catch (const std::exception&) {
+        return false;
     }
 }
 
@@ -367,15 +435,17 @@ bool write_file(const path& p, mc::string_view content)
     if (p.empty()) {
         return false;
     }
+
     try {
-        path normalized_p = normalize(p);
-        std::ofstream file(normalized_p, std::ios::binary);
+        const path    normalized_path = normalize(p);
+        std::ofstream file(to_native_path(normalized_path), std::ios::binary);
         if (!file) {
             return false;
         }
-        file << content;
+
+        file.write(content.data(), static_cast<std::streamsize>(content.size()));
         return file.good();
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         return false;
     }
 }
@@ -385,44 +455,52 @@ bool append_file(const path& p, mc::string_view content)
     if (p.empty()) {
         return false;
     }
+
     try {
-        path normalized_p = normalize(p);
-        std::ofstream file(normalized_p, std::ios::binary | std::ios::app);
+        const path    normalized_path = normalize(p);
+        std::ofstream file(to_native_path(normalized_path), std::ios::binary | std::ios::app);
         if (!file) {
             return false;
         }
-        file << content;
+
+        file.write(content.data(), static_cast<std::streamsize>(content.size()));
         return file.good();
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         return false;
     }
 }
 
-std::optional<int64_t> last_modified_time(const path& p)
+bool last_modified_time(const path& p, int64_t& out_timestamp)
 {
+    out_timestamp = 0;
     try {
-        auto ftime = fs::last_write_time(p);
-        // 转换文件系统时间点到时间戳
-        auto sctp = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
+        const auto ftime = fs::last_write_time(to_native_path(p));
+        const auto sctp  = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
             ftime - fs::file_time_type::clock::now() + std::chrono::system_clock::now());
-        return std::chrono::duration_cast<std::chrono::seconds>(sctp.time_since_epoch()).count();
-    } catch (const std::exception& e) {
-        return std::nullopt;
+        out_timestamp = std::chrono::duration_cast<std::chrono::seconds>(sctp.time_since_epoch()).count();
+        return true;
+    } catch (const std::exception&) {
+        return false;
     }
 }
 
 space_info space(const path& p)
 {
     try {
-        return fs::space(p);
-    } catch (const std::exception& e) {
-        return space_info{0, 0, 0}; // 返回所有值为0的space_info
+        const auto native_space = fs::space(to_native_path(p));
+        return space_info{
+            static_cast<uint64_t>(native_space.capacity),
+            static_cast<uint64_t>(native_space.free),
+            static_cast<uint64_t>(native_space.available),
+        };
+    } catch (const std::exception&) {
+        return {};
     }
 }
 
-fs::path temp_directory_path()
+path temp_directory_path()
 {
-    return fs::temp_directory_path();
+    return from_native_path(fs::temp_directory_path());
 }
 
 } // namespace filesystem

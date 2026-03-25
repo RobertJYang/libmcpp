@@ -113,7 +113,7 @@ protected:
         return get_dbus_daemon().get_address();
     }
 
-    std::filesystem::path get_socket_path()
+    mc::filesystem::path get_socket_path()
     {
         return get_dbus_daemon().get_socket_path();
     }

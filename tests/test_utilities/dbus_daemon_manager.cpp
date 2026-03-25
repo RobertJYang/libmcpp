@@ -252,16 +252,12 @@ std::vector<mc::filesystem::path> dbus_daemon_manager::scan_dbus_test_dirs()
     std::vector<mc::filesystem::path> result;
     mc::filesystem::path              temp_dir = mc::filesystem::temp_directory_path();
 
-    try {
-        for (const auto& entry : mc::filesystem::directory_iterator(temp_dir)) {
-            std::string name = entry.path().filename().string();
-            if (name.find("dbus_test_") == 0 && mc::filesystem::is_directory(entry.path())) {
-                result.push_back(entry.path());
-                dlog("发现可能的 DBus 测试目录: ${dir}", ("dir", entry.path().string()));
-            }
+    for (const auto& entry_path : mc::filesystem::list_directories(temp_dir)) {
+        std::string name = entry_path.filename().string();
+        if (name.find("dbus_test_") == 0) {
+            result.push_back(entry_path);
+            dlog("发现可能的 DBus 测试目录: ${dir}", ("dir", entry_path.string()));
         }
-    } catch (const std::exception& e) {
-        wlog("扫描临时目录时出错: ${error}", ("error", e.what()));
     }
 
     return result;
@@ -412,12 +408,8 @@ bool dbus_daemon_manager::create_config_file()
 void dbus_daemon_manager::cleanup_temp_dir()
 {
     if (!m_temp_dir.empty() && mc::filesystem::exists(m_temp_dir)) {
-        try {
-            mc::filesystem::remove_all(m_temp_dir);
-            dlog("已清理临时目录: ${dir}", ("dir", m_temp_dir.string()));
-        } catch (const mc::filesystem::filesystem_error& e) {
-            wlog("清理临时目录失败: ${error}", ("error", e.what()));
-        }
+        mc::filesystem::remove_all(m_temp_dir);
+        dlog("已清理临时目录: ${dir}", ("dir", m_temp_dir.string()));
     }
 }
 
@@ -430,12 +422,8 @@ void dbus_daemon_manager::cleanup_stale_instances()
         mc::filesystem::path socket_path = dir / "dbus.socket";
 
         if (!mc::filesystem::exists(socket_path) || !test_dbus_connection(socket_path)) {
-            try {
-                dlog("清理不可用的测试目录: ${dir}", ("dir", dir.string()));
-                mc::filesystem::remove_all(dir);
-            } catch (const std::exception& e) {
-                wlog("清理目录时出错: ${error}", ("error", e.what()));
-            }
+            dlog("清理不可用的测试目录: ${dir}", ("dir", dir.string()));
+            mc::filesystem::remove_all(dir);
         }
     }
 
@@ -445,24 +433,18 @@ void dbus_daemon_manager::cleanup_stale_instances()
 void dbus_daemon_manager::cleanup_stale_directories()
 {
     mc::filesystem::path temp_dir = mc::filesystem::temp_directory_path();
-    try {
-        for (const auto& entry : mc::filesystem::directory_iterator(temp_dir)) {
-            std::string name = entry.path().filename().string();
-            if (name.find("dbus_test_") == 0 && mc::filesystem::is_directory(entry.path())) {
-                // 检查目录中是否有socket文件，如果没有或者不可用，才删除
-                mc::filesystem::path socket_path = entry.path() / "dbus.socket";
-                if (!mc::filesystem::exists(socket_path) || !test_dbus_connection(socket_path)) {
-                    try {
-                        dlog("正在删除不可用的测试目录: ${dir}", ("dir", entry.path().string()));
-                        mc::filesystem::remove_all(entry.path());
-                    } catch (const std::exception& e) {
-                        wlog("清理旧测试目录时出错: ${error}", ("error", e.what()));
-                    }
-                }
-            }
+    for (const auto& entry_path : mc::filesystem::list_directories(temp_dir)) {
+        std::string name = entry_path.filename().string();
+        if (name.find("dbus_test_") != 0) {
+            continue;
         }
-    } catch (const std::exception& e) {
-        wlog("扫描临时目录时出错: ${error}", ("error", e.what()));
+
+        // 检查目录中是否有socket文件，如果没有或者不可用，才删除
+        mc::filesystem::path socket_path = entry_path / "dbus.socket";
+        if (!mc::filesystem::exists(socket_path) || !test_dbus_connection(socket_path)) {
+            dlog("正在删除不可用的测试目录: ${dir}", ("dir", entry_path.string()));
+            mc::filesystem::remove_all(entry_path);
+        }
     }
 }
 

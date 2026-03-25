@@ -27,6 +27,44 @@
 namespace mc {
 namespace test {
 
+template <typename T>
+struct test_array_allocator {
+    using value_type = T;
+
+    test_array_allocator() = default;
+
+    template <typename U>
+    test_array_allocator(const test_array_allocator<U>&)
+    {}
+
+    T* allocate(std::size_t n)
+    {
+        return std::allocator<T>{}.allocate(n);
+    }
+
+    void deallocate(T* p, std::size_t n)
+    {
+        std::allocator<T>{}.deallocate(p, n);
+    }
+
+    template <typename U>
+    struct rebind {
+        using other = test_array_allocator<U>;
+    };
+};
+
+template <typename T, typename U>
+bool operator==(const test_array_allocator<T>&, const test_array_allocator<U>&)
+{
+    return true;
+}
+
+template <typename T, typename U>
+bool operator!=(const test_array_allocator<T>&, const test_array_allocator<U>&)
+{
+    return false;
+}
+
 class VariantContainersTest : public mc::test::TestBase {
 protected:
     void SetUp() override
@@ -314,6 +352,42 @@ TEST_F(VariantContainersTest, VariantsAllocatorConstruction)
     EXPECT_FALSE(strong_array.empty());
     EXPECT_EQ(strong_array.element_type(), std::type_index(typeid(int)));
     EXPECT_FALSE(strong_array.element_type_name().empty());
+}
+
+TEST_F(VariantContainersTest, TypedArrayWithCustomAllocatorKeepsTypedAdapter)
+{
+    using custom_array = mc::array<int, test_array_allocator<int>>;
+
+    custom_array values{1, 2, 3};
+    EXPECT_EQ(values.at(1), 2);
+
+    auto inserted = values.insert(values.begin() + 1, 9);
+    EXPECT_EQ(*inserted, 9);
+    EXPECT_EQ(values[1], 9);
+
+    variant      holder(values);
+    custom_array restored;
+    from_variant(holder, restored);
+
+    ASSERT_EQ(restored.size(), 4U);
+    EXPECT_EQ(restored.at(0), 1);
+    EXPECT_EQ(restored.at(1), 9);
+    EXPECT_EQ(restored.at(2), 2);
+    EXPECT_EQ(restored.at(3), 3);
+}
+
+TEST_F(VariantContainersTest, TypedArrayRoundTripSharesErasedCoreWhenTypesMatch)
+{
+    mc::array<int> values{1, 2, 3};
+    variant        holder(values);
+
+    mc::array<int> restored;
+    from_variant(holder, restored);
+
+    restored[1] = 42;
+
+    ASSERT_TRUE(holder.is_array());
+    EXPECT_EQ(holder.get_array()[1].as_int32(), 42);
 }
 
 TEST_F(VariantContainersTest, VariantsResizePopAndForEach)

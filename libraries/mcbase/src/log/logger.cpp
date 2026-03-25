@@ -384,7 +384,7 @@ void logger::log_serial_printf(level lvl, const message& msg)
     if (ctx.m_file.empty()) {
         file_str.append("unknown");
     } else {
-        file_str.append(mc::filesystem::basename(mc::filesystem::path(mc::to_std_string(ctx.m_file))));
+        file_str.append(mc::filesystem::basename(mc::filesystem::path(mc::to_std_string(ctx.m_file))).string());
     }
 
     if (get_log_time_str_ptr) {

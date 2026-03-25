@@ -108,30 +108,35 @@ bool plugin_manager::load_plugins(const std::vector<std::string>& plugin_names)
     }
 
     // 否则加载目录下的所有插件
-    try {
-        for (const auto& entry : mc::filesystem::directory_iterator(m_plugin_dir)) {
-            if (entry.path().extension() == ".so") {
-                std::string name = entry.path().stem().string();
-                if (name.substr(0, 3) == "lib") {
-                    name = name.substr(3); // 移除 "lib" 前缀
-                }
-                void*                   handle = nullptr;
-                std::shared_ptr<plugin> plugin;
-                if (!load_dynamic_library(name, handle, plugin)) {
-                    wlog("load plugin failed: ${path}", ("path", entry.path().string()));
-                    continue;
-                }
-                m_plugin_handles.push_back(handle);
-                if (!register_plugin(std::move(plugin))) {
-                    wlog("register plugin failed: ${name}", ("name", name));
-                }
-            }
-        }
-        return true;
-    } catch (const mc::filesystem::filesystem_error& e) {
-        elog("traverse plugin dir failed: ${error}", ("error", e.what()));
+    if (!mc::filesystem::is_directory(m_plugin_dir)) {
+        elog("traverse plugin dir failed: ${path}", ("path", m_plugin_dir));
         return false;
     }
+
+    for (const auto& entry_path : mc::filesystem::list_files(m_plugin_dir)) {
+        if (entry_path.extension() != "so") {
+            continue;
+        }
+
+        std::string name = entry_path.stem().string();
+        if (name.substr(0, 3) == "lib") {
+            name = name.substr(3); // 移除 "lib" 前缀
+        }
+
+        void*                   handle = nullptr;
+        std::shared_ptr<plugin> plugin;
+        if (!load_dynamic_library(name, handle, plugin)) {
+            wlog("load plugin failed: ${path}", ("path", entry_path.string()));
+            continue;
+        }
+
+        m_plugin_handles.push_back(handle);
+        if (!register_plugin(std::move(plugin))) {
+            wlog("register plugin failed: ${name}", ("name", name));
+        }
+    }
+
+    return true;
 }
 
 bool plugin_manager::unload_plugin(const std::string& name)

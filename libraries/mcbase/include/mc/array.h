@@ -387,7 +387,7 @@ public:
     {
         ensure_data();
         try {
-            auto* impl = static_cast<detail::array_impl<T>*>(m_data.get());
+            auto* impl = static_cast<impl_type*>(m_data.get());
             return static_cast<std::vector<T, Allocator>&>(*impl).at(pos);
         } catch (const std::out_of_range&) {
             detail::throw_array_out_of_range("array::at: index out of range");
@@ -400,7 +400,7 @@ public:
             detail::throw_array_out_of_range("array::at: index out of range");
         }
         try {
-            const auto* impl = static_cast<const detail::array_impl<T>*>(m_data.get());
+            const auto* impl = static_cast<const impl_type*>(m_data.get());
             return static_cast<const std::vector<T, Allocator>&>(*impl).at(pos);
         } catch (const std::out_of_range&) {
             detail::throw_array_out_of_range("array::at: index out of range");
@@ -637,7 +637,7 @@ public:
     iterator insert(const_iterator pos, const T& value)
     {
         ensure_data();
-        auto* impl = static_cast<detail::array_impl<T>*>(m_data.get());
+        auto* impl = static_cast<impl_type*>(m_data.get());
         auto  it   = static_cast<std::vector<T, Allocator>&>(*impl).insert(pos, value);
         return it;
     }
@@ -645,7 +645,7 @@ public:
     iterator insert(const_iterator pos, T&& value)
     {
         ensure_data();
-        auto* impl = static_cast<detail::array_impl<T>*>(m_data.get());
+        auto* impl = static_cast<impl_type*>(m_data.get());
         auto  it   = static_cast<std::vector<T, Allocator>&>(*impl).insert(pos, std::move(value));
         return it;
     }
@@ -660,7 +660,7 @@ public:
     iterator insert(const_iterator pos, size_type count, const T& value)
     {
         ensure_data();
-        auto* impl = static_cast<detail::array_impl<T>*>(m_data.get());
+        auto* impl = static_cast<impl_type*>(m_data.get());
         auto  it   = static_cast<std::vector<T, Allocator>&>(*impl).insert(pos, count, value);
         return it;
     }
@@ -677,7 +677,7 @@ public:
     iterator insert(const_iterator pos, InputIt first, InputIt last)
     {
         ensure_data();
-        auto* impl = static_cast<detail::array_impl<T>*>(m_data.get());
+        auto* impl = static_cast<impl_type*>(m_data.get());
         auto  it   = static_cast<std::vector<T, Allocator>&>(*impl).insert(pos, first, last);
         return it;
     }
@@ -692,7 +692,7 @@ public:
     {
         ensure_data();
         // 直接访问 array_impl<T> 的底层 vector
-        auto* impl = static_cast<detail::array_impl<T>*>(m_data.get());
+        auto* impl = static_cast<impl_type*>(m_data.get());
         auto  it   = static_cast<std::vector<T, Allocator>&>(*impl).insert(pos, ilist);
         return it;
     }

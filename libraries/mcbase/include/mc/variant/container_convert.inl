@@ -396,9 +396,8 @@ void from_variant(const variant& var, mc::array<T, Allocator>& vo,
     }
 
     using impl_type = typename mc::array<T, Allocator>::impl_type;
-    impl_type* data = vars.as<impl_type>();
-    if (data) {
-        vo = mc::array<T, Allocator>::from_impl(mc::shared_ptr<impl_type>(data));
+    if (auto data = mc::dynamic_pointer_cast<impl_type>(vars.shared_data())) {
+        vo = mc::array<T, Allocator>::from_impl(std::move(data));
         return;
     }
 

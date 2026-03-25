@@ -22,6 +22,7 @@ mcbase_test_sources = [
   'test_json_public_header.cpp',
   'test_time.cpp',
   'test_error.cpp',
+  'test_filesystem.cpp',
 
   # 各子目录的测试文件
   test_array_files,

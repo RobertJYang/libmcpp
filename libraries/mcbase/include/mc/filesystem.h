@@ -16,317 +16,452 @@
  */
 #ifndef MC_FILESYSTEM_H
 #define MC_FILESYSTEM_H
+
+#include <cctype>
+#include <cstdint>
 #include <optional>
+#include <ostream>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include <mc/string.h>
 
-// 检测文件系统库的可用性
-#if defined(__cpp_lib_filesystem)
-#define MC_HAS_STD_FILESYSTEM 1
-#include <filesystem>
-#elif defined(__cpp_lib_experimental_filesystem)
-#define MC_HAS_EXPERIMENTAL_FILESYSTEM 1
-#include <experimental/filesystem>
-#elif defined(_MSC_VER) && _MSC_VER >= 1900
-#define MC_HAS_STD_FILESYSTEM 1
-#include <filesystem>
-#elif defined(__has_include)
-#if __has_include(<filesystem>)
-#define MC_HAS_STD_FILESYSTEM 1
-#include <filesystem>
-#elif __has_include(<experimental/filesystem>)
-#define MC_HAS_EXPERIMENTAL_FILESYSTEM 1
-#include <experimental/filesystem>
-#endif
-#endif
-
-// 如果仍然无法检测到文件系统库，则报错
-#if !defined(MC_HAS_STD_FILESYSTEM) && !defined(MC_HAS_EXPERIMENTAL_FILESYSTEM)
-#error "无法找到文件系统库，请确保编译器支持 C++17 std::filesystem 或 std::experimental::filesystem"
-#endif
-
 namespace mc {
 namespace filesystem {
 
-// 创建统一的别名
-#if defined(MC_HAS_STD_FILESYSTEM)
-namespace fs = std::filesystem;
-#else
-namespace fs = std::experimental::filesystem;
-#endif
+class MC_API path {
+public:
+    path() = default;
 
-// 常用类型和函数的便捷别名
-using path                         = fs::path;
-using directory_iterator           = fs::directory_iterator;
-using recursive_directory_iterator = fs::recursive_directory_iterator;
-using file_status                  = fs::file_status;
-using space_info                   = fs::space_info;
-using file_time_type               = fs::file_time_type;
-using file_type                    = fs::file_type;
-using filesystem_error             = fs::filesystem_error;
+    path(const mc::string& value) : m_path(value)
+    {}
 
-/**
- * @brief 从路径中提取文件名部分（不含目录）
- *
- * @param path 文件路径
- * @return mc::string 文件名部分
- */
-MC_API mc::string basename(const fs::path& path);
+    path(mc::string&& value) : m_path(std::move(value))
+    {}
 
-/**
- * @brief 从 mc::string 路径提取文件名部分（不含目录）
- */
-inline mc::string basename(const mc::string& path)
+    path(const std::string& value) : m_path(value)
+    {}
+
+    path(std::string_view value) : m_path(mc::string_view(value.data(), value.size()))
+    {}
+
+    path(mc::string_view value) : m_path(value)
+    {}
+
+    path(const char* value) : m_path(value)
+    {}
+
+    bool empty() const noexcept
+    {
+        return m_path.empty();
+    }
+
+    void clear() noexcept
+    {
+        m_path.clear();
+    }
+
+    const mc::string& string() const noexcept
+    {
+        return m_path;
+    }
+
+    mc::string_view view() const noexcept
+    {
+        return m_path.view();
+    }
+
+    const char* c_str() const noexcept
+    {
+        return m_path.c_str();
+    }
+
+    bool is_absolute() const noexcept
+    {
+        return is_absolute_path(view());
+    }
+
+    path parent_path() const;
+    path filename() const;
+    path root_path() const;
+    path extension() const;
+    path stem() const;
+
+    operator mc::string_view() const noexcept
+    {
+        return view();
+    }
+
+    operator std::string() const
+    {
+        return std::string(m_path);
+    }
+
+    path& operator/=(mc::string_view rhs)
+    {
+        return append_path(path(rhs));
+    }
+
+    path& operator/=(const path& rhs)
+    {
+        return append_path(rhs);
+    }
+
+    friend path operator/(path lhs, const path& rhs)
+    {
+        lhs /= rhs;
+        return lhs;
+    }
+
+    friend bool operator==(const path& lhs, const path& rhs) noexcept
+    {
+        return lhs.m_path == rhs.m_path;
+    }
+
+    friend bool operator!=(const path& lhs, const path& rhs) noexcept
+    {
+        return !(lhs == rhs);
+    }
+
+    friend bool operator<(const path& lhs, const path& rhs) noexcept
+    {
+        return lhs.view() < rhs.view();
+    }
+
+private:
+    static bool is_separator(char ch) noexcept
+    {
+        return ch == '/' || ch == '\\';
+    }
+
+    static bool is_absolute_path(mc::string_view value) noexcept
+    {
+        if (value.empty()) {
+            return false;
+        }
+
+        if (is_separator(value.front())) {
+            return true;
+        }
+
+        return value.size() >= 2 && std::isalpha(static_cast<unsigned char>(value[0])) != 0 && value[1] == ':';
+    }
+
+    path& append_path(const path& rhs);
+
+    mc::string m_path;
+};
+
+struct space_info {
+    uint64_t capacity{0};
+    uint64_t free{0};
+    uint64_t available{0};
+};
+
+using path_visit_fn = bool (*)(const path& entry, void* userdata);
+
+inline std::ostream& operator<<(std::ostream& os, const path& p)
 {
-    return basename(fs::path(mc::to_std_string(path)));
+    os << p.string();
+    return os;
 }
 
-/**
- * @brief 从路径中提取目录部分
- *
- * @param path 文件路径
- * @return mc::string 目录部分
- */
-MC_API mc::string dirname(const fs::path& path);
+MC_API path basename(const path& p);
+inline mc::string basename(mc::string_view p)
+{
+    return basename(path(p)).string();
+}
+inline mc::string basename(const mc::string& p)
+{
+    return basename(p.view());
+}
+inline std::string basename(std::string_view p)
+{
+    return mc::to_std_string(basename(path(p)).string());
+}
+inline std::string basename(const std::string& p)
+{
+    return basename(std::string_view(p.data(), p.size()));
+}
+inline mc::string basename(const char* p)
+{
+    return basename(mc::string_view(p));
+}
 
-/**
- * @brief 获取文件扩展名
- *
- * @param path 文件路径
- * @return mc::string 扩展名（不含点）
- */
-MC_API mc::string extension(const fs::path& path);
+MC_API path dirname(const path& p);
+inline mc::string dirname(mc::string_view p)
+{
+    return dirname(path(p)).string();
+}
+inline mc::string dirname(const mc::string& p)
+{
+    return dirname(p.view());
+}
+inline std::string dirname(std::string_view p)
+{
+    return mc::to_std_string(dirname(path(p)).string());
+}
+inline std::string dirname(const std::string& p)
+{
+    return dirname(std::string_view(p.data(), p.size()));
+}
+inline mc::string dirname(const char* p)
+{
+    return dirname(mc::string_view(p));
+}
 
-/**
- * @brief 获取不带扩展名的文件名
- *
- * @param path 文件路径
- * @return mc::string 不带扩展名的文件名
- */
-MC_API mc::string stem(const fs::path& path);
+MC_API path extension(const path& p);
+inline mc::string extension(mc::string_view p)
+{
+    return extension(path(p)).string();
+}
+inline mc::string extension(const mc::string& p)
+{
+    return extension(p.view());
+}
+inline std::string extension(std::string_view p)
+{
+    return mc::to_std_string(extension(path(p)).string());
+}
+inline std::string extension(const std::string& p)
+{
+    return extension(std::string_view(p.data(), p.size()));
+}
+inline mc::string extension(const char* p)
+{
+    return extension(mc::string_view(p));
+}
 
-/**
- * @brief 检查路径是否存在
- *
- * @param path 要检查的路径
- * @return bool 如果路径存在返回true，否则返回false
- */
+MC_API path stem(const path& p);
+inline mc::string stem(mc::string_view p)
+{
+    return stem(path(p)).string();
+}
+inline mc::string stem(const mc::string& p)
+{
+    return stem(p.view());
+}
+inline std::string stem(std::string_view p)
+{
+    return mc::to_std_string(stem(path(p)).string());
+}
+inline std::string stem(const std::string& p)
+{
+    return stem(std::string_view(p.data(), p.size()));
+}
+inline mc::string stem(const char* p)
+{
+    return stem(mc::string_view(p));
+}
+
 MC_API bool exists(const path& p);
-
-/**
- * @brief 检查路径是否是文件
- *
- * @param path 要检查的路径
- * @return bool 如果路径是文件返回true，否则返回false
- */
 MC_API bool is_regular_file(const path& p);
-
-/**
- * @brief 检查路径是否是目录
- *
- * @param path 要检查的路径
- * @return bool 如果路径是目录返回true，否则返回false
- */
 MC_API bool is_directory(const path& p);
 
-/**
- * @brief 获取文件大小
- *
- * @param path 文件路径
- * @return std::optional<uint64_t> 文件大小（字节），如果文件不存在或无法访问返回空
- */
-MC_API std::optional<uint64_t> file_size(const path& p);
+MC_API bool file_size(const path& p, uint64_t& out_size);
+inline std::optional<uint64_t> file_size(const path& p)
+{
+    uint64_t out_size = 0;
+    if (!file_size(p, out_size)) {
+        return std::nullopt;
+    }
+    return out_size;
+}
 
-/**
- * @brief 列出目录中的所有文件和子目录
- *
- * @param path 目录路径
- * @return std::vector<fs::path> 文件和子目录的路径列表
- */
-MC_API std::vector<fs::path> list_directory(const fs::path& path);
+MC_API bool visit_directory(const path& p, path_visit_fn visitor, void* userdata);
+MC_API bool visit_files(const path& p, path_visit_fn visitor, void* userdata);
+MC_API bool visit_directories(const path& p, path_visit_fn visitor, void* userdata);
 
-/**
- * @brief 列出目录中的所有文件（不包括子目录）
- *
- * @param path 目录路径
- * @return std::vector<fs::path> 文件路径列表
- */
-MC_API std::vector<fs::path> list_files(const fs::path& path);
+namespace detail {
+struct path_list_collector {
+    std::vector<path> entries;
 
-/**
- * @brief 列出目录中的所有子目录（不包括文件）
- *
- * @param path 目录路径
- * @return std::vector<fs::path> 子目录路径列表
- */
-MC_API std::vector<fs::path> list_directories(const fs::path& path);
+    static bool collect(const path& entry, void* userdata)
+    {
+        auto* self = static_cast<path_list_collector*>(userdata);
+        self->entries.push_back(entry);
+        return true;
+    }
+};
+} // namespace detail
 
-/**
- * @brief 创建目录
- *
- * @param path 要创建的目录路径
- * @return bool 成功返回true，失败返回false
- */
+inline std::vector<path> list_directory(const path& p)
+{
+    detail::path_list_collector collector;
+    if (!visit_directory(p, &detail::path_list_collector::collect, &collector)) {
+        return {};
+    }
+    return std::move(collector.entries);
+}
+
+inline std::vector<path> list_files(const path& p)
+{
+    detail::path_list_collector collector;
+    if (!visit_files(p, &detail::path_list_collector::collect, &collector)) {
+        return {};
+    }
+    return std::move(collector.entries);
+}
+
+inline std::vector<path> list_directories(const path& p)
+{
+    detail::path_list_collector collector;
+    if (!visit_directories(p, &detail::path_list_collector::collect, &collector)) {
+        return {};
+    }
+    return std::move(collector.entries);
+}
+
 MC_API bool create_directory(const path& p);
-
-/**
- * @brief 递归创建目录
- *
- * @param path 要创建的目录路径
- * @return bool 成功返回true，失败返回false
- */
 MC_API bool create_directories(const path& p);
-
-/**
- * @brief 删除文件或空目录
- *
- * @param path 要删除的路径
- * @return bool 成功返回true，失败返回false
- */
 MC_API bool remove(const path& p);
 
-/**
- * @brief 递归删除目录及其内容
- *
- * @param path 要删除的目录路径
- * @return std::optional<uint64_t> 删除的文件数量，失败返回空
- */
-MC_API std::optional<uint64_t> remove_all(const path& p);
+MC_API bool remove_all(const path& p, uint64_t& out_removed_count);
+inline std::optional<uint64_t> remove_all(const path& p)
+{
+    uint64_t out_removed_count = 0;
+    if (!remove_all(p, out_removed_count)) {
+        return std::nullopt;
+    }
+    return out_removed_count;
+}
 
-/**
- * @brief 复制文件
- *
- * @param src 源文件路径
- * @param dst 目标文件路径
- * @param overwrite 如果目标文件已存在是否覆盖
- * @return bool 成功返回true，失败返回false
- */
 MC_API bool copy_file(const path& from, const path& to, bool overwrite = false);
-
-/**
- * @brief 移动文件或目录
- *
- * @param src 源路径
- * @param dst 目标路径
- * @return bool 成功返回true，失败返回false
- */
 MC_API void rename(const path& from, const path& to);
-
-/**
- * @brief 创建符号链接
- *
- * @param target 链接目标
- * @param link 链接路径
- * @return bool 成功返回true，失败返回false
- */
 MC_API bool create_symlink(const path& target, const path& link);
 
-/**
- * @brief 读取符号链接的目标
- *
- * @param path 符号链接路径
- * @return std::optional<fs::path> 链接目标，如果失败返回空
- */
-MC_API std::optional<fs::path> read_symlink(const path& path);
+MC_API bool read_symlink(const path& p, path& out_target);
+inline std::optional<path> read_symlink(const path& p)
+{
+    path out_target;
+    if (!read_symlink(p, out_target)) {
+        return std::nullopt;
+    }
+    return out_target;
+}
 
-/**
- * @brief 获取当前工作目录
- *
- * @return fs::path 当前工作目录的绝对路径
- */
-MC_API fs::path current_path();
-
-/**
- * @brief 设置当前工作目录
- *
- * @param path 要设置的目录路径
- * @return bool 成功返回true，失败返回false
- */
+MC_API path current_path();
 MC_API void current_path(const path& p);
+MC_API path absolute(const path& p);
+MC_API path normalize(const path& p);
 
-/**
- * @brief 获取绝对路径
- *
- * @param path 相对或绝对路径
- * @return fs::path 绝对路径，如果失败返回空
- */
-MC_API fs::path absolute(const path& p);
+MC_API path join(const path& base, const path& p);
+inline mc::string join(mc::string_view base, mc::string_view p)
+{
+    return join(path(base), path(p)).string();
+}
+inline std::string join(std::string_view base, std::string_view p)
+{
+    return mc::to_std_string(join(path(base), path(p)).string());
+}
+inline mc::string join(const mc::string& base, const mc::string& p)
+{
+    return join(base.view(), p.view());
+}
+inline std::string join(const std::string& base, const std::string& p)
+{
+    return join(std::string_view(base.data(), base.size()), std::string_view(p.data(), p.size()));
+}
+inline path join(const std::vector<path>& paths)
+{
+    if (paths.empty()) {
+        return {};
+    }
 
-/**
- * @brief 规范化路径，解析"."和".."
- *
- * @param path 要规范化的路径
- * @return fs::path 规范化后的路径
- */
-MC_API fs::path normalize(const fs::path& path);
+    path result = paths[0];
+    for (std::size_t i = 1; i < paths.size(); ++i) {
+        result /= paths[i];
+    }
+    return result;
+}
 
-/**
- * @brief 拼接路径
- *
- * @param base 基础路径
- * @param path 要添加的路径
- * @return fs::path 拼接后的路径
- */
-MC_API fs::path join(const path& base, const path& path);
+MC_API bool read_file(const path& p, mc::string& out_content);
+inline std::optional<mc::string> read_file(const path& p)
+{
+    mc::string out_content;
+    if (!read_file(p, out_content)) {
+        return std::nullopt;
+    }
+    return out_content;
+}
+inline std::optional<mc::string> read_file(mc::string_view p)
+{
+    return read_file(path(p));
+}
+inline std::optional<mc::string> read_file(const mc::string& p)
+{
+    return read_file(p.view());
+}
+inline std::optional<mc::string> read_file(std::string_view p)
+{
+    return read_file(path(p));
+}
+inline std::optional<mc::string> read_file(const std::string& p)
+{
+    return read_file(std::string_view(p.data(), p.size()));
+}
+inline std::optional<mc::string> read_file(const char* p)
+{
+    return read_file(mc::string_view(p));
+}
 
-/**
- * @brief 拼接多个路径段
- *
- * @param paths 要拼接的路径段
- * @return fs::path 拼接后的路径
- */
-MC_API fs::path join(const std::vector<path>& paths);
-
-/**
- * @brief 读取整个文件内容到字符串
- *
- * @param path 文件路径
- * @return std::optional<mc::string> 文件内容，如果失败返回空
- */
-MC_API std::optional<mc::string> read_file(const path& p);
-
-/**
- * @brief 将内容写入文件（覆盖已有内容）
- *
- * @param path 文件路径
- * @param content 要写入的内容
- * @return bool 成功返回true，失败返回false
- */
 MC_API bool write_file(const path& p, mc::string_view content);
+inline bool write_file(mc::string_view p, mc::string_view content)
+{
+    return write_file(path(p), content);
+}
+inline bool write_file(const mc::string& p, mc::string_view content)
+{
+    return write_file(p.view(), content);
+}
+inline bool write_file(std::string_view p, mc::string_view content)
+{
+    return write_file(path(p), content);
+}
+inline bool write_file(const std::string& p, mc::string_view content)
+{
+    return write_file(std::string_view(p.data(), p.size()), content);
+}
+inline bool write_file(const char* p, mc::string_view content)
+{
+    return write_file(mc::string_view(p), content);
+}
 
-/**
- * @brief 将内容追加到文件
- *
- * @param path 文件路径
- * @param content 要追加的内容
- * @return bool 成功返回true，失败返回false
- */
 MC_API bool append_file(const path& p, mc::string_view content);
+inline bool append_file(mc::string_view p, mc::string_view content)
+{
+    return append_file(path(p), content);
+}
+inline bool append_file(const mc::string& p, mc::string_view content)
+{
+    return append_file(p.view(), content);
+}
+inline bool append_file(std::string_view p, mc::string_view content)
+{
+    return append_file(path(p), content);
+}
+inline bool append_file(const std::string& p, mc::string_view content)
+{
+    return append_file(std::string_view(p.data(), p.size()), content);
+}
+inline bool append_file(const char* p, mc::string_view content)
+{
+    return append_file(mc::string_view(p), content);
+}
 
-/**
- * @brief 获取文件最后修改时间（Unix时间戳）
- *
- * @param path 文件路径
- * @return std::optional<int64_t> 最后修改时间，如果失败返回空
- */
-MC_API std::optional<int64_t> last_modified_time(const path& p);
+MC_API bool last_modified_time(const path& p, int64_t& out_timestamp);
+inline std::optional<int64_t> last_modified_time(const path& p)
+{
+    int64_t out_timestamp = 0;
+    if (!last_modified_time(p, out_timestamp)) {
+        return std::nullopt;
+    }
+    return out_timestamp;
+}
 
-/**
- * @brief 获取文件系统空间信息
- *
- * @param path 文件路径
- * @return space_info 文件系统空间信息
- */
 MC_API space_info space(const path& p);
-
-/**
- * @brief 获取临时目录路径
- *
- * @return fs::path 临时目录路径
- */
-MC_API fs::path temp_directory_path();
+MC_API path       temp_directory_path();
 
 } // namespace filesystem
 } // namespace mc

@@ -387,6 +387,7 @@ public:
 
     const i_variants* data() const;
     i_variants*       data();
+    mc::shared_ptr<i_variants> shared_data() const;
 
     template <typename T>
     T* as() const

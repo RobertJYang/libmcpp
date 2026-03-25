@@ -774,4 +774,9 @@ i_variants* variants::data()
     return m_data.get();
 }
 
+mc::shared_ptr<i_variants> variants::shared_data() const
+{
+    return m_data;
+}
+
 } // namespace mc

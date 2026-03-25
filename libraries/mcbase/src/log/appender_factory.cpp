@@ -152,16 +152,19 @@ public:
 
     void load_all(mc::string_view dir_path)
     {
-        try {
-            for (const auto& entry : mc::filesystem::directory_iterator(
-                     mc::filesystem::path(mc::to_std_string(mc::string(dir_path))))) {
-                if (entry.status().type() == mc::filesystem::file_type::regular && entry.path().extension() == ".so") {
-                    auto appender_type = entry.path().stem().string();
-                    load(entry.path().string(), appender_type);
-                }
+        const auto dir = mc::filesystem::path(dir_path);
+        if (!mc::filesystem::is_directory(dir)) {
+            elog("Failed to load appenders: ${path}", ("path", dir_path));
+            return;
+        }
+
+        for (const auto& entry_path : mc::filesystem::list_files(dir)) {
+            if (entry_path.extension() != "so") {
+                continue;
             }
-        } catch (const std::exception& e) {
-            elog("Failed to load appenders: ${path}, error: ${error}", ("path", dir_path)("error", e.what()));
+
+            auto appender_type = entry_path.stem().string();
+            load(entry_path.string(), appender_type);
         }
     }
 
