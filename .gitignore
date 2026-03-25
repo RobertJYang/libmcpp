@@ -6,6 +6,7 @@ builddir/
 !.vscode/tasks.json
 !.vscode/launch.json
 .cursor/
+.worktrees/
 .meson*
 
 # Subprojects downloaded sources
