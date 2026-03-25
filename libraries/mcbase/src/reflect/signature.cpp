@@ -328,12 +328,6 @@ char signature::first_type() const
     return m_sig[0];
 }
 
-std::ostream& operator<<(std::ostream& os, const signature& sig)
-{
-    os << sig.str();
-    return os;
-}
-
 // signature_iterator类实现
 
 signature_iterator::signature_iterator()

@@ -1598,15 +1598,14 @@ public:
      * @return mc::string variant 的字符串表示
      */
     mc::string to_string() const;
+    void       append_stream_string(mc::string& out) const;
+    mc::string to_stream_string() const;
 
 private:
     bool same_type_equal(const variant_base& other) const;
     bool other_type_equal(const variant_base& other) const;
     bool same_type_less(const variant_base& other) const;
     bool other_type_less(const variant_base& other) const;
-
-    /** @brief 从 other 迁入载荷；调用前 *this 须为已 clear 或默认构造，且不与 other 为同一对象 */
-    void relocate_payload_from_move(variant_base&& other) noexcept;
 
 protected:
     union {
@@ -1846,7 +1845,10 @@ inline variant_base operator+(const char* lhs, const variant_base& rhs)
     return mc::string_view(lhs) + rhs;
 }
 
-MC_API std::ostream& operator<<(std::ostream& os, const variant_base& v);
+inline std::ostream& operator<<(std::ostream& os, const variant_base& v)
+{
+    return os << v.to_stream_string();
+}
 
 } // namespace mc
 

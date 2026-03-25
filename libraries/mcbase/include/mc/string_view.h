@@ -228,6 +228,56 @@ public:
         return std::string_view(*this).compare(std::string_view(other));
     }
 
+    int compare(size_type pos, size_type count, string_view other) const
+    {
+        return std::string_view(*this).substr(pos, count).compare(std::string_view(other));
+    }
+
+    int compare(size_type pos1, size_type count1, string_view other, size_type pos2, size_type count2 = npos) const
+    {
+        return std::string_view(*this).substr(pos1, count1).compare(std::string_view(other).substr(pos2, count2));
+    }
+
+    int compare(size_type pos, size_type count, const char* s) const
+    {
+        return std::string_view(*this).substr(pos, count).compare(s);
+    }
+
+    int compare(size_type pos, size_type count, const char* s, size_type count2) const
+    {
+        return std::string_view(*this).substr(pos, count).compare(std::string_view(s, count2));
+    }
+
+    bool starts_with(string_view prefix) const noexcept
+    {
+        return size() >= prefix.size() && substr(0, prefix.size()) == prefix;
+    }
+
+    bool starts_with(char c) const noexcept
+    {
+        return !empty() && front() == c;
+    }
+
+    bool ends_with(string_view suffix) const noexcept
+    {
+        return size() >= suffix.size() && substr(size() - suffix.size(), suffix.size()) == suffix;
+    }
+
+    bool ends_with(char c) const noexcept
+    {
+        return !empty() && back() == c;
+    }
+
+    bool contains(string_view needle) const noexcept
+    {
+        return find(needle) != npos;
+    }
+
+    bool contains(char c) const noexcept
+    {
+        return find(c) != npos;
+    }
+
     string_view substr(size_type pos, size_type n = npos) const
     {
         return string_view(std::string_view(*this).substr(pos, n));
@@ -238,9 +288,54 @@ public:
         return std::string_view(*this).find(std::string_view(v), pos);
     }
 
+    size_type find(const char* s, size_type pos, size_type count) const noexcept
+    {
+        return std::string_view(*this).find(s, pos, count);
+    }
+
     size_type find(char c, size_type pos = 0) const noexcept
     {
         return std::string_view(*this).find(c, pos);
+    }
+
+    size_type rfind(string_view v, size_type pos = npos) const noexcept
+    {
+        return std::string_view(*this).rfind(std::string_view(v), pos);
+    }
+
+    size_type rfind(char c, size_type pos = npos) const noexcept
+    {
+        return std::string_view(*this).rfind(c, pos);
+    }
+
+    size_type rfind(const char* s, size_type pos = npos) const noexcept
+    {
+        return std::string_view(*this).rfind(s, pos);
+    }
+
+    size_type rfind(const char* s, size_type pos, size_type count) const noexcept
+    {
+        return std::string_view(*this).rfind(s, pos, count);
+    }
+
+    size_type find_first_of(string_view v, size_type pos = 0) const noexcept
+    {
+        return std::string_view(*this).find_first_of(std::string_view(v), pos);
+    }
+
+    size_type find_first_of(char c, size_type pos = 0) const noexcept
+    {
+        return std::string_view(*this).find_first_of(c, pos);
+    }
+
+    size_type find_first_of(const char* s, size_type pos = 0) const noexcept
+    {
+        return std::string_view(*this).find_first_of(s, pos);
+    }
+
+    size_type find_first_of(const char* s, size_type pos, size_type count) const noexcept
+    {
+        return std::string_view(*this).find_first_of(s, pos, count);
     }
 
     size_type find_last_of(string_view v, size_type pos = npos) const noexcept
@@ -258,6 +353,11 @@ public:
         return std::string_view(*this).find_last_of(s, pos);
     }
 
+    size_type find_last_of(const char* s, size_type pos, size_type count) const noexcept
+    {
+        return std::string_view(*this).find_last_of(s, pos, count);
+    }
+
     size_type find_first_not_of(char c, size_type pos = 0) const noexcept
     {
         return std::string_view(*this).find_first_not_of(c, pos);
@@ -266,6 +366,36 @@ public:
     size_type find_first_not_of(string_view v, size_type pos = 0) const noexcept
     {
         return std::string_view(*this).find_first_not_of(std::string_view(v), pos);
+    }
+
+    size_type find_first_not_of(const char* s, size_type pos = 0) const noexcept
+    {
+        return std::string_view(*this).find_first_not_of(s, pos);
+    }
+
+    size_type find_first_not_of(const char* s, size_type pos, size_type count) const noexcept
+    {
+        return std::string_view(*this).find_first_not_of(s, pos, count);
+    }
+
+    size_type find_last_not_of(string_view v, size_type pos = npos) const noexcept
+    {
+        return std::string_view(*this).find_last_not_of(std::string_view(v), pos);
+    }
+
+    size_type find_last_not_of(char c, size_type pos = npos) const noexcept
+    {
+        return std::string_view(*this).find_last_not_of(c, pos);
+    }
+
+    size_type find_last_not_of(const char* s, size_type pos = npos) const noexcept
+    {
+        return std::string_view(*this).find_last_not_of(s, pos);
+    }
+
+    size_type find_last_not_of(const char* s, size_type pos, size_type count) const noexcept
+    {
+        return std::string_view(*this).find_last_not_of(s, pos, count);
     }
 
 private:

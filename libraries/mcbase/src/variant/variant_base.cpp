@@ -31,6 +31,59 @@ mc::string variant_base::to_string() const
     return json::json_encode(*this);
 }
 
+void variant_base::append_stream_string(mc::string& out) const
+{
+    switch (get_type()) {
+        case type_id::null_type:
+            mc::strings::append(out, "null");
+            return;
+        case type_id::bool_type:
+            mc::strings::append(out, as_bool());
+            return;
+        case type_id::int8_type:
+        case type_id::int16_type:
+        case type_id::int32_type:
+        case type_id::int64_type:
+            mc::strings::append(out, as_int64());
+            return;
+        case type_id::uint8_type:
+        case type_id::uint16_type:
+        case type_id::uint32_type:
+        case type_id::uint64_type:
+            mc::strings::append(out, as_uint64());
+            return;
+        case type_id::double_type:
+            mc::strings::append(out, as_double());
+            return;
+        case type_id::string_type:
+            out.append(get_string());
+            return;
+        case type_id::array_type:
+        case type_id::object_type:
+            out.append(mc::to_string(*this));
+            return;
+        case type_id::blob_type:
+            mc::strings::append(out, "blob[", get_blob().data.size(), ']');
+            return;
+        case type_id::extension_type: {
+            if (auto extension = as_extension()) {
+                out.append(extension->get_type_name());
+            }
+            return;
+        }
+        default:
+            mc::strings::append(out, "unknown_type");
+            return;
+    }
+}
+
+mc::string variant_base::to_stream_string() const
+{
+    mc::string result;
+    append_stream_string(result);
+    return result;
+}
+
 variant_base::variant_base(type_id type) : m_uint64(0), m_type(type), m_is_fixed(false)
 {
     switch (type) {
@@ -1314,55 +1367,6 @@ void from_variant(const variant_base& var, bool& vo)
 mc::string to_string(const variant_base& v)
 {
     return v.to_string();
-}
-
-std::ostream& operator<<(std::ostream& os, const variant_base& v)
-{
-    switch (v.get_type()) {
-        case type_id::null_type:
-            // 空值类型直接输出字符串 "null"
-            return os << "null";
-        case type_id::bool_type:
-            // 布尔类型根据值输出 "true" 或 "false"
-            return os << (v.as_bool() ? "true" : "false");
-        case type_id::int8_type:
-        case type_id::int16_type:
-        case type_id::int32_type:
-        case type_id::int64_type:
-            // 所有有符号整数类型统一转换为 int64_t 后输出
-            return os << v.as_int64();
-        case type_id::uint8_type:
-        case type_id::uint16_type:
-        case type_id::uint32_type:
-        case type_id::uint64_type:
-            // 所有无符号整数类型统一转换为 uint64_t 后输出
-            return os << v.as_uint64();
-        case type_id::double_type:
-            // 浮点类型直接输出 double 值
-            return os << v.as_double();
-        case type_id::string_type:
-            // 字符串类型直接输出内容(不带引号)
-            return os << v.get_string();
-        case type_id::array_type:
-            // 数组类型通过 mc::to_string 转换为字符串后输出
-            return os << mc::to_string(v);
-        case type_id::object_type:
-            // 对象类型通过 mc::to_string 转换为字符串后输出
-            return os << mc::to_string(v);
-        case type_id::blob_type:
-            // 二进制数据输出为 "blob[大小]" 格式
-            os << "blob[" << v.get_blob().data.size() << "]";
-            return os;
-        case type_id::extension_type: {
-            if (auto extension = v.as_extension()) {
-                return os << extension->get_type_name();
-            }
-            return os;
-        }
-        default:
-            // 未知类型或未处理的类型输出为 "unknown_type"
-            return os << "unknown_type";
-    }
 }
 
 } // namespace mc

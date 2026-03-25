@@ -25,7 +25,6 @@
 #include <cctype>
 #include <cstring>
 #include <functional>
-#include <ostream>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -433,6 +432,26 @@ int string::compare(mc::string_view other) const noexcept
     return mc::string_view(data(), size()).compare(mc::string_view(other));
 }
 
+int string::compare(size_type pos, size_type count, mc::string_view other) const
+{
+    return view().compare(pos, count, other);
+}
+
+int string::compare(size_type pos1, size_type count1, mc::string_view other, size_type pos2, size_type count2) const
+{
+    return view().compare(pos1, count1, other, pos2, count2);
+}
+
+int string::compare(size_type pos, size_type count, const char* str) const
+{
+    return view().compare(pos, count, str);
+}
+
+int string::compare(size_type pos, size_type count, const char* str, size_type count2) const
+{
+    return view().compare(pos, count, str, count2);
+}
+
 std::size_t string::hash() const noexcept
 {
     return std::hash<mc::string_view>{}(mc::string_view(data(), size()));
@@ -552,6 +571,29 @@ void string::insert(size_type pos, size_type count, char ch)
     detail::string_mutable_impl::mutable_storage(*this, size() + count).insert(pos, count, ch);
 }
 
+void string::insert(size_type pos, mc::string_view str)
+{
+    if (pos > size()) {
+        throw std::out_of_range("mc::string::insert");
+    }
+    if (str.empty()) {
+        return;
+    }
+    mc::string stable_copy;
+    str                          = stabilize_source_view(*this, str, stable_copy);
+    const size_type current_size = size();
+    auto&           v            = detail::string_mutable_impl::mutable_storage(*this, current_size + str.size());
+    v.replace(pos, 0, str.data(), str.size());
+}
+
+void string::insert(size_type pos, const char* str, size_type count)
+{
+    if (count == 0U || str == nullptr) {
+        return;
+    }
+    insert(pos, mc::string_view(str, count));
+}
+
 char& string::operator[](size_type index)
 {
     return detail::string_mutable_impl::mutable_storage(*this)[index];
@@ -659,6 +701,16 @@ void string::append(mc::string_view str)
     detail::string_mutable_impl::mutable_storage(*this, size() + str.size()).append(str.data(), str.size());
 }
 
+void string::append(mc::string_view str, size_type pos, size_type n)
+{
+    if (pos > str.size()) {
+        throw std::out_of_range("mc::string::append");
+    }
+    const size_type available = str.size() - pos;
+    const size_type length    = (n == npos || n > available) ? available : n;
+    append(mc::string_view(str.data() + pos, length));
+}
+
 void string::append(const string& str)
 {
     append(str.view());
@@ -686,6 +738,25 @@ void string::replace(size_type pos, size_type count, mc::string_view str)
     const size_type erase_len    = std::min(count, current_size - pos);
     auto&           v = detail::string_mutable_impl::mutable_storage(*this, current_size - erase_len + str.size());
     v.replace(pos, count, str.data(), str.size());
+}
+
+void string::replace(size_type pos, size_type count, const char* str, size_type count2)
+{
+    if (count2 == 0U || str == nullptr) {
+        replace(pos, count, mc::string_view());
+        return;
+    }
+    replace(pos, count, mc::string_view(str, count2));
+}
+
+void string::replace(size_type pos, size_type count, mc::string_view str, size_type pos2, size_type count2)
+{
+    if (pos2 > str.size()) {
+        throw std::out_of_range("mc::string::replace");
+    }
+    const size_type available = str.size() - pos2;
+    const size_type length    = (count2 == npos || count2 > available) ? available : count2;
+    replace(pos, count, mc::string_view(str.data() + pos2, length));
 }
 
 void string::erase(size_type pos, size_type n)
@@ -717,14 +788,114 @@ string::size_type string::find(mc::string_view v, size_type pos) const noexcept
     return view().find(v, pos);
 }
 
+string::size_type string::find(const char* str, size_type pos, size_type count) const noexcept
+{
+    return view().find(str, pos, count);
+}
+
 string::size_type string::find(char c, size_type pos) const noexcept
 {
     return view().find(c, pos);
 }
 
+string::size_type string::rfind(mc::string_view v, size_type pos) const noexcept
+{
+    return view().rfind(v, pos);
+}
+
+string::size_type string::rfind(char c, size_type pos) const noexcept
+{
+    return view().rfind(c, pos);
+}
+
+string::size_type string::rfind(const char* str, size_type pos) const noexcept
+{
+    return view().rfind(str, pos);
+}
+
+string::size_type string::rfind(const char* str, size_type pos, size_type count) const noexcept
+{
+    return view().rfind(str, pos, count);
+}
+
+string::size_type string::find_first_of(mc::string_view v, size_type pos) const noexcept
+{
+    return view().find_first_of(v, pos);
+}
+
+string::size_type string::find_first_of(char c, size_type pos) const noexcept
+{
+    return view().find_first_of(c, pos);
+}
+
+string::size_type string::find_first_of(const char* str, size_type pos) const noexcept
+{
+    return view().find_first_of(str, pos);
+}
+
+string::size_type string::find_first_of(const char* str, size_type pos, size_type count) const noexcept
+{
+    return view().find_first_of(str, pos, count);
+}
+
+string::size_type string::find_last_of(mc::string_view v, size_type pos) const noexcept
+{
+    return view().find_last_of(v, pos);
+}
+
+string::size_type string::find_last_of(char c, size_type pos) const noexcept
+{
+    return view().find_last_of(c, pos);
+}
+
+string::size_type string::find_last_of(const char* str, size_type pos) const noexcept
+{
+    return view().find_last_of(str, pos);
+}
+
+string::size_type string::find_last_of(const char* str, size_type pos, size_type count) const noexcept
+{
+    return view().find_last_of(str, pos, count);
+}
+
+string::size_type string::find_first_not_of(mc::string_view v, size_type pos) const noexcept
+{
+    return view().find_first_not_of(v, pos);
+}
+
 string::size_type string::find_first_not_of(char c, size_type pos) const noexcept
 {
     return view().find_first_not_of(c, pos);
+}
+
+string::size_type string::find_first_not_of(const char* str, size_type pos) const noexcept
+{
+    return find_first_not_of(mc::string_view(str), pos);
+}
+
+string::size_type string::find_first_not_of(const char* str, size_type pos, size_type count) const noexcept
+{
+    return find_first_not_of(mc::string_view(str, count), pos);
+}
+
+string::size_type string::find_last_not_of(mc::string_view v, size_type pos) const noexcept
+{
+    return view().find_last_not_of(v, pos);
+}
+
+string::size_type string::find_last_not_of(char c, size_type pos) const noexcept
+{
+    return view().find_last_not_of(c, pos);
+}
+
+string::size_type string::find_last_not_of(const char* str, size_type pos) const noexcept
+{
+    return view().find_last_not_of(str, pos);
+}
+
+string::size_type string::find_last_not_of(const char* str, size_type pos, size_type count) const noexcept
+{
+    return view().find_last_not_of(str, pos, count);
 }
 
 string& string::operator+=(char c)
@@ -819,11 +990,6 @@ string operator+(const char* lhs, const string& rhs)
         return rhs;
     }
     return concat_string_views(mc::string_view(lhs), rhs.view());
-}
-
-std::ostream& operator<<(std::ostream& os, const string& s)
-{
-    return os.write(s.data(), static_cast<std::streamsize>(s.size()));
 }
 
 } // namespace mc

@@ -13,7 +13,9 @@
 #ifndef MC_STRING_UTILS_H
 #define MC_STRING_UTILS_H
 
+#ifndef MC_STRING_H
 #include <mc/string.h>
+#endif
 
 namespace mc::strings {
 
@@ -78,7 +80,8 @@ auto to_string(mc::string& result, T value)
 
 template <typename T>
 auto to_string(T value)
-    -> std::enable_if_t<std::is_integral_v<T> && std::is_signed_v<T> && !std::is_same_v<std::decay_t<T>, bool>, mc::string>
+    -> std::enable_if_t<std::is_integral_v<T> && std::is_signed_v<T> && !std::is_same_v<std::decay_t<T>, bool>,
+                        mc::string>
 {
     mc::string result;
     to_string(result, value);
@@ -94,7 +97,8 @@ auto to_string(mc::string& result, T value)
 
 template <typename T>
 auto to_string(T value)
-    -> std::enable_if_t<std::is_integral_v<T> && std::is_unsigned_v<T> && !std::is_same_v<std::decay_t<T>, bool>, mc::string>
+    -> std::enable_if_t<std::is_integral_v<T> && std::is_unsigned_v<T> && !std::is_same_v<std::decay_t<T>, bool>,
+                        mc::string>
 {
     mc::string result;
     to_string(result, value);
@@ -339,10 +343,10 @@ inline void fixed_width_append(std::string& result, size_t width, mc::string_vie
     }
 }
 
-MC_API bool           starts_with(mc::string_view s, mc::string_view prefix);
-MC_API bool           ends_with(mc::string_view s, mc::string_view suffix);
+MC_API bool starts_with(mc::string_view s, mc::string_view prefix);
+MC_API bool ends_with(mc::string_view s, mc::string_view suffix);
 MC_API mc::string_view longest_common_prefix(mc::string_view s1, mc::string_view s2);
-MC_API mc::string     replace_all(mc::string_view s, mc::string_view from, mc::string_view to);
+MC_API mc::string replace_all(mc::string_view s, mc::string_view from, mc::string_view to);
 
 inline void replace_all_inplace(std::string& s, mc::string_view from, mc::string_view to)
 {
@@ -386,8 +390,7 @@ public:
     constexpr split_iterator() noexcept
     {}
 
-    constexpr split_iterator(mc::string_view str, mc::string_view delims = " ") noexcept
-        : m_str(str), m_delims(delims)
+    constexpr split_iterator(mc::string_view str, mc::string_view delims = " ") noexcept : m_str(str), m_delims(delims)
     {
         find_next();
     }
@@ -491,10 +494,9 @@ private:
 
     mc::string_view m_str;
     mc::string_view m_delims;
-    std::size_t      m_pos{0};
-    std::size_t      m_end{0};
-}
-;
+    std::size_t     m_pos{0};
+    std::size_t     m_end{0};
+};
 
 MC_API bool try_to_bool(mc::string_view s, bool& result);
 MC_API bool to_bool_with_default(mc::string_view s, bool default_value);
@@ -703,14 +705,29 @@ inline bool string::starts_with(mc::string_view prefix) const
     return mc::strings::starts_with(view(), prefix);
 }
 
+inline bool string::starts_with(char prefix) const
+{
+    return view().starts_with(prefix);
+}
+
 inline bool string::ends_with(mc::string_view suffix) const
 {
     return mc::strings::ends_with(view(), suffix);
 }
 
+inline bool string::ends_with(char suffix) const
+{
+    return view().ends_with(suffix);
+}
+
 inline bool string::contains(mc::string_view needle) const
 {
     return mc::strings::contains(view(), needle);
+}
+
+inline bool string::contains(char needle) const
+{
+    return view().contains(needle);
 }
 
 inline bool string::icontains(mc::string_view needle) const

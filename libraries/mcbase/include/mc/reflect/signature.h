@@ -280,7 +280,10 @@ private:
 /**
  * 输出流操作符重载
  */
-MC_API std::ostream& operator<<(std::ostream& os, const signature& sig);
+inline std::ostream& operator<<(std::ostream& os, const signature& sig)
+{
+    return os << sig.str();
+}
 
 /**
  * 用于遍历DBus签名的迭代器
@@ -308,7 +311,8 @@ public:
     {}
     signature_iterator(const char* sig, size_t pos = 0) : signature_iterator(mc::string_view(sig), pos)
     {}
-    signature_iterator(const std::string& sig, size_t pos = 0) : signature_iterator(mc::string_view(sig.data(), sig.size()), pos)
+    signature_iterator(const std::string& sig, size_t pos = 0)
+        : signature_iterator(mc::string_view(sig.data(), sig.size()), pos)
     {}
     signature_iterator(const mc::string& sig, size_t pos = 0) : signature_iterator(mc::string_view(sig), pos)
     {}
@@ -396,12 +400,12 @@ public:
      * @return 值类型的迭代器
      */
     signature_iterator get_dict_value_iterator() const;
-    mc::string_view   str() const;
+    mc::string_view    str() const;
     size_t             pos() const;
 
 private:
     mc::string_view m_sig{};
-    size_t           m_pos{0};
+    size_t          m_pos{0};
 };
 
 namespace detail {
