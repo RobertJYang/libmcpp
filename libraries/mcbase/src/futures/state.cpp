@@ -11,6 +11,7 @@
  */
 
 #include <mc/exception.h>
+#include <mc/futures/any_promise.h>
 #include <mc/futures/state.h>
 
 namespace mc::futures {
@@ -25,6 +26,47 @@ state_base::~state_base()
 void state_base::set_executor(executor_type executor) noexcept
 {
     m_executor = std::move(executor);
+}
+
+std::shared_ptr<mc::exception> state_base::get_exception_object() const noexcept
+{
+    if (!m_exception) {
+        return {};
+    }
+
+    std::shared_ptr<mc::exception> result;
+    try {
+        std::rethrow_exception(m_exception);
+    } catch (const mc::exception& mc_ex) {
+        result = mc_ex.dynamic_copy_exception();
+    } catch (const std::exception& std_ex) {
+        auto wrapped = mc::std_exception_wrapper::from_current_exception(std_ex);
+        result       = wrapped.dynamic_copy_exception();
+    } catch (...) {
+        auto unknown = MC_MAKE_EXCEPTION(mc::exception, "Unknown Future Exception");
+        result       = unknown.dynamic_copy_exception();
+    }
+    return result;
+}
+
+void state_base::rethrow_exception() const
+{
+    std::rethrow_exception(m_exception);
+}
+
+void state_base::copy_exception_to(any_promise& promise, bool strict_once) const
+{
+    if (!m_exception) {
+        return;
+    }
+
+    try {
+        std::rethrow_exception(m_exception);
+    } catch (const mc::exception& mc_ex) {
+        promise.set_exception(mc_ex, strict_once);
+    } catch (...) {
+        promise.set_current_exception(strict_once);
+    }
 }
 
 void state_base::reset()

@@ -248,7 +248,8 @@ public:
             m_future.wait();
         }
         if (m_future.is_rejected()) {
-            return mc::error::from_exception(m_future.get_exception());
+            auto exception = m_future.get_exception();
+            return exception ? mc::error::from_exception(*exception) : mc::error_ptr{};
         }
         return {};
     }
@@ -264,19 +265,35 @@ public:
      *  })
      */
     template <typename F>
-    auto then(F&& func, launch policy = launch::async, std::optional<mc::any_executor> executor = std::nullopt)
+    auto then(F&& func, launch policy = launch::async)
         -> std::enable_if_t<detail::result_traits<T, F, param_type>::value,
                             typename detail::result_traits<T, F, param_type>::future_type>
     {
-        return m_future.then(std::forward<F>(func), policy, executor);
+        return m_future.then(std::forward<F>(func), policy);
     }
 
     template <typename F>
-    auto catch_error(F&& func, launch policy = launch::async, std::optional<mc::any_executor> executor = std::nullopt)
+    auto then(F&& func, launch policy, mc::any_executor executor)
+        -> std::enable_if_t<detail::result_traits<T, F, param_type>::value,
+                            typename detail::result_traits<T, F, param_type>::future_type>
+    {
+        return m_future.then(std::forward<F>(func), policy, std::move(executor));
+    }
+
+    template <typename F>
+    auto catch_error(F&& func, launch policy = launch::async)
         -> std::enable_if_t<detail::result_traits<T, F, const mc::exception&>::value,
                             typename detail::result_traits<T, F, const mc::exception&>::future_type>
     {
-        return m_future.catch_error(std::forward<F>(func), policy, executor);
+        return m_future.catch_error(std::forward<F>(func), policy);
+    }
+
+    template <typename F>
+    auto catch_error(F&& func, launch policy, mc::any_executor executor)
+        -> std::enable_if_t<detail::result_traits<T, F, const mc::exception&>::value,
+                            typename detail::result_traits<T, F, const mc::exception&>::future_type>
+    {
+        return m_future.catch_error(std::forward<F>(func), policy, std::move(executor));
     }
 
     void cancel()
@@ -285,9 +302,15 @@ public:
     }
 
     template <typename F>
-    auto finally(F&& func, launch policy = launch::async, std::optional<mc::any_executor> executor = std::nullopt)
+    auto finally(F&& func, launch policy = launch::async)
     {
-        return m_future.finally(std::forward<F>(func), policy, executor);
+        return m_future.finally(std::forward<F>(func), policy);
+    }
+
+    template <typename F>
+    auto finally(F&& func, launch policy, mc::any_executor executor)
+    {
+        return m_future.finally(std::forward<F>(func), policy, std::move(executor));
     }
 
     template <typename F>

@@ -40,27 +40,20 @@ void set_promise_value(Promise& promise, Handler&& handler, Args&&... args)
             promise.set_value(detail::invoke_func<T>(std::forward<Handler>(handler), std::forward<Args>(args)...));
         }
     } catch (...) {
-        promise.set_exception(std::current_exception());
+        promise.set_current_exception();
     }
 }
 
 template <typename T, typename Promise, typename Handler, typename State>
 void handle_exception_case(Promise& promise, Handler&& handler, State& state)
 {
-    try {
-        std::rethrow_exception(state.get_exception());
-    } catch (const mc::exception& mc_ex) {
-        if (mc_ex.code() == mc::canceled_exception_code) {
-            promise.cancel();
-        } else {
-            set_promise_value<T>(promise, std::forward<Handler>(handler), mc_ex);
-        }
-    } catch (const std::exception& std_ex) {
-        auto wrapped_ex = mc::std_exception_wrapper::from_current_exception(std_ex);
-        set_promise_value<T>(promise, std::forward<Handler>(handler), wrapped_ex);
-    } catch (...) {
-        auto unknown_ex = MC_MAKE_EXCEPTION(mc::exception, "Unknown Future Exception");
-        set_promise_value<T>(promise, std::forward<Handler>(handler), unknown_ex);
+    auto exception = state.get_exception_object();
+    MC_ASSERT_THROW(exception != nullptr, mc::runtime_exception, "Future 异常状态缺少异常对象");
+    const auto& mc_ex = *exception;
+    if (mc_ex.code() == mc::canceled_exception_code) {
+        promise.cancel();
+    } else {
+        set_promise_value<T>(promise, std::forward<Handler>(handler), mc_ex);
     }
 }
 
@@ -73,7 +66,7 @@ void handle_result_impl(Promise& promise, F&& func, State& state)
     }
 
     if (state.is_rejected()) {
-        promise.set_exception(state.get_exception());
+        state.copy_exception_to(promise);
         return;
     }
 
@@ -111,7 +104,7 @@ callback_type make_continuation(Promise promise, F&& func, state_ptr<State<T>> s
         try {
             handle_result_impl<T>(promise, std::forward<F>(func), *state);
         } catch (...) {
-            promise.set_exception(std::current_exception());
+            promise.set_current_exception();
         }
     };
 }
@@ -123,7 +116,7 @@ callback_type make_error_continuation(Promise promise, F&& func, state_ptr<State
         try {
             handle_error_impl<T>(promise, std::forward<F>(func), *state);
         } catch (...) {
-            promise.set_exception(std::current_exception());
+            promise.set_current_exception();
         }
     };
 }
@@ -148,7 +141,14 @@ T Future<T>::get_for(Duration duration) const
 
 template <typename T>
 template <typename CompletionToken>
-void Future<T>::async_get(CompletionToken&& token, launch policy, std::optional<mc::any_executor> executor)
+void Future<T>::async_get(CompletionToken&& token, launch policy)
+{
+    async_get(std::forward<CompletionToken>(token), policy, any_future::get_executor());
+}
+
+template <typename T>
+template <typename CompletionToken>
+void Future<T>::async_get(CompletionToken&& token, launch policy, mc::any_executor executor)
 {
     if (!m_state) {
         return;
@@ -163,19 +163,27 @@ void Future<T>::async_get(CompletionToken&& token, launch policy, std::optional<
             }
         }
     };
-    any_executor ex(executor ? *executor : any_future::get_executor());
-    add_continuation(std::move(continuation), policy, ex);
+    add_continuation(std::move(continuation), policy, std::move(executor));
 }
 
 template <typename T>
 template <typename F>
-auto Future<T>::then(F&& func, launch policy, std::optional<mc::any_executor> executor)
+auto Future<T>::then(F&& func, launch policy)
+    -> std::enable_if_t<detail::is_future_v<detail::result_t<T, F>>,
+                        Future<typename detail::result_t<T, F>::value_type>>
+{
+    return then(std::forward<F>(func), policy, any_future::get_executor());
+}
+
+template <typename T>
+template <typename F>
+auto Future<T>::then(F&& func, launch policy, mc::any_executor executor)
     -> std::enable_if_t<detail::is_future_v<detail::result_t<T, F>>,
                         Future<typename detail::result_t<T, F>::value_type>>
 {
     using ResultType = typename detail::result_t<T, F>::value_type;
 
-    any_executor ex(executor ? *executor : any_future::get_executor());
+    any_executor ex(executor);
     if (!m_state) {
         return Future<ResultType>(make_invalid_future<ResultType>(std::move(ex)));
     }
@@ -189,12 +197,20 @@ auto Future<T>::then(F&& func, launch policy, std::optional<mc::any_executor> ex
 
 template <typename T>
 template <typename F>
-auto Future<T>::then(F&& func, launch policy, std::optional<mc::any_executor> executor)
+auto Future<T>::then(F&& func, launch policy)
+    -> std::enable_if_t<!detail::is_future_v<detail::result_t<T, F>>, Future<detail::result_t<T, F>>>
+{
+    return then(std::forward<F>(func), policy, any_future::get_executor());
+}
+
+template <typename T>
+template <typename F>
+auto Future<T>::then(F&& func, launch policy, mc::any_executor executor)
     -> std::enable_if_t<!detail::is_future_v<detail::result_t<T, F>>, Future<detail::result_t<T, F>>>
 {
     using ResultType = detail::result_t<T, F>;
 
-    any_executor ex(executor ? *executor : any_future::get_executor());
+    any_executor ex(executor);
     if (!m_state) {
         return Future<ResultType>(make_invalid_future<ResultType>(std::move(ex)));
     }
@@ -208,7 +224,14 @@ auto Future<T>::then(F&& func, launch policy, std::optional<mc::any_executor> ex
 
 template <typename T>
 template <typename OtherT>
-auto Future<T>::as_future(std::optional<mc::any_executor> executor) -> Future<detail::state_tt<OtherT>>
+auto Future<T>::as_future() -> Future<detail::state_tt<OtherT>>
+{
+    return as_future<OtherT>(any_future::get_executor());
+}
+
+template <typename T>
+template <typename OtherT>
+auto Future<T>::as_future(mc::any_executor executor) -> Future<detail::state_tt<OtherT>>
 {
     using other_type = detail::state_tt<OtherT>;
     if constexpr (std::is_same_v<other_type, T>) {
@@ -229,12 +252,22 @@ auto Future<T>::as_future(std::optional<mc::any_executor> executor) -> Future<de
 
 template <typename T>
 template <typename F>
-auto Future<T>::catch_error(F&& func, launch policy, std::optional<mc::any_executor> executor)
+auto Future<T>::catch_error(F&& func, launch policy)
     -> std::enable_if_t<detail::is_future_v<std::invoke_result_t<F, const mc::exception&>> &&
                             std::is_same_v<typename std::invoke_result_t<F, const mc::exception&>::value_type, T>,
                         Future<T>>
 {
-    any_executor ex(executor ? *executor : any_future::get_executor());
+    return catch_error(std::forward<F>(func), policy, any_future::get_executor());
+}
+
+template <typename T>
+template <typename F>
+auto Future<T>::catch_error(F&& func, launch policy, mc::any_executor executor)
+    -> std::enable_if_t<detail::is_future_v<std::invoke_result_t<F, const mc::exception&>> &&
+                            std::is_same_v<typename std::invoke_result_t<F, const mc::exception&>::value_type, T>,
+                        Future<T>>
+{
+    any_executor ex(executor);
     if (!m_state) {
         auto future = Future<T>(make_invalid_future<T>(std::move(ex)));
         return future.catch_error(std::forward<F>(func), policy, executor);
@@ -248,12 +281,22 @@ auto Future<T>::catch_error(F&& func, launch policy, std::optional<mc::any_execu
 
 template <typename T>
 template <typename F>
-auto Future<T>::catch_error(F&& func, launch policy, std::optional<mc::any_executor> executor)
+auto Future<T>::catch_error(F&& func, launch policy)
     -> std::enable_if_t<!detail::is_future_v<std::invoke_result_t<F, const mc::exception&>> &&
                             std::is_same_v<std::invoke_result_t<F, const mc::exception&>, T>,
                         Future<T>>
 {
-    any_executor ex(executor ? *executor : any_future::get_executor());
+    return catch_error(std::forward<F>(func), policy, any_future::get_executor());
+}
+
+template <typename T>
+template <typename F>
+auto Future<T>::catch_error(F&& func, launch policy, mc::any_executor executor)
+    -> std::enable_if_t<!detail::is_future_v<std::invoke_result_t<F, const mc::exception&>> &&
+                            std::is_same_v<std::invoke_result_t<F, const mc::exception&>, T>,
+                        Future<T>>
+{
+    any_executor ex(executor);
     if (!m_state) {
         auto future = Future<T>(make_invalid_future<T>(std::move(ex)));
         return future.catch_error(std::forward<F>(func), policy, executor);
@@ -267,9 +310,16 @@ auto Future<T>::catch_error(F&& func, launch policy, std::optional<mc::any_execu
 
 template <typename T>
 template <typename F>
-auto Future<T>::finally(F&& cleanup, launch policy, std::optional<mc::any_executor> executor) -> future_type
+auto Future<T>::finally(F&& cleanup, launch policy) -> future_type
 {
-    any_executor ex(executor ? *executor : any_future::get_executor());
+    return finally(std::forward<F>(cleanup), policy, any_future::get_executor());
+}
+
+template <typename T>
+template <typename F>
+auto Future<T>::finally(F&& cleanup, launch policy, mc::any_executor executor) -> future_type
+{
+    any_executor ex(executor);
     if (!m_state) {
         auto future = Future<T>(make_invalid_future<T>(std::move(ex)));
         return future.finally(std::forward<F>(cleanup), policy, executor);

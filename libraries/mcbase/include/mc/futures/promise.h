@@ -73,7 +73,7 @@ public:
         }
 
         if (state.is_rejected()) {
-            set_exception(state.get_exception());
+            state.copy_exception_to(*this);
             return false;
         }
 

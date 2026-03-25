@@ -60,8 +60,21 @@ public:
     void reset();
     void cancel();
 
-    void set_exception(std::exception_ptr e, bool strict_once = true);
     void set_exception(const mc::exception& e, bool strict_once = true);
+    void set_current_exception(bool strict_once = true);
+
+    template <typename Exception,
+              std::enable_if_t<!std::is_same_v<mc::traits::remove_cvref_t<Exception>, mc::exception>, int> = 0>
+    void set_exception(Exception&& e, bool strict_once = true)
+    {
+        try {
+            throw std::forward<Exception>(e);
+        } catch (const mc::exception& mc_ex) {
+            set_exception(mc_ex, strict_once);
+        } catch (...) {
+            set_current_exception(strict_once);
+        }
+    }
 
     inline launch get_policy() const noexcept
     {

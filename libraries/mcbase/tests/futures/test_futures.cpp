@@ -313,7 +313,7 @@ TEST_F(FuturesTest, PromiseSetValueFromFuture)
 
     // 传递 Future 给 set_value，验证异常传播
     failing_promise.template set_value<decltype(inner_fail_future)>(std::move(inner_fail_future));
-    inner_fail_promise.set_exception(std::make_exception_ptr(std::runtime_error("inner failure")));
+    inner_fail_promise.set_exception(std::runtime_error("inner failure"));
     EXPECT_THROW(failing_future.get(), std::runtime_error);
 }
 
@@ -331,7 +331,7 @@ TEST_F(FuturesTest, PromiseSetValueFromFutureCannotBeRebound)
     EXPECT_THROW(outer_promise.template set_value<decltype(inner_future1)>(std::move(inner_future1)),
                  mc::futures::promise_already_satisfied);
     EXPECT_THROW(outer_promise.set_value(1), mc::futures::promise_already_satisfied);
-    EXPECT_THROW(outer_promise.set_exception(std::make_exception_ptr(std::runtime_error("x"))),
+    EXPECT_THROW(outer_promise.set_exception(std::runtime_error("x")),
                  mc::futures::promise_already_satisfied);
 
     inner_promise0.set_value(7);
@@ -395,8 +395,8 @@ TEST_F(FuturesTest, PromiseSetExceptionAlreadySatisfiedThrows)
     auto promise = mc::make_promise<int>(get_io_context());
     auto future  = promise.get_future();
 
-    promise.set_exception(std::make_exception_ptr(std::runtime_error("first")));
-    EXPECT_THROW(promise.set_exception(std::make_exception_ptr(std::runtime_error("second"))),
+    promise.set_exception(std::runtime_error("first"));
+    EXPECT_THROW(promise.set_exception(std::runtime_error("second")),
                  mc::futures::promise_already_satisfied);
     EXPECT_THROW(future.get(), std::runtime_error);
 }
@@ -423,7 +423,7 @@ TEST_F(FuturesTest, PromiseSetExceptionIgnoredAfterCancel)
     // 先取消 future
     future.cancel();
     // 取消后调用 set_exception 应直接返回，不影响取消结果
-    promise.set_exception(std::make_exception_ptr(std::runtime_error("ignored")));
+    promise.set_exception(std::runtime_error("ignored"));
     EXPECT_THROW(future.get(), mc::canceled_exception);
 }
 
@@ -485,7 +485,7 @@ TEST_F(FuturesTest, FutureCatchErrorHandlesUnknownException)
     auto promise = mc::make_promise<int>(get_io_context());
     auto future  = promise.get_future();
 
-    promise.set_exception(std::make_exception_ptr(non_std_error{}));
+    promise.set_exception(non_std_error{});
 
     std::atomic<bool> handler_called{false};
     auto              recovered = future.catch_error([&handler_called](const mc::exception& ex) {
@@ -578,6 +578,54 @@ TEST_F(FuturesTest, FutureFinallyOnReadyState)
     EXPECT_TRUE(cleanup_called.load());
 }
 
+TEST_F(FuturesTest, FutureThenUsesExplicitExecutorOverride)
+{
+    mc::runtime::thread_pool override_pool(1, "future_override_then");
+    override_pool.start();
+
+    auto promise = mc::make_promise<int>(get_io_context());
+    auto future  = promise.get_future();
+
+    std::atomic<bool> ran_on_override{false};
+    auto              chained = future.then([&ran_on_override, override_executor = override_pool.get_executor()](int value) {
+        ran_on_override.store(override_executor.running_in_this_thread());
+        return value + 1;
+    }, mc::launch::dispatch, override_pool.get_executor());
+
+    promise.set_value(20);
+
+    EXPECT_EQ(chained.get(), 21);
+    EXPECT_TRUE(ran_on_override.load());
+
+    override_pool.stop();
+    override_pool.join();
+}
+
+TEST_F(FuturesTest, FutureFinallyUsesExplicitExecutorOverride)
+{
+    mc::runtime::thread_pool override_pool(1, "future_override_finally");
+    override_pool.start();
+
+    auto promise = mc::make_promise<int>(get_io_context());
+    auto future  = promise.get_future();
+
+    std::atomic<bool> cleanup_on_override{false};
+    auto              chained = future.finally(
+        [&cleanup_on_override, override_executor = override_pool.get_executor()]() {
+            cleanup_on_override.store(override_executor.running_in_this_thread());
+        },
+        mc::launch::dispatch,
+        override_pool.get_executor());
+
+    promise.set_value(20);
+
+    EXPECT_EQ(chained.get(), 20);
+    EXPECT_TRUE(cleanup_on_override.load());
+
+    override_pool.stop();
+    override_pool.join();
+}
+
 // 测试 tap 在已就绪 Future 上检查结果
 TEST_F(FuturesTest, FutureTapOnReadyState)
 {
@@ -602,7 +650,7 @@ TEST_F(FuturesTest, FutureTapError)
 {
     auto promise = mc::make_promise<int>(get_io_context());
     auto future  = promise.get_future();
-    promise.set_exception(std::make_exception_ptr(std::runtime_error("test exception")));
+    promise.set_exception(std::runtime_error("test exception"));
 
     std::atomic<int> observed{0};
     auto             tapped = future
@@ -744,7 +792,7 @@ TEST_F(FuturesTest, AllWithException)
     auto all_future = mc::all(p1.get_future(), p2.get_future(), p3.get_future());
 
     p1.set_value(42);
-    p2.set_exception(std::make_exception_ptr(std::runtime_error("测试异常")));
+    p2.set_exception(std::runtime_error("测试异常"));
     p3.set_value("hello");
 
     EXPECT_THROW(all_future.get(), std::exception);
@@ -830,7 +878,7 @@ TEST_F(FuturesTest, ContainerAllWithException)
     auto all_future = mc::all(futures.begin(), futures.end());
 
     promises[0].set_value(1);
-    promises[1].set_exception(std::make_exception_ptr(std::runtime_error("测试异常")));
+    promises[1].set_exception(std::runtime_error("测试异常"));
 
     EXPECT_THROW(all_future.get(), std::exception);
     EXPECT_EQ(futures[0].is_ready(), true);                 // 第一个完成
@@ -1379,7 +1427,7 @@ TEST_F(FuturesTest, AllPartialSuccessThenException)
     p2.set_value(3.14);
 
     // 第三个抛出异常
-    p3.set_exception(std::make_exception_ptr(std::runtime_error("第三个失败")));
+    p3.set_exception(std::runtime_error("第三个失败"));
 
     EXPECT_THROW(all_future.get(), std::runtime_error);
 }
@@ -1397,7 +1445,7 @@ TEST_F(FuturesTest, AllMultipleSimultaneousExceptions)
     auto all_future = mc::all(f1, f2, f3);
 
     // 同时设置多个异常
-    p1.set_exception(std::make_exception_ptr(std::runtime_error("第一个异常")));
+    p1.set_exception(std::runtime_error("第一个异常"));
     EXPECT_THROW(f2.get(), mc::canceled_exception);
     EXPECT_THROW(f3.get(), mc::canceled_exception);
 
@@ -1421,7 +1469,7 @@ TEST_F(FuturesTest, AllMixedExceptionAndCancel)
     // 第一个取消
     p1.cancel();
     // 第二个异常
-    p2.set_exception(std::make_exception_ptr(std::runtime_error("第二个异常")));
+    p2.set_exception(std::runtime_error("第二个异常"));
     // 第三个尚未完成
 
     // 对于 all 来说，第一个取消意味着整体取消，其他异常会被忽略
@@ -1461,8 +1509,8 @@ TEST_F(FuturesTest, AnySuccessAfterSomeExceptions)
     auto any_future = mc::any(p1.get_future(), p2.get_future(), p3.get_future());
 
     // 前两个失败
-    p1.set_exception(std::make_exception_ptr(std::runtime_error("第一个失败")));
-    p2.set_exception(std::make_exception_ptr(std::runtime_error("第二个失败")));
+    p1.set_exception(std::runtime_error("第一个失败"));
+    p2.set_exception(std::runtime_error("第二个失败"));
 
     // 第三个成功
     p3.set_value("success");
@@ -1486,13 +1534,13 @@ TEST_F(FuturesTest, AnyWithMixedExceptions)
     auto any_future = mc::any(f1, f2, f3);
 
     // 设置不同类型的异常
-    p1.set_exception(std::make_exception_ptr(std::runtime_error("运行时错误")));
+    p1.set_exception(std::runtime_error("运行时错误"));
     EXPECT_THROW(f1.get(), std::runtime_error);
 
-    p2.set_exception(std::make_exception_ptr(std::logic_error("逻辑错误")));
+    p2.set_exception(std::logic_error("逻辑错误"));
     EXPECT_THROW(f2.get(), std::logic_error);
 
-    p3.set_exception(std::make_exception_ptr(std::invalid_argument("参数错误")));
+    p3.set_exception(std::invalid_argument("参数错误"));
     EXPECT_THROW(f3.get(), std::invalid_argument);
 
     // any 整体失败后，返回最后一个异常
@@ -2037,7 +2085,7 @@ TEST_F(FuturesTest, CatchErrorFromNestedFuture)
         // 返回一个会立即抛异常的 future
         auto inner_promise = mc::make_promise<int>(get_io_context());
         auto inner_future  = inner_promise.get_future();
-        inner_promise.set_exception(std::make_exception_ptr(std::runtime_error("nested error")));
+        inner_promise.set_exception(std::runtime_error("nested error"));
         return inner_future;
     });
 
@@ -2330,7 +2378,7 @@ TEST_F(FuturesTest, AsFutureWithException)
 
     // 转换为 double
     auto double_future = future.as_future<double>();
-    promise.set_exception(std::make_exception_ptr(std::runtime_error("测试异常")));
+    promise.set_exception(std::runtime_error("测试异常"));
 
     // 异常应该传播到转换后的 future
     EXPECT_THROW(double_future.get(), std::runtime_error);

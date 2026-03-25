@@ -19,6 +19,7 @@
 #include <mutex>
 #include <variant>
 
+#include <mc/exception.h>
 #include <mc/futures/callback_list.h>
 #include <mc/futures/exceptions.h>
 #include <mc/futures/status.h>
@@ -33,6 +34,8 @@ template <typename T>
 using state_tt = std::conditional_t<std::is_same_v<mc::traits::remove_cvref_t<T>, std::monostate>, void,
                                     mc::traits::remove_cvref_t<T>>;
 } // namespace detail
+
+class any_promise;
 
 class MC_API state_base : public shared_base {
 public:
@@ -77,6 +80,10 @@ public:
     {
         return m_bound.load(std::memory_order_acquire);
     }
+
+    std::shared_ptr<mc::exception> get_exception_object() const noexcept;
+    void                           rethrow_exception() const;
+    void                           copy_exception_to(any_promise& promise, bool strict_once = true) const;
 
     inline std::exception_ptr get_exception() const noexcept
     {
@@ -174,7 +181,7 @@ public:
     {
         std::lock_guard lock(m_mutex);
         if (is_rejected()) {
-            std::rethrow_exception(get_exception());
+            rethrow_exception();
         }
         MC_ASSERT_THROW(is_ready(), mc::runtime_exception, "Future 未就绪");
         if constexpr (std::is_same_v<T, void>) {

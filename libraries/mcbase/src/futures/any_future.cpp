@@ -93,14 +93,14 @@ void any_future::cancel()
     m_state->cancel();
 }
 
-void any_future::on_cancel(callback_type callback)
+void any_future::on_cancel_impl(callback_type callback)
 {
     if (m_state) {
         m_state->add_cancel_callback(std::move(callback));
     }
 }
 
-static void on_cancel_impl(state_base_ptr& state, state_base_ptr other_state)
+static void link_cancel_states(state_base_ptr& state, state_base_ptr other_state)
 {
     if (!state || !other_state) {
         return;
@@ -121,12 +121,12 @@ static void on_cancel_impl(state_base_ptr& state, state_base_ptr other_state)
 
 void any_future::on_cancel(any_promise& other_promise)
 {
-    on_cancel_impl(m_state, other_promise.get_state());
+    link_cancel_states(m_state, other_promise.get_state());
 }
 
 void any_future::on_cancel(any_future& other_future)
 {
-    on_cancel_impl(m_state, other_future.get_state());
+    link_cancel_states(m_state, other_future.get_state());
 }
 
 const state_base_ptr& any_future::get_state() const noexcept
@@ -143,16 +143,25 @@ bool any_future::is_rejected() const
     return m_state->is_rejected();
 }
 
-std::exception_ptr any_future::get_exception() const noexcept
+std::shared_ptr<mc::exception> any_future::get_exception() const noexcept
 {
     if (!m_state) {
-        return nullptr;
+        return {};
     }
 
-    return m_state->get_exception();
+    return m_state->get_exception_object();
 }
 
-void any_future::add_continuation(callback_type continuation, launch policy, std::optional<mc::any_executor> executor)
+void any_future::add_continuation_impl(callback_type continuation, launch policy)
+{
+    if (!m_state) {
+        return;
+    }
+
+    add_continuation_impl(std::move(continuation), policy, m_state->m_executor);
+}
+
+void any_future::add_continuation_impl(callback_type continuation, launch policy, executor_type executor)
 {
     if (!m_state) {
         return;
@@ -160,17 +169,16 @@ void any_future::add_continuation(callback_type continuation, launch policy, std
 
     std::unique_lock lock(m_state->m_mutex);
 
-    auto ex = executor ? *executor : m_state->m_executor;
     if (m_state->is_ready()) {
         lock.unlock(); // 解锁，防止 dispatch 或 immediate_executor 立即执行回调造成死锁
 
         if (policy == launch::dispatch) {
-            boost::asio::dispatch(ex, std::move(continuation));
+            boost::asio::dispatch(executor, std::move(continuation));
         } else {
-            boost::asio::post(ex, std::move(continuation));
+            boost::asio::post(executor, std::move(continuation));
         }
     } else {
-        m_state->m_continuations.push_back([e = std::move(ex), policy, c = std::move(continuation)]() {
+        m_state->m_continuations.push_back([e = std::move(executor), policy, c = std::move(continuation)]() {
             if (policy == launch::dispatch) {
                 boost::asio::dispatch(e, std::move(c));
             } else {
@@ -180,11 +188,20 @@ void any_future::add_continuation(callback_type continuation, launch policy, std
     }
 }
 
-void any_future::finally(any_promise& promise, callback_type cleanup, launch policy,
-                         std::optional<mc::any_executor> executor)
+void any_future::finally_impl(any_promise& promise, callback_type cleanup, launch policy)
 {
     if (!m_state) {
-        promise.set_exception(make_invalid_future_exception());
+        promise.set_exception(MC_MAKE_EXCEPTION(invalid_future_exception, "Future 无效"));
+        return;
+    }
+
+    finally_impl(promise, std::move(cleanup), policy, m_state->m_executor);
+}
+
+void any_future::finally_impl(any_promise& promise, callback_type cleanup, launch policy, executor_type executor)
+{
+    if (!m_state) {
+        promise.set_exception(MC_MAKE_EXCEPTION(invalid_future_exception, "Future 无效"));
         return;
     }
 
@@ -192,32 +209,9 @@ void any_future::finally(any_promise& promise, callback_type cleanup, launch pol
         try {
             cleanup();
         } catch (...) {
-            promise.set_exception(std::current_exception());
+            promise.set_current_exception();
         }
-    }, policy, executor);
-}
-
-void any_future::tap_error(std::function<void(const mc::exception&)> inspector, launch policy)
-{
-    if (!m_state) {
-        return;
-    }
-
-    any_future::add_continuation([handler = std::move(inspector), state = get_state()]() mutable {
-        if (state->is_rejected()) {
-            try {
-                std::rethrow_exception(state->get_exception());
-            } catch (const mc::exception& mc_ex) {
-                handler(mc_ex);
-            } catch (const std::exception& std_ex) {
-                auto wrapped_ex = mc::std_exception_wrapper::from_current_exception(std_ex);
-                handler(wrapped_ex);
-            } catch (...) {
-                auto unknown_ex = MC_MAKE_EXCEPTION(mc::exception, "Unknown Future Exception");
-                handler(unknown_ex);
-            }
-        }
-    }, policy, mc::any_executor(mc::runtime::immediate_executor()));
+    }, policy, std::move(executor));
 }
 
 future_status any_future::wait_for_impl(std::chrono::steady_clock::duration duration) const
@@ -264,7 +258,7 @@ future_status any_future::wait_until_impl(std::chrono::steady_clock::time_point 
     return future_status::ready;
 }
 
-void any_future::timeout(any_future& src_future, duration_type duration, callback_type callback)
+void any_future::timeout_impl(any_future& src_future, duration_type duration, callback_type callback)
 {
     if (!m_state) {
         return;
@@ -290,7 +284,7 @@ void any_future::timeout(any_future& src_future, duration_type duration, callbac
             data->timer.cancel();
             if (data->src_state->is_rejected()) {
                 any_promise promise(std::move(data->dst_state));
-                promise.set_exception(data->src_state->get_exception());
+                data->src_state->copy_exception_to(promise);
             } else if (data->src_state->is_ready()) {
                 safe_invoke(std::move(callback));
             }
@@ -300,7 +294,7 @@ void any_future::timeout(any_future& src_future, duration_type duration, callbac
     data->timer.async_wait([data](const auto& ec) mutable {
         if (!ec && !data->completed.exchange(true)) {
             any_promise promise(std::move(data->dst_state));
-            promise.set_exception(std::make_exception_ptr(MC_MAKE_EXCEPTION(mc::timeout_exception, "Future 操作超时")));
+            promise.set_exception(MC_MAKE_EXCEPTION(mc::timeout_exception, "Future 操作超时"));
         }
     });
 
@@ -336,8 +330,7 @@ any_future any_future::delay(duration_type duration, executor_type executor)
         if (!ec) {
             promise.set_value();
         } else {
-            promise.set_exception(std::make_exception_ptr(
-                MC_MAKE_EXCEPTION(mc::timeout_exception, "定时器错误: ${error}", ("error", ec.message()))));
+            promise.set_exception(MC_MAKE_EXCEPTION(mc::timeout_exception, "定时器错误: ${error}", ("error", ec.message())));
         }
     });
 

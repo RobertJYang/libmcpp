@@ -14,6 +14,7 @@
 #define MC_FUTURES_ANY_FUTURE_H
 
 #include <mc/exception.h>
+#include <mc/futures/callback_list.h>
 #include <mc/futures/exceptions.h>
 #include <mc/futures/state_pool.h>
 #include <mc/futures/status.h>
@@ -63,6 +64,7 @@ public:
     bool is_rejected() const;
 
     void wait() const;
+    std::shared_ptr<mc::exception> get_exception() const noexcept;
 
     template <typename Duration>
     future_status wait_for(Duration duration) const
@@ -79,8 +81,6 @@ public:
     void cancel();
 
     const state_base_ptr& get_state() const noexcept;
-    std::exception_ptr    get_exception() const noexcept;
-
     template <typename T>
     auto get() const
     {
@@ -96,23 +96,79 @@ public:
         return m_state ? m_state->get_executor() : any_executor();
     }
 
-    void timeout(any_future& src_future, duration_type duration, callback_type callback);
+    template <typename Callback>
+    auto timeout(any_future& src_future, duration_type duration, Callback&& callback)
+        -> std::enable_if_t<std::is_invocable_v<Callback>>
+    {
+        timeout_impl(src_future, duration, callback_type(std::forward<Callback>(callback)));
+    }
 
     static any_future delay(duration_type duration, executor_type executor);
 
-    void add_continuation(callback_type continuation, launch policy = launch::async,
-                          std::optional<mc::any_executor> executor = std::nullopt);
+    template <typename Continuation>
+    auto add_continuation(Continuation&& continuation, launch policy = launch::async)
+        -> std::enable_if_t<std::is_invocable_v<Continuation>>
+    {
+        add_continuation_impl(callback_type(std::forward<Continuation>(continuation)), policy);
+    }
+
+    template <typename Continuation>
+    auto add_continuation(Continuation&& continuation, launch policy, executor_type executor)
+        -> std::enable_if_t<std::is_invocable_v<Continuation>>
+    {
+        add_continuation_impl(callback_type(std::forward<Continuation>(continuation)), policy, std::move(executor));
+    }
 
 protected:
-    void on_cancel(callback_type callback);
+    template <typename Callback>
+    auto on_cancel(Callback&& callback) -> std::enable_if_t<std::is_invocable_v<Callback>>
+    {
+        on_cancel_impl(callback_type(std::forward<Callback>(callback)));
+    }
+
     void on_cancel(any_promise& other_promise);
     void on_cancel(any_future& other_future);
-    void finally(any_promise& promise, callback_type cleanup, launch policy = launch::async,
-                 std::optional<mc::any_executor> executor = std::nullopt);
-    void tap_error(std::function<void(const mc::exception&)> inspector, launch policy);
+
+    template <typename Cleanup>
+    auto finally(any_promise& promise, Cleanup&& cleanup, launch policy = launch::async)
+        -> std::enable_if_t<std::is_invocable_v<Cleanup>>
+    {
+        finally_impl(promise, callback_type(std::forward<Cleanup>(cleanup)), policy);
+    }
+
+    template <typename Cleanup>
+    auto finally(any_promise& promise, Cleanup&& cleanup, launch policy, executor_type executor)
+        -> std::enable_if_t<std::is_invocable_v<Cleanup>>
+    {
+        finally_impl(promise, callback_type(std::forward<Cleanup>(cleanup)), policy, std::move(executor));
+    }
+
+    template <typename Inspector>
+    auto tap_error(Inspector&& inspector, launch policy)
+        -> std::enable_if_t<std::is_invocable_v<Inspector, const mc::exception&>>
+    {
+        if (!m_state) {
+            return;
+        }
+
+        any_future::add_continuation([handler = std::forward<Inspector>(inspector), state = get_state()]() mutable {
+            if (state->is_rejected()) {
+                if (auto exception = state->get_exception_object()) {
+                    handler(*exception);
+                }
+            }
+        }, policy, mc::any_executor(mc::runtime::immediate_executor()));
+    }
 
     state_base_ptr m_state;
 
+private:
+    void timeout_impl(any_future& src_future, duration_type duration, callback_type callback);
+    void add_continuation_impl(callback_type continuation, launch policy);
+    void add_continuation_impl(callback_type continuation, launch policy, executor_type executor);
+    void on_cancel_impl(callback_type callback);
+    void finally_impl(any_promise& promise, callback_type cleanup, launch policy);
+    void finally_impl(any_promise& promise, callback_type cleanup, launch policy, executor_type executor);
     future_status wait_for_impl(duration_type duration) const;
     future_status wait_until_impl(std::chrono::steady_clock::time_point timeout_time) const;
 };

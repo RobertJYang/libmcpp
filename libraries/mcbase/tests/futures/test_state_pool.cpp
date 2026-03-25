@@ -231,7 +231,7 @@ TEST_F(state_pool_test, pool_reuse_exception_no_leak)
         weak         = val;
         // 以异常而非正常值结束，m_result 不会被 set_value 填入
         // 但要验证 State 正常析构时不会 crash
-        promise.set_exception(std::make_exception_ptr(std::runtime_error("test")));
+        promise.set_exception(std::runtime_error("test"));
         EXPECT_THROW(future.get(), std::runtime_error);
     }
     // 异常路径不会将值写入 m_result，val 的引用计数由 weak 和本地 val 控制

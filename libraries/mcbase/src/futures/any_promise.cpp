@@ -37,8 +37,9 @@ void any_promise::set_result_inner(bool strict_once)
     m_state->m_ready.store(true, std::memory_order_release);
 }
 
-void any_promise::set_exception(std::exception_ptr e, bool strict_once)
+void any_promise::set_current_exception(bool strict_once)
 {
+    auto e = std::current_exception();
     if (!m_state || m_state->is_cancelled()) {
         return;
     }
@@ -65,14 +66,10 @@ void any_promise::set_exception(std::exception_ptr e, bool strict_once)
 
 void any_promise::set_exception(const mc::exception& e, bool strict_once)
 {
-    if (!m_state || m_state->is_cancelled()) {
-        return;
-    }
-
     try {
         e.dynamic_rethrow_exception();
     } catch (...) {
-        set_exception(std::current_exception(), strict_once);
+        set_current_exception(strict_once);
     }
 }
 
