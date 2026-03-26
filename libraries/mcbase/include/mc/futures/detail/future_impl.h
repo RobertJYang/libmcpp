@@ -13,6 +13,8 @@
 #ifndef MC_FUTURES_DETAIL_FUTURE_IMPL_H
 #define MC_FUTURES_DETAIL_FUTURE_IMPL_H
 
+#include <memory>
+
 namespace mc::futures {
 
 inline std::exception_ptr make_invalid_future_exception()
@@ -57,26 +59,6 @@ void handle_exception_case(Promise& promise, Handler&& handler, State& state)
     }
 }
 
-template <typename T, typename Promise, typename F, typename State>
-void handle_result_impl(Promise& promise, F&& func, State& state)
-{
-    if (state.is_cancelled()) {
-        promise.cancel();
-        return;
-    }
-
-    if (state.is_rejected()) {
-        state.copy_exception_to(promise);
-        return;
-    }
-
-    if constexpr (std::is_void_v<T>) {
-        set_promise_value<T>(promise, std::forward<F>(func));
-    } else {
-        set_promise_value<T>(promise, std::forward<F>(func), state.get_value());
-    }
-}
-
 template <typename T, typename Promise, typename Handler, typename State>
 void handle_error_impl(Promise& promise, Handler&& handler, State& state)
 {
@@ -97,28 +79,127 @@ void handle_error_impl(Promise& promise, Handler&& handler, State& state)
     }
 }
 
+// then/catch_error 的 continuation 上下文不再模板化 F：业务体在堆上并通过 shared_ptr+虚调摊薄 holder 模板实例
+namespace continuation_erasure {
+
+template <typename T, typename Promise>
+struct result_continuation_body_base {
+    virtual void apply(Promise& promise, State<T>& state) = 0;
+    virtual ~result_continuation_body_base()              = default;
+};
+
+template <typename T, typename Promise, typename F>
+struct result_continuation_body_impl final : result_continuation_body_base<T, Promise> {
+    F func;
+
+    template <typename Fin>
+    explicit result_continuation_body_impl(Fin&& f) : func(std::forward<Fin>(f))
+    {}
+
+    void apply(Promise& promise, State<T>& state) override
+    {
+        if constexpr (std::is_void_v<T>) {
+            set_promise_value<T>(promise, func);
+        } else {
+            set_promise_value<T>(promise, func, state.get_value());
+        }
+    }
+};
+
+template <typename T, typename Promise>
+struct error_continuation_body_base {
+    virtual void apply(Promise& promise, State<T>& state) = 0;
+    virtual ~error_continuation_body_base()               = default;
+};
+
+template <typename T, typename Promise, typename F>
+struct error_continuation_body_impl final : error_continuation_body_base<T, Promise> {
+    F func;
+
+    template <typename Fin>
+    explicit error_continuation_body_impl(Fin&& f) : func(std::forward<Fin>(f))
+    {}
+
+    void apply(Promise& promise, State<T>& state) override
+    {
+        handle_error_impl<T>(promise, func, state);
+    }
+};
+
+} // namespace continuation_erasure
+
+template <typename T, typename Promise>
+struct continuation_callback_context {
+    void apply()
+    {
+        body->apply(promise, *state);
+    }
+
+    Promise                                                                          promise;
+    state_ptr<State<T>>                                                              state;
+    std::shared_ptr<continuation_erasure::result_continuation_body_base<T, Promise>> body;
+};
+
 template <typename T, typename Promise, typename F>
 callback_type make_continuation(Promise promise, F&& func, state_ptr<State<T>> state)
 {
-    return [promise = std::move(promise), func = std::forward<F>(func), state = std::move(state)]() mutable {
-        try {
-            handle_result_impl<T>(promise, std::forward<F>(func), *state);
-        } catch (...) {
-            promise.set_current_exception();
-        }
-    };
+    auto body = std::make_shared<continuation_erasure::result_continuation_body_impl<T, Promise, std::decay_t<F>>>(
+        std::forward<F>(func));
+    continuation_callback_context<T, Promise> ctx;
+    ctx.promise = std::move(promise);
+    ctx.state   = std::move(state);
+    ctx.body    = std::move(body);
+    return callback_type::make_future_result_ready(std::move(ctx));
 }
+
+template <typename T, typename Promise>
+struct error_continuation_callback_context {
+    void apply()
+    {
+        body->apply(promise, *state);
+    }
+
+    Promise                                                                         promise;
+    state_ptr<State<T>>                                                             state;
+    std::shared_ptr<continuation_erasure::error_continuation_body_base<T, Promise>> body;
+};
 
 template <typename T, typename Promise, typename F>
 callback_type make_error_continuation(Promise promise, F&& func, state_ptr<State<T>> state)
 {
-    return [promise = std::move(promise), func = std::forward<F>(func), state = std::move(state)]() mutable {
-        try {
-            handle_error_impl<T>(promise, std::forward<F>(func), *state);
-        } catch (...) {
-            promise.set_current_exception();
+    auto body = std::make_shared<continuation_erasure::error_continuation_body_impl<T, Promise, std::decay_t<F>>>(
+        std::forward<F>(func));
+    error_continuation_callback_context<T, Promise> ctx;
+    ctx.promise = std::move(promise);
+    ctx.state   = std::move(state);
+    ctx.body    = std::move(body);
+    return callback_type::make_future_error_ready(std::move(ctx));
+}
+
+template <typename T, typename OtherT, typename Promise>
+struct as_future_callback_context {
+    using other_type = detail::state_tt<OtherT>;
+
+    void apply()
+    {
+        if constexpr (std::is_same_v<other_type, void>) {
+            promise.set_value();
+        } else if constexpr (std::is_void_v<T>) {
+            promise.set_value(other_type{});
+        } else {
+            promise.set_value(other_type(state->get_value()));
         }
-    };
+    }
+
+    Promise             promise;
+    state_ptr<State<T>> state;
+};
+
+template <typename T, typename OtherT, typename Promise>
+callback_type make_as_future_continuation(Promise promise, state_ptr<State<T>> state)
+{
+    return callback_type::make_future_result_ready(
+        as_future_callback_context<T, OtherT, Promise>{std::move(promise), std::move(state)});
 }
 
 template <typename T>
@@ -168,9 +249,8 @@ void Future<T>::async_get(CompletionToken&& token, launch policy, mc::any_execut
 
 template <typename T>
 template <typename F>
-auto Future<T>::then(F&& func, launch policy)
-    -> std::enable_if_t<detail::is_future_v<detail::result_t<T, F>>,
-                        Future<typename detail::result_t<T, F>::value_type>>
+auto Future<T>::then(F&& func, launch policy) -> std::enable_if_t<detail::is_future_v<detail::result_t<T, F>>,
+                                                                  Future<typename detail::result_t<T, F>::value_type>>
 {
     return then(std::forward<F>(func), policy, any_future::get_executor());
 }
@@ -234,20 +314,29 @@ template <typename OtherT>
 auto Future<T>::as_future(mc::any_executor executor) -> Future<detail::state_tt<OtherT>>
 {
     using other_type = detail::state_tt<OtherT>;
+    any_executor ex(executor);
+
     if constexpr (std::is_same_v<other_type, T>) {
         return std::move(*this);
     } else if constexpr (std::is_same_v<other_type, void>) {
-        return then([](auto&&) {
-        }, launch::async, executor);
+        if (!m_state) {
+            return Future<other_type>(make_invalid_future<other_type>(std::move(ex)));
+        }
     } else if constexpr (std::is_same_v<T, void>) {
-        return then([]() -> other_type {
-            return other_type{};
-        }, launch::async, executor);
+        if (!m_state) {
+            return Future<other_type>(make_invalid_future<other_type>(std::move(ex)));
+        }
     } else {
-        return then([](auto&& value) -> other_type {
-            return other_type(value);
-        }, launch::async, executor);
+        if (!m_state) {
+            return Future<other_type>(make_invalid_future<other_type>(std::move(ex)));
+        }
     }
+
+    auto promise = make_promise<other_type>(ex);
+    auto future  = promise.get_future().on_cancel(*this);
+    promise.set_policy(launch::async);
+    add_continuation(make_as_future_continuation<T, OtherT>(std::move(promise), get_state()), launch::async, ex);
+    return future;
 }
 
 template <typename T>
@@ -357,8 +446,8 @@ auto Future<T>::tap(F&& inspector, launch policy) -> future_type
 
 template <typename T>
 template <typename F>
-auto Future<T>::tap_error(F&&    inspector,
-                          launch policy) -> std::enable_if_t<std::is_invocable_v<F, const mc::exception&>, future_type>
+auto Future<T>::tap_error(F&& inspector, launch policy)
+    -> std::enable_if_t<std::is_invocable_v<F, const mc::exception&>, future_type>
 {
     if (!m_state) {
         auto future = Future<T>(detail::make_rejected_state<T>(make_invalid_future_exception(),

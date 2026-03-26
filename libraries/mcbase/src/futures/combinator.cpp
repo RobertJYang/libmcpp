@@ -24,7 +24,12 @@ CombinatorState::CombinatorState(std::size_t total_count, any_promise promise)
 
 void CombinatorState::add_cancel_callback(any_future& future)
 {
-    m_cancel_callbacks.push_back([wstate = mc::weak_ptr(future.get_state())]() {
+    add_cancel_callback(future.get_state());
+}
+
+void CombinatorState::add_cancel_callback(const state_base_ptr& future_state)
+{
+    m_cancel_callbacks.push_back([wstate = mc::weak_ptr(future_state)]() {
         if (auto state = wstate.lock()) {
             state->cancel();
         }

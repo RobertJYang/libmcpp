@@ -16,6 +16,25 @@
 
 namespace mc::futures {
 
+namespace detail {
+
+bool handle_result_state_common(any_promise& promise, state_base& state)
+{
+    if (state.is_cancelled()) {
+        promise.cancel();
+        return true;
+    }
+
+    if (state.is_rejected()) {
+        state.copy_exception_to(promise);
+        return true;
+    }
+
+    return false;
+}
+
+} // namespace detail
+
 state_base::state_base(executor_type executor, destory_type destory, int value_size) noexcept
     : m_executor(std::move(executor)), m_destory(std::move(destory)), m_value_size(value_size)
 {}

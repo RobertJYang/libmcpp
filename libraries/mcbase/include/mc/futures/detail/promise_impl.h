@@ -35,8 +35,9 @@ void Promise<T>::set_future_value(Future&& future)
         } else {
             promise.any_promise::template set_value<value_type>(std::forward<decltype(value)>(value), false);
         }
-    }).catch_error([promise](const mc::exception&) mutable {
-        promise.any_promise::set_current_exception(false);
+    })
+        .catch_error([promise](const mc::exception& ex) mutable {
+        promise.any_promise::set_exception(ex, false);
     }).on_cancel(promise);
 }
 

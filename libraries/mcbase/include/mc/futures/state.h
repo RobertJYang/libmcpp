@@ -36,6 +36,7 @@ using state_tt = std::conditional_t<std::is_same_v<mc::traits::remove_cvref_t<T>
 } // namespace detail
 
 class any_promise;
+class state_base;
 
 class MC_API state_base : public shared_base {
 public:
