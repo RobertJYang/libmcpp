@@ -122,7 +122,7 @@ template <typename T, typename Executor>
 auto make_resolved_state(T value, Executor executor)
 {
     auto state = make_pooled_state<T>(std::move(executor));
-    state->set_value(std::move(value));
+    static_cast<State<T>*>(state.get())->set_value(std::move(value));
     state->set_ready();
     return state;
 }
@@ -132,7 +132,7 @@ template <typename Executor>
 auto make_resolved_state(Executor executor)
 {
     auto state = make_pooled_state<void>(std::move(executor));
-    state->set_value();
+    static_cast<State<void>*>(state.get())->set_value();
     state->set_ready();
     return state;
 }
@@ -168,14 +168,10 @@ public:
     using future_type   = Future<T>;
 
     Future() = default;
-    explicit Future(state_ptr<state_type> state)
-        : any_future(state)
-    {
-    }
-    explicit Future(any_future&& future)
-        : any_future(std::forward<any_future>(future))
-    {
-    }
+    explicit Future(state_base_ptr state) : any_future(std::move(state))
+    {}
+    explicit Future(any_future&& future) : any_future(std::forward<any_future>(future))
+    {}
     ~Future() = default;
 
     Future(const Future&)                = default;
@@ -269,12 +265,6 @@ public:
 
     template <typename OtherT>
     auto as_future(mc::any_executor executor) -> Future<detail::state_tt<OtherT>>;
-
-    state_ptr<state_type> get_state() const
-    {
-        auto& state = any_future::get_state();
-        return state_ptr<state_type>(static_cast<state_type*>(state.get()));
-    }
 
 private:
     template <typename U>

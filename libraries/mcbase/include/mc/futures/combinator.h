@@ -97,7 +97,7 @@ protected:
 template <typename FutureType>
 FutureType get_future_from_promise(any_promise& promise)
 {
-    return FutureType(*reinterpret_cast<const state_ptr<typename FutureType::state_type>*>(&promise.get_state()));
+    return FutureType(promise.get_state());
 }
 
 template <typename ResultType>

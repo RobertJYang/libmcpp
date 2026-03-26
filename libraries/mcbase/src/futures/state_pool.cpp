@@ -19,6 +19,12 @@
 #include <thread>
 #include <unordered_map>
 
+namespace mc::memory {
+
+template class shared_ptr<mc::futures::state_base, mc::futures::state_base_deleter, mc::futures::state_base*>;
+
+} // namespace mc::memory
+
 namespace mc::futures {
 
 void state_base_deleter::destroy(state_base* ptr)

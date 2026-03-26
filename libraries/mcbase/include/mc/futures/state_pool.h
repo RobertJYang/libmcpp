@@ -32,34 +32,14 @@ struct state_pool_config {
 
 // 前向声明
 class state_pool;
-template <typename StateType>
-struct state_deleter;
 
 struct MC_API state_base_deleter {
     template <typename U>
-    using rebind = state_deleter<U>;
+    using rebind = state_base_deleter;
 
     void destroy(state_base* ptr);
     void deallocate(const void* ptr);
 };
-
-template <typename StateType>
-struct state_deleter {
-    template <typename U>
-    using rebind = state_deleter<U>;
-
-    void destroy(StateType* ptr)
-    {
-        ptr->destory();
-    }
-
-    void deallocate(const void* ptr)
-    {
-        state_base_deleter{}.deallocate(ptr);
-    }
-};
-template <typename StateType>
-using state_ptr      = mc::shared_ptr<StateType, state_deleter<StateType>, StateType*>;
 using state_base_ptr = mc::shared_ptr<state_base, state_base_deleter, state_base*>;
 
 // State 缓存池类
@@ -81,11 +61,11 @@ public:
         if (ptr) {
             auto* state = static_cast<state_type*>(ptr);
             state->reuse(std::move(executor));
-            return state_ptr<state_type>{state};
+            return state_base_ptr{static_cast<state_base*>(state)};
         } else {
             ptr         = malloc(sizeof(state_type));
             auto* state = new (ptr) state_type(std::move(executor));
-            return state_ptr<state_type>{state};
+            return state_base_ptr{static_cast<state_base*>(state)};
         }
     }
 
@@ -103,8 +83,6 @@ private:
     class impl;
     std::unique_ptr<impl> m_pimpl;
 
-    template <typename StateType>
-    friend struct state_deleter;
     friend struct state_base_deleter;
 
     state_pool();
@@ -121,5 +99,11 @@ auto make_pooled_state(Executor executor)
 }
 
 } // namespace mc::futures
+
+namespace mc::memory {
+
+extern template class shared_ptr<mc::futures::state_base, mc::futures::state_base_deleter, mc::futures::state_base*>;
+
+} // namespace mc::memory
 
 #endif // MC_FUTURES_STATE_POOL_H

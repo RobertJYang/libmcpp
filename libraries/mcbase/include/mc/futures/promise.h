@@ -90,12 +90,6 @@ public:
 
     // 获取关联的Future
     future_type get_future();
-
-    const state_ptr<state_type>& get_state() const
-    {
-        auto& state = any_promise::get_state();
-        return *reinterpret_cast<const state_ptr<state_type>*>(&state);
-    }
 };
 
 template <typename T, typename Executor>

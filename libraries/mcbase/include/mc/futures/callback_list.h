@@ -48,8 +48,7 @@ struct future_result_ready_holder_base {
     std::atomic<std::size_t> ref_count{1};
 };
 
-MC_API void invoke_future_result_ready_holder(void* ptr);
-// catch_error 等：不能在 invoke 前走 handle_result_state_common 的 rejected 直通分支
+MC_API void  invoke_future_result_ready_holder(void* ptr);
 MC_API void  invoke_future_error_handler_holder(void* ptr);
 MC_API void* clone_future_result_ready_holder(const void* ptr);
 MC_API void  destroy_future_result_ready_holder(void* ptr) noexcept;
@@ -141,8 +140,6 @@ public:
     static callback_type make_future_result_ready(Context&& context)
     {
         using holder_type = detail::future_result_ready_holder<std::decay_t<Context>>;
-        static_assert(std::is_copy_constructible_v<typename holder_type::context_type>,
-                      "callback_type 只支持可拷贝回调");
 
         callback_type callback;
         callback.m_data    = new holder_type(std::forward<Context>(context));
@@ -156,8 +153,6 @@ public:
     static callback_type make_future_error_ready(Context&& context)
     {
         using holder_type = detail::future_result_ready_holder<std::decay_t<Context>>;
-        static_assert(std::is_copy_constructible_v<typename holder_type::context_type>,
-                      "callback_type 只支持可拷贝回调");
 
         callback_type callback;
         callback.m_data    = new holder_type(std::forward<Context>(context));

@@ -21,15 +21,14 @@ template <typename... Futures>
 auto all(Futures&&... futures) -> Future<std::tuple<typename std::decay_t<Futures>::result_type...>>;
 
 template <typename... Futures>
-auto any(Futures&&... futures)
-    -> Future<std::pair<
-        std::size_t, mc::traits::apply_type_t<std::variant,
-                                              mc::traits::type_set_t<typename std::decay_t<Futures>::result_type...>>>>;
+auto any(Futures&&... futures) -> Future<std::pair<
+    std::size_t,
+    mc::traits::apply_type_t<std::variant, mc::traits::type_set_t<typename std::decay_t<Futures>::result_type...>>>>;
 
 // 容器版本的 all 函数
 template <typename Iterator>
-auto all(Iterator begin,
-         Iterator end) -> Future<std::vector<typename std::iterator_traits<Iterator>::value_type::result_type>>;
+auto all(Iterator begin, Iterator end)
+    -> Future<std::vector<typename std::iterator_traits<Iterator>::value_type::result_type>>;
 
 // 容器版本的 any 函数
 template <typename Iterator>
@@ -105,18 +104,18 @@ auto reject(std::exception_ptr eptr, Executor executor = runtime::any_executor()
 }
 
 template <typename T, typename Execution = runtime::immediate_context>
-auto reject(std::exception_ptr eptr,
-            Execution&         execution) -> std::enable_if_t<detail::is_execution_context_v<Execution>,
-                                                      mc::futures::Future<mc::futures::detail::state_tt<T>>>
+auto reject(std::exception_ptr eptr, Execution& execution)
+    -> std::enable_if_t<detail::is_execution_context_v<Execution>,
+                        mc::futures::Future<mc::futures::detail::state_tt<T>>>
 {
     return reject<T>(std::move(eptr), execution.get_executor());
 }
 
 // 便利函数：直接从异常创建
 template <typename T, typename Exception, typename Execution = runtime::immediate_context>
-auto reject(Exception&& ex,
-            Execution&  execution) -> std::enable_if_t<detail::is_execution_context_v<Execution>,
-                                                      mc::futures::Future<mc::futures::detail::state_tt<T>>>
+auto reject(Exception&& ex, Execution& execution)
+    -> std::enable_if_t<detail::is_execution_context_v<Execution>,
+                        mc::futures::Future<mc::futures::detail::state_tt<T>>>
 {
     return reject<T>(std::make_exception_ptr(std::forward<Exception>(ex)), execution);
 }
@@ -145,7 +144,7 @@ auto timeout(FutureType future, Duration timeout_duration, Executor executor = m
     auto result_future = promise.get_future().on_cancel(future);
     result_future.timeout(future, timeout_duration,
                           [promise = std::move(promise), state = future.get_state()]() mutable {
-        promise.set_state_value(*state);
+        promise.set_state_value(*static_cast<const typename FutureType::state_type*>(state.get()));
     });
     return result_future;
 }
@@ -174,8 +173,8 @@ auto delay(Executor executor = mc::get_io_executor()) -> std::enable_if_t<detail
 }
 
 template <typename Duration, typename Execution>
-auto delay(Duration   delay_duration,
-           Execution& execution) -> std::enable_if_t<detail::is_execution_context_v<Execution>, Future<void>>
+auto delay(Duration delay_duration, Execution& execution)
+    -> std::enable_if_t<detail::is_execution_context_v<Execution>, Future<void>>
 {
     return delay(delay_duration, execution.get_executor());
 }

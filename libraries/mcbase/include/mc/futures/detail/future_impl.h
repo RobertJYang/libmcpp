@@ -13,7 +13,9 @@
 #ifndef MC_FUTURES_DETAIL_FUTURE_IMPL_H
 #define MC_FUTURES_DETAIL_FUTURE_IMPL_H
 
+#include <cstddef>
 #include <memory>
+#include <new>
 
 namespace mc::futures {
 
@@ -31,36 +33,29 @@ inline auto make_invalid_future(any_executor ex = any_executor())
 
 // 调用 handler 并根据返回值类型设置 promise 结果
 template <typename T, typename Promise, typename Handler, typename... Args>
-void set_promise_value(Promise& promise, Handler&& handler, Args&&... args)
+MC_ALWAYS_INLINE void set_promise_value_unchecked(Promise& promise, Handler&& handler, Args&&... args)
+{
+    if constexpr (std::is_same_v<detail::result_t<T, Handler, Args...>, void> ||
+                  std::is_void_v<typename Promise::value_type>) {
+        detail::invoke_func<T>(std::forward<Handler>(handler), std::forward<Args>(args)...);
+        promise.set_value();
+    } else {
+        promise.set_value(detail::invoke_func<T>(std::forward<Handler>(handler), std::forward<Args>(args)...));
+    }
+}
+
+template <typename Promise, typename State, typename Invoke>
+inline void invoke_with_exception_boundary(Promise& promise, State& state, void* body, Invoke invoke)
 {
     try {
-        if constexpr (std::is_same_v<detail::result_t<T, Handler, Args...>, void> ||
-                      std::is_void_v<typename Promise::value_type>) {
-            detail::invoke_func<T>(std::forward<Handler>(handler), std::forward<Args>(args)...);
-            promise.set_value();
-        } else {
-            promise.set_value(detail::invoke_func<T>(std::forward<Handler>(handler), std::forward<Args>(args)...));
-        }
+        invoke(body, promise, state);
     } catch (...) {
         promise.set_current_exception();
     }
 }
 
-template <typename T, typename Promise, typename Handler, typename State>
-void handle_exception_case(Promise& promise, Handler&& handler, State& state)
-{
-    auto exception = state.get_exception_object();
-    MC_ASSERT_THROW(exception != nullptr, mc::runtime_exception, "Future 异常状态缺少异常对象");
-    const auto& mc_ex = *exception;
-    if (mc_ex.code() == mc::canceled_exception_code) {
-        promise.cancel();
-    } else {
-        set_promise_value<T>(promise, std::forward<Handler>(handler), mc_ex);
-    }
-}
-
-template <typename T, typename Promise, typename Handler, typename State>
-void handle_error_impl(Promise& promise, Handler&& handler, State& state)
+template <typename T, typename Promise, typename State, typename Body>
+inline void handle_error_state_common(Promise& promise, State& state, Body& body)
 {
     if (state.is_cancelled()) {
         promise.cancel();
@@ -68,7 +63,18 @@ void handle_error_impl(Promise& promise, Handler&& handler, State& state)
     }
 
     if (state.is_rejected()) {
-        handle_exception_case<T>(promise, std::forward<Handler>(handler), state);
+        auto exception = state.get_exception_object();
+        MC_ASSERT_THROW(exception != nullptr, mc::runtime_exception, "Future 异常状态缺少异常对象");
+        const auto& mc_ex = *exception;
+        if (mc_ex.code() == mc::canceled_exception_code) {
+            promise.cancel();
+        } else {
+            try {
+                body.apply_exception(promise, mc_ex);
+            } catch (...) {
+                promise.set_current_exception();
+            }
+        }
         return;
     }
 
@@ -79,101 +85,304 @@ void handle_error_impl(Promise& promise, Handler&& handler, State& state)
     }
 }
 
-// then/catch_error 的 continuation 上下文不再模板化 F：业务体在堆上并通过 shared_ptr+虚调摊薄 holder 模板实例
+// then/catch_error 的 continuation 上下文不再模板化 F：业务体单独放在擦除后的 body 中，由 holder 独占持有
 namespace continuation_erasure {
 
-template <typename T, typename Promise>
-struct result_continuation_body_base {
-    virtual void apply(Promise& promise, State<T>& state) = 0;
-    virtual ~result_continuation_body_base()              = default;
+inline void destroy_trivial_body(void* ptr) noexcept
+{
+    ::operator delete(ptr);
+}
+
+template <typename Body>
+void destroy_body(void* ptr) noexcept
+{
+    auto* body = static_cast<Body*>(ptr);
+    body->~Body();
+    if constexpr (alignof(Body) > alignof(std::max_align_t)) {
+        ::operator delete(ptr, std::align_val_t{alignof(Body)});
+    } else {
+        ::operator delete(ptr);
+    }
+}
+
+template <typename Body, typename... Args>
+Body* create_body(Args&&... args)
+{
+    void* storage = nullptr;
+    if constexpr (alignof(Body) > alignof(std::max_align_t)) {
+        storage = ::operator new(sizeof(Body), std::align_val_t{alignof(Body)});
+    } else {
+        storage = ::operator new(sizeof(Body));
+    }
+
+    try {
+        return new (storage) Body(std::forward<Args>(args)...);
+    } catch (...) {
+        if constexpr (alignof(Body) > alignof(std::max_align_t)) {
+            ::operator delete(storage, std::align_val_t{alignof(Body)});
+        } else {
+            ::operator delete(storage);
+        }
+        throw;
+    }
+}
+
+template <typename Body>
+constexpr auto select_body_destroy() noexcept
+{
+    if constexpr (std::is_trivially_destructible_v<Body> && alignof(Body) <= alignof(std::max_align_t)) {
+        return &destroy_trivial_body;
+    } else {
+        return &destroy_body<Body>;
+    }
+}
+
+template <typename Promise, typename StateType>
+struct result_body_handle {
+    result_body_handle() = default;
+
+    result_body_handle(void* ptr, void (*invoke)(void*, Promise&, StateType&), void (*destroy)(void*) noexcept)
+        : m_ptr(ptr), m_invoke(invoke), m_destroy(destroy)
+    {}
+
+    result_body_handle(const result_body_handle&)            = delete;
+    result_body_handle& operator=(const result_body_handle&) = delete;
+
+    result_body_handle(result_body_handle&& other) noexcept
+    {
+        move_from(std::move(other));
+    }
+
+    result_body_handle& operator=(result_body_handle&& other) noexcept
+    {
+        if (this != &other) {
+            reset();
+            move_from(std::move(other));
+        }
+        return *this;
+    }
+
+    ~result_body_handle()
+    {
+        reset();
+    }
+
+    void apply(Promise& promise, StateType& state)
+    {
+        m_invoke(m_ptr, promise, state);
+    }
+
+private:
+    void reset() noexcept
+    {
+        if (m_destroy != nullptr) {
+            m_destroy(m_ptr);
+        }
+        m_ptr     = nullptr;
+        m_invoke  = nullptr;
+        m_destroy = nullptr;
+    }
+
+    void move_from(result_body_handle&& other) noexcept
+    {
+        m_ptr           = other.m_ptr;
+        m_invoke        = other.m_invoke;
+        m_destroy       = other.m_destroy;
+        other.m_ptr     = nullptr;
+        other.m_invoke  = nullptr;
+        other.m_destroy = nullptr;
+    }
+
+    void* m_ptr{nullptr};
+    void (*m_invoke)(void*, Promise&, StateType&){nullptr};
+    void (*m_destroy)(void*) noexcept {nullptr};
+};
+
+template <typename Promise>
+struct error_body_handle {
+    error_body_handle() = default;
+
+    error_body_handle(void* ptr, void (*invoke)(void*, Promise&, const mc::exception&), void (*destroy)(void*) noexcept)
+        : m_ptr(ptr), m_invoke(invoke), m_destroy(destroy)
+    {}
+
+    error_body_handle(const error_body_handle&)            = delete;
+    error_body_handle& operator=(const error_body_handle&) = delete;
+
+    error_body_handle(error_body_handle&& other) noexcept
+    {
+        move_from(std::move(other));
+    }
+
+    error_body_handle& operator=(error_body_handle&& other) noexcept
+    {
+        if (this != &other) {
+            reset();
+            move_from(std::move(other));
+        }
+        return *this;
+    }
+
+    ~error_body_handle()
+    {
+        reset();
+    }
+
+    void apply_exception(Promise& promise, const mc::exception& ex)
+    {
+        m_invoke(m_ptr, promise, ex);
+    }
+
+private:
+    void reset() noexcept
+    {
+        if (m_destroy != nullptr) {
+            m_destroy(m_ptr);
+        }
+        m_ptr     = nullptr;
+        m_invoke  = nullptr;
+        m_destroy = nullptr;
+    }
+
+    void move_from(error_body_handle&& other) noexcept
+    {
+        m_ptr           = other.m_ptr;
+        m_invoke        = other.m_invoke;
+        m_destroy       = other.m_destroy;
+        other.m_ptr     = nullptr;
+        other.m_invoke  = nullptr;
+        other.m_destroy = nullptr;
+    }
+
+    void* m_ptr{nullptr};
+    void (*m_invoke)(void*, Promise&, const mc::exception&){nullptr};
+    void (*m_destroy)(void*) noexcept {nullptr};
 };
 
 template <typename T, typename Promise, typename F>
-struct result_continuation_body_impl final : result_continuation_body_base<T, Promise> {
+struct result_continuation_body {
     F func;
 
     template <typename Fin>
-    explicit result_continuation_body_impl(Fin&& f) : func(std::forward<Fin>(f))
+    explicit result_continuation_body(Fin&& f) : func(std::forward<Fin>(f))
     {}
 
-    void apply(Promise& promise, State<T>& state) override
+    static void invoke(void* ptr, Promise& promise, State<T>& state)
     {
+        auto* body = static_cast<result_continuation_body*>(ptr);
         if constexpr (std::is_void_v<T>) {
-            set_promise_value<T>(promise, func);
+            set_promise_value_unchecked<T>(promise, body->func);
         } else {
-            set_promise_value<T>(promise, func, state.get_value());
+            set_promise_value_unchecked<T>(promise, body->func, state.get_value());
         }
     }
-};
 
-template <typename T, typename Promise>
-struct error_continuation_body_base {
-    virtual void apply(Promise& promise, State<T>& state) = 0;
-    virtual ~error_continuation_body_base()               = default;
+    static void destroy(void* ptr) noexcept
+    {
+        delete static_cast<result_continuation_body*>(ptr);
+    }
 };
 
 template <typename T, typename Promise, typename F>
-struct error_continuation_body_impl final : error_continuation_body_base<T, Promise> {
+struct error_continuation_body {
     F func;
 
     template <typename Fin>
-    explicit error_continuation_body_impl(Fin&& f) : func(std::forward<Fin>(f))
+    explicit error_continuation_body(Fin&& f) : func(std::forward<Fin>(f))
     {}
 
-    void apply(Promise& promise, State<T>& state) override
+    static void invoke_exception(void* ptr, Promise& promise, const mc::exception& ex)
     {
-        handle_error_impl<T>(promise, func, state);
+        auto* body = static_cast<error_continuation_body*>(ptr);
+        set_promise_value_unchecked<T>(promise, body->func, ex);
+    }
+
+    static void destroy(void* ptr) noexcept
+    {
+        delete static_cast<error_continuation_body*>(ptr);
     }
 };
+
+template <typename T, typename Promise, typename F>
+auto make_result_body(F&& func)
+{
+    using body_type = result_continuation_body<T, Promise, std::decay_t<F>>;
+    return result_body_handle<Promise, State<T>>(create_body<body_type>(std::forward<F>(func)), &body_type::invoke,
+                                                 select_body_destroy<body_type>());
+}
+
+template <typename T, typename Promise, typename F>
+auto make_error_body(F&& func)
+{
+    using body_type = error_continuation_body<T, Promise, std::decay_t<F>>;
+    return error_body_handle<Promise>(create_body<body_type>(std::forward<F>(func)), &body_type::invoke_exception,
+                                      select_body_destroy<body_type>());
+}
 
 } // namespace continuation_erasure
 
 template <typename T, typename Promise>
 struct continuation_callback_context {
+    continuation_callback_context() = default;
+
+    continuation_callback_context(Promise promise_in, state_base_ptr state_in,
+                                  continuation_erasure::result_body_handle<Promise, State<T>> body_in)
+        : promise(std::move(promise_in)), state(std::move(state_in)), body(std::move(body_in))
+    {}
+
+    continuation_callback_context(const continuation_callback_context&)                = delete;
+    continuation_callback_context& operator=(const continuation_callback_context&)     = delete;
+    continuation_callback_context(continuation_callback_context&&) noexcept            = default;
+    continuation_callback_context& operator=(continuation_callback_context&&) noexcept = default;
+
     void apply()
     {
-        body->apply(promise, *state);
+        body.apply(promise, *static_cast<State<T>*>(state.get()));
     }
 
-    Promise                                                                          promise;
-    state_ptr<State<T>>                                                              state;
-    std::shared_ptr<continuation_erasure::result_continuation_body_base<T, Promise>> body;
+    Promise                                                     promise;
+    state_base_ptr                                              state;
+    continuation_erasure::result_body_handle<Promise, State<T>> body;
 };
 
 template <typename T, typename Promise, typename F>
-callback_type make_continuation(Promise promise, F&& func, state_ptr<State<T>> state)
+callback_type make_continuation(Promise promise, F&& func, state_base_ptr state)
 {
-    auto body = std::make_shared<continuation_erasure::result_continuation_body_impl<T, Promise, std::decay_t<F>>>(
-        std::forward<F>(func));
-    continuation_callback_context<T, Promise> ctx;
-    ctx.promise = std::move(promise);
-    ctx.state   = std::move(state);
-    ctx.body    = std::move(body);
-    return callback_type::make_future_result_ready(std::move(ctx));
+    return callback_type::make_future_result_ready(continuation_callback_context<T, Promise>{
+        std::move(promise), std::move(state),
+        continuation_erasure::make_result_body<T, Promise>(std::forward<F>(func))});
 }
 
 template <typename T, typename Promise>
 struct error_continuation_callback_context {
+    error_continuation_callback_context() = default;
+
+    error_continuation_callback_context(Promise promise_in, state_base_ptr state_in,
+                                        continuation_erasure::error_body_handle<Promise> body_in)
+        : promise(std::move(promise_in)), state(std::move(state_in)), body(std::move(body_in))
+    {}
+
+    error_continuation_callback_context(const error_continuation_callback_context&)                = delete;
+    error_continuation_callback_context& operator=(const error_continuation_callback_context&)     = delete;
+    error_continuation_callback_context(error_continuation_callback_context&&) noexcept            = default;
+    error_continuation_callback_context& operator=(error_continuation_callback_context&&) noexcept = default;
+
     void apply()
     {
-        body->apply(promise, *state);
+        handle_error_state_common<T>(promise, *static_cast<State<T>*>(state.get()), body);
     }
 
-    Promise                                                                         promise;
-    state_ptr<State<T>>                                                             state;
-    std::shared_ptr<continuation_erasure::error_continuation_body_base<T, Promise>> body;
+    Promise                                          promise;
+    state_base_ptr                                   state;
+    continuation_erasure::error_body_handle<Promise> body;
 };
 
 template <typename T, typename Promise, typename F>
-callback_type make_error_continuation(Promise promise, F&& func, state_ptr<State<T>> state)
+callback_type make_error_continuation(Promise promise, F&& func, state_base_ptr state)
 {
-    auto body = std::make_shared<continuation_erasure::error_continuation_body_impl<T, Promise, std::decay_t<F>>>(
-        std::forward<F>(func));
-    error_continuation_callback_context<T, Promise> ctx;
-    ctx.promise = std::move(promise);
-    ctx.state   = std::move(state);
-    ctx.body    = std::move(body);
-    return callback_type::make_future_error_ready(std::move(ctx));
+    return callback_type::make_future_error_ready(error_continuation_callback_context<T, Promise>{
+        std::move(promise), std::move(state),
+        continuation_erasure::make_error_body<T, Promise>(std::forward<F>(func))});
 }
 
 template <typename T, typename OtherT, typename Promise>
@@ -182,21 +391,22 @@ struct as_future_callback_context {
 
     void apply()
     {
+        auto* typed_state = static_cast<State<T>*>(state.get());
         if constexpr (std::is_same_v<other_type, void>) {
             promise.set_value();
         } else if constexpr (std::is_void_v<T>) {
             promise.set_value(other_type{});
         } else {
-            promise.set_value(other_type(state->get_value()));
+            promise.set_value(other_type(typed_state->get_value()));
         }
     }
 
-    Promise             promise;
-    state_ptr<State<T>> state;
+    Promise        promise;
+    state_base_ptr state;
 };
 
 template <typename T, typename OtherT, typename Promise>
-callback_type make_as_future_continuation(Promise promise, state_ptr<State<T>> state)
+callback_type make_as_future_continuation(Promise promise, state_base_ptr state)
 {
     return callback_type::make_future_result_ready(
         as_future_callback_context<T, OtherT, Promise>{std::move(promise), std::move(state)});
@@ -240,7 +450,7 @@ void Future<T>::async_get(CompletionToken&& token, launch policy, mc::any_execut
             if constexpr (std::is_void_v<T>) {
                 token();
             } else {
-                token(state->get_value());
+                token(static_cast<State<T>*>(state.get())->get_value());
             }
         }
     };
@@ -418,7 +628,7 @@ auto Future<T>::finally(F&& cleanup, launch policy, mc::any_executor executor) -
     auto future  = promise.get_future().on_cancel(*this);
     any_future::finally(promise, [promise, cleanup = std::forward<F>(cleanup), state = get_state()]() mutable {
         cleanup();
-        promise.set_state_value(*state);
+        promise.set_state_value(*static_cast<const State<T>*>(state.get()));
     }, policy, ex);
     return future;
 }
@@ -437,7 +647,7 @@ auto Future<T>::tap(F&& inspector, launch policy) -> future_type
             if constexpr (std::is_void_v<T>) {
                 inspector();
             } else {
-                inspector(state->get_value());
+                inspector(static_cast<State<T>*>(state.get())->get_value());
             }
         }
     }, policy, mc::any_executor(mc::runtime::immediate_executor())); // tap 回调立即执行
