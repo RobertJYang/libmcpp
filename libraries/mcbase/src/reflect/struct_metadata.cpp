@@ -45,7 +45,7 @@ struct struct_metadata::impl {
     static void load_base_class_members(data_t& data, const base_class_type_info* base_class);
 
     mc::string_view name;
-    type_id_type     type_id;
+    type_id_type    type_id;
 
     // TODO:: 理论上这里也是不需要锁的，元数据缓存在构建单例的时候一次性创建，之后不会再有变化。
     // 其他读取接口也都不需要加锁，唯一的场景就是动态模块注册的反射元数据，在动态库卸载的时候会被释放，
@@ -208,9 +208,23 @@ void struct_metadata::add_property_info(const property_type_info* property)
     struct_metadata::impl::add_property_info(m_impl->m_data.unsafe_get_data(), property);
 }
 
+void struct_metadata::add_owned_property_info(const property_type_info* property)
+{
+    auto& data = m_impl->m_data.unsafe_get_data();
+    struct_metadata::impl::add_property_info(data, property);
+    data.owner_members.push_back(property);
+}
+
 void struct_metadata::add_method_info(const method_type_info* method)
 {
     struct_metadata::impl::add_method_info(m_impl->m_data.unsafe_get_data(), method);
+}
+
+void struct_metadata::add_owned_method_info(const method_type_info* method)
+{
+    auto& data = m_impl->m_data.unsafe_get_data();
+    struct_metadata::impl::add_method_info(data, method);
+    data.owner_members.push_back(method);
 }
 
 void struct_metadata::add_base_class_info(const base_class_type_info* base_class)
@@ -337,6 +351,57 @@ void struct_metadata::visit_customs(const custom_visitor_t& visitor) const
             break;
         }
     }
+}
+
+void struct_metadata::append_signature(mc::string& sig) const
+{
+    visit_properties([&](const property_type_info* property) {
+        sig += property->get_signature();
+        return visit_status::VS_CONTINUE;
+    });
+}
+
+std::vector<type_id_type> struct_metadata::get_base_type_ids() const
+{
+    std::vector<type_id_type> base_ids;
+    visit_base_classes([&](const base_class_type_info* base_class_info) {
+        base_ids.push_back(base_class_info->get_type_id());
+        return visit_status::VS_CONTINUE;
+    });
+    return base_ids;
+}
+
+bool struct_metadata::is_derived_from(type_id_type base_type_id) const
+{
+    bool found = false;
+    visit_base_classes([&](const base_class_type_info* base_class_info) {
+        if (base_class_info->get_type_id() == base_type_id) {
+            found = true;
+            return visit_status::VS_BREAK;
+        }
+        return visit_status::VS_CONTINUE;
+    });
+    return found;
+}
+
+std::vector<mc::string_view> struct_metadata::get_property_names() const
+{
+    std::vector<mc::string_view> names;
+    visit_properties([&](const property_type_info* property) {
+        names.push_back(property->name);
+        return visit_status::VS_CONTINUE;
+    });
+    return names;
+}
+
+std::vector<mc::string_view> struct_metadata::get_method_names() const
+{
+    std::vector<mc::string_view> names;
+    visit_methods([&](const method_type_info* method) {
+        names.push_back(method->name);
+        return visit_status::VS_CONTINUE;
+    });
+    return names;
 }
 
 const property_list& struct_metadata::get_properties() const

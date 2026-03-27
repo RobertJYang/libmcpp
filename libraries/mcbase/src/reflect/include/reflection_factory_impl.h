@@ -40,12 +40,12 @@ class reflection_factory::impl {
 public:
     mc::string m_factory_name;
     mc::string m_namespace_type_name;
-    data_box    m_data;
+    data_box   m_data;
 
     explicit impl(mc::string_view factory_name, mc::string_view factory_type_name, bool is_global);
     ~impl();
 
-    type_id_type register_type(mc::string_view type_name, type_id_type type_id, metadata_creator&& creator);
+    type_id_type register_type(mc::string_view type_name, type_id_type type_id, metadata_creator creator);
     type_id_type unregister_type(mc::string_view type_name);
 
     std::pair<factory_id_type, factory_ptr> register_factory(mc::string_view module_name, factory_id_type factory_id,

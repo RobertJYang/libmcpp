@@ -31,7 +31,7 @@ namespace mc::reflect {
 using split_iterator = mc::strings::split_iterator;
 
 static constexpr mc::string_view delims(".:", 2);
-static std::atomic<int32_t>       s_factory_id{1};
+static std::atomic<int32_t>      s_factory_id{1};
 
 inline type_id_type encode_type_id(factory_id_type factory_id, local_type_id_type type_id)
 {
@@ -54,10 +54,10 @@ inline mc::string make_full_path(mc::string_view path, mc::string_view name)
     }
 }
 
-using metadata_creator = std::function<reflection_metadata_ptr()>;
+using metadata_creator = reflection_metadata_ptr (*)();
 struct type_info {
-    type_info(local_type_id_type id, mc::string name, metadata_creator&& creator)
-        : type_id(id), type_name(std::move(name)), creator(std::move(creator))
+    type_info(local_type_id_type id, mc::string name, metadata_creator creator)
+        : type_id(id), type_name(std::move(name)), creator(creator)
     {}
 
     type_info(const type_info& other)                = delete;

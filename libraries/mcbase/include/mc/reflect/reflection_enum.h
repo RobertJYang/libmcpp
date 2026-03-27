@@ -14,7 +14,6 @@
 #define MC_REFLECT_REFLECT_ENUM_METADATA_H
 
 #include <mc/reflect/base.h>
-#include <mc/singleton.h>
 #include <mc/traits.h>
 #include <mc/variant.h>
 
@@ -32,11 +31,12 @@ namespace mc::reflect {
  * 专门用于处理枚举类型的反射，提供枚举值的访问和转换功能
  */
 template <typename T>
-class reflection<T, std::enable_if_t<is_reflectable<T>() && std::is_enum<T>()>> : public reflection_base {
+class reflection<T, std::enable_if_t<is_reflectable<T>() && std::is_enum<T>()>>
+    : public detail::registered_reflection_bridge {
 public:
-    using reflection_ptr = mc::shared_ptr<reflection<T>>;
+    using reflection_ptr = reflection_metadata_ptr;
 
-    ~reflection();
+    ~reflection() override = default;
 
     /**
      * @brief 通过名称获取枚举值
@@ -103,27 +103,32 @@ public:
         return {}; // 枚举类型没有基类
     }
 
-    bool is_derived_from(type_id_type base_type_id) const override {
+    bool is_derived_from(type_id_type base_type_id) const override
+    {
         MC_UNUSED(base_type_id);
         return false; // 枚举类型不继承任何类型
     }
 
-    const property_type_info* get_property_info(mc::string_view name) const override {
+    const property_type_info* get_property_info(mc::string_view name) const override
+    {
         MC_UNUSED(name);
         return nullptr; // 枚举类型没有属性
     }
 
-    const method_type_info* get_method_info(mc::string_view name) const override {
+    const method_type_info* get_method_info(mc::string_view name) const override
+    {
         MC_UNUSED(name);
         return nullptr; // 枚举类型没有方法
     }
 
-    const base_class_type_info* get_base_class_info(mc::string_view name) const override {
+    const base_class_type_info* get_base_class_info(mc::string_view name) const override
+    {
         MC_UNUSED(name);
         return nullptr; // 枚举类型没有基类
     }
 
-    const member_info_base* get_custom_info(mc::string_view name, size_t reflect_type) const override {
+    const member_info_base* get_custom_info(mc::string_view name, size_t reflect_type) const override
+    {
         MC_UNUSED(name);
         MC_UNUSED(reflect_type);
         return nullptr; // 枚举类型没有自定义信息
@@ -150,17 +155,32 @@ private:
 
     static reflection<T>& instance()
     {
-        return *instance_ptr();
+        return *static_cast<reflection<T>*>(instance_ptr().get());
+    }
+
+    static reflection_ptr* create_instance_holder()
+    {
+        return new reflection_ptr(new reflection<T>());
     }
 
     static reflection_ptr& instance_ptr()
     {
-        return mc::singleton<reflection_ptr>::instance_with_creator([]() {
-            return new reflection_ptr(new reflection<T>());
-        });
+        return detail::reflection_singleton<T>::instance_with_creator(&create_instance_holder);
     }
 
-    reflection() : m_data(reflector<T>::get_metadata())
+    static bool has_instance()
+    {
+        return detail::reflection_singleton<T>::try_get() != nullptr;
+    }
+
+    static void reset_instance_for_test()
+    {
+        detail::reflection_singleton<T>::reset_for_test();
+    }
+
+    reflection()
+        : detail::registered_reflection_bridge(&detail::unregister_reflection_type<T>),
+          m_data(reflector<T>::get_metadata())
     {
         m_is_enum = true;
     }

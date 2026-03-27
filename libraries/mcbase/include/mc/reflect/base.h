@@ -16,7 +16,9 @@
 #include <mc/string_utils.h>
 #include <mc/variant.h>
 
+#include <atomic>
 #include <memory>
+#include <mutex>
 #include <vector>
 
 #include <boost/preprocessor/cat.hpp>
@@ -275,7 +277,7 @@ constexpr bool type_in_namespace(mc::string_view type_name, mc::string_view name
         return false;
     }
 
-    std::size_t segment_count = 0;
+    std::size_t segment_count     = 0;
     auto        type_name_it      = mc::strings::split_iterator(type_name, "::.");
     auto        namespace_name_it = mc::strings::split_iterator(namespace_name, ".");
     while (!type_name_it.is_end() && !namespace_name_it.is_end()) {
@@ -490,6 +492,47 @@ using reflected_object_ptr = std::shared_ptr<reflected_object>;
 
 using reflection_metadata_ptr  = mc::shared_ptr<reflection_base>;
 using reflection_metadata_wptr = mc::weak_ptr<reflection_base>;
+
+namespace detail {
+
+MC_API std::mutex& reflection_singleton_creation_mutex() noexcept;
+using reflection_singleton_storage = std::atomic<reflection_metadata_ptr*>;
+
+MC_API reflection_metadata_ptr& reflection_singleton_instance_with_creator(reflection_singleton_storage& storage,
+                                                                           reflection_metadata_ptr* (*creator)());
+MC_API reflection_metadata_ptr* reflection_singleton_try_get(reflection_singleton_storage& storage) noexcept;
+MC_API void                     reflection_singleton_reset(reflection_singleton_storage& storage) noexcept;
+
+template <typename Tag>
+class reflection_singleton {
+public:
+    using reflection_ptr = reflection_metadata_ptr;
+    using creator_t      = reflection_ptr* (*)();
+
+    static reflection_ptr& instance_with_creator(creator_t creator)
+    {
+        return reflection_singleton_instance_with_creator(instance_ptr(), creator);
+    }
+
+    static reflection_ptr* try_get()
+    {
+        return reflection_singleton_try_get(instance_ptr());
+    }
+
+    static void reset_for_test()
+    {
+        reflection_singleton_reset(instance_ptr());
+    }
+
+private:
+    static reflection_singleton_storage& instance_ptr()
+    {
+        static reflection_singleton_storage ptr{nullptr};
+        return ptr;
+    }
+};
+
+} // namespace detail
 
 /**
  * @brief 定义类的反射信息

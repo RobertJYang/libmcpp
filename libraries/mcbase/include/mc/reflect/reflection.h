@@ -26,22 +26,68 @@
 #include <mc/memory.h>
 #include <mc/reflect/metadata.h>
 #include <mc/reflect/metadata_info.h>
-#include <mc/singleton.h>
 #include <mc/variant.h>
 
 namespace mc::reflect {
 
-/**
- * @brief 反射对象包装器实现
- *
- * 包装实际对象，提供动态访问接口
- *
- * @tparam T 被包装的对象类型
- */
 template <typename T>
-class reflected_object_impl : public reflected_object {
+class reflected_object_impl;
+
+namespace detail {
+template <typename T>
+void unregister_reflection_type();
+
+using unregister_reflection_t = void (*)();
+
+class MC_API registered_reflection_bridge : public reflection_base {
 public:
-    explicit reflected_object_impl(std::shared_ptr<T> obj);
+    explicit registered_reflection_bridge(unregister_reflection_t unregister_type) noexcept;
+    ~registered_reflection_bridge() override;
+
+private:
+    unregister_reflection_t m_unregister_type;
+};
+
+struct struct_reflection_ops {
+    reflected_object_ptr (*create_object)();
+};
+
+class MC_API struct_reflection_bridge : public registered_reflection_bridge {
+public:
+    struct_reflection_bridge(mc::string_view type_name, type_id_type type_id, const struct_metadata& metadata,
+                             const struct_reflection_ops& ops, unregister_reflection_t unregister_type) noexcept;
+
+    reflected_object_ptr         create_object() override;
+    mc::string_view              get_type_name() const override;
+    type_id_type                 get_type_id() const override;
+    std::vector<type_id_type>    get_base_type_ids() const override;
+    bool                         is_derived_from(type_id_type base_type_id) const override;
+    const property_type_info*    get_property_info(mc::string_view name) const override;
+    const method_type_info*      get_method_info(mc::string_view name) const override;
+    const base_class_type_info*  get_base_class_info(mc::string_view name) const override;
+    const member_info_base*      get_custom_info(mc::string_view name, size_t reflect_type) const override;
+    std::vector<mc::string_view> get_property_names() const override;
+    std::vector<mc::string_view> get_method_names() const override;
+
+protected:
+    const struct_metadata& get_metadata_ref() const noexcept;
+
+private:
+    mc::string_view              m_type_name;
+    type_id_type                 m_type_id;
+    const struct_metadata*       m_metadata;
+    const struct_reflection_ops* m_ops;
+};
+
+struct reflected_object_ops {
+    const reflection_base& (*get_reflection)();
+    const void* (*get_const_object)(const reflected_object*) noexcept;
+    void* (*get_object)(reflected_object*) noexcept;
+};
+
+class MC_API reflected_object_bridge : public reflected_object {
+public:
+    explicit reflected_object_bridge(const reflected_object_ops& ops) noexcept;
 
     type_id_type get_type_id() const override;
 
@@ -53,6 +99,50 @@ public:
 
     std::vector<mc::string_view> get_property_names() const override;
     std::vector<mc::string_view> get_method_names() const override;
+
+protected:
+    const reflected_object_ops& get_ops() const noexcept;
+
+private:
+    const reflected_object_ops* m_ops;
+};
+
+template <typename T>
+const reflected_object_ops& get_reflected_object_ops();
+
+template <typename T>
+reflected_object_ptr create_struct_reflected_object()
+{
+    if constexpr (std::is_abstract_v<T>) {
+        MC_THROW(mc::bad_type_exception, "抽象类型不能创建对象: ${type}", ("type", reflector<T>::get_name()));
+    } else {
+        return reflected_object_ptr{new reflected_object_impl<T>(std::make_shared<T>())};
+    }
+}
+
+template <typename T>
+const struct_reflection_ops& get_struct_reflection_ops()
+{
+    static const struct_reflection_ops ops = {
+        &create_struct_reflected_object<T>,
+    };
+    return ops;
+}
+} // namespace detail
+
+/**
+ * @brief 反射对象包装器实现
+ *
+ * 包装实际对象，提供动态访问接口
+ *
+ * @tparam T 被包装的对象类型
+ */
+template <typename T>
+class reflected_object_impl : public detail::reflected_object_bridge {
+public:
+    explicit reflected_object_impl(std::shared_ptr<T> obj)
+        : detail::reflected_object_bridge(detail::get_reflected_object_ops<T>()), m_obj(std::move(obj))
+    {}
 
     const std::shared_ptr<T>& get_object() const;
 
@@ -68,11 +158,12 @@ private:
  * @tparam T 要缓存元数据的类型
  */
 template <typename T>
-class reflection<T, std::enable_if_t<is_reflectable<T>() && !std::is_enum<T>()>> : public reflection_base {
+class reflection<T, std::enable_if_t<is_reflectable<T>() && !std::is_enum<T>()>>
+    : public detail::struct_reflection_bridge {
 public:
-    using reflection_ptr = mc::shared_ptr<reflection<T>>;
+    using reflection_ptr = reflection_metadata_ptr;
 
-    ~reflection() override;
+    ~reflection() override = default;
 
     /**
      * @brief 获取指定名称的成员信息
@@ -82,7 +173,7 @@ public:
      */
     const property_info_base<T>* get_property_info(mc::string_view name) const override
     {
-        return static_cast<const property_info_base<T>*>(m_data.get_property_info(name));
+        return static_cast<const property_info_base<T>*>(detail::struct_reflection_bridge::get_property_info(name));
     }
 
     /**
@@ -93,14 +184,14 @@ public:
      */
     const method_info_base<T>* get_method_info(mc::string_view name) const override
     {
-        return static_cast<const method_info_base<T>*>(m_data.get_method_info(name));
+        return static_cast<const method_info_base<T>*>(detail::struct_reflection_bridge::get_method_info(name));
     }
 
     template <typename M>
-    const method_info_base<T>* get_method_info(M T::*member_ptr) const
+    const method_info_base<T>* get_method_info(M T::* member_ptr) const
     {
         auto offset = get_function_offset(member_ptr);
-        return static_cast<const method_info_base<T>*>(m_data.get_method_info(offset));
+        return static_cast<const method_info_base<T>*>(get_metadata_ref().get_method_info(offset));
     }
 
     /**
@@ -111,12 +202,12 @@ public:
      */
     const property_info_base<T>* get_property_info(size_t offset) const
     {
-        return static_cast<const property_info_base<T>*>(m_data.get_property_info(offset));
+        return static_cast<const property_info_base<T>*>(get_metadata_ref().get_property_info(offset));
     }
 
     template <typename M, typename BaseT,
               typename = std::enable_if_t<std::is_same_v<T, BaseT> || std::is_base_of_v<BaseT, T>>>
-    const property_info_base<T>* get_property_info(M BaseT::*member) const
+    const property_info_base<T>* get_property_info(M BaseT::* member) const
     {
         return get_property_info(MC_MEMBER_OFFSETOF(T, member));
     }
@@ -139,7 +230,7 @@ public:
 
     const base_class_info_base<T>* get_base_class_info(mc::string_view name) const override
     {
-        return static_cast<const base_class_info_base<T>*>(m_data.get_base_class_info(name));
+        return static_cast<const base_class_info_base<T>*>(detail::struct_reflection_bridge::get_base_class_info(name));
     }
 
     /**
@@ -169,7 +260,7 @@ public:
     mc::dict get_all_properties(const T& obj) const
     {
         mc::dict result;
-        m_data.visit_properties([&](const property_type_info* property) {
+        get_metadata_ref().visit_properties([&](const property_type_info* property) {
             const auto* p   = static_cast<const property_info_base<T>*>(property);
             result[p->name] = p->get_value(obj);
             return visit_status::VS_CONTINUE;
@@ -279,76 +370,9 @@ public:
 
     template <typename M, typename BaseT,
               typename = std::enable_if_t<std::is_same_v<T, BaseT> || std::is_base_of_v<BaseT, T>>>
-    mc::string_view get_property_name(M BaseT::*member)
+    mc::string_view get_property_name(M BaseT::* member)
     {
         return get_property_name(MC_MEMBER_OFFSETOF(T, member));
-    }
-
-    reflected_object_ptr create_object() override
-    {
-        if constexpr (std::is_abstract_v<T>) {
-            MC_THROW(mc::bad_type_exception, "抽象类型不能创建对象: ${type}", ("type", get_type_name()));
-        } else {
-            return reflected_object_ptr{new reflected_object_impl<T>(std::make_shared<T>())};
-        }
-    }
-
-    mc::string_view get_type_name() const override
-    {
-        return reflector<T>::get_name();
-    }
-
-    type_id_type get_type_id() const override
-    {
-        return reflector<T>::get_type_id();
-    }
-
-    std::vector<type_id_type> get_base_type_ids() const override
-    {
-        std::vector<type_id_type> base_ids;
-        m_data.visit_base_classes([&](const base_class_type_info* base_class_info) {
-            base_ids.push_back(base_class_info->get_type_id());
-            return visit_status::VS_CONTINUE;
-        });
-        return base_ids;
-    }
-
-    bool is_derived_from(type_id_type base_type_id) const override
-    {
-        bool found = false;
-        m_data.visit_base_classes([&](const base_class_type_info* base_class_info) {
-            if (base_class_info->get_type_id() == base_type_id) {
-                found = true;
-                return visit_status::VS_BREAK;
-            }
-            return visit_status::VS_CONTINUE;
-        });
-        return found;
-    }
-
-    std::vector<mc::string_view> get_property_names() const override
-    {
-        std::vector<mc::string_view> names;
-        m_data.visit_properties([&](const property_type_info* property) {
-            names.push_back(property->name);
-            return visit_status::VS_CONTINUE;
-        });
-        return names;
-    }
-
-    std::vector<mc::string_view> get_method_names() const override
-    {
-        std::vector<mc::string_view> names;
-        m_data.visit_methods([&](const method_type_info* method) {
-            names.push_back(method->name);
-            return visit_status::VS_CONTINUE;
-        });
-        return names;
-    }
-
-    const member_info_base* get_custom_info(mc::string_view name, size_t reflect_type) const override
-    {
-        return m_data.get_custom_info(name, reflect_type);
     }
 
     reflection_ptr shared_from_this()
@@ -362,20 +386,34 @@ private:
 
     static reflection<T>& instance()
     {
-        return *instance_ptr();
+        return *static_cast<reflection<T>*>(instance_ptr().get());
+    }
+
+    static reflection_ptr* create_instance_holder()
+    {
+        return new reflection_ptr(new reflection<T>());
     }
 
     static reflection_ptr& instance_ptr()
     {
-        return mc::singleton<reflection_ptr>::instance_with_creator([]() {
-            return new reflection_ptr(new reflection<T>());
-        });
+        return detail::reflection_singleton<T>::instance_with_creator(&create_instance_holder);
     }
 
-    reflection() : m_data(reflector<T>::get_metadata())
-    {}
+    static bool has_instance()
+    {
+        return detail::reflection_singleton<T>::try_get() != nullptr;
+    }
 
-    const struct_metadata& m_data;
+    static void reset_instance_for_test()
+    {
+        detail::reflection_singleton<T>::reset_for_test();
+    }
+
+    reflection()
+        : detail::struct_reflection_bridge(reflector<T>::get_name(), reflector<T>::get_type_id(),
+                                           reflector<T>::get_metadata(), detail::get_struct_reflection_ops<T>(),
+                                           &detail::unregister_reflection_type<T>)
+    {}
 };
 
 /**
@@ -391,6 +429,37 @@ auto& get_reflection()
     static_assert(is_reflectable<clean_type>(), "类型必须支持反射才能使用");
     return reflector<clean_type>::get_reflection();
 }
+
+namespace detail {
+template <typename T>
+const reflection_base& reflected_object_get_reflection()
+{
+    return get_reflection<T>();
+}
+
+template <typename T>
+const void* reflected_object_get_const_object(const reflected_object* obj) noexcept
+{
+    return static_cast<const reflected_object_impl<T>*>(obj)->get_object().get();
+}
+
+template <typename T>
+void* reflected_object_get_object(reflected_object* obj) noexcept
+{
+    return static_cast<reflected_object_impl<T>*>(obj)->get_object().get();
+}
+
+template <typename T>
+const reflected_object_ops& get_reflected_object_ops()
+{
+    static const reflected_object_ops ops = {
+        &reflected_object_get_reflection<T>,
+        &reflected_object_get_const_object<T>,
+        &reflected_object_get_object<T>,
+    };
+    return ops;
+}
+} // namespace detail
 
 template <typename C, typename BaseT>
 mc::variant base_class_info<C, BaseT>::get_value(const C& obj, mc::string_view name) const
@@ -414,69 +483,6 @@ template <typename C, typename BaseT>
 async_result base_class_info<C, BaseT>::async_invoke(C& obj, mc::string_view name, const mc::variants& args) const
 {
     return get_reflection<BaseT>().async_invoke_method(get_object(obj), name, args);
-}
-
-template <typename T>
-reflected_object_impl<T>::reflected_object_impl(std::shared_ptr<T> obj) : m_obj(std::move(obj))
-{}
-
-template <typename T>
-type_id_type reflected_object_impl<T>::get_type_id() const
-{
-    return reflector<T>::get_type_id();
-}
-
-template <typename T>
-variant reflected_object_impl<T>::get_property(mc::string_view name) const
-{
-    auto prop_info = get_reflection<T>().get_property_info(name);
-    if (prop_info) {
-        return prop_info->get_value(*m_obj);
-    }
-    MC_THROW(mc::bad_property_exception, "属性不存在: ${name}", ("name", name));
-}
-
-template <typename T>
-void reflected_object_impl<T>::set_property(mc::string_view name, const variant& value)
-{
-    auto prop_info = get_reflection<T>().get_property_info(name);
-    if (prop_info) {
-        prop_info->set_value(*m_obj, value);
-        return;
-    }
-    MC_THROW(mc::bad_property_exception, "属性不存在: ${name}", ("name", name));
-}
-
-template <typename T>
-variant reflected_object_impl<T>::invoke_method(mc::string_view name, const std::vector<variant>& args)
-{
-    auto method_info = get_reflection<T>().get_method_info(name);
-    if (method_info) {
-        return method_info->invoke(*m_obj, args);
-    }
-    MC_THROW(mc::bad_method_exception, "方法不存在: ${name}", ("name", name));
-}
-
-template <typename T>
-async_result reflected_object_impl<T>::async_invoke_method(mc::string_view name, const std::vector<variant>& args)
-{
-    auto method_info = get_reflection<T>().get_method_info(name);
-    if (method_info) {
-        return method_info->async_invoke(*m_obj, args);
-    }
-    MC_THROW(mc::bad_method_exception, "方法不存在: ${name}", ("name", name));
-}
-
-template <typename T>
-std::vector<mc::string_view> reflected_object_impl<T>::get_property_names() const
-{
-    return get_reflection<T>().get_property_names();
-}
-
-template <typename T>
-std::vector<mc::string_view> reflected_object_impl<T>::get_method_names() const
-{
-    return get_reflection<T>().get_method_names();
 }
 
 template <typename T>

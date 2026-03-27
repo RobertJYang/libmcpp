@@ -44,6 +44,70 @@ struct global_namespace {
     constexpr static mc::string_view factory_name = mc::string_view{};
 };
 
+namespace detail {
+
+MC_API std::mutex& reflection_factory_singleton_creation_mutex() noexcept;
+using reflection_factory_singleton_storage = std::atomic<factory_ptr*>;
+
+MC_API factory_ptr& reflection_factory_singleton_instance_with_creator(reflection_factory_singleton_storage& storage,
+                                                                       factory_ptr* (*creator)());
+// 通过 factory_name / namespace_type_name 直接创建单例，避免在头文件里实例化 factory_ptr 析构路径。
+MC_API factory_ptr& reflection_factory_singleton_instance_with_names(reflection_factory_singleton_storage& storage,
+                                                                     mc::string_view                       factory_name,
+                                                                     mc::string_view namespace_type_name);
+MC_API factory_ptr* reflection_factory_singleton_try_get(reflection_factory_singleton_storage& storage) noexcept;
+MC_API void         reflection_factory_singleton_reset(reflection_factory_singleton_storage& storage) noexcept;
+
+// 将工厂注销逻辑下沉到非模板实现，避免在每个反射 TU 里实例化 factory_ptr 值语义的析构路径。
+MC_API void reflection_factory_unregister_type(factory_ptr* factory_ptr_raw, mc::string_view type_name) noexcept;
+
+// 通过 factory_name / namespace_type_name 直接创建单例，避免在头文件里实例化 factory_ptr 析构链。
+MC_API factory_ptr* create_factory_holder(mc::string_view factory_name, mc::string_view namespace_type_name);
+
+template <typename NameSpace>
+factory_ptr* create_reflection_factory_holder();
+
+template <typename T>
+void unregister_reflection_type();
+
+template <typename NameSpace>
+class reflection_factory_singleton {
+public:
+    using creator_t = factory_ptr* (*)();
+
+    static factory_ptr& instance_with_creator(creator_t creator)
+    {
+        return reflection_factory_singleton_instance_with_creator(instance_ptr(), creator);
+    }
+
+    static factory_ptr& instance_with_names(mc::string_view factory_name, mc::string_view namespace_type_name)
+    {
+        return reflection_factory_singleton_instance_with_names(instance_ptr(), factory_name, namespace_type_name);
+    }
+
+    static factory_ptr* try_get()
+    {
+        return reflection_factory_singleton_try_get(instance_ptr());
+    }
+
+    static void reset_for_test()
+    {
+        reflection_factory_singleton_reset(instance_ptr());
+    }
+
+private:
+    static reflection_factory_singleton_storage& instance_ptr()
+    {
+        static reflection_factory_singleton_storage ptr{nullptr};
+        return ptr;
+    }
+};
+
+template <typename T>
+reflection_metadata_ptr create_reflection_metadata();
+
+} // namespace detail
+
 /**
  * @brief 反射工厂类
  *
@@ -86,10 +150,9 @@ public:
             return global_ptr();
         } else {
             static_assert(is_valid_namespace(NameSpace::factory_name), "factory_name is not valid");
-            return mc::singleton<factory_ptr, NameSpace>::instance_with_creator([]() {
-                return new factory_ptr(
-                    new reflection_factory(NameSpace::factory_name, mc::pretty_name<NameSpace>(), false));
-            });
+            // 通过 names 接口传入编译期常量，避免在头文件里实例化 factory_ptr 的析构路径。
+            return detail::reflection_factory_singleton<NameSpace>::instance_with_names(NameSpace::factory_name,
+                                                                                        mc::pretty_name<NameSpace>());
         }
     }
 
@@ -99,7 +162,7 @@ public:
         if constexpr (std::is_same_v<NameSpace, global_namespace>) {
             return try_global_ptr();
         } else {
-            auto p = mc::singleton<factory_ptr, NameSpace>::try_get();
+            auto p = detail::reflection_factory_singleton<NameSpace>::try_get();
             return p ? *p : factory_ptr();
         }
     }
@@ -242,9 +305,7 @@ public:
     template <typename T>
     type_id_type register_type(type_id_type type_id = INVALID_TYPE_ID)
     {
-        return register_type_impl(reflector<T>::get_name(), type_id, []() {
-            return reflector<T>::get_reflection().shared_from_this();
-        });
+        return register_type_impl(reflector<T>::get_name(), type_id, &detail::create_reflection_metadata<T>);
     }
 
     mc::signal<void(type_id_type)>    on_type_unregister;
@@ -259,10 +320,19 @@ private:
     template <typename, typename>
     friend class reflection; // 反射元数据需要访问 unregister_type_impl
 
+    template <typename NameSpace>
+    friend factory_ptr* detail::create_reflection_factory_holder();
+
+    template <typename T>
+    friend void detail::unregister_reflection_type();
+
+    friend factory_ptr* detail::create_factory_holder(mc::string_view, mc::string_view);
+    friend void         detail::reflection_factory_unregister_type(factory_ptr*, mc::string_view) noexcept;
+
     friend struct module_node;
 
     type_id_type register_type_impl(mc::string_view type_name, type_id_type type_id,
-                                    std::function<reflection_metadata_ptr()>&& creator);
+                                    reflection_metadata_ptr (*creator)());
     void         unregister_type_impl(mc::string_view type_name);
 
     class impl;
@@ -361,23 +431,37 @@ factory_ptr try_get_reflect_factory()
     }
 }
 
-template <typename T>
-reflection<T, std::enable_if_t<is_reflectable<T>() && std::is_enum<T>()>>::~reflection()
+namespace detail {
+
+template <typename NameSpace>
+factory_ptr* create_reflection_factory_holder()
 {
-    auto factory = try_get_reflect_factory<T>();
-    if (factory) {
-        factory->unregister_type_impl(reflector<T>::get_name());
-    }
+    // 将 factory_ptr 构造路径下沉到非模板实现，避免每个 TU 重复实例化 shared_ptr 析构链。
+    return create_factory_holder(NameSpace::factory_name, mc::pretty_name<NameSpace>());
 }
 
 template <typename T>
-reflection<T, std::enable_if_t<is_reflectable<T>() && !std::is_enum<T>()>>::~reflection()
+reflection_metadata_ptr create_reflection_metadata()
 {
-    auto factory = try_get_reflect_factory<T>();
-    if (factory) {
-        factory->unregister_type_impl(reflector<T>::get_name());
-    }
+    return reflector<T>::get_reflection().shared_from_this();
 }
+
+template <typename T>
+void unregister_reflection_type()
+{
+    // 通过 try_get() 获取裸指针再传给非模板实现，避免每个反射 TU 实例化 factory_ptr 值语义的析构路径。
+    factory_ptr* ptr = nullptr;
+    if constexpr (has_reflect_namespace<T>::value) {
+        using ns_type = typename reflect_namespace<T>::type;
+        ptr           = reflection_factory_singleton<ns_type>::try_get();
+    }
+    if (ptr == nullptr) {
+        ptr = reflection_factory_singleton<global_namespace>::try_get();
+    }
+    reflection_factory_unregister_type(ptr, reflector<T>::get_name());
+}
+
+} // namespace detail
 
 } // namespace mc::reflect
 

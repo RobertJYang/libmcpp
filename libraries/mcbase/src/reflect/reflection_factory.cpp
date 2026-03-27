@@ -12,6 +12,85 @@
 
 #include "reflect/include/reflection_factory_impl.h"
 
+namespace mc::reflect::detail {
+
+std::mutex& reflection_factory_singleton_creation_mutex() noexcept
+{
+    // 反射工厂初始化频率很低，共享一把锁可避免每个命名空间生成独立 mutex。
+    static std::mutex mutex;
+    return mutex;
+}
+
+factory_ptr& reflection_factory_singleton_instance_with_creator(reflection_factory_singleton_storage& storage,
+                                                                factory_ptr* (*creator)())
+{
+    auto* ptr = storage.load(std::memory_order_acquire);
+    if (MC_LIKELY(ptr != nullptr)) {
+        return *ptr;
+    }
+
+    std::lock_guard<std::mutex> lock(reflection_factory_singleton_creation_mutex());
+    ptr = storage.load(std::memory_order_relaxed);
+    if (ptr == nullptr) {
+        ptr = creator();
+        storage.store(ptr, std::memory_order_release);
+    }
+    return *ptr;
+}
+
+factory_ptr* reflection_factory_singleton_try_get(reflection_factory_singleton_storage& storage) noexcept
+{
+    return storage.load(std::memory_order_relaxed);
+}
+
+void reflection_factory_singleton_reset(reflection_factory_singleton_storage& storage) noexcept
+{
+    auto* ptr = storage.load(std::memory_order_relaxed);
+    if (ptr == nullptr) {
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(reflection_factory_singleton_creation_mutex());
+    ptr = storage.load(std::memory_order_relaxed);
+    if (ptr != nullptr) {
+        storage.store(nullptr, std::memory_order_release);
+        delete ptr;
+    }
+}
+
+factory_ptr* create_factory_holder(mc::string_view factory_name, mc::string_view namespace_type_name)
+{
+    return new factory_ptr(new reflection_factory(factory_name, namespace_type_name, false));
+}
+
+void reflection_factory_unregister_type(factory_ptr* factory_ptr_raw, mc::string_view type_name) noexcept
+{
+    if (factory_ptr_raw == nullptr || *factory_ptr_raw == nullptr) {
+        return;
+    }
+    (*factory_ptr_raw)->unregister_type_impl(type_name);
+}
+
+factory_ptr& reflection_factory_singleton_instance_with_names(reflection_factory_singleton_storage& storage,
+                                                              mc::string_view                       factory_name,
+                                                              mc::string_view                       namespace_type_name)
+{
+    auto* ptr = storage.load(std::memory_order_acquire);
+    if (MC_LIKELY(ptr != nullptr)) {
+        return *ptr;
+    }
+
+    std::lock_guard<std::mutex> lock(reflection_factory_singleton_creation_mutex());
+    ptr = storage.load(std::memory_order_relaxed);
+    if (ptr == nullptr) {
+        ptr = create_factory_holder(factory_name, namespace_type_name);
+        storage.store(ptr, std::memory_order_release);
+    }
+    return *ptr;
+}
+
+} // namespace mc::reflect::detail
+
 namespace mc::reflect {
 
 static void unique_sort(std::vector<mc::string>& paths)
@@ -61,20 +140,20 @@ reflection_factory& reflection_factory::global()
 
 factory_ptr& reflection_factory::global_ptr()
 {
-    return mc::singleton<factory_ptr, global_namespace>::instance_with_creator([]() {
+    return detail::reflection_factory_singleton<global_namespace>::instance_with_creator([]() -> factory_ptr* {
         return new factory_ptr(new reflection_factory(global_namespace::factory_name, "global_namespace", true));
     });
 }
 
 factory_ptr reflection_factory::try_global_ptr()
 {
-    auto p = mc::singleton<factory_ptr, global_namespace>::try_get();
+    auto p = detail::reflection_factory_singleton<global_namespace>::try_get();
     return p ? *p : factory_ptr();
 }
 
 void reflection_factory::reset_global()
 {
-    mc::singleton<factory_ptr, global_namespace>::reset_for_test();
+    detail::reflection_factory_singleton<global_namespace>::reset_for_test();
 }
 
 reflection_factory::reflection_factory(mc::string_view factory_name, mc::string_view factory_type_name, bool is_global)
@@ -357,7 +436,7 @@ factory_id_type reflection_factory::get_factory_id() const
 }
 
 type_id_type reflection_factory::register_type_impl(mc::string_view type_name, type_id_type old_type_id,
-                                                    std::function<reflection_metadata_ptr()>&& creator)
+                                                    reflection_metadata_ptr (*creator)())
 {
     if (type_name.empty()) {
         wlog("Failed to register type: type name cannot be empty");
@@ -376,7 +455,7 @@ type_id_type reflection_factory::register_type_impl(mc::string_view type_name, t
     }
 
     // 去掉模块名前缀后，注册到当前模块命名空间中
-    auto type_id = m_impl->register_type(*result, old_type_id, std::move(creator));
+    auto type_id = m_impl->register_type(*result, old_type_id, creator);
     if (type_id == INVALID_TYPE_ID) {
         wlog("Failed to register type: type name=${type_name} already exists", ("type_name", type_name));
         return INVALID_TYPE_ID;

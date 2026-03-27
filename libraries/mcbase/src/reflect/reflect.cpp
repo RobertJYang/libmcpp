@@ -18,6 +18,30 @@
 #include <mc/reflect/metadata_info.h>
 #include <mc/reflect/reflect.h>
 
+namespace mc::reflect::detail {
+
+void struct_to_variant_default(const struct_metadata& metadata, const void* obj, mc::dict& dict)
+{
+    metadata.visit_properties([&](const property_type_info* property) {
+        if (!dict.contains(property->name)) {
+            dict[property->name] = property->get_value(obj);
+        }
+        return visit_status::VS_CONTINUE;
+    });
+}
+
+void struct_from_variant_default(const struct_metadata& metadata, const mc::dict& dict, void* obj)
+{
+    metadata.visit_properties([&](const property_type_info* property) {
+        if (dict.contains(property->name)) {
+            property->set_value(obj, dict[property->name]);
+        }
+        return visit_status::VS_CONTINUE;
+    });
+}
+
+} // namespace mc::reflect::detail
+
 namespace mc::reflect {
 
 /**

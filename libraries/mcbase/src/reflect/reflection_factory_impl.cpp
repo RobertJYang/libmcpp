@@ -189,7 +189,7 @@ void reflection_factory::impl::collect_factory_names(mc::string_view path, std::
 }
 
 type_id_type reflection_factory::impl::register_type(mc::string_view type_name, type_id_type type_id,
-                                                     metadata_creator&& creator)
+                                                     metadata_creator creator)
 {
     return m_data.with_lock([&](auto& data) {
         // 构造规范化的类型名
@@ -203,7 +203,7 @@ type_id_type reflection_factory::impl::register_type(mc::string_view type_name, 
         }
 
         int  new_id    = type_id == INVALID_TYPE_ID ? ++data.m_next_type_id : type_id;
-        auto info      = std::make_unique<type_info>(new_id, std::move(name), std::move(creator));
+        auto info      = std::make_unique<type_info>(new_id, std::move(name), creator);
         auto name_view = mc::string_view(info->type_name);
         auto ret       = data.m_type_infos.emplace(std::piecewise_construct, std::forward_as_tuple(name_view),
                                                    std::forward_as_tuple(std::move(info)));

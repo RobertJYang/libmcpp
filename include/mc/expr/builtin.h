@@ -71,7 +71,7 @@ public:
     {
         auto methods = mc::reflect::get_static_methods<T>();
         mc::traits::tuple_for_each(methods, [this](auto* method) {
-            this->register_symbol(std::string(method->name), method->m_function);
+            this->register_symbol(std::string(method->name), method->get_function_value());
         });
         return 0;
     }
