@@ -17,9 +17,14 @@
 #ifndef MC_VARIANT_EXTENSION_H
 #define MC_VARIANT_EXTENSION_H
 
+#include <functional>
 #include <memory>
+#include <new>
+#include <stdexcept>
 #include <string>
+#include <type_traits>
 #include <typeinfo>
+#include <utility>
 
 #include <mc/memory.h>
 #include <mc/traits.h>
@@ -28,6 +33,195 @@
 #include <mc/variant/variant_common.h>
 
 namespace mc {
+
+struct variant_payload_type {
+    mc::string_view                    name;
+    const variant_payload_type* const* bases;
+    std::size_t                        base_count;
+
+    constexpr variant_payload_type()
+        : name("unknown", 7), bases(nullptr), base_count(0)
+    {}
+
+    constexpr variant_payload_type(mc::string_view name_, const variant_payload_type* const* bases_ = nullptr,
+                                   std::size_t base_count_ = 0)
+        : name(name_), bases(bases_), base_count(base_count_)
+    {}
+};
+
+template <typename T>
+struct variant_payload_type_traits {
+    static const variant_payload_type* get()
+    {
+        return nullptr;
+    }
+};
+
+class variant_extension_base;
+
+namespace detail {
+
+inline bool payload_type_is_a(const variant_payload_type* source, const variant_payload_type* target)
+{
+    if (!source || !target) {
+        return false;
+    }
+    if (source == target) {
+        return true;
+    }
+    for (std::size_t i = 0; i < source->base_count; ++i) {
+        if (payload_type_is_a(source->bases[i], target)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+template <typename Payload, typename = void>
+struct has_bind_extension_owner : std::false_type {};
+
+template <typename Payload>
+struct has_bind_extension_owner<Payload,
+                                std::void_t<decltype(std::declval<Payload&>().__mc_bind_extension_owner(
+                                    std::declval<variant_extension_base*>()))>> : std::true_type {};
+
+template <typename Traits, typename Payload, typename = void>
+struct has_traits_bind_owner : std::false_type {};
+
+template <typename Traits, typename Payload>
+struct has_traits_bind_owner<Traits, Payload,
+                             std::void_t<decltype(Traits::bind_owner(std::declval<Payload&>(),
+                                                                     std::declval<variant_extension_base*>()))>>
+    : std::true_type {};
+
+template <typename Traits, typename = void>
+struct has_traits_payload_type : std::false_type {};
+
+template <typename Traits>
+struct has_traits_payload_type<Traits, std::void_t<decltype(Traits::payload_type())>> : std::true_type {};
+
+template <typename Traits, typename Payload, typename = void>
+struct has_traits_upcast : std::false_type {};
+
+template <typename Traits, typename Payload>
+struct has_traits_upcast<
+    Traits, Payload,
+    std::void_t<decltype(Traits::upcast(std::declval<Payload*>(), std::declval<const variant_payload_type&>()))>>
+    : std::true_type {};
+
+template <typename Traits, typename Payload, typename = void>
+struct has_traits_const_upcast : std::false_type {};
+
+template <typename Traits, typename Payload>
+struct has_traits_const_upcast<Traits, Payload,
+                               std::void_t<decltype(Traits::upcast(std::declval<const Payload*>(),
+                                                                   std::declval<const variant_payload_type&>()))>>
+    : std::true_type {};
+
+template <typename Traits, typename = void>
+struct has_traits_type_info : std::false_type {};
+
+template <typename Traits>
+struct has_traits_type_info<Traits, std::void_t<decltype(Traits::get_type_info())>> : std::true_type {};
+
+template <typename Traits, typename Payload, typename = void>
+struct has_traits_deep_copy : std::false_type {};
+
+template <typename Traits, typename Payload>
+struct has_traits_deep_copy<
+    Traits, Payload,
+    std::void_t<decltype(Traits::deep_copy(std::declval<const Payload&>(), std::declval<detail::copy_context*>()))>>
+    : std::true_type {};
+
+template <typename Payload, typename = void>
+struct has_std_hash : std::false_type {};
+
+template <typename Payload>
+struct has_std_hash<Payload, std::void_t<decltype(std::hash<Payload>{}(std::declval<const Payload&>()))>>
+    : std::true_type {};
+
+template <typename Traits, typename Payload>
+void bind_extension_owner(Payload& payload, variant_extension_base* owner)
+{
+    if constexpr (has_traits_bind_owner<Traits, Payload>::value) {
+        Traits::bind_owner(payload, owner);
+    } else if constexpr (has_bind_extension_owner<Payload>::value) {
+        payload.__mc_bind_extension_owner(owner);
+    } else {
+        MC_UNUSED(payload);
+        MC_UNUSED(owner);
+    }
+}
+
+template <typename Traits, typename Payload>
+const variant_payload_type* get_payload_type()
+{
+    if constexpr (has_traits_payload_type<Traits>::value) {
+        return Traits::payload_type();
+    } else {
+        return variant_payload_type_traits<Payload>::get();
+    }
+}
+
+template <typename Traits, typename Payload>
+void* upcast_payload(Payload* payload, const variant_payload_type& target)
+{
+    if (!payload) {
+        return nullptr;
+    }
+    if constexpr (has_traits_upcast<Traits, Payload>::value) {
+        return Traits::upcast(payload, target);
+    } else {
+        auto* source = get_payload_type<Traits, Payload>();
+        if (source && source == &target) {
+            return payload;
+        }
+        return nullptr;
+    }
+}
+
+template <typename Traits, typename Payload>
+const void* upcast_payload(const Payload* payload, const variant_payload_type& target)
+{
+    if (!payload) {
+        return nullptr;
+    }
+    if constexpr (has_traits_const_upcast<Traits, Payload>::value) {
+        return Traits::upcast(payload, target);
+    } else {
+        return upcast_payload<Traits>(const_cast<Payload*>(payload), target);
+    }
+}
+
+template <typename Traits, typename Payload>
+extension_type_info get_extension_type_info()
+{
+    if constexpr (has_traits_type_info<Traits>::value) {
+        return Traits::get_type_info();
+    } else {
+        return extension_type_info_traits<Payload>::get();
+    }
+}
+
+template <typename Extension, typename Payload>
+mc::shared_ptr<variant_extension_base> deep_copy_extension(const Payload& payload, detail::copy_context* ctx)
+{
+    using traits_type = typename Extension::traits_type;
+    if constexpr (has_traits_deep_copy<traits_type, Payload>::value) {
+        return traits_type::deep_copy(payload, ctx);
+    } else {
+        MC_UNUSED(ctx);
+        return mc::make_shared<Extension>(std::in_place, payload);
+    }
+}
+
+template <typename T>
+T* cast_extension_payload(variant_extension_base* ext);
+
+template <typename T>
+const T* cast_extension_payload(const variant_extension_base* ext);
+
+} // namespace detail
 
 /**
  * @brief variant 扩展类型基类
@@ -115,6 +309,50 @@ public:
     virtual std::size_t hash() const
     {
         return reinterpret_cast<std::size_t>(this);
+    }
+
+    virtual const variant_payload_type* payload_type() const
+    {
+        return nullptr;
+    }
+
+    virtual void* payload_address()
+    {
+        return nullptr;
+    }
+
+    virtual const void* payload_address() const
+    {
+        return nullptr;
+    }
+
+    virtual void* upcast_payload_to(const variant_payload_type& target)
+    {
+        MC_UNUSED(target);
+        return nullptr;
+    }
+
+    virtual const void* upcast_payload_to(const variant_payload_type& target) const
+    {
+        MC_UNUSED(target);
+        return nullptr;
+    }
+
+    bool is_payload_type(const variant_payload_type& target) const
+    {
+        return detail::payload_type_is_a(payload_type(), &target);
+    }
+
+    template <typename T>
+    T* payload_as()
+    {
+        return detail::cast_extension_payload<T>(this);
+    }
+
+    template <typename T>
+    const T* payload_as() const
+    {
+        return detail::cast_extension_payload<T>(this);
     }
 
     virtual int64_t as_int64() const
@@ -241,6 +479,189 @@ public:
     virtual void* as_traceable() const {
         return nullptr;
     }
+};
+
+namespace detail {
+
+template <typename T>
+T* cast_extension_payload(variant_extension_base* ext)
+{
+    if (!ext) {
+        return nullptr;
+    }
+
+    if (auto* payload_type = variant_payload_type_traits<T>::get()) {
+        if (auto* payload = ext->upcast_payload_to(*payload_type)) {
+            return static_cast<T*>(payload);
+        }
+    }
+
+    if constexpr (std::is_base_of_v<variant_extension_base, T>) {
+        return dynamic_cast<T*>(ext);
+    } else {
+        return nullptr;
+    }
+}
+
+template <typename T>
+const T* cast_extension_payload(const variant_extension_base* ext)
+{
+    if (!ext) {
+        return nullptr;
+    }
+
+    if (auto* payload_type = variant_payload_type_traits<T>::get()) {
+        if (auto* payload = ext->upcast_payload_to(*payload_type)) {
+            return static_cast<const T*>(payload);
+        }
+    }
+
+    if constexpr (std::is_base_of_v<variant_extension_base, T>) {
+        return dynamic_cast<const T*>(ext);
+    } else {
+        return nullptr;
+    }
+}
+
+} // namespace detail
+
+template <typename Payload>
+struct default_composed_variant_extension_traits {
+    static const variant_payload_type* payload_type()
+    {
+        return variant_payload_type_traits<Payload>::get();
+    }
+
+    static void* upcast(Payload* payload, const variant_payload_type& target)
+    {
+        auto* source = payload_type();
+        if (source && source == &target) {
+            return payload;
+        }
+        return nullptr;
+    }
+
+    static const void* upcast(const Payload* payload, const variant_payload_type& target)
+    {
+        return upcast(const_cast<Payload*>(payload), target);
+    }
+};
+
+template <typename Payload, typename Traits = default_composed_variant_extension_traits<Payload>>
+class composed_variant_extension final : public variant_extension_base {
+public:
+    using value_type  = Payload;
+    using traits_type = Traits;
+
+    template <typename... Args>
+    explicit composed_variant_extension(std::in_place_t, Args&&... args)
+    {
+        ::new (static_cast<void*>(m_storage)) Payload(std::forward<Args>(args)...);
+        detail::bind_extension_owner<Traits>(*payload(), this);
+    }
+
+    ~composed_variant_extension() override
+    {
+        payload()->~Payload();
+    }
+
+    Payload* payload()
+    {
+        return reinterpret_cast<Payload*>(m_storage);
+    }
+
+    const Payload* payload() const
+    {
+        return reinterpret_cast<const Payload*>(m_storage);
+    }
+
+    mc::shared_ptr<variant_extension_base> copy() const override
+    {
+        if constexpr (std::is_copy_constructible_v<Payload>) {
+            return mc::make_shared<composed_variant_extension>(std::in_place, *payload());
+        } else {
+            throw std::runtime_error("composed_variant_extension payload does not support copy()");
+        }
+    }
+
+    mc::shared_ptr<variant_extension_base> deep_copy(detail::copy_context* ctx = nullptr) const override
+    {
+        if constexpr (detail::has_traits_deep_copy<traits_type, Payload>::value) {
+            return detail::deep_copy_extension<composed_variant_extension>(*payload(), ctx);
+        } else if constexpr (std::is_copy_constructible_v<Payload>) {
+            return detail::deep_copy_extension<composed_variant_extension>(*payload(), ctx);
+        } else {
+            MC_UNUSED(ctx);
+            throw std::runtime_error(
+                "composed_variant_extension payload does not support deep_copy()");
+        }
+    }
+
+    extension_type_info get_type_info() const override
+    {
+        return detail::get_extension_type_info<Traits, Payload>();
+    }
+
+    mc::string_view get_type_name() const override
+    {
+        if (auto* type = payload_type()) {
+            return type->name;
+        }
+        return variant_extension_base::get_type_name();
+    }
+
+    bool equals(const variant_extension_base& other) const override
+    {
+        if (this == &other) {
+            return true;
+        }
+
+        auto* other_payload = other.payload_as<Payload>();
+        if (!other_payload) {
+            return false;
+        }
+
+        if constexpr (mc::traits::has_operator_equal_v<Payload, Payload>) {
+            return *payload() == *other_payload;
+        }
+        return payload() == other_payload;
+    }
+
+    std::size_t hash() const override
+    {
+        if constexpr (detail::has_std_hash<Payload>::value) {
+            return std::hash<Payload>{}(*payload());
+        }
+        return reinterpret_cast<std::size_t>(payload());
+    }
+
+    const variant_payload_type* payload_type() const override
+    {
+        return detail::get_payload_type<Traits, Payload>();
+    }
+
+    void* payload_address() override
+    {
+        return payload();
+    }
+
+    const void* payload_address() const override
+    {
+        return payload();
+    }
+
+    void* upcast_payload_to(const variant_payload_type& target) override
+    {
+        return detail::upcast_payload<Traits>(payload(), target);
+    }
+
+    const void* upcast_payload_to(const variant_payload_type& target) const override
+    {
+        return detail::upcast_payload<Traits>(payload(), target);
+    }
+
+private:
+    alignas(Payload) unsigned char m_storage[sizeof(Payload)];
 };
 
 template <typename T>
