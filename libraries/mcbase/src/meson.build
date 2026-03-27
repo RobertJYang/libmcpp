@@ -49,6 +49,13 @@ dep_arr = [boost_dep]
 if securec_dep.found()
   dep_arr += [securec_dep]
 endif
+
+# GCC 7 requires -lstdc++fs for std::experimental::filesystem
+cc = meson.get_compiler('cpp')
+stdcxxfs = cc.find_library('stdc++fs', required: false)
+if stdcxxfs.found()
+  dep_arr += [stdcxxfs]
+endif
 mcbasedeps = []
 
 install_dir = get_option('libdir')

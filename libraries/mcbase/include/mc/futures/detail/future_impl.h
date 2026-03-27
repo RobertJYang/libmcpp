@@ -392,6 +392,7 @@ struct as_future_callback_context {
     void apply()
     {
         auto* typed_state = static_cast<State<T>*>(state.get());
+        MC_UNUSED(typed_state);
         if constexpr (std::is_same_v<other_type, void>) {
             promise.set_value();
         } else if constexpr (std::is_void_v<T>) {

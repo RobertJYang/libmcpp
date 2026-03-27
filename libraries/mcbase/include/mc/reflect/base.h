@@ -224,7 +224,7 @@ constexpr inline bool is_valid_type_name(mc::string_view name)
     return true;
 }
 
-constexpr inline mc::string_view longest_common_prefix(mc::string_view s1, mc::string_view s2)
+inline mc::string_view longest_common_prefix(mc::string_view s1, mc::string_view s2)
 {
     size_t i = 0;
     while (i < s1.size() && i < s2.size() && s1[i] == s2[i]) {
@@ -233,7 +233,7 @@ constexpr inline mc::string_view longest_common_prefix(mc::string_view s1, mc::s
     return s1.substr(0, i);
 }
 
-constexpr inline mc::string_view remove_common_namespace(mc::string_view s1, mc::string_view s2)
+inline mc::string_view remove_common_namespace(mc::string_view s1, mc::string_view s2)
 {
     auto prefix = longest_common_prefix(s1, s2);
     if (prefix.empty()) {
@@ -271,7 +271,7 @@ struct has_reflect_namespace<T, std::enable_if_t<!std::is_same_v<typename reflec
  * @param namespace_name 命名空间名，格式为：mc.devices
  * @return 如果类型在命名空间中则返回true，否则返回false
  */
-constexpr bool type_in_namespace(mc::string_view type_name, mc::string_view namespace_name)
+inline bool type_in_namespace(mc::string_view type_name, mc::string_view namespace_name)
 {
     if (!is_valid_type_name(type_name) || !is_valid_type_name(namespace_name)) {
         return false;
@@ -306,7 +306,7 @@ constexpr bool type_in_namespace(mc::string_view type_name, mc::string_view name
 }
 
 template <typename T>
-constexpr bool check_type_namespace(mc::string_view type_name)
+inline bool check_type_namespace(mc::string_view type_name)
 {
     if constexpr (has_reflect_namespace<T>::value) {
         using namespace_type = typename reflect_namespace<T>::type;

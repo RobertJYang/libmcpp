@@ -278,7 +278,7 @@ public:
         return find(c) != npos;
     }
 
-    string_view substr(size_type pos, size_type n = npos) const
+    constexpr string_view substr(size_type pos, size_type n = npos) const
     {
         return string_view(std::string_view(*this).substr(pos, n));
     }

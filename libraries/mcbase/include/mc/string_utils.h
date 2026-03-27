@@ -148,8 +148,9 @@ void append(mc::string& result, T&& value)
             result.append(mc::string_view(s.data(), s.size()));
         }
     } else if constexpr (std::is_same_v<std::decay_t<T>, const char*>) {
-        if (value != nullptr) {
-            result.append(value);
+        const char* p = value;
+        if (p != nullptr) {
+            result.append(p);
         }
     } else if constexpr (std::is_same_v<std::decay_t<T>, char>) {
         result.push_back(value);

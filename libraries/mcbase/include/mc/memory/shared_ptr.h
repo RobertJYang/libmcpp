@@ -33,6 +33,19 @@ struct final_release_context_storage<Element, PointerType, true> {
     PointerType ptr;
     typename std::remove_const_t<Element>::alloc_type alloc;
 };
+
+// GCC 7 workaround: is_base_of requires complete type; use this trait to
+// guard the check when the type may be incomplete (e.g. string_storage).
+template <typename T, typename = void>
+struct is_complete : std::false_type {};
+template <typename T>
+struct is_complete<T, decltype(void(sizeof(T)))> : std::true_type {};
+
+template <typename Base, typename Derived>
+struct safe_is_base_of
+    : std::conditional_t<is_complete<Derived>::value,
+                         std::is_base_of<Base, Derived>,
+                         std::false_type> {};
 } // namespace detail
 
 /**
@@ -57,7 +70,7 @@ public:
     explicit shared_ptr(pointer_type ptr) noexcept : m_ptr(ptr)
     {
         if (m_ptr) {
-            m_ptr->add_ref();
+            as_base(m_ptr)->add_ref();
         }
     }
 
@@ -65,7 +78,7 @@ public:
     shared_ptr(const shared_ptr& other) noexcept : m_ptr(other.m_ptr)
     {
         if (m_ptr) {
-            m_ptr->add_ref();
+            as_base(m_ptr)->add_ref();
         }
     }
 
@@ -76,7 +89,7 @@ public:
     {
         static_assert(std::is_convertible_v<U*, T*>, "U* must be convertible to T*");
         if (m_ptr) {
-            m_ptr->add_ref();
+            as_base(m_ptr)->add_ref();
         }
     }
 
@@ -193,7 +206,7 @@ public:
     // 获取引用计数
     size_t use_count() const noexcept
     {
-        return m_ptr ? m_ptr->ref_count() : 0;
+        return m_ptr ? as_base(m_ptr)->ref_count() : 0;
     }
 
     // 检查是否唯一引用
@@ -294,6 +307,14 @@ private:
     pointer_type m_ptr;
     using raw_element_type = std::remove_const_t<element_type>;
 
+    // GCC 7 workaround: accessing members of an incomplete type via pointer
+    // is ill-formed even inside if constexpr. Cast to shared_base* first
+    // since all managed types inherit from it as their first base.
+    static ::mc::memory::shared_base* as_base(pointer_type ptr) noexcept
+    {
+        return reinterpret_cast<::mc::memory::shared_base*>(const_cast<raw_element_type*>(ptr));
+    }
+
     static ::mc::gc::GCHead* as_gc_head(pointer_type ptr) {
         return static_cast<::mc::gc::GCHead*>(
             const_cast<raw_element_type*>(static_cast<const raw_element_type*>(ptr)));
@@ -306,11 +327,11 @@ private:
         auto* ctx = static_cast<context_type*>(opaque);
         auto* ptr = ctx->ptr;
         auto* raw_ptr = const_cast<raw_element_type*>(
-            static_cast<const raw_element_type*>(ptr));
+            reinterpret_cast<const raw_element_type*>(ptr));
         using deleter_traits = mc::deleter_traits<Deleter, element_type>;
 
         deleter_traits::destroy(static_cast<element_type*>(ptr));
-        auto* counter = static_cast<::mc::memory::shared_base*>(
+        auto* counter = reinterpret_cast<::mc::memory::shared_base*>(
             raw_ptr);
         if (counter->release_weak_ref()) {
             if constexpr (HasAlloc) {
@@ -329,11 +350,12 @@ private:
             return;
         }
 
-        if (!ptr->release_ref()) {
+        auto* base = as_base(ptr);
+        if (!base->release_ref()) {
             return;
         }
 
-        if constexpr (std::is_base_of_v<::mc::gc::GCHead, raw_element_type>) {
+        if constexpr (::mc::memory::detail::safe_is_base_of<::mc::gc::GCHead, raw_element_type>::value) {
             auto* head = as_gc_head(ptr);
             if (head) {
                 constexpr bool has_alloc = ::mc::memory::detail::has_m_alloc<raw_element_type>(0);
@@ -354,14 +376,29 @@ private:
             }
         }
 
-        using deleter_traits = mc::deleter_traits<Deleter, element_type>;
-
-        if constexpr (std::is_base_of_v<::mc::gc::GCHead, raw_element_type>) {
+        if constexpr (::mc::memory::detail::safe_is_base_of<::mc::gc::GCHead, raw_element_type>::value) {
             ::mc::gc::gc_pre_destroy_untrack(as_gc_head(ptr));
         }
-        deleter_traits::destroy(static_cast<element_type*>(ptr));
-        if (ptr->release_weak_ref()) {
-            deleter_traits::deallocate(ptr);
+        if constexpr (::mc::memory::detail::is_complete<raw_element_type>::value) {
+            using deleter_traits = mc::deleter_traits<Deleter, element_type>;
+            // Type is complete: use deleter_traits for proper destruction
+            deleter_traits::destroy(static_cast<element_type*>(ptr));
+            if (base->release_weak_ref()) {
+                deleter_traits::deallocate(ptr);
+            }
+        } else {
+            // Type is incomplete (GCC 7 workaround): use virtual destructor.
+            // All managed types inherit shared_base which has virtual ~shared_counter().
+            // We must call release_weak_ref() after destroy() to mirror the
+            // normal path, but the memory is still alive (weak count guard).
+            // Calling ~shared_base() triggers the virtual destructor chain.
+            base->~shared_base();
+            // Memory is still valid here (not freed yet) because the weak
+            // count was at least 1 (the "strong" guard). release_weak_ref
+            // decrements it and tells us if we should free.
+            if (base->release_weak_ref()) {
+                ::operator delete(const_cast<void*>(static_cast<const void*>(ptr)));
+            }
         }
     }
 

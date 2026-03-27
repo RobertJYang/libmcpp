@@ -626,6 +626,14 @@ private:
     mc::shared_ptr<detail::string_storage> m_storage{};
 };
 
+// GCC 7 workaround: suppress implicit instantiation of shared_ptr<string_storage>
+// destructor in every translation unit that includes this header.
+// The explicit instantiation is provided in src/string/string.cpp where
+// string_storage is fully defined.
+extern template class mc::memory::shared_ptr<mc::detail::string_storage,
+                                             mc::memory::default_deleter<mc::detail::string_storage>,
+                                             mc::detail::string_storage*>;
+
 inline std::string to_std_string(const string& s)
 {
     mc::string_view v = s.view();

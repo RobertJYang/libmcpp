@@ -280,6 +280,17 @@ struct string_mutable_impl {
     static string_bytes& mutable_storage(string& s, std::size_t min_capacity = 0U);
 };
 
+} // namespace detail
+
+// Explicit instantiation of shared_ptr<string_storage> here where
+// string_storage is complete, satisfying the extern template declaration
+// in string.h (GCC 7 workaround).
+template class mc::memory::shared_ptr<mc::detail::string_storage,
+                                      mc::memory::default_deleter<mc::detail::string_storage>,
+                                      mc::detail::string_storage*>;
+
+namespace mc::detail {
+
 string_bytes& string_mutable_impl::mutable_storage(string& s, std::size_t min_capacity)
 {
     if (!s.m_storage) {

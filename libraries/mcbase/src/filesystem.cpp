@@ -236,14 +236,14 @@ bool visit_directory(const path& p, path_visit_fn visitor, void* userdata)
 bool visit_files(const path& p, path_visit_fn visitor, void* userdata)
 {
     return visit_directory_entries(p, visitor, userdata, [](const fs::directory_entry& entry) {
-        return entry.is_regular_file();
+        return fs::is_regular_file(entry.path());
     });
 }
 
 bool visit_directories(const path& p, path_visit_fn visitor, void* userdata)
 {
     return visit_directory_entries(p, visitor, userdata, [](const fs::directory_entry& entry) {
-        return entry.is_directory();
+        return fs::is_directory(entry.path());
     });
 }
 
