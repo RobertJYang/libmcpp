@@ -16,6 +16,7 @@
 #include <mc/fmt/format_dict.h>
 #include <mc/log/log_manager.h>
 #include <mc/log/logger.h>
+#include <mc/log.h>
 
 #include <algorithm>
 #include <chrono>
@@ -25,6 +26,7 @@
 #include <cstring>
 #include <memory>
 #include <mutex>
+#include <string_view>
 #include <unordered_map>
 #include "securec.h"
 
@@ -46,6 +48,22 @@ struct throttle_state {
 };
 
 } // namespace
+
+// 检查串口输出内容是否含 shell 元字符，避免注入
+static bool check_shell_special_character_s(std::string_view s)
+{
+    static constexpr const char* const k_needles[] = {
+        "||", ";", "&&", "$", "|", "&", ">>", ">", "<", "`", "\\", "!", "\n",
+    };
+    for (size_t i = 0; i < sizeof(k_needles) / sizeof(k_needles[0]); ++i) {
+        if (s.find(k_needles[i]) != std::string_view::npos) {
+            elog("cmd_str includes special character ${token} of shell command",
+                ("token", std::string(k_needles[i])));
+            return false;
+        }
+    }
+    return true;
+}
 
 // 日志记录器实现类
 class logger::impl {
@@ -389,6 +407,9 @@ void logger::log_serial_printf(level lvl, const message& msg)
                 "${time} ${module} ${level}: ${file}(${line}): ${message}",
                 mc::dict()("time", time_str)("module", module_name)("level", mc::log::to_string(msg.get_level()))(
                     "file", file_str)("line", std::to_string(ctx.m_line))("message", message_str));
+            if (!check_shell_special_character_s(str)) {
+                return;
+            }
             const std::string cmd = "echo \"" + str + "\" > /dev/ttyS0";
             run_shell_cmd(cmd);
         }
