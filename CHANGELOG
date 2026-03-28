@@ -1,5 +1,8 @@
 # Changelog
 All notable changes to this project will be documented in this file.
+## [1.2.66] - 2026-03-28
+修复meson构建告警问题
+
 ## [1.2.65] - 2026-03-28
 串口日志增加内容校验，避免外部输入引发问题
 

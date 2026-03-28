@@ -86,7 +86,7 @@ std::string_view prepare_number_string(std::string_view s, int radix, char* buff
 
     errno_t ret = memcpy_s(buffer, buffer_size, s.data(), s.size());
     if (ret != EOK) {
-        MC_THROW(mc::runtime_exception, "memcpy_s failed with error code ${code}", ("code", ret));
+        return {};
     }
     buffer[s.size()] = '\0';
     return std::string_view(buffer, s.size());
