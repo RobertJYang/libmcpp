@@ -3,12 +3,11 @@
 #include <mc/log/appender_factory.h>
 #include <mc/log/appenders/file_appender.h>
 #include <mc/log/appenders/socket_appender.h>
+#include <test_utilities/base.h>
 
 #include "log/builtin_appenders.h"
 #include "log/logging_internal.h"
 
-#include <filesystem>
-#include <fstream>
 #include <string>
 
 using namespace mc::log;
@@ -26,10 +25,11 @@ size_t count_appender_by_name(const mc::log::logger& log, std::string_view name)
     return count;
 }
 
-std::string read_file_content(const std::filesystem::path& path)
+std::string read_file_content(const mc::filesystem::path& path)
 {
-    std::ifstream ifs(path);
-    return std::string((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+    mc::string content;
+    mc::filesystem::read_file(path, content);
+    return std::string(content);
 }
 
 } // namespace
@@ -45,7 +45,7 @@ TEST(builtin_appender_registration_test, register_builtin_appenders_registers_fi
     EXPECT_EQ(default_logger.get_level(), mc::log::level::info);
     EXPECT_EQ(count_appender_by_name(default_logger, "default_file"), default_file_count_before);
 
-    auto file = appender_factory::instance().create_by_type<file_appender>("file");
+    auto file   = appender_factory::instance().create_by_type<file_appender>("file");
     auto socket = appender_factory::instance().create_by_type<socket_appender>("socket");
 
     ASSERT_NE(file, nullptr);
@@ -69,10 +69,12 @@ TEST(builtin_appender_registration_test, bootstrap_default_logging_makes_file_ap
     auto default_logger = mc::log::default_logger();
     default_logger.set_level(mc::log::level::info);
 
-    auto log_path = std::filesystem::path(TEST_LOG_DIR) / "bootstrap_default_file.log";
-    std::filesystem::create_directories(log_path.parent_path());
-    std::filesystem::remove(log_path);
-    logging::set_stub_log_path(log_path.string());
+    mc::test::test_directory_options options;
+    options.preferred_prefix = "blog_";
+    auto test_dir            = mc::test::make_test_directory(options);
+
+    auto log_path = test_dir.child_path("bootstrap_default_file.log");
+    logging::set_stub_log_path(std::string(log_path.string()));
 
     bootstrap_default_logging();
 
@@ -80,6 +82,6 @@ TEST(builtin_appender_registration_test, bootstrap_default_logging_makes_file_ap
                          mc::log::context("builtin_appenders_test.cpp", "bootstrap_test", 42));
     default_logger.log(msg);
 
-    ASSERT_TRUE(std::filesystem::exists(log_path));
+    ASSERT_TRUE(mc::filesystem::exists(log_path));
     EXPECT_NE(read_file_content(log_path).find("bootstrap default file appender works"), std::string::npos);
 }

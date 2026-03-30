@@ -42,13 +42,9 @@ inline void filter_invalid_chars(std::string& str)
 {}
 
 // 测试用例可通过设置此变量来指定日志输出文件
-// 默认值：TEST_LOG_DIR/test_file_appender_mock.log
+// 默认值为空，未设置时 stub 不会写入任何文件
 inline std::string& get_stub_log_path() {
-#ifdef TEST_LOG_DIR
-    static std::string log_path = std::string(TEST_LOG_DIR) + "/test_file_appender_mock.log";
-#else
-    static std::string log_path = "/tmp/test_file_appender_mock.log";
-#endif
+    static std::string log_path;
     return log_path;
 }
 
@@ -59,7 +55,12 @@ inline void set_stub_log_path(const std::string& path) {
 
 // Stub 实现：将日志写入到 get_stub_log_path() 指定的文件
 inline void internal_log_handler(LogRecord* rec, bool limit) {
-    std::ofstream ofs(get_stub_log_path(), std::ios::app);
+    const auto& path = get_stub_log_path();
+    if (path.empty()) {
+        return;
+    }
+
+    std::ofstream ofs(path, std::ios::app);
     if (!ofs.is_open()) {
         return;
     }

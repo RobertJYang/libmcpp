@@ -43,11 +43,7 @@ inline void filter_invalid_chars(std::string& str)
 
 inline std::string& get_stub_log_path()
 {
-#ifdef TEST_LOG_DIR
-    static std::string log_path = std::string(TEST_LOG_DIR) + "/test_file_appender_mock.log";
-#else
-    static std::string log_path = "/tmp/test_file_appender_mock.log";
-#endif
+    static std::string log_path;
     return log_path;
 }
 
@@ -60,7 +56,12 @@ inline void internal_log_handler(LogRecord* rec, bool limit)
 {
     (void)limit;
 
-    std::ofstream ofs(get_stub_log_path(), std::ios::app);
+    const auto& path = get_stub_log_path();
+    if (path.empty()) {
+        return;
+    }
+
+    std::ofstream ofs(path, std::ios::app);
     if (!ofs.is_open()) {
         return;
     }

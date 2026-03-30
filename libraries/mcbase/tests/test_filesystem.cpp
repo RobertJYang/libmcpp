@@ -13,6 +13,7 @@
 #include <gtest/gtest.h>
 
 #include <mc/filesystem.h>
+#include <test_utilities/base.h>
 
 #include <algorithm>
 #include <vector>
@@ -68,9 +69,9 @@ TEST(filesystem_test, bool_and_out_param_api_reports_file_content)
 
 TEST(filesystem_test, visit_directory_and_list_directory_can_coexist)
 {
-    const auto root     = mc::filesystem::temp_directory_path() / "mc_filesystem_visit_directory";
-    const auto file     = root / "a.txt";
-    const auto sub_dir  = root / "nested";
+    const auto root    = mc::filesystem::temp_directory_path() / "mc_filesystem_visit_directory";
+    const auto file    = root / "a.txt";
+    const auto sub_dir = root / "nested";
 
     ASSERT_TRUE(mc::filesystem::create_directories(sub_dir));
     ASSERT_TRUE(mc::filesystem::write_file(file, "a"));
@@ -79,8 +80,8 @@ TEST(filesystem_test, visit_directory_and_list_directory_can_coexist)
     ASSERT_TRUE(mc::filesystem::visit_directory(root, &collect_path_entry, &context));
 
     std::sort(context.entries.begin(), context.entries.end());
-                auto listed = mc::filesystem::list_directory(root);
-                std::sort(listed.begin(), listed.end());
+    auto listed = mc::filesystem::list_directory(root);
+    std::sort(listed.begin(), listed.end());
 
     ASSERT_EQ(context.entries.size(), listed.size());
     for (size_t i = 0; i < listed.size(); ++i) {
@@ -90,6 +91,42 @@ TEST(filesystem_test, visit_directory_and_list_directory_can_coexist)
     uint64_t removed_count = 0;
     EXPECT_TRUE(mc::filesystem::remove_all(root, removed_count));
     EXPECT_GE(removed_count, 3U);
+}
+
+TEST(filesystem_test, scoped_test_directory_prefers_build_root_and_cleans_up)
+{
+    mc::filesystem::path created_path;
+    const auto           expected_parent = mc::test::get_build_root() / "tmp";
+
+    {
+        mc::test::test_directory_options options;
+        options.preferred_prefix = "fs_";
+
+        auto temp_dir = mc::test::make_test_directory(options);
+        created_path  = temp_dir.path();
+
+        EXPECT_FALSE(temp_dir.using_fallback_root());
+        EXPECT_EQ(created_path.parent_path(), expected_parent);
+        EXPECT_TRUE(mc::filesystem::exists(created_path));
+    }
+
+    EXPECT_FALSE(mc::filesystem::exists(created_path));
+}
+
+TEST(filesystem_test, scoped_test_directory_falls_back_to_short_root_when_child_path_too_long)
+{
+    mc::test::test_directory_options options;
+    options.preferred_prefix  = "socket_";
+    options.fallback_prefix   = "mcs_";
+    options.max_path_length   = 64;
+    options.required_children = {mc::filesystem::path("test.sock"), mc::filesystem::path("test.hbsock")};
+
+    auto temp_dir = mc::test::make_test_directory(options);
+
+    EXPECT_TRUE(temp_dir.using_fallback_root());
+    EXPECT_TRUE(mc::filesystem::exists(temp_dir.path()));
+    EXPECT_LT((temp_dir.child_path("test.sock")).string().size(), options.max_path_length);
+    EXPECT_LT((temp_dir.child_path("test.hbsock")).string().size(), options.max_path_length);
 }
 
 } // namespace

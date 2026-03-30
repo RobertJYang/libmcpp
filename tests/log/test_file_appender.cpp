@@ -18,12 +18,13 @@
 #include <test_utilities/test_base.h>
 
 #include <cstdarg>
-#include <filesystem>
 #include <fstream>
 #include <memory>
 #include <string>
 #include <thread>
 #include <vector>
+
+#include "log/logging_internal.h"
 
 using namespace mc::log;
 
@@ -41,8 +42,7 @@ typedef void (*debug_log_func_t)(int, const char*, int, const char*, ...);
 // 使用int类型作为第一个参数，因为枚举值在C/C++中可以隐式转换为int
 extern "C" void test_debug_log(int level, const char* file, int line, const char* fmt, ...)
 {
-    static const std::string log_path = std::string(TEST_LOG_DIR) + "/test_file_appender_mock.log";
-    std::filesystem::create_directories(TEST_LOG_DIR);
+    const auto&   log_path = logging::get_stub_log_path();
     std::ofstream ofs(log_path, std::ios::app);
     if (!ofs.is_open()) {
         std::cout << "[mock debug_log] open file failed: " << log_path << std::endl;
@@ -58,18 +58,28 @@ extern "C" void test_debug_log(int level, const char* file, int line, const char
 
 class file_appender_test : public mc::test::TestBase {
 protected:
-    static std::shared_ptr<file_appender> m_appender;
-    static std::filesystem::path          m_test_log_file;
-    static void SetUpTestSuite()
+    static std::shared_ptr<file_appender>  m_appender;
+    static mc::filesystem::path            m_test_log_file;
+    static mc::test::scoped_test_directory m_test_dir;
+    static void                            SetUpTestSuite()
     {
+        // 创建测试临时目录
+        mc::test::test_directory_options options;
+        options.preferred_prefix = "flog_";
+        m_test_dir               = mc::test::make_test_directory(options);
+
+        m_test_log_file = m_test_dir.child_path("test_file_appender_mock.log");
+
+        // 设置 stub 日志路径，让 extern "C" 回调和 logging_internal 都写到同一个文件
+        logging::set_stub_log_path(m_test_log_file.string());
+
         // 在测试用例中，先设置 debug_log_ptr，确保后续 init() 调用时不会执行 dlopen
         // 这样可以避免在测试环境中重复加载动态库或打印错误信息
         file_appender::set_debug_log_ptr(reinterpret_cast<void*>(static_cast<debug_log_func_t>(test_debug_log)));
 
-        m_appender      = std::make_shared<file_appender>();
-        m_test_log_file = std::string(TEST_LOG_DIR) + "/test_file_appender_mock.log";
-        if (std::filesystem::exists(m_test_log_file)) {
-            std::filesystem::remove(m_test_log_file);
+        m_appender = std::make_shared<file_appender>();
+        if (mc::filesystem::exists(m_test_log_file)) {
+            mc::filesystem::remove(m_test_log_file);
         }
         // 初始化日志文件（直接清空文件）
         std::ofstream ofs(m_test_log_file, std::ios::trunc);
@@ -83,17 +93,13 @@ protected:
     static void TearDownTestSuite()
     {
         m_appender.reset();
-        if (std::filesystem::exists(m_test_log_file)) {
-            std::filesystem::remove(m_test_log_file);
-        }
+        // scoped_test_directory 析构时会自动清理整个目录
+        m_test_dir.reset();
     }
     void SetUp() override
     {
         mc::test::TestBase::SetUp();
         mc::log::default_logger().set_level(mc::log::level::off);
-
-        // 确保测试目录存在
-        std::filesystem::create_directories(std::string(TEST_LOG_DIR));
 
         // 在每个测试开始时重新初始化日志文件
         std::ofstream ofs(m_test_log_file, std::ios::trunc);
@@ -113,8 +119,8 @@ protected:
         m_appender->flush();
 
         // 删除测试文件
-        if (std::filesystem::exists(m_test_log_file)) {
-            std::filesystem::remove(m_test_log_file);
+        if (mc::filesystem::exists(m_test_log_file)) {
+            mc::filesystem::remove(m_test_log_file);
         }
         mc::test::TestBase::TearDown();
     }
@@ -136,7 +142,7 @@ protected:
     // 检查日志文件是否存在且不为空时，直接用m_test_log_file
     bool check_log_file_exists_and_not_empty()
     {
-        if (!std::filesystem::exists(m_test_log_file)) {
+        if (!mc::filesystem::exists(m_test_log_file)) {
             return false;
         }
         std::ifstream file(m_test_log_file);
@@ -150,7 +156,7 @@ protected:
     // 检查指定日志文件是否存在且不为空
     bool check_log_file_exists_and_not_empty(const std::string& filename)
     {
-        if (!std::filesystem::exists(filename)) {
+        if (!mc::filesystem::exists(filename)) {
             return false;
         }
 
@@ -166,8 +172,9 @@ protected:
 };
 
 // 静态成员定义
-std::shared_ptr<file_appender> file_appender_test::m_appender;
-std::filesystem::path          file_appender_test::m_test_log_file;
+std::shared_ptr<file_appender>  file_appender_test::m_appender;
+mc::filesystem::path            file_appender_test::m_test_log_file;
+mc::test::scoped_test_directory file_appender_test::m_test_dir;
 
 // 测试默认构造函数
 TEST_F(file_appender_test, DefaultConstructor)
@@ -361,7 +368,7 @@ TEST_F(file_appender_test, AppendWithEmptyFileContext)
     file_appender::set_debug_log_ptr(reinterpret_cast<void*>(static_cast<debug_log_func_t>(test_debug_log)));
 
     // 清空 mock 日志文件
-    std::string mock_log_file = std::string(TEST_LOG_DIR) + "/test_file_appender_mock.log";
+    std::string mock_log_file = m_test_log_file.string();
     std::ofstream(mock_log_file, std::ios::trunc).close();
 
     // 创建空文件名的上下文
@@ -385,7 +392,7 @@ TEST_F(file_appender_test, AppendTraceAndFatalLevels)
     file_appender::set_debug_log_ptr(reinterpret_cast<void*>(static_cast<debug_log_func_t>(test_debug_log)));
 
     // 清空 mock 日志文件
-    std::string mock_log_file = std::string(TEST_LOG_DIR) + "/test_file_appender_mock.log";
+    std::string mock_log_file = m_test_log_file.string();
     std::ofstream(mock_log_file, std::ios::trunc).close();
 
     auto trace_msg = create_test_message(level::trace, "跟踪消息");

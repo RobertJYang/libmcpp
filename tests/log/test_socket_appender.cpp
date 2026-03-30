@@ -21,7 +21,6 @@
 #include <cerrno>
 #include <cstring>
 #include <fcntl.h>
-#include <filesystem>
 #include <memory>
 #include <string>
 #include <sys/socket.h>
@@ -48,19 +47,24 @@ protected:
         mc::test::TestBase::SetUp();
         mc::log::default_logger().set_level(mc::log::level::off);
 
-        // 创建测试用的 socket 路径
-        m_test_dir = std::string(TEST_LOG_DIR) + "/socket_test";
-        std::filesystem::create_directories(m_test_dir);
+        mc::test::test_directory_options options;
+        options.preferred_prefix  = "socket_";
+        options.fallback_prefix   = "mcs_";
+        options.max_path_length   = sizeof(sockaddr_un{}.sun_path);
+        options.required_children = {mc::filesystem::path("test.sock"), mc::filesystem::path("test.hbsock")};
 
-        m_socket_path    = m_test_dir + "/test.sock";
-        m_hb_socket_path = m_test_dir + "/test.hbsock";
+        m_test_dir = create_test_directory(options);
+        ASSERT_FALSE(m_test_dir.empty());
+
+        m_socket_path    = std::string(m_test_dir.child_path("test.sock").string());
+        m_hb_socket_path = std::string(m_test_dir.child_path("test.hbsock").string());
 
         // 清理可能存在的旧 socket 文件
-        if (std::filesystem::exists(m_socket_path)) {
-            std::filesystem::remove(m_socket_path);
+        if (mc::filesystem::exists(m_socket_path)) {
+            mc::filesystem::remove(m_socket_path);
         }
-        if (std::filesystem::exists(m_hb_socket_path)) {
-            std::filesystem::remove(m_hb_socket_path);
+        if (mc::filesystem::exists(m_hb_socket_path)) {
+            mc::filesystem::remove(m_hb_socket_path);
         }
 
         m_appender = std::make_shared<socket_appender>();
@@ -74,15 +78,13 @@ protected:
         m_appender.reset();
 
         // 清理测试 socket 文件
-        if (std::filesystem::exists(m_socket_path)) {
-            std::filesystem::remove(m_socket_path);
+        if (mc::filesystem::exists(m_socket_path)) {
+            mc::filesystem::remove(m_socket_path);
         }
-        if (std::filesystem::exists(m_hb_socket_path)) {
-            std::filesystem::remove(m_hb_socket_path);
+        if (mc::filesystem::exists(m_hb_socket_path)) {
+            mc::filesystem::remove(m_hb_socket_path);
         }
-        if (std::filesystem::exists(m_test_dir)) {
-            std::filesystem::remove_all(m_test_dir);
-        }
+        m_test_dir.reset();
 
         mc::test::TestBase::TearDown();
     }
@@ -362,7 +364,7 @@ protected:
     }
 
     std::shared_ptr<socket_appender> m_appender;
-    std::string                      m_test_dir;
+    mc::test::scoped_test_directory  m_test_dir;
     std::string                      m_socket_path;
     std::string                      m_hb_socket_path;
     std::thread                      m_server_thread;
@@ -688,11 +690,11 @@ TEST_F(socket_appender_test, MultipleConnectDisconnect)
         std::this_thread::sleep_for(std::chrono::milliseconds(30));
 
         // 确保socket文件被删除
-        if (std::filesystem::exists(m_socket_path)) {
-            std::filesystem::remove(m_socket_path);
+        if (mc::filesystem::exists(m_socket_path)) {
+            mc::filesystem::remove(m_socket_path);
         }
-        if (std::filesystem::exists(m_hb_socket_path)) {
-            std::filesystem::remove(m_hb_socket_path);
+        if (mc::filesystem::exists(m_hb_socket_path)) {
+            mc::filesystem::remove(m_hb_socket_path);
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
 

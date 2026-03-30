@@ -18,33 +18,77 @@
 #include <mc/log/log.h>
 #include <mc/runtime.h>
 #include <string>
+#include <vector>
 
 namespace mc {
 namespace test {
+
+struct MC_API test_directory_options {
+    mc::filesystem::path              preferred_root;
+    mc::filesystem::path              fallback_root;
+    mc::string                        preferred_prefix{"test_"};
+    mc::string                        fallback_prefix{"mct_"};
+    size_t                            max_path_length{0};
+    std::vector<mc::filesystem::path> required_children;
+};
+
+class MC_API scoped_test_directory {
+public:
+    scoped_test_directory() = default;
+    explicit scoped_test_directory(const test_directory_options& options);
+    ~scoped_test_directory();
+
+    scoped_test_directory(const scoped_test_directory&)            = delete;
+    scoped_test_directory& operator=(const scoped_test_directory&) = delete;
+
+    scoped_test_directory(scoped_test_directory&& other) noexcept;
+    scoped_test_directory& operator=(scoped_test_directory&& other) noexcept;
+
+    bool create(const test_directory_options& options = {});
+    void reset() noexcept;
+
+    bool                        empty() const noexcept;
+    const mc::filesystem::path& path() const noexcept;
+    mc::filesystem::path        child_path(mc::string_view name) const;
+    bool                        using_fallback_root() const noexcept;
+
+private:
+    mc::filesystem::path m_path;
+    bool                 m_using_fallback_root{false};
+};
 
 /**
  * @brief 测试基类，提供通用的测试功能
  */
 class MC_API TestBase : public ::testing::Test {
 protected:
-    static void SetUpTestSuite() {
+    static void SetUpTestSuite()
+    {
         // 设置默认日志级别为 warn，减少测试输出
         mc::log::default_logger().set_level(mc::log::level::warn);
     }
 
-    static void TearDownTestSuite() {
+    static void TearDownTestSuite()
+    {
         // 恢复默认日志级别
         mc::log::default_logger().set_level(mc::log::level::info);
     }
 
-    void SetUp() override {
+    void SetUp() override
+    {
         // 每个测试用例开始时确保日志级别为 warn
         mc::log::default_logger().set_level(mc::log::level::warn);
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         // 每个测试用例结束时恢复日志级别为 info
         mc::log::default_logger().set_level(mc::log::level::info);
+    }
+
+    scoped_test_directory create_test_directory(const test_directory_options& options = {}) const
+    {
+        return scoped_test_directory(options);
     }
 };
 
@@ -53,20 +97,24 @@ protected:
  */
 class MC_API TestWithRuntime : public TestBase {
 protected:
-    static mc::runtime::runtime_context& get_runtime() {
+    static mc::runtime::runtime_context& get_runtime()
+    {
         return mc::runtime::get_runtime_context();
     }
 
-    static void reset_runtime() {
+    static void reset_runtime()
+    {
         mc::runtime::reset_runtime_context();
     }
 
-    static void SetUpTestSuite() {
+    static void SetUpTestSuite()
+    {
         TestBase::SetUpTestSuite();
         mc::runtime::reset_runtime_context();
     }
 
-    static void TearDownTestSuite() {
+    static void TearDownTestSuite()
+    {
         reset_runtime();
         TestBase::TearDownTestSuite();
     }
@@ -89,6 +137,9 @@ MC_API mc::string get_executable_path();
  * @return 构建根目录路径
  */
 MC_API mc::filesystem::path get_build_root();
+MC_API mc::filesystem::path get_default_test_temp_root();
+MC_API mc::filesystem::path  get_short_test_temp_root();
+MC_API scoped_test_directory make_test_directory(const test_directory_options& options = {});
 
 } // namespace test
 } // namespace mc

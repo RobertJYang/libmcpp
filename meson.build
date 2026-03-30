@@ -89,8 +89,6 @@ if meson.is_cross_build()
 else
   add_project_arguments('-DBUILD_TYPE=BUILD_TYPE_DT', language: 'cpp')
   add_project_arguments('-DLOGGING_PATH=""', language: 'cpp')
-  test_log_dir = meson.current_build_dir() + '/log'
-  add_project_arguments('-DTEST_LOG_DIR="' + test_log_dir + '"', language: 'cpp')
 endif
 
 # 尝试使用 pkg-config 查找依赖
