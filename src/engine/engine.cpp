@@ -20,7 +20,6 @@ namespace mc::engine {
 using object_table_ptr     = std::shared_ptr<object_table>;
 using table_connection_map = std::multimap<std::string, mc::connection_type>;
 using thread_list          = std::list<std::thread>;
-using work_guard           = boost::asio::executor_work_guard<boost::asio::io_context::executor_type>;
 
 extern "C" void mc_expr_ensure_path_resolver_registered();
 

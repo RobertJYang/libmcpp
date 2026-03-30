@@ -205,6 +205,53 @@ thread_pool::executor_type runtime_strand::get_default_executor()
     return get_io_context().get_executor();
 }
 
+void runtime_strand::dispatch_impl(detail::task task) const
+{
+    if (running_in_this_thread()) {
+        // 没有绑定目标 pool 或者当前 shard 就是目标 pool，直接同步执行
+        if (!m_bound_pool || can_execute_in_this_shard()) {
+            task();
+            return;
+        }
+    }
+
+    auto* op   = m_data->acquire_operation(std::move(task), m_bound_pool);
+    bool first = enqueue_op(op);
+    if (first) {
+        if (m_bound_pool) {
+            m_bound_pool->get_executor().post(invoker(m_data), std::allocator<void>{});
+        } else {
+            get_default_executor().post(invoker(m_data), std::allocator<void>{});
+        }
+    }
+}
+
+void runtime_strand::post_impl(detail::task task) const
+{
+    auto* op   = m_data->acquire_operation(std::move(task), m_bound_pool);
+    bool first = enqueue_op(op);
+    if (first) {
+        if (m_bound_pool) {
+            m_bound_pool->get_executor().post(invoker(m_data), std::allocator<void>{});
+        } else {
+            get_default_executor().post(invoker(m_data), std::allocator<void>{});
+        }
+    }
+}
+
+void runtime_strand::defer_impl(detail::task task) const
+{
+    auto* op   = m_data->acquire_operation(std::move(task), m_bound_pool);
+    bool first = enqueue_op(op);
+    if (first) {
+        if (m_bound_pool) {
+            m_bound_pool->get_executor().defer(invoker(m_data), std::allocator<void>{});
+        } else {
+            get_default_executor().defer(invoker(m_data), std::allocator<void>{});
+        }
+    }
+}
+
 bool runtime_strand::enqueue_op(task_operation_base* op) const
 {
     std::lock_guard lock(m_data->mutex);

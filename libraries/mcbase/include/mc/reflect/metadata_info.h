@@ -19,6 +19,7 @@
 
 #include <cstring>
 #include <functional>
+#include <memory>
 #include <string_view>
 #include <tuple>
 #include <typeindex>
@@ -475,12 +476,12 @@ struct method_type_info : public member_info_base {
     mc::variant  invoke(void* obj, const mc::variants& args) const;
     async_result async_invoke(void* obj, const mc::variants& args) const;
     template <typename C, std::enable_if_t<std::is_class_v<C>, int> = 0>
-    mc::variant invoke(C& obj, const mc::variants& args) const noexcept
+    mc::variant invoke(C& obj, const mc::variants& args) const
     {
         return invoke(&obj, args);
     }
     template <typename C, std::enable_if_t<std::is_class_v<C>, int> = 0>
-    async_result async_invoke(C& obj, const mc::variants& args) const noexcept
+    async_result async_invoke(C& obj, const mc::variants& args) const
     {
         return async_invoke(&obj, args);
     }
@@ -565,6 +566,18 @@ private:
     mc::string_view                m_args_signature;
     mc::string_view                m_result_signature;
 };
+
+struct runtime_method_deleter {
+    void operator()(method_info* method) const noexcept
+    {
+        if (!method) {
+            return;
+        }
+        ::operator delete(method);
+    }
+};
+
+using method_info_ptr = std::unique_ptr<method_info, runtime_method_deleter>;
 
 namespace detail {
 
@@ -913,22 +926,12 @@ struct erased_method_registration_factory {
             mc::reflect::get_signature<typename function_traits::args_type>(),
             mc::reflect::get_signature<typename function_traits::result_type>(), &function);
     }
-
-    static mc::variant get_function_variant(const void* function_data)
-    {
-        if constexpr (function_traits::is_static && is_variant_constructible_v<FunctionPtr>) {
-            return mc::variant(*static_cast<const FunctionPtr*>(function_data));
-        } else {
-            return {};
-        }
-    }
 };
 
 } // namespace detail
 
 struct method_registration_info {
     using create_runtime_method_func_t = method_info* (*)(mc::string_view name, const void* function_data);
-    using get_function_variant_func_t  = mc::variant (*)(const void* function_data);
     using tag_type                     = method_tag;
 
     mc::string_view              name;
@@ -936,13 +939,11 @@ struct method_registration_info {
     uint32_t                     base_offset            = 0;
     uint64_t                     data                   = 0;
     create_runtime_method_func_t m_create_method        = nullptr;
-    get_function_variant_func_t  m_get_function_variant = nullptr;
     const void*                  m_function_data        = nullptr;
 
     constexpr method_registration_info(mc::string_view n, create_runtime_method_func_t create_method,
-                                       get_function_variant_func_t get_function_variant, const void* function_data)
-        : name(n), m_create_method(create_method), m_get_function_variant(get_function_variant),
-          m_function_data(function_data)
+                                       const void* function_data)
+        : name(n), m_create_method(create_method), m_function_data(function_data)
     {}
 
     constexpr int type() const noexcept
@@ -979,9 +980,9 @@ struct method_registration_info {
         return method;
     }
 
-    mc::variant get_function_value() const
+    method_info_ptr create_runtime_method_ptr() const
     {
-        return m_get_function_variant ? m_get_function_variant(m_function_data) : mc::variant{};
+        return method_info_ptr(create_runtime_method());
     }
 };
 
@@ -1000,9 +1001,7 @@ struct static_method_info : public method_registration_info {
     FunctionPtr m_function;
 
     constexpr static_method_info(mc::string_view n, FunctionPtr function)
-        : method_registration_info(n, &detail::erased_method_registration_factory<FunctionPtr>::create,
-                                   &detail::erased_method_registration_factory<FunctionPtr>::get_function_variant,
-                                   &m_function),
+        : method_registration_info(n, &detail::erased_method_registration_factory<FunctionPtr>::create, &m_function),
           m_function(function)
     {}
 };
@@ -1013,7 +1012,6 @@ constexpr auto make_erased_static_method_info(mc::string_view name)
     using function_type = decltype(Function);
     return std::tuple<method_registration_info>{
         method_registration_info{name, &detail::erased_method_registration_factory<function_type>::create,
-                                 &detail::erased_method_registration_factory<function_type>::get_function_variant,
                                  &detail::method_function_constant<Function>::value}};
 }
 

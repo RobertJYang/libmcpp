@@ -13,20 +13,17 @@
 #ifndef MC_CORE_PRIORITY_QUEUE_H
 #define MC_CORE_PRIORITY_QUEUE_H
 
-#include <atomic>
-#include <boost/asio.hpp>
-#include <boost/asio/post.hpp>
-#include <condition_variable>
 #include <deque>
-#include <functional>
-#include <iostream> // 添加iostream头文件以使用std::cerr
 #include <limits>
 #include <memory>
 #include <mutex>
 #include <queue>
-#include <thread>
+#include <string>
 #include <tuple>
-#include <vector>
+#include <utility>
+
+#include <mc/log/log.h>
+#include <mc/runtime/any_executor.h>
 
 namespace mc::core {
 
@@ -43,7 +40,7 @@ struct priority {
     static constexpr int highest     = std::numeric_limits<int>::max();
 };
 
-template <typename ContextType = boost::asio::io_context>
+template <typename ContextType = mc::runtime::any_executor>
 class priority_queue_executor {
     class handler_base {
     public:
@@ -105,13 +102,13 @@ public:
           m_state(auto_start ? QueueState::Running : QueueState::Stopped)
     {}
 
-    ~priority_queue_executor()
+    MC_NEVER_INLINE ~priority_queue_executor()
     {
         execute_all();
     }
 
     // 启动队列处理
-    void start()
+    MC_NEVER_INLINE void start()
     {
         std::lock_guard<std::mutex> lock(m_state_mutex);
         if (m_state != QueueState::Running) {
@@ -121,14 +118,14 @@ public:
     }
 
     // 停止队列处理
-    void stop()
+    MC_NEVER_INLINE void stop()
     {
         std::lock_guard<std::mutex> lock(m_state_mutex);
         m_state = QueueState::Stopped;
     }
 
     // 暂停队列处理
-    void pause()
+    MC_NEVER_INLINE void pause()
     {
         std::lock_guard<std::mutex> lock(m_state_mutex);
         if (m_state == QueueState::Running) {
@@ -137,7 +134,7 @@ public:
     }
 
     // 恢复队列处理
-    void resume()
+    MC_NEVER_INLINE void resume()
     {
         std::lock_guard<std::mutex> lock(m_state_mutex);
         if (m_state == QueueState::Paused) {
@@ -166,13 +163,13 @@ public:
         try_start_processing();
     }
 
-    void execute_all()
+    MC_NEVER_INLINE void execute_all()
     {
         while (execute_highest()) {
         }
     }
 
-    bool execute_highest()
+    MC_NEVER_INLINE bool execute_highest()
     {
         handler_ptr task;
         bool        has_more = get_next_task(task);
@@ -184,16 +181,10 @@ public:
         return has_more;
     }
 
-    std::size_t size() const
+    MC_NEVER_INLINE std::size_t size() const
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         return m_task_queue.size();
-    }
-
-    template <typename Function>
-    boost::asio::executor_binder<Function, priority_queue_executor> wrap(int p, Function&& func) const
-    {
-        return boost::asio::bind_executor(*this, std::forward<Function>(func));
     }
 
     friend bool operator==(const priority_queue_executor& a, const priority_queue_executor& b) noexcept
@@ -207,7 +198,7 @@ public:
     }
 
 private:
-    void try_start_processing()
+    MC_NEVER_INLINE void try_start_processing()
     {
         if (m_state != QueueState::Running) {
             return; // 非运行状态不启动处理
@@ -215,24 +206,24 @@ private:
 
         if (!m_task_queue.empty() && !m_is_task_scheduled) {
             m_is_task_scheduled = true;
-            boost::asio::post(m_context, [this]() {
+            m_context.post([this]() {
                 process_next_task();
             });
         }
     }
 
     // 记录错误日志
-    void log_error(const std::string& message, const std::exception& e)
+    MC_NEVER_INLINE void log_error(const std::string& message, const std::exception& e)
     {
-        std::cerr << message << ": " << e.what() << std::endl;
+        elog("${msg}: ${what}", ("msg", message)("what", e.what()));
     }
 
-    void log_error(const std::string& message)
+    MC_NEVER_INLINE void log_error(const std::string& message)
     {
-        std::cerr << message << std::endl;
+        elog("${msg}", ("msg", message));
     }
 
-    void process_next_task()
+    MC_NEVER_INLINE void process_next_task()
     {
         std::lock_guard<std::mutex> lock(m_state_mutex);
         if (m_state != QueueState::Running) {
@@ -242,7 +233,7 @@ private:
 
         // 执行任务并检查是否继续
         if (execute_highest()) {
-            boost::asio::post(m_context, [this]() {
+            m_context.post([this]() {
                 process_next_task();
             });
         } else {
@@ -251,7 +242,7 @@ private:
     }
 
     // 从任务队列中获取下一个任务
-    bool get_next_task(handler_ptr& task)
+    MC_NEVER_INLINE bool get_next_task(handler_ptr& task)
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         if (m_task_queue.empty()) {
@@ -264,7 +255,7 @@ private:
     }
 
     // 执行任务并处理异常
-    void execute_task(handler_ptr task)
+    MC_NEVER_INLINE void execute_task(handler_ptr task)
     {
         if (!task) {
             return;
@@ -290,14 +281,5 @@ private:
 };
 
 } // namespace mc::core
-
-namespace boost {
-namespace asio {
-
-template <typename ContextType>
-struct is_executor<mc::priority_queue_executor<ContextType>> : std::true_type {};
-
-} // namespace asio
-} // namespace boost
 
 #endif // MC_CORE_PRIORITY_QUEUE_H

@@ -299,6 +299,24 @@ thread_pool* any_executor::get_bound_pool() const noexcept
     return m_ops ? m_ops->get_bound_pool(storage()) : nullptr;
 }
 
+void any_executor::post_impl(function&& f) const
+{
+    MC_ASSERT_THROW(m_ops, mc::invalid_op_exception, "post on invalid executor");
+    m_ops->post(storage(), std::move(f));
+}
+
+void any_executor::defer_impl(function&& f) const
+{
+    MC_ASSERT_THROW(m_ops, mc::invalid_op_exception, "defer on invalid executor");
+    m_ops->defer(storage(), std::move(f));
+}
+
+void any_executor::dispatch_impl(function&& f) const
+{
+    MC_ASSERT_THROW(m_ops, mc::invalid_op_exception, "dispatch on invalid executor");
+    m_ops->dispatch(storage(), std::move(f));
+}
+
 boost::asio::io_context::executor_type detail::any_executor_access::get_native_io_executor(const any_executor& executor)
 {
     auto& io_pool              = runtime::get_io_context();

@@ -24,6 +24,11 @@
 namespace mc::expr {
 
 class context;
+class function;
+
+namespace detail {
+std::shared_ptr<function> make_reflected_builtin_function(const mc::reflect::method_registration_info& method);
+}
 
 /**
  * @brief 内建注册表类，管理所有内建函数和内建常量
@@ -71,7 +76,7 @@ public:
     {
         auto methods = mc::reflect::get_static_methods<T>();
         mc::traits::tuple_for_each(methods, [this](auto* method) {
-            this->register_symbol(std::string(method->name), method->get_function_value());
+            this->register_symbol(detail::make_reflected_builtin_function(*method));
         });
         return 0;
     }

@@ -13,7 +13,6 @@
 #include "l_dbus_nonblock.h"
 #include "../utils/variant_utils.h"
 #include "l_dbus_common.h"
-#include <boost/asio/post.hpp>
 #include <mc/dbus/bus_mode_impl.h>
 #include <mc/dbus/message.h>
 #include <mc/dbus/sd_bus.h>

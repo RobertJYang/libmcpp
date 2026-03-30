@@ -33,8 +33,6 @@
 #include <mc/traits.h>
 #include <mc/variant.h>
 
-#include <boost/asio/io_context.hpp>
-#include <boost/asio/strand.hpp>
 #include <string_view>
 #include <tuple>
 #include <type_traits>

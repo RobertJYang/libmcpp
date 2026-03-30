@@ -235,6 +235,28 @@ TEST(ReflectMetadataInfoTest, MethodInfoMethods)
     }
 }
 
+TEST(ReflectMetadataInfoTest, CreateRuntimeMethodPtr)
+{
+    const mc::reflect::method_registration_info* static_add_method_info = nullptr;
+    auto                                         methods                 = mc::reflect::get_static_methods<test_class>();
+    mc::traits::tuple_for_each(methods, [&](const auto* method) {
+        if (method->name == "static_add") {
+            static_add_method_info = method;
+        }
+    });
+
+    ASSERT_NE(static_add_method_info, nullptr);
+
+    auto runtime_method = static_add_method_info->create_runtime_method_ptr();
+    ASSERT_NE(runtime_method, nullptr);
+    EXPECT_TRUE(runtime_method->is_static());
+    EXPECT_EQ(runtime_method->arg_count(), 2U);
+
+    mc::variants args   = {mc::variant(5), mc::variant(7)};
+    mc::variant  result = runtime_method->invoke(args);
+    EXPECT_EQ(result, 12);
+}
+
 // 测试 from_variant 中数组长度不足的情况
 TEST(ReflectMetadataInfoTest, FromVariantArrayInsufficientLength)
 {

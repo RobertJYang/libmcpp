@@ -13,8 +13,6 @@
 #ifndef MC_DBUS_DISPATCH_PENDING_CALL_H
 #define MC_DBUS_DISPATCH_PENDING_CALL_H
 
-#include <boost/asio/io_context.hpp>
-#include <boost/asio/steady_timer.hpp>
 #include <dbus/dbus.h>
 
 #include <mc/dbus/message.h>

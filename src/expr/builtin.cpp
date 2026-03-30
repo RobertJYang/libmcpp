@@ -17,6 +17,50 @@
 
 namespace mc::expr {
 
+namespace detail {
+
+class reflected_builtin_function : public function {
+public:
+    reflected_builtin_function(std::string name, mc::reflect::method_info_ptr method)
+        : m_name(std::move(name)), m_method(std::move(method))
+    {}
+
+    mc::variant call(const mc::variants& args) const override
+    {
+        try {
+            return m_method->invoke_static_erased(args);
+        } catch (const mc::bad_function_call_exception& e) {
+            MC_THROW(mc::invalid_arg_exception, "${message}", ("message", e.what()));
+        }
+    }
+
+    const std::string& get_name() const override
+    {
+        return m_name;
+    }
+
+    int get_arg_count() const override
+    {
+        return static_cast<int>(m_method->arg_count());
+    }
+
+private:
+    std::string                  m_name;
+    mc::reflect::method_info_ptr m_method;
+};
+
+std::shared_ptr<function> make_reflected_builtin_function(const mc::reflect::method_registration_info& method)
+{
+    auto runtime_method = method.create_runtime_method_ptr();
+    MC_ASSERT_THROW(runtime_method, mc::runtime_exception, "builtin 方法 ${name} 运行时元数据创建失败",
+                    ("name", method.name));
+    MC_ASSERT_THROW(runtime_method->is_static(), mc::invalid_arg_exception, "builtin 方法 ${name} 必须是静态函数",
+                    ("name", method.name));
+    return std::make_shared<reflected_builtin_function>(std::string(method.name), std::move(runtime_method));
+}
+
+} // namespace detail
+
 struct builtin::impl {
     context builtin_context;
 };
