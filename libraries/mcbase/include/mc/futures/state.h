@@ -155,7 +155,7 @@ public:
     template <typename Executor>
     void reuse(Executor executor)
     {
-        static_assert(std::is_same_v<Executor, executor_type> || boost::asio::is_executor<Executor>::value,
+        static_assert(std::is_constructible_v<executor_type, mc::traits::remove_cvref_t<Executor>>,
                       "reuse() 参数必须是 executor 类型");
         // state_base::destory() 调用链末尾的 state_base::reset() 会将 m_destory 清为
         // nullptr。重新从池中取出时必须在此恢复，否则第二次释放时 destory_impl 不会被调

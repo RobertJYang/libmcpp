@@ -21,14 +21,19 @@ class Future;
 
 namespace detail {
 template <typename T>
-constexpr bool is_executor_v = boost::asio::is_executor<T>::value || std::is_same_v<T, boost::asio::any_io_executor>;
+struct is_executor_impl
+    : std::bool_constant<std::is_constructible_v<mc::runtime::any_executor, mc::traits::remove_cvref_t<T>>> {};
+
+template <typename T>
+constexpr bool is_executor_v = is_executor_impl<T>::value;
 
 template <typename T, typename = void>
 struct is_execution_context : std::false_type {};
 
 template <typename T>
-struct is_execution_context<T, std::void_t<typename T::executor_type>>
-    : std::bool_constant<!std::is_same_v<T, typename T::executor_type>> {};
+struct is_execution_context<T, std::void_t<typename T::executor_type, decltype(std::declval<T&>().get_executor())>>
+    : std::bool_constant<!std::is_same_v<mc::traits::remove_cvref_t<T>, typename T::executor_type> &&
+                         is_executor_v<decltype(std::declval<T&>().get_executor())>> {};
 
 template <typename T>
 constexpr bool is_execution_context_v = is_execution_context<T>::value;

@@ -11,6 +11,9 @@
  */
 
 #include <gtest/gtest.h>
+
+#include <future>
+
 #include <mc/core/application.h>
 #include <mc/core/timer.h>
 #include <mc/dict.h>

@@ -12,7 +12,6 @@
 
 #include <mc/futures/state_pool.h>
 #include <mc/intrusive/list.h>
-#include <mc/runtime/executor.h>
 
 #include <algorithm>
 #include <queue>

@@ -6,6 +6,7 @@ runtime_src_files = [
   'runtime/executor.cpp',
   'runtime/thread_list.cpp',
   'runtime/thread_pool.cpp',
+  'runtime/steady_timer.cpp',
   'runtime/condition_variable.cpp',
   'runtime/runtime_strand.cpp',
 ]

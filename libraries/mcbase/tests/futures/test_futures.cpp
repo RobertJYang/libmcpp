@@ -17,6 +17,7 @@
 #include <chrono>
 #include <future>
 #include <iostream>
+#include <memory>
 #include <stdexcept>
 #include <thread>
 #include <utility>
@@ -24,11 +25,57 @@
 #include <mc/future.h>
 #include <mc/futures/callback_list.h>
 #include <mc/futures/exceptions.h>
+#include <mc/runtime/executor.h>
+#include <runtime/include/thread_pool_impl.h>
 #include <test_utilities/base.h>
 
 using namespace std::chrono_literals;
 
 namespace {
+using native_timer = boost::asio::steady_timer;
+
+template <typename T, typename = void>
+struct has_public_get_executor : std::false_type {};
+
+template <typename T>
+struct has_public_get_executor<T, std::void_t<decltype(std::declval<T&>().get_executor())>> : std::true_type {};
+
+template <typename T, typename = void>
+struct has_public_get_shard : std::false_type {};
+
+template <typename T>
+struct has_public_get_shard<T, std::void_t<decltype(std::declval<T&>().get_shard(std::size_t{}))>> : std::true_type {};
+
+template <typename T, typename = void>
+struct has_context_method : std::false_type {};
+
+template <typename T>
+struct has_context_method<T, std::void_t<decltype(std::declval<T&>().context())>> : std::true_type {};
+
+template <typename T, typename = void>
+struct has_on_work_started_method : std::false_type {};
+
+template <typename T>
+struct has_on_work_started_method<T, std::void_t<decltype(std::declval<T&>().on_work_started())>> : std::true_type {};
+
+template <typename T, typename = void>
+struct has_on_work_finished_method : std::false_type {};
+
+template <typename T>
+struct has_on_work_finished_method<T, std::void_t<decltype(std::declval<T&>().on_work_finished())>> : std::true_type {};
+
+template <typename T, typename = void>
+struct has_bound_pool_method : std::false_type {};
+
+template <typename T>
+struct has_bound_pool_method<T, std::void_t<decltype(std::declval<T&>().bound_pool(nullptr))>> : std::true_type {};
+
+template <typename T, typename = void>
+struct has_get_bound_pool_method : std::false_type {};
+
+template <typename T>
+struct has_get_bound_pool_method<T, std::void_t<decltype(std::declval<T&>().get_bound_pool())>> : std::true_type {};
+
 class FuturesTest : public mc::test::TestWithRuntime {
 public:
     mc::runtime::thread_pool& get_io_context()
@@ -36,6 +83,77 @@ public:
         return get_runtime().io();
     }
 };
+
+static_assert(std::is_same_v<decltype(std::declval<mc::runtime::runtime_context&>().get_io_executor()),
+                             mc::runtime::any_executor>,
+              "runtime_context::get_io_executor() 应返回稳定的公共 any_executor");
+static_assert(std::is_same_v<decltype(std::declval<mc::runtime::runtime_context&>().get_work_executor()),
+                             mc::runtime::any_executor>,
+              "runtime_context::get_work_executor() 应返回稳定的公共 any_executor");
+static_assert(
+    std::is_same_v<decltype(std::declval<mc::runtime::runtime_context&>().get_executor()), mc::runtime::any_executor>,
+    "runtime_context::get_executor() 应返回稳定的公共 any_executor");
+static_assert(std::is_same_v<decltype(mc::runtime::get_default_executor()), mc::runtime::any_executor>,
+              "get_default_executor() 应返回稳定的公共 any_executor");
+static_assert(std::is_same_v<decltype(std::declval<mc::runtime::runtime_context&>().create_io_strand()),
+                             mc::runtime::any_executor>,
+              "runtime_context::create_io_strand() 应返回稳定的公共 any_executor");
+static_assert(std::is_same_v<decltype(std::declval<mc::runtime::runtime_context&>().create_work_strand()),
+                             mc::runtime::any_executor>,
+              "runtime_context::create_work_strand() 应返回稳定的公共 any_executor");
+static_assert(!has_public_get_executor<mc::runtime::any_executor>::value, "any_executor 不应暴露具体后端访问器");
+static_assert(!std::is_constructible_v<mc::runtime::any_executor, mc::runtime::executor>,
+              "any_executor 不应再依赖 mc::runtime::executor 这条额外包装路径");
+static_assert(!has_context_method<mc::runtime::any_executor>::value,
+              "mc::runtime::any_executor 不应再暴露 Asio execution_context");
+static_assert(!boost::asio::is_executor<mc::runtime::any_executor>::value,
+              "mc::runtime::any_executor 不应再声明为 Asio executor");
+static_assert(!has_context_method<mc::runtime::executor>::value,
+              "mc::runtime::executor 不应再暴露 Asio execution_context");
+static_assert(!std::is_convertible_v<mc::runtime::executor, boost::asio::any_io_executor>,
+              "mc::runtime::executor 不应再暴露 any_io_executor 转换");
+static_assert(!std::is_convertible_v<mc::runtime::executor, boost::asio::io_context::executor_type>,
+              "mc::runtime::executor 不应再暴露 io_context::executor_type 转换");
+static_assert(!has_on_work_started_method<mc::runtime::executor>::value,
+              "mc::runtime::executor 不应再暴露 on_work_started");
+static_assert(!has_on_work_finished_method<mc::runtime::executor>::value,
+              "mc::runtime::executor 不应再暴露 on_work_finished");
+static_assert(!has_bound_pool_method<mc::runtime::executor>::value, "mc::runtime::executor 不应再暴露 bound_pool");
+static_assert(!has_get_bound_pool_method<mc::runtime::executor>::value,
+              "mc::runtime::executor 不应再暴露 get_bound_pool");
+static_assert(!std::is_convertible_v<mc::runtime::any_executor, boost::asio::any_io_executor>,
+              "mc::runtime::any_executor 不应再暴露 any_io_executor 转换");
+static_assert(!std::is_convertible_v<mc::runtime::any_executor, boost::asio::io_context::executor_type>,
+              "mc::runtime::any_executor 不应再暴露 io_context::executor_type 转换");
+static_assert(!has_context_method<mc::runtime::runtime_executor>::value,
+              "mc::runtime::runtime_executor 不应再暴露 Asio execution_context");
+static_assert(!std::is_convertible_v<mc::runtime::runtime_executor, boost::asio::any_io_executor>,
+              "mc::runtime::runtime_executor 不应再暴露 any_io_executor 转换");
+static_assert(!std::is_convertible_v<mc::runtime::runtime_executor, boost::asio::io_context::executor_type>,
+              "mc::runtime::runtime_executor 不应再暴露 io_context::executor_type 转换");
+static_assert(!boost::asio::is_executor<mc::runtime::runtime_executor>::value,
+              "mc::runtime::runtime_executor 不应再声明为 Asio executor");
+static_assert(!has_context_method<mc::runtime::runtime_strand>::value,
+              "mc::runtime::runtime_strand 不应再暴露 Asio execution_context");
+static_assert(!boost::asio::is_executor<mc::runtime::runtime_strand>::value,
+              "mc::runtime::runtime_strand 不应再声明为 Asio executor");
+static_assert(!std::is_convertible_v<mc::runtime::thread_pool::executor_type, boost::asio::any_io_executor>,
+              "mc::runtime::thread_pool::executor_type 不应再暴露 any_io_executor 转换");
+static_assert(!std::is_convertible_v<mc::runtime::thread_pool::executor_type, boost::asio::io_context::executor_type>,
+              "mc::runtime::thread_pool::executor_type 不应再暴露 io_context::executor_type 转换");
+static_assert(!has_context_method<mc::runtime::thread_pool::executor_type>::value,
+              "mc::runtime::thread_pool::executor_type 不应再暴露 context()");
+static_assert(!has_on_work_started_method<mc::runtime::thread_pool::executor_type>::value,
+              "mc::runtime::thread_pool::executor_type 不应再暴露 on_work_started()");
+static_assert(!has_on_work_finished_method<mc::runtime::thread_pool::executor_type>::value,
+              "mc::runtime::thread_pool::executor_type 不应再暴露 on_work_finished()");
+static_assert(!boost::asio::is_executor<mc::runtime::thread_pool::executor_type>::value,
+              "mc::runtime::thread_pool::executor_type 不应再声明为 Asio executor");
+static_assert(!has_public_get_shard<mc::runtime::thread_pool>::value, "mc::runtime::thread_pool 不应再公开 get_shard");
+static_assert(!has_context_method<mc::runtime::immediate_executor>::value,
+              "mc::runtime::immediate_executor 不应再暴露 Asio execution_context");
+static_assert(!std::is_base_of_v<boost::asio::execution_context, mc::runtime::immediate_context>,
+              "mc::runtime::immediate_context 不应再继承 Asio execution_context");
 } // namespace
 
 // 测试 promise 和 future 的基本功能
@@ -59,13 +177,14 @@ TEST_F(FuturesTest, WaitOnWorker)
     auto done_promise = mc::make_promise<void>();
     auto done_future  = done_promise.get_future();
 
-    boost::asio::post(pool.get_executor(), [promise, future = std::move(future), done_promise]() mutable {
+    pool.get_executor().post([promise, future = std::move(future), done_promise]() mutable {
         // 1. 获取当前 shard
-        auto* shard = mc::runtime::thread_pool::get_current_shard();
+        auto* shard = mc::runtime::detail::thread_pool_impl::current_shard();
         ASSERT_NE(shard, nullptr) << "Must be running on a thread pool worker";
 
         // 2. 在同一个 shard 上启动一个定时器
-        auto timer = std::make_shared<mc::runtime::steady_timer>(shard->ctx->get_executor());
+        auto timer =
+            std::make_shared<native_timer>(mc::runtime::detail::thread_pool_impl::get_native_io_executor(shard));
         timer->expires_after(std::chrono::milliseconds(50));
         timer->async_wait([promise, timer](const boost::system::error_code& ec) mutable {
             if (!ec) {
@@ -81,6 +200,57 @@ TEST_F(FuturesTest, WaitOnWorker)
 
     auto status = done_future.wait_for(std::chrono::seconds(2000));
     ASSERT_EQ(status, mc::future_status::ready);
+}
+
+TEST_F(FuturesTest, ThreadPoolExecutorAcceptsMoveOnlyTask)
+{
+    auto done = std::make_unique<std::promise<void>>();
+    auto wait = done->get_future();
+
+    std::atomic<bool> executed{false};
+
+    get_io_context().get_executor().post([done = std::move(done), &executed]() mutable {
+        executed.store(true, std::memory_order_release);
+        done->set_value();
+    });
+
+    EXPECT_EQ(wait.wait_for(1s), std::future_status::ready);
+    EXPECT_TRUE(executed.load(std::memory_order_acquire));
+}
+
+TEST_F(FuturesTest, AnyExecutorAcceptsMoveOnlyTask)
+{
+    auto done = std::make_unique<std::promise<void>>();
+    auto wait = done->get_future();
+
+    std::atomic<bool>      executed{false};
+    mc::runtime::any_executor executor(get_io_context().get_executor());
+
+    executor.post([done = std::move(done), &executed]() mutable {
+        executed.store(true, std::memory_order_release);
+        done->set_value();
+    });
+
+    EXPECT_EQ(wait.wait_for(1s), std::future_status::ready);
+    EXPECT_TRUE(executed.load(std::memory_order_acquire));
+}
+
+TEST_F(FuturesTest, RuntimeStrandAcceptsMoveOnlyTask)
+{
+    auto done = std::make_unique<std::promise<void>>();
+    auto wait = done->get_future();
+
+    std::atomic<bool>       executed{false};
+    mc::runtime::runtime_strand strand;
+    strand.bound_pool(&get_io_context());
+
+    strand.post([done = std::move(done), &executed]() mutable {
+        executed.store(true, std::memory_order_release);
+        done->set_value();
+    });
+
+    EXPECT_EQ(wait.wait_for(1s), std::future_status::ready);
+    EXPECT_TRUE(executed.load(std::memory_order_acquire));
 }
 
 // 测试 catch_error 捕获异常
@@ -331,8 +501,7 @@ TEST_F(FuturesTest, PromiseSetValueFromFutureCannotBeRebound)
     EXPECT_THROW(outer_promise.template set_value<decltype(inner_future1)>(std::move(inner_future1)),
                  mc::futures::promise_already_satisfied);
     EXPECT_THROW(outer_promise.set_value(1), mc::futures::promise_already_satisfied);
-    EXPECT_THROW(outer_promise.set_exception(std::runtime_error("x")),
-                 mc::futures::promise_already_satisfied);
+    EXPECT_THROW(outer_promise.set_exception(std::runtime_error("x")), mc::futures::promise_already_satisfied);
 
     inner_promise0.set_value(7);
     EXPECT_EQ(outer_future.get(), 7);
@@ -396,8 +565,7 @@ TEST_F(FuturesTest, PromiseSetExceptionAlreadySatisfiedThrows)
     auto future  = promise.get_future();
 
     promise.set_exception(std::runtime_error("first"));
-    EXPECT_THROW(promise.set_exception(std::runtime_error("second")),
-                 mc::futures::promise_already_satisfied);
+    EXPECT_THROW(promise.set_exception(std::runtime_error("second")), mc::futures::promise_already_satisfied);
     EXPECT_THROW(future.get(), std::runtime_error);
 }
 
@@ -587,7 +755,7 @@ TEST_F(FuturesTest, FutureThenUsesExplicitExecutorOverride)
     auto future  = promise.get_future();
 
     std::atomic<bool> ran_on_override{false};
-    auto              chained = future.then([&ran_on_override, override_executor = override_pool.get_executor()](int value) {
+    auto chained = future.then([&ran_on_override, override_executor = override_pool.get_executor()](int value) {
         ran_on_override.store(override_executor.running_in_this_thread());
         return value + 1;
     }, mc::launch::dispatch, override_pool.get_executor());
@@ -610,12 +778,9 @@ TEST_F(FuturesTest, FutureFinallyUsesExplicitExecutorOverride)
     auto future  = promise.get_future();
 
     std::atomic<bool> cleanup_on_override{false};
-    auto              chained = future.finally(
-        [&cleanup_on_override, override_executor = override_pool.get_executor()]() {
-            cleanup_on_override.store(override_executor.running_in_this_thread());
-        },
-        mc::launch::dispatch,
-        override_pool.get_executor());
+    auto chained = future.finally([&cleanup_on_override, override_executor = override_pool.get_executor()]() {
+        cleanup_on_override.store(override_executor.running_in_this_thread());
+    }, mc::launch::dispatch, override_pool.get_executor());
 
     promise.set_value(20);
 
@@ -1130,7 +1295,7 @@ TEST_F(FuturesTest, TimeoutFunctionWithAlreadyCancelledFuture)
     EXPECT_THROW(timeout_future.get(), mc::canceled_exception);
 }
 
-// 测试使用 mc::runtime::steady_timer 延时执行
+// 测试使用私有 Boost timer 延时执行
 TEST_F(FuturesTest, DelayedExecution)
 {
     auto start_time = std::chrono::steady_clock::now();
@@ -1139,7 +1304,7 @@ TEST_F(FuturesTest, DelayedExecution)
     auto future  = promise.get_future();
 
     // 在 100ms 后设置值
-    mc::runtime::steady_timer timer(get_io_context().get_executor(), 100ms);
+    native_timer timer(mc::runtime::detail::thread_pool_impl::get_native_io_executor(get_io_context(), 0), 100ms);
     timer.async_wait([&promise](const boost::system::error_code&) {
         // 延时设置 promise 值
         promise.set_value(42);

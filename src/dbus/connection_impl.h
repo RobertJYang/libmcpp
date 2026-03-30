@@ -13,7 +13,7 @@
 #ifndef MC_DBUS_CONNECTION_IMPL_H
 #define MC_DBUS_CONNECTION_IMPL_H
 
-#include "dbus/dispatch/pending_call.h"
+#include "dispatch/pending_call.h"
 #include <mc/dbus/connection.h>
 #include <mc/dbus/match.h>
 

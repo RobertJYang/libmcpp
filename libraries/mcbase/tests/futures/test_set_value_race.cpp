@@ -75,7 +75,7 @@ public:
     }
 
 private:
-    std::mutex                                                                      m_mutex;
+    std::mutex                                                                     m_mutex;
     std::unordered_map<mc::string, std::unordered_map<uint32_t, mc::promise<int>>> m_pending;
 };
 
@@ -158,8 +158,8 @@ TEST_F(SetValueRaceTest, devmon_harbor_reply_pattern)
         sent_count.fetch_add(1, std::memory_order_relaxed);
 
         // 在 pool worker 中等待（与 devmon 中服务等待 reply 一致）
-        boost::asio::post(pool.get_executor(), [f = std::move(future), &pending, &timeout_count, &done_count, serial,
-                                                &service_name, request_timeout]() mutable {
+        pool.get_executor().post([f = std::move(future), &pending, &timeout_count, &done_count, serial, &service_name,
+                                  request_timeout]() mutable {
             auto status = f.wait_for(request_timeout);
             if (status == mc::futures::future_status::timeout) {
                 timeout_count.fetch_add(1, std::memory_order_relaxed);
@@ -218,7 +218,7 @@ TEST_F(SetValueRaceTest, devmon_unregister_during_reply)
             pending.send(service_name, static_cast<uint32_t>(round * batch_size + j), std::move(promise));
 
             // future move 进 lambda，生命周期由 pool worker 管理
-            boost::asio::post(pool.get_executor(), [f = std::move(future), &done_count, wait_time]() mutable {
+            pool.get_executor().post([f = std::move(future), &done_count, wait_time]() mutable {
                 f.wait_for(wait_time);
                 done_count.fetch_add(1, std::memory_order_relaxed);
             });
@@ -317,7 +317,7 @@ TEST_F(SetValueRaceTest, state_pool_recycle_with_non_pool_reply)
             request_queue.push_back(req);
         }
 
-        boost::asio::post(pool.get_executor(), [f = std::move(future), req]() mutable {
+        pool.get_executor().post([f = std::move(future), req]() mutable {
             req->wait_entered.store(true, std::memory_order_release);
             f.wait_for(1ms);
         });
@@ -379,8 +379,7 @@ TEST_F(SetValueRaceTest, cancel_vs_reply_race_with_pool_recycle)
         reply_serial.store(serial, std::memory_order_release);
 
         // pool worker: 短超时等待，超时后 cancel
-        boost::asio::post(pool.get_executor(),
-                          [f = std::move(future), &pending, serial, &service_name, short_timeout]() mutable {
+        pool.get_executor().post([f = std::move(future), &pending, serial, &service_name, short_timeout]() mutable {
             auto status = f.wait_for(short_timeout);
             if (status != mc::futures::future_status::ready) {
                 f.cancel();
@@ -463,7 +462,7 @@ TEST_F(SetValueRaceTest, tight_state_recycle_loop)
             queue.push_back(item);
         }
 
-        boost::asio::post(pool.get_executor(), [f = std::move(future), item]() mutable {
+        pool.get_executor().post([f = std::move(future), item]() mutable {
             item->ready.store(true, std::memory_order_release);
             f.wait_for(2ms);
         });
@@ -555,7 +554,7 @@ TEST_F(SetValueRaceTest, timer_use_after_return_zero_timeout)
         }
 
         // pool worker: 0 超时等待，保证 timer handler 留在队列
-        boost::asio::post(pool.get_executor(), [f = std::move(future), item, &done_count]() mutable {
+        pool.get_executor().post([f = std::move(future), item, &done_count]() mutable {
             item->ready.store(true, std::memory_order_release);
             // 0us 超时：poll_until 第一次 pred() 立即为真，不处理 timer handler
             f.wait_for(std::chrono::microseconds(0));

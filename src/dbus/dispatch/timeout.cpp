@@ -13,6 +13,8 @@
 #include <mc/dbus/connection.h>
 #include <mc/log.h>
 
+#include <system_error>
+
 #include "dbus/connection_impl.h"
 #include "timeout.h"
 
@@ -39,7 +41,7 @@ void timeout::start(connection_weak_ptr conn)
     //    回调函数参数 ec 表示错误码，如果定时器被取消则为 operation_aborted
     m_timer.async_wait([s = std::move(self), c = std::move(conn)](const auto& ec) {
         if (ec) {
-            if (ec == boost::asio::error::operation_aborted) {
+            if (ec == std::make_error_code(std::errc::operation_canceled)) {
                 return;
             }
 

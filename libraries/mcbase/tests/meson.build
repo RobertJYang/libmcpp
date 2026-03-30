@@ -18,8 +18,11 @@ mcbase_test_sources = [
   # 根目录单文件测试
   'test_pretty_name.cpp',
   'test_signal_slot.cpp',
+  'test_future_public_header.cpp',
   'test_json.cpp',
   'test_json_public_header.cpp',
+  'test_runtime_io.cpp',
+  'test_runtime_public_header.cpp',
   'test_time.cpp',
   'test_error.cpp',
   'test_filesystem.cpp',

@@ -13,6 +13,8 @@
 #ifndef MC_DBUS_DISPATCH_WATCH_H
 #define MC_DBUS_DISPATCH_WATCH_H
 
+#include <mc/io/fd_watcher.h>
+
 #include "dbus/connection_impl.h"
 
 namespace mc::dbus {
@@ -34,9 +36,8 @@ private:
     void watch_writable(connection_weak_ptr conn, mc::shared_ptr<watch> self);
     bool handle_watch_ready(connection_ptr& conn, uint32_t flags);
 
-    using socket_type = boost::asio::posix::stream_descriptor;
-    DBusWatch*  m_watch;
-    socket_type m_socket;
+    DBusWatch*         m_watch;
+    mc::io::fd_watcher m_socket;
 };
 
 } // namespace mc::dbus

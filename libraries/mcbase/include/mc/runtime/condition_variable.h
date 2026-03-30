@@ -16,13 +16,9 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
-#include <memory>
 #include <mutex>
 #include <utility>
 
-#include <boost/asio.hpp>
-
-#include <mc/runtime/thread_pool.h>
 #include <mc/sync/mutex_box.h>
 #include <mc/sync/small_mutex.h>
 
@@ -66,18 +62,22 @@ private:
         WaiterNode* tail = nullptr;
     };
 
-    struct WaiterNode {
-        thread_pool::shard_t* shard;
-        std::atomic<bool>     notified{false};
-        WaiterNode*           next = nullptr;
-        WaiterNode*           prev = nullptr;
+    struct lock_adapter {
+        void* context         = nullptr;
+        void (*lock)(void*)   = nullptr;
+        void (*unlock)(void*) = nullptr;
+    };
 
-        MC_API void link(WaiterList& list);
-        MC_API void unlink(WaiterList& list);
+    struct deadline_adapter {
+        void* context                                     = nullptr;
+        bool (*expired)(void*)                            = nullptr;
+        std::chrono::steady_clock::time_point wakeup_time = std::chrono::steady_clock::time_point::min();
     };
 
     std::condition_variable_any                m_cv;
     mc::mutex_box<WaiterList, mc::small_mutex> m_waiter_list;
+
+    static bool running_on_worker_thread() noexcept;
 
     void add_waiter(WaiterNode* node);
     void remove_waiter(WaiterNode* node);
@@ -111,18 +111,45 @@ private:
     };
 
     template <typename Lock>
-    void wait_on_worker(Lock& lock, thread_pool::shard_t* shard);
+    static lock_adapter make_lock_adapter(Lock& lock)
+    {
+        return {
+            &lock,
+            [](void* context) {
+            static_cast<Lock*>(context)->lock();
+        },
+            [](void* context) {
+            static_cast<Lock*>(context)->unlock();
+        },
+        };
+    }
 
-    template <typename Lock, typename Clock, typename Duration>
-    std::cv_status wait_until_on_worker(Lock& lock, thread_pool::shard_t* shard,
-                                        const std::chrono::time_point<Clock, Duration>& abs_time);
+    template <typename Clock, typename Duration>
+    static deadline_adapter make_deadline_adapter(const std::chrono::time_point<Clock, Duration>& abs_time)
+    {
+        auto wakeup_time = std::chrono::steady_clock::now();
+        if (auto now = Clock::now(); abs_time > now) {
+            wakeup_time += std::chrono::duration_cast<std::chrono::steady_clock::duration>(abs_time - now);
+        }
+
+        return {
+            const_cast<std::chrono::time_point<Clock, Duration>*>(&abs_time),
+            [](void* context) {
+            return Clock::now() >= *static_cast<const std::chrono::time_point<Clock, Duration>*>(context);
+        },
+            wakeup_time,
+        };
+    }
+
+    void           wait_on_worker(lock_adapter lock);
+    std::cv_status wait_until_on_worker(lock_adapter lock, deadline_adapter deadline);
 };
 
 template <typename Lock>
 void condition_variable::wait(Lock& lock)
 {
-    if (auto* shard = thread_pool::get_current_shard()) {
-        wait_on_worker(lock, shard);
+    if (running_on_worker_thread()) {
+        wait_on_worker(make_lock_adapter(lock));
     } else {
         m_cv.wait(lock);
     }
@@ -151,8 +178,8 @@ bool condition_variable::wait_for(Lock& lock, const std::chrono::duration<Rep, P
 template <typename Lock, typename Clock, typename Duration>
 std::cv_status condition_variable::wait_until(Lock& lock, const std::chrono::time_point<Clock, Duration>& abs_time)
 {
-    if (auto* shard = thread_pool::get_current_shard()) {
-        return wait_until_on_worker(lock, shard, abs_time);
+    if (running_on_worker_thread()) {
+        return wait_until_on_worker(make_lock_adapter(lock), make_deadline_adapter(abs_time));
     } else {
         return m_cv.wait_until(lock, abs_time);
     }
@@ -168,84 +195,6 @@ bool condition_variable::wait_until(Lock& lock, const std::chrono::time_point<Cl
         }
     }
     return true;
-}
-
-template <typename Lock, typename Clock, typename Duration>
-std::cv_status condition_variable::wait_until_on_worker(Lock& lock, thread_pool::shard_t* shard,
-                                                        const std::chrono::time_point<Clock, Duration>& abs_time)
-{
-    WaiterNode node{shard, false};
-    add_waiter(&node);
-    waiter_cleanup cleanup(this, &node);
-
-    // 检查递归深度
-    thread_pool::scoped_recursion_guard recursion_guard(shard);
-    if (!recursion_guard.can_schedule()) {
-        report_recursion_depth_exceeded();
-        // 如果嵌套太深回退到传统的条件变量等待
-        bool timed_out = false;
-        if (m_cv.wait_until(lock, abs_time, [&] {
-            return node.notified.load(std::memory_order_acquire);
-        })) {
-            // 条件满足（被通知）
-        } else {
-            // 超时
-            timed_out = true;
-        }
-
-        cleanup.remove();
-        return timed_out ? std::cv_status::timeout : std::cv_status::no_timeout;
-    }
-
-    lock.unlock();
-
-    // timer 仅作为唤醒 io_context 的手段，handler 不捕获任何栈变量
-    boost::asio::basic_waitable_timer<Clock> timer(shard->ctx->get_executor(), abs_time);
-    timer.async_wait([](const boost::system::error_code&) {
-    });
-
-    shard->pool.poll_until(shard, [&]() {
-        return node.notified.load(std::memory_order_acquire) || Clock::now() >= abs_time;
-    });
-
-    bool notified = node.notified.load(std::memory_order_acquire);
-
-    timer.cancel();
-    lock.lock();
-    cleanup.remove();
-    return notified ? std::cv_status::no_timeout : std::cv_status::timeout;
-}
-
-template <typename Lock>
-void condition_variable::wait_on_worker(Lock& lock, thread_pool::shard_t* shard)
-{
-    WaiterNode node{shard, false};
-    add_waiter(&node);
-    waiter_cleanup cleanup(this, &node);
-
-    // 检查递归深度
-    thread_pool::scoped_recursion_guard recursion_guard(shard);
-    if (!recursion_guard.can_schedule()) {
-        report_recursion_depth_exceeded();
-        // 如果嵌套太深，我们回退到传统的条件变量等待
-        // 注意：notify_one 会同时设置 node.notified 并调用 m_cv.notify_one()
-        // 所以我们可以安全地等待 m_cv
-        m_cv.wait(lock, [&] {
-            return node.notified.load(std::memory_order_acquire);
-        });
-
-        cleanup.remove();
-        return;
-    }
-
-    lock.unlock();
-
-    shard->pool.poll_until(shard, [&node]() {
-        return node.notified.load(std::memory_order_acquire);
-    });
-
-    lock.lock();
-    cleanup.remove();
 }
 } // namespace mc::runtime
 

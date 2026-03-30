@@ -13,39 +13,44 @@
 #ifndef MC_RUNTIME_ANY_EXECUTOR_H
 #define MC_RUNTIME_ANY_EXECUTOR_H
 
+#include <cstddef>
+#include <memory>
+#include <new>
+#include <type_traits>
+#include <utility>
+
 #include <mc/common.h>
 #include <mc/exception.h>
-#include <mc/runtime/executor.h>
+#include <mc/runtime/detail/task.h>
 #include <mc/runtime/immediate_context.h>
+#include <mc/runtime/runtime_executor.h>
 #include <mc/runtime/runtime_strand.h>
 #include <mc/runtime/thread_pool.h>
 
-#include <boost/asio.hpp>
-
-#include <functional>
-#include <type_traits>
-#include <variant>
-
 namespace mc::runtime {
-
 namespace detail {
-using executor_variant = std::variant<::mc::runtime::immediate_executor, ::mc::runtime::thread_pool::executor_type,
-                                      ::mc::runtime::runtime_strand, ::mc::runtime::executor>;
-}
+enum class any_executor_backend_kind : uint8_t { immediate, thread_pool, runtime_strand, runtime_executor };
+
+using any_executor_task = task;
+
+struct any_executor_access;
+} // namespace detail
 
 /**
  * @brief 轻量级执行器包装器
  *
- * 使用 std::variant 来避免不必要的虚函数开销：
- * - 对于轻量级的 boost::asio 执行器（如 io_context::executor_type），直接存储
- * - 对于重量级执行器（如 strand、thread_pool），使用 mc::runtime::executor 包装
+ * 当前只支持 mc runtime 自己的内建执行器类型，使用固定大小内联存储和 ops table
+ * 避免 variant 和通用堆分配包装带来的额外开销。
  */
 class MC_API any_executor {
 public:
+    using function = detail::any_executor_task;
+
     /**
      * @brief 默认构造函数
      */
     any_executor();
+    any_executor(immediate_executor executor);
 
     /**
      * @brief 从 thread_pool 执行器构造
@@ -58,62 +63,64 @@ public:
     any_executor(runtime_strand executor);
 
     /**
-     * @brief 从 mc::runtime::executor 构造
+     * @brief 从 runtime_executor 构造
      */
-    any_executor(runtime::executor executor);
-
-    /**
-     * @brief 从任意执行器构造（会被包装到 mc::runtime::executor 中）
-     */
-    template <typename Executor,
-              typename = std::enable_if_t<!std::is_same_v<std::decay_t<Executor>, any_executor> &&
-                                          !std::is_same_v<std::decay_t<Executor>, thread_pool::executor_type> &&
-                                          !std::is_same_v<std::decay_t<Executor>, runtime_strand> &&
-                                          !std::is_same_v<std::decay_t<Executor>, runtime::executor>>>
-    any_executor(Executor&& executor);
+    any_executor(runtime_executor executor);
 
     /**
      * @brief 拷贝构造函数
      */
-    any_executor(const any_executor&) = default;
+    any_executor(const any_executor& other);
 
     /**
      * @brief 移动构造函数
      */
-    any_executor(any_executor&&) = default;
+    any_executor(any_executor&& other) noexcept;
 
     /**
      * @brief 拷贝赋值运算符
      */
-    any_executor& operator=(const any_executor&) = default;
+    any_executor& operator=(const any_executor& other);
 
     /**
      * @brief 移动赋值运算符
      */
-    any_executor& operator=(any_executor&&) = default;
+    any_executor& operator=(any_executor&& other) noexcept;
 
     /**
      * @brief 析构函数
      */
-    ~any_executor() = default;
+    ~any_executor();
 
     /**
      * @brief 提交任务到队列末尾执行
      */
     template <typename Function, typename Allocator = std::allocator<void>>
-    auto post(Function&& f, const Allocator& a = Allocator()) const;
+    auto post(Function&& f, const Allocator& a = Allocator()) const
+    {
+        MC_UNUSED(a);
+        post_impl(function(std::forward<Function>(f)));
+    }
 
     /**
      * @brief 延迟执行任务
      */
     template <typename Function, typename Allocator = std::allocator<void>>
-    auto defer(Function&& f, const Allocator& a = Allocator()) const;
+    auto defer(Function&& f, const Allocator& a = Allocator()) const
+    {
+        MC_UNUSED(a);
+        defer_impl(function(std::forward<Function>(f)));
+    }
 
     /**
      * @brief 分发任务（可能立即执行）
      */
     template <typename Function, typename Allocator = std::allocator<void>>
-    void dispatch(Function&& f, const Allocator& a = Allocator()) const;
+    void dispatch(Function&& f, const Allocator& a = Allocator()) const
+    {
+        MC_UNUSED(a);
+        dispatch_impl(function(std::forward<Function>(f)));
+    }
 
     /**
      * @brief 检查执行器是否有效
@@ -130,68 +137,66 @@ public:
      */
     bool operator!=(const any_executor& other) const noexcept;
 
-    void               on_work_started() const noexcept;
-    void               on_work_finished() const noexcept;
-    execution_context& context() const;
+    void on_work_started() const noexcept;
+    void on_work_finished() const noexcept;
 
     /**
      * @brief 检查当前线程是否在此 executor 上执行
      */
     bool running_in_this_thread() const noexcept;
 
-    detail::executor_variant& get_executor() noexcept
-    {
-        return m_executor;
-    }
-    const detail::executor_variant& get_executor() const noexcept
-    {
-        return m_executor;
-    }
-
     any_executor& bound_pool(thread_pool* pool) noexcept;
     thread_pool*  get_bound_pool() const noexcept;
 
-    operator boost::asio::any_io_executor() const;
-    operator boost::asio::io_context::executor_type() const;
-
 private:
-    detail::executor_variant m_executor;
+    struct executor_ops {
+        detail::any_executor_backend_kind kind;
+        void (*destroy)(void*) noexcept;
+        void (*copy)(const void*, void*);
+        void (*move)(void*, void*) noexcept;
+        bool (*equal)(const void*, const void*) noexcept;
+        void (*post)(const void*, function&&);
+        void (*defer)(const void*, function&&);
+        void (*dispatch)(const void*, function&&);
+        void (*on_work_started)(const void*) noexcept;
+        void (*on_work_finished)(const void*) noexcept;
+        bool (*running_in_this_thread)(const void*) noexcept;
+        void (*bound_pool)(void*, thread_pool*) noexcept;
+        thread_pool* (*get_bound_pool)(const void*) noexcept;
+    };
+
+    static constexpr std::size_t storage_size  = 16;
+    static constexpr std::size_t storage_align = alignof(std::max_align_t);
+
+    template <typename Executor>
+    static constexpr bool fits_inline_v = sizeof(Executor) <= storage_size && alignof(Executor) <= storage_align;
+
+    const executor_ops*                                              m_ops{nullptr};
+    typename std::aligned_storage<storage_size, storage_align>::type m_storage;
+
+    void* storage() noexcept
+    {
+        return &m_storage;
+    }
+
+    const void* storage() const noexcept
+    {
+        return &m_storage;
+    }
+
+    template <typename Executor>
+    void emplace(Executor executor);
+
+    template <typename Executor>
+    static const executor_ops& ops();
+
+    void post_impl(function&& f) const;
+    void defer_impl(function&& f) const;
+    void dispatch_impl(function&& f) const;
+
+    friend struct detail::any_executor_access;
 };
 
-// 模板实现
-template <typename Executor, typename>
-any_executor::any_executor(Executor&& executor) : m_executor(runtime::executor(std::forward<Executor>(executor)))
-{}
-
-template <typename Function, typename Allocator>
-auto any_executor::post(Function&& f, const Allocator& a) const
-{
-    return std::visit([&f, a = std::move(a)](const auto& exec) {
-        return exec.post(std::forward<Function>(f), std::move(a));
-    }, m_executor);
-}
-
-template <typename Function, typename Allocator>
-auto any_executor::defer(Function&& f, const Allocator& a) const
-{
-    return std::visit([&f, a = std::move(a)](const auto& exec) {
-        return exec.defer(std::forward<Function>(f), std::move(a));
-    }, m_executor);
-}
-
-template <typename Function, typename Allocator>
-void any_executor::dispatch(Function&& f, const Allocator& a) const
-{
-    std::visit([&f, a = std::move(a)](const auto& exec) {
-        exec.dispatch(std::forward<Function>(f), std::move(a));
-    }, m_executor);
-}
-
 } // namespace mc::runtime
-
-namespace boost::asio {
-template <>
-struct is_executor<mc::runtime::any_executor> : std::true_type {};
-} // namespace boost::asio
 
 #endif // MC_RUNTIME_ANY_EXECUTOR_H

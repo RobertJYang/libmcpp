@@ -22,15 +22,46 @@
 #include <mc/signal_slot.h>
 
 #include <atomic>
+#include <functional>
 #include <memory>
 #include <shared_mutex>
 #include <string_view>
+#include <tuple>
 #include <unordered_map>
 #include <vector>
 
 namespace mc::core {
 class object;
 class object_impl;
+
+namespace detail {
+template <typename Handler>
+class object_executor_binder {
+public:
+    using handler_type = std::decay_t<Handler>;
+
+    explicit object_executor_binder(mc::runtime::any_executor executor, Handler&& handler)
+        : m_executor(std::move(executor)), m_handler(std::make_shared<handler_type>(std::forward<Handler>(handler)))
+    {}
+
+    template <typename... Args>
+    void operator()(Args&&... args) const
+    {
+        auto handler = m_handler;
+        auto tuple   = std::make_tuple(std::forward<Args>(args)...);
+
+        m_executor.dispatch([handler = std::move(handler), tuple = std::move(tuple)]() mutable {
+            std::apply([&handler](auto&&... unpacked) {
+                std::invoke(*handler, std::forward<decltype(unpacked)>(unpacked)...);
+            }, std::move(tuple));
+        });
+    }
+
+private:
+    mc::runtime::any_executor     m_executor;
+    std::shared_ptr<handler_type> m_handler;
+};
+} // namespace detail
 
 using object_ptr       = mc::shared_ptr<object>;
 using const_object_ptr = mc::shared_ptr<const object>;
@@ -251,11 +282,11 @@ public:
     template <typename Handler>
     auto bind_executor(Handler&& handler) const
     {
-        return boost::asio::bind_executor(get_executor(), std::forward<Handler>(handler));
+        return detail::object_executor_binder<Handler>(get_executor(), std::forward<Handler>(handler));
     }
 
     executor_type get_executor() const;
-    void          set_executor(mc::executor executor);
+    void          set_executor(executor_type executor);
 
     /**
      * @brief 获取当前对象的ref_ptr

@@ -13,13 +13,11 @@
 #include <mc/core/object.h>
 #include <mc/exception.h>
 #include <mc/memory.h>
-#include <mc/runtime/executor.h>
 #include <mc/runtime/thread_list.h>
+#include <mc/runtime/thread_pool.h>
 #include <mc/signal_slot.h>
 
 #include <gtest/gtest.h>
-
-#include <boost/asio/io_context.hpp>
 
 #include <atomic>
 #include <chrono>
@@ -147,9 +145,8 @@ TEST_F(ThreadSafeObjectTest, ConcurrentPropertyAccess)
 
 TEST_F(ThreadSafeObjectTest, ExecutorAssignment)
 {
-    boost::asio::io_context io;
-    mc::runtime::executor   exec(io.get_executor());
-    root_object->set_executor(exec);
+    mc::runtime::thread_pool io(1, "thread_safe_object_test");
+    root_object->set_executor(mc::runtime::any_executor(io.get_executor()));
 
     auto stored = root_object->get_executor();
     EXPECT_TRUE(stored.valid());
@@ -603,9 +600,7 @@ TEST_F(ThreadSafeObjectTest, ObjectImplCopyOperations)
     obj1->set_name("source");
 
     // 设置执行器
-    auto                  work_exec = mc::get_work_executor();
-    mc::runtime::executor executor(work_exec);
-    obj1->set_executor(executor);
+    obj1->set_executor(mc::get_work_executor());
 
     // 复制对象（这会触发 object_impl 的复制构造）
     auto obj2 = mc::make_shared<object>(*obj1);

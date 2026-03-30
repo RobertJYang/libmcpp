@@ -10,8 +10,15 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "mc/signal_slot.h"
-#include <mc/string.h>
 #include <gtest/gtest.h>
+
+#include <atomic>
+#include <chrono>
+#include <future>
+#include <thread>
+
+#include <mc/core/object.h>
+#include <mc/string.h>
 
 // 不使用using namespace mc;，避免命名冲突
 
@@ -140,7 +147,7 @@ TEST(SignalSlotTest, ConnectionManager)
 TEST(SignalSlotTest, MultipleParameters)
 {
     mc::signal<void(int, mc::string)> sig;
-    int                                value = 0;
+    int                               value = 0;
     mc::string                        text;
 
     // 连接信号到槽
@@ -171,4 +178,34 @@ TEST(SignalSlotTest, EmptySignal)
     // 断开连接
     conn.disconnect();
     EXPECT_TRUE(sig.empty());
+}
+
+TEST(SignalSlotTest, ObjectBindExecutorDispatchesOnExecutor)
+{
+    using namespace std::chrono_literals;
+
+    mc::core::object         obj;
+    mc::runtime::thread_pool pool(1, "object_bind_executor_test");
+    pool.start();
+    obj.set_executor(mc::runtime::any_executor(pool.get_executor()));
+
+    std::promise<void> done;
+    auto               future = done.get_future();
+    std::atomic<bool>  ran{false};
+    std::atomic<bool>  ran_on_executor{false};
+    std::thread::id    callback_thread;
+
+    auto bound_handler = obj.bind_executor([&]() {
+        callback_thread = std::this_thread::get_id();
+        ran.store(true);
+        ran_on_executor.store(obj.get_executor().running_in_this_thread());
+        done.set_value();
+    });
+
+    bound_handler();
+
+    EXPECT_EQ(future.wait_for(1s), std::future_status::ready);
+    EXPECT_TRUE(ran.load());
+    EXPECT_TRUE(ran_on_executor.load());
+    EXPECT_NE(callback_thread, std::this_thread::get_id());
 }

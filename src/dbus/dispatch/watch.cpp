@@ -13,12 +13,14 @@
 #include <mc/dbus/connection.h>
 #include <mc/log.h>
 
+#include <system_error>
+
 #include "dbus/connection_impl.h"
 #include "watch.h"
 
 namespace mc::dbus {
-constexpr auto wait_read  = boost::asio::posix::stream_descriptor::wait_read;
-constexpr auto wait_write = boost::asio::posix::stream_descriptor::wait_write;
+constexpr auto wait_read  = mc::io::fd_watcher::wait_type::read;
+constexpr auto wait_write = mc::io::fd_watcher::wait_type::write;
 
 watch::~watch()
 {
@@ -51,7 +53,7 @@ void watch::watch_readable(connection_weak_ptr conn, mc::shared_ptr<watch> self)
 {
     m_socket.async_wait(wait_read, [s = std::move(self), c = std::move(conn)](const auto& ec) {
         if (ec) {
-            if (ec == boost::asio::error::operation_aborted) {
+            if (ec == std::make_error_code(std::errc::operation_canceled)) {
                 return;
             }
 
@@ -80,7 +82,7 @@ void watch::watch_writable(connection_weak_ptr conn, mc::shared_ptr<watch> self)
 {
     m_socket.async_wait(wait_write, [s = std::move(self), c = std::move(conn)](const auto& ec) {
         if (ec) {
-            if (ec == boost::asio::error::operation_aborted) {
+            if (ec == std::make_error_code(std::errc::operation_canceled)) {
                 return;
             }
 
@@ -109,7 +111,7 @@ bool watch::handle_watch_ready(connection_ptr& conn, uint32_t flags)
 {
     dbus_watch_handle(m_watch, flags);
 
-    boost::asio::post(conn->m_executor, [conn]() {
+    conn->m_executor.get_executor().post([conn]() {
         std::lock_guard lock(conn->m_mutex);
         conn->dispatch();
     });

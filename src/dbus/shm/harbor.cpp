@@ -373,7 +373,7 @@ void harbor::process_dbus_message(DBusMessage* msg)
         // 异步处理 signal 消息，避免阻塞 harbor 线程
         dbus_message_ref(msg);
         try {
-            boost::asio::post(mc::get_work_context(), [this, msg]() mutable {
+            mc::get_work_context().get_executor().post([this, msg]() mutable {
                 try {
                     auto& match = m_connection.get_match();
                     match.run_msg(msg);
@@ -419,7 +419,7 @@ void harbor::process_local_message(const variants& unpacked)
              "path", msg->path())("interface", msg->interface())("member", msg->member()));
 #endif
     if (!is_reply) {
-        boost::asio::post(mc::get_work_context(), [this, msg = std::move(msg)]() mutable {
+        mc::get_work_context().get_executor().post([this, msg = std::move(msg)]() mutable {
             try {
                 invoke_method(msg.get());
             } catch (const std::exception& e) {

@@ -13,7 +13,9 @@
 #ifndef MC_DBUS_DISPATCH_TIMEOUT_H
 #define MC_DBUS_DISPATCH_TIMEOUT_H
 
-#include "dbus/connection_impl.h"
+#include <mc/runtime/steady_timer.h>
+
+#include "../connection_impl.h"
 
 namespace mc::dbus {
 
@@ -29,7 +31,7 @@ public:
     void stop();
 
 private:
-    DBusTimeout*              m_timeout{nullptr};
+    DBusTimeout*           m_timeout{nullptr};
     mc::runtime::steady_timer m_timer;
 };
 

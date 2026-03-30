@@ -58,17 +58,6 @@ void immediate_executor::on_work_started() const noexcept
 void immediate_executor::on_work_finished() const noexcept
 {}
 
-immediate_context& immediate_executor::context() const noexcept
-{
-    static immediate_context ctx;
-    return ctx;
-}
-
-immediate_executor immediate_executor::require(boost::asio::execution::blocking_t::never_t) const
-{
-    return *this;
-}
-
 immediate_context::immediate_context()  = default;
 immediate_context::~immediate_context() = default;
 
@@ -309,37 +298,37 @@ thread_pool& runtime_context::work() noexcept
     return m_impl->work();
 }
 
-thread_pool::executor_type runtime_context::get_io_executor() noexcept
+any_executor runtime_context::get_io_executor() noexcept
 {
     return m_impl->io().get_executor();
 }
 
-thread_pool::executor_type runtime_context::get_work_executor() noexcept
+any_executor runtime_context::get_work_executor() noexcept
 {
     return m_impl->work().get_executor();
 }
 
-runtime_executor runtime_context::get_executor() noexcept
+any_executor runtime_context::get_executor() noexcept
 {
-    return runtime_executor(*this);
+    return any_executor(runtime_executor(*this));
 }
 
 any_executor runtime_context::create_strand()
 {
-    return executor(runtime_strand());
+    return any_executor(runtime_strand());
 }
 
-thread_pool::strand runtime_context::create_io_strand()
+any_executor runtime_context::create_io_strand()
 {
-    return thread_pool::strand(io().get_executor());
+    return any_executor(runtime_strand().bound_pool(&io()));
 }
 
-thread_pool::strand runtime_context::create_work_strand()
+any_executor runtime_context::create_work_strand()
 {
-    return thread_pool::strand(work().get_executor());
+    return any_executor(runtime_strand().bound_pool(&work()));
 }
 
-thread_pool::executor_type get_default_executor()
+any_executor get_default_executor()
 {
     return get_io_executor();
 }

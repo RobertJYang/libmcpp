@@ -16,8 +16,6 @@
 #include <mc/common.h>
 #include <mc/runtime/thread_pool.h>
 
-#include <boost/asio.hpp>
-
 namespace mc::runtime {
 
 class runtime_context;
@@ -63,15 +61,10 @@ public:
     bool operator==(const runtime_executor& other) const noexcept;
     bool operator!=(const runtime_executor& other) const noexcept;
 
-    boost::asio::execution_context& context() const noexcept;
-
     void             on_work_started() const noexcept;
     void             on_work_finished() const noexcept;
     runtime_context& get_runtime_context() const noexcept;
     bool             running_in_this_thread() const noexcept;
-
-    operator boost::asio::any_io_executor() const;
-    operator boost::asio::io_context::executor_type() const;
 
     runtime_executor& bound_pool(thread_pool* pool) noexcept
     {
@@ -85,8 +78,7 @@ public:
     }
 
 private:
-    thread_pool&                           select_pool() const;
-    boost::asio::io_context::executor_type select_io_executor() const;
+    thread_pool& select_pool() const;
 
     runtime_context* m_context;
     thread_pool*     m_bound_pool = nullptr;
@@ -112,10 +104,5 @@ void runtime_executor::defer(Function&& f, const Allocator& a) const
 }
 
 } // namespace mc::runtime
-
-namespace boost::asio {
-template <>
-struct is_executor<mc::runtime::runtime_executor> : std::true_type {};
-} // namespace boost::asio
 
 #endif // MC_RUNTIME_RUNTIME_EXECUTOR_H

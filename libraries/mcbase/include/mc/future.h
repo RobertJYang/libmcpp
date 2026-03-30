@@ -39,7 +39,7 @@ auto any(Iterator begin, Iterator end)
 
 namespace mc {
 // 从执行器创建 promise
-template <typename T, typename Executor = mc::io_context::executor_type>
+template <typename T, typename Executor = mc::runtime::any_executor>
 auto make_promise(Executor executor = mc::get_io_executor())
     -> std::enable_if_t<futures::detail::is_executor_v<Executor>,
                         mc::futures::Promise<mc::futures::detail::state_tt<T>>>
@@ -128,7 +128,7 @@ auto reject(Exception&& ex, Executor executor = mc::any_executor())
 }
 
 // 超时函数：给 future 添加超时功能
-template <typename FutureType, typename Duration, typename Executor = mc::io_context::executor_type>
+template <typename FutureType, typename Duration, typename Executor = mc::runtime::any_executor>
 auto timeout(FutureType future, Duration timeout_duration, Executor executor = mc::get_io_executor())
     -> std::enable_if_t<detail::is_future_v<FutureType> && detail::is_executor_v<Executor>,
                         Future<mc::futures::detail::state_tt<typename FutureType::value_type>>>
@@ -156,7 +156,7 @@ auto timeout(FutureType future, Duration timeout_duration, Execution& execution)
 }
 
 // 延迟执行函数：创建一个在指定时间后完成的 future
-template <typename Duration, typename Executor = mc::io_context::executor_type>
+template <typename Duration, typename Executor = mc::runtime::any_executor>
 auto delay(Duration delay_duration, Executor executor = mc::get_io_executor())
     -> std::enable_if_t<std::is_constructible_v<std::chrono::steady_clock::duration, Duration> &&
                             detail::is_executor_v<Executor>,
@@ -166,7 +166,7 @@ auto delay(Duration delay_duration, Executor executor = mc::get_io_executor())
 }
 
 // 时间为 0 的延时函数，目的是延迟执行链式调用
-template <typename Executor = mc::io_context::executor_type>
+template <typename Executor = mc::runtime::any_executor>
 auto delay(Executor executor = mc::get_io_executor()) -> std::enable_if_t<detail::is_executor_v<Executor>, Future<void>>
 {
     return delay(std::chrono::steady_clock::duration::zero(), executor);

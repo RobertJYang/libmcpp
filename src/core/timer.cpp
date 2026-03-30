@@ -11,15 +11,13 @@
  */
 #include <mc/core/application.h>
 #include <mc/core/timer.h>
-
-#include <boost/asio/steady_timer.hpp>
+#include <mc/runtime/steady_timer.h>
 
 namespace mc::core {
-
 struct timer::timer_impl {
     using timer_type = mc::runtime::steady_timer;
 
-    timer_impl(mc::runtime::thread_pool::executor_type executor) : m_timer(executor)
+    explicit timer_impl(mc::runtime::any_executor executor) : m_timer(std::move(executor))
     {}
 
     ~timer_impl()
@@ -97,15 +95,14 @@ bool timer::check_active() const
         return false;
     }
 
-    return m_impl->m_timer.expiry() > boost::asio::steady_timer::clock_type::now();
+    return m_impl->m_timer.expiry() > timer_impl::timer_type::clock_type::now();
 }
 
 void timer::start(mc::milliseconds msec)
 {
     m_interval = msec;
     if (!m_impl) {
-        m_impl = std::make_unique<timer_impl>(
-            std::get<mc::runtime::thread_pool::executor_type>(get_executor().get_executor()));
+        m_impl = std::make_unique<timer_impl>(get_executor());
     }
 
     m_impl->start(mc::static_pointer_cast<timer>(this->shared_from_this()));

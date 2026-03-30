@@ -34,7 +34,7 @@ protected:
         mc::futures::state_pool::instance().clear_all_pools();
     }
 
-    boost::asio::io_context io_context_;
+    mc::runtime::thread_pool io_context_{1, "state_pool_test"};
 };
 
 // 基本功能测试
@@ -613,7 +613,7 @@ TEST_F(state_pool_test, concurrent_access)
 
     // 多个线程并发访问池
     threads.start_threads(num_threads, [&completed]() {
-        boost::asio::io_context local_io;
+        mc::runtime::thread_pool local_io(1, "state_pool_local");
 
         for (int i = 0; i < iterations; ++i) {
             auto promise = mc::make_promise<int>(local_io);
