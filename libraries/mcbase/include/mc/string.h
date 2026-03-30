@@ -626,12 +626,11 @@ private:
     mc::shared_ptr<detail::string_storage> m_storage{};
 };
 
-// GCC 7 workaround: suppress implicit instantiation of shared_ptr<string_storage>
-// destructor in every translation unit that includes this header.
-// The explicit instantiation is provided in src/string/string.cpp where
-// string_storage is fully defined.
-extern template class mc::memory::shared_ptr<mc::detail::string_storage,
-                                             mc::memory::default_deleter<mc::detail::string_storage>,
+// 显式实例化声明：string_storage 在此处为不完整类型，
+// 抑制隐式实例化以避免不完整类型上的模板展开，
+// 同时减少每个包含 string.h 的翻译单元的编译开销。
+// 对应的显式实例化定义在 src/string/string.cpp 中。
+extern template class MC_API mc::memory::shared_ptr<mc::detail::string_storage,
                                              mc::detail::string_storage*>;
 
 inline std::string to_std_string(const string& s)

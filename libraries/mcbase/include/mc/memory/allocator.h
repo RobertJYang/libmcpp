@@ -207,4 +207,22 @@ using mc::memory::deleter_traits;
 using mc::memory::destroy_ptr;
 } // namespace mc
 
+// ==================== variant_extension_base 运行时释放协议特化 ====================
+// variant_extension_base 和 composed_variant_extension 使用 payload-first 布局：
+//   composed_variant_extension : public Payload, public variant_extension_base
+// shared_ptr<variant_extension_base> 持有的是第二基类指针（有地址偏移），
+// 不能直接 delete/deallocate。必须通过运行时虚函数回到完整对象基址操作。
+//
+// 本特化在 allocator.h 尾部定义以避免循环依赖：
+//   - allocator.h 无需 include variant_extension.h
+//   - variant_extension.h include allocator.h（经由 mc/memory.h）后，
+//     variant_extension_base 已经完整定义，特化生效。
+// forward declare 足够触发 ADL，实际特化在 variant_extension.h 之后由使用方看到。
+
+namespace mc::memory {
+
+class variant_extension_base_deleter_tag; // 仅用于标记，不实例化
+
+} // namespace mc::memory
+
 #endif // MC_ALLOCATOR_H

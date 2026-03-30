@@ -136,6 +136,10 @@ protected:
     condition_variable m_cv;
 };
 
+namespace detail {
+MC_API bool pooled_state_try_release(state_base* ptr, std::size_t state_size);
+}
+
 template <typename T>
 class State : public state_base {
 public:
@@ -214,5 +218,31 @@ private:
 };
 
 } // namespace mc::futures
+
+namespace mc::memory::detail {
+
+template <>
+struct shared_release_ops_for<mc::futures::state_base> {
+    static void destroy(shared_base* base) noexcept
+    {
+        static_cast<mc::futures::state_base*>(base)->destory();
+    }
+
+    static void deallocate(shared_base* base) noexcept
+    {
+        auto* state = static_cast<mc::futures::state_base*>(base);
+        if (!state) {
+            return;
+        }
+        if (!mc::futures::detail::pooled_state_try_release(state, state->value_size())) {
+            state->~state_base();
+            free(state);
+        }
+    }
+
+    inline static const shared_release_ops value{&destroy, &deallocate};
+};
+
+} // namespace mc::memory::detail
 
 #endif // MC_FUTURES_STATE_H

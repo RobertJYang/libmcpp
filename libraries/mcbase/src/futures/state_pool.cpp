@@ -20,28 +20,24 @@
 
 namespace mc::memory {
 
-template class shared_ptr<mc::futures::state_base, mc::futures::state_base_deleter, mc::futures::state_base*>;
+template class shared_ptr<mc::futures::state_base>;
 
 } // namespace mc::memory
 
 namespace mc::futures {
 
-void state_base_deleter::destroy(state_base* ptr)
+namespace detail {
+
+bool pooled_state_try_release(state_base* ptr, std::size_t state_size)
 {
-    ptr->destory();
+    if (!ptr) {
+        return false;
+    }
+    auto& pool = state_pool::instance();
+    return pool.try_release_to_pool(ptr, state_size);
 }
 
-void state_base_deleter::deallocate(const void* ptr)
-{
-    state_base* p_state = static_cast<state_base*>(const_cast<void*>(ptr));
-    MC_ASSERT_THROW((p_state != nullptr && p_state->ref_count() == 0 && p_state->weak_count() == 0),
-                    mc::runtime_exception, "state_base 指针不能为 nullptr 或 value_size 不能为 0");
-    auto& pool = state_pool::instance();
-    if (!pool.try_release_to_pool(p_state, p_state->value_size())) {
-        p_state->~state_base();
-        free(p_state);
-    }
-}
+} // namespace detail
 
 // 固定大小的 State 缓存池
 class sized_state_pool {

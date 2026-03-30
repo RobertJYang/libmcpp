@@ -51,33 +51,46 @@ template <typename T, typename Allocator = std::allocator<T>>
 class array_impl : public mc::i_variants, public std::vector<T, Allocator> {
 public:
     using base_type = std::vector<T, Allocator>;
+    using self_type = array_impl<T, Allocator>;
 
     // 继承所有 std::vector 的构造函数
     using base_type::base_type;
 
     // 默认构造函数
     array_impl() : base_type()
-    {}
+    {
+        init_shared_release_protocol();
+    }
 
     // 从 allocator 构造
     explicit array_impl(const Allocator& alloc) : base_type(alloc)
-    {}
+    {
+        init_shared_release_protocol();
+    }
 
     // 从 std::vector 拷贝构造
     array_impl(const base_type& vec) : base_type(vec)
-    {}
+    {
+        init_shared_release_protocol();
+    }
 
     // 从 std::vector 移动构造
     array_impl(base_type&& vec) noexcept : base_type(std::move(vec))
-    {}
+    {
+        init_shared_release_protocol();
+    }
 
     // 拷贝构造函数
     array_impl(const array_impl& other) : base_type(static_cast<const base_type&>(other))
-    {}
+    {
+        init_shared_release_protocol();
+    }
 
     // 移动构造函数
     array_impl(array_impl&& other) noexcept : base_type(std::move(static_cast<base_type&&>(other)))
-    {}
+    {
+        init_shared_release_protocol();
+    }
 
     ~array_impl()
     {}
@@ -153,6 +166,13 @@ public:
     // 拷贝操作
     mc::shared_ptr<i_variants> copy() const override;
     mc::shared_ptr<i_variants> deep_copy(mc::detail::copy_context* ctx = nullptr) const override;
+
+private:
+    void init_shared_release_protocol()
+    {
+        this->ensure_shared_release_protocol(
+            &mc::memory::detail::shared_release_ops_for<self_type>::value);
+    }
 };
 } // namespace detail
 

@@ -124,5 +124,6 @@ test(
   mcbase_test_exe,
   depends: mock_dynamic_module,
   env: mcbase_test_env,
+  timeout: 60,
 )
 

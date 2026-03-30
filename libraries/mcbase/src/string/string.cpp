@@ -282,11 +282,9 @@ struct string_mutable_impl {
 
 } // namespace detail
 
-// Explicit instantiation of shared_ptr<string_storage> here where
-// string_storage is complete, satisfying the extern template declaration
-// in string.h (GCC 7 workaround).
-template class mc::memory::shared_ptr<mc::detail::string_storage,
-                                      mc::memory::default_deleter<mc::detail::string_storage>,
+// 显式实例化定义：string_storage 在此处为完整类型，
+// 与 string.h 中的 extern template 声明配对。
+template class MC_API mc::memory::shared_ptr<mc::detail::string_storage,
                                       mc::detail::string_storage*>;
 
 namespace mc::detail {

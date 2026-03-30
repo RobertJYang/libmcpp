@@ -13,14 +13,13 @@
 #ifndef MC_REF_BASE_H
 #define MC_REF_BASE_H
 
-#include <atomic>
-#include <string_view>
+#include <cstdint>
+#include <limits>
 
 #include <mc/atomic_ref.h>
 #include <mc/common.h>
 #include <mc/string_view.h>
 #include <mc/gc/gc_head.h>
-#include <mc/memory/allocator.h>
 
 /**
  * @file shared_counter.h
@@ -87,14 +86,26 @@
 
 namespace mc::memory {
 
-template <typename T, typename Deleter = mc::default_deleter<T>, typename PointerType = T*>
+class shared_counter;
+
+using shared_base = shared_counter;
+
+struct shared_release_ops {
+    void (*destroy)(shared_base*) noexcept;
+    void (*deallocate)(shared_base*) noexcept;
+};
+
+template <typename T, typename PointerType = T*>
 class shared_ptr;
 
-template <typename T, typename Deleter = mc::default_deleter<T>, typename PointerType = T*>
+template <typename T, typename PointerType = T*>
 class weak_ptr;
 
 namespace detail {
 [[noreturn]] MC_API void throw_invalid_op_exception(mc::string_view msg);
+MC_API void destroy_managed_object(shared_base* counter);
+MC_API void deallocate_managed_object(shared_base* counter);
+MC_API bool try_dispatch_managed_final_release(gc::GCHead* head, shared_base* counter);
 } // namespace detail
 
 /**
@@ -104,171 +115,87 @@ namespace detail {
  *
  * 继承 GCHead 以支持分代 GC，GC 元数据嵌入对象中
  */
-template <typename CounterType = uint32_t>
-class shared_counter : public gc::GCHead {
+class MC_API shared_counter : public gc::GCHead {
 public:
+    using CounterType        = uint32_t;
     using counter_type       = CounterType;
     using atomic_counter_ref = mc::atomic_ref<counter_type>;
 
     static constexpr counter_type INVALID   = std::numeric_limits<counter_type>::max();
+    static constexpr counter_type EXTERNAL  = INVALID - 1;
     static constexpr counter_type DESTROYED = 0;
 
-    shared_counter() : m_ref_count(INVALID), m_weak_count(1) {
-        gc_init();
-    }
-
-    virtual ~shared_counter() {
-        if (gc_index != gc::GCHead::GC_INDEX_UNTRACKED) {
-            ::mc::gc::gc_untrack_hook_t fn = ::mc::gc::gc_untrack_hook();
-            if (fn) {
-                fn(static_cast<::mc::gc::GCHead*>(this));
-            }
-        }
-    }
+    shared_counter();
+    virtual ~shared_counter();
 
     // 弱引用计数保底设置为 1，这是因为 shared_ptr 需要两阶段销毁对象：
     // 第一阶段：调用 Deleter 的 destroy 方法处理对象析构
     // 第二阶段：归还保底弱引用，如果弱引用计数为 0 则释放内存
     // 保底弱引用策略可以保证第一阶段析构对象时不会因为其他 weak_ptr 销毁而导致内存提前被释放
-    shared_counter(const shared_counter&) : m_ref_count(INVALID), m_weak_count(1) {
-        gc_init();
-    }
-
-    shared_counter& operator=(const shared_counter&)
-    {
-        // 赋值操作不改变引用计数和管理状态
-        return *this;
-    }
-
-    shared_counter(shared_counter&&) noexcept : m_ref_count(INVALID), m_weak_count(1) {
-        gc_init();
-    }
-
-    shared_counter& operator=(shared_counter&&) noexcept
-    {
-        // 赋值操作不改变引用计数和管理状态
-        return *this;
-    }
+    shared_counter(const shared_counter&);
+    shared_counter& operator=(const shared_counter&);
+    shared_counter(shared_counter&&) noexcept;
+    shared_counter& operator=(shared_counter&&) noexcept;
 
     // 增加强引用计数
-    void add_ref() const
-    {
-        atomic_counter_ref ref(m_ref_count);
-        counter_type       current = ref.load(std::memory_order_acquire);
-
-        while (current != DESTROYED) {
-            // 如果引用计数为初始值，由第一个 shared_ptr 将其引用计数设置为 1，否则增加引用计数
-            counter_type next = current == INVALID ? 1 : current + 1;
-            if (ref.compare_exchange_weak(current, next, std::memory_order_acq_rel, std::memory_order_acquire)) {
-                return;
-            }
-        }
-
-        // 不可能运行到这里，抛出异常是为了检测是否有 bug，比如发生了内存踩踏导致引用计数被修改
-        detail::throw_invalid_op_exception("attempt to add reference to a destroyed object");
-    }
+    void add_ref() const;
 
     // 减少强引用计数，如果引用计数为 0 则返回 true
-    bool release_ref() const
-    {
-        atomic_counter_ref ref(m_ref_count);
-        counter_type       current = ref.load(std::memory_order_acquire);
-
-        while (current != DESTROYED && current != INVALID) {
-            if (ref.compare_exchange_weak(current, current - 1, std::memory_order_acq_rel, std::memory_order_acquire)) {
-                return current == 1; // 前一个引用计数为 1，对象可以销毁了
-            }
-        }
-
-        // 不可能运行到这里，抛出异常是为了检测是否有 bug，比如发生了内存踩踏导致引用计数被修改
-        detail::throw_invalid_op_exception("attempt to release reference to a destroyed or not managed object");
-    }
+    bool release_ref() const;
 
     // 增加弱引用计数
-    void add_weak_ref() const
-    {
-        atomic_counter_ref(m_weak_count).fetch_add(1, std::memory_order_relaxed);
-    }
+    void add_weak_ref() const;
 
     // 减少弱引用计数，如果弱引用计数为0且对象已销毁则返回true
-    bool release_weak_ref() const
-    {
-        if (atomic_counter_ref(m_weak_count).fetch_sub(1, std::memory_order_acq_rel) == 1) {
-            // 弱引用计数为0且对象已销毁时，可以释放内存
-            return is_destroyed();
-        }
-
-        return false;
-    }
+    bool release_weak_ref() const;
 
     // 获取当前强引用计数
-    counter_type ref_count() const
-    {
-        return atomic_counter_ref(m_ref_count).load(std::memory_order_relaxed);
-    }
+    counter_type ref_count() const;
 
     // 获取当前弱引用计数
-    counter_type weak_count() const
-    {
-        return atomic_counter_ref(m_weak_count).load(std::memory_order_relaxed);
-    }
+    counter_type weak_count() const;
 
     // 尝试从弱引用升级为强引用
-    bool try_add_ref() const
-    {
-        atomic_counter_ref ref(m_ref_count);
-        counter_type       current = ref.load(std::memory_order_acquire);
-
-        while (current != DESTROYED && current != INVALID) {
-            if (ref.compare_exchange_weak(current, current + 1, std::memory_order_acq_rel, std::memory_order_acquire)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
+    bool try_add_ref() const;
 
     /**
      * @brief 检查对象是否已被智能指针管理
      */
-    bool is_managed() const
-    {
-        counter_type current = atomic_counter_ref(m_ref_count).load(std::memory_order_acquire);
-        return current != INVALID;
-    }
+    bool is_managed() const;
 
     /**
      * @brief 检查对象是否已析构
      */
-    bool is_destroyed() const
-    {
-        counter_type current = atomic_counter_ref(m_ref_count).load(std::memory_order_acquire);
-        return current == DESTROYED;
-    }
+    bool is_destroyed() const;
+
+    bool is_externally_owned() const;
+    bool externalize_ownership();
+
+    void set_shared_release_protocol(const shared_release_ops* ops,
+                                     void*                     alloc_base = nullptr) noexcept;
+    void ensure_shared_release_protocol(const shared_release_ops* ops,
+                                        void*                     alloc_base = nullptr) noexcept;
+    const shared_release_ops* shared_release_protocol() const noexcept;
+    void* shared_alloc_base() const noexcept;
 
 private:
     mutable counter_type m_ref_count;  // 强引用计数
     mutable counter_type m_weak_count; // 弱引用计数
+    void*                m_alloc_base;
+    const shared_release_ops* m_release_ops;
 };
-
-/*
- * 共享计数器基类，提供引用计数管理能力
- * 作为智能指针的控制块，管理对象的生命周期
- */
-using shared_base = shared_counter<>;
 
 /*
  * 与 std::enable_shared_from_this 类似，提供 shared_from_this 方法
  */
-template <typename T, typename Deleter = mc::default_deleter<T>, typename PointerType = T*,
-          typename CounterType = uint32_t>
-class enable_shared_from_this : public shared_counter<CounterType> {
+template <typename T, typename PointerType = T*>
+class enable_shared_from_this : public shared_counter {
 public:
     using element_type = T;
     using pointer_type = PointerType;
 
-    using shared_ptr_type = shared_ptr<element_type, Deleter, PointerType>;
-    using weak_ptr_type   = weak_ptr<element_type, Deleter, PointerType>;
+    using shared_ptr_type = shared_ptr<element_type, PointerType>;
+    using weak_ptr_type   = weak_ptr<element_type, PointerType>;
 
     /**
      * @brief 安全地获取 shared_ptr，类似 std::enable_shared_from_this

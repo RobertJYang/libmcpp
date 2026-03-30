@@ -39,8 +39,7 @@ struct variant_payload_type {
     const variant_payload_type* const* bases;
     std::size_t                        base_count;
 
-    constexpr variant_payload_type()
-        : name("unknown", 7), bases(nullptr), base_count(0)
+    constexpr variant_payload_type() : name("unknown", 7), bases(nullptr), base_count(0)
     {}
 
     constexpr variant_payload_type(mc::string_view name_, const variant_payload_type* const* bases_ = nullptr,
@@ -81,17 +80,16 @@ template <typename Payload, typename = void>
 struct has_bind_extension_owner : std::false_type {};
 
 template <typename Payload>
-struct has_bind_extension_owner<Payload,
-                                std::void_t<decltype(std::declval<Payload&>().__mc_bind_extension_owner(
-                                    std::declval<variant_extension_base*>()))>> : std::true_type {};
+struct has_bind_extension_owner<Payload, std::void_t<decltype(std::declval<Payload&>().__mc_bind_extension_owner(
+                                             std::declval<variant_extension_base*>()))>> : std::true_type {};
 
 template <typename Traits, typename Payload, typename = void>
 struct has_traits_bind_owner : std::false_type {};
 
 template <typename Traits, typename Payload>
-struct has_traits_bind_owner<Traits, Payload,
-                             std::void_t<decltype(Traits::bind_owner(std::declval<Payload&>(),
-                                                                     std::declval<variant_extension_base*>()))>>
+struct has_traits_bind_owner<
+    Traits, Payload,
+    std::void_t<decltype(Traits::bind_owner(std::declval<Payload&>(), std::declval<variant_extension_base*>()))>>
     : std::true_type {};
 
 template <typename Traits, typename = void>
@@ -113,9 +111,9 @@ template <typename Traits, typename Payload, typename = void>
 struct has_traits_const_upcast : std::false_type {};
 
 template <typename Traits, typename Payload>
-struct has_traits_const_upcast<Traits, Payload,
-                               std::void_t<decltype(Traits::upcast(std::declval<const Payload*>(),
-                                                                   std::declval<const variant_payload_type&>()))>>
+struct has_traits_const_upcast<
+    Traits, Payload,
+    std::void_t<decltype(Traits::upcast(std::declval<const Payload*>(), std::declval<const variant_payload_type&>()))>>
     : std::true_type {};
 
 template <typename Traits, typename = void>
@@ -476,7 +474,8 @@ public:
      *
      * @return 如果实现了 Traceable，返回 Traceable 指针；否则返回 nullptr
      */
-    virtual void* as_traceable() const {
+    virtual void* as_traceable() const
+    {
         return nullptr;
     }
 };
@@ -547,53 +546,98 @@ struct default_composed_variant_extension_traits {
     }
 };
 
+// ==============================================================================
+// Payload-first 布局：Payload 作为第一个成员（起始地址 = operator new 返回地址），
+// composed_extension_node（继承 variant_extension_base）作为第二个成员紧跟其后。
+// shared_ptr<variant_extension_base> 持有 &node；
+// Payload* 是分配基址，可安全交给外部 C++ 框架（如 wxWidgets）delete。
+// ==============================================================================
+
+// 前向声明
+template <typename Payload, typename Traits>
+class composed_extension_node;
+
+template <typename Payload, typename Traits>
+struct composed_variant_extension;
+
+// Storage 结构：一次 operator new，Payload 在前，node 在后
 template <typename Payload, typename Traits = default_composed_variant_extension_traits<Payload>>
-class composed_variant_extension final : public variant_extension_base {
+struct composed_variant_extension {
+    using value_type  = Payload;
+    using traits_type = Traits;
+    using node_type   = composed_extension_node<Payload, Traits>;
+
+    Payload   m_payload_storage;
+    node_type node;  // node 内部持有 payload()（= operator new 基址），用于 deallocate_self
+
+    template <typename... Args>
+    explicit composed_variant_extension(std::in_place_t, Args&&... args)
+        : m_payload_storage(std::forward<Args>(args)...)
+        , node(&m_payload_storage)
+    {
+        detail::bind_extension_owner<Traits>(m_payload_storage, &node);
+    }
+
+    explicit composed_variant_extension(const Payload& p)
+        : m_payload_storage(p)
+        , node(&m_payload_storage)
+    {
+        detail::bind_extension_owner<Traits>(m_payload_storage, &node);
+    }
+
+    composed_variant_extension(const composed_variant_extension&) = delete;
+    composed_variant_extension& operator=(const composed_variant_extension&) = delete;
+
+    Payload* payload() { return &m_payload_storage; }
+    const Payload* payload() const { return &m_payload_storage; }
+
+    // 静态工厂：分配整块内存，返回指向内嵌 node 的 shared_ptr
+    template <typename... Args>
+    static mc::shared_ptr<variant_extension_base> create(std::in_place_t, Args&&... args)
+    {
+        auto* storage = new composed_variant_extension(std::in_place, std::forward<Args>(args)...);
+        return mc::shared_ptr<variant_extension_base>(&storage->node);
+    }
+};
+
+// composed_extension_node：继承 variant_extension_base，实现所有虚接口
+template <typename Payload, typename Traits = default_composed_variant_extension_traits<Payload>>
+class composed_extension_node final : public variant_extension_base {
 public:
     using value_type  = Payload;
     using traits_type = Traits;
 
-    template <typename... Args>
-    explicit composed_variant_extension(std::in_place_t, Args&&... args)
+    explicit composed_extension_node(Payload* payload_ptr)
+        : m_payload(payload_ptr)
     {
-        ::new (static_cast<void*>(m_storage)) Payload(std::forward<Args>(args)...);
-        detail::bind_extension_owner<Traits>(*payload(), this);
+        this->set_shared_release_protocol(&k_release_ops, payload_ptr);
     }
 
-    ~composed_variant_extension() override
-    {
-        payload()->~Payload();
-    }
+    ~composed_extension_node() override = default;
 
-    Payload* payload()
-    {
-        return reinterpret_cast<Payload*>(m_storage);
-    }
-
-    const Payload* payload() const
-    {
-        return reinterpret_cast<const Payload*>(m_storage);
-    }
+    Payload* payload() const { return m_payload; }
 
     mc::shared_ptr<variant_extension_base> copy() const override
     {
         if constexpr (std::is_copy_constructible_v<Payload>) {
-            return mc::make_shared<composed_variant_extension>(std::in_place, *payload());
+            auto* storage = new composed_variant_extension<Payload, Traits>(*m_payload);
+            return mc::shared_ptr<variant_extension_base>(&storage->node);
         } else {
-            throw std::runtime_error("composed_variant_extension payload does not support copy()");
+            throw std::runtime_error("composed_extension_node payload does not support copy()");
         }
     }
 
     mc::shared_ptr<variant_extension_base> deep_copy(detail::copy_context* ctx = nullptr) const override
     {
-        if constexpr (detail::has_traits_deep_copy<traits_type, Payload>::value) {
-            return detail::deep_copy_extension<composed_variant_extension>(*payload(), ctx);
+        if constexpr (detail::has_traits_deep_copy<Traits, Payload>::value) {
+            return Traits::deep_copy(*m_payload, ctx);
         } else if constexpr (std::is_copy_constructible_v<Payload>) {
-            return detail::deep_copy_extension<composed_variant_extension>(*payload(), ctx);
+            MC_UNUSED(ctx);
+            auto* storage = new composed_variant_extension<Payload, Traits>(*m_payload);
+            return mc::shared_ptr<variant_extension_base>(&storage->node);
         } else {
             MC_UNUSED(ctx);
-            throw std::runtime_error(
-                "composed_variant_extension payload does not support deep_copy()");
+            throw std::runtime_error("composed_extension_node payload does not support deep_copy()");
         }
     }
 
@@ -604,35 +648,27 @@ public:
 
     mc::string_view get_type_name() const override
     {
-        if (auto* type = payload_type()) {
-            return type->name;
-        }
+        if (auto* type = payload_type()) { return type->name; }
         return variant_extension_base::get_type_name();
     }
 
     bool equals(const variant_extension_base& other) const override
     {
-        if (this == &other) {
-            return true;
-        }
-
+        if (this == &other) { return true; }
         auto* other_payload = other.payload_as<Payload>();
-        if (!other_payload) {
-            return false;
-        }
-
+        if (!other_payload) { return false; }
         if constexpr (mc::traits::has_operator_equal_v<Payload, Payload>) {
-            return *payload() == *other_payload;
+            return *m_payload == *other_payload;
         }
-        return payload() == other_payload;
+        return m_payload == other_payload;
     }
 
     std::size_t hash() const override
     {
         if constexpr (detail::has_std_hash<Payload>::value) {
-            return std::hash<Payload>{}(*payload());
+            return std::hash<Payload>{}(*m_payload);
         }
-        return reinterpret_cast<std::size_t>(payload());
+        return reinterpret_cast<std::size_t>(m_payload);
     }
 
     const variant_payload_type* payload_type() const override
@@ -640,29 +676,84 @@ public:
         return detail::get_payload_type<Traits, Payload>();
     }
 
-    void* payload_address() override
-    {
-        return payload();
-    }
-
-    const void* payload_address() const override
-    {
-        return payload();
-    }
+    void* payload_address() override { return m_payload; }
+    const void* payload_address() const override { return m_payload; }
 
     void* upcast_payload_to(const variant_payload_type& target) override
     {
-        return detail::upcast_payload<Traits>(payload(), target);
+        return detail::upcast_payload<Traits>(m_payload, target);
     }
 
     const void* upcast_payload_to(const variant_payload_type& target) const override
     {
-        return detail::upcast_payload<Traits>(payload(), target);
+        return detail::upcast_payload<Traits>(m_payload, target);
     }
 
 private:
-    alignas(Payload) unsigned char m_storage[sizeof(Payload)];
+    static void destroy_shared(mc::memory::shared_base* base) noexcept
+    {
+        auto* node = static_cast<composed_extension_node*>(
+            static_cast<variant_extension_base*>(base));
+        auto* payload = static_cast<Payload*>(base->shared_alloc_base());
+        node->~composed_extension_node();
+        payload->~Payload();
+    }
+
+    static void deallocate_shared(mc::memory::shared_base* base) noexcept
+    {
+        operator delete(base->shared_alloc_base());
+    }
+
+    inline static const mc::memory::shared_release_ops k_release_ops{
+        &destroy_shared,
+        &deallocate_shared,
+    };
+
+    Payload* m_payload;  // 指向 composed_variant_extension::payload()（= operator new 基址）
 };
+
+} // namespace mc
+
+namespace mc::gc::detail {
+
+template <typename Payload, typename Traits>
+struct gc_head_object_cast<mc::composed_variant_extension<Payload, Traits>> {
+    static mc::composed_variant_extension<Payload, Traits>* cast(mc::gc::GCHead* head) {
+        auto* node = static_cast<mc::composed_extension_node<Payload, Traits>*>(
+            static_cast<mc::variant_extension_base*>(
+                static_cast<mc::memory::shared_base*>(head)));
+        return reinterpret_cast<mc::composed_variant_extension<Payload, Traits>*>(node->payload());
+    }
+};
+
+} // namespace mc::gc::detail
+
+namespace mc::memory::detail {
+
+template <typename Payload, typename Traits>
+struct is_composed_variant_extension<mc::composed_variant_extension<Payload, Traits>> : std::true_type {};
+
+} // namespace mc::memory::detail
+
+namespace mc {
+
+template <typename T, typename... Args,
+          std::enable_if_t<memory::detail::is_composed_variant_extension<T>::value, int> = 0>
+mc::shared_ptr<variant_extension_base> make_shared(std::in_place_t, Args&&... args)
+{
+    return T::create(std::in_place, std::forward<Args>(args)...);
+}
+
+// 工厂函数：一次分配整块内存，返回指向内嵌 node 的 shared_ptr
+template <typename Payload,
+          typename Traits = default_composed_variant_extension_traits<Payload>,
+          typename... Args>
+mc::shared_ptr<variant_extension_base> make_composed_extension(std::in_place_t, Args&&... args)
+{
+    auto* storage = new composed_variant_extension<Payload, Traits>(
+        std::in_place, std::forward<Args>(args)...);
+    return mc::shared_ptr<variant_extension_base>(&storage->node);
+}
 
 template <typename T>
 class variant_extension : public variant_extension_base {

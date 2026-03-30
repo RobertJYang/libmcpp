@@ -22,6 +22,19 @@
 
 namespace mc::gc {
 
+struct GCHead;
+
+namespace detail {
+
+template <typename T, typename = void>
+struct gc_head_object_cast {
+    static T* cast(GCHead* head) {
+        return static_cast<T*>(head);
+    }
+};
+
+} // namespace detail
+
 /// GC 对象标记，嵌入到 shared_counter 中（4 字节）
 /// gc_index 使用 atomic：untrack_locked 的 swap-with-last 会写其他对象的 gc_index，
 /// 而那个对象可能正被另一个线程析构/访问。
@@ -31,6 +44,7 @@ struct GCHead {
 
     static constexpr uint32_t GC_INDEX_UNTRACKED = UINT32_MAX;
     static constexpr uint8_t GC_FLAG_PENDING_FINAL_RELEASE = 0x01;
+    static constexpr uint8_t GC_FLAG_EXTERNAL_OWNED        = 0x02;
 
     bool is_tracked() const {
         return gc_index.load(std::memory_order_relaxed) != GC_INDEX_UNTRACKED;
@@ -56,6 +70,20 @@ struct GCHead {
         gc_flags.store(flags, std::memory_order_relaxed);
     }
 
+    bool is_external_owned() const {
+        return (gc_flags.load(std::memory_order_relaxed) & GC_FLAG_EXTERNAL_OWNED) != 0;
+    }
+
+    void set_external_owned(bool external_owned) {
+        uint8_t flags = gc_flags.load(std::memory_order_relaxed);
+        if (external_owned) {
+            flags |= GC_FLAG_EXTERNAL_OWNED;
+        } else {
+            flags &= static_cast<uint8_t>(~GC_FLAG_EXTERNAL_OWNED);
+        }
+        gc_flags.store(flags, std::memory_order_relaxed);
+    }
+
     void gc_init() {
         gc_index.store(GC_INDEX_UNTRACKED, std::memory_order_relaxed);
         gc_flags.store(0, std::memory_order_relaxed);
@@ -63,7 +91,7 @@ struct GCHead {
 
     template<typename T>
     static T* get_object(GCHead* head) {
-        return static_cast<T*>(head);
+        return detail::gc_head_object_cast<T>::cast(head);
     }
 };
 

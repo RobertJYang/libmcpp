@@ -33,14 +33,7 @@ struct state_pool_config {
 // 前向声明
 class state_pool;
 
-struct MC_API state_base_deleter {
-    template <typename U>
-    using rebind = state_base_deleter;
-
-    void destroy(state_base* ptr);
-    void deallocate(const void* ptr);
-};
-using state_base_ptr = mc::shared_ptr<state_base, state_base_deleter, state_base*>;
+using state_base_ptr = mc::shared_ptr<state_base>;
 
 // State 缓存池类
 class MC_API state_pool {
@@ -78,17 +71,15 @@ public:
     pool_stats get_stats() const;
 
     void clear_all_pools();
+    bool try_release_to_pool(state_base* ptr, std::size_t state_size);
 
 private:
     class impl;
     std::unique_ptr<impl> m_pimpl;
 
-    friend struct state_base_deleter;
-
     state_pool();
 
     void* try_acquire_state(std::size_t state_size);
-    bool  try_release_to_pool(state_base* ptr, std::size_t state_size);
 };
 
 // 从缓存池创建 State 对象
@@ -102,7 +93,7 @@ auto make_pooled_state(Executor executor)
 
 namespace mc::memory {
 
-extern template class shared_ptr<mc::futures::state_base, mc::futures::state_base_deleter, mc::futures::state_base*>;
+extern template class shared_ptr<mc::futures::state_base>;
 
 } // namespace mc::memory
 
