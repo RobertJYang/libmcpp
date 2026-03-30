@@ -61,6 +61,7 @@ public:
     void cancel();
 
     void set_exception(const mc::exception& e, bool strict_once = true);
+    void set_exception(std::exception_ptr e, bool strict_once = true);
     void set_current_exception(bool strict_once = true);
 
     template <typename Exception,

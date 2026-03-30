@@ -73,6 +73,32 @@ void any_promise::set_exception(const mc::exception& e, bool strict_once)
     }
 }
 
+void any_promise::set_exception(std::exception_ptr e, bool strict_once)
+{
+    if (!m_state || m_state->is_cancelled()) {
+        return;
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(m_state->m_mutex);
+        if (m_state->is_cancelled()) {
+            return;
+        }
+
+        if (strict_once) {
+            MC_ASSERT_THROW(!m_state->is_ready() && !m_state->is_bound(), promise_already_satisfied,
+                            "Promise 值已被设置");
+        } else if (m_state->is_ready()) {
+            return;
+        }
+
+        m_state->set_exception(std::move(e));
+        m_state->m_ready.store(true, std::memory_order_release);
+    }
+
+    m_state->mark_ready();
+}
+
 void any_promise::cancel()
 {
     if (m_state) {

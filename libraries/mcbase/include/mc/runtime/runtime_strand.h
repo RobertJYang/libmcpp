@@ -75,7 +75,6 @@ class MC_API runtime_strand {
     struct MC_API data_t : mc::shared_base {
         mutable small_mutex          mutex;
         bool                         locked   = false;
-        bool                         shutdown = false;
         task_queue                   waiting_queue;
         task_queue                   ready_queue;
         std::atomic<std::thread::id> running_thread{};

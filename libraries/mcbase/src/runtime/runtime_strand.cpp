@@ -39,8 +39,7 @@ void runtime_strand::data_t::destory_queue(task_queue* q)
     }
 }
 
-runtime_strand::task_operation* runtime_strand::data_t::acquire_operation(detail::task task,
-                                                                           thread_pool* target_pool)
+runtime_strand::task_operation* runtime_strand::data_t::acquire_operation(detail::task task, thread_pool* target_pool)
 {
     task_operation* operation = nullptr;
     {
@@ -113,7 +112,7 @@ bool runtime_strand::invoker::run_ready_handlers()
 
         {
             std::lock_guard lock(m_data->mutex);
-            if (m_data->shutdown || m_data->ready_queue.empty()) {
+            if (m_data->ready_queue.empty()) {
                 break;
             }
 
@@ -167,15 +166,7 @@ runtime_strand::runtime_strand() : m_data(mc::make_shared<data_t>())
     ;
 }
 
-runtime_strand::~runtime_strand()
-{
-    if (!m_data) {
-        return;
-    }
-
-    std::lock_guard lock(m_data->mutex);
-    m_data->shutdown = true;
-}
+runtime_strand::~runtime_strand() = default;
 
 bool runtime_strand::running_in_this_thread() const noexcept
 {
@@ -208,15 +199,14 @@ thread_pool::executor_type runtime_strand::get_default_executor()
 void runtime_strand::dispatch_impl(detail::task task) const
 {
     if (running_in_this_thread()) {
-        // 没有绑定目标 pool 或者当前 shard 就是目标 pool，直接同步执行
         if (!m_bound_pool || can_execute_in_this_shard()) {
             task();
             return;
         }
     }
 
-    auto* op   = m_data->acquire_operation(std::move(task), m_bound_pool);
-    bool first = enqueue_op(op);
+    auto* op    = m_data->acquire_operation(std::move(task), m_bound_pool);
+    bool  first = enqueue_op(op);
     if (first) {
         if (m_bound_pool) {
             m_bound_pool->get_executor().post(invoker(m_data), std::allocator<void>{});
@@ -228,8 +218,8 @@ void runtime_strand::dispatch_impl(detail::task task) const
 
 void runtime_strand::post_impl(detail::task task) const
 {
-    auto* op   = m_data->acquire_operation(std::move(task), m_bound_pool);
-    bool first = enqueue_op(op);
+    auto* op    = m_data->acquire_operation(std::move(task), m_bound_pool);
+    bool  first = enqueue_op(op);
     if (first) {
         if (m_bound_pool) {
             m_bound_pool->get_executor().post(invoker(m_data), std::allocator<void>{});
@@ -241,8 +231,8 @@ void runtime_strand::post_impl(detail::task task) const
 
 void runtime_strand::defer_impl(detail::task task) const
 {
-    auto* op   = m_data->acquire_operation(std::move(task), m_bound_pool);
-    bool first = enqueue_op(op);
+    auto* op    = m_data->acquire_operation(std::move(task), m_bound_pool);
+    bool  first = enqueue_op(op);
     if (first) {
         if (m_bound_pool) {
             m_bound_pool->get_executor().defer(invoker(m_data), std::allocator<void>{});
@@ -256,11 +246,6 @@ bool runtime_strand::enqueue_op(task_operation_base* op) const
 {
     std::lock_guard lock(m_data->mutex);
 
-    if (m_data->shutdown) {
-        op->destroy();
-        return false;
-    }
-
     bool was_unlocked = !m_data->locked;
     if (was_unlocked) {
         m_data->locked = true;
@@ -268,7 +253,6 @@ bool runtime_strand::enqueue_op(task_operation_base* op) const
     } else {
         m_data->waiting_queue.push_back(*op);
     }
-
     return was_unlocked;
 }
 
