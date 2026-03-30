@@ -306,7 +306,7 @@ DBusHandlerResult connection_impl::process_message(mc::dbus::message message)
         return DBUS_HANDLER_RESULT_HANDLED;
     }
 
-    return on_filter_message(message).get_value_or(DBUS_HANDLER_RESULT_NOT_YET_HANDLED);
+    return on_filter_message(message).value_or(DBUS_HANDLER_RESULT_NOT_YET_HANDLED);
 }
 
 void connection_impl::process_reply(uint32_t reply_serial, message& msg)

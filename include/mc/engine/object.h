@@ -14,6 +14,7 @@
 #define MC_ENGINE_OBJECT_H
 
 #include <mc/core/object.h>
+#include <mc/engine/event.h>
 #include <mc/engine/interface.h>
 #include <mc/engine/metadata.h>
 #include <mc/exception.h>
@@ -200,6 +201,7 @@ public:
 protected:
     void add_managed_object(abstract_object* obj) override;
     void remove_managed_object(abstract_object* obj) override;
+    void on_event(mc::event& e) override;
     void init_interface_object(const object_metadata& metadata);
     bool handle_override(property_base* prop, std::string_view property_name, const mc::variant& value,
                          std::string_view interface_name);

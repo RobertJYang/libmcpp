@@ -12,6 +12,7 @@
 
 #include <gtest/gtest.h>
 #include <mc/engine.h>
+#include <mc/engine/event.h>
 #include <mc/exception.h>
 
 using namespace std::chrono_literals;
@@ -313,4 +314,75 @@ TEST_F(async_invoke_test, test_signal_with_async)
         delayed_completed = true;
     }).wait();
     EXPECT_TRUE(delayed_completed);
+}
+
+TEST_F(async_invoke_test, test_async_invoke_event_filter_wraps_sync_variant_as_ready_result)
+{
+    obj.install_event_filter([&](mc::core::object*, mc::event& e) -> bool {
+        auto* invoke_event = dynamic_cast<mc::engine::method_invoke_event*>(&e);
+        if (invoke_event == nullptr || invoke_event->method_name() != "AsyncMethod") {
+            return false;
+        }
+        EXPECT_TRUE(invoke_event->is_async());
+        invoke_event->set_result(404);
+        return true;
+    });
+
+    auto result = obj_base.async_invoke("AsyncMethod", {99});
+    EXPECT_TRUE(result.is_value() && result.is_ready());
+    EXPECT_EQ(result.get(), 404);
+}
+
+TEST_F(async_invoke_test, test_async_invoke_event_filter_can_return_delayed_async_result)
+{
+    obj.install_event_filter([&](mc::core::object*, mc::event& e) -> bool {
+        auto* invoke_event = dynamic_cast<mc::engine::method_invoke_event*>(&e);
+        if (invoke_event == nullptr || invoke_event->method_name() != "AsyncMethod") {
+            return false;
+        }
+        EXPECT_TRUE(invoke_event->is_async());
+        invoke_event->set_async_result(mc::delay(mc::milliseconds(20)).then([]() {
+            return mc::variant(900);
+        }));
+        return true;
+    });
+
+    auto result = obj_base.async_invoke("AsyncMethod", {1});
+    EXPECT_TRUE(result.is_future() && !result.is_ready());
+    EXPECT_EQ(result.get(), 900);
+}
+
+TEST_F(async_invoke_test, test_async_invoke_event_filter_can_return_error_async_result)
+{
+    obj.install_event_filter([&](mc::core::object*, mc::event& e) -> bool {
+        auto* invoke_event = dynamic_cast<mc::engine::method_invoke_event*>(&e);
+        if (invoke_event == nullptr || invoke_event->method_name() != "AsyncMethod") {
+            return false;
+        }
+        invoke_event->set_async_result(mc::result<mc::variant>(mc::make_shared<mc::error>("FilterErr", "from filter")));
+        return true;
+    });
+
+    auto result = obj_base.async_invoke("AsyncMethod", {1});
+    EXPECT_TRUE(result.is_error());
+    auto err = result.get_error();
+    ASSERT_TRUE(err && err->is_set());
+    EXPECT_EQ(err->get_name(), "FilterErr");
+    EXPECT_EQ(err->get_message(), "from filter");
+}
+
+TEST_F(async_invoke_test, test_async_invoke_event_filter_observe_falls_through_to_routing)
+{
+    int filter_hits = 0;
+    obj.install_event_filter([&](mc::core::object*, mc::event& e) -> bool {
+        auto* invoke_event = dynamic_cast<mc::engine::method_invoke_event*>(&e);
+        if (invoke_event != nullptr && invoke_event->method_name() == "AsyncMethod" && invoke_event->is_async()) {
+            ++filter_hits;
+        }
+        return false;
+    });
+
+    auto result = obj_base.async_invoke("AsyncMethod", {10});
+    EXPECT_EQ(filter_hits, 1);
+    EXPECT_EQ(result.get(), 30);
 }

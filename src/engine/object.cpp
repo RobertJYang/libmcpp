@@ -41,6 +41,26 @@ ResultType do_invoke(object_impl* self, context& ctx, std::string_view method_na
     // TODO:: 后续这里需要增加消息钩子机制，支持在不修改已有实现的情况下实现消息的拦截和修改
     // 消息钩子的优先级最高：消息钩子 -> 标准接口方法 -> 对象方法 -> 接口方法
 
+    method_invoke_event invoke_event(ctx, method_name, args, interface_name, std::is_same_v<ResultType, async_result>);
+    self->post_event(invoke_event);
+    if (invoke_event.is_accepted() && !invoke_event.should_propagate()) {
+        ctx.accept();
+        if constexpr (std::is_same_v<ResultType, invoke_result>) {
+            if (invoke_event.has_result()) {
+                return invoke_event.result();
+            }
+            return {};
+        } else {
+            if (invoke_event.has_async_result()) {
+                return invoke_event.take_async_result();
+            }
+            if (invoke_event.has_result()) {
+                return async_result(invoke_event.result());
+            }
+            return async_result{};
+        }
+    }
+
     // 先路由到标准接口方法
     auto result = standard_interfaces::invoke(self, method_name, args, interface_name);
     if (ctx.get_method() != nullptr) {
@@ -193,6 +213,20 @@ void object_impl::notify_property_changed(const mc::variant& value, const proper
     if (m_property_changed_signal) {
         (*m_property_changed_signal)(value, prop);
     }
+}
+
+void object_impl::on_event(mc::event& e)
+{
+    if (e.type() != property_changed_event_id) {
+        return;
+    }
+
+    auto* property_event = dynamic_cast<property_changed_event*>(&e);
+    if (property_event == nullptr) {
+        return;
+    }
+
+    notify_property_changed(property_event->value(), property_event->property());
 }
 
 property_changed_signal& object_impl::property_changed()

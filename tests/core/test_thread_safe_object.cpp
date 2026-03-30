@@ -11,6 +11,7 @@
  */
 
 #include <mc/core/object.h>
+#include <mc/event.h>
 #include <mc/exception.h>
 #include <mc/memory.h>
 #include <mc/runtime/thread_list.h>
@@ -21,10 +22,113 @@
 
 #include <atomic>
 #include <chrono>
+#include <future>
+#include <string>
 #include <thread>
 #include <vector>
 
 namespace mc::core::test {
+
+namespace {
+
+struct test_event : mc::event {
+    static constexpr mc::event_type_id type_id = mc::builtin_event_type("tests.core.thread_safe_object");
+
+    test_event() : mc::event(type_id)
+    {}
+};
+
+class event_recording_object : public mc::core::object {
+public:
+    using mc::core::object::object;
+
+    std::vector<std::string> trace;
+    bool                     accept_in_on_event{false};
+    bool                     continue_after_accept{false};
+    bool                     accept_in_event_filter{false};
+    bool                     continue_after_filter_accept{false};
+    bool                     record_virtual_filter{true};
+
+protected:
+    void on_event(mc::event& e) override
+    {
+        if (e.type() == test_event::type_id) {
+            trace.push_back(std::string(get_name()) + ":on_event");
+        }
+        if (accept_in_on_event) {
+            e.accept();
+            if (continue_after_accept) {
+                e.set_propagate(true);
+            }
+        }
+    }
+
+    bool event_filter(object* child, mc::event& e) override
+    {
+        if (record_virtual_filter && child != nullptr && e.type() == test_event::type_id) {
+            auto child_name = child ? std::string(child->get_name()) : std::string("<null>");
+            trace.push_back(std::string(get_name()) + ":event_filter:" + child_name);
+        }
+        if (accept_in_event_filter) {
+            if (continue_after_filter_accept) {
+                e.accept();
+                e.set_propagate(true);
+                return false;
+            }
+            return true;
+        }
+        return false;
+    }
+};
+
+} // namespace
+
+TEST(EventTypeRegistryTest, RegisterEventTypeReturnsStableIdForSameName)
+{
+    auto first  = mc::register_event_type("tests.core.same_name");
+    auto second = mc::register_event_type("tests.core.same_name");
+
+    EXPECT_EQ(first, second);
+    EXPECT_GE(first, mc::event_type_id_first_user);
+    EXPECT_FALSE(mc::is_builtin_event_type(first));
+}
+
+TEST(EventTypeRegistryTest, RegisterEventTypeReturnsDifferentIdsForDifferentNames)
+{
+    auto first  = mc::register_event_type("tests.core.first_name");
+    auto second = mc::register_event_type("tests.core.second_name");
+
+    EXPECT_NE(first, second);
+    EXPECT_GE(first, mc::event_type_id_first_user);
+    EXPECT_GE(second, mc::event_type_id_first_user);
+}
+
+TEST(EventTypeRegistryTest, RegisterAnonymousEventTypeReturnsUniqueIds)
+{
+    auto first  = mc::register_event_type();
+    auto second = mc::register_event_type();
+
+    EXPECT_NE(first, second);
+    EXPECT_GE(first, mc::event_type_id_first_user);
+    EXPECT_GE(second, mc::event_type_id_first_user);
+}
+
+TEST(EventTypeRegistryTest, BuiltinEventTypeIdsStayInReservedRange)
+{
+    EXPECT_TRUE(mc::is_builtin_event_type(test_event::type_id));
+    EXPECT_GE(test_event::type_id, mc::event_type_id_first_builtin);
+    EXPECT_LE(test_event::type_id, mc::event_type_id_last_builtin);
+    EXPECT_LT(test_event::type_id, mc::event_type_id_first_user);
+}
+
+TEST(EventTypeRegistryTest, ReservedEventTypeRangeIsSeparatedFromBuiltinAndUser)
+{
+    auto reserved_id = mc::event_type_id_last_builtin + 1;
+
+    EXPECT_FALSE(mc::is_builtin_event_type(reserved_id));
+    EXPECT_FALSE(mc::is_user_event_type(reserved_id));
+    EXPECT_TRUE(mc::is_reserved_event_type(reserved_id));
+}
 
 class ThreadSafeObjectTest : public ::testing::Test {
 protected:
@@ -146,10 +250,172 @@ TEST_F(ThreadSafeObjectTest, ConcurrentPropertyAccess)
 TEST_F(ThreadSafeObjectTest, ExecutorAssignment)
 {
     mc::runtime::thread_pool io(1, "thread_safe_object_test");
+    io.start();
     root_object->set_executor(mc::runtime::any_executor(io.get_executor()));
 
     auto stored = root_object->get_executor();
     EXPECT_TRUE(stored.valid());
+}
+
+TEST_F(ThreadSafeObjectTest, EventAcceptStopsPropagation)
+{
+    auto parent = mc::make_shared<event_recording_object>();
+    parent->set_name("parent");
+    auto child = mc::make_shared<event_recording_object>(parent.get());
+    child->set_name("child");
+    child->accept_in_on_event = true;
+
+    test_event event;
+    child->post_event(event);
+
+    EXPECT_EQ(child->trace, std::vector<std::string>{"child:on_event"});
+    EXPECT_TRUE(parent->trace.empty());
+}
+
+TEST_F(ThreadSafeObjectTest, EventCanContinueAfterAcceptWhenPropagateEnabled)
+{
+    auto parent = mc::make_shared<event_recording_object>();
+    parent->set_name("parent");
+    auto child = mc::make_shared<event_recording_object>(parent.get());
+    child->set_name("child");
+    child->accept_in_on_event    = true;
+    child->continue_after_accept = true;
+
+    test_event event;
+    child->post_event(event);
+
+    EXPECT_EQ(child->trace, std::vector<std::string>{"child:on_event"});
+    EXPECT_EQ(parent->trace, (std::vector<std::string>{"parent:event_filter:child", "parent:on_event"}));
+}
+
+TEST_F(ThreadSafeObjectTest, PostEventBubblesToParent)
+{
+    auto parent = mc::make_shared<event_recording_object>();
+    parent->set_name("parent");
+    auto child = mc::make_shared<event_recording_object>(parent.get());
+    child->set_name("child");
+
+    test_event event;
+    child->post_event(event);
+
+    EXPECT_EQ(child->trace, std::vector<std::string>{"child:on_event"});
+    EXPECT_EQ(parent->trace, (std::vector<std::string>{"parent:event_filter:child", "parent:on_event"}));
+}
+
+TEST_F(ThreadSafeObjectTest, SendEventToChildrenTraversesDescendants)
+{
+    auto parent = mc::make_shared<event_recording_object>();
+    parent->set_name("parent");
+    auto child = mc::make_shared<event_recording_object>(parent.get());
+    child->set_name("child");
+    auto grandchild = mc::make_shared<event_recording_object>(child.get());
+    grandchild->set_name("grandchild");
+
+    test_event event;
+    parent->send_event_to_children(event);
+
+    EXPECT_TRUE(parent->trace.empty());
+    EXPECT_EQ(child->trace, std::vector<std::string>{"child:on_event"});
+    EXPECT_EQ(grandchild->trace, std::vector<std::string>{"grandchild:on_event"});
+}
+
+TEST_F(ThreadSafeObjectTest, EventFiltersRunByPriorityAndCanStopLowerPriorityFilters)
+{
+    auto parent = mc::make_shared<event_recording_object>();
+    parent->set_name("parent");
+    parent->record_virtual_filter = false;
+    auto child                    = mc::make_shared<event_recording_object>(parent.get());
+    child->set_name("child");
+
+    parent->install_event_filter([&](object*, mc::event&) {
+        parent->trace.push_back("installed:low");
+        return false;
+    }, mc::signal_priority::low);
+
+    parent->install_event_filter([&](object*, mc::event&) {
+        parent->trace.push_back("installed:high");
+        return true;
+    }, mc::signal_priority::high);
+
+    test_event event;
+    child->post_event(event);
+
+    EXPECT_EQ(child->trace, std::vector<std::string>{"child:on_event"});
+    EXPECT_EQ(parent->trace, std::vector<std::string>{"installed:high"});
+}
+
+TEST_F(ThreadSafeObjectTest, ConnectionModeDirectRunsInline)
+{
+    mc::runtime::thread_pool pool(1, "thread_safe_object_direct_mode");
+    pool.start();
+    root_object->set_executor(mc::runtime::any_executor(pool.get_executor()));
+
+    mc::signal<void()> sig;
+    std::thread::id    callback_thread;
+    std::promise<void> done;
+    auto               future = done.get_future();
+
+    root_object->connect(sig, [&]() {
+        callback_thread = std::this_thread::get_id();
+        done.set_value();
+    }, mc::core::connection_mode::direct);
+
+    auto emit_thread = std::this_thread::get_id();
+    sig();
+
+    EXPECT_EQ(future.wait_for(std::chrono::seconds(1)), std::future_status::ready);
+    EXPECT_EQ(callback_thread, emit_thread);
+}
+
+TEST_F(ThreadSafeObjectTest, ConnectionModeDispatchUsesObjectExecutor)
+{
+    mc::runtime::thread_pool pool(1, "thread_safe_object_dispatch_mode");
+    pool.start();
+    root_object->set_executor(mc::runtime::any_executor(pool.get_executor()));
+
+    mc::signal<void()> sig;
+    std::promise<void> done;
+    auto               future = done.get_future();
+    std::atomic<bool>  ran_on_executor{false};
+    std::thread::id    callback_thread;
+
+    root_object->connect(sig, [&]() {
+        callback_thread = std::this_thread::get_id();
+        ran_on_executor.store(root_object->get_executor().running_in_this_thread());
+        done.set_value();
+    }, mc::core::connection_mode::dispatch);
+
+    auto emit_thread = std::this_thread::get_id();
+    sig();
+
+    EXPECT_EQ(future.wait_for(std::chrono::seconds(1)), std::future_status::ready);
+    EXPECT_TRUE(ran_on_executor.load());
+    EXPECT_NE(callback_thread, emit_thread);
+}
+
+TEST_F(ThreadSafeObjectTest, ConnectWithTargetExecutorPostsToSpecifiedExecutor)
+{
+    mc::runtime::thread_pool pool(1, "thread_safe_object_target_executor");
+    pool.start();
+
+    mc::signal<void()> sig;
+    std::promise<void> done;
+    auto               future = done.get_future();
+    std::atomic<bool>  ran_on_target{false};
+    std::thread::id    callback_thread;
+
+    root_object->connect(sig, [&]() {
+        callback_thread = std::this_thread::get_id();
+        ran_on_target.store(pool.get_executor().running_in_this_thread());
+        done.set_value();
+    }, mc::runtime::any_executor(pool.get_executor()));
+
+    auto emit_thread = std::this_thread::get_id();
+    sig();
+
+    EXPECT_EQ(future.wait_for(std::chrono::seconds(1)), std::future_status::ready);
+    EXPECT_TRUE(ran_on_target.load());
+    EXPECT_NE(callback_thread, emit_thread);
 }
 
 TEST_F(ThreadSafeObjectTest, ConnectionManagementHelpers)

@@ -5,6 +5,7 @@ subdir('fmt')
 subdir('log')
 subdir('memory')
 subdir('reflect')
+subdir('signal')
 subdir('runtime')
 subdir('string')
 subdir('variant')
@@ -22,6 +23,7 @@ base_src_files = [
   'singleton.cpp',
   'error.cpp',
   'error_engine.cpp',
+  'event.cpp',
   'result.cpp',
   'array.cpp',
   'filesystem.cpp',
@@ -32,6 +34,7 @@ base_src_files = [
   log_src_files,
   memory_src_files,
   reflect_src_files,
+  signal_src_files,
   runtime_src_files,
   string_src_files,
   variant_src_files,

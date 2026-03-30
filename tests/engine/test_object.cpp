@@ -155,6 +155,51 @@ TEST_F(object_test, test_method)
     EXPECT_EQ(obj_base.get_property("value", "org.test.TestInterface2"), "world");
 }
 
+TEST_F(object_test, test_invoke_event_filter_can_intercept_before_method_routing)
+{
+    int filter_hits = 0;
+
+    obj.install_event_filter([&](mc::core::object* source, mc::event& e) {
+        EXPECT_EQ(source, nullptr);
+
+        auto* invoke_event = dynamic_cast<mc::engine::method_invoke_event*>(&e);
+        EXPECT_NE(invoke_event, nullptr);
+        if (invoke_event == nullptr) {
+            return false;
+        }
+
+        EXPECT_EQ(invoke_event->method_name(), "Add");
+        ++filter_hits;
+        invoke_event->set_result(999);
+        return true;
+    });
+
+    auto result = obj_base.invoke("Add", {100});
+
+    EXPECT_EQ(filter_hits, 1);
+    EXPECT_EQ(result, 999);
+    EXPECT_EQ(obj.m_iface1.m_value, 0);
+}
+
+TEST_F(object_test, test_invoke_event_filter_can_observe_and_fall_back_to_existing_routing)
+{
+    int filter_hits = 0;
+
+    obj.install_event_filter([&](mc::core::object*, mc::event& e) {
+        auto* invoke_event = dynamic_cast<mc::engine::method_invoke_event*>(&e);
+        if (invoke_event != nullptr && invoke_event->method_name() == "Add") {
+            ++filter_hits;
+        }
+        return false;
+    });
+
+    auto result = obj_base.invoke("Add", {100});
+
+    EXPECT_EQ(filter_hits, 1);
+    EXPECT_EQ(result, 100);
+    EXPECT_EQ(obj.m_iface1.m_value, 100);
+}
+
 TEST_F(object_test, test_signal_connect)
 {
     int old_value = 0;

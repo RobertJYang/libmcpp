@@ -270,6 +270,56 @@ TEST_F(engine_test, test_property_changed_sig_use_abstract_object)
     EXPECT_EQ(values, expected);
 }
 
+TEST_F(engine_test, test_property_changed_event_visible_to_parent_filter)
+{
+    auto parent = mc::make_shared<test_object>();
+    auto child  = mc::make_shared<test_object>();
+    child->set_parent(parent.get());
+
+    int         filter_hits = 0;
+    std::string property_name;
+    mc::variant property_value;
+
+    parent->install_event_filter([&](mc::core::object* source, mc::event& e) {
+        EXPECT_EQ(source, child.get());
+
+        auto* property_event = dynamic_cast<mc::engine::property_changed_event*>(&e);
+        EXPECT_NE(property_event, nullptr);
+        if (property_event == nullptr) {
+            return false;
+        }
+
+        ++filter_hits;
+        property_name  = property_event->property().get_name();
+        property_value = property_event->value();
+        return false;
+    });
+
+    child->m_iface_1.m_i32.set_value(42);
+
+    EXPECT_EQ(filter_hits, 1);
+    EXPECT_EQ(property_name, "i32");
+    EXPECT_EQ(property_value, 42);
+}
+
+TEST_F(engine_test, test_property_changed_event_owns_value_payload)
+{
+    auto obj = test_object::create();
+
+    mc::variant last_value;
+    mc::variant emitted_value(42);
+
+    obj->property_changed().connect([&](const mc::variant& value, const auto&) {
+        last_value = value;
+    });
+
+    mc::engine::property_changed_event event(emitted_value, obj->m_iface_1.m_i32);
+    emitted_value = 7;
+    obj->post_event(event);
+
+    EXPECT_EQ(last_value, 42);
+}
+
 TEST_F(engine_test, test_object_reflect)
 {
     auto obj = test_object::create();

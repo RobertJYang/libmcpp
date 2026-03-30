@@ -10,6 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include <mc/engine/event.h>
 #include <mc/engine/property.h>
 
 namespace mc::engine {
@@ -26,7 +27,8 @@ void detail::interface_observer::notify(const mc::variant& value, const property
         return;
     }
 
-    object->notify_property_changed(value, prop);
+    property_changed_event event(value, prop);
+    object->post_event(event);
 }
 
 void detail::interface_observer::notify_update_shm(const mc::variant& value, const property_base& prop)

@@ -14,8 +14,11 @@
 
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <future>
+#include <mutex>
 #include <thread>
+#include <vector>
 
 #include <mc/core/object.h>
 #include <mc/string.h>
@@ -178,6 +181,467 @@ TEST(SignalSlotTest, EmptySignal)
     // 断开连接
     conn.disconnect();
     EXPECT_TRUE(sig.empty());
+}
+
+TEST(SignalSlotTest, SlotsAreInvokedByPriority)
+{
+    mc::signal<void()> sig("priority_signal");
+    std::vector<int>   order;
+
+    sig.connect([&order]() {
+        order.push_back(2);
+    });
+    sig.connect([&order]() {
+        order.push_back(3);
+    }, mc::signal_priority::low);
+    sig.connect([&order]() {
+        order.push_back(1);
+    }, mc::signal_priority::critical);
+
+    sig();
+
+    EXPECT_EQ((std::vector<int>{1, 2, 3}), order);
+}
+
+TEST(SignalSlotTest, ScopedConnectionDisconnectsOnScopeExit)
+{
+    mc::signal<void(int)> sig("scoped_connection_signal");
+    int                   value = 0;
+
+    {
+        mc::scoped_connection conn(sig.connect([&value](int v) {
+            value = v;
+        }));
+
+        sig(42);
+        EXPECT_EQ(42, value);
+    }
+
+    sig(100);
+    EXPECT_EQ(42, value);
+}
+
+TEST(SignalSlotTest, RecursiveEmitThrowsSignalRecursionException)
+{
+    mc::signal<void()> sig("recursive_signal");
+
+    sig.connect([&sig]() {
+        sig();
+    });
+
+    EXPECT_THROW(sig(), mc::signal_recursion_exception);
+}
+
+TEST(SignalSlotTest, CurrentSignalCallStackIsVisibleInsideSlot)
+{
+    mc::signal<void()> sig("stack_signal");
+    bool               checked = false;
+
+    sig.connect([&]() {
+        auto stack = mc::current_signal_call_stack();
+        ASSERT_EQ(1u, stack.size());
+        EXPECT_EQ(&sig, stack[0].signal_addr);
+        ASSERT_NE(nullptr, stack[0].signal_name);
+        EXPECT_STREQ("stack_signal", stack[0].signal_name);
+        EXPECT_EQ(1u, mc::current_signal_depth());
+        checked = true;
+    });
+
+    sig();
+
+    EXPECT_TRUE(checked);
+    EXPECT_EQ(0u, mc::current_signal_depth());
+    EXPECT_TRUE(mc::current_signal_call_stack().empty());
+}
+
+TEST(SignalSlotTest, ConcurrentEmitOnSameSignalIsSafe)
+{
+    mc::signal<void()> sig("concurrent_emit_signal");
+    std::atomic<int>   count{0};
+
+    sig.connect([&count]() {
+        count.fetch_add(1, std::memory_order_relaxed);
+    });
+
+    constexpr int emit_thread_count      = 4;
+    constexpr int emits_per_thread_count = 200;
+
+    std::vector<std::thread> threads;
+    threads.reserve(emit_thread_count);
+    for (int index = 0; index < emit_thread_count; ++index) {
+        threads.emplace_back([&sig]() {
+            for (int emit_index = 0; emit_index < emits_per_thread_count; ++emit_index) {
+                sig();
+            }
+        });
+    }
+
+    for (auto& thread : threads) {
+        thread.join();
+    }
+
+    EXPECT_EQ(emit_thread_count * emits_per_thread_count, count.load(std::memory_order_relaxed));
+}
+
+TEST(SignalSlotTest, ConnectDuringEmitDoesNotAffectCurrentSnapshot)
+{
+    mc::signal<void()>       sig("connect_during_emit_signal");
+    std::mutex               mutex;
+    std::condition_variable  cv;
+    bool                     entered     = false;
+    bool                     allow_exit  = false;
+    bool                     should_wait = true;
+    std::atomic<int>         existing_count{0};
+    std::atomic<int>         late_count{0};
+
+    sig.connect([&]() {
+        existing_count.fetch_add(1, std::memory_order_relaxed);
+
+        std::unique_lock<std::mutex> lock(mutex);
+        entered = true;
+        cv.notify_one();
+        if (should_wait) {
+            cv.wait(lock, [&allow_exit]() {
+                return allow_exit;
+            });
+            should_wait = false;
+        }
+    });
+
+    std::thread emit_thread([&sig]() {
+        sig();
+    });
+
+    {
+        std::unique_lock<std::mutex> lock(mutex);
+        cv.wait(lock, [&entered]() {
+            return entered;
+        });
+    }
+
+    sig.connect([&]() {
+        late_count.fetch_add(1, std::memory_order_relaxed);
+    });
+
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        allow_exit = true;
+    }
+    cv.notify_one();
+    emit_thread.join();
+
+    EXPECT_EQ(1, existing_count.load(std::memory_order_relaxed));
+    EXPECT_EQ(0, late_count.load(std::memory_order_relaxed));
+
+    sig();
+
+    EXPECT_EQ(2, existing_count.load(std::memory_order_relaxed));
+    EXPECT_EQ(1, late_count.load(std::memory_order_relaxed));
+}
+
+TEST(SignalSlotTest, DisconnectDuringEmitSkipsLaterSlot)
+{
+    mc::signal<void()>       sig("disconnect_during_emit_signal");
+    std::mutex               mutex;
+    std::condition_variable  cv;
+    bool                     entered    = false;
+    bool                     allow_exit = false;
+    bool                     should_wait = true;
+    std::atomic<int>         first_count{0};
+    std::atomic<int>         second_count{0};
+
+    sig.connect([&]() {
+        first_count.fetch_add(1, std::memory_order_relaxed);
+
+        std::unique_lock<std::mutex> lock(mutex);
+        entered = true;
+        cv.notify_one();
+        if (should_wait) {
+            cv.wait(lock, [&allow_exit]() {
+                return allow_exit;
+            });
+            should_wait = false;
+        }
+    });
+
+    auto second_conn = sig.connect([&]() {
+        second_count.fetch_add(1, std::memory_order_relaxed);
+    });
+
+    std::thread emit_thread([&sig]() {
+        sig();
+    });
+
+    {
+        std::unique_lock<std::mutex> lock(mutex);
+        cv.wait(lock, [&entered]() {
+            return entered;
+        });
+    }
+
+    second_conn.disconnect();
+
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        allow_exit = true;
+    }
+    cv.notify_one();
+    emit_thread.join();
+
+    EXPECT_EQ(1, first_count.load(std::memory_order_relaxed));
+    EXPECT_EQ(0, second_count.load(std::memory_order_relaxed));
+
+    sig();
+
+    EXPECT_EQ(2, first_count.load(std::memory_order_relaxed));
+    EXPECT_EQ(0, second_count.load(std::memory_order_relaxed));
+}
+
+TEST(SignalSlotTest, DisconnectAllDuringEmitSkipsRemainingSlots)
+{
+    mc::signal<void()>       sig("disconnect_all_during_emit_signal");
+    std::mutex               mutex;
+    std::condition_variable  cv;
+    bool                     entered     = false;
+    bool                     allow_exit  = false;
+    bool                     should_wait = true;
+    std::atomic<int>         first_count{0};
+    std::atomic<int>         second_count{0};
+    std::atomic<int>         third_count{0};
+
+    sig.connect([&]() {
+        first_count.fetch_add(1, std::memory_order_relaxed);
+
+        std::unique_lock<std::mutex> lock(mutex);
+        entered = true;
+        cv.notify_one();
+        if (should_wait) {
+            cv.wait(lock, [&allow_exit]() {
+                return allow_exit;
+            });
+            should_wait = false;
+        }
+    });
+    sig.connect([&]() {
+        second_count.fetch_add(1, std::memory_order_relaxed);
+    });
+    sig.connect([&]() {
+        third_count.fetch_add(1, std::memory_order_relaxed);
+    });
+
+    std::thread emit_thread([&sig]() {
+        sig();
+    });
+
+    {
+        std::unique_lock<std::mutex> lock(mutex);
+        cv.wait(lock, [&entered]() {
+            return entered;
+        });
+    }
+
+    sig.disconnect_all();
+
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        allow_exit = true;
+    }
+    cv.notify_one();
+    emit_thread.join();
+
+    EXPECT_EQ(1, first_count.load(std::memory_order_relaxed));
+    EXPECT_EQ(0, second_count.load(std::memory_order_relaxed));
+    EXPECT_EQ(0, third_count.load(std::memory_order_relaxed));
+
+    sig();
+
+    EXPECT_EQ(1, first_count.load(std::memory_order_relaxed));
+    EXPECT_EQ(0, second_count.load(std::memory_order_relaxed));
+    EXPECT_EQ(0, third_count.load(std::memory_order_relaxed));
+}
+
+TEST(SignalSlotTest, ConcurrentConnectsAreVisibleToLaterEmit)
+{
+    mc::signal<void()> sig("concurrent_connect_signal");
+    std::atomic<int>   count{0};
+
+    constexpr int connect_thread_count      = 4;
+    constexpr int connects_per_thread_count = 50;
+
+    std::vector<std::thread> threads;
+    threads.reserve(connect_thread_count);
+    for (int thread_index = 0; thread_index < connect_thread_count; ++thread_index) {
+        threads.emplace_back([&sig, &count]() {
+            for (int connect_index = 0; connect_index < connects_per_thread_count; ++connect_index) {
+                sig.connect([&count]() {
+                    count.fetch_add(1, std::memory_order_relaxed);
+                });
+            }
+        });
+    }
+
+    for (auto& thread : threads) {
+        thread.join();
+    }
+
+    EXPECT_EQ(connect_thread_count * connects_per_thread_count, static_cast<int>(sig.slot_count()));
+
+    sig();
+
+    EXPECT_EQ(connect_thread_count * connects_per_thread_count, count.load(std::memory_order_relaxed));
+}
+
+TEST(SignalSlotTest, ConcurrentDisconnectsPreventLaterEmit)
+{
+    mc::signal<void()>            sig("concurrent_disconnect_signal");
+    std::atomic<int>              count{0};
+    std::vector<mc::connection>   connections;
+
+    constexpr int connection_count = 200;
+    connections.reserve(connection_count);
+    for (int index = 0; index < connection_count; ++index) {
+        connections.push_back(sig.connect([&count]() {
+            count.fetch_add(1, std::memory_order_relaxed);
+        }));
+    }
+
+    constexpr int disconnect_thread_count = 4;
+    std::vector<std::thread> threads;
+    threads.reserve(disconnect_thread_count);
+    for (int thread_index = 0; thread_index < disconnect_thread_count; ++thread_index) {
+        threads.emplace_back([thread_index, &connections]() {
+            for (std::size_t index = static_cast<std::size_t>(thread_index); index < connections.size();
+                 index += disconnect_thread_count) {
+                connections[index].disconnect();
+            }
+        });
+    }
+
+    for (auto& thread : threads) {
+        thread.join();
+    }
+
+    EXPECT_TRUE(sig.empty());
+    EXPECT_EQ(0u, sig.slot_count());
+
+    sig();
+
+    EXPECT_EQ(0, count.load(std::memory_order_relaxed));
+}
+
+TEST(SignalSlotTest, RecursionGuardIsThreadLocalAcrossThreads)
+{
+    mc::signal<void()>      sig("thread_local_recursion_guard_signal");
+    std::mutex              mutex;
+    std::condition_variable cv;
+    bool                    first_entered = false;
+    bool                    release_first = false;
+    bool                    should_block  = true;
+    std::atomic<int>        count{0};
+    std::exception_ptr      second_error;
+
+    sig.connect([&]() {
+        count.fetch_add(1, std::memory_order_relaxed);
+
+        std::unique_lock<std::mutex> lock(mutex);
+        if (should_block) {
+            should_block  = false;
+            first_entered = true;
+            cv.notify_one();
+            cv.wait(lock, [&release_first]() {
+                return release_first;
+            });
+        }
+    });
+
+    std::thread first_thread([&sig]() {
+        sig();
+    });
+
+    {
+        std::unique_lock<std::mutex> lock(mutex);
+        cv.wait(lock, [&first_entered]() {
+            return first_entered;
+        });
+    }
+
+    std::thread second_thread([&]() {
+        try {
+            sig();
+        } catch (...) {
+            second_error = std::current_exception();
+        }
+    });
+
+    second_thread.join();
+
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        release_first = true;
+    }
+    cv.notify_one();
+    first_thread.join();
+
+    EXPECT_EQ(nullptr, second_error);
+    EXPECT_EQ(2, count.load(std::memory_order_relaxed));
+}
+
+TEST(SignalSlotTest, ConcurrentConnectDisconnectEmitStressMaintainsUsability)
+{
+    mc::signal<void()> sig("connect_disconnect_emit_stress_signal");
+    std::atomic<bool>  stop{false};
+    std::atomic<int>   stress_count{0};
+
+    auto stable_conn = sig.connect([&stress_count]() {
+        stress_count.fetch_add(1, std::memory_order_relaxed);
+    });
+
+    constexpr int emit_thread_count    = 3;
+    constexpr int mutator_thread_count = 2;
+    constexpr int iterations           = 400;
+
+    std::vector<std::thread> threads;
+    threads.reserve(emit_thread_count + mutator_thread_count);
+
+    for (int thread_index = 0; thread_index < emit_thread_count; ++thread_index) {
+        threads.emplace_back([&]() {
+            for (int iteration = 0; iteration < iterations; ++iteration) {
+                sig();
+            }
+        });
+    }
+
+    for (int thread_index = 0; thread_index < mutator_thread_count; ++thread_index) {
+        threads.emplace_back([&]() {
+            for (int iteration = 0; iteration < iterations; ++iteration) {
+                auto temp = sig.connect([&stress_count]() {
+                    stress_count.fetch_add(1, std::memory_order_relaxed);
+                });
+                if ((iteration % 2) == 0) {
+                    sig();
+                }
+                temp.disconnect();
+            }
+        });
+    }
+
+    for (auto& thread : threads) {
+        thread.join();
+    }
+
+    EXPECT_TRUE(stable_conn.connected());
+
+    sig.disconnect_all();
+    EXPECT_TRUE(sig.empty());
+
+    std::atomic<int> final_count{0};
+    sig.connect([&final_count]() {
+        final_count.fetch_add(1, std::memory_order_relaxed);
+    });
+
+    sig();
+
+    EXPECT_EQ(1, final_count.load(std::memory_order_relaxed));
 }
 
 TEST(SignalSlotTest, ObjectBindExecutorDispatchesOnExecutor)

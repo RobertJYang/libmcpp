@@ -68,6 +68,7 @@ enum exception_code {
     insufficient_privilege_exception_code    = 31, // 权限不足异常
     password_changed_required_exception_code = 32, // 需要修改密码异常
     error_engine_exception_code              = 33, // 错误引擎异常
+    signal_recursion_exception_code          = 34, // 信号递归异常
 };
 
 /**
@@ -373,9 +374,9 @@ public:
     virtual void dynamic_rethrow_exception() const override;
 
 private:
-    mc::dict    args_;
+    mc::dict   args_;
     mc::string error_json_;             // JSON序列化的error对象
-    bool        has_json_error_ = false; // 标识是否包含JSON error
+    bool       has_json_error_ = false; // 标识是否包含JSON error
 };
 
 // 标准异常类定义

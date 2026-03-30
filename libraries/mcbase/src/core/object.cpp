@@ -10,8 +10,8 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <mc/core/object.h>
 #include <mc/core/connection_manager.h>
+#include <mc/core/object.h>
 #include <mc/sync/mutex_box.h>
 #include <mc/sync/shared_mutex.h>
 
@@ -20,15 +20,25 @@
 
 namespace mc::core {
 
+namespace {
+
+bool should_continue_propagation(const mc::event& e) noexcept
+{
+    return !e.is_accepted() || e.should_propagate();
+}
+
+} // namespace
+
 /* ------------------------ object_data & object_impl ----------------------- */
 
 struct object_data {
-    mc::string        name;           // 对象名称
-    object_weak_ptr    parent;         // 父对象指针
-    child_list         children;       // 子对象列表
-    bool               is_deleted;     // 标记对象是否已被删除
-    connection_manager connection_mgr; // 连接管理器
-    std::optional<mc::any_executor> executor;       // 绑定的执行器
+    mc::string                           name;           // 对象名称
+    object_weak_ptr                      parent;         // 父对象指针
+    child_list                           children;       // 子对象列表
+    bool                                 is_deleted;     // 标记对象是否已被删除
+    connection_manager                   connection_mgr; // 连接管理器
+    std::optional<mc::any_executor>      executor;       // 绑定的执行器
+    std::shared_ptr<event_filter_signal> event_filters;  // 事件过滤器
 
     object_data() : parent(nullptr), is_deleted(false)
     {}
@@ -65,16 +75,18 @@ public:
     object_impl& operator=(object_impl&& other) = delete;
 
     // 线程安全的数据访问方法
-    mc::string_view get_name() const;
-    void             set_name(mc::string_view name);
-    object_ptr       get_parent() const;
-    void             set_parent(object* parent);
-    child_list       get_children() const;
-    object_ptr       find_child(mc::string_view name) const;
-    void             add_child(object* child);
-    void             remove_child(object* child);
-    void             set_executor(mc::any_executor executor);
-    mc::any_executor get_executor() const;
+    mc::string_view                      get_name() const;
+    void                                 set_name(mc::string_view name);
+    object_ptr                           get_parent() const;
+    void                                 set_parent(object* parent);
+    child_list                           get_children() const;
+    object_ptr                           find_child(mc::string_view name) const;
+    void                                 add_child(object* child);
+    void                                 remove_child(object* child);
+    void                                 set_executor(mc::any_executor executor);
+    mc::any_executor                     get_executor() const;
+    mc::connection                       install_event_filter(event_filter_handler filter, int priority);
+    std::shared_ptr<event_filter_signal> get_event_filters() const;
 
     // 清理方法，返回需要清理的子对象列表和父对象
     std::pair<child_list, object_ptr> cleanup_data();
@@ -250,6 +262,30 @@ mc::any_executor object_impl::get_executor() const
     });
 }
 
+mc::connection object_impl::install_event_filter(event_filter_handler filter, int priority)
+{
+    auto data = m_data.wlock();
+    if (data->event_filters == nullptr) {
+        data->event_filters = std::make_shared<event_filter_signal>();
+    }
+
+    auto filters = data->event_filters;
+    return filters->connect([filter = std::move(filter)](object* child, mc::event& e) mutable {
+        if (!should_continue_propagation(e)) {
+            return;
+        }
+
+        if (filter(child, e)) {
+            e.accept();
+        }
+    }, priority);
+}
+
+std::shared_ptr<event_filter_signal> object_impl::get_event_filters() const
+{
+    return m_data.rlock()->event_filters;
+}
+
 /* ------------------------ object ----------------------- */
 object::object()
 {
@@ -294,8 +330,8 @@ void object::cleanup_on_destroy() noexcept
     }
 }
 
-object::object(const object& other)
-    : mc::core::object_base(other) {
+object::object(const object& other) : mc::core::object_base(other)
+{
     auto* impl = other.m_object_impl.load(std::memory_order_acquire);
     if (impl) {
         m_object_impl.store(new object_impl(*impl), std::memory_order_release);
@@ -386,6 +422,46 @@ object_ptr object::find_child(mc::string_view name) const
     return impl->find_child(name);
 }
 
+void object::post_event(mc::event& e)
+{
+    dispatch_event_filters(nullptr, e);
+    if (!should_continue_propagation(e)) {
+        return;
+    }
+
+    on_event(e);
+    if (!should_continue_propagation(e)) {
+        return;
+    }
+
+    auto parent = get_parent();
+    if (!parent) {
+        return;
+    }
+
+    parent->propagate_event_from_child(this, e);
+}
+
+void object::send_event_to_children(mc::event& e)
+{
+    auto children = get_children();
+    for (const auto& child : children) {
+        if (!child || !should_continue_propagation(e)) {
+            break;
+        }
+
+        child->on_event(e);
+        if (should_continue_propagation(e)) {
+            child->send_event_to_children(e);
+        }
+    }
+}
+
+mc::connection object::install_event_filter(event_filter_handler filter, int priority)
+{
+    return ensure_impl().install_event_filter(std::move(filter), priority);
+}
+
 void object::add_child(object* child)
 {
     ensure_impl().add_child(child);
@@ -398,6 +474,18 @@ void object::remove_child(object* child)
         return;
     }
     impl->remove_child(child);
+}
+
+void object::on_event(mc::event& e)
+{
+    MC_UNUSED(e);
+}
+
+bool object::event_filter(object* child, mc::event& e)
+{
+    MC_UNUSED(child);
+    MC_UNUSED(e);
+    return false;
 }
 
 object_impl& object::ensure_impl() const
@@ -451,6 +539,47 @@ object::executor_type object::get_executor() const
 void object::set_executor(executor_type executor)
 {
     ensure_impl().set_executor(std::move(executor));
+}
+
+bool object::dispatch_event_filters(object* child, mc::event& e)
+{
+    auto* impl = m_object_impl.load(std::memory_order_acquire);
+    if (impl != nullptr) {
+        auto filters = impl->get_event_filters();
+        if (filters != nullptr) {
+            (*filters)(child, e);
+        }
+    }
+
+    if (!should_continue_propagation(e)) {
+        return true;
+    }
+
+    if (child != nullptr && event_filter(child, e)) {
+        e.accept();
+    }
+
+    return !should_continue_propagation(e);
+}
+
+void object::propagate_event_from_child(object* child, mc::event& e)
+{
+    dispatch_event_filters(child, e);
+    if (!should_continue_propagation(e)) {
+        return;
+    }
+
+    on_event(e);
+    if (!should_continue_propagation(e)) {
+        return;
+    }
+
+    auto parent = get_parent();
+    if (!parent) {
+        return;
+    }
+
+    parent->propagate_event_from_child(this, e);
 }
 
 object_ptr object::shared_from_this()

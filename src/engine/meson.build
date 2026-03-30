@@ -4,6 +4,7 @@ engine_src_files = files(
   'call_stack.cpp',
   'context.cpp',
   'engine.cpp',
+  'event.cpp',
   'interface.cpp',
   'metadata.cpp',
   'object.cpp',
