@@ -393,6 +393,34 @@ TEST_F(ThreadSafeObjectTest, ConnectionModeDispatchUsesObjectExecutor)
     EXPECT_NE(callback_thread, emit_thread);
 }
 
+TEST_F(ThreadSafeObjectTest, ConnectionModeQueuedNeverRunsInlineEvenOnSameThread)
+{
+    // queued 模式：即使从对象所在的 executor 线程发出信号，槽也必须 post 而非内联执行
+    mc::runtime::thread_pool pool(1, "thread_safe_object_queued_mode");
+    pool.start();
+    root_object->set_executor(mc::runtime::any_executor(pool.get_executor()));
+
+    mc::signal<void()> sig;
+    std::promise<void> done;
+    auto               future     = done.get_future();
+    std::atomic<bool>  after_emit = false;
+
+    root_object->connect(sig, [&]() {
+        // 若 queued 正确实现（post 而非 dispatch），此处 after_emit 必须已为 true
+        EXPECT_TRUE(after_emit.load());
+        done.set_value();
+    }, mc::core::connection_mode::queued);
+
+    // 从 executor 线程内部发出信号，再设置 after_emit
+    // dispatch 模式会内联执行（after_emit 还是 false），queued 模式会延迟到当前任务结束
+    pool.get_executor().post([&]() {
+        sig();
+        after_emit.store(true);
+    });
+
+    EXPECT_EQ(future.wait_for(std::chrono::seconds(2)), std::future_status::ready);
+}
+
 TEST_F(ThreadSafeObjectTest, ConnectWithTargetExecutorPostsToSpecifiedExecutor)
 {
     mc::runtime::thread_pool pool(1, "thread_safe_object_target_executor");
