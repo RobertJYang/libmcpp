@@ -20,7 +20,7 @@
 #include <thread>
 #include <vector>
 
-#include <mc/core/object.h>
+#include <mc/object.h>
 #include <mc/string.h>
 
 // 不使用using namespace mc;，避免命名冲突
@@ -144,6 +144,92 @@ TEST(SignalSlotTest, ConnectionManager)
     // 再次触发信号，值不应该改变
     sig(100);
     EXPECT_EQ(42, value);
+}
+
+TEST(SignalSlotTest, ConnectionManagerRemovesDisconnectedConnectionAutomatically)
+{
+    mc::signal<void()>     sig;
+    mc::connection_manager manager;
+    auto                   conn = sig.connect([]() {
+    });
+
+    manager.add(conn);
+    EXPECT_EQ(1u, manager.size());
+
+    conn.disconnect();
+    EXPECT_EQ(0u, manager.size());
+    EXPECT_TRUE(manager.empty());
+}
+
+TEST(SignalSlotTest, ConnectionManagerMoveTransfersOwnership)
+{
+    mc::signal<void(int)> sig;
+    int                   value = 0;
+
+    {
+        mc::connection_manager manager;
+        auto                   conn = sig.connect([&value](int v) {
+            value = v;
+        });
+
+        manager.add(conn);
+
+        mc::connection_manager moved_manager(std::move(manager));
+        sig(42);
+        EXPECT_EQ(42, value);
+    }
+
+    sig(100);
+    EXPECT_EQ(42, value);
+}
+
+TEST(SignalSlotTest, ConnectionManagerMoveAssignmentTransfersOwnership)
+{
+    mc::signal<void(int)> sig;
+    int                   value = 0;
+
+    mc::connection_manager target_manager;
+    {
+        mc::connection_manager source_manager;
+        auto                   conn = sig.connect([&value](int v) {
+            value = v;
+        });
+
+        source_manager.add(conn);
+        target_manager = std::move(source_manager);
+        sig(42);
+        EXPECT_EQ(42, value);
+    }
+
+    sig(100);
+    EXPECT_EQ(100, value);
+
+    target_manager.disconnect_all();
+    sig(200);
+    EXPECT_EQ(100, value);
+}
+
+TEST(SignalSlotTest, DisconnectReleasesSlotResourcesImmediately)
+{
+    mc::signal<void()> sig;
+
+    std::weak_ptr<int> weak_payload;
+    auto               payload = std::make_shared<int>(42);
+    weak_payload               = payload;
+
+    auto conn = sig.connect([payload]() {
+        MC_UNUSED(payload);
+    });
+
+    payload.reset();
+    EXPECT_FALSE(weak_payload.expired());
+
+    conn.disconnect();
+    conn = mc::connection();
+
+    EXPECT_TRUE(sig.empty());
+    EXPECT_EQ(0u, sig.slot_count());
+    EXPECT_TRUE(weak_payload.expired());
 }
 
 // 测试多参数信号
@@ -285,14 +371,14 @@ TEST(SignalSlotTest, ConcurrentEmitOnSameSignalIsSafe)
 
 TEST(SignalSlotTest, ConnectDuringEmitDoesNotAffectCurrentSnapshot)
 {
-    mc::signal<void()>       sig("connect_during_emit_signal");
-    std::mutex               mutex;
-    std::condition_variable  cv;
-    bool                     entered     = false;
-    bool                     allow_exit  = false;
-    bool                     should_wait = true;
-    std::atomic<int>         existing_count{0};
-    std::atomic<int>         late_count{0};
+    mc::signal<void()>      sig("connect_during_emit_signal");
+    std::mutex              mutex;
+    std::condition_variable cv;
+    bool                    entered     = false;
+    bool                    allow_exit  = false;
+    bool                    should_wait = true;
+    std::atomic<int>        existing_count{0};
+    std::atomic<int>        late_count{0};
 
     sig.connect([&]() {
         existing_count.fetch_add(1, std::memory_order_relaxed);
@@ -341,14 +427,14 @@ TEST(SignalSlotTest, ConnectDuringEmitDoesNotAffectCurrentSnapshot)
 
 TEST(SignalSlotTest, DisconnectDuringEmitSkipsLaterSlot)
 {
-    mc::signal<void()>       sig("disconnect_during_emit_signal");
-    std::mutex               mutex;
-    std::condition_variable  cv;
-    bool                     entered    = false;
-    bool                     allow_exit = false;
-    bool                     should_wait = true;
-    std::atomic<int>         first_count{0};
-    std::atomic<int>         second_count{0};
+    mc::signal<void()>      sig("disconnect_during_emit_signal");
+    std::mutex              mutex;
+    std::condition_variable cv;
+    bool                    entered     = false;
+    bool                    allow_exit  = false;
+    bool                    should_wait = true;
+    std::atomic<int>        first_count{0};
+    std::atomic<int>        second_count{0};
 
     sig.connect([&]() {
         first_count.fetch_add(1, std::memory_order_relaxed);
@@ -399,15 +485,15 @@ TEST(SignalSlotTest, DisconnectDuringEmitSkipsLaterSlot)
 
 TEST(SignalSlotTest, DisconnectAllDuringEmitSkipsRemainingSlots)
 {
-    mc::signal<void()>       sig("disconnect_all_during_emit_signal");
-    std::mutex               mutex;
-    std::condition_variable  cv;
-    bool                     entered     = false;
-    bool                     allow_exit  = false;
-    bool                     should_wait = true;
-    std::atomic<int>         first_count{0};
-    std::atomic<int>         second_count{0};
-    std::atomic<int>         third_count{0};
+    mc::signal<void()>      sig("disconnect_all_during_emit_signal");
+    std::mutex              mutex;
+    std::condition_variable cv;
+    bool                    entered     = false;
+    bool                    allow_exit  = false;
+    bool                    should_wait = true;
+    std::atomic<int>        first_count{0};
+    std::atomic<int>        second_count{0};
+    std::atomic<int>        third_count{0};
 
     sig.connect([&]() {
         first_count.fetch_add(1, std::memory_order_relaxed);
@@ -493,9 +579,9 @@ TEST(SignalSlotTest, ConcurrentConnectsAreVisibleToLaterEmit)
 
 TEST(SignalSlotTest, ConcurrentDisconnectsPreventLaterEmit)
 {
-    mc::signal<void()>            sig("concurrent_disconnect_signal");
-    std::atomic<int>              count{0};
-    std::vector<mc::connection>   connections;
+    mc::signal<void()>          sig("concurrent_disconnect_signal");
+    std::atomic<int>            count{0};
+    std::vector<mc::connection> connections;
 
     constexpr int connection_count = 200;
     connections.reserve(connection_count);
@@ -505,7 +591,7 @@ TEST(SignalSlotTest, ConcurrentDisconnectsPreventLaterEmit)
         }));
     }
 
-    constexpr int disconnect_thread_count = 4;
+    constexpr int            disconnect_thread_count = 4;
     std::vector<std::thread> threads;
     threads.reserve(disconnect_thread_count);
     for (int thread_index = 0; thread_index < disconnect_thread_count; ++thread_index) {
@@ -654,9 +740,15 @@ TEST(SignalSlotTest, CustomMaxDepthThrowsWhenChainExceedsLimit)
     mc::signal<void()> sig_c("depth_c", 2);
 
     bool c_called = false;
-    sig_c.connect([&c_called]() { c_called = true; });
-    sig_b.connect([&sig_c]() { sig_c(); });
-    sig_a.connect([&sig_b]() { sig_b(); });
+    sig_c.connect([&c_called]() {
+        c_called = true;
+    });
+    sig_b.connect([&sig_c]() {
+        sig_c();
+    });
+    sig_a.connect([&sig_b]() {
+        sig_b();
+    });
 
     // sig_a(depth=1) -> sig_b(depth=2) -> sig_c(depth=3) -> 超出 max_depth=2 抛出
     EXPECT_THROW(sig_a(), mc::signal_recursion_exception);
@@ -671,9 +763,15 @@ TEST(SignalSlotTest, CustomMaxDepthAllowsChainWithinLimit)
     mc::signal<void()> sig_c("depth_ok_c", 3);
 
     bool c_called = false;
-    sig_c.connect([&c_called]() { c_called = true; });
-    sig_b.connect([&sig_c]() { sig_c(); });
-    sig_a.connect([&sig_b]() { sig_b(); });
+    sig_c.connect([&c_called]() {
+        c_called = true;
+    });
+    sig_b.connect([&sig_c]() {
+        sig_c();
+    });
+    sig_a.connect([&sig_b]() {
+        sig_b();
+    });
 
     EXPECT_NO_THROW(sig_a());
     EXPECT_TRUE(c_called);
@@ -685,19 +783,20 @@ TEST(SignalSlotTest, ExecutorConnectWithPriorityRespectsPriorityOrdering)
 {
     using namespace std::chrono_literals;
 
-    mc::core::object         obj;
+    mc::object               obj;
     mc::runtime::thread_pool pool(1, "executor_priority_test");
     pool.start();
     obj.set_executor(mc::runtime::any_executor(pool.get_executor()));
 
-    mc::signal<void()>  sig;
+    mc::signal<void()> sig;
     std::vector<int>   order;
     std::promise<void> done;
     auto               future = done.get_future();
 
     // high priority (数值小) 应该先执行
-    obj.connect(sig, [&order]() { order.push_back(1); }, mc::runtime::any_executor(pool.get_executor()),
-                mc::signal_priority::high);
+    obj.connect(sig, [&order]() {
+        order.push_back(1);
+    }, mc::runtime::any_executor(pool.get_executor()), mc::signal_priority::high);
     obj.connect(sig, [&order, &done]() {
         order.push_back(2);
         done.set_value();
@@ -715,7 +814,7 @@ TEST(SignalSlotTest, ObjectBindExecutorDispatchesOnExecutor)
 {
     using namespace std::chrono_literals;
 
-    mc::core::object         obj;
+    mc::object               obj;
     mc::runtime::thread_pool pool(1, "object_bind_executor_test");
     pool.start();
     obj.set_executor(mc::runtime::any_executor(pool.get_executor()));

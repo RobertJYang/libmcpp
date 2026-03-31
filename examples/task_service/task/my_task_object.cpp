@@ -19,10 +19,10 @@
 namespace test {
 uint32_t my_task_object::m_next_task_id{1};
 
-my_task_object::my_task_object(mc::core::object* parent) : mc::engine::object<my_task_object>(parent)
+my_task_object::my_task_object(mc::object* parent) : mc::engine::object<my_task_object>(parent)
 {}
 
-mc::shared_ptr<my_task_object> my_task_object::create_task(mc::core::object* parent, mc::milliseconds timeout)
+mc::shared_ptr<my_task_object> my_task_object::create_task(mc::object* parent, mc::milliseconds timeout)
 {
     auto task = mc::make_shared<my_task_object>(parent);
 
@@ -38,7 +38,7 @@ mc::shared_ptr<my_task_object> my_task_object::create_task(mc::core::object* par
     return task;
 }
 
-my_tasks_object::my_tasks_object(mc::core::object* parent) : mc::engine::object<my_tasks_object>(parent)
+my_tasks_object::my_tasks_object(mc::object* parent) : mc::engine::object<my_tasks_object>(parent)
 {}
 
 std::string_view my_tasks_object::create_task(const std::string& name)

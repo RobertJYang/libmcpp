@@ -14,10 +14,10 @@
 #define MC_DBUS_DYNAMIC_OBJECT_H
 
 #include <map>
-#include <mc/core/object.h>
 #include <mc/dict.h>
 #include <mc/engine/object.h>
 #include <mc/memory.h>
+#include <mc/object.h>
 #include <mc/reflect/metadata_info.h>
 #include <mc/sync/small_mutex.h>
 #include <mc/variant.h>
@@ -65,7 +65,7 @@ struct MC_API dynamic_signal {
     uint8_t     flags;
 };
 
-class MC_API dynamic_interface : public mc::core::object {
+class MC_API dynamic_interface : public mc::object {
 public:
     dynamic_interface(std::string_view name);
 
@@ -91,7 +91,7 @@ private:
 
 class MC_API dynamic_object : public mc::engine::object_impl {
 public:
-    dynamic_object(mc::core::object* parent = nullptr);
+    dynamic_object(mc::object* parent = nullptr);
     using mc::engine::object_impl::get_interface;
 
     mc::variant get_property(std::string_view property_name, std::string_view interface_name,

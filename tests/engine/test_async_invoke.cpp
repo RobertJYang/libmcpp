@@ -318,7 +318,7 @@ TEST_F(async_invoke_test, test_signal_with_async)
 
 TEST_F(async_invoke_test, test_async_invoke_event_filter_wraps_sync_variant_as_ready_result)
 {
-    obj.install_event_filter([&](mc::core::object*, mc::event& e) -> bool {
+    obj.install_event_filter([&](mc::object*, mc::event& e) -> bool {
         auto* invoke_event = dynamic_cast<mc::engine::method_invoke_event*>(&e);
         if (invoke_event == nullptr || invoke_event->method_name() != "AsyncMethod") {
             return false;
@@ -335,7 +335,7 @@ TEST_F(async_invoke_test, test_async_invoke_event_filter_wraps_sync_variant_as_r
 
 TEST_F(async_invoke_test, test_async_invoke_event_filter_can_return_delayed_async_result)
 {
-    obj.install_event_filter([&](mc::core::object*, mc::event& e) -> bool {
+    obj.install_event_filter([&](mc::object*, mc::event& e) -> bool {
         auto* invoke_event = dynamic_cast<mc::engine::method_invoke_event*>(&e);
         if (invoke_event == nullptr || invoke_event->method_name() != "AsyncMethod") {
             return false;
@@ -354,7 +354,7 @@ TEST_F(async_invoke_test, test_async_invoke_event_filter_can_return_delayed_asyn
 
 TEST_F(async_invoke_test, test_async_invoke_event_filter_can_return_error_async_result)
 {
-    obj.install_event_filter([&](mc::core::object*, mc::event& e) -> bool {
+    obj.install_event_filter([&](mc::object*, mc::event& e) -> bool {
         auto* invoke_event = dynamic_cast<mc::engine::method_invoke_event*>(&e);
         if (invoke_event == nullptr || invoke_event->method_name() != "AsyncMethod") {
             return false;
@@ -374,7 +374,7 @@ TEST_F(async_invoke_test, test_async_invoke_event_filter_can_return_error_async_
 TEST_F(async_invoke_test, test_async_invoke_event_filter_observe_falls_through_to_routing)
 {
     int filter_hits = 0;
-    obj.install_event_filter([&](mc::core::object*, mc::event& e) -> bool {
+    obj.install_event_filter([&](mc::object*, mc::event& e) -> bool {
         auto* invoke_event = dynamic_cast<mc::engine::method_invoke_event*>(&e);
         if (invoke_event != nullptr && invoke_event->method_name() == "AsyncMethod" && invoke_event->is_async()) {
             ++filter_hits;

@@ -13,7 +13,7 @@
 #ifndef MC_ENGINE_TIMER_H
 #define MC_ENGINE_TIMER_H
 
-#include <mc/core/object.h>
+#include <mc/object.h>
 #include <mc/time.h>
 
 namespace mc::core {

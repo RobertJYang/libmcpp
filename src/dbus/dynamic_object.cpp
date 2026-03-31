@@ -105,7 +105,7 @@ std::map<std::string, dynamic_property>& dynamic_interface::get_properties()
     return m_properties;
 }
 
-dynamic_object::dynamic_object(mc::core::object* parent) : mc::engine::object_impl(parent), m_metadata(nullptr)
+dynamic_object::dynamic_object(mc::object* parent) : mc::engine::object_impl(parent), m_metadata(nullptr)
 {}
 
 bool dynamic_object::set_property(std::string_view property_name, const mc::variant& value,

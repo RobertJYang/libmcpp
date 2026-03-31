@@ -10,22 +10,44 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <mc/core/connection_manager.h>
-#include <mc/core/object.h>
+#include <mc/object.h>
+#include <mc/runtime/runtime_strand.h>
+#include <mc/runtime/runtime_context.h>
 #include <mc/sync/mutex_box.h>
 #include <mc/sync/shared_mutex.h>
 
 #include <algorithm>
+#include <limits>
 #include <optional>
 
-namespace mc::core {
+namespace mc {
 
 namespace {
 
 bool should_continue_propagation(const mc::event& e) noexcept
 {
-    return !e.is_accepted() || e.should_propagate();
+    return !e.is_accepted();
 }
+
+uint64_t next_event_receiver_token() noexcept
+{
+    static std::atomic<uint64_t> next_token{1};
+    return next_token.fetch_add(1, std::memory_order_relaxed);
+}
+
+mc::runtime::runtime_strand make_event_lane(const mc::runtime::any_executor& executor)
+{
+    auto lane = mc::runtime::runtime_strand();
+    if (auto* pool = executor.get_bound_pool()) {
+        lane.bound_pool(pool);
+    }
+    return lane;
+}
+
+struct deferred_delete_event : mc::event {
+    deferred_delete_event() : mc::event(mc::deferred_delete_event_type)
+    {}
+};
 
 } // namespace
 
@@ -36,8 +58,11 @@ struct object_data {
     object_weak_ptr                      parent;         // 父对象指针
     child_list                           children;       // 子对象列表
     bool                                 is_deleted;     // 标记对象是否已被删除
-    connection_manager                   connection_mgr; // 连接管理器
+    mc::connection_manager               connection_mgr; // 连接管理器
     std::optional<mc::any_executor>      executor;       // 绑定的执行器
+    std::optional<mc::runtime::runtime_strand> event_lane;
+    uint64_t                             event_receiver_token{0};
+    bool                                 delete_later_queued{false};
     std::shared_ptr<event_filter_signal> event_filters;  // 事件过滤器
 
     object_data() : parent(nullptr), is_deleted(false)
@@ -66,7 +91,7 @@ struct object_data {
 
 class object_impl {
 public:
-    object_impl() = default;
+    object_impl();
 
     object_impl(const object_impl& other);
     object_impl& operator=(const object_impl& other);
@@ -85,6 +110,9 @@ public:
     void                                 remove_child(object* child);
     void                                 set_executor(mc::any_executor executor);
     mc::any_executor                     get_executor() const;
+    mc::runtime::any_executor            get_event_executor() const;
+    uint64_t                             get_event_receiver_token() const;
+    bool                                 try_mark_delete_later();
     mc::connection                       install_event_filter(event_filter_handler filter, int priority);
     std::shared_ptr<event_filter_signal> get_event_filters() const;
 
@@ -92,10 +120,7 @@ public:
     std::pair<child_list, object_ptr> cleanup_data();
 
     // 连接管理方法
-    connection_id_type add_connection(signal_type sig, mc::connection_type conn, connection_id_type id);
-    void               remove_connection(connection_id_type id);
-    size_t             remove_connections(signal_type sig);
-    void               clear_connections();
+    void add_connection(mc::connection_type conn);
 
 private:
     mc::mutex_box<object_data, mc::shared_mutex> m_data;
@@ -103,12 +128,18 @@ private:
 
 using impl_ptr = std::unique_ptr<object_impl>;
 
+object_impl::object_impl()
+{
+    m_data.wlock()->event_receiver_token = next_event_receiver_token();
+}
+
 object_impl::object_impl(const object_impl& other)
 {
     // 复制基本数据但不复制父子关系
     auto other_data = other.m_data.rlock();
     auto my_data    = m_data.wlock();
     my_data->name   = other_data->name;
+    my_data->event_receiver_token = next_event_receiver_token();
     // 注意：不复制 parent 和 children，新对象是独立的
     // 连接管理器不需要复制，每个对象应该有自己的连接
 }
@@ -221,35 +252,24 @@ std::pair<child_list, object_ptr> object_impl::cleanup_data()
         data.children.clear();
 
         // 清理所有连接
-        data.connection_mgr.clear();
+        data.connection_mgr.disconnect_all();
 
         return std::make_pair(std::move(children_to_cleanup), parent);
     });
 }
 
-connection_id_type object_impl::add_connection(signal_type sig, mc::connection_type conn, connection_id_type id)
+void object_impl::add_connection(mc::connection_type conn)
 {
-    return m_data.wlock()->connection_mgr.add_connection(sig, std::move(conn), id);
-}
-
-void object_impl::remove_connection(connection_id_type id)
-{
-    m_data.wlock()->connection_mgr.remove_connection(id);
-}
-
-size_t object_impl::remove_connections(signal_type sig)
-{
-    return m_data.wlock()->connection_mgr.remove_connections(sig);
-}
-
-void object_impl::clear_connections()
-{
-    m_data.wlock()->connection_mgr.clear();
+    m_data.wlock()->connection_mgr.add(std::move(conn));
 }
 
 void object_impl::set_executor(mc::any_executor executor)
 {
-    m_data.wlock()->executor = std::move(executor);
+    m_data.with_lock([&executor](auto& data) {
+        data.executor             = std::move(executor);
+        data.event_lane           = make_event_lane(*data.executor);
+        data.event_receiver_token = next_event_receiver_token();
+    });
 }
 
 mc::any_executor object_impl::get_executor() const
@@ -259,6 +279,52 @@ mc::any_executor object_impl::get_executor() const
             return *data.executor;
         }
         return mc::get_work_executor();
+    });
+}
+
+mc::runtime::any_executor object_impl::get_event_executor() const
+{
+    {
+        auto data = m_data.rlock();
+        if (data->event_lane.has_value()) {
+            return mc::runtime::any_executor(*data->event_lane);
+        }
+    }
+
+    auto& self = const_cast<object_impl&>(*this);
+    auto  data = self.m_data.wlock();
+    if (!data->event_lane.has_value()) {
+        auto base_executor = data->executor.has_value() ? *data->executor : mc::get_work_executor();
+        data->event_lane   = make_event_lane(base_executor);
+    }
+    return mc::runtime::any_executor(*data->event_lane);
+}
+
+uint64_t object_impl::get_event_receiver_token() const
+{
+    {
+        auto data = m_data.rlock();
+        if (data->event_receiver_token != 0) {
+            return data->event_receiver_token;
+        }
+    }
+
+    auto& self = const_cast<object_impl&>(*this);
+    auto  data = self.m_data.wlock();
+    if (data->event_receiver_token == 0) {
+        data->event_receiver_token = next_event_receiver_token();
+    }
+    return data->event_receiver_token;
+}
+
+bool object_impl::try_mark_delete_later()
+{
+    return m_data.with_lock([](auto& data) {
+        if (data.delete_later_queued) {
+            return false;
+        }
+        data.delete_later_queued = true;
+        return true;
     });
 }
 
@@ -313,6 +379,7 @@ void object::cleanup_on_destroy() noexcept
     }
 
     try {
+        mc::runtime::get_runtime_context().remove_posted_events(this);
         auto [to_cleanup, parent] = impl->cleanup_data();
 
         // 从父对象中移除自己
@@ -330,7 +397,7 @@ void object::cleanup_on_destroy() noexcept
     }
 }
 
-object::object(const object& other) : mc::core::object_base(other)
+object::object(const object& other) : mc::object_base(other)
 {
     auto* impl = other.m_object_impl.load(std::memory_order_acquire);
     if (impl) {
@@ -345,7 +412,7 @@ object& object::operator=(const object& other)
         return *this;
     }
 
-    mc::core::object_base::operator=(other);
+    mc::object_base::operator=(other);
 
     auto* other_impl = other.m_object_impl.load(std::memory_order_acquire);
     if (!other_impl) {
@@ -422,39 +489,29 @@ object_ptr object::find_child(mc::string_view name) const
     return impl->find_child(name);
 }
 
-void object::post_event(mc::event& e)
+void object::send_event(mc::event& e)
 {
-    dispatch_event_filters(nullptr, e);
-    if (!should_continue_propagation(e)) {
-        return;
-    }
-
-    on_event(e);
-    if (!should_continue_propagation(e)) {
-        return;
-    }
-
-    auto parent = get_parent();
-    if (!parent) {
-        return;
-    }
-
-    parent->propagate_event_from_child(this, e);
+    mc::runtime::get_runtime_context().send_event(*this, e);
 }
 
-void object::send_event_to_children(mc::event& e)
+void object::post_event(std::unique_ptr<mc::event> e)
 {
-    auto children = get_children();
-    for (const auto& child : children) {
-        if (!child || !should_continue_propagation(e)) {
-            break;
-        }
+    mc::runtime::get_runtime_context().post_event(*this, std::move(e));
+}
 
-        child->on_event(e);
-        if (should_continue_propagation(e)) {
-            child->send_event_to_children(e);
-        }
+void object::delete_later()
+{
+    auto* impl = m_object_impl.load(std::memory_order_acquire);
+    if (impl == nullptr) {
+        return;
     }
+
+    if (!impl->try_mark_delete_later()) {
+        return;
+    }
+
+    mc::runtime::get_runtime_context().post_event(*this, std::make_unique<deferred_delete_event>(),
+                                                  std::numeric_limits<int>::min());
 }
 
 mc::connection object::install_event_filter(event_filter_handler filter, int priority)
@@ -504,27 +561,9 @@ object_impl& object::ensure_impl() const
     return *impl;
 }
 
-connection_id_type object::add_connection(signal_type sig, mc::connection_type conn, connection_id_type id)
+void object::track_connection(mc::connection_type conn)
 {
-    return ensure_impl().add_connection(sig, std::move(conn), id);
-}
-
-void object::disconnect(connection_id_type id) const
-{
-    auto* impl = m_object_impl.load(std::memory_order_acquire);
-    if (!impl) {
-        return;
-    }
-    impl->remove_connection(id);
-}
-
-void object::disconnect_all(signal_type sig)
-{
-    auto* impl = m_object_impl.load(std::memory_order_acquire);
-    if (!impl) {
-        return;
-    }
-    impl->remove_connections(&sig);
+    ensure_impl().add_connection(std::move(conn));
 }
 
 object::executor_type object::get_executor() const
@@ -539,6 +578,16 @@ object::executor_type object::get_executor() const
 void object::set_executor(executor_type executor)
 {
     ensure_impl().set_executor(std::move(executor));
+}
+
+mc::runtime::any_executor object::get_event_executor() const
+{
+    return ensure_impl().get_event_executor();
+}
+
+uint64_t object::get_event_receiver_token() const
+{
+    return ensure_impl().get_event_receiver_token();
 }
 
 bool object::dispatch_event_filters(object* child, mc::event& e)
@@ -584,7 +633,7 @@ void object::propagate_event_from_child(object* child, mc::event& e)
 
 object_ptr object::shared_from_this()
 {
-    return mc::core::object_base::shared_from_this().template static_pointer_cast<object>();
+    return mc::object_base::shared_from_this().template static_pointer_cast<object>();
 }
 
 mc::weak_ptr<object> object::weak_from_this()
@@ -597,4 +646,4 @@ mc::weak_ptr<const object> object::weak_from_this() const
     return mc::weak_ptr<const object>(this);
 }
 
-} // namespace mc::core
+} // namespace mc

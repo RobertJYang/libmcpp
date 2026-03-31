@@ -10,14 +10,14 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef MC_CORE_OBJECT_BASE_H
-#define MC_CORE_OBJECT_BASE_H
+#ifndef MC_OBJECT_BASE_H
+#define MC_OBJECT_BASE_H
 
 #include <mc/common.h>
 #include <mc/memory.h>
-#include <mc/runtime.h> // 需要 any_executor
+#include <mc/runtime.h>
 
-namespace mc::core {
+namespace mc {
 
 using object_id_type = uint64_t;
 
@@ -64,6 +64,6 @@ protected:
     object_id_type m_object_id{0};
 };
 
-} // namespace mc::core
+} // namespace mc
 
-#endif // MC_CORE_OBJECT_BASE_H
+#endif // MC_OBJECT_BASE_H

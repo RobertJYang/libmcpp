@@ -12,6 +12,7 @@ subdir('db')
 subdir('futures')
 subdir('im')
 subdir('io')
+subdir('runtime')
 
 # 测试源文件列表（不包括 main.cpp，因为主项目会有自己的 main）
 mcbase_test_sources = [
@@ -21,8 +22,6 @@ mcbase_test_sources = [
   'test_future_public_header.cpp',
   'test_json.cpp',
   'test_json_public_header.cpp',
-  'test_runtime_io.cpp',
-  'test_runtime_public_header.cpp',
   'test_time.cpp',
   'test_error.cpp',
   'test_filesystem.cpp',
@@ -41,6 +40,7 @@ mcbase_test_sources = [
   test_variant_files,
   test_db_files,
   test_io_files,
+  test_runtime_files,
 ]
 
 # 构建 mcbase 测试静态库（.a 文件）

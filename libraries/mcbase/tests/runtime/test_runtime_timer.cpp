@@ -24,9 +24,9 @@ using namespace std::chrono_literals;
 
 namespace {
 
-class runtime_io_test : public mc::test::TestWithRuntime {};
+class runtime_timer_test : public mc::test::TestWithRuntime {};
 
-TEST_F(runtime_io_test, steady_timer_async_wait)
+TEST_F(runtime_timer_test, steady_timer_async_wait)
 {
     std::promise<void> done;
     std::atomic<bool>  fired{false};
@@ -44,7 +44,7 @@ TEST_F(runtime_io_test, steady_timer_async_wait)
     EXPECT_TRUE(fired.load(std::memory_order_acquire));
 }
 
-TEST_F(runtime_io_test, steady_timer_async_wait_accepts_move_only_handler)
+TEST_F(runtime_timer_test, steady_timer_async_wait_accepts_move_only_handler)
 {
     auto done = std::make_unique<std::promise<void>>();
     auto wait = done->get_future();

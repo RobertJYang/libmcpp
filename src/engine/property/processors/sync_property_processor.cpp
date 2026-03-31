@@ -96,7 +96,7 @@ void sync_property_processor::setup_deferred_sync_connection(property_helper*   
     auto&       object_table     = service->get_object_table();
 
     auto slot = object_table.on_object_added.connect(
-        [this, property, full_object_name, relate_property](mc::core::object_base& base_object) {
+        [this, property, full_object_name, relate_property](mc::object_base& base_object) {
         auto& object = static_cast<mc::engine::abstract_object&>(base_object);
         if (object.get_name() == full_object_name) {
             setup_sync_property_connection(property, relate_property, object);
@@ -174,8 +174,7 @@ void sync_property_processor::setup_deferred_multi_sync_connection(property_help
     auto&       object_table     = service->get_object_table();
 
     auto slot = object_table.on_object_added.connect(
-        [this, property, full_object_name,
-         object_properties_copy = object_properties](mc::core::object_base& base_object) {
+        [this, property, full_object_name, object_properties_copy = object_properties](mc::object_base& base_object) {
         auto& object = static_cast<mc::engine::abstract_object&>(base_object);
         if (object.get_name() == full_object_name) {
             setup_multi_sync_connection(property, object, object_properties_copy);

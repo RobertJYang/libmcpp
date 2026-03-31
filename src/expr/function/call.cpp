@@ -149,6 +149,10 @@ mc::variant handle_function_call(const mc::variant& call_value, const std::strin
 // 处理属性引用
 mc::variant handle_relate_property(const mc::variant& prop_value, const std::string_view& position)
 {
+    constexpr size_t object_name_index_id =
+        mc::db::detail::tag_index_of<mc::engine::by_object_name, mc::engine::service_object_table::indices_def>::value +
+        1;
+
     auto service = func_collection::get_instance().get_service(position);
     if (service == nullptr) {
         elog("Service not found: ${object_name}", ("object_name", prop_value["object_name"].as<std::string>()));
@@ -160,15 +164,13 @@ mc::variant handle_relate_property(const mc::variant& prop_value, const std::str
 
     // 查找对象
     auto& object_table = service->get_object_table();
-    auto& idx          = object_table.get<mc::engine::by_object_name>();
-    auto  obj_it       = idx.find(object_name);
-
-    if (obj_it == idx.end()) {
+    auto  object_ptr   = object_table.find_by_index(object_name_index_id, object_name);
+    if (object_ptr == nullptr) {
         elog("Object not found: ${object_name}", ("object_name", object_name));
         return mc::variant();
     }
 
-    auto& device = const_cast<mc::engine::abstract_object&>(*obj_it);
+    auto& device = const_cast<mc::engine::abstract_object&>(*object_ptr);
     return device.get_property(prop_value["property_name"].as<std::string>());
 }
 

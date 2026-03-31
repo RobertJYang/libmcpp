@@ -13,13 +13,13 @@
 #ifndef MC_ENGINE_OBJECT_H
 #define MC_ENGINE_OBJECT_H
 
-#include <mc/core/object.h>
 #include <mc/engine/event.h>
 #include <mc/engine/interface.h>
 #include <mc/engine/metadata.h>
 #include <mc/exception.h>
 #include <mc/expr.h>
 #include <mc/log.h>
+#include <mc/object.h>
 
 namespace mc::engine {
 namespace detail {

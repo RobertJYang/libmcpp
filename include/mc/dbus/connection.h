@@ -15,10 +15,10 @@
 
 #include <dbus/dbus.h>
 
-#include <mc/core/object.h>
 #include <mc/dbus/match.h>
 #include <mc/dbus/message.h>
 #include <mc/future.h>
+#include <mc/object.h>
 #include <mc/signal/signal.h>
 #include <mc/time.h>
 

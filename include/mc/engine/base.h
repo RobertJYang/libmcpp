@@ -13,7 +13,6 @@
 #ifndef MC_ENGINE_BASE_H
 #define MC_ENGINE_BASE_H
 
-#include <mc/core/object.h>
 #include <mc/db/table.h>
 #include <mc/dbus/message.h>
 #include <mc/engine/call_stack.h>
@@ -25,6 +24,7 @@
 #include <mc/engine/utils.h>
 #include <mc/memory.h>
 #include <mc/module.h>
+#include <mc/object.h>
 #include <mc/reflect.h>
 #include <mc/reflect/signature_helper.h>
 #include <mc/result.h>
@@ -41,9 +41,8 @@ namespace mdb            = mc::db;
 using method_type_info   = mc::reflect::method_type_info;
 using property_type_info = mc::reflect::property_type_info;
 
-using message            = mc::dbus::message;
-using core_object        = mc::core::object;
-using connection_id_type = mc::core::connection_id_type;
+using message     = mc::dbus::message;
+using core_object = mc::object;
 
 class abstract_object;
 class abstract_interface;
@@ -95,14 +94,14 @@ protected:
     virtual void set_variant(const mc::variant& value) = 0;
 };
 
-class MC_API abstract_object : public mc::core::object {
+class MC_API abstract_object : public mc::object {
 public:
     MC_REFLECTABLE("mc.engine.abstract_object");
 
     using managed_objects = std::map<std::string_view, abstract_object*>;
-    using mc::core::object::connect;
+    using mc::object::connect;
 
-    abstract_object(core_object* parent = nullptr) : mc::core::object(parent)
+    abstract_object(core_object* parent = nullptr) : mc::object(parent)
     {}
 
     virtual ~abstract_object() = default;
@@ -175,9 +174,9 @@ protected:
     virtual void remove_managed_object(abstract_object* obj) = 0;
 };
 
-class MC_API abstract_interface : public mc::core::object {
+class MC_API abstract_interface : public mc::object {
 public:
-    using mc::core::object::connect;
+    using mc::object::connect;
 
     virtual ~abstract_interface() = default;
 

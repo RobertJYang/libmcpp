@@ -14,12 +14,18 @@
 #define MC_RUNTIME_RUNTIME_CONTEXT_H
 
 #include <mc/common.h>
+#include <mc/event.h>
 
 #include <mc/runtime/any_executor.h>
 #include <mc/runtime/thread_pool.h>
 
 #include <functional>
 #include <memory>
+
+namespace mc {
+class event;
+class object;
+} // namespace mc
 
 namespace mc::runtime {
 
@@ -54,6 +60,12 @@ public:
     any_executor get_executor() noexcept;
     any_executor get_io_executor() noexcept;
     any_executor get_work_executor() noexcept;
+
+    void send_event(mc::object& target, mc::event& e);
+    void post_event(mc::object& target, std::unique_ptr<mc::event> e);
+    void post_event(mc::object& target, std::unique_ptr<mc::event> e, int priority);
+    void send_posted_events(mc::object* target = nullptr, mc::event_type_id type = mc::invalid_event_type);
+    void remove_posted_events(mc::object* target = nullptr, mc::event_type_id type = mc::invalid_event_type);
 
     static any_executor create_strand();
     any_executor        create_io_strand();

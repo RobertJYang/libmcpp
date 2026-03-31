@@ -14,23 +14,23 @@
 #define MC_DATABASE_COMMON_H
 
 #include <mc/common.h>
-#include <mc/core/object_base.h>
+#include <mc/object_base.h>
 
 namespace mc::db {
 
 /**
- * @brief 数据库对象ID类型（与 mc::core::object_id_type 相同）
+ * @brief 数据库对象ID类型（与 mc::object_id_type 相同）
  */
-using db_object_id_type = mc::core::object_id_type;
+using db_object_id_type = mc::object_id_type;
 
 /**
  * @brief 数据库对象指针类型
  */
-using db_object_ptr = mc::shared_ptr<mc::core::object_base>;
+using db_object_ptr = mc::shared_ptr<mc::object_base>;
 
 // 为了向后兼容，保留旧的类型别名
 using object_id_type = db_object_id_type;
-using object_base    = mc::core::object_base;
+using object_base    = mc::object_base;
 using object_ptr     = db_object_ptr;
 
 } // namespace mc::db

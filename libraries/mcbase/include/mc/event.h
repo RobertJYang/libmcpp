@@ -63,8 +63,7 @@ public:
 
     constexpr void accept() noexcept
     {
-        m_accepted  = true;
-        m_propagate = false;
+        m_accepted = true;
     }
 
     constexpr bool is_accepted() const noexcept
@@ -72,20 +71,9 @@ public:
         return m_accepted;
     }
 
-    constexpr void set_propagate(bool propagate) noexcept
-    {
-        m_propagate = propagate;
-    }
-
-    constexpr bool should_propagate() const noexcept
-    {
-        return m_propagate;
-    }
-
 private:
     event_type_id m_type{invalid_event_type};
     bool          m_accepted{false};
-    bool          m_propagate{true};
 };
 
 constexpr bool is_builtin_event_type(event_type_id id) noexcept
@@ -112,6 +100,8 @@ constexpr event_type_id event_type(const char* name) noexcept
 {
     return builtin_event_type(name);
 }
+
+constexpr event_type_id deferred_delete_event_type = builtin_event_type("mc.deferred_delete");
 
 MC_API event_type_id register_event_type(mc::string_view name = {});
 

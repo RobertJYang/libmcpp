@@ -89,15 +89,13 @@ void engine::engine_impl::update_object(abstract_object& old_object, abstract_ob
 {
     std::lock_guard lock(m_mutex);
 
-    auto& idx = m_object_table->get<by_path>();
-    auto  it  = idx.find(old_object.get_object_path());
-    if (it == idx.end()) {
-        idx.remove(old_object.get_object_path());
+    auto it = m_object_table->find<by_path>(old_object.get_object_path());
+    if (it.is_end()) {
         m_object_table->add(object_ptr(&new_object));
         return;
     }
 
-    idx.update(*it, object_ptr(&new_object));
+    m_object_table->update(object_ptr(const_cast<abstract_object*>(&(*it))), object_ptr(&new_object));
 }
 
 engine::engine()

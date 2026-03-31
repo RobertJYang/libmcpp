@@ -19,8 +19,8 @@
 
 #include <boost/program_options.hpp>
 
-#include <mc/core/object.h>
 #include <mc/dict.h>
+#include <mc/object.h>
 
 #include <memory>
 #include <string>
@@ -53,7 +53,7 @@ struct service_config {
 /**
  * @brief 服务接口类
  */
-class abstract_service : public mc::core::object {
+class abstract_service : public mc::object {
 public:
     virtual ~abstract_service() = default;
 

@@ -10,15 +10,15 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef MC_CORE_OBJECT_H
-#define MC_CORE_OBJECT_H
+#ifndef MC_OBJECT_H
+#define MC_OBJECT_H
 
 #include <mc/common.h>
-#include <mc/core/object_base.h>
 #include <mc/event.h>
 #include <mc/exception.h>
 #include <mc/future.h>
 #include <mc/memory.h>
+#include <mc/object_base.h>
 #include <mc/runtime.h>
 #include <mc/signal/connection.h>
 #include <mc/signal/signal.h>
@@ -29,10 +29,13 @@
 #include <shared_mutex>
 #include <string_view>
 #include <tuple>
-#include <unordered_map>
 #include <vector>
 
-namespace mc::core {
+namespace mc::runtime {
+class event_dispatcher;
+}
+
+namespace mc {
 class object;
 class object_impl;
 
@@ -79,22 +82,17 @@ using object_ptr           = mc::shared_ptr<object>;
 using const_object_ptr     = mc::shared_ptr<const object>;
 using object_weak_ptr      = mc::weak_ptr<object>;
 using child_list           = std::vector<object_ptr>;
-using signal_type          = void*;
 using event_filter_handler = std::function<bool(object*, mc::event&)>;
 using event_filter_signal  = mc::signal<void(object*, mc::event&)>;
 
-using connection_id_type                           = uint32_t;
-constexpr connection_id_type INVALID_CONNECTION_ID = std::numeric_limits<connection_id_type>::max();
-
-enum class connection_type { Auto, Direct, Queued };
-enum class connection_mode { dispatch, direct, queued };
+enum class connection_mode { Auto, Direct, Queued };
 
 /**
  * @brief 对象基类，提供对象层次结构和生命周期管理
  *
  * 继承自 object_base，支持对象存储到数据库中统一查询
  */
-class MC_API object : public mc::core::object_base {
+class MC_API object : public mc::object_base {
 public:
     /**
      * @brief 默认构造函数
@@ -187,8 +185,9 @@ public:
      */
     object_ptr find_child(mc::string_view name) const;
 
-    void           post_event(mc::event& e);
-    void           send_event_to_children(mc::event& e);
+    void           send_event(mc::event& e);
+    void           post_event(std::unique_ptr<mc::event> e);
+    void           delete_later();
     mc::connection install_event_filter(event_filter_handler filter, int priority = mc::signal_priority::normal);
 
     /**
@@ -197,45 +196,38 @@ public:
      * @param slot 槽函数
      * @param mode 连接模式
      * @param priority 槽优先级，默认 normal
-     * @return 连接ID
+     * @return 连接对象
      */
     template <typename RetType, typename... Args, typename SlotType>
-    connection_id_type connect(mc::signal<RetType(Args...)>& sig, SlotType&& slot, connection_mode mode,
-                               int priority = mc::signal_priority::normal)
-    {
-        return connect(INVALID_CONNECTION_ID, sig, std::forward<SlotType>(slot), mode, priority);
-    }
-
-    /**
-     * @brief 使用用户自定义的连接ID连接信号和槽
-     * @param id 连接ID
-     * @param sig 信号对象
-     * @param slot 槽函数
-     * @param mode 连接模式
-     * @param priority 槽优先级，默认 normal
-     */
-    template <typename RetType, typename... Args, typename SlotType>
-    connection_id_type connect(connection_id_type id, mc::signal<RetType(Args...)>& sig, SlotType&& slot,
-                               connection_mode mode, int priority = mc::signal_priority::normal)
+    mc::connection_type connect(mc::signal<RetType(Args...)>& sig, SlotType&& slot, connection_mode mode,
+                                int priority = mc::signal_priority::normal)
     {
         mc::connection_type conn;
 
         if constexpr (std::is_void_v<RetType>) {
-            if (mode == connection_mode::direct) {
+            if (mode == connection_mode::Direct) {
                 conn = sig.connect(std::forward<SlotType>(slot), priority);
             } else {
-                auto delivery = mode == connection_mode::queued ? detail::executor_delivery::post
+                auto delivery = mode == connection_mode::Queued ? detail::executor_delivery::post
                                                                 : detail::executor_delivery::dispatch;
                 conn          = sig.connect(
                     detail::object_executor_binder<SlotType>(get_executor(), std::forward<SlotType>(slot), delivery),
                     priority);
             }
         } else {
-            MC_ASSERT(mode == connection_mode::direct, "非 void 信号仅支持 direct 连接模式");
+            MC_ASSERT(mode == connection_mode::Direct, "非 void 信号仅支持 Direct 连接模式");
             conn = sig.connect(std::forward<SlotType>(slot), priority);
         }
 
-        return add_connection(&sig, std::move(conn), id);
+        track_connection(conn);
+        return conn;
+    }
+
+    template <typename RetType, typename... Args, typename SlotType>
+    mc::connection_type connect(mc::signal<RetType(Args...)>& sig, SlotType&& slot,
+                                int priority = mc::signal_priority::normal)
+    {
+        return connect(sig, std::forward<SlotType>(slot), connection_mode::Auto, priority);
     }
 
     /**
@@ -244,90 +236,19 @@ public:
      * @param slot 槽函数
      * @param executor 目标执行器
      * @param priority 槽优先级，默认 normal
-     * @return 连接ID
+     * @return 连接对象
      */
     template <typename RetType, typename... Args, typename SlotType>
-    connection_id_type connect(mc::signal<RetType(Args...)>& sig, SlotType&& slot, executor_type executor,
-                               int priority = mc::signal_priority::normal)
-    {
-        return connect(INVALID_CONNECTION_ID, sig, std::forward<SlotType>(slot), std::move(executor), priority);
-    }
-
-    /**
-     * @brief 使用用户自定义的连接ID和指定 executor 连接信号和槽
-     * @param id 连接ID
-     * @param sig 信号对象
-     * @param slot 槽函数
-     * @param executor 目标执行器
-     * @param priority 槽优先级，默认 normal
-     */
-    template <typename RetType, typename... Args, typename SlotType>
-    connection_id_type connect(connection_id_type id, mc::signal<RetType(Args...)>& sig, SlotType&& slot,
-                               executor_type executor, int priority = mc::signal_priority::normal)
+    mc::connection_type connect(mc::signal<RetType(Args...)>& sig, SlotType&& slot, executor_type executor,
+                                int priority = mc::signal_priority::normal)
     {
         static_assert(std::is_void_v<RetType>, "executor 连接仅支持 void 信号");
 
         auto conn = sig.connect(detail::object_executor_binder<SlotType>(
                                     std::move(executor), std::forward<SlotType>(slot), detail::executor_delivery::post),
                                 priority);
-        return add_connection(&sig, std::move(conn), id);
-    }
-
-    /**
-     * @brief 连接信号和槽
-     * @param sig 信号对象
-     * @param slot 槽函数
-     * @param type 兼容旧接口的连接类型
-     * @param priority 槽优先级，默认 normal
-     * @return 连接ID
-     */
-    template <typename RetType, typename... Args, typename SlotType>
-    connection_id_type connect(mc::signal<RetType(Args...)>& sig, SlotType&& slot,
-                               connection_type type = connection_type::Auto, int priority = mc::signal_priority::normal)
-    {
-        return connect(INVALID_CONNECTION_ID, sig, std::forward<SlotType>(slot), type, priority);
-    }
-
-    /**
-     * @brief 使用用户自定义的连接ID连接信号和槽
-     * @param id 连接ID
-     * @param sig 信号对象
-     * @param slot 槽函数
-     * @param type 连接类型
-     * @param priority 槽优先级，默认 normal
-     */
-    template <typename RetType, typename... Args, typename SlotType>
-    connection_id_type connect(connection_id_type id, mc::signal<RetType(Args...)>& sig, SlotType&& slot,
-                               connection_type type = connection_type::Auto, int priority = mc::signal_priority::normal)
-    {
-        switch (type) {
-            case connection_type::Direct:
-                return connect(id, sig, std::forward<SlotType>(slot), connection_mode::direct, priority);
-            case connection_type::Queued:
-                return connect(id, sig, std::forward<SlotType>(slot), connection_mode::queued, priority);
-            case connection_type::Auto:
-            default:
-                return connect(id, sig, std::forward<SlotType>(slot), connection_mode::dispatch, priority);
-        }
-    }
-
-    /**
-     * @brief 断开连接
-     * @param id 连接ID
-     * @return 是否成功断开
-     */
-    void disconnect(connection_id_type id) const;
-
-    /**
-     * @brief 断开信号的所有连接
-     * @param sig 信号对象
-     * @return 断开的连接数量
-     */
-
-    template <typename SignalType>
-    void disconnect(SignalType& sig) const
-    {
-        disconnect_all(&sig);
+        track_connection(conn);
+        return conn;
     }
 
     /**
@@ -415,12 +336,13 @@ protected:
      */
     void remove_child(object* child);
 
-    connection_id_type add_connection(signal_type sig, mc::connection_type conn, connection_id_type id);
-    void               disconnect_all(signal_type sig);
-
 private:
     friend class object_impl;
+    friend class mc::runtime::event_dispatcher;
 
+    mc::runtime::any_executor get_event_executor() const;
+    uint64_t                  get_event_receiver_token() const;
+    void         track_connection(mc::connection_type conn);
     object_impl& ensure_impl() const;
     bool         dispatch_event_filters(object* child, mc::event& e);
     void         propagate_event_from_child(object* child, mc::event& e);
@@ -431,6 +353,6 @@ private:
     void cleanup_on_destroy() noexcept;
 };
 
-} // namespace mc::core
+} // namespace mc
 
-#endif // MC_CORE_OBJECT_H
+#endif // MC_OBJECT_H

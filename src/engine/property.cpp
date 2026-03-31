@@ -21,14 +21,18 @@ void detail::interface_observer::notify(const mc::variant& value, const property
         return;
     }
 
-    m_interface->notify_property_changed(value, prop);
+    property_changed_event event(value, prop);
+    m_interface->send_event(event);
+    if (event.is_accepted()) {
+        return;
+    }
+
     auto object = m_interface->get_owner();
     if (!object) {
         return;
     }
 
-    property_changed_event event(value, prop);
-    object->post_event(event);
+    object->send_event(event);
 }
 
 void detail::interface_observer::notify_update_shm(const mc::variant& value, const property_base& prop)

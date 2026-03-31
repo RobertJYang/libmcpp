@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -51,7 +52,7 @@ public:
     }
 
     mc::string m_name;
-    int         m_age;
+    int        m_age;
 };
 
 // 使用限定命名空间访问
@@ -81,6 +82,17 @@ protected:
         mc::singleton<mdb::transaction, mdb::default_transaction_tag>::reset_for_test();
     }
 
+    std::optional<user> find_user_by_name(std::string_view name)
+    {
+        return users.template with_index<1>([&](auto& idx) -> std::optional<user> {
+            auto it = idx.find(name);
+            if (it.is_end()) {
+                return std::nullopt;
+            }
+            return *it;
+        });
+    }
+
     user       u1, u2, u3, u4;
     user_table users;
 };
@@ -96,21 +108,21 @@ TEST_F(transaction_test, transaction_add)
     EXPECT_TRUE(users.add(u2, &txn));
 
     // 验证用户此时可见
-    auto it1 = users.get<1>().find("张三");
-    ASSERT_FALSE(it1.is_end());
-    EXPECT_EQ(it1->name(), "张三");
+    auto user1 = find_user_by_name("张三");
+    ASSERT_TRUE(user1.has_value());
+    EXPECT_EQ(user1->name(), "张三");
 
     // 提交事务
     txn.commit();
 
     // 用户应该仍然可见
-    it1 = users.get<1>().find("张三");
-    ASSERT_FALSE(it1.is_end());
-    EXPECT_EQ(it1->name(), "张三");
+    user1 = find_user_by_name("张三");
+    ASSERT_TRUE(user1.has_value());
+    EXPECT_EQ(user1->name(), "张三");
 
-    auto it2 = users.get<1>().find("李四");
-    ASSERT_FALSE(it2.is_end());
-    EXPECT_EQ(it2->name(), "李四");
+    auto user2 = find_user_by_name("李四");
+    ASSERT_TRUE(user2.has_value());
+    EXPECT_EQ(user2->name(), "李四");
 }
 
 // 测试事务回滚功能
@@ -124,23 +136,21 @@ TEST_F(transaction_test, transaction_rollback)
     EXPECT_TRUE(users.add(u2, &txn));
 
     // 验证用户此时可见
-    auto it1 = users.get<1>().find("张三");
-    ASSERT_FALSE(it1.is_end());
-    EXPECT_EQ(it1->name(), "张三");
+    auto user1 = find_user_by_name("张三");
+    ASSERT_TRUE(user1.has_value());
+    EXPECT_EQ(user1->name(), "张三");
 
-    auto it2 = users.get<1>().find("李四");
-    ASSERT_FALSE(it2.is_end());
-    EXPECT_EQ(it2->name(), "李四");
+    auto user2 = find_user_by_name("李四");
+    ASSERT_TRUE(user2.has_value());
+    EXPECT_EQ(user2->name(), "李四");
 
     // 回滚事务
     txn.rollback();
 
     // 验证用户不可见（已回滚）
-    it1 = users.get<1>().find("张三");
-    EXPECT_TRUE(it1.is_end());
+    EXPECT_FALSE(find_user_by_name("张三").has_value());
 
-    it2 = users.get<1>().find("李四");
-    EXPECT_TRUE(it2.is_end());
+    EXPECT_FALSE(find_user_by_name("李四").has_value());
 }
 
 // 测试事务保存点
@@ -154,13 +164,13 @@ TEST_F(transaction_test, savepoint)
     EXPECT_TRUE(users.add(u2, &txn));
 
     // 验证第一批用户可见
-    auto it1 = users.get<1>().find("张三");
-    ASSERT_FALSE(it1.is_end());
-    EXPECT_EQ(it1->name(), "张三");
+    auto user1 = find_user_by_name("张三");
+    ASSERT_TRUE(user1.has_value());
+    EXPECT_EQ(user1->name(), "张三");
 
-    auto it2 = users.get<1>().find("李四");
-    ASSERT_FALSE(it2.is_end());
-    EXPECT_EQ(it2->name(), "李四");
+    auto user2 = find_user_by_name("李四");
+    ASSERT_TRUE(user2.has_value());
+    EXPECT_EQ(user2->name(), "李四");
 
     // 创建保存点
     auto& savepoint = txn.alloc_savepoint();
@@ -170,50 +180,46 @@ TEST_F(transaction_test, savepoint)
     EXPECT_TRUE(users.add(u4, &txn));
 
     // 验证第二批用户可见
-    auto it3 = users.get<1>().find("王五");
-    ASSERT_FALSE(it3.is_end());
-    EXPECT_EQ(it3->name(), "王五");
+    auto user3 = find_user_by_name("王五");
+    ASSERT_TRUE(user3.has_value());
+    EXPECT_EQ(user3->name(), "王五");
 
-    auto it4 = users.get<1>().find("赵六");
-    ASSERT_FALSE(it4.is_end());
-    EXPECT_EQ(it4->name(), "赵六");
+    auto user4 = find_user_by_name("赵六");
+    ASSERT_TRUE(user4.has_value());
+    EXPECT_EQ(user4->name(), "赵六");
 
     // 回滚到保存点，只回滚第二批用户
     savepoint.rollback();
 
     // 验证第一批用户仍在
-    it1 = users.get<1>().find("张三");
-    ASSERT_FALSE(it1.is_end());
-    EXPECT_EQ(it1->name(), "张三");
+    user1 = find_user_by_name("张三");
+    ASSERT_TRUE(user1.has_value());
+    EXPECT_EQ(user1->name(), "张三");
 
-    it2 = users.get<1>().find("李四");
-    ASSERT_FALSE(it2.is_end());
-    EXPECT_EQ(it2->name(), "李四");
+    user2 = find_user_by_name("李四");
+    ASSERT_TRUE(user2.has_value());
+    EXPECT_EQ(user2->name(), "李四");
 
     // 验证第二批用户已被回滚移除
-    it3 = users.get<1>().find("王五");
-    EXPECT_TRUE(it3.is_end());
+    EXPECT_FALSE(find_user_by_name("王五").has_value());
 
-    it4 = users.get<1>().find("赵六");
-    EXPECT_TRUE(it4.is_end());
+    EXPECT_FALSE(find_user_by_name("赵六").has_value());
 
     // 提交事务
     txn.commit();
 
     // 验证最终状态
-    it1 = users.get<1>().find("张三");
-    ASSERT_FALSE(it1.is_end());
-    EXPECT_EQ(it1->name(), "张三");
+    user1 = find_user_by_name("张三");
+    ASSERT_TRUE(user1.has_value());
+    EXPECT_EQ(user1->name(), "张三");
 
-    it2 = users.get<1>().find("李四");
-    ASSERT_FALSE(it2.is_end());
-    EXPECT_EQ(it2->name(), "李四");
+    user2 = find_user_by_name("李四");
+    ASSERT_TRUE(user2.has_value());
+    EXPECT_EQ(user2->name(), "李四");
 
-    it3 = users.get<1>().find("王五");
-    EXPECT_TRUE(it3.is_end());
+    EXPECT_FALSE(find_user_by_name("王五").has_value());
 
-    it4 = users.get<1>().find("赵六");
-    EXPECT_TRUE(it4.is_end());
+    EXPECT_FALSE(find_user_by_name("赵六").has_value());
 }
 
 // 测试更新和删除操作
@@ -236,24 +242,23 @@ TEST_F(transaction_test, transaction_update_remove)
     EXPECT_TRUE(users.remove(u2_ptr, &txn));
 
     // 验证更新和删除已经可见
-    auto it1 = users.get<1>().find("张三");
-    ASSERT_FALSE(it1.is_end());
-    EXPECT_EQ(it1->get_age(), 26); // 更新后的年龄
+    auto user1 = find_user_by_name("张三");
+    ASSERT_TRUE(user1.has_value());
+    EXPECT_EQ(user1->get_age(), 26); // 更新后的年龄
 
-    auto it2 = users.get<1>().find("李四");
-    EXPECT_TRUE(it2.is_end()); // 李四已被删除
+    EXPECT_FALSE(find_user_by_name("李四").has_value()); // 李四已被删除
 
     // 回滚事务
     txn.rollback();
 
     // 验证原始状态已恢复
-    it1 = users.get<1>().find("张三");
-    ASSERT_FALSE(it1.is_end());
-    EXPECT_EQ(it1->get_age(), 25); // 原始年龄
+    user1 = find_user_by_name("张三");
+    ASSERT_TRUE(user1.has_value());
+    EXPECT_EQ(user1->get_age(), 25); // 原始年龄
 
-    it2 = users.get<1>().find("李四");
-    ASSERT_FALSE(it2.is_end()); // 李四恢复
-    EXPECT_EQ(it2->name(), "李四");
+    auto user2 = find_user_by_name("李四");
+    ASSERT_TRUE(user2.has_value()); // 李四恢复
+    EXPECT_EQ(user2->name(), "李四");
 
     txn.commit();
 }
@@ -284,10 +289,10 @@ TEST_F(transaction_test, transaction_merge)
     EXPECT_TRUE(u3_ptr3 != nullptr);
 
     // 验证最终状态
-    auto it = users.get<1>().find("test3");
-    ASSERT_FALSE(it.is_end());
-    EXPECT_EQ(it->m_name, "test3");
-    EXPECT_EQ(it->m_age, 32); // 应该是最后一次更新的值
+    auto test3 = find_user_by_name("test3");
+    ASSERT_TRUE(test3.has_value());
+    EXPECT_EQ(test3->m_name, "test3");
+    EXPECT_EQ(test3->m_age, 32); // 应该是最后一次更新的值
 
     // 测试不同事务保存点之间无法合并
     // 第一个保存点：添加用户
@@ -305,17 +310,16 @@ TEST_F(transaction_test, transaction_merge)
     txn.rollback_to(sp2);
 
     // 验证回滚后状态 - 用户应该存在但年龄是原始值
-    auto it2 = users.get<1>().find("test4");
-    ASSERT_FALSE(it2.is_end());
-    EXPECT_EQ(it2->m_name, "test4");
-    EXPECT_EQ(it2->m_age, 40); // 应该是第一个保存点的值
+    auto test4 = find_user_by_name("test4");
+    ASSERT_TRUE(test4.has_value());
+    EXPECT_EQ(test4->m_name, "test4");
+    EXPECT_EQ(test4->m_age, 40); // 应该是第一个保存点的值
 
     // 回滚到第一个保存点，回滚添加操作
     txn.rollback_to(sp1);
 
     // 验证回滚后状态 - 用户应该不存在
-    auto it3 = users.get<1>().find("test4");
-    EXPECT_TRUE(it3.is_end()); // 回滚后资源应该不存在
+    EXPECT_FALSE(find_user_by_name("test4").has_value()); // 回滚后资源应该不存在
 
     // 测试同一个保存点内资源合并
     auto& sp3 = txn.alloc_savepoint();
@@ -335,17 +339,16 @@ TEST_F(transaction_test, transaction_merge)
     EXPECT_TRUE(users.update(u5_ptr2, u5_updated2, &txn) != nullptr);
 
     // 验证最终状态 - 多次更新应该合并
-    auto it4 = users.get<1>().find("test5");
-    ASSERT_FALSE(it4.is_end());
-    EXPECT_EQ(it4->m_name, "test5");
-    EXPECT_EQ(it4->m_age, 52); // 应该是最后一次更新的值
+    auto test5 = find_user_by_name("test5");
+    ASSERT_TRUE(test5.has_value());
+    EXPECT_EQ(test5->m_name, "test5");
+    EXPECT_EQ(test5->m_age, 52); // 应该是最后一次更新的值
 
     // 回滚保存点，所有操作都应该回滚
     txn.rollback_to(sp3);
 
     // 验证回滚后状态 - 用户应该不存在
-    auto it5 = users.get<1>().find("test5");
-    EXPECT_TRUE(it5.is_end()); // 回滚后资源应该不存在
+    EXPECT_FALSE(find_user_by_name("test5").has_value()); // 回滚后资源应该不存在
 
     // 提交事务
     txn.commit();
@@ -394,9 +397,9 @@ TEST_F(transaction_test, transaction_merge_detailed)
         EXPECT_EQ(txn.get_resource_chain_length(resource_id), 1);
 
         // 验证用户数据正确 - 应该是更新后的值
-        auto it = users.get<1>().find("测试_添加更新");
-        ASSERT_FALSE(it.is_end());
-        EXPECT_EQ(it->m_age, 11);
+        auto user_info = find_user_by_name("测试_添加更新");
+        ASSERT_TRUE(user_info.has_value());
+        EXPECT_EQ(user_info->m_age, 11);
 
         // 提交事务，清理测试数据
         txn.commit();
@@ -429,8 +432,7 @@ TEST_F(transaction_test, transaction_merge_detailed)
         EXPECT_FALSE(txn.has_resource(resource_id));
 
         // 验证用户已被删除 - 应该不存在
-        auto it = users.get<1>().find("测试_添加删除");
-        EXPECT_TRUE(it.is_end());
+        EXPECT_FALSE(find_user_by_name("测试_添加删除").has_value());
 
         // 提交事务，清理测试数据
         txn.commit();
@@ -476,9 +478,9 @@ TEST_F(transaction_test, transaction_merge_detailed)
         EXPECT_EQ(txn.get_resource_chain_length(resource_id), 1);
 
         // 验证用户数据为最后一次更新的值 - 应该是33
-        auto it = users.get<1>().find("测试_多次更新");
-        ASSERT_FALSE(it.is_end());
-        EXPECT_EQ(it->m_age, 33);
+        auto user_info = find_user_by_name("测试_多次更新");
+        ASSERT_TRUE(user_info.has_value());
+        EXPECT_EQ(user_info->m_age, 33);
 
         // 提交事务，清理测试数据
         txn.commit();
@@ -519,8 +521,7 @@ TEST_F(transaction_test, transaction_merge_detailed)
         EXPECT_FALSE(txn.has_resource(resource_id));
 
         // 验证用户已被删除 - 应该不存在
-        auto it = users.get<1>().find("测试_更新删除");
-        EXPECT_TRUE(it.is_end());
+        EXPECT_FALSE(find_user_by_name("测试_更新删除").has_value());
 
         // 提交事务，清理测试数据
         txn.commit();
@@ -558,9 +559,9 @@ TEST_F(transaction_test, transaction_merge_detailed)
         txn.rollback_to(sp);
 
         // 验证用户数据已回滚到原始状态
-        auto it = users.get<1>().find("测试_复杂场景");
-        ASSERT_FALSE(it.is_end());
-        EXPECT_EQ(it->m_age, 50);
+        auto user_info = find_user_by_name("测试_复杂场景");
+        ASSERT_TRUE(user_info.has_value());
+        EXPECT_EQ(user_info->m_age, 50);
 
         // 再次更新用户 - 在同一个保存点内
         user u_complex_updated2("测试_复杂场景", 52);
@@ -573,9 +574,9 @@ TEST_F(transaction_test, transaction_merge_detailed)
         EXPECT_EQ(txn.get_resource_chain_length(resource_id), 1);
 
         // 验证用户数据 - 应该是最后一次更新的值
-        it = users.get<1>().find("测试_复杂场景");
-        ASSERT_FALSE(it.is_end());
-        EXPECT_EQ(it->m_age, 52);
+        user_info = find_user_by_name("测试_复杂场景");
+        ASSERT_TRUE(user_info.has_value());
+        EXPECT_EQ(user_info->m_age, 52);
 
         txn.commit();
     }
@@ -614,9 +615,9 @@ TEST_F(transaction_test, transaction_merge_detailed)
         EXPECT_EQ(after_add_resource_count, after_remove_resource_count + 1);
 
         // 验证用户数据 - 应该是新添加的用户
-        auto it = users.get<1>().find("测试_删除添加");
-        ASSERT_FALSE(it.is_end());
-        EXPECT_EQ(it->m_age, 61);
+        auto user_info = find_user_by_name("测试_删除添加");
+        ASSERT_TRUE(user_info.has_value());
+        EXPECT_EQ(user_info->m_age, 61);
 
         // 提交事务，清理测试数据
         txn.commit();

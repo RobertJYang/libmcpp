@@ -10,26 +10,28 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <mc/core/object_base.h>
+#include <mc/object_base.h>
 
-namespace mc::core {
+namespace mc {
 
-object_base::object_base() {
-}
+object_base::object_base()
+{}
 
-object_base::~object_base() {
-}
+object_base::~object_base()
+{}
 
 object_base::object_base(const object_base& other)
-    : enable_shared_from_this<object_base>(other), m_object_id(other.m_object_id) {
-}
+    : enable_shared_from_this<object_base>(other), m_object_id(other.m_object_id)
+{}
 
 object_base::object_base(object_base&& other)
-    : enable_shared_from_this<object_base>(std::forward<object_base>(other)), m_object_id(other.m_object_id) {
+    : enable_shared_from_this<object_base>(std::forward<object_base>(other)), m_object_id(other.m_object_id)
+{
     other.m_object_id = 0;
 }
 
-object_base& object_base::operator=(object_base&& other) {
+object_base& object_base::operator=(object_base&& other)
+{
     if (this != &other) {
         enable_shared_from_this<object_base>::operator=(std::forward<object_base>(other));
         m_object_id       = other.m_object_id;
@@ -38,7 +40,8 @@ object_base& object_base::operator=(object_base&& other) {
     return *this;
 }
 
-object_base& object_base::operator=(const object_base& other) {
+object_base& object_base::operator=(const object_base& other)
+{
     if (this != &other) {
         enable_shared_from_this<object_base>::operator=(other);
         m_object_id = other.m_object_id;
@@ -46,16 +49,19 @@ object_base& object_base::operator=(const object_base& other) {
     return *this;
 }
 
-object_id_type object_base::get_object_id() const {
+object_id_type object_base::get_object_id() const
+{
     return m_object_id;
 }
 
-void object_base::set_object_id(object_id_type id) {
+void object_base::set_object_id(object_id_type id)
+{
     m_object_id = id;
 }
 
-bool object_base::has_valid_id() const {
+bool object_base::has_valid_id() const
+{
     return m_object_id != 0;
 }
 
-} // namespace mc::core
+} // namespace mc

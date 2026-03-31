@@ -10,10 +10,10 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <mc/core/object.h>
 #include <mc/event.h>
 #include <mc/exception.h>
 #include <mc/memory.h>
+#include <mc/object.h>
 #include <mc/runtime/thread_list.h>
 #include <mc/runtime/thread_pool.h>
 #include <mc/signal/signal.h>
@@ -23,112 +23,12 @@
 #include <atomic>
 #include <chrono>
 #include <future>
+#include <mutex>
 #include <string>
 #include <thread>
 #include <vector>
 
 namespace mc::core::test {
-
-namespace {
-
-struct test_event : mc::event {
-    static constexpr mc::event_type_id type_id = mc::builtin_event_type("tests.core.thread_safe_object");
-
-    test_event() : mc::event(type_id)
-    {}
-};
-
-class event_recording_object : public mc::core::object {
-public:
-    using mc::core::object::object;
-
-    std::vector<std::string> trace;
-    bool                     accept_in_on_event{false};
-    bool                     continue_after_accept{false};
-    bool                     accept_in_event_filter{false};
-    bool                     continue_after_filter_accept{false};
-    bool                     record_virtual_filter{true};
-
-protected:
-    void on_event(mc::event& e) override
-    {
-        if (e.type() == test_event::type_id) {
-            trace.push_back(std::string(get_name()) + ":on_event");
-        }
-        if (accept_in_on_event) {
-            e.accept();
-            if (continue_after_accept) {
-                e.set_propagate(true);
-            }
-        }
-    }
-
-    bool event_filter(object* child, mc::event& e) override
-    {
-        if (record_virtual_filter && child != nullptr && e.type() == test_event::type_id) {
-            auto child_name = child ? std::string(child->get_name()) : std::string("<null>");
-            trace.push_back(std::string(get_name()) + ":event_filter:" + child_name);
-        }
-        if (accept_in_event_filter) {
-            if (continue_after_filter_accept) {
-                e.accept();
-                e.set_propagate(true);
-                return false;
-            }
-            return true;
-        }
-        return false;
-    }
-};
-
-} // namespace
-
-TEST(EventTypeRegistryTest, RegisterEventTypeReturnsStableIdForSameName)
-{
-    auto first  = mc::register_event_type("tests.core.same_name");
-    auto second = mc::register_event_type("tests.core.same_name");
-
-    EXPECT_EQ(first, second);
-    EXPECT_GE(first, mc::event_type_id_first_user);
-    EXPECT_FALSE(mc::is_builtin_event_type(first));
-}
-
-TEST(EventTypeRegistryTest, RegisterEventTypeReturnsDifferentIdsForDifferentNames)
-{
-    auto first  = mc::register_event_type("tests.core.first_name");
-    auto second = mc::register_event_type("tests.core.second_name");
-
-    EXPECT_NE(first, second);
-    EXPECT_GE(first, mc::event_type_id_first_user);
-    EXPECT_GE(second, mc::event_type_id_first_user);
-}
-
-TEST(EventTypeRegistryTest, RegisterAnonymousEventTypeReturnsUniqueIds)
-{
-    auto first  = mc::register_event_type();
-    auto second = mc::register_event_type();
-
-    EXPECT_NE(first, second);
-    EXPECT_GE(first, mc::event_type_id_first_user);
-    EXPECT_GE(second, mc::event_type_id_first_user);
-}
-
-TEST(EventTypeRegistryTest, BuiltinEventTypeIdsStayInReservedRange)
-{
-    EXPECT_TRUE(mc::is_builtin_event_type(test_event::type_id));
-    EXPECT_GE(test_event::type_id, mc::event_type_id_first_builtin);
-    EXPECT_LE(test_event::type_id, mc::event_type_id_last_builtin);
-    EXPECT_LT(test_event::type_id, mc::event_type_id_first_user);
-}
-
-TEST(EventTypeRegistryTest, ReservedEventTypeRangeIsSeparatedFromBuiltinAndUser)
-{
-    auto reserved_id = mc::event_type_id_last_builtin + 1;
-
-    EXPECT_FALSE(mc::is_builtin_event_type(reserved_id));
-    EXPECT_FALSE(mc::is_user_event_type(reserved_id));
-    EXPECT_TRUE(mc::is_reserved_event_type(reserved_id));
-}
 
 class ThreadSafeObjectTest : public ::testing::Test {
 protected:
@@ -257,93 +157,6 @@ TEST_F(ThreadSafeObjectTest, ExecutorAssignment)
     EXPECT_TRUE(stored.valid());
 }
 
-TEST_F(ThreadSafeObjectTest, EventAcceptStopsPropagation)
-{
-    auto parent = mc::make_shared<event_recording_object>();
-    parent->set_name("parent");
-    auto child = mc::make_shared<event_recording_object>(parent.get());
-    child->set_name("child");
-    child->accept_in_on_event = true;
-
-    test_event event;
-    child->post_event(event);
-
-    EXPECT_EQ(child->trace, std::vector<std::string>{"child:on_event"});
-    EXPECT_TRUE(parent->trace.empty());
-}
-
-TEST_F(ThreadSafeObjectTest, EventCanContinueAfterAcceptWhenPropagateEnabled)
-{
-    auto parent = mc::make_shared<event_recording_object>();
-    parent->set_name("parent");
-    auto child = mc::make_shared<event_recording_object>(parent.get());
-    child->set_name("child");
-    child->accept_in_on_event    = true;
-    child->continue_after_accept = true;
-
-    test_event event;
-    child->post_event(event);
-
-    EXPECT_EQ(child->trace, std::vector<std::string>{"child:on_event"});
-    EXPECT_EQ(parent->trace, (std::vector<std::string>{"parent:event_filter:child", "parent:on_event"}));
-}
-
-TEST_F(ThreadSafeObjectTest, PostEventBubblesToParent)
-{
-    auto parent = mc::make_shared<event_recording_object>();
-    parent->set_name("parent");
-    auto child = mc::make_shared<event_recording_object>(parent.get());
-    child->set_name("child");
-
-    test_event event;
-    child->post_event(event);
-
-    EXPECT_EQ(child->trace, std::vector<std::string>{"child:on_event"});
-    EXPECT_EQ(parent->trace, (std::vector<std::string>{"parent:event_filter:child", "parent:on_event"}));
-}
-
-TEST_F(ThreadSafeObjectTest, SendEventToChildrenTraversesDescendants)
-{
-    auto parent = mc::make_shared<event_recording_object>();
-    parent->set_name("parent");
-    auto child = mc::make_shared<event_recording_object>(parent.get());
-    child->set_name("child");
-    auto grandchild = mc::make_shared<event_recording_object>(child.get());
-    grandchild->set_name("grandchild");
-
-    test_event event;
-    parent->send_event_to_children(event);
-
-    EXPECT_TRUE(parent->trace.empty());
-    EXPECT_EQ(child->trace, std::vector<std::string>{"child:on_event"});
-    EXPECT_EQ(grandchild->trace, std::vector<std::string>{"grandchild:on_event"});
-}
-
-TEST_F(ThreadSafeObjectTest, EventFiltersRunByPriorityAndCanStopLowerPriorityFilters)
-{
-    auto parent = mc::make_shared<event_recording_object>();
-    parent->set_name("parent");
-    parent->record_virtual_filter = false;
-    auto child                    = mc::make_shared<event_recording_object>(parent.get());
-    child->set_name("child");
-
-    parent->install_event_filter([&](object*, mc::event&) {
-        parent->trace.push_back("installed:low");
-        return false;
-    }, mc::signal_priority::low);
-
-    parent->install_event_filter([&](object*, mc::event&) {
-        parent->trace.push_back("installed:high");
-        return true;
-    }, mc::signal_priority::high);
-
-    test_event event;
-    child->post_event(event);
-
-    EXPECT_EQ(child->trace, std::vector<std::string>{"child:on_event"});
-    EXPECT_EQ(parent->trace, std::vector<std::string>{"installed:high"});
-}
-
 TEST_F(ThreadSafeObjectTest, ConnectionModeDirectRunsInline)
 {
     mc::runtime::thread_pool pool(1, "thread_safe_object_direct_mode");
@@ -358,7 +171,7 @@ TEST_F(ThreadSafeObjectTest, ConnectionModeDirectRunsInline)
     root_object->connect(sig, [&]() {
         callback_thread = std::this_thread::get_id();
         done.set_value();
-    }, mc::core::connection_mode::direct);
+    }, mc::connection_mode::Direct);
 
     auto emit_thread = std::this_thread::get_id();
     sig();
@@ -367,7 +180,7 @@ TEST_F(ThreadSafeObjectTest, ConnectionModeDirectRunsInline)
     EXPECT_EQ(callback_thread, emit_thread);
 }
 
-TEST_F(ThreadSafeObjectTest, ConnectionModeDispatchUsesObjectExecutor)
+TEST_F(ThreadSafeObjectTest, ConnectionModeAutoUsesObjectExecutor)
 {
     mc::runtime::thread_pool pool(1, "thread_safe_object_dispatch_mode");
     pool.start();
@@ -383,7 +196,7 @@ TEST_F(ThreadSafeObjectTest, ConnectionModeDispatchUsesObjectExecutor)
         callback_thread = std::this_thread::get_id();
         ran_on_executor.store(root_object->get_executor().running_in_this_thread());
         done.set_value();
-    }, mc::core::connection_mode::dispatch);
+    }, mc::connection_mode::Auto);
 
     auto emit_thread = std::this_thread::get_id();
     sig();
@@ -395,7 +208,7 @@ TEST_F(ThreadSafeObjectTest, ConnectionModeDispatchUsesObjectExecutor)
 
 TEST_F(ThreadSafeObjectTest, ConnectionModeQueuedNeverRunsInlineEvenOnSameThread)
 {
-    // queued 模式：即使从对象所在的 executor 线程发出信号，槽也必须 post 而非内联执行
+    // Queued 模式：即使从对象所在的 executor 线程发出信号，槽也必须 post 而非内联执行
     mc::runtime::thread_pool pool(1, "thread_safe_object_queued_mode");
     pool.start();
     root_object->set_executor(mc::runtime::any_executor(pool.get_executor()));
@@ -406,13 +219,13 @@ TEST_F(ThreadSafeObjectTest, ConnectionModeQueuedNeverRunsInlineEvenOnSameThread
     std::atomic<bool>  after_emit = false;
 
     root_object->connect(sig, [&]() {
-        // 若 queued 正确实现（post 而非 dispatch），此处 after_emit 必须已为 true
+        // 若 Queued 正确实现（post 而非 Auto），此处 after_emit 必须已为 true
         EXPECT_TRUE(after_emit.load());
         done.set_value();
-    }, mc::core::connection_mode::queued);
+    }, mc::connection_mode::Queued);
 
     // 从 executor 线程内部发出信号，再设置 after_emit
-    // dispatch 模式会内联执行（after_emit 还是 false），queued 模式会延迟到当前任务结束
+    // Auto 模式会内联执行（after_emit 还是 false），Queued 模式会延迟到当前任务结束
     pool.get_executor().post([&]() {
         sig();
         after_emit.store(true);
@@ -446,7 +259,7 @@ TEST_F(ThreadSafeObjectTest, ConnectWithTargetExecutorPostsToSpecifiedExecutor)
     EXPECT_NE(callback_thread, emit_thread);
 }
 
-TEST_F(ThreadSafeObjectTest, ConnectionModeDispatchRespectsSlotPriority)
+TEST_F(ThreadSafeObjectTest, ConnectionModeAutoRespectsSlotPriority)
 {
     using namespace std::chrono_literals;
 
@@ -462,11 +275,11 @@ TEST_F(ThreadSafeObjectTest, ConnectionModeDispatchRespectsSlotPriority)
     root_object->connect(sig, [&]() {
         order.push_back(2);
         done.set_value();
-    }, mc::core::connection_mode::dispatch, mc::signal_priority::low);
+    }, mc::connection_mode::Auto, mc::signal_priority::low);
 
     root_object->connect(sig, [&]() {
         order.push_back(1);
-    }, mc::core::connection_mode::dispatch, mc::signal_priority::high);
+    }, mc::connection_mode::Auto, mc::signal_priority::high);
 
     sig();
 
@@ -476,7 +289,7 @@ TEST_F(ThreadSafeObjectTest, ConnectionModeDispatchRespectsSlotPriority)
     EXPECT_EQ(order[1], 2);
 }
 
-TEST_F(ThreadSafeObjectTest, ConnectionTypeAutoCompatibilityStillRespectsPriority)
+TEST_F(ThreadSafeObjectTest, AutoConnectionModeStillRespectsPriority)
 {
     using namespace std::chrono_literals;
 
@@ -492,11 +305,11 @@ TEST_F(ThreadSafeObjectTest, ConnectionTypeAutoCompatibilityStillRespectsPriorit
     root_object->connect(sig, [&]() {
         order.push_back(2);
         done.set_value();
-    }, mc::core::connection_type::Auto, mc::signal_priority::low);
+    }, mc::connection_mode::Auto, mc::signal_priority::low);
 
     root_object->connect(sig, [&]() {
         order.push_back(1);
-    }, mc::core::connection_type::Auto, mc::signal_priority::high);
+    }, mc::connection_mode::Auto, mc::signal_priority::high);
 
     sig();
 
@@ -511,39 +324,39 @@ TEST_F(ThreadSafeObjectTest, ConnectionManagementHelpers)
     mc::signal<void()> sig;
     int                counter = 0;
 
-    // 使用 direct 连接模式，确保同步执行
-    // 不传递ID，让系统自动生成
-    auto id = root_object->connect(sig, [&]() {
+    // 使用 Direct 连接模式，确保同步执行
+    auto conn = root_object->connect(sig, [&]() {
         ++counter;
-    }, mc::core::connection_mode::direct);
+    }, mc::connection_mode::Direct);
     sig();
     EXPECT_EQ(counter, 1);
 
-    // disconnect 返回 void，通过检查信号是否仍然触发来验证断开成功
-    root_object->disconnect(id);
+    // 通过 connection 直接断开连接
+    conn.disconnect();
     sig();
     EXPECT_EQ(counter, 1); // 计数器不应该增加，因为连接已断开
 
     // 再次断开应该不会崩溃（幂等操作）
-    root_object->disconnect(id);
+    conn.disconnect();
     sig();
     EXPECT_EQ(counter, 1); // 计数器仍然不应该增加
 
     // 测试通过信号对象断开所有连接
-    // 使用 direct 连接模式，确保同步执行
-    // 不传递ID，让系统自动生成
-    auto id2 = root_object->connect(sig, [&]() {
+    auto conn2 = root_object->connect(sig, [&]() {
         ++counter;
-    }, mc::core::connection_mode::direct);
-    auto id3 = root_object->connect(sig, [&]() {
+    }, mc::connection_mode::Direct);
+    auto conn3 = root_object->connect(sig, [&]() {
         ++counter;
-    }, mc::core::connection_mode::direct);
+    }, mc::connection_mode::Direct);
     sig();
     EXPECT_EQ(counter, 3); // 两个连接都触发，计数器增加2 (1 + 2 = 3)
 
     sig.disconnect_all();
     sig();
     EXPECT_EQ(counter, 3); // 计数器不应该增加，因为所有连接已断开
+
+    conn2.disconnect();
+    conn3.disconnect();
 }
 
 // 测试多线程并发添加子对象
@@ -875,8 +688,8 @@ TEST_F(ThreadSafeObjectTest, ObjectBaseMoveOperations)
     EXPECT_NE(obj1->get_object_id(), obj2->get_object_id());
 }
 
-// 测试 disconnect（覆盖 object::disconnect(connection_id_type)）
-TEST_F(ThreadSafeObjectTest, DisconnectAll)
+// 测试 connection::disconnect
+TEST_F(ThreadSafeObjectTest, DisconnectConnection)
 {
     auto obj = mc::make_shared<object>();
     obj->set_name("test_object");
@@ -890,13 +703,13 @@ TEST_F(ThreadSafeObjectTest, DisconnectAll)
 
     auto conn1 = obj->connect(sig1, [&call_count1](int) {
         ++call_count1;
-    }, mc::core::connection_mode::direct);
+    }, mc::connection_mode::Direct);
     auto conn2 = obj->connect(sig2, [&sig2_triggered](const std::string&) {
         sig2_triggered = true;
-    }, mc::core::connection_mode::direct);
+    }, mc::connection_mode::Direct);
 
-    // 断开 sig1 的连接（通过连接 ID）
-    obj->disconnect(conn1);
+    // 通过返回的 connection 断开 sig1 的连接
+    conn1.disconnect();
 
     // 触发信号
     sig1(42);
@@ -906,7 +719,7 @@ TEST_F(ThreadSafeObjectTest, DisconnectAll)
     EXPECT_EQ(call_count1, 0);
     EXPECT_TRUE(sig2_triggered);
 
-    obj->disconnect(conn2);
+    conn2.disconnect();
     sig1.disconnect_all();
     sig2.disconnect_all();
     obj.reset();
@@ -963,8 +776,8 @@ TEST_F(ThreadSafeObjectTest, ObjectImplCopyOperations)
     // 注意：执行器可能不会被复制，取决于实现
 }
 
-// 测试 clear_connections（覆盖 object_impl::clear_connections()）
-TEST_F(ThreadSafeObjectTest, ClearConnections)
+// 测试多个 connection 独立断开
+TEST_F(ThreadSafeObjectTest, DisconnectMultipleConnections)
 {
     auto obj = mc::make_shared<object>();
 
@@ -979,9 +792,9 @@ TEST_F(ThreadSafeObjectTest, ClearConnections)
         ++call_count;
     });
 
-    // 清除所有连接（通过断开连接来测试）
-    obj->disconnect(conn1);
-    obj->disconnect(conn2);
+    // 通过返回的 connection 分别断开连接
+    conn1.disconnect();
+    conn2.disconnect();
 
     // 触发信号
     sig();
@@ -1023,7 +836,7 @@ TEST_F(ThreadSafeObjectTest, ComplexScenarioAllUncoveredFeatures)
     EXPECT_FALSE(weak.expired());
 
     // 断开连接
-    child1->disconnect(conn);
+    conn.disconnect();
     sig(10);
     EXPECT_EQ(call_count, 0);
 

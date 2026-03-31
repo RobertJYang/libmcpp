@@ -20,6 +20,9 @@ namespace mc::engine {
 
 abstract_object* property_helper::find_related_object(const std::string& object_name)
 {
+    constexpr size_t object_name_index_id =
+        mc::db::detail::tag_index_of<mc::engine::by_object_name, service_object_table::indices_def>::value + 1;
+
     auto position = get_object()->get_position();
     auto service  = mc::expr::func_collection::get_instance().get_service(position);
     if (service == nullptr) {
@@ -30,19 +33,18 @@ abstract_object* property_helper::find_related_object(const std::string& object_
     std::string full_object_name = object_name + "_" + std::string(position);
 
     auto& object_table = service->get_object_table();
-    auto& idx          = object_table.template get<mc::engine::by_object_name>();
-    auto  obj_it       = idx.find(full_object_name);
-    if (obj_it == idx.end()) {
-        obj_it = idx.find(full_object_name + "_dev");
+    auto  object_ptr   = object_table.find_by_index(object_name_index_id, full_object_name);
+    if (object_ptr == nullptr) {
+        object_ptr = object_table.find_by_index(object_name_index_id, full_object_name + "_dev");
     }
 
-    if (obj_it == idx.end()) {
+    if (object_ptr == nullptr) {
         elog("Object not found: ${object_name}, searched for: ${full_name}",
              ("object_name", object_name)("full_name", full_object_name));
         return nullptr;
     }
 
-    return const_cast<mc::engine::abstract_object*>(&(*obj_it));
+    return const_cast<mc::engine::abstract_object*>(object_ptr.get());
 }
 
 mc::variant property_helper::call_function_with_result(const detail::func_data* function_data)

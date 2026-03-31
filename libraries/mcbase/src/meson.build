@@ -1,5 +1,4 @@
 # 包含子目录的 meson.build 文件
-subdir('core')
 subdir('dict')
 subdir('fmt')
 subdir('log')
@@ -27,8 +26,9 @@ base_src_files = [
   'result.cpp',
   'array.cpp',
   'filesystem.cpp',
+  'object_base.cpp',
+  'object.cpp',
 
-  core_src_files,
   dict_src_files,
   fmt_src_files,
   log_src_files,

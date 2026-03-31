@@ -38,12 +38,11 @@ ResultType do_invoke(object_impl* self, context& ctx, std::string_view method_na
 {
     // 方法查找顺序：标准接口方法 -> 对象方法 -> 接口方法
 
-    // TODO:: 后续这里需要增加消息钩子机制，支持在不修改已有实现的情况下实现消息的拦截和修改
-    // 消息钩子的优先级最高：消息钩子 -> 标准接口方法 -> 对象方法 -> 接口方法
+    // invoke 事件过滤优先于既有方法路由：事件过滤 -> 标准接口方法 -> 对象方法 -> 接口方法
 
     method_invoke_event invoke_event(ctx, method_name, args, interface_name, std::is_same_v<ResultType, async_result>);
-    self->post_event(invoke_event);
-    if (invoke_event.is_accepted() && !invoke_event.should_propagate()) {
+    self->send_event(invoke_event);
+    if (invoke_event.is_accepted()) {
         ctx.accept();
         if constexpr (std::is_same_v<ResultType, invoke_result>) {
             if (invoke_event.has_result()) {
@@ -223,6 +222,10 @@ void object_impl::on_event(mc::event& e)
 
     auto* property_event = dynamic_cast<property_changed_event*>(&e);
     if (property_event == nullptr) {
+        return;
+    }
+
+    if (property_event->property().get_object() != this) {
         return;
     }
 

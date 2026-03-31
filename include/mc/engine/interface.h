@@ -14,10 +14,10 @@
 #define MC_ENGINE_INTERFACE_H
 
 #include <mc/atomic_ref.h>
-#include <mc/core/object.h>
 #include <mc/engine/base.h>
 #include <mc/engine/property.h>
 #include <mc/engine/signal_info.h>
+#include <mc/object.h>
 #include <mc/reflect/base.h>
 #include <mc/traits.h>
 
@@ -99,6 +99,7 @@ public:
     static void to_variant(const interface_impl& obj, mc::dict& dict, int options = 0);
 
 protected:
+    void on_event(mc::event& e) override;
     void init_property_base(const mc::reflect::struct_metadata& metadata);
 
     abstract_object*                         m_owner;

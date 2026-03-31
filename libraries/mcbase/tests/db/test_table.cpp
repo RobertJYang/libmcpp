@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -230,7 +231,37 @@ TEST_F(table_test, unified_get_interface)
     }
 }
 
-// 高级查询测试，使用结构化查询语句
+// 测试带锁的索引访问接口
+TEST_F(table_test, with_index_interface)
+{
+    user_table users;
+
+    user u1("张三", 25, 88.5);
+    user u2("李四", 30, 92.0);
+    user u3("王五", 25, 76.5);
+    EXPECT_TRUE(users.add(u1));
+    EXPECT_TRUE(users.add(u2));
+    EXPECT_TRUE(users.add(u3));
+
+    auto name = users.template with_index<1>([](auto& idx) {
+        auto it = idx.find("张三");
+        EXPECT_FALSE(it.is_end());
+        return it.is_end() ? mc::string() : it->name();
+    });
+    EXPECT_EQ(name, "张三");
+
+    auto age_count = users.template with_index<by_age>([](auto& idx) {
+        auto [begin, end] = idx.equal_range(25);
+        int count         = 0;
+        for (auto it = begin; it != end; ++it) {
+            ++count;
+        }
+        return count;
+    });
+    EXPECT_EQ(age_count, 2);
+}
+
+// 高级查询测试，使用结构化查询 / DSL 构建查询语句
 TEST_F(table_test, advanced_query)
 {
     user_table users;
@@ -586,10 +617,16 @@ TEST_F(table_test, update_existing_record)
     users.add(u2);
 
     // 验证初始状态
-    auto it1 = users.get<1>().find("Alice");
-    ASSERT_FALSE(it1.is_end());
-    EXPECT_EQ(it1->get_age(), 25);
-    EXPECT_DOUBLE_EQ(it1->score(), 85.5);
+    auto alice = users.template with_index<1>([](auto& idx) -> std::optional<user> {
+        auto it = idx.find("Alice");
+        if (it.is_end()) {
+            return std::nullopt;
+        }
+        return *it;
+    });
+    ASSERT_TRUE(alice.has_value());
+    EXPECT_EQ(alice->get_age(), 25);
+    EXPECT_DOUBLE_EQ(alice->score(), 85.5);
 
     // 记录 on_object_updated 是否被调用
     bool  update_called = false;
@@ -604,10 +641,7 @@ TEST_F(table_test, update_existing_record)
     });
 
     // 获取原始对象指针
-    auto old_obj_it = users.get<1>().find("Alice");
-    ASSERT_FALSE(old_obj_it.is_end());
-
-    auto old_obj_shared_ptr = mc::shared_ptr<user>(const_cast<user*>(&old_obj_it.get()));
+    auto old_obj_shared_ptr = query_one_user(users, mc::dict{{"name", "Alice"}});
     ASSERT_TRUE(old_obj_shared_ptr != nullptr);
 
     // 更新记录（修改非主键字段，触发索引更新）
@@ -622,22 +656,40 @@ TEST_F(table_test, update_existing_record)
     EXPECT_EQ(new_obj_ptr->get_age(), 26); // 新对象的年龄（在回调中保存）
 
     // 验证索引已更新（通过年龄索引查找）
-    auto it2 = users.get<2>().find(26); // 通过年龄索引查找
-    ASSERT_FALSE(it2.is_end());
-    EXPECT_EQ(it2->name(), "Alice");
-    EXPECT_EQ(it2->get_age(), 26);
-    EXPECT_DOUBLE_EQ(it2->score(), 88.0);
+    auto age_26_user = users.template with_index<2>([](auto& idx) -> std::optional<user> {
+        auto it = idx.find(26);
+        if (it.is_end()) {
+            return std::nullopt;
+        }
+        return *it;
+    });
+    ASSERT_TRUE(age_26_user.has_value());
+    EXPECT_EQ(age_26_user->name(), "Alice");
+    EXPECT_EQ(age_26_user->get_age(), 26);
+    EXPECT_DOUBLE_EQ(age_26_user->score(), 88.0);
 
     // 验证旧年龄索引中不再有该记录
-    auto it3 = users.get<2>().find(25);
-    if (!it3.is_end()) {
+    auto age_25_user = users.template with_index<2>([](auto& idx) -> std::optional<user> {
+        auto it = idx.find(25);
+        if (it.is_end()) {
+            return std::nullopt;
+        }
+        return *it;
+    });
+    if (age_25_user.has_value()) {
         // 如果找到，应该不是 Alice
-        EXPECT_NE(it3->name(), "Alice");
+        EXPECT_NE(age_25_user->name(), "Alice");
     }
 
     // 验证主键索引仍然可以找到
-    auto it4 = users.get<1>().find("Alice");
-    ASSERT_FALSE(it4.is_end());
-    EXPECT_EQ(it4->get_age(), 26);
-    EXPECT_DOUBLE_EQ(it4->score(), 88.0);
+    alice = users.template with_index<1>([](auto& idx) -> std::optional<user> {
+        auto it = idx.find("Alice");
+        if (it.is_end()) {
+            return std::nullopt;
+        }
+        return *it;
+    });
+    ASSERT_TRUE(alice.has_value());
+    EXPECT_EQ(alice->get_age(), 26);
+    EXPECT_DOUBLE_EQ(alice->score(), 88.0);
 }

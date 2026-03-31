@@ -16,6 +16,7 @@
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <vector>
@@ -28,13 +29,20 @@ namespace mc::detail {
 
 class MC_API connection_state {
 public:
+    using disconnect_callback_id = std::uint64_t;
+
     connection_state() noexcept = default;
 
-    bool connected() const noexcept;
-    void disconnect() noexcept;
+    bool                   connected() const noexcept;
+    void                   disconnect() noexcept;
+    disconnect_callback_id add_disconnect_callback(std::function<void()> callback);
+    void                   remove_disconnect_callback(disconnect_callback_id callback_id) noexcept;
 
 private:
-    std::atomic<bool> m_connected{true};
+    std::atomic<bool>                                                     m_connected{true};
+    std::mutex                                                            m_callback_mutex;
+    disconnect_callback_id                                                m_next_callback_id{1};
+    std::vector<std::pair<disconnect_callback_id, std::function<void()>>> m_disconnect_callbacks;
 };
 
 struct slot_record {
@@ -48,8 +56,7 @@ using slot_record_list = std::vector<slot_record>;
 
 class MC_API signal_emit_guard {
 public:
-    signal_emit_guard(const void* signal_addr, const char* signal_name,
-                      std::size_t max_depth = 64);
+    signal_emit_guard(const void* signal_addr, const char* signal_name, std::size_t max_depth = 64);
     ~signal_emit_guard() noexcept;
 
     std::size_t depth() const noexcept;
@@ -74,15 +81,15 @@ public:
     std::shared_ptr<const slot_record_list> snapshot() const;
 
 private:
-    void        ensure_unique_slots_locked();
-    void        compact_locked();
-    std::size_t active_slot_count_locked() const;
+    struct state;
 
-    const char*                       m_name{nullptr};
-    std::size_t                       m_max_depth{64};
-    mutable std::mutex                m_mutex;
-    std::shared_ptr<slot_record_list> m_slots;
-    std::uint64_t                     m_next_id{0};
+    void        ensure_unique_slots_locked(state& backend_state);
+    void        compact_locked(state& backend_state);
+    std::size_t active_slot_count_locked(const state& backend_state) const;
+
+    const char*            m_name{nullptr};
+    std::size_t            m_max_depth{64};
+    std::shared_ptr<state> m_state;
 };
 
 } // namespace mc::detail

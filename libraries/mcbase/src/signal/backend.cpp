@@ -52,6 +52,12 @@ std::string format_signal_call_chain(const std::vector<signal_frame>& stack, con
 
 } // namespace
 
+struct signal_backend::state {
+    mutable std::mutex                mutex;
+    std::shared_ptr<slot_record_list> slots{std::make_shared<slot_record_list>()};
+    std::uint64_t                     next_id{0};
+};
+
 bool connection_state::connected() const noexcept
 {
     return m_connected.load(std::memory_order_acquire);
@@ -59,11 +65,69 @@ bool connection_state::connected() const noexcept
 
 void connection_state::disconnect() noexcept
 {
-    m_connected.store(false, std::memory_order_release);
+    bool expected = true;
+    if (!m_connected.compare_exchange_strong(expected, false, std::memory_order_acq_rel, std::memory_order_acquire)) {
+        return;
+    }
+
+    std::vector<std::function<void()>> callbacks;
+    {
+        std::lock_guard<std::mutex> lock(m_callback_mutex);
+        callbacks.reserve(m_disconnect_callbacks.size());
+        for (auto& [id, callback] : m_disconnect_callbacks) {
+            MC_UNUSED(id);
+            callbacks.push_back(std::move(callback));
+        }
+        m_disconnect_callbacks.clear();
+    }
+
+    for (auto& callback : callbacks) {
+        try {
+            if (callback) {
+                callback();
+            }
+        } catch (...) {
+        }
+    }
 }
 
-signal_emit_guard::signal_emit_guard(const void* signal_addr, const char* signal_name,
-                                     std::size_t max_depth)
+connection_state::disconnect_callback_id connection_state::add_disconnect_callback(std::function<void()> callback)
+{
+    if (!callback) {
+        return 0;
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(m_callback_mutex);
+        if (m_connected.load(std::memory_order_acquire)) {
+            const auto callback_id = m_next_callback_id++;
+            m_disconnect_callbacks.emplace_back(callback_id, std::move(callback));
+            return callback_id;
+        }
+    }
+
+    try {
+        callback();
+    } catch (...) {
+    }
+    return 0;
+}
+
+void connection_state::remove_disconnect_callback(disconnect_callback_id callback_id) noexcept
+{
+    if (callback_id == 0) {
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(m_callback_mutex);
+    m_disconnect_callbacks.erase(std::remove_if(m_disconnect_callbacks.begin(), m_disconnect_callbacks.end(),
+                                                [callback_id](const auto& entry) {
+        return entry.first == callback_id;
+    }),
+                                 m_disconnect_callbacks.end());
+}
+
+signal_emit_guard::signal_emit_guard(const void* signal_addr, const char* signal_name, std::size_t max_depth)
 {
     auto& stack = current_signal_stack();
 
@@ -97,7 +161,7 @@ std::size_t signal_emit_guard::depth() const noexcept
 }
 
 signal_backend::signal_backend(const char* name, std::size_t max_depth)
-    : m_name(name), m_max_depth(max_depth), m_slots(std::make_shared<slot_record_list>())
+    : m_name(name), m_max_depth(max_depth), m_state(std::make_shared<state>())
 {}
 
 signal_backend::~signal_backend() = default;
@@ -109,37 +173,70 @@ const char* signal_backend::name() const noexcept
 
 connection signal_backend::connect_erased(std::shared_ptr<void> callable, int priority)
 {
-    auto state = std::make_shared<connection_state>();
+    auto          connection_state = std::make_shared<class connection_state>();
+    auto          backend_state    = m_state;
+    std::uint64_t slot_id          = 0;
 
-    std::lock_guard<std::mutex> lock(m_mutex);
-    ensure_unique_slots_locked();
-    compact_locked();
-    m_slots->push_back(slot_record{priority, m_next_id++, std::move(callable), state});
-    std::stable_sort(m_slots->begin(), m_slots->end(), [](const slot_record& lhs, const slot_record& rhs) {
-        return lhs.priority < rhs.priority;
+    {
+        std::lock_guard<std::mutex> lock(backend_state->mutex);
+        ensure_unique_slots_locked(*backend_state);
+        compact_locked(*backend_state);
+        slot_id = backend_state->next_id++;
+        backend_state->slots->push_back(slot_record{priority, slot_id, std::move(callable), connection_state});
+        std::stable_sort(backend_state->slots->begin(), backend_state->slots->end(),
+                         [](const slot_record& lhs, const slot_record& rhs) {
+            return lhs.priority < rhs.priority;
+        });
+    }
+
+    connection_state->add_disconnect_callback(
+        [weak_backend_state = std::weak_ptr<signal_backend::state>(backend_state), slot_id]() noexcept {
+        if (const auto locked_state = weak_backend_state.lock()) {
+            std::lock_guard<std::mutex> lock(locked_state->mutex);
+            if (!locked_state->slots) {
+                return;
+            }
+            if (locked_state->slots.use_count() > 1) {
+                locked_state->slots = std::make_shared<slot_record_list>(*locked_state->slots);
+            }
+            locked_state->slots->erase(std::remove_if(locked_state->slots->begin(), locked_state->slots->end(),
+                                                      [slot_id](const slot_record& entry) {
+                return entry.id == slot_id;
+            }),
+                                       locked_state->slots->end());
+        }
     });
-    return connection(std::move(state));
+
+    return connection(std::move(connection_state));
 }
 
 void signal_backend::disconnect_all()
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    for (auto& entry : *m_slots) {
-        entry.state->disconnect();
+    std::vector<std::shared_ptr<connection_state>> states;
+    {
+        std::lock_guard<std::mutex> lock(m_state->mutex);
+        states.reserve(m_state->slots->size());
+        for (const auto& entry : *m_state->slots) {
+            states.push_back(entry.state);
+        }
+        m_state->slots = std::make_shared<slot_record_list>();
     }
-    m_slots = std::make_shared<slot_record_list>();
+
+    for (auto& state : states) {
+        state->disconnect();
+    }
 }
 
 bool signal_backend::empty() const
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    return active_slot_count_locked() == 0;
+    std::lock_guard<std::mutex> lock(m_state->mutex);
+    return active_slot_count_locked(*m_state) == 0;
 }
 
 std::size_t signal_backend::slot_count() const
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    return active_slot_count_locked();
+    std::lock_guard<std::mutex> lock(m_state->mutex);
+    return active_slot_count_locked(*m_state);
 }
 
 std::size_t signal_backend::max_depth() const noexcept
@@ -149,42 +246,43 @@ std::size_t signal_backend::max_depth() const noexcept
 
 std::shared_ptr<const slot_record_list> signal_backend::snapshot() const
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    return m_slots;
+    std::lock_guard<std::mutex> lock(m_state->mutex);
+    return m_state->slots;
 }
 
-void signal_backend::ensure_unique_slots_locked()
+void signal_backend::ensure_unique_slots_locked(state& backend_state)
 {
-    if (!m_slots) {
-        m_slots = std::make_shared<slot_record_list>();
+    if (!backend_state.slots) {
+        backend_state.slots = std::make_shared<slot_record_list>();
         return;
     }
 
-    if (m_slots.use_count() > 1) {
-        m_slots = std::make_shared<slot_record_list>(*m_slots);
+    if (backend_state.slots.use_count() > 1) {
+        backend_state.slots = std::make_shared<slot_record_list>(*backend_state.slots);
     }
 }
 
-void signal_backend::compact_locked()
+void signal_backend::compact_locked(state& backend_state)
 {
-    if (!m_slots) {
+    if (!backend_state.slots) {
         return;
     }
 
-    m_slots->erase(std::remove_if(m_slots->begin(), m_slots->end(),
-                                  [](const slot_record& entry) {
+    backend_state.slots->erase(std::remove_if(backend_state.slots->begin(), backend_state.slots->end(),
+                                              [](const slot_record& entry) {
         return !entry.state->connected();
     }),
-                   m_slots->end());
+                               backend_state.slots->end());
 }
 
-std::size_t signal_backend::active_slot_count_locked() const
+std::size_t signal_backend::active_slot_count_locked(const state& backend_state) const
 {
-    if (!m_slots) {
+    if (!backend_state.slots) {
         return 0;
     }
 
-    return static_cast<std::size_t>(std::count_if(m_slots->begin(), m_slots->end(), [](const slot_record& entry) {
+    return static_cast<std::size_t>(
+        std::count_if(backend_state.slots->begin(), backend_state.slots->end(), [](const slot_record& entry) {
         return entry.state->connected();
     }));
 }

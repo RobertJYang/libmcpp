@@ -1,6 +1,7 @@
 runtime_src_files = [
   'runtime/runtime.cpp',
   'runtime/runtime_context.cpp',
+  'runtime/event_dispatcher.cpp',
   'runtime/runtime_executor.cpp',
   'runtime/any_executor.cpp',
   'runtime/executor.cpp',

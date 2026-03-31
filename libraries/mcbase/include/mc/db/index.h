@@ -40,7 +40,7 @@ namespace mc::db {
 template <typename ObjectType, typename KeyExtractor, bool IsUnique = true, typename Tag = void,
           typename Allocator = std::allocator<char>>
 class index : public index_base<ObjectType, Allocator> {
-    static_assert(std::is_base_of_v<mc::core::object_base, ObjectType>, "ObjectType必须继承自mc::core::object_base");
+    static_assert(std::is_base_of_v<mc::object_base, ObjectType>, "ObjectType必须继承自mc::object_base");
 
 public:
     // 索引相关类型定义

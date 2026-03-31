@@ -11,6 +11,7 @@
  */
 
 #include <mc/common.h>
+#include <mc/event.h>
 #include <mc/exception.h>
 #include <mc/log/log.h>
 #include <mc/runtime/runtime_context.h>
@@ -25,6 +26,8 @@
 #include <memory>
 #include <thread>
 #include <vector>
+
+#include "runtime/include/event_dispatcher.h"
 
 #ifndef MC_MAX_IO_THREADS
 #define MC_MAX_IO_THREADS 10
@@ -68,7 +71,8 @@ immediate_context::executor_type immediate_context::get_executor() const noexcep
 
 class runtime_context::impl {
 public:
-    impl() = default;
+    impl() : m_event_dispatcher(std::make_unique<event_dispatcher>())
+    {}
     ~impl();
 
     void set_config(const runtime_config& new_config);
@@ -97,9 +101,15 @@ public:
         return m_work_pool ? *m_work_pool : *m_io_pool;
     }
 
+    event_dispatcher& dispatcher() noexcept
+    {
+        return *m_event_dispatcher;
+    }
+
 private:
-    std::unique_ptr<thread_pool> m_io_pool;
-    std::unique_ptr<thread_pool> m_work_pool; // 可能为 null（work_threads=0 时）
+    std::unique_ptr<thread_pool>      m_io_pool;
+    std::unique_ptr<thread_pool>      m_work_pool; // 可能为 null（work_threads=0 时）
+    std::unique_ptr<event_dispatcher> m_event_dispatcher;
 
     enum class state_t : std::uint8_t {
         uninitialized = 0, // 未初始化
@@ -311,6 +321,31 @@ any_executor runtime_context::get_work_executor() noexcept
 any_executor runtime_context::get_executor() noexcept
 {
     return any_executor(runtime_executor(*this));
+}
+
+void runtime_context::send_event(mc::object& target, mc::event& e)
+{
+    m_impl->dispatcher().send_event(target, e);
+}
+
+void runtime_context::post_event(mc::object& target, std::unique_ptr<mc::event> e)
+{
+    post_event(target, std::move(e), 0);
+}
+
+void runtime_context::post_event(mc::object& target, std::unique_ptr<mc::event> e, int priority)
+{
+    m_impl->dispatcher().post_event(target, std::move(e), priority);
+}
+
+void runtime_context::send_posted_events(mc::object* target, mc::event_type_id type)
+{
+    m_impl->dispatcher().send_posted_events(target, type);
+}
+
+void runtime_context::remove_posted_events(mc::object* target, mc::event_type_id type)
+{
+    m_impl->dispatcher().remove_posted_events(target, type);
 }
 
 any_executor runtime_context::create_strand()

@@ -25,6 +25,7 @@
 #include <mc/reflect.h>
 #include <mc/string_utils.h>
 #include <mc/traits.h>
+#include <mc/db/query/query.h>
 
 #include <atomic>
 #include <functional>
@@ -507,7 +508,7 @@ public:
     {
         std::lock_guard lock(m_mutex);
 
-        return std::get<I>(m_indices).find(keys...);
+        return index_ref<I>().find(keys...);
     }
 
     /**
@@ -521,7 +522,7 @@ public:
     {
         std::lock_guard lock(m_mutex);
 
-        return get<Tag>().find(keys...);
+        return index_ref<Tag>().find(keys...);
     }
 
     object_ptr_type find_by_index(size_t index_id, const mc::variant& value)
@@ -582,31 +583,55 @@ public:
     /**
      * 统一的获取索引方法，既支持数字索引又支持标签类型
      * @tparam I 索引序号
-     * @return 索引引用
+     * @return 索引引用。注意：返回后不再持有表锁；运行时代码优先使用 with_index()。
      */
     template <size_t I>
     auto& get()
     {
         std::lock_guard lock(m_mutex);
 
-        return std::get<I>(m_indices);
+        return index_ref<I>();
     }
 
     /**
      * 统一的获取索引方法，既支持数字索引又支持标签类型
      * @tparam Tag 标签类型
-     * @return 索引引用
+     * @return 索引引用。注意：返回后不再持有表锁；运行时代码优先使用 with_index()。
      */
     template <typename Tag, typename = std::enable_if_t<mc::db::is_tag_v<Tag>>>
     auto& get()
     {
         std::lock_guard lock(m_mutex);
 
-        if constexpr (std::is_same_v<Tag, by_object_id_tag>) {
-            return std::get<0>(m_indices);
+        return index_ref<Tag>();
+    }
+
+    // 锁内访问索引，运行时代码优先使用这个入口。
+    template <size_t I, typename Func>
+    decltype(auto) with_index(Func&& func)
+    {
+        std::lock_guard lock(m_mutex);
+
+        using result_type = std::invoke_result_t<Func, decltype(index_ref<I>())>;
+        if constexpr (std::is_void_v<result_type>) {
+            std::invoke(std::forward<Func>(func), index_ref<I>());
+            return;
         } else {
-            constexpr size_t index = mc::db::detail::tag_index_of<Tag, indices_def>::value + 1;
-            return std::get<index>(m_indices);
+            return std::invoke(std::forward<Func>(func), index_ref<I>());
+        }
+    }
+
+    template <typename Tag, typename Func, typename = std::enable_if_t<mc::db::is_tag_v<Tag>>>
+    decltype(auto) with_index(Func&& func)
+    {
+        std::lock_guard lock(m_mutex);
+
+        using result_type = std::invoke_result_t<Func, decltype(index_ref<Tag>())>;
+        if constexpr (std::is_void_v<result_type>) {
+            std::invoke(std::forward<Func>(func), index_ref<Tag>());
+            return;
+        } else {
+            return std::invoke(std::forward<Func>(func), index_ref<Tag>());
         }
     }
 
@@ -644,15 +669,84 @@ public:
         return m_name;
     }
 
+    /**
+     * 根据查询条件查找单个记录
+     * @param builder 查询构建器
+     * @return 找到的记录的可选包装
+     */
+    object_ptr_type find(const query_builder& builder)
+    {
+        return table_query<table<object_type, IndexDef>>(*this).query_one(builder);
+    }
+
+    /**
+     * 查询记录
+     * @param builder 查询构建器
+     * @param limit 限制返回的记录数量，0表示不限制
+     * @return 查询结果
+     */
+    std::vector<object_ptr_type> query(const query_builder& builder, size_t limit = 0)
+    {
+        return table_query<table<object_type, IndexDef>>(*this).query(builder, limit);
+    }
+
+    /**
+     * 查询记录
+     * @param builder 查询构建器
+     * @param handler 处理函数，返回false表示停止查询
+     * @return 是否查询完成
+     */
+    template <typename Handler, typename = std::enable_if_t<std::is_invocable_r_v<bool, Handler, object_type&>>>
+    bool query(const query_builder& builder, Handler&& handler)
+    {
+        return table_query<table<object_type, IndexDef>>(*this).query(builder, std::forward<Handler>(handler));
+    }
+
     std::vector<object_ptr_type> all()
     {
-        std::lock_guard              lock(m_mutex);
-        std::vector<object_ptr_type> results;
-        results.reserve(std::get<0>(m_indices).size());
-        for (auto it = std::get<0>(m_indices).begin(); it != std::get<0>(m_indices).end(); ++it) {
-            results.emplace_back(const_cast<object_type*>(&*it));
-        }
-        return results;
+        query_builder builder;
+        return table_query<table<object_type, IndexDef>>(*this).query_all(builder);
+    }
+
+    /**
+     * 高级更新方法，支持通过条件更新多个属性
+     * @param condition 查询条件
+     * @param values 要更新的值，支持多种数据源
+     * @return 更新的记录数量
+     */
+    size_t update(const query_builder& condition, const mc::dict& values, transaction* txn = nullptr)
+    {
+        std::lock_guard lock(m_mutex);
+
+        return update_internal(condition, values, txn);
+    }
+
+    size_t update(const query_builder& condition, const std::map<mc::string, variant>& values,
+                  transaction* txn = nullptr)
+    {
+        std::lock_guard lock(m_mutex);
+
+        return update_internal(condition, values, txn);
+    }
+
+    /**
+     * 高级删除方法，支持通过条件删除多个记录
+     * @param condition 查询条件
+     * @return 删除的记录数量
+     */
+    size_t remove(const query_builder& condition, transaction* txn = nullptr)
+    {
+        size_t removed_count = 0;
+
+        auto handler = [&](object_type& obj) -> bool {
+            if (remove(mc::shared_ptr<object_type>(const_cast<object_type*>(&obj)), txn)) {
+                removed_count++;
+            }
+            return true;
+        };
+
+        query(condition, handler);
+        return removed_count;
     }
 
     void clear() override
@@ -732,6 +826,63 @@ protected:
     }
 
 private:
+    template <size_t I>
+    auto& index_ref()
+    {
+        return std::get<I>(m_indices);
+    }
+
+    template <typename Tag>
+    auto& index_ref()
+    {
+        if constexpr (std::is_same_v<Tag, by_object_id_tag>) {
+            return std::get<0>(m_indices);
+        } else {
+            constexpr size_t index = mc::db::detail::tag_index_of<Tag, indices_def>::value + 1;
+            return std::get<index>(m_indices);
+        }
+    }
+
+    // 从 dict 更新对象
+    void update_object(object_type& obj, const dict& values)
+    {
+        for (auto& entry : values) {
+            mc::reflect::set_property(obj, entry.key.get_string(), entry.value);
+        }
+    }
+
+    // 从 map 更新对象
+    void update_object(object_type& obj, const std::map<mc::string, variant>& values)
+    {
+        for (auto& entry : values) {
+            mc::reflect::set_property(obj, entry.first, entry.second);
+        }
+    }
+
+    template <typename T>
+    size_t update_internal(const query_builder& condition, const T& values, transaction* txn)
+    {
+        size_t updated_count = 0;
+
+        auto handler = [&](const object_type& obj) -> bool {
+            if constexpr (mc::traits::is_copyable_v<object_type>) {
+                auto new_obj = mc::make_shared<object_type>(obj);
+                update_object(*new_obj, values);
+                if (update(mc::shared_ptr<object_type>(const_cast<object_type*>(&obj)), new_obj, txn)) {
+                    updated_count++;
+                }
+                return true;
+            }
+            // 非可复制类型，直接更新对象
+            update_object(const_cast<object_type&>(obj), values);
+            updated_count++;
+            return true;
+        };
+
+        query(condition, handler);
+        return updated_count;
+    }
+
     /**
      * 根据IndexDef选择合适的索引创建方法
      */

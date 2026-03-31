@@ -10,6 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include <mc/engine/event.h>
 #include <mc/engine/interface.h>
 
 using namespace mc::reflect;
@@ -53,6 +54,20 @@ void interface_impl::notify_property_changed(const mc::variant& value, const pro
     if (m_property_changed_signal) {
         (*m_property_changed_signal)(value, prop);
     }
+}
+
+void interface_impl::on_event(mc::event& e)
+{
+    if (e.type() != property_changed_event_id) {
+        return;
+    }
+
+    auto* property_event = dynamic_cast<property_changed_event*>(&e);
+    if (property_event == nullptr) {
+        return;
+    }
+
+    notify_property_changed(property_event->value(), property_event->property());
 }
 
 bool interface_impl::set_property(std::string_view property_name, const mc::variant& value)

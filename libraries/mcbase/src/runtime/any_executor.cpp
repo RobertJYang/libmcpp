@@ -296,7 +296,15 @@ any_executor& any_executor::bound_pool(thread_pool* pool) noexcept
 
 thread_pool* any_executor::get_bound_pool() const noexcept
 {
-    return m_ops ? m_ops->get_bound_pool(storage()) : nullptr;
+    if (!m_ops) {
+        return nullptr;
+    }
+
+    if (m_ops->kind == detail::any_executor_backend_kind::thread_pool) {
+        return &detail::thread_pool_impl::get_pool(as<thread_pool::executor_type>(storage()));
+    }
+
+    return m_ops->get_bound_pool(storage());
 }
 
 void any_executor::post_impl(function&& f) const

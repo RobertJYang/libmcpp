@@ -2359,28 +2359,44 @@ TEST_F(PropertyRelateTest, RefObjectConcurrentInvoke)
     // 验证对象确实是我们期望的CPU对象
     EXPECT_EQ(cpu_object->get_object_name(), "CPU_04") << "CPU对象名称应该正确";
 
-    // 并发调用多个方法（虽然方法不存在，但测试并发访问不会导致问题）
-    std::vector<std::thread>        threads;
-    std::vector<std::exception_ptr> exceptions(5);
+    constexpr int round_count  = 200;
+    constexpr int thread_count = 8;
 
-    for (int i = 0; i < 5; ++i) {
-        threads.emplace_back([ref_obj, i, &exceptions]() {
-            try {
-                ref_obj->invoke("ConcurrentMethod" + std::to_string(i), {});
-            } catch (...) {
-                exceptions[i] = std::current_exception();
-            }
-        });
-    }
+    for (int round = 0; round < round_count; ++round) {
+        // 并发调用多个方法（虽然方法不存在，但测试并发访问不会导致问题）
+        std::vector<std::thread>        threads;
+        std::vector<std::exception_ptr> exceptions(thread_count);
+        std::atomic<int>                ready_count{0};
+        std::atomic<bool>               start{false};
 
-    // 等待所有线程完成
-    for (auto& thread : threads) {
-        thread.join();
-    }
+        for (int i = 0; i < thread_count; ++i) {
+            threads.emplace_back([ref_obj, round, i, &exceptions, &ready_count, &start]() {
+                ready_count.fetch_add(1, std::memory_order_relaxed);
+                while (!start.load(std::memory_order_acquire)) {
+                    std::this_thread::yield();
+                }
+                try {
+                    ref_obj->invoke("ConcurrentMethod" + std::to_string(round) + "_" + std::to_string(i), {});
+                } catch (...) {
+                    exceptions[i] = std::current_exception();
+                }
+            });
+        }
 
-    // 验证所有调用都没有抛出异常（因为方法不存在时返回空结果而不是抛出异常）
-    for (const auto& exception : exceptions) {
-        EXPECT_TRUE(exception == nullptr);
+        while (ready_count.load(std::memory_order_acquire) != thread_count) {
+            std::this_thread::yield();
+        }
+        start.store(true, std::memory_order_release);
+
+        // 等待所有线程完成
+        for (auto& thread : threads) {
+            thread.join();
+        }
+
+        // 验证所有调用都没有抛出异常（因为方法不存在时返回空结果而不是抛出异常）
+        for (const auto& exception : exceptions) {
+            EXPECT_TRUE(exception == nullptr);
+        }
     }
 }
 
@@ -2403,16 +2419,19 @@ TEST_F(PropertyRelateTest, RefObjectNullObjectFinder)
 // 测试引用对象的边界情况
 TEST_F(PropertyRelateTest, RefObjectEdgeCases)
 {
+    constexpr size_t object_name_index_id =
+        mc::db::detail::tag_index_of<mc::engine::by_object_name, mc::engine::service_object_table::indices_def>::value +
+        1;
+
     // 测试明确不存在的对象名称
     mc::engine::ref_object non_existent_ref_obj("NonExistentObjectForEdgeCase",
                                                 [this](const std::string& name) -> mc::engine::abstract_object* {
         auto& object_table = m_service->get_object_table();
-        auto& idx          = object_table.template get<mc::engine::by_object_name>();
-        auto  obj_it       = idx.find(name);
-        if (obj_it == idx.end()) {
+        auto  object_ptr   = object_table.find_by_index(object_name_index_id, name);
+        if (object_ptr == nullptr) {
             return nullptr;
         }
-        return const_cast<mc::engine::abstract_object*>(&(*obj_it));
+        return const_cast<mc::engine::abstract_object*>(object_ptr.get());
     });
 
     // 不存在的对象应该导致对象查找失败，从而抛出异常
@@ -2422,12 +2441,11 @@ TEST_F(PropertyRelateTest, RefObjectEdgeCases)
     mc::engine::ref_object special_ref_obj("Test.Object.With.Dots",
                                            [this](const std::string& name) -> mc::engine::abstract_object* {
         auto& object_table = m_service->get_object_table();
-        auto& idx          = object_table.template get<mc::engine::by_object_name>();
-        auto  obj_it       = idx.find(name);
-        if (obj_it == idx.end()) {
+        auto  object_ptr   = object_table.find_by_index(object_name_index_id, name);
+        if (object_ptr == nullptr) {
             return nullptr;
         }
-        return const_cast<mc::engine::abstract_object*>(&(*obj_it));
+        return const_cast<mc::engine::abstract_object*>(object_ptr.get());
     });
 
     EXPECT_THROW({ special_ref_obj.invoke("SomeMethod", {}); }, mc::invalid_op_exception);

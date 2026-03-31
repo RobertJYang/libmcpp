@@ -159,7 +159,7 @@ TEST_F(object_test, test_invoke_event_filter_can_intercept_before_method_routing
 {
     int filter_hits = 0;
 
-    obj.install_event_filter([&](mc::core::object* source, mc::event& e) {
+    obj.install_event_filter([&](mc::object* source, mc::event& e) {
         EXPECT_EQ(source, nullptr);
 
         auto* invoke_event = dynamic_cast<mc::engine::method_invoke_event*>(&e);
@@ -185,7 +185,7 @@ TEST_F(object_test, test_invoke_event_filter_can_observe_and_fall_back_to_existi
 {
     int filter_hits = 0;
 
-    obj.install_event_filter([&](mc::core::object*, mc::event& e) {
+    obj.install_event_filter([&](mc::object*, mc::event& e) {
         auto* invoke_event = dynamic_cast<mc::engine::method_invoke_event*>(&e);
         if (invoke_event != nullptr && invoke_event->method_name() == "Add") {
             ++filter_hits;

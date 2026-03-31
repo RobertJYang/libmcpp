@@ -14,6 +14,7 @@
 #define MC_SIGNAL_CONNECTION_H
 
 #include <cstddef>
+#include <functional>
 #include <memory>
 #include <vector>
 
@@ -40,10 +41,13 @@ public:
 
 private:
     explicit connection(std::shared_ptr<detail::connection_state> state) noexcept;
+    std::uint64_t add_disconnect_callback(std::function<void()> callback) const;
+    void          remove_disconnect_callback(std::uint64_t callback_id) const noexcept;
 
     std::shared_ptr<detail::connection_state> m_state;
 
     friend class detail::signal_backend;
+    friend class connection_manager;
 };
 
 using connection_type = connection;
@@ -69,8 +73,12 @@ private:
 
 class MC_API connection_manager {
 public:
-    connection_manager() = default;
+    connection_manager();
     ~connection_manager();
+    connection_manager(const connection_manager&)                = delete;
+    connection_manager& operator=(const connection_manager&)     = delete;
+    connection_manager(connection_manager&& other) noexcept;
+    connection_manager& operator=(connection_manager&& other) noexcept;
 
     void        add(connection conn);
     void        disconnect_all();
@@ -78,7 +86,8 @@ public:
     std::size_t size() const;
 
 private:
-    std::vector<connection> m_connections;
+    struct state;
+    std::shared_ptr<state> m_state;
 };
 
 } // namespace mc
