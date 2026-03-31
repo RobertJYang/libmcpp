@@ -29,6 +29,128 @@ namespace mc {
 // variant_extension_base 的实现
 variant_extension_base::~variant_extension_base() = default;
 
+mc::shared_ptr<variant_extension_base> variant_extension_base::deep_copy(detail::copy_context* ctx) const
+{
+    MC_UNUSED(ctx);
+    return copy();
+}
+
+mc::shared_ptr<variant_extension_base> variant_extension_base::clone() const
+{
+    return copy();
+}
+
+extension_type_info variant_extension_base::get_type_info() const
+{
+    return extension_type_info();
+}
+
+extension_type_id_t variant_extension_base::get_type_id() const
+{
+    return get_type_info().id;
+}
+
+mc::string_view variant_extension_base::get_type_name() const
+{
+    return get_type_info().name;
+}
+
+std::size_t variant_extension_base::hash() const
+{
+    return reinterpret_cast<std::size_t>(this);
+}
+
+const variant_payload_type* variant_extension_base::payload_type() const
+{
+    return nullptr;
+}
+
+void* variant_extension_base::payload_address()
+{
+    return nullptr;
+}
+
+const void* variant_extension_base::payload_address() const
+{
+    return nullptr;
+}
+
+void* variant_extension_base::upcast_payload_to(const variant_payload_type& target)
+{
+    MC_UNUSED(target);
+    return nullptr;
+}
+
+const void* variant_extension_base::upcast_payload_to(const variant_payload_type& target) const
+{
+    MC_UNUSED(target);
+    return nullptr;
+}
+
+bool variant_extension_base::is_payload_type(const variant_payload_type& target) const
+{
+    return detail::payload_type_is_a(payload_type(), &target);
+}
+
+int64_t variant_extension_base::as_int64() const
+{
+    return 0;
+}
+
+uint64_t variant_extension_base::as_uint64() const
+{
+    return 0;
+}
+
+double variant_extension_base::as_double() const
+{
+    return 0;
+}
+
+bool variant_extension_base::as_bool() const
+{
+    return false;
+}
+
+mc::string variant_extension_base::as_string() const
+{
+    return mc::string(get_type_name());
+}
+
+void variant_extension_base::visit(std::function<void(const mc::variant&)>&& visitor) const
+{
+    MC_UNUSED(visitor);
+}
+
+bool variant_extension_base::supports_reference_access() const
+{
+    return false;
+}
+
+mc::variant* variant_extension_base::get_ptr(std::size_t index)
+{
+    MC_UNUSED(index);
+    return nullptr;
+}
+
+const mc::variant* variant_extension_base::get_ptr(std::size_t index) const
+{
+    MC_UNUSED(index);
+    return nullptr;
+}
+
+mc::variant* variant_extension_base::get_ptr(mc::string_view key)
+{
+    MC_UNUSED(key);
+    return nullptr;
+}
+
+const mc::variant* variant_extension_base::get_ptr(mc::string_view key) const
+{
+    MC_UNUSED(key);
+    return nullptr;
+}
+
 mc::variant variant_extension_base::get(std::size_t index) const
 {
     throw_not_supported_error("扩展类型索引访问");

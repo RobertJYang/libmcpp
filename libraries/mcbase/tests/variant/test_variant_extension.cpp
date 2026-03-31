@@ -455,6 +455,115 @@ private:
     std::vector<mc::variant> m_entries;
 };
 
+struct registry_backed_payload {
+    int value;
+
+    explicit registry_backed_payload(int value_) : value(value_)
+    {}
+
+    bool operator==(const registry_backed_payload& other) const
+    {
+        return value == other.value;
+    }
+};
+
+struct owner_bound_registry_payload {
+    int                         value;
+    variant_extension_base*     owner = nullptr;
+
+    explicit owner_bound_registry_payload(int value_) : value(value_)
+    {}
+
+    bool operator==(const owner_bound_registry_payload& other) const
+    {
+        return value == other.value;
+    }
+
+    void __mc_bind_extension_owner(variant_extension_base* extension_owner)
+    {
+        owner = extension_owner;
+    }
+};
+
+struct traits_hashed_payload {
+    int value;
+
+    explicit traits_hashed_payload(int value_) : value(value_)
+    {}
+
+    bool operator==(const traits_hashed_payload& other) const
+    {
+        return value == other.value;
+    }
+};
+
+struct traits_hashed_payload_traits {
+    static std::size_t hash(const traits_hashed_payload& payload)
+    {
+        return std::hash<int>{}(payload.value);
+    }
+};
+
+} // namespace test
+} // namespace mc
+
+template <>
+struct mc::extension_type_info_traits<mc::test::registry_backed_payload> {
+    static mc::extension_type_info get()
+    {
+        return mc::extension_type_registry::register_type(
+            "tests.variant.registry_backed_payload", "registry_backed_payload");
+    }
+};
+
+template <>
+struct mc::variant_payload_type_traits<mc::test::registry_backed_payload> {
+    static const mc::variant_payload_type* get()
+    {
+        return mc::variant_payload_registry::register_type(
+            "tests.variant.registry_backed_payload", "registry_backed_payload");
+    }
+};
+
+template <>
+struct mc::extension_type_info_traits<mc::test::owner_bound_registry_payload> {
+    static mc::extension_type_info get()
+    {
+        return mc::extension_type_registry::register_type(
+            "tests.variant.owner_bound_registry_payload", "owner_bound_registry_payload");
+    }
+};
+
+template <>
+struct mc::variant_payload_type_traits<mc::test::owner_bound_registry_payload> {
+    static const mc::variant_payload_type* get()
+    {
+        return mc::variant_payload_registry::register_type(
+            "tests.variant.owner_bound_registry_payload", "owner_bound_registry_payload");
+    }
+};
+
+template <>
+struct mc::extension_type_info_traits<mc::test::traits_hashed_payload> {
+    static mc::extension_type_info get()
+    {
+        return mc::extension_type_registry::register_type(
+            "tests.variant.traits_hashed_payload", "traits_hashed_payload");
+    }
+};
+
+template <>
+struct mc::variant_payload_type_traits<mc::test::traits_hashed_payload> {
+    static const mc::variant_payload_type* get()
+    {
+        return mc::variant_payload_registry::register_type(
+            "tests.variant.traits_hashed_payload", "traits_hashed_payload");
+    }
+};
+
+namespace mc {
+namespace test {
+
 class VariantExtensionTest : public mc::test::TestBase {
 protected:
     void SetUp() override
@@ -1065,6 +1174,102 @@ TEST_F(VariantExtensionTest, ExtensionMissingUnderlyingPtr)
     auto    ext2 = mc::make_shared<test_extension>(42);
     variant v3(ext2);
     EXPECT_TRUE(v1 == v3);
+}
+
+TEST_F(VariantExtensionTest, ExtensionTypeRegistryReturnsStableInfoForIdentity)
+{
+    auto first = mc::extension_type_registry::register_type("tests.variant.ShapeImpl", "Shape");
+    auto same  = mc::extension_type_registry::register_type("tests.variant.ShapeImpl", "Shape");
+    auto other = mc::extension_type_registry::register_type("tests.variant.OtherImpl", "Other");
+
+    EXPECT_EQ(first.id, same.id);
+    EXPECT_EQ(first.name, "Shape");
+    EXPECT_NE(first.id, other.id);
+}
+
+TEST_F(VariantExtensionTest, VariantPayloadRegistryReturnsCanonicalDescriptorForIdentity)
+{
+    auto* base = mc::variant_payload_registry::register_type("tests.variant.BaseImpl", "Base");
+    auto* base_again = mc::variant_payload_registry::register_type("tests.variant.BaseImpl", "Base");
+
+    const mc::variant_payload_type* const bases[] = {base};
+    auto* derived = mc::variant_payload_registry::register_type(
+        "tests.variant.DerivedImpl", "Derived", bases, 1);
+
+    EXPECT_EQ(base, base_again);
+    EXPECT_TRUE(mc::detail::payload_type_is_a(derived, base));
+}
+
+TEST_F(VariantExtensionTest, ComposedExtensionUsesSharedRuntimeIdentityHelpers)
+{
+    auto ext = mc::make_composed_extension<registry_backed_payload>(std::in_place, 7);
+    auto* payload_type = mc::variant_payload_type_traits<registry_backed_payload>::get();
+
+    ASSERT_NE(payload_type, nullptr);
+    EXPECT_TRUE(ext->is_payload_type(*payload_type));
+
+    auto* payload = ext->payload_as<registry_backed_payload>();
+    ASSERT_NE(payload, nullptr);
+    EXPECT_EQ(payload->value, 7);
+
+    auto cloned = ext->clone();
+    auto* cloned_payload = cloned->payload_as<registry_backed_payload>();
+    ASSERT_NE(cloned_payload, nullptr);
+    EXPECT_EQ(cloned_payload->value, 7);
+}
+
+TEST_F(VariantExtensionTest, ComposedExtensionPreservesPayloadSemanticsAcrossCopies)
+{
+    auto ext = mc::make_composed_extension<owner_bound_registry_payload>(std::in_place, 17);
+    auto* payload_type = mc::variant_payload_type_traits<owner_bound_registry_payload>::get();
+    auto* payload      = ext->payload_as<owner_bound_registry_payload>();
+
+    ASSERT_NE(payload_type, nullptr);
+    ASSERT_NE(payload, nullptr);
+    EXPECT_TRUE(ext->is_payload_type(*payload_type));
+    EXPECT_EQ(ext->payload_address(), payload);
+    EXPECT_EQ(payload->owner, ext.get());
+
+    auto copied = ext->copy();
+    auto cloned = ext->clone();
+    auto deep   = ext->deep_copy();
+
+    auto assert_payload_semantics = [](const mc::shared_ptr<variant_extension_base>& candidate,
+                                       int expected_value) {
+        auto* candidate_payload = candidate->payload_as<owner_bound_registry_payload>();
+        ASSERT_NE(candidate_payload, nullptr);
+        EXPECT_EQ(candidate->payload_address(), candidate_payload);
+        EXPECT_EQ(candidate_payload->value, expected_value);
+        EXPECT_EQ(candidate_payload->owner, candidate.get());
+    };
+
+    assert_payload_semantics(copied, 17);
+    assert_payload_semantics(cloned, 17);
+    assert_payload_semantics(deep, 17);
+
+    EXPECT_TRUE(ext->equals(*copied));
+    EXPECT_TRUE(ext->equals(*cloned));
+    EXPECT_TRUE(ext->equals(*deep));
+    EXPECT_EQ(ext->hash(), copied->hash());
+    EXPECT_EQ(ext->hash(), cloned->hash());
+    EXPECT_EQ(ext->hash(), deep->hash());
+}
+
+TEST_F(VariantExtensionTest, ComposedExtensionUsesTraitsHashWhenStdHashUnavailable)
+{
+    auto ext =
+        mc::make_composed_extension<traits_hashed_payload, traits_hashed_payload_traits>(std::in_place, 23);
+    auto copied = ext->copy();
+    auto cloned = ext->clone();
+    auto deep   = ext->deep_copy();
+
+    EXPECT_TRUE(ext->equals(*copied));
+    EXPECT_TRUE(ext->equals(*cloned));
+    EXPECT_TRUE(ext->equals(*deep));
+    EXPECT_EQ(ext->hash(), std::hash<int>{}(23));
+    EXPECT_EQ(ext->hash(), copied->hash());
+    EXPECT_EQ(ext->hash(), cloned->hash());
+    EXPECT_EQ(ext->hash(), deep->hash());
 }
 
 } // namespace test

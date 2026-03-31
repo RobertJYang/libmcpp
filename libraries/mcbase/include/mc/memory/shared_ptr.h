@@ -24,7 +24,7 @@ namespace mc::memory {
 
 namespace detail {
 template <typename T>
-struct is_composed_variant_extension : std::false_type {};
+struct is_composed_extension_storage : std::false_type {};
 
 template <typename T>
 struct shared_release_ops_for {
@@ -401,7 +401,7 @@ private:
 };
 
 template <typename T, typename Alloc = std::allocator<T>, typename... Args,
-          std::enable_if_t<!detail::is_composed_variant_extension<T>::value, int> = 0>
+          std::enable_if_t<!detail::is_composed_extension_storage<T>::value, int> = 0>
 shared_ptr<T> allocate_shared(const Alloc& alloc, Args&&... args)
 {
     return shared_ptr<T>(allocate_ptr<T, Alloc>(alloc, std::forward<Args>(args)...));
@@ -416,7 +416,7 @@ shared_ptr<T> allocate_shared(const Alloc& alloc, Args&&... args)
  * @return 指向新创建对象的shared_ptr
  */
 template <typename T, typename... Args,
-          std::enable_if_t<!detail::is_composed_variant_extension<T>::value, int> = 0>
+          std::enable_if_t<!detail::is_composed_extension_storage<T>::value, int> = 0>
 shared_ptr<T> make_shared(Args&&... args)
 {
     return shared_ptr<T>(allocate_ptr<T>(std::allocator<T>(), std::forward<Args>(args)...));

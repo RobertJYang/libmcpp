@@ -26,6 +26,7 @@
 #include <string_view>
 #include <type_traits>
 
+#include <mc/common.h>
 #include <mc/pretty_name.h>
 
 namespace mc {
@@ -71,7 +72,7 @@ constexpr bool has_trait(extension_type_trait traits, extension_type_trait trait
 /**
  * @brief extension 类型信息
  */
-struct extension_type_info {
+struct MC_API extension_type_info {
     extension_type_id_t  id;     // 类型ID
     mc::string_view     name;   // 类型名称
     extension_type_trait traits; // 类型特征
@@ -126,14 +127,15 @@ constexpr extension_type_id_t user_defined_start = 1000;
 /**
  * @brief extension 类型注册器（用于自动分配类型ID）
  */
-class extension_type_registry {
+class MC_API extension_type_registry {
 public:
     // 获取下一个可用的用户类型ID
-    static extension_type_id_t next_user_type_id()
-    {
-        static extension_type_id_t next_id = extension_type_ids::user_defined_start;
-        return next_id++;
-    }
+    static extension_type_id_t next_user_type_id();
+
+    static extension_type_info register_type(
+        mc::string_view     identity,
+        mc::string_view     display_name,
+        extension_type_trait traits = extension_type_trait::none);
 };
 
 /**
@@ -142,11 +144,13 @@ public:
  * 使用模板特化和静态变量确保每个类型只分配一次ID
  */
 template <typename T>
+struct extension_type_info_traits;
+
+template <typename T>
 struct extension_type_id_generator {
     static extension_type_id_t get()
     {
-        static const extension_type_id_t id = extension_type_registry::next_user_type_id();
-        return id;
+        return extension_type_info_traits<T>::get().id;
     }
 };
 
@@ -160,8 +164,9 @@ template <typename T>
 struct extension_type_info_traits {
     static extension_type_info get()
     {
-        return extension_type_info(extension_type_id_generator<T>::get(), mc::pretty_name<T>(),
-                                   extension_type_trait::none);
+        auto display_name = mc::pretty_name<T>();
+        return extension_type_registry::register_type(
+            display_name, display_name, extension_type_trait::none);
     }
 };
 
