@@ -15,7 +15,6 @@
 
 #include <mc/common.h>
 #include <mc/core/object_base.h>
-#include <mc/db/query/proto_query.h>
 
 namespace mc::db {
 
@@ -33,24 +32,6 @@ using db_object_ptr = mc::shared_ptr<mc::core::object_base>;
 using object_id_type = db_object_id_type;
 using object_base    = mc::core::object_base;
 using object_ptr     = db_object_ptr;
-
-using query::field;
-
-/**
- * 创建字段引用，通过成员指针自动获取字段名
- * @tparam KeyType 字段类型
- * @param member 成员指针
- * @return 字段引用对象，用于构建查询条件
- */
-template <typename ObjectType, typename KeyType>
-static auto field(KeyType ObjectType::*member)
-{
-    mc::string_view name;
-    if constexpr (mc::reflect::is_reflectable<ObjectType>()) {
-        name = mc::reflect::get_property_name<ObjectType>(member);
-    }
-    return query::dsl::field(name);
-}
 
 } // namespace mc::db
 

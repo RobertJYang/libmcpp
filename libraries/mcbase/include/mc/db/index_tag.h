@@ -14,7 +14,6 @@
 #define MC_DATABASE_INDEX_TAG_H
 
 #include <mc/db/key_extractor.h>
-#include <mc/db/query/proto_query.h>
 
 #include <string>
 #include <tuple>
@@ -32,7 +31,7 @@ struct tag_base {
     using tag_type  = Tag;
 
     tag_type*                  dummy;
-    static constexpr tag_type* base_type::*tag = &base_type::dummy;
+    static constexpr tag_type* base_type::* tag = &base_type::dummy;
 };
 
 /**
@@ -55,12 +54,7 @@ struct field_tag : public tag_base<field_tag<FieldName>> {
     {
         return {field_name};
     }
-
-    static mc::db::query::dsl::filed_expr field;
 };
-
-template <const char* FieldName>
-inline mc::db::query::dsl::filed_expr field_tag<FieldName>::field = mc::db::query::dsl::field(field_name);
 
 /**
  * 确定标签类型是否有效

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
  * openUBMC is licensed under Mulan PSL v2.
  * You can use this software according to the terms and conditions of the Mulan PSL v2.
  * You may obtain a copy of Mulan PSL v2 at:
@@ -11,23 +11,26 @@
  */
 
 #include <gtest/gtest.h>
-#include <mc/db/database.h>
-#include <mc/dict.h>
-#include <mc/variant.h>
-#include <test_utilities/base.h>
 
-using namespace mc;
-using namespace mc::db;
+#include <algorithm>
+#include <memory>
+#include <vector>
+
+#include <mc/db/database.h>
+#include <mc/db/query/query.h>
+#include <mc/db/transaction.h>
+#include <mc/dict.h>
+#include <mc/reflect.h>
 
 namespace {
 
-// 定义标签类型
-struct by_id : tag_base<by_id> {};
+namespace mdb = mc::db;
 
-// 测试用的对象类
-class test_object : public object_base {
+struct by_id : mdb::tag_base<by_id> {};
+
+class test_object : public mdb::object_base {
 public:
-    MC_REFLECTABLE("mc.test.db.TestObject")
+    MC_REFLECTABLE("mc.test.db.QueryDatabaseObject")
 
     test_object() = default;
 
@@ -52,674 +55,402 @@ public:
         return m_value;
     }
 
-    uint32_t    m_id;
+    uint32_t   m_id;
     mc::string m_name;
-    int         m_value;
+    int        m_value;
 };
+
 } // namespace
 
 MC_REFLECT(test_object, ((m_id, "id"))((m_name, "name"))((m_value, "value")))
 
 namespace {
 
-// 使用限定命名空间访问
-using test_table =
-    table<test_object,
-          indexed_by<ordered_unique<&test_object::m_id, by_id::tag>, ordered_non_unique<&test_object::m_name>>>;
+using test_table = mdb::table<test_object, mdb::indexed_by<mdb::ordered_unique<&test_object::m_id, by_id::tag>,
+                                                           mdb::ordered_non_unique<&test_object::m_name>>>;
 
-// 拿到表的字段，可用于后续构造查询语句
-auto field_id    = mc::db::field(&test_object::m_id);
-auto field_name  = mc::db::field(&test_object::m_name);
-auto field_value = mc::db::field(&test_object::m_value);
-
-// 数据库测试类
-class database_test : public mc::test::TestBase {
+class database_test : public ::testing::Test {
 protected:
     void SetUp() override
     {
-        // 创建测试表
-        table = std::make_shared<test_table>("test_table");
+        m_table = std::make_shared<test_table>("test_table");
+        m_db.register_table(m_table);
 
-        // 注册表
-        db.register_table(table);
-
-        // 添加测试数据
-        db.add("test_table", dict{{"id", 1}, {"name", "test1"}, {"value", 100}});
-        db.add("test_table", dict{{"id", 2}, {"name", "test2"}, {"value", 200}});
-        db.add("test_table", dict{{"id", 3}, {"name", "test3"}, {"value", 300}});
-        db.add("test_table", dict{{"id", 4}, {"name", "test1"}, {"value", 400}}); // 重复的name
+        m_db.add("test_table", mc::dict{{"id", 1}, {"name", "test1"}, {"value", 100}});
+        m_db.add("test_table", mc::dict{{"id", 2}, {"name", "test2"}, {"value", 200}});
+        m_db.add("test_table", mc::dict{{"id", 3}, {"name", "test3"}, {"value", 300}});
+        m_db.add("test_table", mc::dict{{"id", 4}, {"name", "test1"}, {"value", 400}});
     }
 
     void TearDown() override
     {
-        db.clear("test_table");
-        mc::db::transaction::reset_for_test();
+        m_db.clear("test_table");
+        mdb::transaction::reset_for_test();
     }
 
-    mc::db::database            db;
-    std::shared_ptr<test_table> table;
+    std::vector<uint32_t> query_ids(const mc::dict& spec, size_t limit = 0)
+    {
+        mdb::table_query<test_table> executor(*m_table);
+        auto                         results = executor.query(mdb::query_builder(spec), limit);
+
+        std::vector<uint32_t> ids;
+        ids.reserve(results.size());
+        for (const auto& obj : results) {
+            ids.push_back(obj->id());
+        }
+        return ids;
+    }
+
+    std::vector<uint32_t> query_ids(test_table& table, const mc::dict& spec, size_t limit = 0)
+    {
+        mdb::table_query<test_table> executor(table);
+        auto                         results = executor.query(mdb::query_builder(spec), limit);
+
+        std::vector<uint32_t> ids;
+        ids.reserve(results.size());
+        for (const auto& obj : results) {
+            ids.push_back(obj->id());
+        }
+        return ids;
+    }
+
+    test_table::object_ptr_type query_one(test_table& table, const mc::dict& spec)
+    {
+        mdb::table_query<test_table> executor(table);
+        return executor.query_one(mdb::query_builder(spec));
+    }
+
+    mdb::database               m_db;
+    std::shared_ptr<test_table> m_table;
 };
 
-} // namespace
-
-// 测试表的基本功能
-TEST_F(database_test, basic_operations)
-{
-    // 验证对象是否被添加到表中
-    auto it1 = table->get<by_id>().find(1);
-    ASSERT_FALSE(it1.is_end());
-    EXPECT_EQ(it1->name(), "test1");
-    EXPECT_EQ(it1->value(), 100);
-
-    auto it2 = table->get<by_id>().find(2);
-    ASSERT_FALSE(it2.is_end());
-    EXPECT_EQ(it2->name(), "test2");
-    EXPECT_EQ(it2->value(), 200);
-
-    // 移除对象
-    EXPECT_TRUE(db.remove("test_table", field_id == 1));
-
-    // 验证对象是否被移除
-    it1 = table->get<by_id>().find(1);
-    EXPECT_TRUE(it1.is_end());
-}
-
-// 测试数据库的错误处理
-TEST_F(database_test, error_handling)
-{
-    // 尝试添加对象到未注册的表
-    dict test_obj{{"id", 1}, {"name", "test"}, {"value", 100}};
-
-    EXPECT_FALSE(db.add("non_existent_table", test_obj) != nullptr);
-
-    // 尝试从未注册的表移除对象
-    EXPECT_FALSE(db.remove("non_existent_table", field_id == 1));
-}
-
-// 测试数据库的多表操作
-TEST_F(database_test, multiple_tables)
-{
-    // 创建多个测试表
-    auto table1 = std::make_shared<test_table>("test_table1");
-    auto table2 = std::make_shared<test_table>("test_table2");
-
-    // 注册表
-    db.register_table(table1);
-    db.register_table(table2);
-
-    auto user1 = db.add("test_table1", dict{{"id", 1}, {"name", "table1"}, {"value", 100}});
-    auto user2 = db.add("test_table2", dict{{"id", 2}, {"name", "table2"}, {"value", 200}});
-
-    // 向不同表添加对象
-    EXPECT_TRUE(user1 != nullptr);
-    EXPECT_TRUE(user2 != nullptr);
-
-    // 验证对象被正确添加到各自的表中
-    auto ret_obj1 = table1->find(field_id == 1);
-    ASSERT_TRUE(ret_obj1 != nullptr);
-    EXPECT_EQ(ret_obj1->name(), "table1");
-
-    auto ret_obj2 = table2->find(field_id == 2);
-    ASSERT_TRUE(ret_obj2 != nullptr);
-    EXPECT_EQ(ret_obj2->name(), "table2");
-}
-
-// 测试查询功能
 TEST_F(database_test, query_operations)
 {
-    // 测试等值查询
-    auto results1 = db.query<test_object>("test_table", field_id == 2);
-    ASSERT_EQ(results1.size(), 1);
-    EXPECT_EQ(results1[0]->id(), 2);
-    EXPECT_EQ(results1[0]->name(), "test2");
-
-    // 测试大于查询
-    auto results2 = db.query<test_object>("test_table", field_id > 2);
-    ASSERT_EQ(results2.size(), 2);
-
-    // 测试小于查询
-    auto results3 = db.query<test_object>("test_table", field_id < 3);
-    ASSERT_EQ(results3.size(), 2);
-
-    // 测试范围查询
-    auto results4 = db.query<test_object>("test_table", field_id >= 2 && field_id <= 3);
-    ASSERT_EQ(results4.size(), 2);
-
-    // 测试字符串查询
-    auto results5 = db.query<test_object>("test_table", field_name == "test1");
-    ASSERT_EQ(results5.size(), 2);
-
-    // 测试复合条件查询
-    auto results6 = db.query<test_object>("test_table", field_name == "test1" && field_value > 200);
-    ASSERT_EQ(results6.size(), 1);
-    EXPECT_EQ(results6[0]->id(), 4);
-
-    // 测试查询结果限制
-    auto results7 = db.query<test_object>("test_table", field_id > 0, 2);
-    ASSERT_EQ(results7.size(), 2);
-
-    // 测试获取所有对象
-    auto all_results = db.all<test_object>("test_table");
-    ASSERT_EQ(all_results.size(), 4);
-}
-
-// 测试更新功能
-TEST_F(database_test, update_operations)
-{
-    // 更新单个对象
-    dict updates1{{"name", "updated_name"}, {"value", 999}};
-    EXPECT_TRUE(db.update("test_table", field_id == 2, updates1));
-
-    // 验证更新结果
-    auto obj1 = db.find<test_object>("test_table", field_id == 2);
-    ASSERT_TRUE(obj1 != nullptr);
-    EXPECT_EQ(obj1->name(), "updated_name");
-    EXPECT_EQ(obj1->value(), 999);
-
-    // 更新多个对象
-    dict updates2{{"value", 1000}};
-    EXPECT_TRUE(db.update("test_table", field_name == "test1", updates2));
-
-    // 验证更新结果
-    auto objs2 = db.query<test_object>("test_table", field_name == "test1");
-    ASSERT_EQ(objs2.size(), 2);
-    for (const auto& obj : objs2) {
-        EXPECT_EQ(obj->value(), 1000);
-    }
-
-    // 使用map更新
-    std::map<mc::string, variant> updates3{{"name", "map_updated"}, {"value", 888}};
-    EXPECT_TRUE(db.update("test_table", field_id == 3, updates3));
-
-    // 验证更新结果
-    auto obj3 = db.find<test_object>("test_table", field_id == 3);
-    ASSERT_TRUE(obj3 != nullptr);
-    EXPECT_EQ(obj3->name(), "map_updated");
-    EXPECT_EQ(obj3->value(), 888);
-}
-
-// 测试 unregister_table - 遇到不存在的表
-TEST_F(database_test, RemoveTableIgnoresMissing)
-{
-    // 建立数据库但不注册表
-    mc::db::database empty_db;
-
-    // 调用 unregister_table 针对不存在的表，应该不会崩溃
-    EXPECT_NO_THROW(empty_db.unregister_table("unknown_table"));
-
-    // 验证 list_tables() 为空（如果存在该方法）
-    // 注意：database 类可能没有 list_tables 方法，这里只验证不会崩溃
-}
-
-// 测试 is_table_registered/get_table/empty - 表不存在时的早退分支
-TEST_F(database_test, QueryMissingTableReturnsNull)
-{
-    mc::db::database empty_db;
-
-    // 测试 get_table 在表不存在时返回 nullptr
-    auto table = empty_db.get_table("non_existent_table");
-    EXPECT_EQ(table, nullptr);
-
-    // 测试 is_table_registered 在表不存在时返回 false
-    EXPECT_FALSE(empty_db.is_table_registered("non_existent_table"));
-
-    // 测试 empty 在表不存在时返回 false（根据代码，应该是 false）
-    EXPECT_FALSE(empty_db.empty("non_existent_table"));
-
-    // 测试 size 在表不存在时返回 0
-    EXPECT_EQ(empty_db.size("non_existent_table"), 0);
-}
-
-// 测试表操作功能
-TEST_F(database_test, table_operations)
-{
-    // 测试表注册状态
-    EXPECT_TRUE(db.is_table_registered("test_table"));
-    EXPECT_FALSE(db.is_table_registered("non_existent_table"));
-
-    // 测试获取表
-    auto retrieved_table = db.get_table("test_table");
-    EXPECT_EQ(retrieved_table->get_table_name(), "test_table");
-
-    // 测试获取表大小
-    EXPECT_EQ(db.size("test_table"), 4);
-
-    // 测试清空表
-    db.clear("test_table");
-    EXPECT_EQ(db.size("test_table"), 0);
-    EXPECT_TRUE(db.empty("test_table"));
-
-    // 重新添加数据
-    db.add("test_table", dict{{"id", 1}, {"name", "test1"}, {"value", 100}});
-    EXPECT_EQ(db.size("test_table"), 1);
-    EXPECT_FALSE(db.empty("test_table"));
-
-    // 测试注销表
-    db.unregister_table("test_table");
-    EXPECT_FALSE(db.is_table_registered("test_table"));
-
-    // 尝试操作已注销的表
-    EXPECT_FALSE(db.add("test_table", dict{{"id", 2}, {"name", "test2"}, {"value", 200}}) != nullptr);
-}
-
-// 测试数据库事务功能
-TEST_F(database_test, transaction_operations)
-{
-    // 开始事务
-    auto& txn = mc::db::transaction::get_instance();
-
-    // 添加新数据
-    db.add("test_table", dict{{"id", 5}, {"name", "transaction_test"}, {"value", 500}}, &txn);
-
-    // 修改数据
-    db.update("test_table", field_id == 1, dict{{"name", "modified_in_transaction"}}, &txn);
-
-    // 验证数据在事务中可见
     {
-        auto obj1 = db.find<test_object>("test_table", field_id == 1);
-        ASSERT_TRUE(obj1 != nullptr);
-        EXPECT_EQ(obj1->name(), "modified_in_transaction");
-
-        auto obj5 = db.find<test_object>("test_table", field_id == 5);
-        ASSERT_TRUE(obj5 != nullptr);
-        EXPECT_EQ(obj5->name(), "transaction_test");
+        auto ids = query_ids(mc::dict{{"id", 2}});
+        ASSERT_EQ(ids.size(), 1);
+        EXPECT_EQ(ids[0], 2);
     }
 
-    // 提交事务
-    txn.commit();
-
-    // 验证修改被保存
     {
-        auto obj1 = db.find<test_object>("test_table", field_id == 1);
-        ASSERT_TRUE(obj1 != nullptr);
-        EXPECT_EQ(obj1->name(), "modified_in_transaction");
+        auto ids = query_ids(mc::dict{{"id", mc::dict{{"$gt", 2}}}});
+        ASSERT_EQ(ids.size(), 2);
+        std::sort(ids.begin(), ids.end());
+        EXPECT_EQ(ids[0], 3);
+        EXPECT_EQ(ids[1], 4);
+    }
 
-        auto obj5 = db.find<test_object>("test_table", field_id == 5);
-        ASSERT_TRUE(obj5 != nullptr);
-        EXPECT_EQ(obj5->name(), "transaction_test");
+    {
+        auto ids = query_ids(mc::dict{{"id", mc::dict{{"$lt", 3}}}});
+        ASSERT_EQ(ids.size(), 2);
+        std::sort(ids.begin(), ids.end());
+        EXPECT_EQ(ids[0], 1);
+        EXPECT_EQ(ids[1], 2);
+    }
+
+    {
+        auto ids = query_ids(mc::dict{{"id", mc::dict{{"$gte", 2}, {"$lte", 3}}}});
+        ASSERT_EQ(ids.size(), 2);
+        std::sort(ids.begin(), ids.end());
+        EXPECT_EQ(ids[0], 2);
+        EXPECT_EQ(ids[1], 3);
+    }
+
+    {
+        auto ids = query_ids(mc::dict{{"name", "test1"}});
+        ASSERT_EQ(ids.size(), 2);
+        std::sort(ids.begin(), ids.end());
+        EXPECT_EQ(ids[0], 1);
+        EXPECT_EQ(ids[1], 4);
+    }
+
+    {
+        auto ids = query_ids(mc::dict{{"name", "test1"}, {"value", mc::dict{{"$gt", 200}}}});
+        ASSERT_EQ(ids.size(), 1);
+        EXPECT_EQ(ids[0], 4);
+    }
+
+    {
+        auto ids = query_ids(mc::dict{{"id", mc::dict{{"$gt", 0}}}}, 2);
+        ASSERT_EQ(ids.size(), 2);
+    }
+
+    {
+        auto all = m_table->all();
+        ASSERT_EQ(all.size(), 4);
     }
 }
 
-// 测试事务回滚功能
-TEST_F(database_test, transaction_rollback)
+TEST_F(database_test, multiple_tables)
 {
-    // 开始事务
-    auto& txn = mc::db::transaction::get_instance();
+    auto second_table = std::make_shared<test_table>("second_table");
+    m_db.register_table(second_table);
 
-    // 修改数据
-    db.update("test_table", field_id == 1, dict{{"name", "will_be_rolled_back"}}, &txn);
-    db.add("test_table", dict{{"id", 10}, {"name", "temp_object"}, {"value", 1000}}, &txn);
+    m_db.add("second_table", mc::dict{{"id", 1}, {"name", "table2_a"}, {"value", 1000}});
+    m_db.add("second_table", mc::dict{{"id", 2}, {"name", "table2_b"}, {"value", 2000}});
 
-    // 验证数据在事务中可见
-    {
-        auto obj1 = db.find<test_object>("test_table", field_id == 1);
-        ASSERT_TRUE(obj1 != nullptr);
-        EXPECT_EQ(obj1->name(), "will_be_rolled_back");
+    mdb::table_query<test_table> first_executor(*m_table);
+    mdb::table_query<test_table> second_executor(*second_table);
 
-        auto obj10 = db.find<test_object>("test_table", field_id == 10);
-        ASSERT_TRUE(obj10 != nullptr);
-    }
+    auto first_ids = first_executor.query(mdb::query_builder(mc::dict{{"name", "test1"}}));
+    ASSERT_EQ(first_ids.size(), 2);
 
-    // 回滚事务
+    auto second_ids = second_executor.query(mdb::query_builder(mc::dict{{"value", mc::dict{{"$gte", 1500}}}}));
+    ASSERT_EQ(second_ids.size(), 1);
+    EXPECT_EQ(second_ids[0]->name(), "table2_b");
+
+    m_db.unregister_table("second_table");
+}
+
+TEST_F(database_test, transaction_query_visibility)
+{
+    auto& txn = mdb::transaction::get_instance();
+
+    m_db.add("test_table", mc::dict{{"id", 5}, {"name", "txn"}, {"value", 500}}, &txn);
+    auto ids = query_ids(mc::dict{{"name", "txn"}});
+    ASSERT_EQ(ids.size(), 1);
+    EXPECT_EQ(ids[0], 5);
+
     txn.rollback();
 
-    // 验证修改被撤销
-    {
-        auto obj1 = db.find<test_object>("test_table", field_id == 1);
-        ASSERT_TRUE(obj1 != nullptr);
-        EXPECT_EQ(obj1->name(), "test1"); // 恢复为原始值
-
-        auto obj10 = db.find<test_object>("test_table", field_id == 10);
-        ASSERT_TRUE(obj10 == nullptr);
-    }
+    EXPECT_TRUE(query_ids(mc::dict{{"name", "txn"}}).empty());
 }
 
-// 测试事务保存点功能
-TEST_F(database_test, transaction_savepoint)
+TEST_F(database_test, table_operations_and_missing_table_branches)
 {
-    // 开始事务
-    auto& txn = mc::db::transaction::get_instance();
+    EXPECT_TRUE(m_db.is_table_registered("test_table"));
+    EXPECT_FALSE(m_db.is_table_registered("non_existent_table"));
 
-    // 第一批修改
-    db.update("test_table", field_id == 1, dict{{"name", "first_change"}}, &txn);
+    auto table = m_db.get_table("test_table");
+    ASSERT_TRUE(table != nullptr);
+    EXPECT_EQ(table->get_table_name(), "test_table");
 
-    // 创建保存点
-    auto& sp1 = txn.alloc_savepoint();
+    EXPECT_EQ(m_db.size("test_table"), 4);
+    EXPECT_FALSE(m_db.empty("test_table"));
 
-    // 第二批修改
-    db.update("test_table", field_id == 2, dict{{"name", "second_change"}}, &txn);
-    db.add("test_table", dict{{"id", 20}, {"name", "after_savepoint"}, {"value", 2000}}, &txn);
+    m_db.clear("test_table");
+    EXPECT_EQ(m_db.size("test_table"), 0);
+    EXPECT_TRUE(m_db.empty("test_table"));
 
-    // 验证所有修改都可见
-    {
-        auto obj1 = db.find<test_object>("test_table", field_id == 1);
-        ASSERT_TRUE(obj1 != nullptr);
-        EXPECT_EQ(obj1->name(), "first_change");
+    auto readded = m_db.add("test_table", mc::dict{{"id", 1}, {"name", "test1"}, {"value", 100}});
+    EXPECT_TRUE(readded != nullptr);
 
-        auto obj2 = db.find<test_object>("test_table", field_id == 2);
-        ASSERT_TRUE(obj2 != nullptr);
-        EXPECT_EQ(obj2->name(), "second_change");
+    EXPECT_FALSE(m_db.add("non_existent_table", mc::dict{{"id", 1}, {"name", "missing"}, {"value", 100}}) != nullptr);
 
-        auto obj20 = db.find<test_object>("test_table", field_id == 20);
-        ASSERT_TRUE(obj20 != nullptr);
-    }
+    mdb::database empty_db;
+    EXPECT_NO_THROW(empty_db.unregister_table("unknown_table"));
+    EXPECT_EQ(empty_db.get_table("non_existent_table"), nullptr);
+    EXPECT_FALSE(empty_db.is_table_registered("non_existent_table"));
+    EXPECT_FALSE(empty_db.empty("non_existent_table"));
+    EXPECT_EQ(empty_db.size("non_existent_table"), 0);
 
-    // 回滚到保存点
-    txn.rollback_to(sp1);
+    m_db.unregister_table("test_table");
+    EXPECT_FALSE(m_db.is_table_registered("test_table"));
+    EXPECT_FALSE(m_db.add("test_table", mc::dict{{"id", 2}, {"name", "after_unregister"}, {"value", 200}}) != nullptr);
+}
 
-    // 验证第一批修改仍然存在，第二批修改被撤销
-    {
-        auto obj1 = db.find<test_object>("test_table", field_id == 1);
-        ASSERT_TRUE(obj1 != nullptr);
-        EXPECT_EQ(obj1->name(), "first_change"); // 第一批修改保留
+TEST_F(database_test, transaction_operations)
+{
+    auto& txn = mdb::transaction::get_instance();
 
-        auto obj2 = db.find<test_object>("test_table", field_id == 2);
-        ASSERT_TRUE(obj2 != nullptr);
-        EXPECT_EQ(obj2->name(), "test2"); // 第二批修改撤销
+    m_db.add("test_table", mc::dict{{"id", 5}, {"name", "transaction_test"}, {"value", 500}}, &txn);
 
-        auto obj20 = db.find<test_object>("test_table", field_id == 20);
-        ASSERT_TRUE(obj20 == nullptr); // 添加的对象应该消失
-    }
+    auto obj1 = query_one(*m_table, mc::dict{{"id", 1}});
+    ASSERT_TRUE(obj1 != nullptr);
+    auto updated_obj1 = m_table->update(obj1, test_object(1, "modified_in_transaction", 100), &txn);
+    ASSERT_TRUE(updated_obj1 != nullptr);
 
-    // 提交事务，确认第一批修改被保存
+    auto changed = query_one(*m_table, mc::dict{{"id", 1}});
+    ASSERT_TRUE(changed != nullptr);
+    EXPECT_EQ(changed->name(), "modified_in_transaction");
+
+    auto added = query_one(*m_table, mc::dict{{"id", 5}});
+    ASSERT_TRUE(added != nullptr);
+    EXPECT_EQ(added->name(), "transaction_test");
+
     txn.commit();
 
-    // 验证第一批修改仍然存在
-    {
-        auto obj1 = db.find<test_object>("test_table", field_id == 1);
-        ASSERT_TRUE(obj1 != nullptr);
-        EXPECT_EQ(obj1->name(), "first_change");
-    }
+    changed = query_one(*m_table, mc::dict{{"id", 1}});
+    ASSERT_TRUE(changed != nullptr);
+    EXPECT_EQ(changed->name(), "modified_in_transaction");
+
+    added = query_one(*m_table, mc::dict{{"id", 5}});
+    ASSERT_TRUE(added != nullptr);
+    EXPECT_EQ(added->name(), "transaction_test");
 }
 
-// 测试多个事务回滚点功能
+TEST_F(database_test, transaction_rollback)
+{
+    auto& txn = mdb::transaction::get_instance();
+
+    auto obj1 = query_one(*m_table, mc::dict{{"id", 1}});
+    ASSERT_TRUE(obj1 != nullptr);
+    auto rolled_obj1 = m_table->update(obj1, test_object(1, "will_be_rolled_back", 100), &txn);
+    ASSERT_TRUE(rolled_obj1 != nullptr);
+
+    m_db.add("test_table", mc::dict{{"id", 10}, {"name", "temp_object"}, {"value", 1000}}, &txn);
+
+    auto changed = query_one(*m_table, mc::dict{{"id", 1}});
+    ASSERT_TRUE(changed != nullptr);
+    EXPECT_EQ(changed->name(), "will_be_rolled_back");
+
+    auto temp = query_one(*m_table, mc::dict{{"id", 10}});
+    ASSERT_TRUE(temp != nullptr);
+    EXPECT_EQ(temp->name(), "temp_object");
+
+    txn.rollback();
+
+    changed = query_one(*m_table, mc::dict{{"id", 1}});
+    ASSERT_TRUE(changed != nullptr);
+    EXPECT_EQ(changed->name(), "test1");
+
+    temp = query_one(*m_table, mc::dict{{"id", 10}});
+    EXPECT_TRUE(temp == nullptr);
+}
+
 TEST_F(database_test, multiple_savepoints)
 {
-    // 检查初始状态
-    {
-        auto obj1 = db.find<test_object>("test_table", field_id == 1);
-        ASSERT_TRUE(obj1 != nullptr);
-        EXPECT_EQ(obj1->name(), "test1");
+    auto& txn = mdb::transaction::get_instance();
 
-        auto obj2 = db.find<test_object>("test_table", field_id == 2);
-        ASSERT_TRUE(obj2 != nullptr);
-        EXPECT_EQ(obj2->name(), "test2");
-    }
-
-    // 开始事务
-    auto& txn = mc::db::transaction::get_instance();
-
-    // 创建第一个保存点
     auto& sp1 = txn.alloc_savepoint();
 
-    // 第一批修改
-    db.update("test_table", field_id == 1, dict{{"name", "first_change"}}, &txn);
-    db.add("test_table", dict{{"id", 5}, {"name", "temp_object"}, {"value", 500}}, &txn);
+    auto obj1 = query_one(*m_table, mc::dict{{"id", 1}});
+    ASSERT_TRUE(obj1 != nullptr);
+    ASSERT_TRUE(m_table->update(obj1, test_object(1, "first_change", 100), &txn) != nullptr);
+    m_db.add("test_table", mc::dict{{"id", 5}, {"name", "temp_object"}, {"value", 500}}, &txn);
 
-    // 验证第一批修改生效
-    {
-        auto obj1 = db.find<test_object>("test_table", field_id == 1);
-        ASSERT_TRUE(obj1 != nullptr);
-        EXPECT_EQ(obj1->name(), "first_change");
-
-        auto obj5 = db.find<test_object>("test_table", field_id == 5);
-        ASSERT_TRUE(obj5 != nullptr);
-        EXPECT_EQ(obj5->name(), "temp_object");
-    }
-
-    // 创建第二个保存点
     auto& sp2 = txn.alloc_savepoint();
 
-    // 第二批修改
-    db.update("test_table", field_id == 2, dict{{"name", "second_change"}}, &txn);
-    db.add("test_table", dict{{"id", 6}, {"name", "another_temp"}, {"value", 600}}, &txn);
+    auto obj2 = query_one(*m_table, mc::dict{{"id", 2}});
+    ASSERT_TRUE(obj2 != nullptr);
+    ASSERT_TRUE(m_table->update(obj2, test_object(2, "second_change", 200), &txn) != nullptr);
+    m_db.add("test_table", mc::dict{{"id", 6}, {"name", "another_temp"}, {"value", 600}}, &txn);
 
-    // 验证第二批修改生效
-    {
-        auto obj2 = db.find<test_object>("test_table", field_id == 2);
-        ASSERT_TRUE(obj2 != nullptr);
-        EXPECT_EQ(obj2->name(), "second_change");
-
-        auto obj6 = db.find<test_object>("test_table", field_id == 6);
-        ASSERT_TRUE(obj6 != nullptr);
-        EXPECT_EQ(obj6->name(), "another_temp");
-    }
-
-    // 回滚到第二个保存点
     txn.rollback_to(sp2);
 
-    // 验证第二批修改被撤销，第一批修改仍然存在
-    {
-        auto obj1 = db.find<test_object>("test_table", field_id == 1);
-        ASSERT_TRUE(obj1 != nullptr);
-        EXPECT_EQ(obj1->name(), "first_change"); // 第一批修改保留
+    auto current1 = query_one(*m_table, mc::dict{{"id", 1}});
+    auto current2 = query_one(*m_table, mc::dict{{"id", 2}});
+    auto current5 = query_one(*m_table, mc::dict{{"id", 5}});
+    auto current6 = query_one(*m_table, mc::dict{{"id", 6}});
+    ASSERT_TRUE(current1 != nullptr);
+    ASSERT_TRUE(current2 != nullptr);
+    ASSERT_TRUE(current5 != nullptr);
+    EXPECT_EQ(current1->name(), "first_change");
+    EXPECT_EQ(current2->name(), "test2");
+    EXPECT_EQ(current5->name(), "temp_object");
+    EXPECT_TRUE(current6 == nullptr);
 
-        auto obj2 = db.find<test_object>("test_table", field_id == 2);
-        ASSERT_TRUE(obj2 != nullptr);
-        EXPECT_EQ(obj2->name(), "test2"); // 第二批修改撤销，恢复原值
-
-        auto obj5 = db.find<test_object>("test_table", field_id == 5);
-        ASSERT_TRUE(obj5 != nullptr);
-        EXPECT_EQ(obj5->name(), "temp_object"); // 第一批添加的对象保留
-
-        auto obj6 = db.find<test_object>("test_table", field_id == 6);
-        ASSERT_TRUE(obj6 == nullptr);
-    }
-
-    // 回滚到第一个保存点
     txn.rollback_to(sp1);
 
-    // 验证第一批修改也被撤销
-    {
-        auto obj1 = db.find<test_object>("test_table", field_id == 1);
-        ASSERT_TRUE(obj1 != nullptr);
-        EXPECT_EQ(obj1->name(), "test1"); // 第一批修改撤销，恢复原值
+    current1 = query_one(*m_table, mc::dict{{"id", 1}});
+    current5 = query_one(*m_table, mc::dict{{"id", 5}});
+    ASSERT_TRUE(current1 != nullptr);
+    EXPECT_EQ(current1->name(), "test1");
+    EXPECT_TRUE(current5 == nullptr);
 
-        auto obj5 = db.find<test_object>("test_table", field_id == 5);
-        ASSERT_TRUE(obj5 == nullptr);
-    }
+    m_db.add("test_table", mc::dict{{"id", 7}, {"name", "after_rollback"}, {"value", 700}}, &txn);
 
-    // 再次添加对象以验证事务仍然有效
-    db.add("test_table", dict{{"id", 7}, {"name", "after_rollback"}, {"value", 700}}, &txn);
+    auto current7 = query_one(*m_table, mc::dict{{"id", 7}});
+    ASSERT_TRUE(current7 != nullptr);
+    EXPECT_EQ(current7->name(), "after_rollback");
 
-    // 验证新添加的对象可见
-    {
-        auto obj7 = db.find<test_object>("test_table", field_id == 7);
-        ASSERT_TRUE(obj7 != nullptr);
-        EXPECT_EQ(obj7->name(), "after_rollback");
-    }
-
-    // 提交事务
     txn.commit();
 
-    // 验证提交后的状态
-    {
-        auto obj1 = db.find<test_object>("test_table", field_id == 1);
-        ASSERT_TRUE(obj1 != nullptr);
-        EXPECT_EQ(obj1->name(), "test1"); // 原始值保持不变
-
-        auto obj7 = db.find<test_object>("test_table", field_id == 7);
-        ASSERT_TRUE(obj7 != nullptr);
-        EXPECT_EQ(obj7->name(), "after_rollback"); // 回滚后添加的对象保留
-    }
+    current1 = query_one(*m_table, mc::dict{{"id", 1}});
+    current7 = query_one(*m_table, mc::dict{{"id", 7}});
+    ASSERT_TRUE(current1 != nullptr);
+    ASSERT_TRUE(current7 != nullptr);
+    EXPECT_EQ(current1->name(), "test1");
+    EXPECT_EQ(current7->name(), "after_rollback");
 }
 
-// 测试多表事务功能
 TEST_F(database_test, multi_table_transaction)
 {
-    // 创建第二张测试表
     auto second_table = std::make_shared<test_table>("second_table");
-    db.register_table(second_table);
+    m_db.register_table(second_table);
+    m_db.add("second_table", mc::dict{{"id", 1}, {"name", "second1"}, {"value", 100}});
+    m_db.add("second_table", mc::dict{{"id", 2}, {"name", "second2"}, {"value", 200}});
 
-    // 向第二张表添加初始数据
-    db.add("second_table", dict{{"id", 1}, {"name", "second1"}, {"value", 100}});
-    db.add("second_table", dict{{"id", 2}, {"name", "second2"}, {"value", 200}});
-
-    // 检查两张表的初始状态
-    {
-        auto obj1 = db.find<test_object>("test_table", field_id == 1);
-        ASSERT_TRUE(obj1 != nullptr);
-        EXPECT_EQ(obj1->name(), "test1");
-
-        auto second_obj1 = db.find<test_object>("second_table", field_id == 1);
-        ASSERT_TRUE(second_obj1 != nullptr);
-        EXPECT_EQ(second_obj1->name(), "second1");
-    }
-
-    // 开始事务
-    auto& txn = mc::db::transaction::get_instance();
-
-    // 创建第一个保存点
+    auto& txn = mdb::transaction::get_instance();
     auto& sp1 = txn.alloc_savepoint();
 
-    // 第一批修改 - 同时修改两张表
-    db.update("test_table", field_id == 1, dict{{"name", "first_table_change1"}}, &txn);
-    db.update("second_table", field_id == 1, dict{{"name", "second_table_change1"}}, &txn);
-    db.add("test_table", dict{{"id", 10}, {"name", "first_table_new1"}, {"value", 1000}}, &txn);
-    db.add("second_table", dict{{"id", 10}, {"name", "second_table_new1"}, {"value", 1000}}, &txn);
+    auto first_obj1  = query_one(*m_table, mc::dict{{"id", 1}});
+    auto second_obj1 = query_one(*second_table, mc::dict{{"id", 1}});
+    ASSERT_TRUE(first_obj1 != nullptr);
+    ASSERT_TRUE(second_obj1 != nullptr);
+    ASSERT_TRUE(m_table->update(first_obj1, test_object(1, "first_table_change1", 100), &txn) != nullptr);
+    ASSERT_TRUE(second_table->update(second_obj1, test_object(1, "second_table_change1", 100), &txn) != nullptr);
+    m_db.add("test_table", mc::dict{{"id", 10}, {"name", "first_table_new1"}, {"value", 1000}}, &txn);
+    m_db.add("second_table", mc::dict{{"id", 10}, {"name", "second_table_new1"}, {"value", 1000}}, &txn);
 
-    // 验证第一批修改在两张表上都生效
-    {
-        auto obj1 = db.find<test_object>("test_table", field_id == 1);
-        ASSERT_TRUE(obj1 != nullptr);
-        EXPECT_EQ(obj1->name(), "first_table_change1");
-
-        auto obj10 = db.find<test_object>("test_table", field_id == 10);
-        ASSERT_TRUE(obj10 != nullptr);
-        EXPECT_EQ(obj10->name(), "first_table_new1");
-
-        auto second_obj1 = db.find<test_object>("second_table", field_id == 1);
-        ASSERT_TRUE(second_obj1 != nullptr);
-        EXPECT_EQ(second_obj1->name(), "second_table_change1");
-
-        auto second_obj10 = db.find<test_object>("second_table", field_id == 10);
-        ASSERT_TRUE(second_obj10 != nullptr);
-        EXPECT_EQ(second_obj10->name(), "second_table_new1");
-    }
-
-    // 创建第二个保存点
     auto& sp2 = txn.alloc_savepoint();
 
-    // 第二批修改 - 同时修改两张表
-    db.update("test_table", field_id == 2, dict{{"name", "first_table_change2"}}, &txn);
-    db.update("second_table", field_id == 2, dict{{"name", "second_table_change2"}}, &txn);
-    db.add("test_table", dict{{"id", 20}, {"name", "first_table_new2"}, {"value", 2000}}, &txn);
-    db.add("second_table", dict{{"id", 20}, {"name", "second_table_new2"}, {"value", 2000}}, &txn);
+    auto first_obj2  = query_one(*m_table, mc::dict{{"id", 2}});
+    auto second_obj2 = query_one(*second_table, mc::dict{{"id", 2}});
+    ASSERT_TRUE(first_obj2 != nullptr);
+    ASSERT_TRUE(second_obj2 != nullptr);
+    ASSERT_TRUE(m_table->update(first_obj2, test_object(2, "first_table_change2", 200), &txn) != nullptr);
+    ASSERT_TRUE(second_table->update(second_obj2, test_object(2, "second_table_change2", 200), &txn) != nullptr);
+    m_db.add("test_table", mc::dict{{"id", 20}, {"name", "first_table_new2"}, {"value", 2000}}, &txn);
+    m_db.add("second_table", mc::dict{{"id", 20}, {"name", "second_table_new2"}, {"value", 2000}}, &txn);
 
-    // 验证第二批修改在两张表上都生效
-    {
-        auto obj2 = db.find<test_object>("test_table", field_id == 2);
-        ASSERT_TRUE(obj2 != nullptr);
-        EXPECT_EQ(obj2->name(), "first_table_change2");
-
-        auto obj20 = db.find<test_object>("test_table", field_id == 20);
-        ASSERT_TRUE(obj20 != nullptr);
-        EXPECT_EQ(obj20->name(), "first_table_new2");
-
-        auto second_obj2 = db.find<test_object>("second_table", field_id == 2);
-        ASSERT_TRUE(second_obj2 != nullptr);
-        EXPECT_EQ(second_obj2->name(), "second_table_change2");
-
-        auto second_obj20 = db.find<test_object>("second_table", field_id == 20);
-        ASSERT_TRUE(second_obj20 != nullptr);
-        EXPECT_EQ(second_obj20->name(), "second_table_new2");
-    }
-
-    // 回滚到第二个保存点
     txn.rollback_to(sp2);
 
-    // 验证两张表上的第二批修改都被撤销，第一批修改仍然存在
-    {
-        // 第一张表检查
-        auto obj1 = db.find<test_object>("test_table", field_id == 1);
-        ASSERT_TRUE(obj1 != nullptr);
-        EXPECT_EQ(obj1->name(), "first_table_change1"); // 第一批修改保留
+    auto first_changed1  = query_one(*m_table, mc::dict{{"id", 1}});
+    auto first_changed2  = query_one(*m_table, mc::dict{{"id", 2}});
+    auto first_added10   = query_one(*m_table, mc::dict{{"id", 10}});
+    auto first_added20   = query_one(*m_table, mc::dict{{"id", 20}});
+    auto second_changed1 = query_one(*second_table, mc::dict{{"id", 1}});
+    auto second_changed2 = query_one(*second_table, mc::dict{{"id", 2}});
+    auto second_added10  = query_one(*second_table, mc::dict{{"id", 10}});
+    auto second_added20  = query_one(*second_table, mc::dict{{"id", 20}});
 
-        auto obj2 = db.find<test_object>("test_table", field_id == 2);
-        ASSERT_TRUE(obj2 != nullptr);
-        EXPECT_EQ(obj2->name(), "test2"); // 第二批修改撤销
+    ASSERT_TRUE(first_changed1 != nullptr);
+    ASSERT_TRUE(first_changed2 != nullptr);
+    ASSERT_TRUE(first_added10 != nullptr);
+    ASSERT_TRUE(second_changed1 != nullptr);
+    ASSERT_TRUE(second_changed2 != nullptr);
+    ASSERT_TRUE(second_added10 != nullptr);
+    EXPECT_EQ(first_changed1->name(), "first_table_change1");
+    EXPECT_EQ(first_changed2->name(), "test2");
+    EXPECT_EQ(first_added10->name(), "first_table_new1");
+    EXPECT_TRUE(first_added20 == nullptr);
+    EXPECT_EQ(second_changed1->name(), "second_table_change1");
+    EXPECT_EQ(second_changed2->name(), "second2");
+    EXPECT_EQ(second_added10->name(), "second_table_new1");
+    EXPECT_TRUE(second_added20 == nullptr);
 
-        auto obj10 = db.find<test_object>("test_table", field_id == 10);
-        ASSERT_TRUE(obj10 != nullptr);
-        EXPECT_EQ(obj10->name(), "first_table_new1"); // 第一批添加的对象保留
-
-        auto obj20 = db.find<test_object>("test_table", field_id == 20);
-        ASSERT_TRUE(obj20 == nullptr); // 第二批添加的对象被撤销
-
-        // 第二张表检查
-        auto second_obj1 = db.find<test_object>("second_table", field_id == 1);
-        ASSERT_TRUE(second_obj1 != nullptr);
-        EXPECT_EQ(second_obj1->name(), "second_table_change1"); // 第一批修改保留
-
-        auto second_obj2 = db.find<test_object>("second_table", field_id == 2);
-        ASSERT_TRUE(second_obj2 != nullptr);
-        EXPECT_EQ(second_obj2->name(), "second2"); // 第二批修改撤销
-
-        auto second_obj10 = db.find<test_object>("second_table", field_id == 10);
-        ASSERT_TRUE(second_obj10 != nullptr);
-        EXPECT_EQ(second_obj10->name(), "second_table_new1"); // 第一批添加的对象保留
-
-        auto second_obj20 = db.find<test_object>("second_table", field_id == 20);
-        ASSERT_TRUE(second_obj20 == nullptr); // 第二批添加的对象被撤销
-    }
-
-    // 回滚到第一个保存点
     txn.rollback_to(sp1);
 
-    // 验证两张表上的第一批修改也被撤销
-    {
-        // 第一张表检查
-        auto obj1 = db.find<test_object>("test_table", field_id == 1);
-        ASSERT_TRUE(obj1 != nullptr);
-        EXPECT_EQ(obj1->name(), "test1"); // 第一批修改撤销
+    first_changed1  = query_one(*m_table, mc::dict{{"id", 1}});
+    first_added10   = query_one(*m_table, mc::dict{{"id", 10}});
+    second_changed1 = query_one(*second_table, mc::dict{{"id", 1}});
+    second_added10  = query_one(*second_table, mc::dict{{"id", 10}});
+    ASSERT_TRUE(first_changed1 != nullptr);
+    ASSERT_TRUE(second_changed1 != nullptr);
+    EXPECT_EQ(first_changed1->name(), "test1");
+    EXPECT_TRUE(first_added10 == nullptr);
+    EXPECT_EQ(second_changed1->name(), "second1");
+    EXPECT_TRUE(second_added10 == nullptr);
 
-        auto obj10 = db.find<test_object>("test_table", field_id == 10);
-        ASSERT_TRUE(obj10 == nullptr); // 第一批添加的对象被撤销
+    auto first_obj3 = query_one(*m_table, mc::dict{{"id", 3}});
+    ASSERT_TRUE(first_obj3 != nullptr);
+    ASSERT_TRUE(m_table->update(first_obj3, test_object(3, "after_all_rollbacks_1", 300), &txn) != nullptr);
 
-        // 第二张表检查
-        auto second_obj1 = db.find<test_object>("second_table", field_id == 1);
-        ASSERT_TRUE(second_obj1 != nullptr);
-        EXPECT_EQ(second_obj1->name(), "second1"); // 第一批修改撤销
+    second_obj1 = query_one(*second_table, mc::dict{{"id", 1}});
+    ASSERT_TRUE(second_obj1 != nullptr);
+    ASSERT_TRUE(second_table->update(second_obj1, test_object(1, "after_all_rollbacks_2", 100), &txn) != nullptr);
 
-        auto second_obj10 = db.find<test_object>("second_table", field_id == 10);
-        ASSERT_TRUE(second_obj10 == nullptr); // 第一批添加的对象被撤销
-    }
-
-    // 在完全回滚后再次修改两张表
-    db.update("test_table", field_id == 3, dict{{"name", "after_all_rollbacks_1"}}, &txn);
-    db.update("second_table", field_id == 1, dict{{"name", "after_all_rollbacks_2"}}, &txn);
-
-    // 验证新修改生效
-    {
-        auto obj3 = db.find<test_object>("test_table", field_id == 3);
-        ASSERT_TRUE(obj3 != nullptr);
-        EXPECT_EQ(obj3->name(), "after_all_rollbacks_1");
-
-        auto second_obj1 = db.find<test_object>("second_table", field_id == 1);
-        ASSERT_TRUE(second_obj1 != nullptr);
-        EXPECT_EQ(second_obj1->name(), "after_all_rollbacks_2");
-    }
-
-    // 提交事务
     txn.commit();
 
-    // 验证最终状态
-    {
-        auto obj1 = db.find<test_object>("test_table", field_id == 1);
-        ASSERT_TRUE(obj1 != nullptr);
-        EXPECT_EQ(obj1->name(), "test1"); // 原始值保持不变
+    first_obj3  = query_one(*m_table, mc::dict{{"id", 3}});
+    second_obj1 = query_one(*second_table, mc::dict{{"id", 1}});
+    ASSERT_TRUE(first_obj3 != nullptr);
+    ASSERT_TRUE(second_obj1 != nullptr);
+    EXPECT_EQ(first_obj3->name(), "after_all_rollbacks_1");
+    EXPECT_EQ(second_obj1->name(), "after_all_rollbacks_2");
 
-        auto obj3 = db.find<test_object>("test_table", field_id == 3);
-        ASSERT_TRUE(obj3 != nullptr);
-        EXPECT_EQ(obj3->name(), "after_all_rollbacks_1"); // 回滚后的修改保留
-
-        auto second_obj1 = db.find<test_object>("second_table", field_id == 1);
-        ASSERT_TRUE(second_obj1 != nullptr);
-        EXPECT_EQ(second_obj1->name(), "after_all_rollbacks_2"); // 回滚后的修改保留
-    }
-
-    // 清理第二张表
-    db.unregister_table("second_table");
+    m_db.unregister_table("second_table");
 }
 
-// index_name 测试已移至 test_table.cpp，此处删除重复测试
+} // namespace

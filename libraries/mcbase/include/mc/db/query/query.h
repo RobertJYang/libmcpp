@@ -21,11 +21,9 @@
 #include <mc/db/query/condition.h>
 #include <mc/db/query/metadata.h>
 #include <mc/db/query/planner.h>
-#include <mc/db/query/proto_query.h>
 #include <mc/db/query/table_query.h>
 
 namespace mc::db {
-// 导出便于使用的类型别名
 using query::compare_op;
 using query::condition;
 using query::logical_op;
@@ -34,35 +32,9 @@ using query::query_plan;
 using query::query_plan_type;
 using query::query_range;
 using query::table_query;
-
-// 导出 query_builder
-using query::query_builder;
-
-// 导出条件相关定义
-using query::compare_op;
-using query::condition;
-using query::conditions::and_cond;
-using query::conditions::or_cond;
-
-// 导出 Proto 查询 DSL
-namespace proto_query = query::dsl;
-using query::between;
-using query::contains;
-using query::field;
-using query::in;
-using query::like;
 using query::to_condition;
 
-// 导出条件工厂函数
 using namespace query::conditions;
-
-// 导出Proto查询DSL相关函数和类型
-using query::between;
-using query::contains;
-using query::field;
-using query::in;
-using query::like;
-using query::to_condition;
 } // namespace mc::db
 
 #endif // MC_DATABASE_QUERY_QUERY_H

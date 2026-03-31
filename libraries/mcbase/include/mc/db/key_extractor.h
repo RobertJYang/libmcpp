@@ -15,6 +15,7 @@
 
 #include <mc/db/common.h>
 #include <mc/db/key.h>
+#include <mc/reflect.h>
 
 #include <functional>
 #include <string>
@@ -46,7 +47,7 @@ struct key_extractor_traits;
  * @tparam KeyType 键类型
  * @tparam Member 成员变量指针
  */
-template <typename ObjectType, typename KeyType, KeyType ObjectType::*Member>
+template <typename ObjectType, typename KeyType, KeyType ObjectType::* Member>
 class member_key {
 public:
     using object_type                     = ObjectType;
@@ -388,7 +389,7 @@ private:
         using extractor_type = std::tuple_element_t<I, std::tuple<Extractors...>>;
         auto extractor_names = extractor_type::get_field_names();
         if (extractor_names.empty()) {
-            using key_type   = typename extractor_type::key_type;
+            using key_type  = typename extractor_type::key_type;
             mc::string name = mc::pretty_name<key_type>();
             name += "_";
             name += std::to_string(I);
@@ -402,7 +403,7 @@ private:
 /**
  * 键提取器特性萃取类，成员变量版本
  */
-template <typename ObjectType, typename KeyType, KeyType ObjectType::*Member>
+template <typename ObjectType, typename KeyType, KeyType ObjectType::* Member>
 struct key_extractor_traits<member_key<ObjectType, KeyType, Member>> {
     using object_type    = ObjectType;
     using key_type       = KeyType;
@@ -532,7 +533,7 @@ struct key_extractor_traits<object_id_key<ObjectType>> {
  * @tparam Member 成员变量指针
  * @return 键提取器
  */
-template <typename ObjectType, typename KeyType, KeyType ObjectType::*Member>
+template <typename ObjectType, typename KeyType, KeyType ObjectType::* Member>
 auto make_key()
 {
     return detail::member_key<ObjectType, KeyType, Member>();

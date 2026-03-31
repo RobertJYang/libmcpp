@@ -77,17 +77,6 @@ object_ptr database::add(mc::string_view table_name, const mc::dict& var, transa
     return table->second->add_object(var, txn);
 }
 
-bool database::remove(mc::string_view table_name, const query_builder& builder, transaction* txn)
-{
-    std::lock_guard lock(m_mutex);
-
-    auto table = m_tables.find(table_name);
-    if (table == m_tables.end()) {
-        return false;
-    }
-    return table->second->remove_object(builder, txn);
-}
-
 bool database::empty(mc::string_view table_name) const
 {
     std::lock_guard lock(m_mutex);
@@ -119,31 +108,6 @@ void database::clear(mc::string_view table_name)
         return;
     }
     table->second->clear();
-}
-
-bool database::update(mc::string_view table_name, const query_builder& builder, const mc::dict& values,
-                      transaction* txn)
-{
-    std::lock_guard lock(m_mutex);
-
-    auto table = m_tables.find(table_name);
-    if (table == m_tables.end()) {
-        return false;
-    }
-    return table->second->update_object(builder, values, txn);
-}
-
-bool database::update(mc::string_view table_name, const query_builder& builder,
-                      const std::map<mc::string, variant>& values, transaction* txn)
-{
-    std::lock_guard lock(m_mutex);
-
-    auto table = m_tables.find(table_name);
-    if (table == m_tables.end()) {
-        return false;
-    }
-
-    return table->second->update_object(builder, values, txn);
 }
 
 } // namespace mc::db

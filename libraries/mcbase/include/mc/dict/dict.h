@@ -29,7 +29,6 @@
 #include <stdexcept>
 #include <unordered_map>
 
-#include <mc/intrusive/intrusive.h>
 #include <mc/memory.h>
 #include <mc/variant/variant_common.h>
 

@@ -23,10 +23,28 @@
 #include <type_traits>
 #include <vector>
 
+#include <boost/preprocessor/cat.hpp>
+#include <boost/preprocessor/comparison/equal.hpp>
+#include <boost/preprocessor/comparison/greater.hpp>
+#include <boost/preprocessor/control/if.hpp>
+#include <boost/preprocessor/control/iif.hpp>
+#include <boost/preprocessor/facilities/is_empty.hpp>
+#include <boost/preprocessor/punctuation/is_begin_parens.hpp>
+#include <boost/preprocessor/punctuation/remove_parens.hpp>
+#include <boost/preprocessor/seq/enum.hpp>
+#include <boost/preprocessor/seq/for_each.hpp>
+#include <boost/preprocessor/seq/pop_front.hpp>
+#include <boost/preprocessor/seq/transform.hpp>
+#include <boost/preprocessor/stringize.hpp>
+#include <boost/preprocessor/tuple/elem.hpp>
+#include <boost/preprocessor/variadic/size.hpp>
+#include <boost/preprocessor/variadic/to_seq.hpp>
+
 #include <mc/common.h>
 #include <mc/dict.h>
 #include <mc/reflect/metadata.h>
 #include <mc/reflect/metadata_info.h>
+#include <mc/reflect/reflectable_macro.h>
 #include <mc/reflect/reflection.h>
 #include <mc/reflect/reflection_enum.h>
 #include <mc/reflect/reflection_factory.h>

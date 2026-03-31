@@ -20,6 +20,7 @@
 #include <mc/log/log_message.h>
 #include <mc/memory.h>
 #include <mc/reflect/base.h>
+#include <mc/reflect/reflectable_macro.h>
 #include <mc/singleton.h>
 #include <mc/string.h>
 
@@ -106,11 +107,11 @@ struct MC_API error : public mc::enable_shared_from_this<error>, public error_in
 
     mc::string_view get_name() const;
     mc::string_view get_format() const;
-    const mc::dict&  get_args() const;
-    const mc::dict&  get_args_with_index() const;
-    mc::string       get_message() const;
-    mc::string_view  get_registry_prefix() const;
-    void             set_registry_prefix(mc::string_view prefix);
+    const mc::dict& get_args() const;
+    const mc::dict& get_args_with_index() const;
+    mc::string      get_message() const;
+    mc::string_view get_registry_prefix() const;
+    void            set_registry_prefix(mc::string_view prefix);
 
     error_level get_level() const;
     void        set_level(error_level level);
@@ -189,7 +190,7 @@ struct MC_API error : public mc::enable_shared_from_this<error>, public error_in
      * @throw mc::parse_error_exception 当解码失败时
      */
     static mc::shared_ptr<error>
-    decode(mc::string_view                     json,
+    decode(mc::string_view                      json,
            const mc::json::json_decode_options& options = mc::json::json_decode_options::default_decode_options);
 
     /**

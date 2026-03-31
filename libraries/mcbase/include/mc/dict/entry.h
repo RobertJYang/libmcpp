@@ -13,7 +13,8 @@
 #ifndef MC_DICT_ENTRY_H
 #define MC_DICT_ENTRY_H
 
-#include <mc/intrusive/intrusive.h>
+#include <mc/intrusive/list.h>
+#include <mc/intrusive/unordered_set.h>
 #include <mc/variant/variant_base.h>
 #include <string>
 #include <string_view>

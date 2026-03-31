@@ -19,6 +19,7 @@
 #include <string_view>
 #include <vector>
 
+#include <mc/exception.h>
 #include <mc/log/log.h>
 #include <mc/reflect.h>
 #include <mc/variant.h>
@@ -381,7 +382,7 @@ private:
 
     compare_op             m_op         = compare_op::eq;  // 比较操作符
     logical_op             m_logical_op = logical_op::AND; // 逻辑操作符
-    mc::string            m_field;                        // 字段名
+    mc::string             m_field;                        // 字段名
     mc::variant            m_value;                        // 比较值
     std::vector<condition> m_conditions;                   // 子条件（用于逻辑条件）
     bool                   m_is_logical = false;           // 是否是逻辑条件
@@ -494,6 +495,230 @@ inline condition not_cond(condition cond)
 }
 
 } // namespace conditions
+
+namespace detail {
+
+inline mc::string_view expect_string_value(const mc::variant& value, mc::string_view key_name)
+{
+    if (!value.is_string()) {
+        MC_THROW(mc::invalid_arg_exception, "查询 AST 字段 ${key} 必须是字符串", ("key", key_name));
+    }
+    return value.get_string();
+}
+
+inline mc::string_view expect_key_string(const mc::variant& value)
+{
+    if (!value.is_string()) {
+        MC_THROW(mc::invalid_arg_exception, "查询条件对象的键必须是字符串");
+    }
+    return value.get_string();
+}
+
+inline const mc::variant& require_dict_value(const mc::dict& dict, mc::string_view key_name)
+{
+    auto it = dict.find(key_name);
+    if (it == dict.end()) {
+        MC_THROW(mc::invalid_arg_exception, "查询 AST 缺少字段 ${key}", ("key", key_name));
+    }
+    return it->value;
+}
+
+inline compare_op parse_compare_op(mc::string_view op)
+{
+    if (op == "eq" || op == "$eq") {
+        return compare_op::eq;
+    }
+    if (op == "ne" || op == "$ne") {
+        return compare_op::ne;
+    }
+    if (op == "gt" || op == "$gt") {
+        return compare_op::gt;
+    }
+    if (op == "ge" || op == "$ge" || op == "$gte") {
+        return compare_op::ge;
+    }
+    if (op == "lt" || op == "$lt") {
+        return compare_op::lt;
+    }
+    if (op == "le" || op == "$le" || op == "$lte") {
+        return compare_op::le;
+    }
+    if (op == "contains" || op == "$contains") {
+        return compare_op::contains;
+    }
+    if (op == "like" || op == "$like") {
+        return compare_op::like;
+    }
+    if (op == "in" || op == "$in") {
+        return compare_op::in;
+    }
+    if (op == "between" || op == "$between") {
+        return compare_op::between;
+    }
+
+    MC_THROW(mc::invalid_arg_exception, "未知查询比较操作 ${op}", ("op", op));
+}
+
+inline condition parse_condition_dict(const mc::dict& spec);
+
+inline std::vector<condition> parse_condition_list(const mc::variant& value)
+{
+    if (!value.is_array()) {
+        MC_THROW(mc::invalid_arg_exception, "查询 AST 的 conditions 必须是数组");
+    }
+
+    std::vector<condition> result;
+    const auto&            items = value.get_array();
+    result.reserve(items.size());
+    for (const auto& item : items) {
+        if (!item.is_object()) {
+            MC_THROW(mc::invalid_arg_exception, "查询 AST 的 conditions 元素必须是对象");
+        }
+        result.push_back(parse_condition_dict(item.get_object()));
+    }
+    return result;
+}
+
+inline condition parse_not_condition(const mc::dict& spec)
+{
+    if (spec.contains("condition")) {
+        const auto& child = require_dict_value(spec, "condition");
+        if (!child.is_object()) {
+            MC_THROW(mc::invalid_arg_exception, "查询 AST 的 condition 必须是对象");
+        }
+        return conditions::not_cond(parse_condition_dict(child.get_object()));
+    }
+
+    auto conditions = parse_condition_list(require_dict_value(spec, "conditions"));
+    if (conditions.size() != 1) {
+        MC_THROW(mc::invalid_arg_exception, "查询 AST 的 not 仅支持单个子条件");
+    }
+    return conditions::not_cond(std::move(conditions[0]));
+}
+
+inline bool is_internal_ast_dict(const mc::dict& spec)
+{
+    if (!spec.contains("op")) {
+        return false;
+    }
+
+    return spec.contains("field") || spec.contains("conditions") || spec.contains("condition");
+}
+
+inline condition combine_conditions_with_and(std::vector<condition> conditions)
+{
+    if (conditions.empty()) {
+        MC_THROW(mc::invalid_arg_exception, "查询条件不能为空对象");
+    }
+
+    if (conditions.size() == 1) {
+        return std::move(conditions[0]);
+    }
+
+    return conditions::and_cond(std::move(conditions));
+}
+
+inline condition parse_mongodb_field_value(mc::string_view field_name, const mc::variant& value)
+{
+    if (!value.is_object()) {
+        return condition(compare_op::eq, mc::string(field_name), value);
+    }
+
+    const auto& op_dict      = value.get_object();
+    bool        has_operator = false;
+    for (const auto& entry : op_dict) {
+        auto op_name = expect_key_string(entry.key);
+        if (!op_name.empty() && op_name.front() == '$') {
+            has_operator = true;
+            break;
+        }
+    }
+
+    if (!has_operator) {
+        return condition(compare_op::eq, mc::string(field_name), value);
+    }
+
+    std::vector<condition> conditions;
+    conditions.reserve(op_dict.size());
+    for (const auto& entry : op_dict) {
+        auto op_name = expect_key_string(entry.key);
+        conditions.emplace_back(parse_compare_op(op_name), mc::string(field_name), entry.value);
+    }
+
+    return combine_conditions_with_and(std::move(conditions));
+}
+
+inline condition parse_mongodb_logical_value(mc::string_view op_name, const mc::variant& value)
+{
+    if (op_name == "$and") {
+        return conditions::and_cond(parse_condition_list(value));
+    }
+    if (op_name == "$or") {
+        return conditions::or_cond(parse_condition_list(value));
+    }
+    if (op_name == "$not") {
+        if (!value.is_object()) {
+            MC_THROW(mc::invalid_arg_exception, "MongoDB 风格查询的 $not 必须是对象");
+        }
+        return conditions::not_cond(parse_condition_dict(value.get_object()));
+    }
+
+    MC_THROW(mc::invalid_arg_exception, "未知逻辑操作符 ${op}", ("op", op_name));
+}
+
+inline condition parse_mongodb_dict(const mc::dict& spec)
+{
+    std::vector<condition> conditions;
+    conditions.reserve(spec.size());
+    for (const auto& entry : spec) {
+        auto key_name = expect_key_string(entry.key);
+        if (!key_name.empty() && key_name.front() == '$') {
+            conditions.push_back(parse_mongodb_logical_value(key_name, entry.value));
+            continue;
+        }
+
+        conditions.push_back(parse_mongodb_field_value(key_name, entry.value));
+    }
+
+    return combine_conditions_with_and(std::move(conditions));
+}
+
+inline condition parse_condition_dict(const mc::dict& spec)
+{
+    if (is_internal_ast_dict(spec)) {
+        auto op = expect_string_value(require_dict_value(spec, "op"), "op");
+        if (op == "and") {
+            return conditions::and_cond(parse_condition_list(require_dict_value(spec, "conditions")));
+        }
+        if (op == "or") {
+            return conditions::or_cond(parse_condition_list(require_dict_value(spec, "conditions")));
+        }
+        if (op == "not") {
+            return parse_not_condition(spec);
+        }
+
+        auto field = expect_string_value(require_dict_value(spec, "field"), "field");
+        auto cmp   = parse_compare_op(op);
+        return condition(cmp, mc::string(field), require_dict_value(spec, "value"));
+    }
+
+    return parse_mongodb_dict(spec);
+}
+
+} // namespace detail
+
+inline condition to_condition(const mc::dict& spec)
+{
+    return detail::parse_condition_dict(spec);
+}
+
+inline condition to_condition(const mc::variant& spec)
+{
+    if (!spec.is_object()) {
+        MC_THROW(mc::invalid_arg_exception, "查询 AST 顶层必须是对象");
+    }
+    return to_condition(spec.get_object());
+}
 
 } // namespace mc::db::query
 

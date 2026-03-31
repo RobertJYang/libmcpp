@@ -21,7 +21,6 @@
 #include <vector>
 
 #include <mc/db/query/condition.h>
-#include <mc/db/query/proto_query.h>
 #include <mc/variant.h>
 
 namespace mc::db::query {
@@ -47,15 +46,19 @@ public:
     }
 
     /**
-     * 从 Proto 查询表达式构造查询构建器
-     *
-     * @tparam Expr 表达式类型
-     * @param expr 查询表达式
+     * 从 dict AST 构造查询构建器
      */
-    template <typename Expr>
-    query_builder(const dsl::query_expr<Expr>& expr)
+    explicit query_builder(const mc::dict& spec)
     {
-        m_condition = to_condition(expr);
+        m_condition = to_condition(spec);
+    }
+
+    /**
+     * 从 variant AST 构造查询构建器
+     */
+    explicit query_builder(const mc::variant& spec)
+    {
+        m_condition = to_condition(spec);
     }
 
     /**

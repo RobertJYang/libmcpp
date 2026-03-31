@@ -145,10 +145,10 @@ void dump_object_properties(std::ostream& os, DBusConnection* conn, service* svc
 {
     // 尝试从对象表中查找对象并输出属性
     auto& table  = svc->get_object_table();
-    auto  obj_it = table.find_object(by_path::field == path);
+    auto  obj_it = table.find<by_path>(path);
 
-    if (obj_it) {
-        auto* node = static_cast<abstract_object*>(obj_it.get());
+    if (!obj_it.is_end()) {
+        auto* node = const_cast<abstract_object*>(&obj_it.get());
         dump_single_object_properties(os, node);
     }
 

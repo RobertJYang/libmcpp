@@ -644,84 +644,15 @@ public:
         return m_name;
     }
 
-    /**
-     * 根据查询条件查找单个记录
-     * @param builder 查询构建器
-     * @return 找到的记录的可选包装
-     */
-    object_ptr_type find(const query_builder& builder)
-    {
-        return table_query<table<object_type, IndexDef>>(*this).query_one(builder);
-    }
-
-    /**
-     * 查询记录
-     * @param builder 查询构建器
-     * @param limit 限制返回的记录数量，0表示不限制
-     * @return 查询结果
-     */
-    std::vector<object_ptr_type> query(const query_builder& builder, size_t limit = 0)
-    {
-        return table_query<table<object_type, IndexDef>>(*this).query(builder, limit);
-    }
-
-    /**
-     * 查询记录
-     * @param builder 查询构建器
-     * @param handler 处理函数，返回false表示停止查询
-     * @return 是否查询完成
-     */
-    template <typename Handler, typename = std::enable_if_t<std::is_invocable_r_v<bool, Handler, object_type&>>>
-    bool query(const query_builder& builder, Handler&& handler)
-    {
-        return table_query<table<object_type, IndexDef>>(*this).query(builder, std::forward<Handler>(handler));
-    }
-
     std::vector<object_ptr_type> all()
     {
-        query_builder builder;
-        return table_query<table<object_type, IndexDef>>(*this).query_all(builder);
-    }
-
-    /**
-     * 高级更新方法，支持通过条件更新多个属性
-     * @param condition 查询条件
-     * @param values 要更新的值，支持多种数据源
-     * @return 更新的记录数量
-     */
-    size_t update(const query_builder& condition, const mc::dict& values, transaction* txn = nullptr)
-    {
-        std::lock_guard lock(m_mutex);
-
-        return update_internal(condition, values, txn);
-    }
-
-    size_t update(const query_builder& condition, const std::map<mc::string, variant>& values,
-                  transaction* txn = nullptr)
-    {
-        std::lock_guard lock(m_mutex);
-
-        return update_internal(condition, values, txn);
-    }
-
-    /**
-     * 高级删除方法，支持通过条件删除多个记录
-     * @param condition 查询条件
-     * @return 删除的记录数量
-     */
-    size_t remove(const query_builder& condition, transaction* txn = nullptr)
-    {
-        size_t removed_count = 0;
-
-        auto handler = [&](object_type& obj) -> bool {
-            if (remove(mc::shared_ptr<object_type>(const_cast<object_type*>(&obj)), txn)) {
-                removed_count++;
-            }
-            return true;
-        };
-
-        query(condition, handler);
-        return removed_count;
+        std::lock_guard              lock(m_mutex);
+        std::vector<object_ptr_type> results;
+        results.reserve(std::get<0>(m_indices).size());
+        for (auto it = std::get<0>(m_indices).begin(); it != std::get<0>(m_indices).end(); ++it) {
+            results.emplace_back(const_cast<object_type*>(&*it));
+        }
+        return results;
     }
 
     void clear() override
@@ -800,99 +731,7 @@ protected:
         return nullptr;
     }
 
-    size_t do_remove_object(const query_builder& condition, transaction* txn) override
-    {
-        if constexpr (mc::reflect::is_reflectable<object_type>()) {
-            return remove(condition, txn);
-        } else {
-            MC_UNUSED(txn);
-        }
-
-        return 0;
-    }
-
-    object_ptr do_find_object(const query_builder& condition) override
-    {
-        if constexpr (mc::reflect::is_reflectable<object_type>()) {
-            return find(condition).template static_pointer_cast<object_base>();
-        }
-
-        return nullptr;
-    }
-
-    bool do_query_object(const query_builder& builder, table_base::query_handler&& handler) override
-    {
-        if constexpr (mc::reflect::is_reflectable<object_type>()) {
-            return query(builder, [handler = std::forward<table_base::query_handler>(handler)](object_type& obj) {
-                return handler(obj);
-            });
-        }
-        return false;
-    }
-
-    size_t do_update_object(const query_builder& condition, const mc::dict& values, transaction* txn) override
-    {
-        if constexpr (mc::reflect::is_reflectable<object_type>()) {
-            return update_internal(condition, values, txn);
-        } else {
-            MC_UNUSED(txn);
-        }
-        return 0;
-    }
-
-    size_t do_update_object(const query_builder& condition, const std::map<mc::string, variant>& values,
-                            transaction* txn) override
-    {
-        if constexpr (mc::reflect::is_reflectable<object_type>()) {
-            return update_internal(condition, values, txn);
-        } else {
-            MC_UNUSED(txn);
-        }
-        return 0;
-    }
-
 private:
-    // 从 dict 更新对象
-    void update_object(object_type& obj, const dict& values)
-    {
-        for (auto& entry : values) {
-            mc::reflect::set_property(obj, entry.key.get_string(), entry.value);
-        }
-    }
-
-    // 从 map 更新对象
-    void update_object(object_type& obj, const std::map<mc::string, variant>& values)
-    {
-        for (auto& entry : values) {
-            mc::reflect::set_property(obj, entry.first, entry.second);
-        }
-    }
-
-    template <typename T>
-    size_t update_internal(const query_builder& condition, const T& values, transaction* txn)
-    {
-        size_t updated_count = 0;
-
-        auto handler = [&](const object_type& obj) -> bool {
-            if constexpr (mc::traits::is_copyable_v<object_type>) {
-                auto new_obj = mc::make_shared<object_type>(obj);
-                update_object(*new_obj, values);
-                if (update(mc::shared_ptr<object_type>(const_cast<object_type*>(&obj)), new_obj, txn)) {
-                    updated_count++;
-                }
-                return true;
-            } else {
-                // 非可复制类型，直接更新对象
-                update_object(const_cast<object_type&>(obj), values);
-                updated_count++;
-                return true;
-            }
-        };
-
-        query(condition, handler);
-        return updated_count;
-    }
-
     /**
      * 根据IndexDef选择合适的索引创建方法
      */

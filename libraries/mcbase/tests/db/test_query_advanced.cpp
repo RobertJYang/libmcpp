@@ -13,12 +13,10 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
-#include <iostream>
-#include <map>
-#include <string>
-#include <vector>
 
+#include <mc/db/query/query.h>
 #include <mc/db/table.h>
+#include <mc/db/transaction.h>
 #include <mc/dict.h>
 #include <mc/reflect.h>
 #include <mc/variant.h>
@@ -80,11 +78,11 @@ public:
     }
 
     // 成员变量
-    uint32_t    m_id;
+    uint32_t   m_id;
     mc::string m_name;
-    int         m_age;
+    int        m_age;
     mc::string m_city;
-    double      m_score;
+    double     m_score;
 };
 
 } // namespace
@@ -119,15 +117,16 @@ protected:
 
     void TearDown() override
     {
-        // 清理测试数据
+        users.clear();
+        mdb::transaction::reset_for_test();
     }
 
-    // 获取匹配条件的用户ID列表
     std::vector<uint32_t> query_users(const mdb::query_builder& builder)
     {
-        std::vector<uint32_t> result;
+        std::vector<uint32_t>        result;
+        mdb::table_query<user_table> executor(users);
 
-        users.query(builder, [&result](auto& obj) {
+        executor.query(builder, [&result](auto& obj) {
             result.push_back(obj.id());
             return true;
         });
@@ -135,168 +134,154 @@ protected:
         return result;
     }
 
+    user_table::object_ptr_type query_one_user(const mc::dict& spec)
+    {
+        mdb::table_query<user_table> executor(users);
+        return executor.query_one(mdb::query_builder(spec));
+    }
+
     user_table users;
 };
 
-// 使用 Proto DSL 命名空间
-using namespace mdb::query::dsl;
+TEST_F(table_query_test, condition_conversion)
+{
+    mc::variant spec = mc::dict{{"age", 25}, {"city", "北京"}};
 
-// 测试复合条件查询
+    auto cond = mdb::to_condition(spec);
+    EXPECT_TRUE(cond.is_logical());
+    EXPECT_EQ(cond.get_logical_op(), mdb::logical_op::AND);
+    ASSERT_EQ(cond.get_conditions().size(), 2);
+    EXPECT_EQ(cond.get_conditions()[0].get_field(), "age");
+    EXPECT_EQ(cond.get_conditions()[0].get_op(), mdb::compare_op::eq);
+    EXPECT_EQ(cond.get_conditions()[1].get_field(), "city");
+}
+
 TEST_F(table_query_test, complex_condition_query)
 {
     // 测试 AND 条件：age = 25 AND city = "北京"
     {
-        auto age_field  = mc::db::field(&test_user::m_age);
-        auto city_field = mc::db::field(&test_user::m_city);
-        auto expr       = age_field == 25 && city_field == "北京";
-
-        auto user_ids = query_users(expr);
-        EXPECT_EQ(user_ids.size(), 1);
-        EXPECT_EQ(user_ids[0], 1); // 张三 (25岁, 北京)
+        auto user_ids = query_users(mdb::query_builder(mc::dict{
+            {"age", 25},
+            {"city", "北京"},
+        }));
+        ASSERT_EQ(user_ids.size(), 1);
+        EXPECT_EQ(user_ids[0], 1);
     }
 
     // 测试 OR 条件：(age == 25) || (city == "北京")
     {
-        auto age_field  = mc::db::field(&test_user::m_age);
-        auto city_field = mc::db::field(&test_user::m_city);
-        auto expr       = (age_field == 25) || (city_field == "北京");
-
-        auto user_ids = query_users(expr);
-        EXPECT_EQ(user_ids.size(), 3); // 应该有3个用户匹配
-
+        auto user_ids = query_users(mdb::query_builder(mc::dict{
+            {"$or",
+             mc::variants{
+                 mc::dict{{"age", 25}},
+                 mc::dict{{"city", "北京"}},
+             }},
+        }));
+        ASSERT_EQ(user_ids.size(), 3);
         std::sort(user_ids.begin(), user_ids.end());
-        EXPECT_EQ(user_ids[0], 1); // 张三 (25岁, 北京)
-        EXPECT_EQ(user_ids[1], 3); // 王五 (25岁)
-        EXPECT_EQ(user_ids[2], 5); // 钱七 (北京)
+        EXPECT_EQ(user_ids[0], 1);
+        EXPECT_EQ(user_ids[1], 3);
+        EXPECT_EQ(user_ids[2], 5);
     }
 
     // 测试比较条件：score > 90
     {
-        auto score_field = mc::db::field(&test_user::m_score);
-        auto expr        = score_field > 90.0;
-
-        auto user_ids = query_users(expr);
-        EXPECT_EQ(user_ids.size(), 2);
-
+        auto user_ids = query_users(mdb::query_builder(mc::dict{
+            {"score", mc::dict{{"$gt", 90.0}}},
+        }));
+        ASSERT_EQ(user_ids.size(), 2);
         std::sort(user_ids.begin(), user_ids.end());
-        EXPECT_EQ(user_ids[0], 2); // 李四 (92分 > 90)
-        EXPECT_EQ(user_ids[1], 4); // 赵六 (95分 > 90)
+        EXPECT_EQ(user_ids[0], 2);
+        EXPECT_EQ(user_ids[1], 4);
     }
 }
 
-// 测试特殊条件查询
 TEST_F(table_query_test, special_condition_query)
 {
     // 测试 IN 条件：city IN ["北京", "上海"]
     {
-        auto city_field = mc::db::field(&test_user::m_city);
-        auto expr       = in(city_field, {"北京", "上海"});
-
-        auto user_ids = query_users(expr);
-        EXPECT_EQ(user_ids.size(), 3);
-
+        mdb::query_builder builder(mc::dict{{"city", mc::dict{{"$in", mc::variants{"北京", "上海"}}}}});
+        auto               user_ids = query_users(builder);
+        ASSERT_EQ(user_ids.size(), 3);
         std::sort(user_ids.begin(), user_ids.end());
-        EXPECT_EQ(user_ids[0], 1); // 张三 (北京)
-        EXPECT_EQ(user_ids[1], 2); // 李四 (上海)
-        EXPECT_EQ(user_ids[2], 5); // 钱七 (北京)
+        EXPECT_EQ(user_ids[0], 1);
+        EXPECT_EQ(user_ids[1], 2);
+        EXPECT_EQ(user_ids[2], 5);
     }
 
     // 测试 BETWEEN 条件：age BETWEEN 25 AND 35
     {
-        auto age_field = mc::db::field(&test_user::m_age);
-        auto expr      = between(age_field, 25, 35);
-
-        auto user_ids = query_users(expr);
-        EXPECT_EQ(user_ids.size(), 4);
-
+        mdb::query_builder builder(mc::dict{{"age", mc::dict{{"$between", mc::variants{25, 35}}}}});
+        auto               user_ids = query_users(builder);
+        ASSERT_EQ(user_ids.size(), 4);
         std::sort(user_ids.begin(), user_ids.end());
-        EXPECT_EQ(user_ids[0], 1); // 张三 (25岁)
-        EXPECT_EQ(user_ids[1], 2); // 李四 (30岁)
-        EXPECT_EQ(user_ids[2], 3); // 王五 (25岁)
-        EXPECT_EQ(user_ids[3], 4); // 赵六 (35岁)
+        EXPECT_EQ(user_ids[0], 1);
+        EXPECT_EQ(user_ids[1], 2);
+        EXPECT_EQ(user_ids[2], 3);
+        EXPECT_EQ(user_ids[3], 4);
     }
 
     // 测试 LIKE 操作
     {
-        auto name_field = mc::db::field(&test_user::m_name);
-        auto expr       = like(name_field, "%三%");
-
-        auto user_ids = query_users(expr);
-        EXPECT_EQ(user_ids.size(), 1);
-        EXPECT_EQ(user_ids[0], 1); // 张三
+        mdb::query_builder builder(mc::dict{{"name", mc::dict{{"$like", "%三%"}}}});
+        auto               user_ids = query_users(builder);
+        ASSERT_EQ(user_ids.size(), 1);
+        EXPECT_EQ(user_ids[0], 1);
     }
 
     // 测试 CONTAINS 操作
     {
-        auto name_field = mc::db::field(&test_user::m_name);
-        auto expr       = contains(name_field, "六");
-
-        auto user_ids = query_users(expr);
-        EXPECT_EQ(user_ids.size(), 1);
-        EXPECT_EQ(user_ids[0], 4); // 赵六
+        mdb::query_builder builder(mc::dict{{"name", mc::dict{{"$contains", "六"}}}});
+        auto               user_ids = query_users(builder);
+        ASSERT_EQ(user_ids.size(), 1);
+        EXPECT_EQ(user_ids[0], 4);
     }
 }
 
-// 测试索引优化查询
 TEST_F(table_query_test, index_optimized_query)
 {
     // 测试按主键ID查询（应该使用主键索引）
     {
-        auto id_field = mc::db::field(&test_user::m_id);
-        auto expr     = id_field == 3;
+        mdb::query_builder builder(mc::dict{{"id", 3}});
 
-        auto users_result = users.query(expr);
-        ASSERT_EQ(users_result.size(), 1);
-        EXPECT_EQ(users_result[0]->id(), 3);
-        EXPECT_EQ(users_result[0]->name(), "王五");
+        mdb::table_query<user_table> executor(users);
+        auto                         user_opt = executor.query_one(builder);
+        ASSERT_TRUE(user_opt != nullptr);
+        EXPECT_EQ(user_opt->id(), 3);
+        EXPECT_EQ(user_opt->name(), "王五");
     }
 
     // 测试按姓名查询（应该使用姓名索引）
     {
-        auto name_field = mc::db::field(&test_user::m_name);
-        auto expr       = name_field == "李四";
-
-        auto user_opt = users.find(expr);
+        auto user_opt = query_one_user(mc::dict{{"name", "李四"}});
         ASSERT_TRUE(user_opt != nullptr);
         EXPECT_EQ(user_opt->id(), 2);
         EXPECT_EQ(user_opt->name(), "李四");
     }
 }
 
-// 测试查询限制和自定义处理
 TEST_F(table_query_test, query_limit_and_custom_handler)
 {
     // 测试查询并限制返回数量
     {
-        auto age_field = mc::db::field(&test_user::m_age);
-        auto expr      = age_field == 25;
+        mdb::query_builder builder(mc::dict{{"age", 25}});
+        builder.limit(1);
 
-        auto results = users.query(expr, 2UL);
-        ASSERT_EQ(results.size(), 2);
-
-        // 检查查询结果是否包含所有25岁的用户
-        bool found_zhangsan = false;
-        bool found_wangwu   = false;
-
-        for (const auto& user : results) {
-            if (user->id() == 1) {
-                found_zhangsan = true;
-            } else if (user->id() == 3) {
-                found_wangwu = true;
-            }
-        }
-
-        EXPECT_TRUE(found_zhangsan);
-        EXPECT_TRUE(found_wangwu);
+        mdb::table_query<user_table> executor(users);
+        auto                         results = executor.query(builder, builder.get_limit());
+        ASSERT_EQ(results.size(), 1);
+        EXPECT_TRUE(results[0]->id() == 1 || results[0]->id() == 3);
     }
 
     // 测试自定义处理器
     {
-        auto city_field = mc::db::field(&test_user::m_city);
-        auto expr       = city_field == "北京";
+        mdb::query_builder builder(mc::dict{
+            {"city", "北京"},
+        });
 
-        std::vector<mc::string> names;
-        users.query(expr, [&names](const test_user& user) {
+        std::vector<mc::string>      names;
+        mdb::table_query<user_table> executor(users);
+        executor.query(builder, [&names](const test_user& user) {
             names.push_back(user.name());
             return true;
         });
@@ -309,20 +294,15 @@ TEST_F(table_query_test, query_limit_and_custom_handler)
 
     // 测试复合条件查询
     {
-        auto age_field  = mc::db::field(&test_user::m_age);
-        auto city_field = mc::db::field(&test_user::m_city);
-        auto expr       = (age_field >= 30) && (city_field == "北京");
-
-        auto results = users.query(expr);
-        EXPECT_EQ(results.size(), 1);
-
-        if (!results.empty()) {
-            EXPECT_EQ(results[0]->id(), 5); // 钱七 (40岁, 北京)
-        }
+        auto result = query_one_user(mc::dict{
+            {"age", mc::dict{{"$gte", 30}}},
+            {"city", "北京"},
+        });
+        ASSERT_TRUE(result != nullptr);
+        EXPECT_EQ(result->id(), 5);
     }
 }
 
-// 测试直接使用 query_builder 构造查询
 TEST_F(table_query_test, direct_query_builder)
 {
     // 使用 query_builder 的 where 方法构建查询
@@ -331,11 +311,10 @@ TEST_F(table_query_test, direct_query_builder)
         builder.where("age", mdb::compare_op::eq, 25);
 
         auto user_ids = query_users(builder);
-        EXPECT_EQ(user_ids.size(), 2);
-
+        ASSERT_EQ(user_ids.size(), 2);
         std::sort(user_ids.begin(), user_ids.end());
-        EXPECT_EQ(user_ids[0], 1); // 张三 (25岁)
-        EXPECT_EQ(user_ids[1], 3); // 王五 (25岁)
+        EXPECT_EQ(user_ids[0], 1);
+        EXPECT_EQ(user_ids[1], 3);
     }
 
     // 使用 query_builder 的 where 和 or_where 方法组合条件
@@ -345,71 +324,116 @@ TEST_F(table_query_test, direct_query_builder)
         builder.or_where("city", mdb::compare_op::eq, "上海");
 
         auto user_ids = query_users(builder);
-        EXPECT_EQ(user_ids.size(), 3);
-
+        ASSERT_EQ(user_ids.size(), 3);
         std::sort(user_ids.begin(), user_ids.end());
-        EXPECT_EQ(user_ids[0], 1); // 张三 (北京)
-        EXPECT_EQ(user_ids[1], 2); // 李四 (上海)
-        EXPECT_EQ(user_ids[2], 5); // 钱七 (北京)
+        EXPECT_EQ(user_ids[0], 1);
+        EXPECT_EQ(user_ids[1], 2);
+        EXPECT_EQ(user_ids[2], 5);
     }
 
-    // 使用 query_builder 的 where_not 方法
+    // 使用 query_builder 的 where 构建范围条件
     {
         mdb::query_builder builder;
         builder.where("age", mdb::compare_op::le, 30);
 
         auto user_ids = query_users(builder);
-        EXPECT_EQ(user_ids.size(), 3);
-
+        ASSERT_EQ(user_ids.size(), 3);
         std::sort(user_ids.begin(), user_ids.end());
-        EXPECT_EQ(user_ids[0], 1); // 张三 (25岁)
-        EXPECT_EQ(user_ids[1], 2); // 李四 (30岁)
-        EXPECT_EQ(user_ids[2], 3); // 王五 (25岁)
+        EXPECT_EQ(user_ids[0], 1);
+        EXPECT_EQ(user_ids[1], 2);
+        EXPECT_EQ(user_ids[2], 3);
     }
 }
 
-// 测试使用字符串版本的 field 方法
 TEST_F(table_query_test, string_field_method)
 {
-    // 使用字符串版本的 field 方法
+    // 使用字符串版本的字段名
     {
-        auto age_field = mc::db::field("age");
-        auto expr      = age_field == 25;
-
-        auto user_ids = query_users(expr);
-        EXPECT_EQ(user_ids.size(), 2);
-
+        auto user_ids = query_users(mdb::query_builder(mc::dict{
+            {"age", 25},
+        }));
+        ASSERT_EQ(user_ids.size(), 2);
         std::sort(user_ids.begin(), user_ids.end());
-        EXPECT_EQ(user_ids[0], 1); // 张三 (25岁)
-        EXPECT_EQ(user_ids[1], 3); // 王五 (25岁)
+        EXPECT_EQ(user_ids[0], 1);
+        EXPECT_EQ(user_ids[1], 3);
     }
 
-    // 组合使用字符串版本的 field 方法和成员指针版本
+    // 组合使用字符串字段构造 OR 查询
     {
-        auto name_field = mc::db::field("name");
-        auto city_field = mc::db::field(&test_user::m_city);
-        auto expr       = (name_field == "张三") || (city_field == "上海");
-
-        auto user_ids = query_users(expr);
-        EXPECT_EQ(user_ids.size(), 2);
-
+        auto user_ids = query_users(mdb::query_builder(mc::dict{
+            {"$or",
+             mc::variants{
+                 mc::dict{{"name", "张三"}},
+                 mc::dict{{"city", "上海"}},
+             }},
+        }));
+        ASSERT_EQ(user_ids.size(), 2);
         std::sort(user_ids.begin(), user_ids.end());
-        EXPECT_EQ(user_ids[0], 1); // 张三
-        EXPECT_EQ(user_ids[1], 2); // 李四 (上海)
+        EXPECT_EQ(user_ids[0], 1);
+        EXPECT_EQ(user_ids[1], 2);
     }
 
-    // 使用字符串版本的 field 方法构建复杂查询
+    // 使用字符串字段构建复杂查询
     {
-        auto score_field = mc::db::field("score");
-        auto city_field  = mc::db::field("city");
-        auto expr        = (score_field > 80.0) && (city_field == "北京");
-
-        auto user_ids = query_users(expr);
-        EXPECT_EQ(user_ids.size(), 2);
-
+        auto user_ids = query_users(mdb::query_builder(mc::dict{
+            {"score", mc::dict{{"$gt", 80.0}}},
+            {"city", "北京"},
+        }));
+        ASSERT_EQ(user_ids.size(), 2);
         std::sort(user_ids.begin(), user_ids.end());
-        EXPECT_EQ(user_ids[0], 1); // 张三 (88.5分, 北京)
-        EXPECT_EQ(user_ids[1], 5); // 钱七 (82.5分, 北京)
+        EXPECT_EQ(user_ids[0], 1);
+        EXPECT_EQ(user_ids[1], 5);
+    }
+}
+
+TEST_F(table_query_test, logical_not_query)
+{
+    {
+        mdb::query_builder builder(mc::dict{
+            {"$not", mc::dict{{"city", "北京"}}},
+        });
+        auto               user_ids = query_users(builder);
+        ASSERT_EQ(user_ids.size(), 3);
+        std::sort(user_ids.begin(), user_ids.end());
+        EXPECT_EQ(user_ids[0], 2);
+        EXPECT_EQ(user_ids[1], 3);
+        EXPECT_EQ(user_ids[2], 4);
+    }
+}
+
+TEST_F(table_query_test, compound_field_predicates)
+{
+    mdb::query_builder builder(mc::dict{
+        {"age", mc::dict{{"$gte", 30}, {"$lte", 35}}},
+        {"city", mc::dict{{"$in", mc::variants{"上海", "深圳"}}}},
+    });
+
+    auto user_ids = query_users(builder);
+    ASSERT_EQ(user_ids.size(), 2);
+    std::sort(user_ids.begin(), user_ids.end());
+    EXPECT_EQ(user_ids[0], 2);
+    EXPECT_EQ(user_ids[1], 4);
+}
+
+TEST_F(table_query_test, query_helper_methods)
+{
+    mdb::table_query<user_table> executor(users);
+
+    {
+        auto results = executor.query_all(mdb::query_builder(mc::dict{{"age", 25}}));
+        ASSERT_EQ(results.size(), 2);
+        std::vector<uint32_t> ids;
+        for (const auto& user : results) {
+            ids.push_back(user->id());
+        }
+        std::sort(ids.begin(), ids.end());
+        EXPECT_EQ(ids[0], 1);
+        EXPECT_EQ(ids[1], 3);
+    }
+
+    {
+        auto results = executor.query_limit(mdb::query_builder(mc::dict{{"age", mc::dict{{"$gte", 25}}}}), 2);
+        ASSERT_EQ(results.size(), 2);
     }
 }
 

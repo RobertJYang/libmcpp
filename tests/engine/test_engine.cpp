@@ -253,9 +253,9 @@ TEST_F(engine_test, test_property_changed_sig_use_abstract_object)
     auto& table  = engine.get_object_table();
 
     // 2：通过路径全局对象表里面找到对象
-    auto result = table.find_object(mc::engine::by_path::field == obj->get_object_path());
-    EXPECT_EQ(result, obj.get());
-    auto* res_obj = static_cast<mc::engine::abstract_object*>(result.get());
+    auto result = table.find<mc::engine::by_path>(obj->get_object_path());
+    ASSERT_FALSE(result.is_end());
+    auto* res_obj = const_cast<mc::engine::abstract_object*>(&result.get());
 
     mc::dict values;
     res_obj->property_changed().connect([&](const mc::variant& value, const auto& prop) {
