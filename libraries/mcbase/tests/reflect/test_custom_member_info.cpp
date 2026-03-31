@@ -17,7 +17,7 @@
 #include <functional>
 #include <gtest/gtest.h>
 #include <mc/reflect.h>
-#include <mc/signal_slot.h>
+#include <mc/signal/signal.h>
 #include <mc/variant.h>
 #include <string>
 
@@ -36,9 +36,9 @@ template <typename C, typename Signature>
 struct signal_info : public mc::reflect::member_info_base {
     using tag_type = mc::reflect::signal_tag;
 
-    mc::signal<Signature> C::*signal_ptr;
+    mc::signal<Signature> C::* signal_ptr;
 
-    constexpr signal_info(mc::string_view n, mc::signal<Signature> C::*ptr)
+    constexpr signal_info(mc::string_view n, mc::signal<Signature> C::* ptr)
         : mc::reflect::member_info_base(n), signal_ptr(ptr)
     {}
 
@@ -72,10 +72,10 @@ public:
     MC_REFLECTABLE("test_custom_member_info.TestValue");
 
     mc::string m_name;
-    int         m_value;
+    int        m_value;
 
     // 信号成员（无法被转换成 mc::variant）
-    mc::signal<void(int)>                value_changed;
+    mc::signal<void(int)>               value_changed;
     mc::signal<void(const mc::string&)> name_changed;
 
     // 普通方法
@@ -106,7 +106,7 @@ namespace mc::reflect {
 
 template <typename Signature>
 struct member_info_creator<TestValue, mc::signal<Signature>> {
-    static constexpr auto create(mc::signal<Signature> TestValue::*member_ptr, mc::string_view name)
+    static constexpr auto create(mc::signal<Signature> TestValue::* member_ptr, mc::string_view name)
     {
         return std::make_tuple(signal_info<TestValue, Signature>{name, member_ptr});
     }

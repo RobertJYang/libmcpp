@@ -13,7 +13,7 @@
 #define MC_ENGINE_SIGNAL_INFO_H
 
 #include <mc/reflect/metadata.h>
-#include <mc/signal_slot.h>
+#include <mc/signal/signal.h>
 
 namespace mc::engine {
 using slot_type = std::function<mc::variant(const mc::variants&)>;

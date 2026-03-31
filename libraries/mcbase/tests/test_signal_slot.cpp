@@ -644,6 +644,73 @@ TEST(SignalSlotTest, ConcurrentConnectDisconnectEmitStressMaintainsUsability)
     EXPECT_EQ(1, final_count.load(std::memory_order_relaxed));
 }
 
+// ---- 新增：自定义最大调用深度 ----
+
+TEST(SignalSlotTest, CustomMaxDepthThrowsWhenChainExceedsLimit)
+{
+    // max_depth=2：允许 2 层嵌套，第 3 层抛出
+    mc::signal<void()> sig_a("depth_a", 2);
+    mc::signal<void()> sig_b("depth_b", 2);
+    mc::signal<void()> sig_c("depth_c", 2);
+
+    bool c_called = false;
+    sig_c.connect([&c_called]() { c_called = true; });
+    sig_b.connect([&sig_c]() { sig_c(); });
+    sig_a.connect([&sig_b]() { sig_b(); });
+
+    // sig_a(depth=1) -> sig_b(depth=2) -> sig_c(depth=3) -> 超出 max_depth=2 抛出
+    EXPECT_THROW(sig_a(), mc::signal_recursion_exception);
+    EXPECT_FALSE(c_called);
+}
+
+TEST(SignalSlotTest, CustomMaxDepthAllowsChainWithinLimit)
+{
+    // max_depth=3：允许 3 层嵌套，恰好 3 层不抛出
+    mc::signal<void()> sig_a("depth_ok_a", 3);
+    mc::signal<void()> sig_b("depth_ok_b", 3);
+    mc::signal<void()> sig_c("depth_ok_c", 3);
+
+    bool c_called = false;
+    sig_c.connect([&c_called]() { c_called = true; });
+    sig_b.connect([&sig_c]() { sig_c(); });
+    sig_a.connect([&sig_b]() { sig_b(); });
+
+    EXPECT_NO_THROW(sig_a());
+    EXPECT_TRUE(c_called);
+}
+
+// ---- 新增：executor 连接支持 priority 参数 ----
+
+TEST(SignalSlotTest, ExecutorConnectWithPriorityRespectsPriorityOrdering)
+{
+    using namespace std::chrono_literals;
+
+    mc::core::object         obj;
+    mc::runtime::thread_pool pool(1, "executor_priority_test");
+    pool.start();
+    obj.set_executor(mc::runtime::any_executor(pool.get_executor()));
+
+    mc::signal<void()>  sig;
+    std::vector<int>   order;
+    std::promise<void> done;
+    auto               future = done.get_future();
+
+    // high priority (数值小) 应该先执行
+    obj.connect(sig, [&order]() { order.push_back(1); }, mc::runtime::any_executor(pool.get_executor()),
+                mc::signal_priority::high);
+    obj.connect(sig, [&order, &done]() {
+        order.push_back(2);
+        done.set_value();
+    }, mc::runtime::any_executor(pool.get_executor()), mc::signal_priority::low);
+
+    sig();
+
+    EXPECT_EQ(future.wait_for(2s), std::future_status::ready);
+    ASSERT_EQ(order.size(), 2u);
+    EXPECT_EQ(order[0], 1); // high priority 先执行
+    EXPECT_EQ(order[1], 2); // low priority 后执行
+}
+
 TEST(SignalSlotTest, ObjectBindExecutorDispatchesOnExecutor)
 {
     using namespace std::chrono_literals;

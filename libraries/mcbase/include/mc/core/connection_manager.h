@@ -14,7 +14,6 @@
 #define MC_CORE_CONNECTION_MANAGER_H
 
 #include <mc/core/object.h>
-#include <mc/signal_slot.h>
 
 #include <string_view>
 #include <unordered_map>
@@ -28,15 +27,14 @@ namespace mc::core {
 class connection_manager {
 public:
     struct connection_info : public mc::noncopyable {
-        connection_info(signal_type sig, mc::connection_type conn)
-            : sig(sig), conn(std::move(conn)) {
-        }
+        connection_info(signal_type sig, mc::connection_type conn) : sig(sig), conn(std::move(conn))
+        {}
 
-        connection_info(connection_info&& other) noexcept
-            : sig(std::move(other.sig)), conn(std::move(other.conn)) {
-        }
+        connection_info(connection_info&& other) noexcept : sig(std::move(other.sig)), conn(std::move(other.conn))
+        {}
 
-        connection_info& operator=(connection_info&& other) noexcept {
+        connection_info& operator=(connection_info&& other) noexcept
+        {
             sig  = std::move(other.sig);
             conn = std::move(other.conn);
             return *this;

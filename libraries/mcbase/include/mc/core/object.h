@@ -20,7 +20,8 @@
 #include <mc/future.h>
 #include <mc/memory.h>
 #include <mc/runtime.h>
-#include <mc/signal_slot.h>
+#include <mc/signal/connection.h>
+#include <mc/signal/signal.h>
 
 #include <atomic>
 #include <functional>
@@ -194,13 +195,15 @@ public:
      * @brief 连接信号和槽
      * @param sig 信号对象
      * @param slot 槽函数
-     * @param type 连接类型
+     * @param mode 连接模式
+     * @param priority 槽优先级，默认 normal
      * @return 连接ID
      */
     template <typename RetType, typename... Args, typename SlotType>
-    connection_id_type connect(mc::signal<RetType(Args...)>& sig, SlotType&& slot, connection_mode mode)
+    connection_id_type connect(mc::signal<RetType(Args...)>& sig, SlotType&& slot, connection_mode mode,
+                               int priority = mc::signal_priority::normal)
     {
-        return connect(INVALID_CONNECTION_ID, sig, std::forward<SlotType>(slot), mode);
+        return connect(INVALID_CONNECTION_ID, sig, std::forward<SlotType>(slot), mode, priority);
     }
 
     /**
@@ -209,25 +212,27 @@ public:
      * @param sig 信号对象
      * @param slot 槽函数
      * @param mode 连接模式
+     * @param priority 槽优先级，默认 normal
      */
     template <typename RetType, typename... Args, typename SlotType>
     connection_id_type connect(connection_id_type id, mc::signal<RetType(Args...)>& sig, SlotType&& slot,
-                               connection_mode mode)
+                               connection_mode mode, int priority = mc::signal_priority::normal)
     {
         mc::connection_type conn;
 
         if constexpr (std::is_void_v<RetType>) {
             if (mode == connection_mode::direct) {
-                conn = sig.connect(std::forward<SlotType>(slot));
+                conn = sig.connect(std::forward<SlotType>(slot), priority);
             } else {
                 auto delivery = mode == connection_mode::queued ? detail::executor_delivery::post
                                                                 : detail::executor_delivery::dispatch;
                 conn          = sig.connect(
-                    detail::object_executor_binder<SlotType>(get_executor(), std::forward<SlotType>(slot), delivery));
+                    detail::object_executor_binder<SlotType>(get_executor(), std::forward<SlotType>(slot), delivery),
+                    priority);
             }
         } else {
             MC_ASSERT(mode == connection_mode::direct, "非 void 信号仅支持 direct 连接模式");
-            conn = sig.connect(std::forward<SlotType>(slot));
+            conn = sig.connect(std::forward<SlotType>(slot), priority);
         }
 
         return add_connection(&sig, std::move(conn), id);
@@ -238,12 +243,14 @@ public:
      * @param sig 信号对象
      * @param slot 槽函数
      * @param executor 目标执行器
+     * @param priority 槽优先级，默认 normal
      * @return 连接ID
      */
     template <typename RetType, typename... Args, typename SlotType>
-    connection_id_type connect(mc::signal<RetType(Args...)>& sig, SlotType&& slot, executor_type executor)
+    connection_id_type connect(mc::signal<RetType(Args...)>& sig, SlotType&& slot, executor_type executor,
+                               int priority = mc::signal_priority::normal)
     {
-        return connect(INVALID_CONNECTION_ID, sig, std::forward<SlotType>(slot), std::move(executor));
+        return connect(INVALID_CONNECTION_ID, sig, std::forward<SlotType>(slot), std::move(executor), priority);
     }
 
     /**
@@ -252,15 +259,17 @@ public:
      * @param sig 信号对象
      * @param slot 槽函数
      * @param executor 目标执行器
+     * @param priority 槽优先级，默认 normal
      */
     template <typename RetType, typename... Args, typename SlotType>
     connection_id_type connect(connection_id_type id, mc::signal<RetType(Args...)>& sig, SlotType&& slot,
-                               executor_type executor)
+                               executor_type executor, int priority = mc::signal_priority::normal)
     {
         static_assert(std::is_void_v<RetType>, "executor 连接仅支持 void 信号");
 
         auto conn = sig.connect(detail::object_executor_binder<SlotType>(
-            std::move(executor), std::forward<SlotType>(slot), detail::executor_delivery::post));
+                                    std::move(executor), std::forward<SlotType>(slot), detail::executor_delivery::post),
+                                priority);
         return add_connection(&sig, std::move(conn), id);
     }
 
@@ -269,13 +278,14 @@ public:
      * @param sig 信号对象
      * @param slot 槽函数
      * @param type 兼容旧接口的连接类型
+     * @param priority 槽优先级，默认 normal
      * @return 连接ID
      */
     template <typename RetType, typename... Args, typename SlotType>
     connection_id_type connect(mc::signal<RetType(Args...)>& sig, SlotType&& slot,
-                               connection_type type = connection_type::Auto)
+                               connection_type type = connection_type::Auto, int priority = mc::signal_priority::normal)
     {
-        return connect(INVALID_CONNECTION_ID, sig, std::forward<SlotType>(slot), type);
+        return connect(INVALID_CONNECTION_ID, sig, std::forward<SlotType>(slot), type, priority);
     }
 
     /**
@@ -284,19 +294,20 @@ public:
      * @param sig 信号对象
      * @param slot 槽函数
      * @param type 连接类型
+     * @param priority 槽优先级，默认 normal
      */
     template <typename RetType, typename... Args, typename SlotType>
     connection_id_type connect(connection_id_type id, mc::signal<RetType(Args...)>& sig, SlotType&& slot,
-                               connection_type type = connection_type::Auto)
+                               connection_type type = connection_type::Auto, int priority = mc::signal_priority::normal)
     {
         switch (type) {
             case connection_type::Direct:
-                return connect(id, sig, std::forward<SlotType>(slot), connection_mode::direct);
+                return connect(id, sig, std::forward<SlotType>(slot), connection_mode::direct, priority);
             case connection_type::Queued:
-                return connect(id, sig, std::forward<SlotType>(slot), connection_mode::queued);
+                return connect(id, sig, std::forward<SlotType>(slot), connection_mode::queued, priority);
             case connection_type::Auto:
             default:
-                return connect(id, sig, std::forward<SlotType>(slot), connection_mode::dispatch);
+                return connect(id, sig, std::forward<SlotType>(slot), connection_mode::dispatch, priority);
         }
     }
 

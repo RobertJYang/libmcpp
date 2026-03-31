@@ -48,7 +48,8 @@ using slot_record_list = std::vector<slot_record>;
 
 class MC_API signal_emit_guard {
 public:
-    signal_emit_guard(const void* signal_addr, const char* signal_name);
+    signal_emit_guard(const void* signal_addr, const char* signal_name,
+                      std::size_t max_depth = 64);
     ~signal_emit_guard() noexcept;
 
     std::size_t depth() const noexcept;
@@ -59,7 +60,7 @@ private:
 
 class MC_API signal_backend {
 public:
-    explicit signal_backend(const char* name = nullptr);
+    explicit signal_backend(const char* name = nullptr, std::size_t max_depth = 64);
     ~signal_backend();
 
     const char* name() const noexcept;
@@ -68,6 +69,7 @@ public:
     void        disconnect_all();
     bool        empty() const;
     std::size_t slot_count() const;
+    std::size_t max_depth() const noexcept;
 
     std::shared_ptr<const slot_record_list> snapshot() const;
 
@@ -77,6 +79,7 @@ private:
     std::size_t active_slot_count_locked() const;
 
     const char*                       m_name{nullptr};
+    std::size_t                       m_max_depth{64};
     mutable std::mutex                m_mutex;
     std::shared_ptr<slot_record_list> m_slots;
     std::uint64_t                     m_next_id{0};

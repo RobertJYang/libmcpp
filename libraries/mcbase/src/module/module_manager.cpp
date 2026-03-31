@@ -13,7 +13,7 @@
 #include <mc/exception.h>
 #include <mc/log/log.h>
 #include <mc/module.h>
-#include <mc/signal_slot.h>
+#include <mc/signal/connection.h>
 #include <mc/singleton.h>
 #include <mc/sync/mutex_box.h>
 
@@ -50,7 +50,7 @@ public:
     }
 
 protected:
-    mc::string  m_name;
+    mc::string   m_name;
     factory_wptr m_factory;
 };
 
@@ -187,13 +187,13 @@ void module_manager_impl::unload_all()
 void module_manager_impl::clear()
 {
     // 先提取所有需要清理的资源
-    library_map handles;
-    module_map modules;
+    library_map   handles;
+    module_map    modules;
     module_id_map modules_by_id;
 
     m_data.with_lock([&](auto& data) {
-        handles = std::move(data.handles);
-        modules = std::move(data.loaded_modules);
+        handles       = std::move(data.handles);
+        modules       = std::move(data.loaded_modules);
         modules_by_id = std::move(data.loaded_modules_by_id);
     });
 

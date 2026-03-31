@@ -19,7 +19,7 @@
 #include <mc/dbus/match.h>
 #include <mc/dbus/message.h>
 #include <mc/future.h>
-#include <mc/signal_slot.h>
+#include <mc/signal/signal.h>
 #include <mc/time.h>
 
 #include <mutex>

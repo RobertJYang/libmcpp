@@ -23,7 +23,6 @@
 #include <mc/im/radix_tree.h>
 #include <mc/memory.h>
 #include <mc/reflect.h>
-#include <mc/signal_slot.h>
 #include <mc/string_utils.h>
 #include <mc/traits.h>
 
@@ -913,7 +912,7 @@ private:
     indices_tuple_type           m_indices;
     indices_array_type           m_indices_array;
     uint32_t                     m_table_id = {0}; ///< 表ID
-    mc::string                  m_name;           ///< 表名
+    mc::string                   m_name;           ///< 表名
 
     int32_t m_txn_savepoint_id   = {-1}; ///< 事务保存点ID
     int32_t m_index_savepoint_id = {-1}; ///< 索引保存点ID

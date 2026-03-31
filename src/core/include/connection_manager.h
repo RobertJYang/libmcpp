@@ -14,7 +14,6 @@
 #define MC_CORE_INCLUDE_CONNECTION_MANAGER_H
 
 #include <mc/core/object.h>
-#include <mc/signal_slot.h>
 
 #include <string_view>
 #include <unordered_map>

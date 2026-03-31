@@ -62,7 +62,8 @@ void connection_state::disconnect() noexcept
     m_connected.store(false, std::memory_order_release);
 }
 
-signal_emit_guard::signal_emit_guard(const void* signal_addr, const char* signal_name)
+signal_emit_guard::signal_emit_guard(const void* signal_addr, const char* signal_name,
+                                     std::size_t max_depth)
 {
     auto& stack = current_signal_stack();
 
@@ -75,7 +76,6 @@ signal_emit_guard::signal_emit_guard(const void* signal_addr, const char* signal
         }
     }
 
-    constexpr std::size_t max_depth = 64;
     if (stack.size() >= max_depth) {
         auto chain = format_signal_call_chain(stack, signal_addr, signal_name);
         MC_THROW(signal_recursion_exception, "信号调用链过深: 当前深度 ${depth}，最大允许 ${max}，调用链: ${chain}",
@@ -96,7 +96,8 @@ std::size_t signal_emit_guard::depth() const noexcept
     return m_depth;
 }
 
-signal_backend::signal_backend(const char* name) : m_name(name), m_slots(std::make_shared<slot_record_list>())
+signal_backend::signal_backend(const char* name, std::size_t max_depth)
+    : m_name(name), m_max_depth(max_depth), m_slots(std::make_shared<slot_record_list>())
 {}
 
 signal_backend::~signal_backend() = default;
@@ -139,6 +140,11 @@ std::size_t signal_backend::slot_count() const
 {
     std::lock_guard<std::mutex> lock(m_mutex);
     return active_slot_count_locked();
+}
+
+std::size_t signal_backend::max_depth() const noexcept
+{
+    return m_max_depth;
 }
 
 std::shared_ptr<const slot_record_list> signal_backend::snapshot() const

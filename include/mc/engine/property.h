@@ -25,7 +25,6 @@
 #include <mc/expr/function/parser.h>
 #include <mc/log.h>
 #include <mc/reflect.h>
-#include <mc/signal_slot.h>
 #include <mc/traits.h>
 #include <mc/variant.h>
 #include <mc/variant/variant_extension.h>
@@ -219,15 +218,15 @@ public:
     }
 
     template <typename U>
-    friend auto operator==(const U&             v,
-                           const property_type& p) -> std::enable_if_t<!std::is_base_of_v<property_base, U>, bool>
+    friend auto operator==(const U& v, const property_type& p)
+        -> std::enable_if_t<!std::is_base_of_v<property_base, U>, bool>
     {
         return p == v;
     }
 
     template <typename U>
-    friend auto operator!=(const U&             v,
-                           const property_type& p) -> std::enable_if_t<!std::is_base_of_v<property_base, U>, bool>
+    friend auto operator!=(const U& v, const property_type& p)
+        -> std::enable_if_t<!std::is_base_of_v<property_base, U>, bool>
     {
         return !(p == v);
     }

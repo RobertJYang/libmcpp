@@ -28,7 +28,6 @@
 #include <mc/reflect.h>
 #include <mc/reflect/signature_helper.h>
 #include <mc/result.h>
-#include <mc/signal_slot.h>
 #include <mc/time.h>
 #include <mc/traits.h>
 #include <mc/variant.h>

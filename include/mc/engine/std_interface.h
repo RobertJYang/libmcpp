@@ -18,7 +18,7 @@
 #include <mc/engine/interface.h>
 #include <mc/engine/macro.h>
 #include <mc/engine/path.h>
-#include <mc/signal_slot.h>
+#include <mc/signal/signal.h>
 #include <mc/variant.h>
 
 namespace mc::engine {

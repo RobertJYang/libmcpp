@@ -11,9 +11,9 @@
  */
 
 #include <gtest/gtest.h>
-#include <mc/core/object.h>
 #include <mc/core/connection_manager.h>
-#include <mc/signal_slot.h>
+#include <mc/core/object.h>
+#include <mc/signal/signal.h>
 #include <test_utilities/test_base.h>
 
 #include <set>

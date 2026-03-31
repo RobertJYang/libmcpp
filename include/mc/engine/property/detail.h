@@ -16,7 +16,6 @@
 #include <mc/dict.h>
 #include <mc/engine/base.h>
 #include <mc/expr/function/call.h>
-#include <mc/signal_slot.h>
 #include <mc/variant.h>
 #include <memory>
 #include <vector>
@@ -50,10 +49,10 @@ struct property_extension_data {
     std::function<void(const mc::variant&)> setter;
     std::function<mc::variant()>            outsider_getter; // 外部getter方法
     std::function<bool(const mc::variant&)> outsider_setter; // 外部setter方法，返回false表示不进行实际设置
-    std::unique_ptr<func_data>           function_data;      // 只有需要时才分配
-    std::vector<mc::connection_type>     connection_slots;
-    mutable std::unique_ptr<mc::variant> ref_object_cache; // 缓存引用对象的 variant
-    mutable std::unique_ptr<T>           override_value;   // 属性的Override值
+    std::unique_ptr<func_data>              function_data;   // 只有需要时才分配
+    std::vector<mc::connection_type>        connection_slots;
+    mutable std::unique_ptr<mc::variant>    ref_object_cache; // 缓存引用对象的 variant
+    mutable std::unique_ptr<T>              override_value;   // 属性的Override值
 };
 
 class MC_API interface_observer {

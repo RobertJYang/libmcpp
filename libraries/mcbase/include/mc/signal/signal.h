@@ -39,7 +39,8 @@ class signal<R(Args...)> {
 public:
     using slot_type = std::function<R(Args...)>;
 
-    explicit signal(const char* name = nullptr) : m_backend(name)
+    explicit signal(const char* name = nullptr, std::size_t max_depth = 64)
+        : m_backend(name, max_depth)
     {}
 
     ~signal() = default;
@@ -78,7 +79,7 @@ public:
 
     std::conditional_t<std::is_void_v<R>, void, std::optional<R>> operator()(Args... args) const
     {
-        detail::signal_emit_guard guard(this, name());
+        detail::signal_emit_guard guard(this, name(), m_backend.max_depth());
         auto                      snapshot = m_backend.snapshot();
 
         if constexpr (std::is_void_v<R>) {

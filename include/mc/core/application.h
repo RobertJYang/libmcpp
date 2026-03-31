@@ -23,7 +23,6 @@
 #include <mc/core/service_factory.h>
 #include <mc/core/service_manager.h>
 #include <mc/core/supervisor_manager.h>
-#include <mc/signal_slot.h>
 #include <mc/singleton.h>
 
 #include <memory>

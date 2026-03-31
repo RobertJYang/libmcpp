@@ -16,7 +16,7 @@
 #include <mc/memory.h>
 #include <mc/runtime/thread_list.h>
 #include <mc/runtime/thread_pool.h>
-#include <mc/signal_slot.h>
+#include <mc/signal/signal.h>
 
 #include <gtest/gtest.h>
 
@@ -446,16 +446,76 @@ TEST_F(ThreadSafeObjectTest, ConnectWithTargetExecutorPostsToSpecifiedExecutor)
     EXPECT_NE(callback_thread, emit_thread);
 }
 
+TEST_F(ThreadSafeObjectTest, ConnectionModeDispatchRespectsSlotPriority)
+{
+    using namespace std::chrono_literals;
+
+    mc::runtime::thread_pool pool(1, "thread_safe_object_dispatch_priority");
+    pool.start();
+    root_object->set_executor(mc::runtime::any_executor(pool.get_executor()));
+
+    mc::signal<void()> sig;
+    std::vector<int>   order;
+    std::promise<void> done;
+    auto               future = done.get_future();
+
+    root_object->connect(sig, [&]() {
+        order.push_back(2);
+        done.set_value();
+    }, mc::core::connection_mode::dispatch, mc::signal_priority::low);
+
+    root_object->connect(sig, [&]() {
+        order.push_back(1);
+    }, mc::core::connection_mode::dispatch, mc::signal_priority::high);
+
+    sig();
+
+    EXPECT_EQ(future.wait_for(1s), std::future_status::ready);
+    ASSERT_EQ(order.size(), 2u);
+    EXPECT_EQ(order[0], 1);
+    EXPECT_EQ(order[1], 2);
+}
+
+TEST_F(ThreadSafeObjectTest, ConnectionTypeAutoCompatibilityStillRespectsPriority)
+{
+    using namespace std::chrono_literals;
+
+    mc::runtime::thread_pool pool(1, "thread_safe_object_auto_priority");
+    pool.start();
+    root_object->set_executor(mc::runtime::any_executor(pool.get_executor()));
+
+    mc::signal<void()> sig;
+    std::vector<int>   order;
+    std::promise<void> done;
+    auto               future = done.get_future();
+
+    root_object->connect(sig, [&]() {
+        order.push_back(2);
+        done.set_value();
+    }, mc::core::connection_type::Auto, mc::signal_priority::low);
+
+    root_object->connect(sig, [&]() {
+        order.push_back(1);
+    }, mc::core::connection_type::Auto, mc::signal_priority::high);
+
+    sig();
+
+    EXPECT_EQ(future.wait_for(1s), std::future_status::ready);
+    ASSERT_EQ(order.size(), 2u);
+    EXPECT_EQ(order[0], 1);
+    EXPECT_EQ(order[1], 2);
+}
+
 TEST_F(ThreadSafeObjectTest, ConnectionManagementHelpers)
 {
     mc::signal<void()> sig;
     int                counter = 0;
 
-    // 使用 Direct 连接类型，确保同步执行
+    // 使用 direct 连接模式，确保同步执行
     // 不传递ID，让系统自动生成
     auto id = root_object->connect(sig, [&]() {
         ++counter;
-    }, mc::core::connection_type::Direct);
+    }, mc::core::connection_mode::direct);
     sig();
     EXPECT_EQ(counter, 1);
 
@@ -470,14 +530,14 @@ TEST_F(ThreadSafeObjectTest, ConnectionManagementHelpers)
     EXPECT_EQ(counter, 1); // 计数器仍然不应该增加
 
     // 测试通过信号对象断开所有连接
-    // 使用 Direct 连接类型，确保同步执行
+    // 使用 direct 连接模式，确保同步执行
     // 不传递ID，让系统自动生成
     auto id2 = root_object->connect(sig, [&]() {
         ++counter;
-    }, mc::core::connection_type::Direct);
+    }, mc::core::connection_mode::direct);
     auto id3 = root_object->connect(sig, [&]() {
         ++counter;
-    }, mc::core::connection_type::Direct);
+    }, mc::core::connection_mode::direct);
     sig();
     EXPECT_EQ(counter, 3); // 两个连接都触发，计数器增加2 (1 + 2 = 3)
 
@@ -830,10 +890,10 @@ TEST_F(ThreadSafeObjectTest, DisconnectAll)
 
     auto conn1 = obj->connect(sig1, [&call_count1](int) {
         ++call_count1;
-    }, mc::core::connection_type::Direct);
+    }, mc::core::connection_mode::direct);
     auto conn2 = obj->connect(sig2, [&sig2_triggered](const std::string&) {
         sig2_triggered = true;
-    }, mc::core::connection_type::Direct);
+    }, mc::core::connection_mode::direct);
 
     // 断开 sig1 的连接（通过连接 ID）
     obj->disconnect(conn1);

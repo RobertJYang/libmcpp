@@ -27,7 +27,7 @@
 #include <mc/reflect/base.h>
 #include <mc/reflect/reflection.h>
 #include <mc/reflect/reflection_enum.h>
-#include <mc/signal_slot.h>
+#include <mc/signal/signal.h>
 
 namespace mc::reflect {
 

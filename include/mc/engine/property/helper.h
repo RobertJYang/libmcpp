@@ -19,7 +19,6 @@
 #include <mc/exception.h>
 #include <mc/expr/function/call.h>
 #include <mc/log.h>
-#include <mc/signal_slot.h>
 #include <mc/variant.h>
 #include <string>
 #include <vector>
