@@ -202,7 +202,7 @@ enum class visit_status {
 };
 
 template <typename T>
-struct member_node : boost::intrusive::slist_base_hook<> {
+struct member_node : mc::intrusive::slist_base_hook<> {
     const T* member{nullptr};
 
     member_node() = default;

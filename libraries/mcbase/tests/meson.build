@@ -11,6 +11,7 @@ subdir('variant')
 subdir('db')
 subdir('futures')
 subdir('im')
+subdir('intrusive')
 subdir('io')
 subdir('runtime')
 
@@ -32,6 +33,7 @@ mcbase_test_sources = [
   test_fmt_files,
   test_futures_files,
   test_im_files,
+  test_intrusive_files,
   test_log_files,
   test_memory_files,
   test_module_files,

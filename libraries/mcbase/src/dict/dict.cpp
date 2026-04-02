@@ -41,7 +41,7 @@ dict& dict::operator=(const dict& other)
 dict::dict(const std::vector<entry>& entries) : m_data(mc::make_shared<data_t>())
 {
     for (auto&& entry_val : entries) {
-        auto it = m_data->index.find(entry_val.key, m_data->index.hash_function(), m_data->index.key_eq());
+        auto it = m_data->index.find(entry_val.key);
         if (it != m_data->index.end()) {
             const_cast<entry&>(*it).value = entry_val.value;
         } else {
@@ -56,7 +56,7 @@ dict::dict(const std::vector<entry>& entries) : m_data(mc::make_shared<data_t>()
 dict::dict(std::initializer_list<std::pair<variant, variant>> init) : m_data(mc::make_shared<data_t>())
 {
     for (const auto& pair : init) {
-        auto it = m_data->index.find(pair.first, m_data->index.hash_function(), m_data->index.key_eq());
+        auto it = m_data->index.find(pair.first);
         if (it != m_data->index.end()) {
             const_cast<entry&>(*it).value = pair.second;
         } else {
@@ -80,7 +80,7 @@ const dict::entry* dict::find_entry(mc::string_view key) const
         return nullptr;
     }
 
-    auto it = m_data->index.find(key, m_data->index.hash_function(), m_data->index.key_eq());
+    auto it = m_data->index.find(key);
     if (it != m_data->index.end()) {
         return &(*it);
     }
@@ -102,7 +102,7 @@ const dict::entry* dict::find_entry(const variant& key) const
         return nullptr;
     }
 
-    auto it = m_data->index.find(key, m_data->index.hash_function(), m_data->index.key_eq());
+    auto it = m_data->index.find(key);
     if (it != m_data->index.end()) {
         return &(*it);
     }

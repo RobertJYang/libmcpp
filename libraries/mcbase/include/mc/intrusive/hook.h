@@ -12,35 +12,82 @@
 
 /**
  * @file hook.h
- * @brief 封装 Boost 的侵入式钩子类型
+ * @brief 侵入式容器钩子类型
  */
 #ifndef MC_INTRUSIVE_HOOK_H
 #define MC_INTRUSIVE_HOOK_H
 
-#include <boost/intrusive/link_mode.hpp>
-#include <boost/intrusive/list_hook.hpp>
-#include <boost/intrusive/set_hook.hpp>
-#include <boost/intrusive/slist_hook.hpp>
-#include <boost/intrusive/unordered_set_hook.hpp>
+#include <cstddef>
 
 namespace mc::intrusive {
 
-using boost::intrusive::auto_unlink;
-using boost::intrusive::constant_time_size;
-using boost::intrusive::link_mode;
-using boost::intrusive::safe_link;
+// --- Option tags ---
 
-using boost::intrusive::list_base_hook;
-using boost::intrusive::list_member_hook;
+template <bool Enabled>
+struct constant_time_size {};
 
-using boost::intrusive::slist_base_hook;
-using boost::intrusive::slist_member_hook;
+enum link_mode_type {
+    safe_link,
+    auto_unlink,
+    normal_link
+};
 
-using boost::intrusive::set_base_hook;
-using boost::intrusive::set_member_hook;
+template <link_mode_type Mode>
+struct link_mode {};
 
-using boost::intrusive::unordered_set_base_hook;
-using boost::intrusive::unordered_set_member_hook;
+// --- Hook states ---
+
+namespace detail {
+
+struct list_hook_state {
+    void* prev{nullptr};
+    void* next{nullptr};
+};
+
+struct slist_hook_state {
+    void* next{nullptr};
+};
+
+struct set_hook_state {
+    set_hook_state* parent{nullptr};
+    set_hook_state* left{nullptr};
+    set_hook_state* right{nullptr};
+    bool            is_red{true};
+};
+
+struct unordered_hook_state {
+    unordered_hook_state* next{nullptr};
+    unordered_hook_state* prev{nullptr};
+    std::size_t           hash_value{0};
+};
+
+} // namespace detail
+
+// --- Base hooks ---
+
+template <typename... Options>
+struct list_base_hook : detail::list_hook_state {};
+
+template <typename... Options>
+struct list_member_hook : detail::list_hook_state {};
+
+template <typename... Options>
+struct slist_base_hook : detail::slist_hook_state {};
+
+template <typename... Options>
+struct slist_member_hook : detail::slist_hook_state {};
+
+template <typename... Options>
+struct set_base_hook : detail::set_hook_state {};
+
+template <typename... Options>
+struct set_member_hook : detail::set_hook_state {};
+
+template <typename... Options>
+struct unordered_set_base_hook : detail::unordered_hook_state {};
+
+template <typename... Options>
+struct unordered_set_member_hook : detail::unordered_hook_state {};
 
 } // namespace mc::intrusive
 

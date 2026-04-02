@@ -14,6 +14,7 @@
 #define MC_ENGINE_OBJECT_METADATA_H
 
 #include <mc/engine/signal_info.h>
+#include <mc/intrusive/list.h>
 #include <mc/reflect.h>
 #include <string_view>
 
@@ -99,7 +100,7 @@ inline abstract_interface* to_interface_ptr(const abstract_object* obj, const pr
 
 // 表示对象中某个 interface 的属性、方法、信号的元信息
 template <typename ReflectItem>
-struct interface_item : boost::intrusive::slist_base_hook<> {
+struct interface_item : mc::intrusive::slist_base_hook<> {
     const property_type_info* interface{nullptr}; // interface 在对象中的属性元信息
     const ReflectItem*        item{nullptr};      // interface 具体属性、方法、信号类型的元信息
 

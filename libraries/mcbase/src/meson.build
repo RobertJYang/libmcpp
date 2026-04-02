@@ -1,4 +1,5 @@
 # 包含子目录的 meson.build 文件
+subdir('intrusive')
 subdir('dict')
 subdir('fmt')
 subdir('log')
@@ -29,6 +30,7 @@ base_src_files = [
   'object_base.cpp',
   'object.cpp',
 
+  intrusive_src_files,
   dict_src_files,
   fmt_src_files,
   log_src_files,

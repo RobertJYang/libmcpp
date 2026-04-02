@@ -23,6 +23,7 @@
 #include <cstdarg>
 #include <cstddef>
 #include <cstdio>
+#include <unistd.h>
 #include <cstring>
 #include <memory>
 #include <string_view>

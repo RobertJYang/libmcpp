@@ -42,7 +42,7 @@ dict::entry* dict::find_entry(mc::string_view key)
         return nullptr;
     }
 
-    auto it = m_data->index.find(key, m_data->index.hash_function(), m_data->index.key_eq());
+    auto it = m_data->index.find(key);
     return it == m_data->index.end() ? nullptr : const_cast<entry*>(&*it);
 }
 
@@ -60,7 +60,7 @@ dict::entry* dict::find_entry(const variant& key)
         return nullptr;
     }
 
-    auto it = m_data->index.find(key, m_data->index.hash_function(), m_data->index.key_eq());
+    auto it = m_data->index.find(key);
     return it == m_data->index.end() ? nullptr : const_cast<entry*>(&*it);
 }
 
@@ -143,7 +143,7 @@ bool dict::erase(mc::string_view key)
 {
     auto* e = find_entry(key);
     if (e) {
-        m_data->index.erase(m_data->index.iterator_to(*e));
+        m_data->index.erase(*e);
         m_data->entries.erase(m_data->entries.iterator_to(*e));
         delete e;
         return true;
@@ -163,7 +163,7 @@ bool dict::erase(const variant& key)
 {
     auto* e = find_entry(key);
     if (e) {
-        m_data->index.erase(m_data->index.iterator_to(*e));
+        m_data->index.erase(*e);
         m_data->entries.erase(m_data->entries.iterator_to(*e));
         delete e;
         return true;
