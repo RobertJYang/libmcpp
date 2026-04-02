@@ -11,6 +11,8 @@ project(
   ],
 )
 
+cpp_compiler = meson.get_compiler('cpp')
+
 # 包含目录
 incdir = include_directories('include')
 srcdir = include_directories('src')
@@ -49,6 +51,38 @@ endif
 
 build_tests = get_option('tests')
 tests_utilities = get_option('tests_utilities')
+enable_coverage = get_option('enable_coverage')
+sanitizer_option = get_option('sanitizer')
+
+mcbase_sanitizer_cpp_args = []
+mcbase_sanitizer_link_args = []
+
+if enable_coverage and sanitizer_option != 'none'
+  error('mcbase 的 enable_coverage 与 sanitizer 不能同时启用')
+endif
+
+if sanitizer_option != 'none'
+  sanitizer_flag = '-fsanitize=' + sanitizer_option
+  sanitizer_cpp_args = [
+    sanitizer_flag,
+    '-fno-omit-frame-pointer',
+  ]
+  sanitizer_link_args = [
+    sanitizer_flag,
+  ]
+
+  if cpp_compiler.get_supported_arguments(sanitizer_cpp_args).length() != sanitizer_cpp_args.length()
+    error('当前 C++ 编译器不支持 mcbase sanitizer 编译参数：' + sanitizer_option)
+  endif
+
+  if cpp_compiler.get_supported_link_arguments(sanitizer_link_args).length() != sanitizer_link_args.length()
+    error('当前 C++ 编译器不支持 mcbase sanitizer 链接参数：' + sanitizer_option)
+  endif
+
+  mcbase_sanitizer_cpp_args = sanitizer_cpp_args
+  mcbase_sanitizer_link_args = sanitizer_link_args
+  message('mcbase sanitizer 已启用：' + sanitizer_option)
+endif
 
 if build_tests or tests_utilities
   gtest_dep = dependency('gtest', method: 'pkg-config', required: true)

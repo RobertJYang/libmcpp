@@ -47,8 +47,8 @@ mcbase_test_sources = [
 
 # 构建 mcbase 测试静态库（.a 文件）
 # 这个库将被主项目的测试程序链接
-mcbase_test_cpp_args = []
-mcbase_test_link_args = []
+mcbase_test_cpp_args = mcbase_sanitizer_cpp_args
+mcbase_test_link_args = mcbase_sanitizer_link_args
 enable_coverage = get_option('enable_coverage')
 if enable_coverage
   coverage_args = [

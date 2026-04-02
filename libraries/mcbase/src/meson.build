@@ -75,6 +75,8 @@ mcbase_lib = library(
   base_src_files,
   include_directories: [incdir, srcdir],
   dependencies: dep_arr,
+  cpp_args: mcbase_sanitizer_cpp_args,
+  link_args: mcbase_sanitizer_link_args,
   install: true,
   install_dir: install_dir,
   install_rpath: mcbase_install_rpath,
@@ -87,4 +89,6 @@ mcbase_dep = declare_dependency(
   include_directories: incdir,
   link_with: mcbase_lib,
   dependencies: dep_arr,
+  compile_args: mcbase_sanitizer_cpp_args,
+  link_args: mcbase_sanitizer_link_args,
 )

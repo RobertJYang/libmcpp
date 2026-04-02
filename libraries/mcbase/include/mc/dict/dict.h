@@ -56,8 +56,9 @@ struct data_t;
  *       修改共享数据会影响所有共享该数据的对象。
  *
  * @note
- * 此类使用侵入式容器实现，有序索引部分用的是list，通过键查找元素的性能较好，但随机索引访问（如
- * at_index(index)） 的性能较慢，时间复杂度为 O(n)。如果需要顺序访问所有元素，强烈建议使用迭代器
+ * 此类内部同时维护插入顺序链表、基于 Robin Hood 的键索引，以及懒构建的顺序缓存。
+ * 键查找通常是接近 O(1) 的哈希查找；at_index(index) / find_index() 在顺序缓存有效时可接近 O(1)，
+ * 但在缓存失效后的首次访问需要 O(n) 重建顺序缓存。如果需要顺序访问所有元素，强烈建议使用迭代器
  *       （begin()/end()）而不是索引，以获得更好的性能。例如：
  *
  *       // 低效的遍历方式（不推荐）
@@ -539,6 +540,12 @@ public:
      */
     template <typename K, typename V>
     void insert(std::initializer_list<std::pair<K, V>> ilist);
+
+    /**
+     * @brief 为指定数量的元素预留空间
+     * @param count 预期元素数量
+     */
+    void reserve(std::size_t count);
 
     /**
      * @brief 尝试原地创建并插入元素

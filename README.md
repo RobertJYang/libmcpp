@@ -95,8 +95,9 @@ rm -rf builddir; meson setup builddir; time meson compile -C builddir; meson tes
 # 安装到系统
 meson configure builddir --prefix=/usr/local
 meson install -C builddir
+```
 
-# 编译性能优化说明
+## 编译性能优化说明
 
 ## 编译并发任务配置
 
@@ -120,9 +121,7 @@ rm -rf builddir; meson setup builddir; time meson compile -C builddir -j 48
 rm -rf builddir; meson setup builddir; time meson compile -C builddir -j 128  # 最大并发
 rm -rf builddir; meson setup builddir; time meson compile -C builddir -j 24   # 中等并发
 rm -rf builddir; meson setup builddir; time meson compile -C builddir -j 4    # 低并发
-
-
-
+```
 
 ## 代码覆盖率统计
 

@@ -10,6 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include <dict/include/index.h>
 #include <mc/dict.h>
 #include <mc/dict/entry.h>
 #include <mc/json.h>
@@ -41,13 +42,13 @@ dict& dict::operator=(const dict& other)
 dict::dict(const std::vector<entry>& entries) : m_data(mc::make_shared<data_t>())
 {
     for (auto&& entry_val : entries) {
-        auto it = m_data->index.find(entry_val.key);
-        if (it != m_data->index.end()) {
-            const_cast<entry&>(*it).value = entry_val.value;
+        auto* current = m_data->index->find(entry_val.key);
+        if (current != nullptr) {
+            current->value = entry_val.value;
         } else {
-            entry* new_entry = new entry(std::move(entry_val.key), entry_val.value);
+            entry* new_entry = m_data->create_entry(std::move(entry_val.key), entry_val.value);
             m_data->entries.push_back(*new_entry);
-            m_data->index.insert(*new_entry);
+            m_data->index->insert(*new_entry);
         }
     }
 }
@@ -56,13 +57,13 @@ dict::dict(const std::vector<entry>& entries) : m_data(mc::make_shared<data_t>()
 dict::dict(std::initializer_list<std::pair<variant, variant>> init) : m_data(mc::make_shared<data_t>())
 {
     for (const auto& pair : init) {
-        auto it = m_data->index.find(pair.first);
-        if (it != m_data->index.end()) {
-            const_cast<entry&>(*it).value = pair.second;
+        auto* current = m_data->index->find(pair.first);
+        if (current != nullptr) {
+            current->value = pair.second;
         } else {
-            entry* new_entry = new entry(pair.first, pair.second);
+            entry* new_entry = m_data->create_entry(pair.first, pair.second);
             m_data->entries.push_back(*new_entry);
-            m_data->index.insert(*new_entry);
+            m_data->index->insert(*new_entry);
         }
     }
 }
@@ -80,11 +81,7 @@ const dict::entry* dict::find_entry(mc::string_view key) const
         return nullptr;
     }
 
-    auto it = m_data->index.find(key);
-    if (it != m_data->index.end()) {
-        return &(*it);
-    }
-    return nullptr;
+    return m_data->index->find(key);
 }
 
 // 查找指定键的元素 (const char* 版本)
@@ -102,11 +99,7 @@ const dict::entry* dict::find_entry(const variant& key) const
         return nullptr;
     }
 
-    auto it = m_data->index.find(key);
-    if (it != m_data->index.end()) {
-        return &(*it);
-    }
-    return nullptr;
+    return m_data->index->find(key);
 }
 
 // 获取指定键的值
@@ -322,9 +315,12 @@ const dict::entry& dict::at_index(size_t index) const
         throw std::out_of_range("字典索引越界");
     }
 
-    auto it = m_data->entries.begin();
-    std::advance(it, index);
-    return *it;
+    auto* cached_entry = m_data->entry_at_index(index);
+    if (cached_entry == nullptr) {
+        throw std::out_of_range("字典索引越界");
+    }
+
+    return *cached_entry;
 }
 
 // 获取指定键的值
@@ -376,15 +372,7 @@ int dict::find_entry_index(const entry* e) const
         return -1;
     }
 
-    // 计算索引位置
-    int index = 0;
-    for (auto it = m_data->entries.begin(); it != m_data->entries.end(); ++it, ++index) {
-        if (&(*it) == e) {
-            return index;
-        }
-    }
-
-    return -1; // 理论上不会到达这里
+    return m_data->entry_index(e);
 }
 
 // 查找键的索引位置
@@ -469,11 +457,12 @@ void dict::clear()
     }
 
     // 先清空索引，这样钩子就不再链接到容器中
-    m_data->index.clear();
+    m_data->index->clear();
     // 然后清空链表并释放内存
-    m_data->entries.clear_and_dispose([](dict_types::entry* p) {
-        delete p;
+    m_data->entries.clear_and_dispose([this](dict_types::entry* p) {
+        m_data->destroy_entry(p);
     });
+    m_data->invalidate_order_cache();
 }
 
 // 查找指定键的元素，返回迭代器 (mc::string 版本)
@@ -525,8 +514,12 @@ dict::const_iterator dict::find(std::size_t index) const
         return end();
     }
 
-    auto base_it = m_data->entries.begin();
-    std::advance(base_it, index);
+    auto* cached_entry = m_data->entry_at_index(index);
+    if (cached_entry == nullptr) {
+        return end();
+    }
+
+    auto base_it = m_data->entries.iterator_to(*const_cast<entry*>(cached_entry));
     return const_iterator(iterator(base_it));
 }
 
@@ -545,12 +538,15 @@ size_t dict::hash() const
     }
 
     // 使用黄金比例作为种子
-    size_t       h    = 0x9e3779b9 ^ size();
-    const size_t step = (size() >> 5) + 1;
-    for (size_t l1 = size(); l1 >= step; l1 -= step) {
-        const auto& e          = at_index(l1 - 1);
-        size_t      entry_hash = e.key.hash() ^ e.value.hash();
-        h                      = h ^ ((h << 5) + (h >> 2) + entry_hash);
+    size_t       h          = 0x9e3779b9 ^ size();
+    const size_t step       = (size() >> 5) + 1;
+    size_t       item_index = 0;
+    for (const auto& e : m_data->entries) {
+        if ((item_index % step) == 0) {
+            const size_t entry_hash = e.key.hash() ^ e.value.hash();
+            h                       = h ^ ((h << 5) + (h >> 2) + entry_hash);
+        }
+        ++item_index;
     }
 
     return h;
@@ -567,9 +563,9 @@ dict dict::copy() const
     result.m_data = mc::make_shared<data_t>();
 
     for (const auto& entry : *this) {
-        dict_types::entry* new_entry = new dict_types::entry(entry.key, entry.value);
+        dict_types::entry* new_entry = result.m_data->create_entry(entry.key, entry.value);
         result.m_data->entries.push_back(*new_entry);
-        result.m_data->index.insert(*new_entry);
+        result.m_data->index->insert(*new_entry);
     }
 
     return result;
@@ -599,9 +595,9 @@ dict dict::deep_copy(mc::detail::copy_context* ctx) const
     for (const auto& entry : *this) {
         mc::variant        copied_key   = entry.key.deep_copy(ctx);
         mc::variant        copied_value = entry.value.deep_copy(ctx);
-        dict_types::entry* new_entry    = new dict_types::entry(std::move(copied_key), std::move(copied_value));
+        dict_types::entry* new_entry    = result.m_data->create_entry(std::move(copied_key), std::move(copied_value));
         result.m_data->entries.push_back(*new_entry);
-        result.m_data->index.insert(*new_entry);
+        result.m_data->index->insert(*new_entry);
     }
 
     return result;

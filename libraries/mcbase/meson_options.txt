@@ -27,6 +27,14 @@ option(
 )
 
 option(
+    'sanitizer',
+    type: 'combo',
+    choices: ['none', 'address', 'thread'],
+    value: 'none',
+    description: '启用 sanitizer：none 关闭，address 开启 ASan，thread 开启 TSan',
+)
+
+option(
     'boost_root',
     type: 'string',
     value: '',

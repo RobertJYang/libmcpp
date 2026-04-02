@@ -10,6 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include <dict/include/index.h>
 #include <mc/dict.h>
 #include <mc/variant.h>
 #include <stdexcept>
@@ -42,8 +43,7 @@ dict::entry* dict::find_entry(mc::string_view key)
         return nullptr;
     }
 
-    auto it = m_data->index.find(key);
-    return it == m_data->index.end() ? nullptr : const_cast<entry*>(&*it);
+    return m_data->index->find(key);
 }
 
 dict::entry* dict::find_entry(const char* key)
@@ -60,8 +60,7 @@ dict::entry* dict::find_entry(const variant& key)
         return nullptr;
     }
 
-    auto it = m_data->index.find(key);
-    return it == m_data->index.end() ? nullptr : const_cast<entry*>(&*it);
+    return m_data->index->find(key);
 }
 
 dict& dict::operator()(variant key, variant value)
@@ -71,9 +70,10 @@ dict& dict::operator()(variant key, variant value)
         e->value = std::move(value);
     } else {
         auto&  data      = ensure_data();
-        entry* new_entry = new entry(std::move(key), std::move(value));
+        entry* new_entry = data.create_entry(std::move(key), std::move(value));
         data.entries.push_back(*new_entry);
-        data.index.insert(*new_entry);
+        data.index->insert(*new_entry);
+        data.invalidate_order_cache();
     }
     return *this;
 }
@@ -91,9 +91,10 @@ variant& dict::operator[](mc::string_view key)
     }
 
     auto&  data      = ensure_data();
-    entry* new_entry = new entry(mc::string(key), variant());
+    entry* new_entry = data.create_entry(mc::string(key), variant());
     data.entries.push_back(*new_entry);
-    data.index.insert(*new_entry);
+    data.index->insert(*new_entry);
+    data.invalidate_order_cache();
     return new_entry->value;
 }
 
@@ -117,9 +118,10 @@ variant& dict::operator[](const variant& key)
     }
 
     auto&  data      = ensure_data();
-    entry* new_entry = new entry(key, variant());
+    entry* new_entry = data.create_entry(key, variant());
     data.entries.push_back(*new_entry);
-    data.index.insert(*new_entry);
+    data.index->insert(*new_entry);
+    data.invalidate_order_cache();
     return new_entry->value;
 }
 
@@ -143,9 +145,10 @@ bool dict::erase(mc::string_view key)
 {
     auto* e = find_entry(key);
     if (e) {
-        m_data->index.erase(*e);
+        m_data->index->erase(*e);
         m_data->entries.erase(m_data->entries.iterator_to(*e));
-        delete e;
+        m_data->invalidate_order_cache();
+        m_data->destroy_entry(e);
         return true;
     }
     return false;
@@ -163,9 +166,10 @@ bool dict::erase(const variant& key)
 {
     auto* e = find_entry(key);
     if (e) {
-        m_data->index.erase(*e);
+        m_data->index->erase(*e);
         m_data->entries.erase(m_data->entries.iterator_to(*e));
-        delete e;
+        m_data->invalidate_order_cache();
+        m_data->destroy_entry(e);
         return true;
     }
     return false;
@@ -195,9 +199,12 @@ dict_types::entry& dict::at_index(size_t index)
         throw std::out_of_range("字典索引越界");
     }
 
-    auto it = m_data->entries.begin();
-    std::advance(it, index);
-    return *it;
+    auto* cached_entry = const_cast<entry*>(m_data->entry_at_index(index));
+    if (cached_entry == nullptr) {
+        throw std::out_of_range("字典索引越界");
+    }
+
+    return *cached_entry;
 }
 
 variant& dict::at(const mc::string& key)
@@ -276,6 +283,11 @@ dict::data_t& dict::ensure_data() const
     return *m_data;
 }
 
+void dict::reserve(std::size_t count)
+{
+    ensure_data().reserve(count);
+}
+
 dict& dict::operator+=(const dict& other)
 {
     for (const auto& item : other.m_data->entries) {
@@ -287,9 +299,10 @@ dict& dict::operator+=(const dict& other)
 dict& dict::insert(dict_types::entry e)
 {
     auto&  data      = ensure_data();
-    entry* new_entry = new entry(std::move(e.key), std::move(e.value));
+    entry* new_entry = data.create_entry(std::move(e.key), std::move(e.value));
     data.entries.push_back(*new_entry);
-    data.index.insert(*new_entry);
+    data.index->insert(*new_entry);
+    data.invalidate_order_cache();
     return *this;
 }
 
@@ -301,9 +314,10 @@ std::pair<dict::iterator, bool> dict::insert(variant key, variant value)
     }
 
     auto&  data      = ensure_data();
-    entry* new_entry = new entry(std::move(key), std::move(value));
+    entry* new_entry = data.create_entry(std::move(key), std::move(value));
     data.entries.push_back(*new_entry);
-    data.index.insert(*new_entry);
+    data.index->insert(*new_entry);
+    data.invalidate_order_cache();
     return {data.entries.iterator_to(*new_entry), true};
 }
 
@@ -315,7 +329,7 @@ dict::iterator dict::insert(const_iterator hint, variant key, variant value)
     }
 
     auto&  data      = ensure_data();
-    entry* new_entry = new entry(std::move(key), std::move(value));
+    entry* new_entry = data.create_entry(std::move(key), std::move(value));
 
     if (hint != data.entries.end()) {
         auto* hint_entry = const_cast<dict_types::entry*>(&*hint);
@@ -324,7 +338,8 @@ dict::iterator dict::insert(const_iterator hint, variant key, variant value)
         data.entries.push_back(*new_entry);
     }
 
-    data.index.insert(*new_entry);
+    data.index->insert(*new_entry);
+    data.invalidate_order_cache();
     return data.entries.iterator_to(*new_entry);
 }
 

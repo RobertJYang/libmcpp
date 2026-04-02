@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <gtest/gtest.h>
 #include <mc/dict.h>
+#include <mc/dict/entry.h>
 #include <mc/variant.h>
 #include <vector>
 
@@ -1042,7 +1043,7 @@ TEST(DictOperationsTest, MutableDictInsert)
 
         // 使用非variant类型调用insert
         mc::string key   = "key1";
-        int         value = 123;
+        int        value = 123;
         md.insert(key, value);
 
         EXPECT_EQ(md.size(), 1);
@@ -1140,13 +1141,110 @@ TEST(DictOperationsTest, MutableDictInsertInteraction)
     // 测试通过 std::map 的迭代器插入
     {
         std::map<mc::string, int> map = {{"key1", 100}, {"key2", 200}};
-        dict                       md;
+        dict                      md;
         md.insert(map.begin(), map.end());
 
         EXPECT_EQ(md.size(), 2);
         EXPECT_EQ(md["key1"], 100);
         EXPECT_EQ(md["key2"], 200);
     }
+}
+
+TEST(DictOperationsTest, MutableDictIndexGrowsWithMoreEntries)
+{
+    dict md;
+
+    for (int i = 0; i < 64; ++i) {
+        md.insert(mc::string("key") + std::to_string(i), i);
+    }
+
+    ASSERT_NE(md.data(), nullptr);
+    EXPECT_GT(md.data()->index_bucket_count(), MC_DICT_BUCKET_COUNT);
+
+    for (int i = 0; i < 64; ++i) {
+        EXPECT_EQ(md[mc::string("key") + std::to_string(i)], i);
+    }
+}
+
+TEST(DictOperationsTest, MutableDictIndexKeepsLookupStableAfterErase)
+{
+    dict md;
+
+    for (int i = 0; i < 64; ++i) {
+        md.insert(mc::string("key") + std::to_string(i), i);
+    }
+
+    const auto grown_bucket_count = md.data()->index_bucket_count();
+    ASSERT_GT(grown_bucket_count, MC_DICT_BUCKET_COUNT);
+
+    for (int i = 0; i < 48; ++i) {
+        EXPECT_TRUE(md.erase(mc::string("key") + std::to_string(i)));
+    }
+
+    EXPECT_LT(md.data()->index_bucket_count(), grown_bucket_count);
+
+    for (int i = 48; i < 64; ++i) {
+        EXPECT_TRUE(md.contains(mc::string("key") + std::to_string(i)));
+        EXPECT_EQ(md[mc::string("key") + std::to_string(i)], i);
+    }
+}
+
+TEST(DictOperationsTest, MutableDictOrderCacheBuildsAndInvalidatesOnMutation)
+{
+    dict md;
+    md.insert("key1", 1);
+    md.insert("key2", 2);
+    md.insert("key3", 3);
+
+    ASSERT_NE(md.data(), nullptr);
+    EXPECT_EQ(md.data()->order_cache_size(), 0U);
+
+    EXPECT_EQ(md.at_index(1).key, "key2");
+    EXPECT_EQ(md.data()->order_cache_size(), md.size());
+
+    md.insert("key4", 4);
+    EXPECT_EQ(md.data()->order_cache_size(), 0U);
+    EXPECT_EQ(md.find_index("key4"), 3);
+    EXPECT_EQ(md.data()->order_cache_size(), md.size());
+
+    EXPECT_TRUE(md.erase("key2"));
+    EXPECT_EQ(md.data()->order_cache_size(), 0U);
+    EXPECT_EQ(md.find_index("key3"), 1);
+    EXPECT_EQ(md.data()->order_cache_size(), md.size());
+}
+
+TEST(DictOperationsTest, MutableDictReservePreallocatesIndex)
+{
+    dict md;
+
+    md.reserve(64);
+    ASSERT_NE(md.data(), nullptr);
+
+    const auto reserved_bucket_count = md.data()->index_bucket_count();
+    EXPECT_GT(reserved_bucket_count, MC_DICT_BUCKET_COUNT);
+
+    for (int i = 0; i < 64; ++i) {
+        md.insert(mc::string("key") + std::to_string(i), i);
+    }
+
+    EXPECT_EQ(md.data()->index_bucket_count(), reserved_bucket_count);
+}
+
+TEST(DictOperationsTest, MutableDictReusesFreedEntrySlot)
+{
+    dict md;
+    md.insert("key1", 1);
+    md.insert("key2", 2);
+
+    auto* removed_entry = &(*md.find("key2"));
+    ASSERT_NE(removed_entry, nullptr);
+
+    EXPECT_TRUE(md.erase("key2"));
+    md.insert("key3", 3);
+
+    auto* inserted_entry = &(*md.find("key3"));
+    ASSERT_NE(inserted_entry, nullptr);
+    EXPECT_EQ(inserted_entry, removed_entry);
 }
 
 // 测试 find_entry(nullptr) 异常 - 通过 find() 间接测试
