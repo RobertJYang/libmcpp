@@ -23,22 +23,7 @@
 #include <type_traits>
 #include <vector>
 
-#include <boost/preprocessor/cat.hpp>
-#include <boost/preprocessor/comparison/equal.hpp>
-#include <boost/preprocessor/comparison/greater.hpp>
-#include <boost/preprocessor/control/if.hpp>
-#include <boost/preprocessor/control/iif.hpp>
-#include <boost/preprocessor/facilities/is_empty.hpp>
-#include <boost/preprocessor/punctuation/is_begin_parens.hpp>
-#include <boost/preprocessor/punctuation/remove_parens.hpp>
-#include <boost/preprocessor/seq/enum.hpp>
-#include <boost/preprocessor/seq/for_each.hpp>
-#include <boost/preprocessor/seq/pop_front.hpp>
-#include <boost/preprocessor/seq/transform.hpp>
-#include <boost/preprocessor/stringize.hpp>
-#include <boost/preprocessor/tuple/elem.hpp>
-#include <boost/preprocessor/variadic/size.hpp>
-#include <boost/preprocessor/variadic/to_seq.hpp>
+#include <mc/pp.h>
 
 #include <mc/common.h>
 #include <mc/dict.h>
@@ -60,10 +45,11 @@
 #define MC_REFLECT_AUXILIARY_1_END
 
 // 检测是否为元组形式的参数，比如 (a)(b)("name", c) 这种形式
-#define MC_REFLECT_IS_TUPLE(x) BOOST_PP_IS_BEGIN_PARENS(x)
+// Single-arg: preserves the paren group so IS_BEGIN_PARENS can detect the leading '('.
+#define MC_REFLECT_IS_TUPLE(x) MC_PP_IS_BEGIN_PARENS(x)
 
-// 将 (a)(b)("name", c) 形式转换为 ((a))((b))(("name", c)) 形式，确保 BOOST_PP_* 宏能正确处理中间带逗号的参数
-#define MC_REFLECT_CONVERT_TO_SEQ(seq) BOOST_PP_SEQ_POP_FRONT(BOOST_PP_CAT(MC_REFLECT_AUXILIARY_0(0) seq, _END))
+// 将 (a)(b)("name", c) 形式转换为 ((a))((b))(("name", c)) 形式，确保 MC_PP_* 宏能正确处理中间带逗号的参数
+#define MC_REFLECT_CONVERT_TO_SEQ(seq) MC_PP_SEQ_POP_FRONT(MC_PP_CAT(MC_REFLECT_AUXILIARY_0(0) seq, _END))
 
 // 单括号参数，比如 (a)(b)("name", c) 这种形式，遍历每一个参数加上一对括号
 #define MC_REFLECT_SINGLE_PARENS_PARAM(param) MC_REFLECT_CONVERT_TO_SEQ(param)
@@ -74,18 +60,18 @@
 // 普通参数，比如 a, b, "name", c 这种形式，直接加上双括号
 #define MC_REFLECT_NO_PARENS_PARAM(param) ((param))
 
-#define MC_REMOVE_DOUBLE_PARENS(MEMBER) BOOST_PP_REMOVE_PARENS(BOOST_PP_REMOVE_PARENS(MEMBER))
+#define MC_REMOVE_DOUBLE_PARENS(MEMBER) MC_PP_REMOVE_PARENS(MC_PP_REMOVE_PARENS(MEMBER))
 
 #define MC_REMOVE_PARENS(MEMBER)                                                                                       \
-    BOOST_PP_IIF(MC_REFLECT_IS_DOUBLE_PARENS(MEMBER), MC_REMOVE_DOUBLE_PARENS, BOOST_PP_REMOVE_PARENS)                 \
+    MC_PP_IIF(MC_REFLECT_IS_DOUBLE_PARENS(MEMBER), MC_REMOVE_DOUBLE_PARENS, MC_PP_REMOVE_PARENS)                 \
     (MEMBER)
 
-#define MC_REFLECT_IS_DOUBLE_PARENS(param) MC_REFLECT_IS_TUPLE(BOOST_PP_REMOVE_PARENS(param))
+#define MC_REFLECT_IS_DOUBLE_PARENS(param) MC_REFLECT_IS_TUPLE(MC_PP_REMOVE_PARENS(param))
 
-// 将参数打包成 ((a))((b))((c)) 形式，确保 BOOST_PP_* 宏能正确处理中间带逗号的参数
+// 将参数打包成 ((a))((b))((c)) 形式，确保 MC_PP_* 宏能正确处理中间带逗号的参数
 #define MC_REFLECT_PARAM_TO_SEQ(param)                                                                                 \
-    BOOST_PP_IF(MC_REFLECT_IS_TUPLE(param),                                                                            \
-                BOOST_PP_IIF(MC_REFLECT_IS_DOUBLE_PARENS(param), MC_REFLECT_DOUBLE_PARENS_PARAM,                       \
+    MC_PP_IF(MC_REFLECT_IS_TUPLE(param),                                                                            \
+                MC_PP_IIF(MC_REFLECT_IS_DOUBLE_PARENS(param), MC_REFLECT_DOUBLE_PARENS_PARAM,                       \
                              MC_REFLECT_SINGLE_PARENS_PARAM),                                                          \
                 MC_REFLECT_NO_PARENS_PARAM)                                                                            \
     (param)
@@ -512,8 +498,8 @@ struct MC_API reflector<T, std::enable_if_t<mc::reflect::is_reflectable<T>() && 
     (mc::reflect::detail::create_member_info<TYPE, &TYPE::MEMBER>(__VA_ARGS__))
 
 #define MC_REFLECT_EXPAND_PARAM_II(TYPE, MEMBER, ...)                                                                  \
-    BOOST_PP_IF(BOOST_PP_GREATER(BOOST_PP_VARIADIC_SIZE(dummy, ##__VA_ARGS__), 2), MEMBER(TYPE, __VA_ARGS__),          \
-                BOOST_PP_IF(BOOST_PP_GREATER(BOOST_PP_VARIADIC_SIZE(dummy, ##__VA_ARGS__), 1),                         \
+    MC_PP_IF(MC_PP_GREATER(MC_PP_VARIADIC_SIZE(dummy, ##__VA_ARGS__), 2), MEMBER(TYPE, __VA_ARGS__),          \
+                MC_PP_IF(MC_PP_GREATER(MC_PP_VARIADIC_SIZE(dummy, ##__VA_ARGS__), 1),                         \
                             MC_REFLECT_CREATE_MEMBER_INFO(TYPE, MEMBER, __VA_ARGS__),                                  \
                             MC_REFLECT_CREATE_MEMBER_INFO(TYPE, MEMBER,                                                \
                                                           mc::reflect::detail::reflect_name_from_literal(#MEMBER))))
@@ -522,10 +508,10 @@ struct MC_API reflector<T, std::enable_if_t<mc::reflect::is_reflectable<T>() && 
 // 我们中转一次而不是直接在 MC_REFLECT_EXPAND_PARAM 调用下一个宏的目的是避免编译器将 (TYPE, 展开的 MEMBER 参数包)
 // 认为只有 两个参数而不是完全展开
 #define MC_REFLECT_EXPAND_PARAM_I(TYPE, ...)                                                                           \
-    BOOST_PP_IIF(BOOST_PP_IS_EMPTY(__VA_ARGS__), std::tuple<>{}, MC_REFLECT_EXPAND_PARAM_II(TYPE, __VA_ARGS__))
+    MC_PP_IIF(MC_PP_IS_EMPTY(__VA_ARGS__), std::tuple<>{}, MC_REFLECT_EXPAND_PARAM_II(TYPE, __VA_ARGS__))
 
 // 展开反射参数
-// @param r: BOOST_PP_SEQ_TRANSFORM() 调用传递的占位符，忽略
+// @param r: MC_PP_SEQ_TRANSFORM() 调用传递的占位符，忽略
 // @param TYPE: 从 MC_REFLECT 传递下来的反射类型
 // @param MEMBER: 单括号打包的 (params...) 反射参数
 // 这里我们将 MEMBER 展开，补充 TYPE 作为第一个参数调用 MC_REFLECT_EXPAND_PARAM_I(TYPE, param1, param2 ...)
@@ -533,12 +519,12 @@ struct MC_API reflector<T, std::enable_if_t<mc::reflect::is_reflectable<T>() && 
 
 // 循环展开所有参数
 #define MC_REFLECT_EXPAND_PARAMS(r, TYPE, param)                                                                       \
-    BOOST_PP_SEQ_ENUM(BOOST_PP_SEQ_TRANSFORM(MC_REFLECT_EXPAND_PARAM, TYPE, MC_REFLECT_PARAM_TO_SEQ(param))),
+    MC_PP_SEQ_ENUM(MC_PP_SEQ_TRANSFORM(MC_REFLECT_EXPAND_PARAM, TYPE, MC_REFLECT_PARAM_TO_SEQ(param))),
 
 #define MC_REFLECT_METADATA_MEMBERS(TYPE, ...)                                                                         \
-    BOOST_PP_IIF(BOOST_PP_IS_EMPTY(__VA_ARGS__), mc::reflect::detail::initial_members<TYPE>(std::tuple<>{}),           \
-                 mc::reflect::detail::initial_members<TYPE>(std::tuple_cat(BOOST_PP_SEQ_FOR_EACH(                      \
-                     MC_REFLECT_EXPAND_PARAMS, TYPE, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)) std::tuple<>())))
+    MC_PP_IIF(MC_PP_IS_EMPTY(__VA_ARGS__), mc::reflect::detail::initial_members<TYPE>(std::tuple<>{}),           \
+                 mc::reflect::detail::initial_members<TYPE>(std::tuple_cat(MC_PP_SEQ_FOR_EACH(                      \
+                     MC_REFLECT_EXPAND_PARAMS, TYPE, MC_PP_VARIADIC_TO_SEQ(__VA_ARGS__)) std::tuple<>())))
 
 #define MC_REFLECT_STATIC_METADATA(TYPE, ...)                                                                          \
     template <>                                                                                                        \
@@ -556,7 +542,7 @@ struct MC_API reflector<T, std::enable_if_t<mc::reflect::is_reflectable<T>() && 
 #define MC_REFLECT_IMPL(TYPE, ...)                                                                                     \
     namespace mc::reflect {                                                                                            \
     template struct MC_API mc::reflect::reflector<TYPE>;                                                               \
-    static_assert(mc::reflect::is_reflectable<TYPE>(), BOOST_PP_STRINGIZE(TYPE)" is not reflectable");                 \
+    static_assert(mc::reflect::is_reflectable<TYPE>(), MC_PP_STRINGIZE(TYPE)" is not reflectable");                 \
     MC_REFLECT_STATIC_METADATA(TYPE, __VA_ARGS__)                                                                      \
     static_assert(mc::reflect::detail::validate_members<TYPE>(MC_REFLECT_STATIC_MEMBERS(TYPE)),                        \
                   "members validate failed, please check members type");                                               \
@@ -664,7 +650,7 @@ struct MC_API reflector<T, std::enable_if_t<mc::reflect::is_reflectable<T>() && 
 
 // 生成基类参数扩展宏：根据参数个数选择基类展开宏
 #define MC_BASE_CLASS(...)                                                                                             \
-    BOOST_PP_IIF(BOOST_PP_GREATER(BOOST_PP_VARIADIC_SIZE(__VA_ARGS__), 1), (MC_REFLECT_BASE_CLASS_2, __VA_ARGS__),     \
+    MC_PP_IIF(MC_PP_GREATER(MC_PP_VARIADIC_SIZE(__VA_ARGS__), 1), (MC_REFLECT_BASE_CLASS_2, __VA_ARGS__),     \
                  (MC_REFLECT_BASE_CLASS_1, ~, __VA_ARGS__))
 
 // 2、定义计算属性扩展参数的生成宏 MC_COMPUTED_PROPERTY
@@ -684,7 +670,7 @@ struct MC_API reflector<T, std::enable_if_t<mc::reflect::is_reflectable<T>() && 
 // 生成计算属性参数的扩展宏：根据参数个数选择计算属性展开宏
 // 由于计算属性最少需要 名称 + getter 函数，再加上第一个参数是展开宏，整体参数为 3 个，不需要填充占位参数
 #define MC_COMPUTED_PROPERTY(...)                                                                                      \
-    BOOST_PP_IIF(BOOST_PP_GREATER(BOOST_PP_VARIADIC_SIZE(__VA_ARGS__), 2),                                             \
+    MC_PP_IIF(MC_PP_GREATER(MC_PP_VARIADIC_SIZE(__VA_ARGS__), 2),                                             \
                  (MC_REFLECT_COMPUTE_PROPERTY_2, __VA_ARGS__), (MC_REFLECT_COMPUTE_PROPERTY_1, __VA_ARGS__))
 
 // ------------------------------------------ 定义枚举反射宏 MC_REFLECT_ENUM ----------------------------------------
@@ -694,20 +680,20 @@ struct MC_API reflector<T, std::enable_if_t<mc::reflect::is_reflectable<T>() && 
  */
 #define MC_REFLECT_ENUM_MEMBER_WITHOUT_NAME(r, ENUM_TYPE, VALUE)                                                       \
     std::make_tuple(mc::reflect::detail::create_enum_member_info(                                                      \
-                        ENUM_TYPE::VALUE, mc::reflect::detail::reflect_name_from_literal(BOOST_PP_STRINGIZE(VALUE)))),
+                        ENUM_TYPE::VALUE, mc::reflect::detail::reflect_name_from_literal(MC_PP_STRINGIZE(VALUE)))),
 
 /**
  * @brief 定义枚举成员（带别名）
  */
 #define MC_REFLECT_ENUM_MEMBER_WITH_NAME(r, ENUM_TYPE, VALUE)                                                          \
-    std::make_tuple(mc::reflect::detail::create_enum_member_info(ENUM_TYPE::BOOST_PP_TUPLE_ELEM(0, VALUE),             \
-                                                                 BOOST_PP_TUPLE_ELEM(1, VALUE))),
+    std::make_tuple(mc::reflect::detail::create_enum_member_info(ENUM_TYPE::MC_PP_TUPLE_ELEM(0, VALUE),             \
+                                                                 MC_PP_TUPLE_ELEM(1, VALUE))),
 
 /**
  * @brief 处理枚举成员
  */
 #define MC_REFLECT_ENUM_ELEMENT(r, ENUM_TYPE, VALUE)                                                                   \
-    BOOST_PP_IIF(MC_REFLECT_IS_TUPLE(VALUE), MC_REFLECT_ENUM_MEMBER_WITH_NAME, MC_REFLECT_ENUM_MEMBER_WITHOUT_NAME)    \
+    MC_PP_IIF(MC_REFLECT_IS_TUPLE(VALUE), MC_REFLECT_ENUM_MEMBER_WITH_NAME, MC_REFLECT_ENUM_MEMBER_WITHOUT_NAME)    \
     (r, ENUM_TYPE, VALUE)
 
 #define MC_REFLECT_ENUM_STATIC_METADATA(TYPE, VALUES)                                                                  \
@@ -716,7 +702,7 @@ struct MC_API reflector<T, std::enable_if_t<mc::reflect::is_reflectable<T>() && 
         static type_id_type    type_id;                                                                                \
         static mc::string_view name;                                                                                   \
         static constexpr auto  members = detail::enum_tuple_to_array(                                                  \
-            std::tuple_cat(BOOST_PP_SEQ_FOR_EACH(MC_REFLECT_ENUM_ELEMENT, TYPE, VALUES) std::tuple<>{}));             \
+            std::tuple_cat(MC_PP_SEQ_FOR_EACH(MC_REFLECT_ENUM_ELEMENT, TYPE, VALUES) std::tuple<>{}));             \
     }
 
 /**
@@ -725,7 +711,7 @@ struct MC_API reflector<T, std::enable_if_t<mc::reflect::is_reflectable<T>() && 
 #define MC_REFLECT_ENUM_IMPL(TYPE, VALUES)                                                                             \
     namespace mc::reflect {                                                                                            \
     template struct MC_API mc::reflect::reflector<TYPE>;                                                               \
-    static_assert(mc::reflect::is_reflectable<TYPE>(), BOOST_PP_STRINGIZE(TYPE)" is not reflectable");                 \
+    static_assert(mc::reflect::is_reflectable<TYPE>(), MC_PP_STRINGIZE(TYPE)" is not reflectable");                 \
     MC_REFLECT_ENUM_STATIC_METADATA(TYPE, VALUES);                                                                     \
     type_id_type mc::reflect::static_metadata<TYPE>::type_id =                                                         \
         get_reflect_factory<TYPE>().template register_type<TYPE>();                                                    \

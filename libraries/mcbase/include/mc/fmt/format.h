@@ -20,22 +20,7 @@
 #include <mc/fmt/format_spec.h>
 #include <mc/fmt/formatter.h>
 
-#include <boost/preprocessor/cat.hpp>
-#include <boost/preprocessor/comparison/equal.hpp>
-#include <boost/preprocessor/comparison/greater.hpp>
-#include <boost/preprocessor/control/if.hpp>
-#include <boost/preprocessor/control/iif.hpp>
-#include <boost/preprocessor/facilities/is_empty.hpp>
-#include <boost/preprocessor/punctuation/is_begin_parens.hpp>
-#include <boost/preprocessor/punctuation/remove_parens.hpp>
-#include <boost/preprocessor/seq/enum.hpp>
-#include <boost/preprocessor/seq/for_each.hpp>
-#include <boost/preprocessor/seq/pop_front.hpp>
-#include <boost/preprocessor/seq/transform.hpp>
-#include <boost/preprocessor/stringize.hpp>
-#include <boost/preprocessor/tuple/elem.hpp>
-#include <boost/preprocessor/variadic/size.hpp>
-#include <boost/preprocessor/variadic/to_seq.hpp>
+#include <mc/pp.h>
 
 #include <type_traits>
 
@@ -111,40 +96,40 @@ mc::string& format_to(mc::string& out, mc::string_view fmt, Args&&... args)
 // 去除外层括号的宏
 #define MC_FORMAT_REMOVE_PARENTHESES(...) __VA_ARGS__
 
-// 将 (a)(b)("name", c) 形式转换为 ((a))((b))(("name", c)) 形式，确保 BOOST_PP_* 宏能正确处理中间带逗号的参数
-#define MC_FORMAT_CONVERT_TO_SEQ(seq) BOOST_PP_SEQ_POP_FRONT(BOOST_PP_CAT(MC_FORMAT_AUXILIARY_0(0) seq, _END))
+// 将 (a)(b)("name", c) 形式转换为 ((a))((b))(("name", c)) 形式，确保 MC_PP_* 宏能正确处理中间带逗号的参数
+#define MC_FORMAT_CONVERT_TO_SEQ(seq) MC_PP_SEQ_POP_FRONT(MC_PP_CAT(MC_FORMAT_AUXILIARY_0(0) seq, _END))
 
 #define MC_FORMAT_CHECK_ARG_POS(expr) mc::fmt::detail::compile_arg(static_cast<std::decay_t<decltype(expr)>*>(nullptr))
 
 #define MC_FORMAT_CHECK_ARG_NAMED(name, ...)                                                                           \
-    BOOST_PP_IF(BOOST_PP_GREATER(BOOST_PP_VARIADIC_SIZE(dummy, ##__VA_ARGS__), 1),                                     \
+    MC_PP_IF(MC_PP_GREATER(MC_PP_VARIADIC_SIZE(dummy, ##__VA_ARGS__), 1),                                     \
                 mc::fmt::detail::compile_arg(name, static_cast<std::decay_t<decltype(__VA_ARGS__)>*>(nullptr)),        \
                 MC_FORMAT_CHECK_ARG_POS(name))
 
 #define MC_FORMAT_CHECK_ARG_ELENEMT(r, macro, param) macro param
 
 #define MC_FORMAT_CHECK_ARG_SEQ_DIRECT(macro, seq)                                                                     \
-    BOOST_PP_SEQ_ENUM(BOOST_PP_SEQ_TRANSFORM(MC_FORMAT_CHECK_ARG_ELENEMT, macro, seq))
+    MC_PP_SEQ_ENUM(MC_PP_SEQ_TRANSFORM(MC_FORMAT_CHECK_ARG_ELENEMT, macro, seq))
 
 #define MC_FORMAT_CONVERT_TO_SEQ_IMPL(param) MC_FORMAT_CONVERT_TO_SEQ(param)
 #define MC_FORMAT_WRAP_PARAM(param)          ((param))
 
 #define MC_FORMAT_PARAM_TO_SEQ(param)                                                                                  \
-    BOOST_PP_IF(BOOST_PP_IS_BEGIN_PARENS(param), MC_FORMAT_CONVERT_TO_SEQ_IMPL, MC_FORMAT_WRAP_PARAM)                  \
+    MC_PP_IF(MC_PP_IS_BEGIN_PARENS(param), MC_FORMAT_CONVERT_TO_SEQ_IMPL, MC_FORMAT_WRAP_PARAM)                  \
     (param)
 
 #define MC_FORMAT_CHECK_ARG(r, macro, param) MC_FORMAT_CHECK_ARG_SEQ_DIRECT(macro, MC_FORMAT_PARAM_TO_SEQ(param)),
 
 #define MC_FORMAT_APPLY_ARG_NAMED(name, ...)                                                                           \
-    BOOST_PP_IF(BOOST_PP_GREATER(BOOST_PP_VARIADIC_SIZE(dummy, ##__VA_ARGS__), 1),                                     \
+    MC_PP_IF(MC_PP_GREATER(MC_PP_VARIADIC_SIZE(dummy, ##__VA_ARGS__), 1),                                     \
                 mc::fmt::detail::arg(name, __VA_ARGS__), mc::fmt::detail::arg(name))
 
 // 编译期检查宏实现
 #define MC_FORMAT_COMPILE_CHECK(fmt_str, ...)                                                                          \
-    BOOST_PP_IF(BOOST_PP_GREATER(BOOST_PP_VARIADIC_SIZE(dummy, ##__VA_ARGS__), 1),                                     \
+    MC_PP_IF(MC_PP_GREATER(MC_PP_VARIADIC_SIZE(dummy, ##__VA_ARGS__), 1),                                     \
                 mc::fmt::detail::compile_check(fmt_str,                                                                \
-                                               BOOST_PP_SEQ_FOR_EACH(MC_FORMAT_CHECK_ARG, MC_FORMAT_CHECK_ARG_NAMED,   \
-                                                                     BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))            \
+                                               MC_PP_SEQ_FOR_EACH(MC_FORMAT_CHECK_ARG, MC_FORMAT_CHECK_ARG_NAMED,   \
+                                                                     MC_PP_VARIADIC_TO_SEQ(__VA_ARGS__))            \
                                                    mc::fmt::detail::compile_arg()),                                    \
                 mc::fmt::detail::compile_check(fmt_str))
 
@@ -161,8 +146,8 @@ mc::string& format_to(mc::string& out, mc::string_view fmt, Args&&... args)
         static_assert(COMPILE_CHECK(fmt_str, __VA_ARGS__), "格式化字符串或参数错误");                                  \
         mc::string result;                                                                                            \
         mc::fmt::format_to(result, fmt_str,                                                                            \
-                           BOOST_PP_SEQ_FOR_EACH(MC_FORMAT_CHECK_ARG, MC_FORMAT_APPLY_ARG_NAMED,                       \
-                                                 BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)) std::monostate{});             \
+                           MC_PP_SEQ_FOR_EACH(MC_FORMAT_CHECK_ARG, MC_FORMAT_APPLY_ARG_NAMED,                       \
+                                                 MC_PP_VARIADIC_TO_SEQ(__VA_ARGS__)) std::monostate{});             \
         return result;                                                                                                 \
     }()
 
@@ -174,7 +159,7 @@ mc::string& format_to(mc::string& out, mc::string_view fmt, Args&&... args)
 
 // 参数分发宏
 #define MC_FORMAT_DISPATCH(COMPILE_CHECK, fmt_str, ...)                                                                \
-    BOOST_PP_IF(BOOST_PP_EQUAL(BOOST_PP_VARIADIC_SIZE(dummy, ##__VA_ARGS__), 1), MC_FORMAT_1(COMPILE_CHECK, fmt_str),  \
+    MC_PP_IF(MC_PP_EQUAL(MC_PP_VARIADIC_SIZE(dummy, ##__VA_ARGS__), 1), MC_FORMAT_1(COMPILE_CHECK, fmt_str),  \
                 MC_FORMAT_N(COMPILE_CHECK, fmt_str, __VA_ARGS__))
 
 // sformat 宏定义

@@ -18,6 +18,7 @@
 #include <mc/engine/call_stack.h>
 #include <mc/error_engine.h>
 #include <mc/memory.h>
+#include <mc/pp.h>
 #include <mc/variant.h>
 
 namespace mc::engine {
@@ -125,10 +126,10 @@ using context_stack = detail::call_stack<service, context>;
 #define MC_REPLY_ERROR_2(err, ...)                                                                                     \
     mc::engine::context::get_current_context().report_error(                                                           \
         err,                                                                                                           \
-        mc::log::detail::make_args(BOOST_PP_SEQ_FOR_EACH(MC_FORMAT_CHECK_ARG, MC_FORMAT_APPLY_ARG_NAMED,               \
-                                                         BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)) std::monostate{}))
+        mc::log::detail::make_args(MC_PP_SEQ_FOR_EACH(MC_FORMAT_CHECK_ARG, MC_FORMAT_APPLY_ARG_NAMED,                  \
+                                                       MC_PP_VARIADIC_TO_SEQ(__VA_ARGS__)) std::monostate{}))
 #define MC_REPLY_ERROR(...)                                                                                            \
-    BOOST_PP_IIF(BOOST_PP_GREATER(BOOST_PP_VARIADIC_SIZE(__VA_ARGS__), 1), MC_REPLY_ERROR_2, MC_REPLY_ERROR_1)         \
+    MC_PP_IIF(MC_PP_GREATER(MC_PP_VARIADIC_SIZE(__VA_ARGS__), 1), MC_REPLY_ERROR_2, MC_REPLY_ERROR_1)                  \
     (__VA_ARGS__)
 
 // MC_REPLY_ERROR_AND_THROW: 抛出错误并立即结束当前调用
@@ -144,8 +145,8 @@ using context_stack = detail::call_stack<service, context>;
 #define MC_REPLY_ERROR_AND_THROW_1(err)      mc::engine::context::throw_error(err)
 #define MC_REPLY_ERROR_AND_THROW_2(err, ...) mc::engine::context::throw_error(err, mc::dict() __VA_ARGS__)
 #define MC_REPLY_ERROR_AND_THROW(...)                                                                                  \
-    BOOST_PP_IIF(BOOST_PP_GREATER(BOOST_PP_VARIADIC_SIZE(__VA_ARGS__), 1), MC_REPLY_ERROR_AND_THROW_2,                 \
-                 MC_REPLY_ERROR_AND_THROW_1)                                                                           \
+    MC_PP_IIF(MC_PP_GREATER(MC_PP_VARIADIC_SIZE(__VA_ARGS__), 1), MC_REPLY_ERROR_AND_THROW_2,                          \
+              MC_REPLY_ERROR_AND_THROW_1)                                                                              \
     (__VA_ARGS__)
 
 // MC_IGNORE: 忽略当前请求，消息分发机制会继续路由到下一个处理者

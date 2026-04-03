@@ -14,9 +14,7 @@
 
 #include <mc/reflect/base.h>
 
-#include <boost/preprocessor/comparison/greater.hpp>
-#include <boost/preprocessor/control/iif.hpp>
-#include <boost/preprocessor/variadic/size.hpp>
+#include <mc/pp.h>
 
 /**
  * @brief 定义类的反射信息
@@ -58,7 +56,7 @@
 // 如果 ... 可变参数大于一个参数，则表示是全局反射，否则表示是类内反射。
 // 建议在反射系统中的名称保持与C++中的命名空间一致，避免混淆，为此反射系统中也支持 :: 分隔的命名空间。
 #define MC_REFLECTABLE(...)                                                                                            \
-    BOOST_PP_IIF(BOOST_PP_GREATER(BOOST_PP_VARIADIC_SIZE(__VA_ARGS__), 1), MC_GLOBAL_REFLECTABLE,                      \
+    MC_PP_IIF(MC_PP_GREATER(MC_PP_VARIADIC_SIZE(__VA_ARGS__), 1), MC_GLOBAL_REFLECTABLE,                      \
                  MC_CLASS_REFLECTABLE)                                                                                 \
     (__VA_ARGS__)
 

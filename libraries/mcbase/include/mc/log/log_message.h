@@ -308,8 +308,8 @@ message make_message_from_args_seq(level lvl, context ctx, mc::string_view forma
         static_assert(COMPILE_CHECK(FORMAT, __VA_ARGS__), "格式化字符串或参数错误");                                   \
         auto __m = mc::log::detail::make_message_from_args_seq(                                                        \
             mc::log::level::LEVEL, mc::log::context(__FILE__, __FUNCTION__, __LINE__), FORMAT,                         \
-            BOOST_PP_SEQ_FOR_EACH(MC_FORMAT_CHECK_ARG, MC_FORMAT_APPLY_ARG_NAMED,                                      \
-                                  BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)) std::monostate{});                            \
+            MC_PP_SEQ_FOR_EACH(MC_FORMAT_CHECK_ARG, MC_FORMAT_APPLY_ARG_NAMED,                                      \
+                                  MC_PP_VARIADIC_TO_SEQ(__VA_ARGS__)) std::monostate{});                            \
         __m.set_category(CATEGORY);                                                                                    \
         return __m;                                                                                                    \
     }()
@@ -324,7 +324,7 @@ message make_message_from_args_seq(level lvl, context ctx, mc::string_view forma
     }()
 
 #define MC_LOG_DISPATCH(LEVEL, CATEGORY, COMPILE_CHECK, FORMAT, ...)                                                   \
-    BOOST_PP_IF(BOOST_PP_EQUAL(BOOST_PP_VARIADIC_SIZE(dummy, ##__VA_ARGS__), 1),                                       \
+    MC_PP_IF(MC_PP_EQUAL(MC_PP_VARIADIC_SIZE(dummy, ##__VA_ARGS__), 1),                                       \
                 MC_LOG_MESSAGE_0(LEVEL, CATEGORY, COMPILE_CHECK, FORMAT),                                              \
                 MC_LOG_MESSAGE_N(LEVEL, CATEGORY, COMPILE_CHECK, FORMAT, __VA_ARGS__))
 
