@@ -14,6 +14,7 @@ subdir('im')
 subdir('intrusive')
 subdir('io')
 subdir('runtime')
+subdir('protocol')
 
 # 测试源文件列表（不包括 main.cpp，因为主项目会有自己的 main）
 mcbase_test_sources = [
@@ -42,6 +43,7 @@ mcbase_test_sources = [
   test_variant_files,
   test_db_files,
   test_io_files,
+  test_protocol_files,
   test_runtime_files,
 ]
 

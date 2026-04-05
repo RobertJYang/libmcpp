@@ -712,12 +712,10 @@ public:
     template <typename Disposer>
     void clear_and_dispose(Disposer d)
     {
-        m_core.clear_and_dispose(
-            [](detail::slist_hook_state* hook, void* ctx) {
-                auto* val = detail::slist_value<T>(hook);
-                (*static_cast<Disposer*>(ctx))(val);
-            },
-            &d);
+        m_core.clear_and_dispose([](detail::slist_hook_state* hook, void* ctx) {
+            auto* val = detail::slist_value<T>(hook);
+            (*static_cast<Disposer*>(ctx))(val);
+        }, &d);
         reset_size();
     }
 
