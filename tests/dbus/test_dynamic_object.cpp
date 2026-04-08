@@ -16,16 +16,18 @@
 #include <mc/dbus/shm/shm_tree.h>
 #include <mc/memory.h>
 #include <mc/variant.h>
+#include <test_utilities/test_base.h>
 
 using namespace mc::dbus;
 
 static sd_bus*                        test_bus;
 static mc::shared_ptr<dynamic_object> test_object;
 
-class DynamicObjectTest : public ::testing::Test {
+class DynamicObjectTest : public mc::test::TestWithDbusDaemon {
 protected:
     static void SetUpTestSuite()
     {
+        mc::test::TestWithDbusDaemon::SetUpTestSuite();
         // Create sd_bus instance
         test_bus = new sd_bus(true, false);
         test_bus->request_name("org.test.dynamic_object");
@@ -68,6 +70,7 @@ protected:
     {
         delete test_bus;
         test_object.reset();
+        mc::test::TestWithDbusDaemon::TearDownTestSuite();
     }
 
     void SetUp() override
@@ -302,7 +305,7 @@ TEST_F(DynamicObjectTest, test_get_all_properties)
     EXPECT_EQ(empty_props.size(), 0u);
 }
 
-#if defined(ENABLE_CONAN_COMPILE)
+#if defined(ENABLE_CONAN_COMPILE) && ENABLE_CONAN_COMPILE == 1
 // Test update_shm_prop
 TEST_F(DynamicObjectTest, test_update_shm_prop)
 {

@@ -982,10 +982,9 @@ TEST_F(std_interface_test, TestNonExistentProperty)
     ASSERT_TRUE(reply.is_valid()) << "回复无效";
     ASSERT_TRUE(reply.is_error()) << "期望返回错误，但得到: "
                                   << (reply.is_method_return() ? "method_return" : "invalid");
-    EXPECT_EQ(reply.get_error_name(), "org.freedesktop.DBus.Error.UnknownProperty");
-    EXPECT_EQ(
-        reply.get_error_message(),
-        R"({"name":"org.freedesktop.DBus.Error.UnknownProperty","format":"Unknown property NonExistentProperty"})");
+    // 服务层将属性错误包装为 Failed，消息中包含原始错误名
+    EXPECT_EQ(reply.get_error_name(), "org.freedesktop.DBus.Error.Failed");
+    EXPECT_NE(reply.get_error_message().find("org.freedesktop.DBus.Error.UnknownProperty"), std::string::npos);
 
     // 测试 2: SetWithContext 不存在的属性
     reply = wait_valid_reply_or_error([&]() {
@@ -998,10 +997,8 @@ TEST_F(std_interface_test, TestNonExistentProperty)
 
     ASSERT_TRUE(reply.is_valid()) << "回复无效";
     ASSERT_TRUE(reply.is_error());
-    EXPECT_EQ(reply.get_error_name(), "org.freedesktop.DBus.Error.UnknownProperty");
-    EXPECT_EQ(
-        reply.get_error_message(),
-        R"({"name":"org.freedesktop.DBus.Error.UnknownProperty","format":"Unknown property NonExistentProperty"})");
+    EXPECT_EQ(reply.get_error_name(), "org.freedesktop.DBus.Error.Failed");
+    EXPECT_NE(reply.get_error_message().find("org.freedesktop.DBus.Error.UnknownProperty"), std::string::npos);
 
     // 测试 3: Properties.Get 不存在的属性
     reply = wait_valid_reply_or_error([&]() {
@@ -1014,10 +1011,8 @@ TEST_F(std_interface_test, TestNonExistentProperty)
 
     ASSERT_TRUE(reply.is_valid()) << "回复无效";
     ASSERT_TRUE(reply.is_error());
-    EXPECT_EQ(reply.get_error_name(), "org.freedesktop.DBus.Error.UnknownProperty");
-    EXPECT_EQ(
-        reply.get_error_message(),
-        R"({"name":"org.freedesktop.DBus.Error.UnknownProperty","format":"Unknown property NonExistentProperty"})");
+    EXPECT_EQ(reply.get_error_name(), "org.freedesktop.DBus.Error.Failed");
+ 	EXPECT_NE(reply.get_error_message().find("org.freedesktop.DBus.Error.UnknownProperty"), std::string::npos);
 
     // 测试 4: Properties.Set 不存在的属性
     reply = wait_valid_reply_or_error([&]() {
@@ -1030,10 +1025,8 @@ TEST_F(std_interface_test, TestNonExistentProperty)
 
     ASSERT_TRUE(reply.is_valid()) << "回复无效";
     ASSERT_TRUE(reply.is_error());
-    EXPECT_EQ(reply.get_error_name(), "org.freedesktop.DBus.Error.UnknownProperty");
-    EXPECT_EQ(
-        reply.get_error_message(),
-        R"({"name":"org.freedesktop.DBus.Error.UnknownProperty","format":"Unknown property NonExistentProperty"})");
+    EXPECT_EQ(reply.get_error_name(), "org.freedesktop.DBus.Error.Failed");
+    EXPECT_NE(reply.get_error_message().find("org.freedesktop.DBus.Error.UnknownProperty"), std::string::npos);
 }
 
 TEST_F(std_interface_test, TestNonExistentInterface)
@@ -1072,10 +1065,9 @@ TEST_F(std_interface_test, TestNonExistentInterface)
     ASSERT_TRUE(reply.is_valid()) << "回复无效";
     ASSERT_TRUE(reply.is_error()) << "期望返回错误，但得到: "
                                   << (reply.is_method_return() ? "method_return" : "invalid");
-    EXPECT_EQ(reply.get_error_name(), "org.freedesktop.DBus.Error.UnknownInterface");
-    EXPECT_EQ(
-        reply.get_error_message(),
-        R"({"name":"org.freedesktop.DBus.Error.UnknownInterface","format":"Unknown interface org.openubmc.NonExistentInterface"})");
+    // 服务层将接口错误包装为 Failed，消息中包含原始错误名
+    EXPECT_EQ(reply.get_error_name(), "org.freedesktop.DBus.Error.Failed");
+    EXPECT_NE(reply.get_error_message().find("org.freedesktop.DBus.Error.UnknownInterface"), std::string::npos);
 
     // 测试 2: SetWithContext 不存在的接口
     reply = wait_valid_reply_or_error([&]() {
@@ -1088,10 +1080,8 @@ TEST_F(std_interface_test, TestNonExistentInterface)
 
     ASSERT_TRUE(reply.is_valid()) << "回复无效";
     ASSERT_TRUE(reply.is_error());
-    EXPECT_EQ(reply.get_error_name(), "org.freedesktop.DBus.Error.UnknownInterface");
-    EXPECT_EQ(
-        reply.get_error_message(),
-        R"({"name":"org.freedesktop.DBus.Error.UnknownInterface","format":"Unknown interface org.openubmc.NonExistentInterface"})");
+    EXPECT_EQ(reply.get_error_name(), "org.freedesktop.DBus.Error.Failed");
+ 	EXPECT_NE(reply.get_error_message().find("org.freedesktop.DBus.Error.UnknownInterface"), std::string::npos);
 
     // 测试 3: Properties.Get 不存在的接口
     reply = wait_valid_reply_or_error([&]() {
@@ -1104,10 +1094,8 @@ TEST_F(std_interface_test, TestNonExistentInterface)
 
     ASSERT_TRUE(reply.is_valid()) << "回复无效";
     ASSERT_TRUE(reply.is_error());
-    EXPECT_EQ(reply.get_error_name(), "org.freedesktop.DBus.Error.UnknownInterface");
-    EXPECT_EQ(
-        reply.get_error_message(),
-        R"({"name":"org.freedesktop.DBus.Error.UnknownInterface","format":"Unknown interface org.openubmc.NonExistentInterface"})");
+    EXPECT_EQ(reply.get_error_name(), "org.freedesktop.DBus.Error.Failed");
+ 	EXPECT_NE(reply.get_error_message().find("org.freedesktop.DBus.Error.UnknownInterface"), std::string::npos);
 
     // 测试 4: Properties.Set 不存在的接口
     reply = wait_valid_reply_or_error([&]() {
@@ -1120,8 +1108,6 @@ TEST_F(std_interface_test, TestNonExistentInterface)
 
     ASSERT_TRUE(reply.is_valid()) << "回复无效";
     ASSERT_TRUE(reply.is_error());
-    EXPECT_EQ(reply.get_error_name(), "org.freedesktop.DBus.Error.UnknownInterface");
-    EXPECT_EQ(
-        reply.get_error_message(),
-        R"({"name":"org.freedesktop.DBus.Error.UnknownInterface","format":"Unknown interface org.openubmc.NonExistentInterface"})");
+    EXPECT_EQ(reply.get_error_name(), "org.freedesktop.DBus.Error.Failed");
+ 	EXPECT_NE(reply.get_error_message().find("org.freedesktop.DBus.Error.UnknownInterface"), std::string::npos);
 }

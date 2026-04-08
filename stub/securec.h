@@ -13,6 +13,12 @@
 #ifndef SECUREC_H
 #define SECUREC_H
 
+#include <errno.h>
+#include <stdarg.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <string.h>
+
 /* SECUREC_ATTRIBUTE macro for GCC format checking */
 #ifndef SECUREC_ATTRIBUTE
 #if defined(__GNUC__) || defined(__clang__)
@@ -46,10 +52,15 @@ extern "C" {
  */
 static inline errno_t memset_s(void* dest, size_t destMax, int c, size_t count)
 {
-    (void)dest;
-    (void)destMax;
-    (void)c;
-    (void)count;
+    if (dest == NULL || destMax == 0) {
+        return EINVAL;
+    }
+    if (count > destMax) {
+        return EINVAL;
+    }
+    if (count > 0U) {
+        memset(dest, c, count);
+    }
     return EOK;
 }
 
@@ -64,10 +75,15 @@ static inline errno_t memset_s(void* dest, size_t destMax, int c, size_t count)
  */
 static inline errno_t memmove_s(void* dest, size_t destMax, const void* src, size_t count)
 {
-    (void)dest;
-    (void)destMax;
-    (void)src;
-    (void)count;
+    if (dest == NULL || src == NULL) {
+        return EINVAL;
+    }
+    if (count > destMax) {
+        return EINVAL;
+    }
+    if (count > 0U) {
+        memmove(dest, src, count);
+    }
     return EOK;
 }
 
@@ -82,10 +98,15 @@ static inline errno_t memmove_s(void* dest, size_t destMax, const void* src, siz
  */
 static inline errno_t memcpy_s(void* dest, size_t destMax, const void* src, size_t count)
 {
-    (void)dest;
-    (void)destMax;
-    (void)src;
-    (void)count;
+    if (dest == NULL || src == NULL) {
+        return EINVAL;
+    }
+    if (count > destMax) {
+        return EINVAL;
+    }
+    if (count > 0U) {
+        memcpy(dest, src, count);
+    }
     return EOK;
 }
 
@@ -118,10 +139,18 @@ static inline int sprintf_s(char* strDest, size_t destMax, const char* format, .
 
 static inline int sprintf_s(char* strDest, size_t destMax, const char* format, ...)
 {
-    (void)strDest;
-    (void)destMax;
-    (void)format;
-    return 0;
+    if (strDest == NULL || destMax == 0) {
+        return -1;
+    }
+    if (format == NULL) {
+        strDest[0] = '\0';
+        return -1;
+    }
+    va_list ap;
+    va_start(ap, format);
+    int r = vsnprintf(strDest, destMax, format, ap);
+    va_end(ap);
+    return r;
 }
 
 /*
@@ -140,11 +169,19 @@ static inline int vsnprintf_s(char* strDest, size_t destMax, size_t count, const
 
 static inline int vsnprintf_s(char* strDest, size_t destMax, size_t count, const char* format, va_list argList)
 {
-    (void)strDest;
-    (void)destMax;
-    (void)count;
-    (void)format;
-    return 0;
+    if (strDest == NULL || destMax == 0) {
+        return -1;
+    }
+    if (format == NULL) {
+        strDest[0] = '\0';
+        return -1;
+    }
+    size_t cap = destMax;
+    if (count < destMax) {
+        cap = count + 1U;
+    }
+    int r = vsnprintf(strDest, cap, format, argList);
+    return r;
 }
 
 /*
@@ -162,11 +199,11 @@ static inline int snprintf_s(char* strDest, size_t destMax, size_t count, const 
 
 static inline int snprintf_s(char* strDest, size_t destMax, size_t count, const char* format, ...)
 {
-    (void)strDest;
-    (void)destMax;
-    (void)count;
-    (void)format;
-    return 0;
+    va_list ap;
+    va_start(ap, format);
+    int r = vsnprintf_s(strDest, destMax, count, format, ap);
+    va_end(ap);
+    return r;
 }
 
 /*
@@ -180,10 +217,22 @@ static inline int snprintf_s(char* strDest, size_t destMax, size_t count, const 
  */
 static inline errno_t strncpy_s(char* strDest, size_t destMax, const char* strSrc, size_t count)
 {
-    (void)strDest;
-    (void)destMax;
-    (void)strSrc;
-    (void)count;
+    if (strDest == NULL || destMax == 0) {
+        return EINVAL;
+    }
+    if (strSrc == NULL) {
+        strDest[0] = '\0';
+        return EINVAL;
+    }
+    /* 需为调用方保留末尾 '\0' 空间（与 mc::dbus::message_writer 等用法一致） */
+    if (count >= destMax) {
+        strDest[0] = '\0';
+        return EINVAL;
+    }
+    if (count > 0U) {
+        memcpy(strDest, strSrc, count);
+    }
+    strDest[count] = '\0';
     return EOK;
 }
 

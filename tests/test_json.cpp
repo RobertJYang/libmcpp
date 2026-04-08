@@ -82,7 +82,7 @@ TEST(JsonEncodeTest, NumberTypes)
     EXPECT_EQ(json_encode(variant(int64_t{9223372036854775807LL})), "9223372036854775807");
 
     // uint64_t测试
-    EXPECT_EQ(json_encode(variant(uint64_t{18446744073709551615ULL})), "-1");
+    EXPECT_EQ(json_encode(variant(uint64_t{18446744073709551615ULL})), "18446744073709551615");
 
     // double测试
     EXPECT_EQ(json_encode(variant(1.23)), "1.23");

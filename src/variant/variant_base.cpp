@@ -1212,7 +1212,8 @@ variant_base variant_base::operator>>(detail::numeric_t rhs) const
         if (is_unsigned_integer()) {
             return {as_uint64() >> shift_amount};
         }
-        return {static_cast<int64_t>(static_cast<uint64_t>(as_int64()) >> shift_amount)};
+        // 有符号右移需要保持符号位（算术右移）
+        return {as_int64() >> shift_amount};
     }, rhs, ">>");
 }
 
@@ -1222,8 +1223,7 @@ variant_base variant_base::operator&(detail::numeric_t rhs) const
         if (is_unsigned_integer() && is_unsigned(other)) {
             return variant_base(as_uint64() & static_cast<uint64_t>(other));
         }
-        return variant_base(
-            static_cast<int64_t>(static_cast<uint64_t>(as_int64()) & static_cast<uint64_t>(other)));
+        return variant_base(static_cast<int64_t>(static_cast<uint64_t>(as_int64()) & static_cast<uint64_t>(other)));
     }, rhs, "&");
 }
 
@@ -1233,8 +1233,7 @@ variant_base variant_base::operator|(detail::numeric_t rhs) const
         if (is_unsigned_integer() && is_unsigned(other)) {
             return variant_base(as_uint64() | static_cast<uint64_t>(other));
         }
-        return variant_base(
-            static_cast<int64_t>(static_cast<uint64_t>(as_int64()) | static_cast<uint64_t>(other)));
+        return variant_base(static_cast<int64_t>(static_cast<uint64_t>(as_int64()) | static_cast<uint64_t>(other)));
     }, rhs, "|");
 }
 
@@ -1244,8 +1243,7 @@ variant_base variant_base::operator^(detail::numeric_t rhs) const
         if (is_unsigned_integer() && is_unsigned(other)) {
             return variant_base(as_uint64() ^ static_cast<uint64_t>(other));
         }
-        return variant_base(
-            static_cast<int64_t>(static_cast<uint64_t>(as_int64()) ^ static_cast<uint64_t>(other)));
+        return variant_base(static_cast<int64_t>(static_cast<uint64_t>(as_int64()) ^ static_cast<uint64_t>(other)));
     }, rhs, "^");
 }
 

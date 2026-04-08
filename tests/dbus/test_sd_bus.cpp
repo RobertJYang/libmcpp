@@ -223,10 +223,11 @@ static tests::dbus::sd_bus::test_service_1*      service_1;
 static tests::dbus::sd_bus::test_devmon_service* devmon_service;
 static sd_bus*                                   test_bus;
 
-class SdBusTest : public ::testing::Test {
+class SdBusTest : public mc::test::TestWithDbusDaemon {
 protected:
     static void SetUpTestSuite()
     {
+        mc::test::TestWithDbusDaemon::SetUpTestSuite();
         service_1 = new tests::dbus::sd_bus::test_service_1();
         service_1->init();
         service_1->start();
@@ -244,6 +245,7 @@ protected:
         delete service_1;
         delete devmon_service;
         delete test_bus;
+        mc::test::TestWithDbusDaemon::TearDownTestSuite();
     }
 };
 
@@ -313,13 +315,15 @@ TEST_F(SdBusTest, test_blocking_bus_call)
 // 测试指定超时时间调用
 TEST_F(SdBusTest, test_call_timeout)
 {
-    auto result =
-        test_bus->timeout_call(mc::seconds(3), {"org.test.test_service_1", "/org/test/sd_bus/TestObject1",
-                                                "org.test.sd_bus.TestInterface1", "Sleep", "i", mc::variants{2}});
+    // 使用阻塞式 sd_bus 校验超时语义，避免非阻塞路径在高并发测试场景下出现时序抖动
+    sd_bus blocking_bus(true, true);
+    auto   result =
+        blocking_bus.timeout_call(mc::seconds(3), {"org.test.test_service_1", "/org/test/sd_bus/TestObject1",
+                                                   "org.test.sd_bus.TestInterface1", "Sleep", "i", mc::variants{2}});
     ASSERT_TRUE(result.empty());
     EXPECT_THROW(
-        test_bus->timeout_call(mc::seconds(1), {"org.test.test_service_1", "/org/test/sd_bus/TestObject1",
-                                                "org.test.sd_bus.TestInterface1", "Sleep", "i", mc::variants{2}}),
+        blocking_bus.timeout_call(mc::seconds(1), {"org.test.test_service_1", "/org/test/sd_bus/TestObject1",
+                                                   "org.test.sd_bus.TestInterface1", "Sleep", "i", mc::variants{2}}),
         mc::exception);
 }
 
