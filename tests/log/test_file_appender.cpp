@@ -60,7 +60,7 @@ class file_appender_test : public mc::test::TestBase {
 protected:
     static std::shared_ptr<file_appender> m_appender;
     static std::filesystem::path          m_test_log_file;
-    static void                           SetUpTestSuite()
+    static void SetUpTestSuite()
     {
         // 在测试用例中，先设置 debug_log_ptr，确保后续 init() 调用时不会执行 dlopen
         // 这样可以避免在测试环境中重复加载动态库或打印错误信息
@@ -68,6 +68,9 @@ protected:
 
         m_appender      = std::make_shared<file_appender>();
         m_test_log_file = std::string(TEST_LOG_DIR) + "/test_file_appender_mock.log";
+        if (std::filesystem::exists(m_test_log_file)) {
+            std::filesystem::remove(m_test_log_file);
+        }
         // 初始化日志文件（直接清空文件）
         std::ofstream ofs(m_test_log_file, std::ios::trunc);
         ofs.close();

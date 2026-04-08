@@ -9,7 +9,6 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#include "../runtime/test_future_helpers.h"
 #include <gtest/gtest.h>
 #include <mc/dbus/connection.h>
 #include <mc/engine.h>
@@ -479,8 +478,8 @@ TEST_F(MicroComponentTest, TestMicroComponentSetDlogLevel)
     EXPECT_TRUE(default_log.is_enabled(mc::log::level::error));
 }
 
-TEST_F(MicroComponentTest, TestMicroComponentSetDlogType)
-{
+// 注意：此测试用例禁用，此测试用例依赖于 /dev/shm/ 的存在，有些系统不一定有这个目录或者没有权限访问这个目录，用例需要修正
+TEST_F(MicroComponentTest, DISABLED_TestMicroComponentSetDlogType) {
     mc::milliseconds extended_timeout(5000);
 
     auto     default_log = mc::log::default_logger();

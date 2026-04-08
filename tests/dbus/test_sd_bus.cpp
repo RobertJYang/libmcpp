@@ -236,6 +236,10 @@ protected:
         devmon_service->start();
         test_bus = new sd_bus(true, false);
         test_bus->request_name("org.openubmc.test_bus");
+#if defined(ENABLE_CONAN_COMPILE) && ENABLE_CONAN_COMPILE == 1
+#else
+        test_bus->set_enable_local_request(false);
+#endif
     }
 
     static void TearDownTestSuite()
@@ -310,6 +314,32 @@ TEST_F(SdBusTest, test_blocking_bus_call)
     ASSERT_EQ(result.size(), 1u);
     ASSERT_TRUE(result[0].is_int32());
     EXPECT_EQ(result[0].as_int32(), -33);
+}
+
+// 测试禁用本地请求后回退到普通 DBus 调用
+TEST_F(SdBusTest, test_disable_local_request_fallback_to_dbus)
+{
+    sd_bus fallback_bus(true, false);
+    fallback_bus.request_name("org.openubmc.test_bus_no_local_request");
+    fallback_bus.set_enable_local_request(false);
+
+    auto result = fallback_bus.timeout_call(mc::seconds(1), {"org.test.test_service_1",
+                                                             "/org/test/sd_bus/TestObject1",
+                                                             "org.test.sd_bus.TestInterface1",
+                                                             "SetValue",
+                                                             "i",
+                                                             {21}});
+    ASSERT_TRUE(result.empty());
+
+    result = fallback_bus.timeout_call(mc::seconds(1), {"org.test.test_service_1",
+                                                        "/org/test/sd_bus/TestObject1",
+                                                        "org.test.sd_bus.TestInterface1",
+                                                        "GetValue",
+                                                        "",
+                                                        {}});
+    ASSERT_EQ(result.size(), 1u);
+    ASSERT_TRUE(result[0].is_int32());
+    EXPECT_EQ(result[0].as_int32(), 21);
 }
 
 // 测试指定超时时间调用

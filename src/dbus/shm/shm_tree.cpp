@@ -54,7 +54,7 @@ std::optional<mc::variants> get_mdb_object_handler([[maybe_unused]] std::string_
         return std::nullopt;
     }
 
-    std::string_view arg_path = args[1].as_string();
+    std::string arg_path = args[1].as_string();
     variants         arg_interfaces;
     if (args[2].is_array()) {
         arg_interfaces = args[2].get_array();
@@ -83,7 +83,7 @@ std::optional<mc::variants> get_mdb_sub_paths_handler([[maybe_unused]] std::stri
         return std::nullopt;
     }
 
-    std::string_view arg_path  = args[1].as_string();
+    std::string arg_path  = args[1].as_string();
     uint32_t         arg_depth = args[2].as_uint32();
     variants         arg_interfaces;
     if (args[3].is_array()) {
@@ -117,7 +117,7 @@ std::optional<mc::variants> is_valid_mdb_path_handler([[maybe_unused]] std::stri
     if (args.size() < 3) {
         return std::nullopt;
     }
-    std::string_view arg_path        = args[1].as_string();
+    std::string arg_path        = args[1].as_string();
     bool             arg_ignore_case = args[2].as_bool();
 
     variants result;
@@ -207,7 +207,7 @@ static object_filter_result object_match_filter_shm_by_interface(shm::interface&
         if (!e.key.is_string()) {
             return object_filter_result::not_matched;
         }
-        std::string_view prop_name = e.key.as_string();
+        std::string prop_name = e.key.as_string();
         const variant&   expected  = e.value;
 
         auto prop = iface.find_p(prop_name);
@@ -384,7 +384,7 @@ static bool match_candidate_via_rpc(const mdb_path_candidate& cand,
         if (!e.key.is_string()) {
             return false;
         }
-        std::string_view prop_name = e.key.as_string();
+        std::string prop_name = e.key.as_string();
         const variant&   expected  = e.value;
 
         if (!match_property_via_rpc(interface_name, prop_name, expected, ignore_case,
@@ -445,8 +445,8 @@ std::optional<mc::variants> get_mdb_path_handler([[maybe_unused]] std::string_vi
     if (args.size() < 4) {
         return std::nullopt;
     }
-    std::string_view arg_interface   = args[1].as_string();
-    std::string_view filter_str      = args[2].as_string();
+    std::string arg_interface   = args[1].as_string();
+    std::string filter_str      = args[2].as_string();
     bool             arg_ignore_case = args[3].as_bool();
 
     // 直接传递 JSON 字符串，get_mdb_path 内部会处理 JSON decode 和错误处理
@@ -464,7 +464,7 @@ std::optional<mc::variants> get_mdb_interface_owners_handler([[maybe_unused]] st
     if (args.size() < 2) {
         return std::nullopt;
     }
-    std::string_view arg_interface = args[1].as_string();
+    std::string arg_interface = args[1].as_string();
 
     variants result;
     result.push_back(variant(shm_tree::get_mdb_interface_owners(arg_interface)));
@@ -481,7 +481,7 @@ std::optional<mc::variants> get_mdb_service_name_handler([[maybe_unused]] std::s
     if (args.size() < 2) {
         return std::nullopt;
     }
-    std::string_view sender = args[1].as_string();
+    std::string sender = args[1].as_string();
     variants         result;
     result.push_back(variant(shm_tree::get_mdb_service_name(sender)));
     return result;
@@ -497,7 +497,7 @@ std::optional<mc::variants> get_mdb_sub_objects_handler([[maybe_unused]] std::st
     if (args.size() < 4) {
         return std::nullopt;
     }
-    std::string_view arg_path  = args[1].as_string();
+    std::string arg_path  = args[1].as_string();
     uint32_t         arg_depth = args[2].as_uint32();
     variants         arg_interfaces;
     if (args[3].is_array()) {
@@ -525,7 +525,7 @@ std::optional<mc::variants> get_mdb_parent_objects_handler([[maybe_unused]] std:
     if (args.size() < 4) {
         return std::nullopt;
     }
-    std::string_view arg_path = args[1].as_string();
+    std::string arg_path = args[1].as_string();
     variants         arg_interfaces;
     if (args[2].is_array()) {
         arg_interfaces = args[2].get_array();
@@ -564,7 +564,7 @@ std::optional<mc::variants> get_mdb_classes_handler([[maybe_unused]] std::string
         return std::nullopt;
     }
     variants         result;
-    std::string_view arg_service_name = args[1].as_string();
+    std::string arg_service_name = args[1].as_string();
     result.push_back(variant(shm_tree::get_mdb_classes(arg_service_name)));
     return result;
 }
@@ -579,7 +579,7 @@ std::optional<mc::variants> get_mdb_object_list_handler([[maybe_unused]] std::st
     if (args.size() < 2) {
         return std::nullopt;
     }
-    std::string_view arg_class_name = args[1].as_string();
+    std::string arg_class_name = args[1].as_string();
     variants         result;
     result.push_back(variant(shm_tree::get_mdb_object_list(arg_class_name)));
     return result;
@@ -595,7 +595,7 @@ std::optional<mc::variants> get_mdb_object_owner_handler([[maybe_unused]] std::s
     if (args.size() < 2) {
         return std::nullopt;
     }
-    std::string_view arg_object_name = args[1].as_string();
+    std::string arg_object_name = args[1].as_string();
     variants         result;
     result.push_back(variant(shm_tree::get_mdb_object_owner(arg_object_name)));
     return result;
@@ -611,8 +611,8 @@ std::optional<mc::variants> get_mdb_matched_objects_handler([[maybe_unused]] std
     if (args.size() < 3) {
         return std::nullopt;
     }
-    std::string_view arg_service_name  = args[1].as_string();
-    std::string_view arg_iface_pattern = args[2].as_string();
+    std::string arg_service_name  = args[1].as_string();
+    std::string arg_iface_pattern = args[2].as_string();
     variants         result;
     result.push_back(variant(shm_tree::get_mdb_matched_objects(arg_service_name, arg_iface_pattern)));
     return result;
@@ -630,8 +630,8 @@ std::optional<mc::variants> call_shm_get_property_handler(std::string_view      
         return std::nullopt;
     }
 
-    std::string_view arg_interface = args[1].as_string();
-    std::string_view arg_property  = args[2].as_string();
+    std::string arg_interface = args[1].as_string();
+    std::string arg_property  = args[2].as_string();
 
     auto value_opt = shm_tree::call_shm_get_property(service_name, path, arg_interface, arg_property);
     if (!value_opt.has_value()) {
@@ -683,7 +683,7 @@ std::optional<mc::variants> call_shm_get_properties_by_names_handler([[maybe_unu
         return std::nullopt;
     }
 
-    std::string_view iface_name = args[1].as_string();
+    std::string iface_name = args[1].as_string();
     variants         prop_names = args[2].get_array();
 
     auto result_opt = shm_tree::call_shm_get_properties_by_names(service_name, path, iface_name, prop_names);
@@ -745,7 +745,7 @@ static bool has_interface(shm::mdb_object& obj, const variants& interfaces)
         if (!iface.is_string()) {
             continue;
         }
-        std::string_view iface_name = iface.as_string();
+        std::string iface_name = iface.as_string();
         auto             ifaces     = obj.find_interfaces(iface_name);
         if (ifaces == nullptr) {
             return false;
@@ -878,7 +878,7 @@ static void collect_object_interfaces(dict& service_map, shm::mdb_object& obj, c
             if (!iface_v.is_string()) {
                 continue;
             }
-            std::string_view iface_name = iface_v.as_string();
+            std::string iface_name = iface_v.as_string();
             auto             svcs       = obj.find_interfaces(iface_name);
             if (svcs == nullptr) {
                 continue;
@@ -1742,7 +1742,7 @@ static properties_scan_out get_shm_properties_by_names(shm::shared_memory& ins,
                 out.has_error = true;
                 return;
             }
-            std::string_view prop_name = name_v.as_string();
+            std::string prop_name = name_v.as_string();
 
             auto prop_ptr = intf->find_p(prop_name);
             if (!prop_ptr) {

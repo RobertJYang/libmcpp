@@ -17,6 +17,7 @@
 #include <mc/log/log_manager.h>
 #include <mc/log/log_message.h>
 #include <mc/log/logger.h>
+#include <log/builtin_appenders.h>
 
 #include <cstdio>
 #include <lua.hpp>
@@ -1130,6 +1131,8 @@ extern "C" {
 // 注册 mc.log 模块
 __attribute__((visibility("default"))) int luaopen_mc_log(lua_State* L)
 {
+    mc::log::bootstrap_default_logging();
+
     // 注册 logger 元表
     register_logger_metatable(L);
 

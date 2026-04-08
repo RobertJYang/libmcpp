@@ -1,5 +1,8 @@
 # Changelog
 All notable changes to this project will be documented in this file.
+## [1.2.68] - 2026-04-08
+拆分mcbase库成为独立的子项目
+
 ## [1.2.67] - 2026-04-08
 修复DT用例
 

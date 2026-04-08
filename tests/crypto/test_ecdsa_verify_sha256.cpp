@@ -95,8 +95,7 @@ std::string to_der_public_key(EVP_PKEY* pkey)
 
 class EcdsaVerifySha256Test : public ::testing::Test {
 protected:
-    void SetUp() override
-    {
+    void SetUp() override {
         key_ = generate_ec_pkey();
         ASSERT_NE(key_, nullptr);
         pub_der_ = to_der_public_key(key_.get());

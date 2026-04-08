@@ -264,7 +264,6 @@ print("\n========================================")
 print("开始运行 TestLibmcpp 测试套件")
 print("========================================\n")
 
-local result = lu.LuaUnit.run()
 
 print("\n========================================")
 print("测试套件执行完成，退出码: " .. tostring(result))
@@ -277,4 +276,5 @@ if dbus_daemon_started then
     if io.open(dbus_address_file, "r") then os.remove(dbus_address_file) end
 end
 
+local result = lu.LuaUnit.run()
 os.exit(result)

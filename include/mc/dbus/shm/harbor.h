@@ -100,6 +100,11 @@ public:
     static harbor& get_instance();
 
     /**
+     * @brief 重置 harbor 单例
+     */
+    static void reset_for_test();
+
+    /**
      * @brief 获取目标消息队列
      * @param destination [in] 目标名称
      * @return 返回消息队列指针

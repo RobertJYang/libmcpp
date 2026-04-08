@@ -114,6 +114,8 @@ public:
      */
     void set_debug_log_level(level lvl);
 
+    void set_level(level lvl) override;
+
 private:
     /**
      * @brief 打开日志文件

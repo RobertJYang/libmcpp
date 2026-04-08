@@ -26,7 +26,13 @@
 #include <syslog.h>
 #include <unistd.h>
 
+#if __has_include(<logging_internal.h>)
+// 优先使用依赖库 liblogger 提供的头
 #include <logging_internal.h>
+#else
+// fallback：工程内 stub/测试用实现（native/UT 环境）
+#include <log/logging_internal.h>
+#endif
 
 #if __has_include(<logging.h>)
 #include <logging.h>
@@ -490,6 +496,11 @@ void file_appender::set_debug_log_level(level lvl)
 const std::string& file_appender::get_filename() const
 {
     return m_file_config.filename;
+}
+
+void file_appender::set_level(level lvl)
+{
+    set_debug_log_level(lvl);
 }
 
 void file_appender::set_flush_on_write(bool flush_on_write)

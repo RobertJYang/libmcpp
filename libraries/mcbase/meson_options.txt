@@ -1,0 +1,41 @@
+option(
+    'tests',
+    type: 'boolean',
+    value: true,
+    description: '是否构建测试用例，默认为true',
+)
+
+option(
+    'tests_utilities',
+    type: 'boolean',
+    value: false,
+    description: '是否构建测试辅助库，默认为false',
+)
+
+option(
+    'compatibility_tests',
+    type: 'boolean',
+    value: false,
+    description: '是否构建兼容性测试程序（mc::format vs std::format），默认为false',
+)
+
+option(
+    'enable_coverage',
+    type: 'boolean',
+    value: false,
+    description: '是否启用代码覆盖率统计，默认为false',
+)
+
+option(
+    'boost_root',
+    type: 'string',
+    value: '',
+    description: 'Boost installation root directory (if not set, uses system Boost via pkg-config)',
+)
+
+option(
+    'securec',
+    type: 'feature',
+    value: 'disabled',
+    description: '是否启用外部 securec 库：enabled 强制使用外部库，disabled 使用 mcbase 内建实现，auto 为找到则使用否则回退内建实现',
+)

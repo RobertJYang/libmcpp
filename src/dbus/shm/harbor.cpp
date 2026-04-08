@@ -161,8 +161,11 @@ harbor& harbor::get_instance()
     });
 }
 
-void harbor::init_message_queue()
-{
+void harbor::reset_for_test() {
+    mc::singleton<harbor>::reset_for_test();
+}
+
+void harbor::init_message_queue() {
     auto& ins             = shm::shared_memory::get_instance();
     auto& harbor_tree_map = ins.get_object_tree_map(m_harbor_name);
     auto  harbor_it       = harbor_tree_map.find(m_harbor_name);

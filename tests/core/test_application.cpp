@@ -14,6 +14,7 @@
 #include <mc/core/application.h>
 #include <mc/core/config_manager.h>
 #include <mc/core/config_schema.h>
+#include <mc/log.h>
 #include <mc/singleton.h>
 #include <test_utilities/test_base.h>
 
@@ -173,6 +174,7 @@ TEST_F(application_test, get_supervisor_manager)
 TEST_F(application_test, initialize_success)
 {
     EXPECT_TRUE(app->initialize());
+    EXPECT_NE(mc::log::default_logger().find_appender("default_file"), nullptr);
 }
 
 // 测试 application::initialize() - supervisor_manager init 失败

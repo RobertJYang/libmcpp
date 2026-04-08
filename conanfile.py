@@ -36,6 +36,11 @@ class AppConan(ConanBase):
     def generate(self):
         os.environ["PKG_CONFIG"] = "/usr/bin/pkg-config"
         tc = MesonToolchain(self, "ninja")
+        # 启用 fallback 机制，允许 Meson 使用子项目作为依赖的备选方案
+        # 注意：Conan 的 MesonToolchain 默认会设置 wrap_mode=nofallback，这会禁用 fallback
+        # 设置 wrap_mode=nodownload 允许使用本地子项目作为 fallback，但不会下载新的 wrap 文件
+        if "wrap_mode" in tc.project_options and tc.project_options["wrap_mode"] == "nofallback":
+            tc.project_options["wrap_mode"] = "nodownload"
         if self.settings.arch == "armv8" or self.settings.arch == "x86_64":
             tc.project_options["libdir"] = 'usr/lib64'
         else:
@@ -97,6 +102,9 @@ class AppConan(ConanBase):
             copy(self, "*", src=os.path.join(self.source_folder, "docs"), dst=os.path.join(self.package_folder, "usr/share/doc/openubmc/libmcpp/docs"))
         copy(self, "*.md", src=self.source_folder, dst=os.path.join(self.package_folder, "usr/share/doc/openubmc/libmcpp/docs"))
         copy(self, "*.MD", src=self.source_folder, dst=os.path.join(self.package_folder, "usr/share/doc/openubmc/libmcpp/docs"))
+        mcbase_include = os.path.join(self.source_folder, "libraries", "mcbase", "include")
+        if os.path.isdir(mcbase_include):
+            copy(self, "*", src=mcbase_include, dst=os.path.join(self.package_folder, "include"))
 
         # 对静态库运行ranlib以创建符号索引
         self._run_ranlib_on_static_libs()
@@ -219,7 +227,7 @@ class AppConan(ConanBase):
         self.cpp_info.includedirs = include_dirs
 
         # 配置libmcpp的pkg-config
-        self.cpp_info.components["libmcpp"].libs = ["libmcpp"]
+        self.cpp_info.components["libmcpp"].libs = ["libmcpp", "libmcbase"]
         self.cpp_info.components["libmcpp"].libdirs = ["usr/lib64"]
         self.cpp_info.components["libmcpp"].includedirs = include_dirs
         self.cpp_info.components["libmcpp"].set_property("pkg_config_name", "libmcpp")

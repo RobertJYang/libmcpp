@@ -88,7 +88,7 @@ static int l_get_interface(lua_State* L)
 {
     l_object*   object    = reinterpret_cast<l_object*>(luaL_checkudata(L, 1, OBJECT_METATABLE));
     const char* intf_name = luaL_checkstring(L, 2);
-    auto        intf      = object->impl->get_interface(intf_name);
+    auto        intf      = object->impl->get_interface(std::string(intf_name));
     void*       ud        = lua_newuserdata(L, sizeof(l_interface));
     new (ud) l_interface(intf);
     luaL_getmetatable(L, INTERFACE_METATABLE);

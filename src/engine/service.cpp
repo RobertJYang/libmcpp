@@ -151,7 +151,9 @@ bool service_impl::start()
     }
 
     auto service_name       = m_service->name();
-    auto [success, err_opt] = connection.request_name(service_name);
+    auto ret                = connection.request_name(service_name);
+    bool success            = std::get<0>(ret);
+    auto err_opt            = std::get<1>(ret);
     if (!success) {
         if (err_opt.has_value() && err_opt->message) {
             elog("start service failed: cannot request dbus name: ${error}", ("error", err_opt->message));
@@ -496,6 +498,13 @@ DBusHandlerResult service_impl::on_method_call(abstract_object& object, mc::dbus
             info.response = mc::dbus::message::new_error(msg, error_name, error_json);
         }
     } catch (const std::exception& e) {
+        auto ctx_err = ctx.get_error();
+        if (ctx_err) {
+            info.response = mc::dbus::message::new_error(msg, ctx_err->name, ctx_err->to_string_format_inplace());
+            m_connection.send(std::move(info.response));
+            return DBUS_HANDLER_RESULT_HANDLED;
+        }
+
         // 未知错误记录 error 日志
         elog("unknow method call failed: ${error}", ("error", e.what()));
         // TODO:: 目前为了调试方便将 e.what() 作为错误内容访问，后续应该隐藏程序内部信息避免安全隐患

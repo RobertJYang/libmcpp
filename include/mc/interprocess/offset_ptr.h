@@ -18,6 +18,7 @@
 #define MC_INTERPROCESS_OFFSET_PTR_H
 
 #include <cstddef>
+#include <mc/interprocess/shared_memory.h>
 #include <stdexcept>
 
 #include "mc/interprocess/shared_memory.h"
