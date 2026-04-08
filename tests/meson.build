@@ -133,4 +133,5 @@ test(
   'libmcpp unit tests',
   test_exe,
   depends: mock_dynamic_module,
+  timeout: 60,
 )

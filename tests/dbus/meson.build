@@ -18,5 +18,9 @@ test_dbus_files = [
 
 enable_conan_compile = get_option('enable_conan_compile')
 if enable_conan_compile
-  test_dbus_files += ['dbus/shm/test_shm_call.cpp']
+  test_dbus_files += [
+    'dbus/test_dynamic_object.cpp',
+    'dbus/shm/test_shm_call.cpp',
+    'dbus/test_sd_bus.cpp',
+  ]
 endif

@@ -27,68 +27,40 @@
 namespace mc::crypto {
 namespace {
 
-constexpr uint32_t RSLEN             = 32;
 constexpr uint32_t SHA256_DIGEST_LEN = 32;
-constexpr uint32_t ECC_SIGN_MIN_LEN  = 70;
-constexpr uint32_t TL_LEN            = 2;
 
+// 使用 OpenSSL 标准 DER 解码，正确处理 r/s 长度可变的情况（31~33 字节均合法）
 int32_t construct_ecdsa_sig(ECDSA_SIG* ec_sig, const unsigned char* sign_data, uint32_t sign_data_len)
 {
-    if (ec_sig == nullptr || sign_data == nullptr) {
+    if (ec_sig == nullptr || sign_data == nullptr || sign_data_len == 0) {
         elog("construct_ecdsa_sig: null input");
         return ECDSA_VERIFY_FAILED;
     }
-    if (sign_data_len < ECC_SIGN_MIN_LEN) {
-        elog("construct_ecdsa_sig: sign too short, len=%d", sign_data_len);
+    const unsigned char* p      = sign_data;
+    ECDSA_SIG*           parsed = d2i_ECDSA_SIG(nullptr, &p, static_cast<long>(sign_data_len));
+    if (parsed == nullptr) {
+        elog("construct_ecdsa_sig: d2i_ECDSA_SIG failed, len=%d", sign_data_len);
+        return ECDSA_VERIFY_FAILED;
+    }
+    const BIGNUM* r = nullptr;
+    const BIGNUM* s = nullptr;
+    ECDSA_SIG_get0(parsed, &r, &s);
+
+    BIGNUM* r_dup = BN_dup(r);
+    BIGNUM* s_dup = BN_dup(s);
+    ECDSA_SIG_free(parsed);
+
+    if (r_dup == nullptr || s_dup == nullptr) {
+        BN_free(r_dup);
+        BN_free(s_dup);
+        elog("construct_ecdsa_sig: BN_dup failed");
         return ECDSA_VERIFY_FAILED;
     }
 
-    uint32_t r_val_len_offset = TL_LEN + 1;
-    uint32_t r_val_offset     = r_val_len_offset + 1;
-    if (r_val_len_offset >= sign_data_len) {
-        elog("construct_ecdsa_sig: r_len_offset overflow, offset=%u len=%d", r_val_len_offset, sign_data_len);
-        return ECDSA_VERIFY_FAILED;
-    }
-    if (sign_data[r_val_len_offset] > RSLEN) {
-        r_val_offset += sign_data[r_val_len_offset] - RSLEN;
-    }
-    if (r_val_offset + RSLEN > sign_data_len) {
-        elog("construct_ecdsa_sig: r_val_offset too big, val:%u", r_val_offset);
-        return ECDSA_VERIFY_FAILED;
-    }
-    BIGNUM* pr = BN_bin2bn(sign_data + r_val_offset, RSLEN, nullptr);
-    if (pr == nullptr) {
-        elog("construct_ecdsa_sig: BN_bin2bn pr failed");
-        return ECDSA_VERIFY_FAILED;
-    }
-
-    uint32_t s_val_len_offset = TL_LEN + TL_LEN + sign_data[r_val_len_offset] + 1;
-    uint32_t s_val_offset     = s_val_len_offset + 1;
-    if (s_val_len_offset >= sign_data_len) {
-        BN_free(pr);
-        elog("construct_ecdsa_sig: s_len_offset too big, val:%u", s_val_len_offset);
-        return ECDSA_VERIFY_FAILED;
-    }
-    if (sign_data[s_val_len_offset] > RSLEN) {
-        s_val_offset += sign_data[s_val_len_offset] - RSLEN;
-    }
-    if (s_val_offset + RSLEN > sign_data_len) {
-        BN_free(pr);
-        elog("construct_ecdsa_sig: s_val_offset too big, val:%u", s_val_offset);
-        return ECDSA_VERIFY_FAILED;
-    }
-    BIGNUM* ps = BN_bin2bn(sign_data + s_val_offset, RSLEN, nullptr);
-    if (ps == nullptr) {
-        BN_free(pr);
-        elog("construct_ecdsa_sig: BN_bin2bn ps failed");
-        return ECDSA_VERIFY_FAILED;
-    }
-
-    int ret = ECDSA_SIG_set0(ec_sig, pr, ps);
-    if (ret != 1) {
-        BN_free(pr);
-        BN_free(ps);
-        elog("construct_ecdsa_sig: ECDSA_SIG_set0 failed, ret:%d", ret);
+    if (ECDSA_SIG_set0(ec_sig, r_dup, s_dup) != 1) {
+        BN_free(r_dup);
+        BN_free(s_dup);
+        elog("construct_ecdsa_sig: ECDSA_SIG_set0 failed");
         return ECDSA_VERIFY_FAILED;
     }
     return ECDSA_VERIFY_OK;
@@ -184,7 +156,7 @@ int32_t ecdsa_verify_sha256(std::string& data, std::string& signature, std::stri
     EC_KEY_free(ec_key);
 
     if (ret != 1) {
-        elog("ecdsa_verify_sha256: ECDSA_do_verify failed, ret:%d", ret);
+        elog("ecdsa_verify_sha256: ECDSA_do_verify failed, ret: ${err}", ("err", ret));
         return ECDSA_VERIFY_FAILED;
     }
     return ECDSA_VERIFY_OK;

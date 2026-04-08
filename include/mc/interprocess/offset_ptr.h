@@ -20,9 +20,10 @@
 #include <cstddef>
 #include <stdexcept>
 
+#include "mc/interprocess/shared_memory.h"
+
 namespace mc {
 namespace interprocess {
-class shared_memory;
 
 /**
  * @brief 偏移指针类，用于在多进程间安全传递共享内存中的指针

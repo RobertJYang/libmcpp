@@ -224,16 +224,31 @@ mc::dict make_args(Args&&... args)
     return out;
 }
 
-// 辅助函数：创建带可选 attrs 的消息
-// 当最后一个参数是 dict 时，将其作为 attrs，其余参数作为格式参数
-// 使用函数重载让编译器自动选择正确的重载
-template <typename... FormatArgs>
-message make_message_with_optional_attrs(level lvl, context ctx, const std::string& format, FormatArgs&&... format_args,
-                                         const mc::dict& attrs)
+// 可选 attrs：最后一项为 mc::dict 时作为 attrs，否则为格式参数；宏尾 std::monostate 需先去掉再判断
+template <typename T>
+struct is_dict_type
+    : std::is_same<typename std::remove_cv<typename std::remove_reference<T>::type>::type,
+                mc::dict> {};
+template <typename... Args>
+using last_arg_type = std::tuple_element_t<sizeof...(Args) - 1, std::tuple<Args...>>;
+template <typename... Args>
+struct last_is_monostate
+    : std::is_same<typename std::remove_cv<
+                    typename std::remove_reference<last_arg_type<Args...>>::type>::type,
+                std::monostate> {};
+
+namespace detail_impl {
+
+template <typename Tuple, size_t... Is>
+mc::dict make_args_from_tuple(Tuple&& t, std::index_sequence<Is...>) {
+    return make_args(std::get<Is>(std::forward<Tuple>(t))...);
+}
+
+} // namespace detail_impl
+
+inline message make_message_with_optional_attrs(level lvl, context ctx, const std::string& format)
 {
-    // 最后一个参数是 dict，将其作为 attrs，其余参数作为格式参数
-    auto args = make_args(std::forward<FormatArgs>(format_args)...);
-    return message(lvl, ctx, format, args, attrs);
+    return message(lvl, ctx, format, mc::dict{}, mc::dict{});
 }
 
 template <typename... FormatArgs>
@@ -244,29 +259,49 @@ message make_message_with_optional_attrs(level lvl, context ctx, const std::stri
     return message(lvl, ctx, format, args, attrs);
 }
 
-template <typename... FormatArgs>
-message make_message_with_optional_attrs(level lvl, context ctx, const std::string& format, FormatArgs&&... format_args,
-                                         mc::dict&& attrs)
+template <typename... Args>
+message make_message_with_optional_attrs(level lvl, context ctx, const std::string& format,
+                                         Args&&... args)
 {
-    auto args = make_args(std::forward<FormatArgs>(format_args)...);
-    return message(lvl, ctx, format, args, std::move(attrs));
+    constexpr size_t n = sizeof...(Args);
+    if constexpr (n == 0) {
+        return message(lvl, ctx, format, mc::dict{}, mc::dict{});
+    } else if constexpr (is_dict_type<last_arg_type<Args...>>::value) {
+        auto   t = std::forward_as_tuple(std::forward<Args>(args)...);
+        auto&& attrs = std::get<n - 1>(t);
+        auto   format_args =
+            detail_impl::make_args_from_tuple(t, std::make_index_sequence<n - 1>{});
+        return message(lvl, ctx, format, std::move(format_args),
+                    std::forward<decltype(attrs)>(attrs));
+    } else {
+        auto format_args = make_args(std::forward<Args>(args)...);
+        return message(lvl, ctx, format, format_args, mc::dict{});
+    }
 }
 
-// 当最后一个参数不是 dict 时，所有参数都是格式参数
-// 这个重载会被选择当最后一个参数不是 dict 类型时
-template <typename... Args>
-message make_message_with_optional_attrs(level lvl, context ctx, const std::string& format, Args&&... args)
+namespace detail_impl {
+template <typename Tuple, size_t... Is>
+message make_message_from_args_seq_drop_last(level lvl, context ctx, const std::string& format,
+                                            Tuple&& t, std::index_sequence<Is...>)
 {
-    auto format_args = make_args(std::forward<Args>(args)...);
-    return message(lvl, ctx, format, format_args, mc::dict{});
+    return make_message_with_optional_attrs(
+        lvl, ctx, format,
+        std::forward<std::tuple_element_t<Is, std::remove_reference_t<Tuple>>>(std::get<Is>(std::forward<Tuple>(t)))...);
 }
+} // namespace detail_impl
 
-// 辅助函数：从 make_args 的结果中提取 attrs（如果最后一个参数是 dict）
-// 这个函数用于在宏中处理，因为宏无法直接检测类型
 template <typename... Args>
-message make_message_from_args_seq(level lvl, context ctx, const std::string& format, Args&&... args)
+message make_message_from_args_seq(level lvl, context ctx, const std::string& format,
+                                   Args&&... args)
 {
-    return make_message_with_optional_attrs(lvl, ctx, format, std::forward<Args>(args)...);
+    constexpr size_t n = sizeof...(Args);
+    if constexpr (n > 0 && last_is_monostate<Args...>::value) {
+        auto t = std::forward_as_tuple(std::forward<Args>(args)...);
+        return detail_impl::make_message_from_args_seq_drop_last(
+            lvl, ctx, format, std::move(t), std::make_index_sequence<n - 1>{});
+    } else {
+        return make_message_with_optional_attrs(lvl, ctx, format, std::forward<Args>(args)...);
+    }
 }
 
 } // namespace detail
@@ -274,18 +309,33 @@ message make_message_from_args_seq(level lvl, context ctx, const std::string& fo
 } // namespace mc::log
 
 /**
- * @brief 基础日志宏 - 所有级别共用（支持可选 attrs）
- * 如果最后一个参数是 mc::dict 类型，则将其作为 attrs，其余参数作为格式参数
- */
-#define MC_LOG_MESSAGE_N(LEVEL, CATEGORY, COMPILE_CHECK, FORMAT, ...)                                                  \
-    [&]() -> mc::log::message {                                                                                        \
-        static_assert(COMPILE_CHECK(FORMAT, __VA_ARGS__), "格式化字符串或参数错误");                                   \
-        auto __m = mc::log::detail::make_message_from_args_seq(                                                        \
-            mc::log::level::LEVEL, mc::log::context(__FILE__, __FUNCTION__, __LINE__), FORMAT,                         \
-            BOOST_PP_SEQ_FOR_EACH(MC_FORMAT_CHECK_ARG, MC_FORMAT_APPLY_ARG_NAMED,                                      \
-                                  BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)) std::monostate{});                            \
-        __m.set_category(CATEGORY);                                                                                    \
-        return __m;                                                                                                    \
+* @brief 日志宏参数转换辅助宏
+*
+* - 对形如 ("name", value) 的命名参数，转换为 mc::fmt::detail::arg("name", value)
+* - 对普通参数（包括 attrs 这样的 mc::dict 变量），保持原样传递，便于最后一个参数为 mc::dict 时
+*   由 make_message_with_optional_attrs 在编译期区分出 attrs
+*/
+#define MC_LOG_APPLY_ARG_NAMED(name, ...)                                                  \
+    BOOST_PP_IF(BOOST_PP_GREATER(BOOST_PP_VARIADIC_SIZE(dummy, ##__VA_ARGS__), 1),        \
+                mc::fmt::detail::arg(name, __VA_ARGS__),                                  \
+                name)
+
+/**
+* @brief 基础日志宏 - 所有级别共用（支持可选 attrs）
+* 如果最后一个参数是 mc::dict 类型，则将其作为 attrs（追在消息末尾 key=value），其余参数作为格式参数（参与 ${key} 替换，进入 m_args）。
+* 若要将 dict 作为格式参数参与模板替换，请使用 ("key", dict) 形式，不要单独放在最后。
+*/
+#define MC_LOG_MESSAGE_N(LEVEL, CATEGORY, COMPILE_CHECK, FORMAT, ...)                       \
+    [&]() -> mc::log::message {                                                             \
+        static_assert(COMPILE_CHECK(FORMAT, __VA_ARGS__), "格式化字符串或参数错误");        \
+        auto __m = mc::log::detail::make_message_from_args_seq(                             \
+            mc::log::level::LEVEL,                                                          \
+            mc::log::context(__FILE__, __FUNCTION__, __LINE__),                             \
+            FORMAT,                                                                         \
+            BOOST_PP_SEQ_FOR_EACH(MC_FORMAT_CHECK_ARG, MC_LOG_APPLY_ARG_NAMED,           \
+                                  BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)) std::monostate{}); \
+        __m.set_category(CATEGORY);                                                         \
+        return __m;                                                                         \
     }()
 
 #define MC_LOG_MESSAGE_0(LEVEL, CATEGORY, COMPILE_CHECK, FORMAT)                                                       \
