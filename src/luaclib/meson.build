@@ -25,7 +25,7 @@ if lua_dep.found()
   securec_dep = dependency('securec', required: false)
 
   # 基础依赖列表（仅用于编译时头文件）
-  lua_base_deps = [dbus_dep, boost_dep, glib_dep, lua_dep]
+  lua_base_deps = [mcbase_dep, dbus_dep, boost_dep, glib_dep, lua_dep]
   if libsomp_dep.found()
     lua_base_deps += [libsomp_dep]
   endif
@@ -84,7 +84,7 @@ if lua_dep.found()
     'lvalidate',
     lvalidate_src,
     include_directories: base_inc_dirs1,
-    dependencies: [lua_dep, boost_dep, glib_dep, securec_dep],
+    dependencies: lua_base_deps,
     link_with: [libmcpp_lib],
     name_prefix: '',
     install: true,

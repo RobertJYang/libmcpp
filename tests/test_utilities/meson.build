@@ -2,9 +2,7 @@
 test_utilities_inc = include_directories('.')
 
 test_utilities_sources = [
-  'resource_manager.cpp',
   'dbus_daemon_manager.cpp',
-  'test_base.cpp',
 ]
 
 # 获取 conan 编译选项
@@ -29,8 +27,15 @@ test_utilities_lib = static_library(
   'mc_test_utilities',
   test_utilities_sources,
   include_directories: test_inc_dirs,
-  dependencies: test_utilities_deps,
+  dependencies: test_utilities_deps + [mcbase_dep],
   install: true, # 设置为可安装
 )
 
-test_utilities_dep = declare_dependency(link_with: test_utilities_lib, include_directories: [test_utilities_inc])
+test_utilities_dep = declare_dependency(
+  link_with: test_utilities_lib,
+  include_directories: [test_utilities_inc],
+  dependencies: [
+    mcbase_dep,
+    mcbase_test_utilities_dep,
+  ],
+)

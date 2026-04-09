@@ -12,7 +12,6 @@
 
 #include <gtest/gtest.h>
 
-#include "../runtime/test_future_helpers.h"
 #include <mc/interprocess/mutex.h>
 #include <mc/interprocess/shared_memory_manager.h>
 #include <mc/runtime/thread_list.h>
@@ -1219,16 +1218,17 @@ TEST_F(SharedMutexTestFixture, SharedMutexTryLockThreadMutexFailure)
 TEST_F(SharedMutexTestFixture, SharedMutexTryLockIpcFailure)
 {
     // 在一个线程中先获取 IPC 写锁（通过 ipc_shared_mutex 直接获取）
-    mc::test::runtime::future_flag lock_ready;
-    std::thread                    holder([this, &lock_ready]() {
+    std::promise<void> lock_ready_promise;
+    auto               lock_ready_future = lock_ready_promise.get_future();
+    std::thread        holder([this, &lock_ready_promise]() {
         EXPECT_TRUE(m_ipc_shared_mutex->try_lock());
-        lock_ready.set();
+        lock_ready_promise.set_value();
         std::this_thread::sleep_for(std::chrono::milliseconds(30));
         m_ipc_shared_mutex->unlock();
     });
 
     // 等待 holder 获取锁
-    ASSERT_TRUE(lock_ready.wait_for(std::chrono::milliseconds(3000)));
+    ASSERT_EQ(lock_ready_future.wait_for(std::chrono::milliseconds(3000)), std::future_status::ready);
 
     // 在另一个线程中调用 shared_mutex::try_lock()，应该返回 false
     std::atomic<bool> try_lock_result(false);

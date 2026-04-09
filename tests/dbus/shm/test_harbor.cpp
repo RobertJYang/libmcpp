@@ -21,26 +21,32 @@
 #include <memory>
 #include <thread>
 
-#include <gtest/gtest.h>
+#include <test_utilities/test_base.h>
 
 using namespace mc::dbus;
 
-class HarborTest : public ::testing::Test {
+class HarborTest : public mc::test::TestWithDbusDaemon {
 protected:
-    void SetUp() override
-    {
+    void SetUp() override {
         // 确保每个测试开始时 harbor 处于停止状态
         auto& harbor_instance = harbor::get_instance();
         harbor_instance.stop();
     }
 
-    void TearDown() override
-    {
+    void TearDown() override {
         // 确保每个测试结束后清理 harbor 状态
         auto& harbor_instance = harbor::get_instance();
         harbor_instance.stop();
         // 给一点时间让 worker 线程完全退出
         std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    }
+
+    static void SetUpTestSuite() {
+        TestWithDbusDaemon::SetUpTestSuite();
+    }
+
+    static void TearDownTestSuite() {
+        TestWithDbusDaemon::TearDownTestSuite();
     }
 };
 

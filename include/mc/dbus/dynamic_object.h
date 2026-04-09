@@ -92,6 +92,7 @@ private:
 class MC_API dynamic_object : public mc::engine::object_impl {
 public:
     dynamic_object(mc::core::object* parent = nullptr);
+    using mc::engine::object_impl::get_interface;
 
     mc::variant get_property(std::string_view property_name, std::string_view interface_name,
                              int options = 0) const override;

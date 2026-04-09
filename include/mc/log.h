@@ -21,6 +21,7 @@
  */
 
 // 包含核心日志头文件（不包含宏定义，这些将在本文件中提供）
+#include <mc/log/log.h>
 #include <mc/log/log_level.h>
 #include <mc/log/log_manager.h>
 #include <mc/log/log_message.h>
@@ -28,38 +29,7 @@
 
 namespace mc {
 
-/**
- * @brief 获取默认日志记录器
- *
- * @return log::logger 默认日志记录器
- */
-inline log::logger get_default_logger()
-{
-    return log::logger::get();
-}
-
-/**
- * @brief 获取指定名称的日志记录器
- *
- * @param name 日志记录器名称
- * @return log::logger 日志记录器
- */
-inline log::logger get_logger(const char* name)
-{
-    return log::logger::get(name);
-}
-
 namespace log {
-
-/**
- * @brief 获取默认日志记录器
- *
- * @return logger 默认日志记录器
- */
-inline logger default_logger()
-{
-    return log_manager::instance().get_logger();
-}
 
 /**
  * @brief 获取 mdbctl 专用日志记录器（仅含 socket_appender，不含 console/file）
@@ -77,15 +47,6 @@ inline logger mdbctl_logger()
 // ======================================================================
 // 日志宏定义
 // ======================================================================
-
-// 使用指定日志记录器的日志宏
-#define mc_tlog(LOGGER, ...) MC_LOG_BASE(LOGGER, trace, __VA_ARGS__)
-#define mc_dlog(LOGGER, ...) MC_LOG_BASE(LOGGER, debug, __VA_ARGS__)
-#define mc_ilog(LOGGER, ...) MC_LOG_BASE(LOGGER, info, __VA_ARGS__)
-#define mc_nlog(LOGGER, ...) MC_LOG_BASE(LOGGER, notice, __VA_ARGS__)
-#define mc_wlog(LOGGER, ...) MC_LOG_BASE(LOGGER, warn, __VA_ARGS__)
-#define mc_elog(LOGGER, ...) MC_LOG_BASE(LOGGER, error, __VA_ARGS__)
-#define mc_flog(LOGGER, ...) MC_LOG_BASE(LOGGER, fatal, __VA_ARGS__)
 
 // 使用指定日志记录器的不限流（_easy）日志宏
 #define mc_tlog_easy(LOGGER, ...) MC_LOG_BASE_EASY(LOGGER, trace, __VA_ARGS__)
@@ -135,7 +96,6 @@ inline logger mdbctl_logger()
 // 安全日志宏（格式：时间、级别、日志内容，仅 message 参数，使用 info 级别）
 #define mc_security_log(LOGGER, ...)                                                                                   \
     MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, mc::log::log_category::security, info, __VA_ARGS__)
-
 // 南向硬件流日志宏（输出到相关日志文件 LOG_LOCAL6，格式：时间 模块名 级别: 文件名(行数): 日志文本）
 #define mc_hw_stream_info(LOGGER, ...)                                                                                 \
     MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, mc::log::log_category::hw_stream, info, __VA_ARGS__)
@@ -155,15 +115,6 @@ inline logger mdbctl_logger()
     MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, mc::log::log_category::mc_stream, notice, __VA_ARGS__)
 #define mc_mc_stream_error(LOGGER, ...)                                                                                \
     MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, mc::log::log_category::mc_stream, error, __VA_ARGS__)
-
-// 使用默认日志记录器的全局日志宏
-#define tlog(...) mc_tlog(mc::log::default_logger(), __VA_ARGS__)
-#define dlog(...) mc_dlog(mc::log::default_logger(), __VA_ARGS__)
-#define ilog(...) mc_ilog(mc::log::default_logger(), __VA_ARGS__)
-#define nlog(...) mc_nlog(mc::log::default_logger(), __VA_ARGS__)
-#define wlog(...) mc_wlog(mc::log::default_logger(), __VA_ARGS__)
-#define elog(...) mc_elog(mc::log::default_logger(), __VA_ARGS__)
-#define flog(...) mc_flog(mc::log::default_logger(), __VA_ARGS__)
 
 // 使用默认日志记录器的全局不限流（_easy）日志宏
 #define tlog_easy(...) mc_tlog_easy(mc::log::default_logger(), __VA_ARGS__)
@@ -193,7 +144,6 @@ inline logger mdbctl_logger()
 
 // 全局安全日志宏
 #define security_log(...) mc_security_log(mc::log::default_logger(), __VA_ARGS__)
-
 // 全局南向硬件流日志宏
 #define hw_stream_info(...)   mc_hw_stream_info(mc::log::default_logger(), __VA_ARGS__)
 #define hw_stream_warn(...)   mc_hw_stream_warn(mc::log::default_logger(), __VA_ARGS__)

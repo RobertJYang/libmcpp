@@ -524,7 +524,7 @@ void ensure_global_name_owner_subscription(mc::dbus::sd_bus* bus)
 
     auto rule = mc::dbus::match_rule::new_signal("NameOwnerChanged", "org.freedesktop.DBus");
 
-    uint64_t match_id = bus->add_match(rule, [bus](mc::dbus::message& msg) {
+    uint64_t match_id = bus->add_match(rule, [](mc::dbus::message& msg) {
         try {
             auto args = msg.read_args();
             if (args.size() >= 3) {
@@ -546,7 +546,7 @@ uint64_t create_interfaces_removed_subscription(mc::dbus::sd_bus* bus, const std
     auto rule = mc::dbus::match_rule::new_signal("InterfacesRemoved", mc::dbus::DBUS_OBJECT_MANAGER_INTERFACE.data());
     rule.with_path(path);
 
-    uint64_t match_id = bus->add_match(rule, [bus, path](mc::dbus::message& msg) {
+    uint64_t match_id = bus->add_match(rule, [path](mc::dbus::message& msg) {
         try {
             auto args = msg.read_args();
             if (args.size() >= 2) {
@@ -571,7 +571,7 @@ uint64_t create_properties_changed_subscription(mc::dbus::sd_bus* bus, const std
     auto rule = mc::dbus::match_rule::new_signal("PropertiesChanged", mc::dbus::DBUS_PROPERTIES_INTERFACE.data());
     rule.with_path(path);
 
-    uint64_t match_id = bus->add_match(rule, [bus, path, interface](mc::dbus::message& msg) {
+    uint64_t match_id = bus->add_match(rule, [path, interface](mc::dbus::message& msg) {
         try {
             auto args = msg.read_args();
             if (args.size() >= 2) {

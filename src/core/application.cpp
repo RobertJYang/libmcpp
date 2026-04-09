@@ -16,6 +16,7 @@
 #include <mc/string.h>
 
 #include <boost/program_options.hpp>
+#include <log/builtin_appenders.h>
 
 namespace mc::core {
 
@@ -114,6 +115,7 @@ supervisor_manager& application::get_supervisor_manager()
 
 bool application::initialize()
 {
+    mc::log::bootstrap_default_logging();
     return m_impl->initialize();
 }
 
@@ -132,6 +134,7 @@ bool application::impl::initialize()
 
 bool application::initialize(int argc, char** argv)
 {
+    mc::log::bootstrap_default_logging();
     return m_impl->initialize(argc, argv);
 }
 

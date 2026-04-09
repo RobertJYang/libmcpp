@@ -17,6 +17,7 @@
 #ifndef LOGGING_INTERNAL_H
 #define LOGGING_INTERNAL_H
 
+#include <fstream>
 #include <glib.h>
 #include <string>
 
@@ -40,8 +41,32 @@ struct LogRecord {
 inline void filter_invalid_chars(std::string& str)
 {}
 
-inline void internal_log_handler(LogRecord* rec, bool limit)
-{}
+// 测试用例可通过设置此变量来指定日志输出文件
+// 默认值：TEST_LOG_DIR/test_file_appender_mock.log
+inline std::string& get_stub_log_path() {
+#ifdef TEST_LOG_DIR
+    static std::string log_path = std::string(TEST_LOG_DIR) + "/test_file_appender_mock.log";
+#else
+    static std::string log_path = "/tmp/test_file_appender_mock.log";
+#endif
+    return log_path;
+}
+
+// 设置 stub 日志输出文件路径
+inline void set_stub_log_path(const std::string& path) {
+    get_stub_log_path() = path;
+}
+
+// Stub 实现：将日志写入到 get_stub_log_path() 指定的文件
+inline void internal_log_handler(LogRecord* rec, bool limit) {
+    std::ofstream ofs(get_stub_log_path(), std::ios::app);
+    if (!ofs.is_open()) {
+        return;
+    }
+    if (rec && !rec->log.empty()) {
+        ofs << rec->log << std::endl;
+    }
+}
 
 } // namespace logging
 
