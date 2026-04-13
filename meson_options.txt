@@ -20,6 +20,13 @@ option(
 )
 
 option(
+       'tests_utilities',
+       type: 'boolean',
+       value: false,
+       description: '是否构建测试辅助库，默认为false',
+)
+
+option(
        'meson_build',
        type: 'boolean',
        value: true,
