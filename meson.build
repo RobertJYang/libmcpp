@@ -42,6 +42,7 @@ endif
 
 meson_build = get_option('meson_build')
 build_tests = get_option('tests')
+tests_utilities = get_option('tests_utilities')
 enable_coverage = get_option('enable_coverage')
 enable_conan_compile = get_option('enable_conan_compile')
 
@@ -114,7 +115,7 @@ else
 endif
 
 # 测试依赖
-if build_tests
+if build_tests or tests_utilities
   gtest_dep = dependency('gtest', method: 'pkg-config', required: true)
 endif
 
@@ -134,6 +135,7 @@ mcbase_dep = dependency(
   default_options: [
     'default_library=shared',
     'tests=' + build_tests.to_string(),
+    'tests_utilities=' + tests_utilities.to_string(),
     'securec=' + mcbase_securec_option,
   ],
   required: true,
@@ -144,6 +146,7 @@ mcbase_dep = dependency(
 mcbase_subproject = subproject('mcbase', default_options: [
   'default_library=shared',
   'tests=' + build_tests.to_string(),
+  'tests_utilities=' + tests_utilities.to_string(),
   'meson_build=' + meson_build.to_string(),
   'securec=' + mcbase_securec_option,
 ])
@@ -155,6 +158,12 @@ if build_tests
   mcbase_test_dep = mcbase_subproject.get_variable('mcbase_test_dep')
   mcbase_test_utilities_dep = mcbase_subproject.get_variable('test_utilities_dep')
   mock_dynamic_module = mcbase_subproject.get_variable('mock_dynamic_module')
+elif tests_utilities
+  # 只需要测试工具库，不需要测试库本身
+  mcbase_test_lib = []
+  mcbase_test_dep = declare_dependency()  # 空依赖
+  mcbase_test_utilities_dep = mcbase_subproject.get_variable('test_utilities_dep')
+  mock_dynamic_module = []  # 空列表
 else
   mcbase_test_lib = []
   mcbase_test_dep = declare_dependency()  # 空依赖

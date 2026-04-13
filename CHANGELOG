@@ -1,5 +1,8 @@
 # Changelog
 All notable changes to this project will be documented in this file.
+## [1.2.69] - 2026-04-13
+新增 tests_utilities 选项以单独构建测试辅助库
+
 ## [1.2.68] - 2026-04-08
 拆分mcbase库成为独立的子项目
 
