@@ -20,12 +20,34 @@
 #include <mc/exception.h>
 #include <mc/variant.h>
 #include <mc/variant/variant_common.h>
+#include <memory>
+#include <optional>
 #include <stdexcept>
 #include <test_utilities/base.h>
+#include <tuple>
 #include <typeindex>
+#include <vector>
 
 namespace mc {
 namespace test {
+
+struct non_variant_leaf {
+    int value = 0;
+};
+
+struct variant_leaf {
+    int value = 0;
+};
+
+inline void to_variant(const variant_leaf& value, variant& vo)
+{
+    vo = value.value;
+}
+
+inline void from_variant(const variant& var, variant_leaf& value)
+{
+    value.value = var.as_int32();
+}
 
 template <typename T>
 struct test_array_allocator {
@@ -388,6 +410,54 @@ TEST_F(VariantContainersTest, TypedArrayRoundTripSharesErasedCoreWhenTypesMatch)
 
     ASSERT_TRUE(holder.is_array());
     EXPECT_EQ(holder.get_array()[1].as_int32(), 42);
+}
+
+TEST_F(VariantContainersTest, VariantTraitsRejectCompositeTypesWithNonConvertibleElements)
+{
+    EXPECT_FALSE((mc::is_variant_constructible_v<std::tuple<non_variant_leaf>>));
+    EXPECT_FALSE((mc::is_variant_convertible_v<std::tuple<non_variant_leaf>>));
+
+    EXPECT_FALSE((mc::is_variant_constructible_v<std::pair<int, non_variant_leaf>>));
+    EXPECT_FALSE((mc::is_variant_convertible_v<std::pair<int, non_variant_leaf>>));
+
+    EXPECT_FALSE((mc::is_variant_constructible_v<std::array<non_variant_leaf, 2>>));
+    EXPECT_FALSE((mc::is_variant_convertible_v<std::array<non_variant_leaf, 2>>));
+
+    EXPECT_FALSE((mc::is_variant_constructible_v<std::vector<non_variant_leaf>>));
+    EXPECT_FALSE((mc::is_variant_convertible_v<std::vector<non_variant_leaf>>));
+
+    EXPECT_FALSE((mc::is_variant_constructible_v<std::optional<non_variant_leaf>>));
+    EXPECT_FALSE((mc::is_variant_convertible_v<std::optional<non_variant_leaf>>));
+
+    EXPECT_FALSE((mc::is_variant_constructible_v<std::shared_ptr<non_variant_leaf>>));
+    EXPECT_FALSE((mc::is_variant_convertible_v<std::shared_ptr<non_variant_leaf>>));
+
+    EXPECT_FALSE((mc::is_variant_constructible_v<std::variant<int, non_variant_leaf>>));
+    EXPECT_FALSE((mc::is_variant_convertible_v<std::variant<int, non_variant_leaf>>));
+}
+
+TEST_F(VariantContainersTest, VariantTraitsAcceptCompositeTypesWithConvertibleElements)
+{
+    EXPECT_TRUE((mc::is_variant_constructible_v<std::tuple<int, variant_leaf>>));
+    EXPECT_TRUE((mc::is_variant_convertible_v<std::tuple<int, variant_leaf>>));
+
+    EXPECT_TRUE((mc::is_variant_constructible_v<std::pair<int, variant_leaf>>));
+    EXPECT_TRUE((mc::is_variant_convertible_v<std::pair<int, variant_leaf>>));
+
+    EXPECT_TRUE((mc::is_variant_constructible_v<std::array<variant_leaf, 2>>));
+    EXPECT_TRUE((mc::is_variant_convertible_v<std::array<variant_leaf, 2>>));
+
+    EXPECT_TRUE((mc::is_variant_constructible_v<std::vector<variant_leaf>>));
+    EXPECT_TRUE((mc::is_variant_convertible_v<std::vector<variant_leaf>>));
+
+    EXPECT_TRUE((mc::is_variant_constructible_v<std::optional<variant_leaf>>));
+    EXPECT_TRUE((mc::is_variant_convertible_v<std::optional<variant_leaf>>));
+
+    EXPECT_TRUE((mc::is_variant_constructible_v<std::shared_ptr<variant_leaf>>));
+    EXPECT_TRUE((mc::is_variant_convertible_v<std::shared_ptr<variant_leaf>>));
+
+    EXPECT_TRUE((mc::is_variant_constructible_v<std::variant<int, variant_leaf>>));
+    EXPECT_TRUE((mc::is_variant_convertible_v<std::variant<int, variant_leaf>>));
 }
 
 TEST_F(VariantContainersTest, VariantsResizePopAndForEach)
