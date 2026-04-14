@@ -21,9 +21,25 @@
 #include <mc/expr/node.h>
 #include <mc/expr/parser.h>
 #include <mc/singleton.h>
+#include <mutex>
 
 namespace mc::expr {
 using abstract_object = mc::engine::abstract_object;
+
+static bool resolve_object_path(engine& expr_engine, std::string_view path_pattern, const abstract_object& obj,
+                                std::string& path);
+
+namespace {
+
+void register_path_resolver()
+{
+    mc::engine::engine::set_path_resolver(
+        [](std::string_view path_pattern, const abstract_object& obj, std::string& path) {
+        return resolve_object_path(engine::get_instance(), path_pattern, obj, path);
+    });
+}
+
+} // namespace
 
 static bool resolve_object_path(engine& expr_engine, std::string_view path_pattern, const abstract_object& obj,
                                 std::string& path)
@@ -106,12 +122,14 @@ object_context engine::make_context(mc::engine::abstract_object* object, context
     return object_context(object, parent ? parent : &get_global_context());
 }
 
-[[maybe_unused]] static bool _install_path_resolver = []() {
-    mc::engine::engine::set_path_resolver(
-        [](std::string_view path_pattern, const abstract_object& obj, std::string& path) {
-        return resolve_object_path(engine::get_instance(), path_pattern, obj, path);
-    });
-    return true;
-}();
+extern "C" __attribute__((visibility("default"))) void mc_expr_ensure_path_resolver_registered()
+{
+    static std::once_flag once;
+    std::call_once(once, register_path_resolver);
+}
 
+__attribute__((constructor)) static void mc_expr_install_path_resolver()
+{
+    mc_expr_ensure_path_resolver_registered();
+}
 } // namespace mc::expr

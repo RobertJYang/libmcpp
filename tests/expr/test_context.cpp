@@ -514,6 +514,31 @@ TEST_F(expr_context_test, object_context_get_object)
     EXPECT_EQ(obj, test_obj.get());
 }
 
+TEST_F(expr_context_test, object_context_common_variables)
+{
+    auto parent_obj = tests::expr::context_test::TestObjectForGetObject::create();
+    parent_obj->set_object_name("ParentObject");
+    parent_obj->set_object_path("/org/test/ParentObject");
+
+    auto test_obj = tests::expr::context_test::TestObjectForGetObject::create();
+    test_obj->set_owner(parent_obj.get());
+    test_obj->set_object_name("ChildObject");
+    test_obj->set_position("3");
+    test_obj->set_object_id(42);
+
+    mc::expr::object_context obj_ctx(test_obj.get());
+
+    EXPECT_TRUE(obj_ctx.has_variable("object_name"));
+    EXPECT_TRUE(obj_ctx.has_variable("position"));
+    EXPECT_TRUE(obj_ctx.has_variable("object_id"));
+    EXPECT_TRUE(obj_ctx.has_variable("class_name"));
+
+    EXPECT_EQ(obj_ctx.get_variable("object_name"), "ChildObject");
+    EXPECT_EQ(obj_ctx.get_variable("position"), "3");
+    EXPECT_EQ(obj_ctx.get_variable("object_id"), 42);
+    EXPECT_EQ(obj_ctx.get_variable("class_name"), "TestObjectForGetObject");
+}
+
 // 测试通过对象符号访问变量类型的符号（包含属性）
 TEST_F(expr_context_test, get_variable_from_variable_symbol)
 {

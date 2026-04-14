@@ -150,10 +150,10 @@ bool service_impl::start()
         return false;
     }
 
-    auto service_name       = m_service->name();
-    auto ret                = connection.request_name(service_name);
-    bool success            = std::get<0>(ret);
-    auto err_opt            = std::get<1>(ret);
+    auto service_name = m_service->name();
+    auto ret          = connection.request_name(service_name);
+    bool success      = std::get<0>(ret);
+    auto err_opt      = std::get<1>(ret);
     if (!success) {
         if (err_opt.has_value() && err_opt->message) {
             elog("start service failed: cannot request dbus name: ${error}", ("error", err_opt->message));
