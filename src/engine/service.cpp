@@ -84,10 +84,10 @@ struct service_impl {
     bool start();
     void stop();
 
-    DBusHandlerResult on_path_message(mc::dbus::message& msg, abstract_object& obj);
+    DBusHandlerResult on_path_message(mc::dbus::message& msg, object_ptr obj);
     DBusHandlerResult on_filter_message(mc::dbus::message& msg);
 
-    DBusHandlerResult on_method_call(abstract_object& obj, mc::dbus::message& msg);
+    void on_method_call(abstract_object& obj, mc::dbus::message& msg);
 
     void register_object(abstract_object& obj);
     void unregister_object(std::string_view path);
@@ -222,7 +222,7 @@ void service_impl::register_object(abstract_object& obj)
     m_object_table->add(shared_obj);
     obj.set_service(m_service);
     m_connection.register_path(obj.get_object_path(), [this, pobj = shared_obj](auto& msg) {
-        return on_path_message(msg, *pobj);
+        return on_path_message(msg, pobj);
     });
 
     auto* owner = find_owner(m_root, obj.get_object_path());
@@ -419,16 +419,19 @@ DBusHandlerResult service_impl::on_filter_message(mc::dbus::message& msg)
     return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 }
 
-DBusHandlerResult service_impl::on_path_message(mc::dbus::message& msg, abstract_object& obj)
+DBusHandlerResult service_impl::on_path_message(mc::dbus::message& msg, object_ptr obj)
 {
     if (msg.is_method_call()) {
-        return on_method_call(obj, msg);
+        mc::get_io_context().get_executor().post([this, msg, obj]() mutable {
+            on_method_call(*obj, msg);
+        }, std::allocator<void>{});
+        return DBUS_HANDLER_RESULT_HANDLED;
     }
 
     return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 }
 
-DBusHandlerResult service_impl::on_method_call(abstract_object& object, mc::dbus::message& msg)
+void service_impl::on_method_call(abstract_object& object, mc::dbus::message& msg)
 {
     context ctx(*m_service, object);
     ctx.set_call_info(detail::dbus_call{msg});
@@ -502,7 +505,7 @@ DBusHandlerResult service_impl::on_method_call(abstract_object& object, mc::dbus
         if (ctx_err) {
             info.response = mc::dbus::message::new_error(msg, ctx_err->name, ctx_err->to_string_format_inplace());
             m_connection.send(std::move(info.response));
-            return DBUS_HANDLER_RESULT_HANDLED;
+            return;
         }
 
         // 未知错误记录 error 日志
@@ -511,7 +514,6 @@ DBusHandlerResult service_impl::on_method_call(abstract_object& object, mc::dbus
         info.response = mc::dbus::message::new_error(msg, errors::failed.name, e.what());
     }
     m_connection.send(std::move(info.response));
-    return DBUS_HANDLER_RESULT_HANDLED;
 }
 
 uint64_t service_impl::add_match(mc::dbus::match_rule& rule, mc::dbus::match_cb_t&& cb)
