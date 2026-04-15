@@ -1,5 +1,8 @@
 # Changelog
 All notable changes to this project will be documented in this file.
+## [1.2.70] - 2026-04-15
+异步处理DBus方法调用，避免阻塞DBus消息调度流程
+
 ## [1.2.69] - 2026-04-13
 新增 tests_utilities 选项以单独构建测试辅助库
 
