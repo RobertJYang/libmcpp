@@ -22,6 +22,8 @@ using table_connection_map = std::multimap<std::string, mc::connection_type>;
 using thread_list          = std::list<std::thread>;
 using work_guard           = boost::asio::executor_work_guard<boost::asio::io_context::executor_type>;
 
+extern "C" void mc_expr_ensure_path_resolver_registered();
+
 // 我们支持路径表达式求值，路径表达式是在 expr 模块实现的，但我不希望 engine
 // 需要反向依赖表达式才能工作，这里提供一个全局函数 用于外部注册路径表达式求值函数。 使用全局变量而不是跟随 engine
 // 单例的原因是避免在单例销毁后 path_resolver 被销毁，导致路径表达式求值函数无法使用，因为 在单元测试中经常需要销毁
@@ -33,6 +35,10 @@ void                 engine::set_path_resolver(path_resolver resolver)
 }
 path_resolver& engine::get_path_resolver()
 {
+    // constructor 未触发时，首次取 resolver 前再补注册一次。
+    if (!s_path_resolver) {
+        mc_expr_ensure_path_resolver_registered();
+    }
     return s_path_resolver;
 }
 
