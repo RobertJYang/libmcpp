@@ -353,26 +353,28 @@ std::false_type has_from_variant_function(...);
 template <typename T>
 inline constexpr bool has_from_variant_function_v = decltype(has_from_variant_function<T>(0))::value;
 
-// 检测类型是否可构造为 variant，分两步检测避免编译错误
+// 检测类型是否可与 variant 双向互操作（to_variant + from_variant）
 template <typename T>
 struct is_variant_constructible {
-    // 第一步：检查是否可以构造
+    // 第一步：检查是否为可直接构造的基本类型
     static constexpr bool is_constructible =
         mc::is_variant_fundamental_v<T> || std::is_same_v<std::decay_t<T>, mc::dict> ||
         std::is_same_v<std::decay_t<T>, mc::blob> || std::is_same_v<std::decay_t<T>, mc::variants>;
 
-    // 第二步：仅当不可构造时，才检查是否有 to_variant 函数
+    // 第二步：仅当不是基本类型时，同时检查 to_variant 和 from_variant
+    // 要求双向支持，避免仅有隐式转换到基本类型的类型被误判
     template <typename U, bool IsConstructible>
-    struct check_to_variant {
+    struct check_variant_compat {
         static constexpr bool value = true;
     };
 
     template <typename U>
-    struct check_to_variant<U, false> {
-        static constexpr bool value = detail::has_to_variant_function_v<U>;
+    struct check_variant_compat<U, false> {
+        static constexpr bool value =
+            detail::has_to_variant_function_v<U> && detail::has_from_variant_function_v<U>;
     };
 
-    static constexpr bool value = check_to_variant<T, is_constructible>::value;
+    static constexpr bool value = check_variant_compat<T, is_constructible>::value;
 };
 
 // 检测类型是否可从 variant 转换

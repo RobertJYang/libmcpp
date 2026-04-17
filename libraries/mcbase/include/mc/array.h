@@ -956,12 +956,31 @@ public:
     }
 
     /**
-     * @brief 转换为 std::vector
+     * @brief 转换为 std::vector 的拷贝
      * @return std::vector 的拷贝
      */
     vector_type to_vector() const
     {
         return m_data ? vector_type(*m_data) : vector_type();
+    }
+
+    /**
+     * @brief 隐式转换为 const std::vector 引用
+     * @return 底层 std::vector 的常量引用（零拷贝）
+     * @note 允许 mc::array 在需要 const std::vector<T>& 的 C++ 函数参数中隐式转换，
+     *       直接引用内部数据，不产生拷贝。
+     *       引用生命周期与 mc::array 对象绑定，mc::array 析构后引用失效。
+     */
+    operator const vector_type&() const
+    {
+        static const vector_type empty;
+        return m_data ? static_cast<const vector_type&>(*m_data) : empty;
+    }
+
+    operator vector_type&()
+    {
+        ensure_data();
+        return static_cast<vector_type&>(*m_data);
     }
 
 private:
