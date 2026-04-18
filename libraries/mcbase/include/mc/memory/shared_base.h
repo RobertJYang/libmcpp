@@ -126,7 +126,7 @@ public:
     static constexpr counter_type EXTERNAL  = INVALID - 1;
     static constexpr counter_type DESTROYED = 0;
 
-    shared_counter();
+    shared_counter() noexcept;
     virtual ~shared_counter();
 
     // 弱引用计数保底设置为 1，这是因为 shared_ptr 需要两阶段销毁对象：

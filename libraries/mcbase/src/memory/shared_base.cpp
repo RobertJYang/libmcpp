@@ -34,7 +34,7 @@ void execute_final_release_impl(mc::gc::gc_final_release_context_t opaque)
 
 namespace mc::memory {
 
-shared_counter::shared_counter() : m_ref_count(INVALID), m_weak_count(1), m_alloc_base(nullptr), m_release_ops(nullptr)
+shared_counter::shared_counter() noexcept : m_ref_count(INVALID), m_weak_count(1), m_alloc_base(nullptr), m_release_ops(nullptr)
 {
     gc_init();
 }
