@@ -42,6 +42,8 @@ struct GCHead {
     std::atomic<uint32_t> gc_index;
     std::atomic<uint8_t>  gc_flags;
 
+    GCHead() noexcept : gc_index{GC_INDEX_UNTRACKED}, gc_flags{0} {}
+
     static constexpr uint32_t GC_INDEX_UNTRACKED = UINT32_MAX;
     static constexpr uint8_t GC_FLAG_PENDING_FINAL_RELEASE = 0x01;
     static constexpr uint8_t GC_FLAG_EXTERNAL_OWNED        = 0x02;

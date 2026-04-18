@@ -34,7 +34,7 @@ public:
     using connect_handler_type = mc::runtime::detail::completion_handler<void(const std::error_code&)>;
     using io_handler_type      = mc::runtime::detail::completion_handler<void(const std::error_code&, std::size_t)>;
 
-    tcp_socket() noexcept = default;
+    tcp_socket() = default;
     explicit tcp_socket(mc::runtime::any_executor executor);
 
     template <typename Executor,
