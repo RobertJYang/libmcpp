@@ -22,3 +22,10 @@ option(
   value: true,
   description: 'mcengine 默认 storage_engine 使用 mc::db::shm_storage_engine（默认 ON）',
 )
+
+option(
+  'with_benches',
+  type: 'boolean',
+  value: false,
+  description: '构建 mcengine SHM 微基准（bench_shm_object_throughput / bench_shm_recovery_time）',
+)

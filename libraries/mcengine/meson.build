@@ -14,6 +14,7 @@ project(
 build_tests = get_option('tests')
 enable_coverage = get_option('enable_coverage')
 use_shm = get_option('use_shm')
+with_benches = get_option('with_benches')
 
 if use_shm
   add_project_arguments('-DMCENGINE_USE_SHM=1', language: 'cpp')
@@ -106,4 +107,8 @@ if build_tests
   )
 
   subdir('tests')
+endif
+
+if with_benches
+  subdir('benches')
 endif

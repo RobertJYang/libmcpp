@@ -237,7 +237,9 @@ TEST(shm_object_crc, property_slab_check_rejects_count_exceeds_capacity)
     slab->abi_version            = shm_object_abi_version;
     slab->slot_capacity          = capacity;
     slab->slot_count             = capacity + 1;
-    slab->crc32                  = property_slab_compute_crc(*slab);
+    // 不调用 compute_crc：count>capacity 时 compute 按 slot_count 读会越界访问
+    // 已分配 buf 之外的 slot 区域。property_slab_check 先校验 count<=capacity，
+    // 因此 crc 字段保持默认 0 不影响 EXPECT_FALSE 断言。
     EXPECT_FALSE(property_slab_check(*slab));
 }
 
@@ -274,7 +276,7 @@ TEST(shm_object_crc, child_slab_check_rejects_count_exceeds_capacity)
     slab->abi_version            = shm_object_abi_version;
     slab->slot_capacity          = capacity;
     slab->slot_count             = capacity + 1;
-    slab->crc32                  = child_slab_compute_crc(*slab);
+    // 同 property_slab：count>capacity 时 compute 会越界，依赖 check 的容量预检拒绝。
     EXPECT_FALSE(child_slab_check(*slab));
 }
 
