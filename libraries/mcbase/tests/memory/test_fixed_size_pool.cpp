@@ -14,10 +14,12 @@
 
 #include <mc/memory/fixed_size_pool.h>
 
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <thread>
 #include <vector>
 
@@ -42,6 +44,106 @@ TEST(FixedSizePoolTest, ReusesFreedSlot)
 
     pool.deallocate(reused);
     pool.deallocate(first);
+}
+
+TEST(FixedSizePoolTest, ReportsFreshAllocationBeforeFirstReuseWithLocalCache)
+{
+    pool_options options;
+    options.initial_slab_slots   = 4;
+    options.local_cache_capacity = 4;
+
+    mc::memory::fixed_size_pool pool(32, alignof(std::max_align_t), options);
+
+    auto first = pool.allocate_with_status();
+    ASSERT_NE(first.ptr, nullptr);
+    EXPECT_FALSE(first.reused);
+
+    pool.deallocate(first.ptr);
+
+    auto second = pool.allocate_with_status();
+    ASSERT_NE(second.ptr, nullptr);
+    EXPECT_EQ(second.ptr, first.ptr);
+    EXPECT_TRUE(second.reused);
+
+    pool.deallocate(second.ptr);
+}
+
+TEST(FixedSizePoolTest, FreelistMetadataDoesNotOverwritePayloadPrefix)
+{
+    pool_options options;
+    options.initial_slab_slots   = 4;
+    options.local_cache_capacity = 0;
+
+    mc::memory::fixed_size_pool pool(32, alignof(std::max_align_t), options);
+
+    auto* payload = static_cast<unsigned char*>(pool.allocate());
+    ASSERT_NE(payload, nullptr);
+
+    std::array<unsigned char, 16> marker{};
+    for (std::size_t i = 0; i < marker.size(); ++i) {
+        marker[i] = static_cast<unsigned char>(0xA0U + i);
+    }
+
+    std::memcpy(payload, marker.data(), marker.size());
+    pool.deallocate(payload);
+
+    EXPECT_EQ(std::memcmp(payload, marker.data(), marker.size()), 0)
+        << "free-list 元数据不应覆盖返回给上层的 payload 前缀";
+}
+
+TEST(FixedSizePoolTest, ReportsFreshAllocationsUnderConcurrentLocalCacheRefill)
+{
+    pool_options options;
+    options.initial_slab_slots   = 64;
+    options.max_slab_slots       = 64;
+    options.max_total_slots      = 64;
+    options.local_cache_capacity = 16;
+
+    mc::memory::fixed_size_pool pool(32, alignof(std::max_align_t), options);
+
+    constexpr int                   thread_count     = 4;
+    constexpr int                   slots_per_thread = 8;
+    std::atomic<int>                ready_threads{0};
+    std::atomic<bool>               start{false};
+    std::atomic<int>                reused_count{0};
+    std::vector<std::vector<void*>> acquired_slots(thread_count);
+    std::vector<std::thread>        workers;
+    workers.reserve(thread_count);
+
+    for (int thread_index = 0; thread_index < thread_count; ++thread_index) {
+        workers.emplace_back([&, thread_index]() {
+            acquired_slots[thread_index].reserve(slots_per_thread);
+            ready_threads.fetch_add(1, std::memory_order_release);
+            while (!start.load(std::memory_order_acquire)) {
+                std::this_thread::yield();
+            }
+
+            for (int slot_index = 0; slot_index < slots_per_thread; ++slot_index) {
+                auto result = pool.allocate_with_status();
+                if (result.reused) {
+                    reused_count.fetch_add(1, std::memory_order_relaxed);
+                }
+                acquired_slots[thread_index].push_back(result.ptr);
+            }
+        });
+    }
+
+    while (ready_threads.load(std::memory_order_acquire) != thread_count) {
+        std::this_thread::yield();
+    }
+    start.store(true, std::memory_order_release);
+
+    for (auto& worker : workers) {
+        worker.join();
+    }
+
+    EXPECT_EQ(reused_count.load(std::memory_order_relaxed), 0) << "首次并发分配 fresh 槽位时不应误报为 reused";
+
+    for (const auto& slots : acquired_slots) {
+        for (void* slot : slots) {
+            pool.deallocate(slot);
+        }
+    }
 }
 
 TEST(FixedSizePoolTest, TrimReleasesFullyFreeSlabs)
@@ -226,7 +328,7 @@ TEST(FixedSizePoolTest, KeepsThreadLocalCacheForMultiplePools)
 TEST(FixedSizePoolTest, UsesCompactStrideForEightByteAlignedObjects)
 {
     mc::memory::fixed_size_pool pool(32, alignof(std::uint64_t));
-    EXPECT_EQ(pool.slot_stride(), 32U);
+    EXPECT_EQ(pool.slot_stride(), 48U);
 }
 
 TEST(FixedSizePoolTest, LocalCacheCapacityBoundsPerThreadRetention)

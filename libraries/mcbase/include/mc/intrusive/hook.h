@@ -19,6 +19,8 @@
 
 #include <cstddef>
 
+#include <mc/intrusive/offset_ptr.h>
+
 namespace mc::intrusive {
 
 // --- Option tags ---
@@ -26,11 +28,7 @@ namespace mc::intrusive {
 template <bool Enabled>
 struct constant_time_size {};
 
-enum link_mode_type {
-    safe_link,
-    auto_unlink,
-    normal_link
-};
+enum link_mode_type { safe_link, auto_unlink, normal_link };
 
 template <link_mode_type Mode>
 struct link_mode {};
@@ -40,25 +38,25 @@ struct link_mode {};
 namespace detail {
 
 struct list_hook_state {
-    void* prev{nullptr};
-    void* next{nullptr};
+    mc::intrusive::offset_ptr<list_hook_state> prev{};
+    mc::intrusive::offset_ptr<list_hook_state> next{};
 };
 
 struct slist_hook_state {
-    void* next{nullptr};
+    mc::intrusive::offset_ptr<slist_hook_state> next{};
 };
 
 struct set_hook_state {
-    set_hook_state* parent{nullptr};
-    set_hook_state* left{nullptr};
-    set_hook_state* right{nullptr};
-    bool            is_red{true};
+    mc::intrusive::offset_ptr<set_hook_state> parent{};
+    mc::intrusive::offset_ptr<set_hook_state> left{};
+    mc::intrusive::offset_ptr<set_hook_state> right{};
+    bool                                      is_red{true};
 };
 
 struct unordered_hook_state {
-    unordered_hook_state* next{nullptr};
-    unordered_hook_state* prev{nullptr};
-    std::size_t           hash_value{0};
+    mc::intrusive::offset_ptr<unordered_hook_state> next{};
+    mc::intrusive::offset_ptr<unordered_hook_state> prev{};
+    std::size_t                                     hash_value{0};
 };
 
 } // namespace detail

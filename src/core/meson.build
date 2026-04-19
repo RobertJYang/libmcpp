@@ -17,7 +17,7 @@ libmcpp_core_lib = library(
   'mcpp_core',
   core_src_files,
   include_directories: base_inc_dirs,
-  dependencies: dep_arr,
+  dependencies: dep_arr + [mcengine_dep],
   install: true,
   install_dir: install_dir,
   build_by_default: true,
@@ -25,5 +25,5 @@ libmcpp_core_lib = library(
 libmcpp_core_dep = declare_dependency(
   include_directories: incdir,
   link_with: libmcpp_core_lib,
-  dependencies: [dep_arr, libmcpp_base_internal_dep],
+  dependencies: dep_arr + [mcengine_dep],
 )

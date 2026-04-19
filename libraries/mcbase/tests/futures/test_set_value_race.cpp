@@ -250,6 +250,46 @@ TEST_F(SetValueRaceTest, clear_pending_during_non_pool_reply)
     SUCCEED();
 }
 
+TEST_F(SetValueRaceTest, resolved_future_does_not_keep_cancel_requested_after_race)
+{
+    constexpr int rounds = 2000;
+
+    for (int i = 0; i < rounds; ++i) {
+        auto promise = mc::make_promise<int>(mc::get_io_context());
+        auto future  = promise.get_future();
+
+        std::promise<void> start_promise;
+        auto               start_future = start_promise.get_future().share();
+
+        std::thread setter([promise = std::move(promise), start_future]() mutable {
+            start_future.wait();
+            promise.set_value(7);
+        });
+
+        std::thread canceller([&future, start_future]() mutable {
+            start_future.wait();
+            future.cancel();
+        });
+
+        start_promise.set_value();
+
+        setter.join();
+        canceller.join();
+
+        bool cancel_callback_called = false;
+        future.on_cancel([&cancel_callback_called]() {
+            cancel_callback_called = true;
+        });
+
+        if (future.is_cancelled()) {
+            EXPECT_THROW(future.get(), mc::canceled_exception);
+        } else {
+            EXPECT_EQ(future.get(), 7);
+            EXPECT_FALSE(cancel_callback_called) << "resolved future 不应残留 cancel_requested 并误触发 on_cancel";
+        }
+    }
+}
+
 // 高并发 state pool 回收 + notify_all 竞态:
 //   关注 set_result_inner 设置 m_ready=true 到 mark_ready() 调用 notify_all()
 //   之间的窗口。在该窗口中 waiter 超时退出 wait，future 引用释放，
@@ -329,8 +369,7 @@ TEST_F(SetValueRaceTest, state_pool_recycle_with_non_pool_reply)
     }
 
     ASSERT_EQ(all_done_future.wait_for(5s), std::future_status::ready)
-        << "等待 state_pool_recycle_with_non_pool_reply 完成超时: done="
-        << done_count.load() << "/" << num_iterations;
+        << "等待 state_pool_recycle_with_non_pool_reply 完成超时: done=" << done_count.load() << "/" << num_iterations;
     running.store(false, std::memory_order_relaxed);
 
     for (auto& t : reply_threads) {
@@ -384,9 +423,8 @@ TEST_F(SetValueRaceTest, cancel_vs_reply_race_with_pool_recycle)
         reply_serial.store(serial, std::memory_order_release);
 
         // pool worker: 短超时等待，超时后 cancel
-        pool.get_executor().post(
-            [f = std::move(future), &pending, serial, &service_name, short_timeout, &done_count,
-             all_done_promise]() mutable {
+        pool.get_executor().post([f = std::move(future), &pending, serial, &service_name, short_timeout, &done_count,
+                                  all_done_promise]() mutable {
             auto status = f.wait_for(short_timeout);
             if (status != mc::futures::future_status::ready) {
                 f.cancel();
@@ -404,8 +442,7 @@ TEST_F(SetValueRaceTest, cancel_vs_reply_race_with_pool_recycle)
     }
 
     ASSERT_EQ(all_done_future.wait_for(5s), std::future_status::ready)
-        << "等待 cancel_vs_reply_race_with_pool_recycle 完成超时: done="
-        << done_count.load() << "/" << num_iterations;
+        << "等待 cancel_vs_reply_race_with_pool_recycle 完成超时: done=" << done_count.load() << "/" << num_iterations;
     running.store(false, std::memory_order_relaxed);
     reply_thread.join();
 
@@ -490,8 +527,7 @@ TEST_F(SetValueRaceTest, tight_state_recycle_loop)
     }
 
     ASSERT_EQ(all_done_future.wait_for(5s), std::future_status::ready)
-        << "等待 tight_state_recycle_loop 完成超时: done="
-        << done_count.load() << "/" << num_iterations;
+        << "等待 tight_state_recycle_loop 完成超时: done=" << done_count.load() << "/" << num_iterations;
     running.store(false, std::memory_order_relaxed);
     for (auto& t : reply_threads) {
         t.join();
@@ -589,8 +625,7 @@ TEST_F(SetValueRaceTest, timer_use_after_return_zero_timeout)
     }
 
     ASSERT_EQ(all_done_future.wait_for(10s), std::future_status::ready)
-        << "等待 timer_use_after_return_zero_timeout 完成超时: done="
-        << done_count.load() << "/" << num_iterations;
+        << "等待 timer_use_after_return_zero_timeout 完成超时: done=" << done_count.load() << "/" << num_iterations;
 
     running.store(false, std::memory_order_relaxed);
     for (auto& t : reply_threads) {

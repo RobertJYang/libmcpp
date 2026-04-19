@@ -22,7 +22,7 @@
 #include <cstddef>
 #include <type_traits>
 
-namespace mc::protocol::detail {
+namespace mc::proto::detail {
 
 template <typename Layer, typename = void>
 struct layer_push_headroom {
@@ -72,6 +72,6 @@ struct stack_reserved_room {
     static constexpr std::size_t pop_tailroom  = (layer_pop_tailroom<Layers>::value + ... + 0);
 };
 
-} // namespace mc::protocol::detail
+} // namespace mc::proto::detail
 
 #endif // MC_PROTOCOL_DETAIL_LAYER_PACKET_RESERVE_H

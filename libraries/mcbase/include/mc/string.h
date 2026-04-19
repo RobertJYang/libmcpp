@@ -307,6 +307,22 @@ public:
         return true;
     }
 
+    static bool contains(mc::string_view s, mc::string_view substring) noexcept
+    {
+        if (substring.empty()) {
+            return true;
+        }
+        if (substring.size() > s.size()) {
+            return false;
+        }
+        return s.find(substring) != mc::string_view::npos;
+    }
+
+    static string replace_all(mc::string_view s, mc::string_view from, mc::string_view to)
+    {
+        return string(s).replace_all(from, to);
+    }
+
     bool operator==(mc::string_view rhs) const noexcept
     {
         return view() == rhs;

@@ -11,6 +11,7 @@
  */
 
 #include "my_task_object.h"
+#include <mc/engine/service.h>
 #include <mc/format.h>
 #include <mc/log.h>
 #include <mc/string.h>

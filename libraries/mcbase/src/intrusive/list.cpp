@@ -16,51 +16,63 @@ namespace mc::intrusive::detail {
 
 list_hook_state* list_core::head() noexcept
 {
-    return m_head;
+    return m_head.get();
 }
 
 const list_hook_state* list_core::head() const noexcept
 {
-    return m_head;
+    return m_head.get();
 }
 
 list_hook_state* list_core::tail() noexcept
 {
-    return m_tail;
+    return m_tail.get();
 }
 
 const list_hook_state* list_core::tail() const noexcept
 {
-    return m_tail;
+    return m_tail.get();
 }
 
 list_hook_state* list_core::next(list_hook_state* node) noexcept
 {
-    return node == nullptr ? nullptr : static_cast<list_hook_state*>(node->next);
+    if (node == nullptr) {
+        return nullptr;
+    }
+    return node->next.get();
 }
 
-const list_hook_state* list_core::next(const list_hook_state* node) noexcept
+const list_hook_state* list_core::next(const list_hook_state* node) const noexcept
 {
-    return node == nullptr ? nullptr : static_cast<const list_hook_state*>(node->next);
+    if (node == nullptr) {
+        return nullptr;
+    }
+    return node->next.get();
 }
 
 list_hook_state* list_core::prev(list_hook_state* node) noexcept
 {
-    return node == nullptr ? nullptr : static_cast<list_hook_state*>(node->prev);
+    if (node == nullptr) {
+        return nullptr;
+    }
+    return node->prev.get();
 }
 
-const list_hook_state* list_core::prev(const list_hook_state* node) noexcept
+const list_hook_state* list_core::prev(const list_hook_state* node) const noexcept
 {
-    return node == nullptr ? nullptr : static_cast<const list_hook_state*>(node->prev);
+    if (node == nullptr) {
+        return nullptr;
+    }
+    return node->prev.get();
 }
 
 void list_core::push_front(list_hook_state* node) noexcept
 {
-    node->prev = nullptr;
+    node->prev.reset();
     node->next = m_head;
 
-    if (m_head != nullptr) {
-        m_head->prev = node;
+    if (auto* old_head = head(); old_head != nullptr) {
+        old_head->prev = node;
     } else {
         m_tail = node;
     }
@@ -71,10 +83,10 @@ void list_core::push_front(list_hook_state* node) noexcept
 void list_core::push_back(list_hook_state* node) noexcept
 {
     node->prev = m_tail;
-    node->next = nullptr;
+    node->next.reset();
 
-    if (m_tail != nullptr) {
-        m_tail->next = node;
+    if (auto* old_tail = tail(); old_tail != nullptr) {
+        old_tail->next = node;
     } else {
         m_head = node;
     }
@@ -84,30 +96,32 @@ void list_core::push_back(list_hook_state* node) noexcept
 
 void list_core::pop_front() noexcept
 {
-    if (m_head == nullptr) {
+    auto* old_head = head();
+    if (old_head == nullptr) {
         return;
     }
-    auto* old_head = m_head;
-    m_head         = next(m_head);
-    if (m_head != nullptr) {
-        m_head->prev = nullptr;
+    auto* new_head = next(old_head);
+    m_head         = new_head;
+    if (new_head != nullptr) {
+        new_head->prev.reset();
     } else {
-        m_tail = nullptr;
+        m_tail.reset();
     }
     reset_hook(old_head);
 }
 
 void list_core::pop_back() noexcept
 {
-    if (m_tail == nullptr) {
+    auto* old_tail = tail();
+    if (old_tail == nullptr) {
         return;
     }
-    auto* old_tail = m_tail;
-    m_tail         = prev(m_tail);
-    if (m_tail != nullptr) {
-        m_tail->next = nullptr;
+    auto* new_tail = prev(old_tail);
+    m_tail         = new_tail;
+    if (new_tail != nullptr) {
+        new_tail->next.reset();
     } else {
-        m_head = nullptr;
+        m_head.reset();
     }
     reset_hook(old_tail);
 }
@@ -119,7 +133,7 @@ void list_core::insert_before(list_hook_state* pos, list_hook_state* node) noexc
         return;
     }
 
-    if (pos == m_head) {
+    if (pos == head()) {
         push_front(node);
         return;
     }
@@ -162,31 +176,27 @@ void list_core::splice(list_hook_state* pos, list_core& other) noexcept
         return;
     }
 
-    auto* other_head = other.m_head;
-    auto* other_tail = other.m_tail;
+    auto* other_head = other.head();
+    auto* other_tail = other.tail();
 
-    // Detach all nodes from other
-    other.m_head = nullptr;
-    other.m_tail = nullptr;
+    other.m_head.reset();
+    other.m_tail.reset();
 
     if (pos == nullptr) {
-        // Splice before end (= append after tail)
         other_head->prev = m_tail;
-        if (m_tail != nullptr) {
-            m_tail->next = other_head;
+        if (auto* old_tail = tail(); old_tail != nullptr) {
+            old_tail->next = other_head;
         } else {
             m_head = other_head;
         }
         m_tail = other_tail;
-    } else if (pos == m_head) {
-        // Splice before head (= prepend)
+    } else if (pos == head()) {
         other_tail->next = m_head;
-        m_head->prev     = other_tail;
+        head()->prev     = other_tail;
         m_head           = other_head;
     } else {
-        // Splice before pos
-        auto* pos_prev = prev(pos);
-        pos_prev->next = other_head;
+        auto* pos_prev   = prev(pos);
+        pos_prev->next   = other_head;
         other_head->prev = pos_prev;
         other_tail->next = pos;
         pos->prev        = other_tail;
@@ -195,46 +205,52 @@ void list_core::splice(list_hook_state* pos, list_core& other) noexcept
 
 void list_core::clear() noexcept
 {
-    auto* current = m_head;
+    auto* current = head();
     while (current != nullptr) {
         auto* next_node = next(current);
         reset_hook(current);
         current = next_node;
     }
 
-    m_head = nullptr;
-    m_tail = nullptr;
+    m_head.reset();
+    m_tail.reset();
 }
 
 bool list_core::empty() const noexcept
 {
-    return m_head == nullptr;
+    return m_head.is_null();
 }
 
 void list_core::reset_hook(list_hook_state* node) noexcept
 {
-    node->prev = nullptr;
-    node->next = nullptr;
+    node->prev.reset();
+    node->next.reset();
 }
 
 slist_hook_state* slist_core::head() noexcept
 {
-    return m_head;
+    return m_head.get();
 }
 
 const slist_hook_state* slist_core::head() const noexcept
 {
-    return m_head;
+    return m_head.get();
 }
 
 slist_hook_state* slist_core::next(slist_hook_state* node) noexcept
 {
-    return node == nullptr ? nullptr : static_cast<slist_hook_state*>(node->next);
+    if (node == nullptr) {
+        return nullptr;
+    }
+    return node->next.get();
 }
 
-const slist_hook_state* slist_core::next(const slist_hook_state* node) noexcept
+const slist_hook_state* slist_core::next(const slist_hook_state* node) const noexcept
 {
-    return node == nullptr ? nullptr : static_cast<const slist_hook_state*>(node->next);
+    if (node == nullptr) {
+        return nullptr;
+    }
+    return node->next.get();
 }
 
 void slist_core::push_front(slist_hook_state* node) noexcept
@@ -245,11 +261,11 @@ void slist_core::push_front(slist_hook_state* node) noexcept
 
 void slist_core::pop_front() noexcept
 {
-    if (m_head == nullptr) {
+    auto* old_head = head();
+    if (old_head == nullptr) {
         return;
     }
-    auto* old_head = m_head;
-    m_head         = next(m_head);
+    m_head = next(old_head);
     reset_hook(old_head);
 }
 
@@ -258,50 +274,49 @@ void slist_core::erase(slist_hook_state* node) noexcept
     if (node == nullptr) {
         return;
     }
-    if (m_head == node) {
+    if (head() == node) {
         m_head = next(node);
         reset_hook(node);
         return;
     }
-    // O(n) search for predecessor
-    auto* prev = m_head;
-    while (prev != nullptr && next(prev) != node) {
-        prev = next(prev);
+    auto* prev_node = head();
+    while (prev_node != nullptr && next(prev_node) != node) {
+        prev_node = next(prev_node);
     }
-    if (prev != nullptr) {
-        prev->next = node->next;
+    if (prev_node != nullptr) {
+        prev_node->next = node->next;
         reset_hook(node);
     }
 }
 
 void slist_core::clear_and_dispose(slist_dispose_fn fn, void* ctx)
 {
-    auto* current = m_head;
+    auto* current = head();
     while (current != nullptr) {
         auto* next_node = next(current);
         reset_hook(current);
         fn(current, ctx);
         current = next_node;
     }
-    m_head = nullptr;
+    m_head.reset();
 }
 
 void slist_core::clear() noexcept
 {
-    auto* current = m_head;
+    auto* current = head();
     while (current != nullptr) {
         auto* next_node = next(current);
         reset_hook(current);
         current = next_node;
     }
 
-    m_head = nullptr;
+    m_head.reset();
 }
 
 void slist_core::reverse() noexcept
 {
     slist_hook_state* previous = nullptr;
-    auto*             current  = m_head;
+    auto*             current  = head();
 
     while (current != nullptr) {
         auto* next_node = next(current);
@@ -315,12 +330,12 @@ void slist_core::reverse() noexcept
 
 bool slist_core::empty() const noexcept
 {
-    return m_head == nullptr;
+    return m_head.is_null();
 }
 
 void slist_core::reset_hook(slist_hook_state* node) noexcept
 {
-    node->next = nullptr;
+    node->next.reset();
 }
 
 } // namespace mc::intrusive::detail

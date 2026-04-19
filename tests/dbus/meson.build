@@ -1,4 +1,5 @@
 test_dbus_files = [
+    'dbus/test_application_dbus.cpp',
     'dbus/test_reflect.cpp',
     'dbus/test_dbus_message.cpp',
     'dbus/test_connection.cpp',

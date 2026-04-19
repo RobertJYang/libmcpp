@@ -16,5 +16,7 @@ dbus_src_files = files(
   'signal.cpp',
   'validator.cpp',
   'sd_bus.cpp',
+  'dbus_application.cpp',
+  'service_protocol.cpp',
   'dynamic_object.cpp'
 )

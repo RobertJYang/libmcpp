@@ -35,27 +35,194 @@ bool handle_result_state_common(any_promise& promise, state_base& state)
 
 } // namespace detail
 
-state_base::state_base(executor_type executor, destory_type destory, int value_size) noexcept
-    : m_executor(std::move(executor)), m_destory(std::move(destory)), m_value_size(value_size)
+namespace {
+
+void* payload_ptr_erased_impl(unsigned char* slot, detail::storage_kind storage_kind,
+                              detail::payload_layout layout) noexcept
+{
+    switch (storage_kind) {
+        case detail::storage_kind::inline_storage:
+            return layout == detail::payload_layout::inline_object ? static_cast<void*>(slot) : nullptr;
+        case detail::storage_kind::external_storage:
+            if (layout != detail::payload_layout::external_pointer) {
+                return nullptr;
+            }
+            return *std::launder(reinterpret_cast<void**>(slot));
+        case detail::storage_kind::empty:
+        default:
+            return nullptr;
+    }
+}
+
+const void* payload_ptr_erased_impl(const unsigned char* slot, detail::storage_kind storage_kind,
+                                    detail::payload_layout layout) noexcept
+{
+    switch (storage_kind) {
+        case detail::storage_kind::inline_storage:
+            return layout == detail::payload_layout::inline_object ? static_cast<const void*>(slot) : nullptr;
+        case detail::storage_kind::external_storage:
+            if (layout != detail::payload_layout::external_pointer) {
+                return nullptr;
+            }
+            return *std::launder(reinterpret_cast<void* const*>(slot));
+        case detail::storage_kind::empty:
+        default:
+            return nullptr;
+    }
+}
+
+} // namespace
+
+state_base::state_base(executor_type executor) noexcept : m_executor(std::move(executor))
 {}
 
 state_base::~state_base()
-{}
+{
+    destroy_slot_locked();
+}
+
+bool state_base::try_mark_cancelled() noexcept
+{
+    bool expected = false;
+    if (!m_cancel_requested.compare_exchange_strong(expected, true, std::memory_order_acq_rel,
+                                                    std::memory_order_acquire)) {
+        return false;
+    }
+
+    std::lock_guard lock(m_mutex);
+    if (get_completion_state() != completion_state::pending) {
+        m_cancel_requested.store(get_completion_state() == completion_state::cancelled, std::memory_order_release);
+        return false;
+    }
+    return true;
+}
+
+void state_base::mark_bound() noexcept
+{
+    set_flag(s_bound_flag, std::memory_order_release);
+}
+
+std::exception_ptr state_base::get_exception_locked() const noexcept
+{
+    return m_exception;
+}
+
+void state_base::validate_get_value_locked() const
+{
+    if (is_cancelled() || is_rejected()) {
+        std::rethrow_exception(get_exception_locked());
+    }
+    MC_ASSERT_THROW(is_ready(), mc::runtime_exception, "Future 未就绪");
+}
 
 void state_base::set_executor(executor_type executor) noexcept
 {
     m_executor = std::move(executor);
 }
 
+void state_base::set_policy(launch policy) noexcept
+{
+    auto flags = m_state_flags.load(std::memory_order_acquire);
+    while (true) {
+        const auto desired = (flags & ~s_policy_mask) | encode_policy_bits(policy);
+        if (m_state_flags.compare_exchange_weak(flags, desired, std::memory_order_acq_rel, std::memory_order_acquire)) {
+            return;
+        }
+    }
+}
+
+void state_base::set_ready()
+{
+    if (get_completion_state() == completion_state::cancelled) {
+        return;
+    }
+    set_completion_state(m_exception == nullptr ? completion_state::resolved : completion_state::rejected);
+}
+
+void state_base::set_completion_state(completion_state state) noexcept
+{
+    auto flags = m_state_flags.load(std::memory_order_acquire);
+    while (true) {
+        const auto desired = (flags & ~s_completion_state_mask) | encode_completion_state_bits(state);
+        if (m_state_flags.compare_exchange_weak(flags, desired, std::memory_order_acq_rel, std::memory_order_acquire)) {
+            return;
+        }
+    }
+}
+
+void state_base::set_storage_kind(detail::storage_kind kind) noexcept
+{
+    auto flags = m_state_flags.load(std::memory_order_acquire);
+    while (true) {
+        const auto desired = (flags & ~s_storage_kind_mask) | encode_storage_kind_bits(kind);
+        if (m_state_flags.compare_exchange_weak(flags, desired, std::memory_order_acq_rel, std::memory_order_acquire)) {
+            return;
+        }
+    }
+}
+
+std::exception_ptr state_base::get_exception() const noexcept
+{
+    const auto state = get_completion_state();
+    if (state != completion_state::rejected && state != completion_state::cancelled) {
+        return nullptr;
+    }
+
+    if (m_exception == nullptr) {
+        return nullptr;
+    }
+
+    std::lock_guard lock(m_mutex);
+    return get_exception_locked();
+}
+
+void state_base::set_exception(std::exception_ptr exception) noexcept
+{
+    if (exception == nullptr) {
+        m_exception = nullptr;
+        return;
+    }
+
+    m_exception = std::move(exception);
+}
+
+void* state_base::payload_ptr_erased(detail::payload_layout layout) noexcept
+{
+    return payload_ptr_erased_impl(m_slot, get_storage_kind(), layout);
+}
+
+const void* state_base::payload_ptr_erased(detail::payload_layout layout) const noexcept
+{
+    return payload_ptr_erased_impl(m_slot, get_storage_kind(), layout);
+}
+
+void state_base::destroy_slot_locked() noexcept
+{
+    if (!is_payload_constructed()) {
+        set_storage_kind(detail::storage_kind::empty);
+        set_payload_constructed(false);
+        return;
+    }
+
+    if (m_storage_ops != nullptr) {
+        m_storage_ops->destroy_slot(*this);
+        return;
+    }
+
+    set_storage_kind(detail::storage_kind::empty);
+    set_payload_constructed(false);
+}
+
 std::shared_ptr<mc::exception> state_base::get_exception_object() const noexcept
 {
-    if (!m_exception) {
+    auto exception = get_exception();
+    if (!exception) {
         return {};
     }
 
     std::shared_ptr<mc::exception> result;
     try {
-        std::rethrow_exception(m_exception);
+        std::rethrow_exception(exception);
     } catch (const mc::exception& mc_ex) {
         result = mc_ex.dynamic_copy_exception();
     } catch (const std::exception& std_ex) {
@@ -70,17 +237,18 @@ std::shared_ptr<mc::exception> state_base::get_exception_object() const noexcept
 
 void state_base::rethrow_exception() const
 {
-    std::rethrow_exception(m_exception);
+    std::rethrow_exception(get_exception());
 }
 
 void state_base::copy_exception_to(any_promise& promise, bool strict_once) const
 {
-    if (!m_exception) {
+    auto exception = get_exception();
+    if (!exception) {
         return;
     }
 
     try {
-        std::rethrow_exception(m_exception);
+        std::rethrow_exception(exception);
     } catch (const mc::exception& mc_ex) {
         promise.set_exception(mc_ex, strict_once);
     } catch (...) {
@@ -90,27 +258,24 @@ void state_base::copy_exception_to(any_promise& promise, bool strict_once) const
 
 void state_base::reset()
 {
-    m_ready.store(false);
-    m_bound.store(false);
-    m_cancelled.store(false);
-    m_policy = launch::async;
+    destroy_slot_locked();
+    m_state_flags.store(encode_completion_state_bits(completion_state::pending) | encode_policy_bits(launch::async),
+                        std::memory_order_release);
+    m_cancel_requested.store(false, std::memory_order_release);
+    m_executor = executor_type{};
     m_continuations.clear();
     m_cancel_callbacks.clear();
-    m_executor  = executor_type{};
-    m_exception = nullptr;
-    m_destory   = nullptr;
+    m_exception   = nullptr;
+    m_storage_ops = nullptr;
 }
-
-void state_base::reuse_impl()
-{}
 
 void state_base::mark_ready()
 {
     callback_list callbacks;
     callback_list cancel_callbacks;
     {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        m_ready.store(true, std::memory_order_release);
+        std::lock_guard lock(m_mutex);
+        set_ready();
         m_continuations.swap(callbacks);
         m_cancel_callbacks.swap(cancel_callbacks);
     }
@@ -124,60 +289,67 @@ void state_base::mark_ready()
 void state_base::cancel()
 {
     // 先检查是否已经 ready，如果已经完成则忽略取消操作
-    if (m_ready.load()) {
+    if (is_ready()) {
         return;
     }
 
-    bool expected = false;
-    if (!m_cancelled.compare_exchange_strong(expected, true)) {
+    if (!try_mark_cancelled()) {
         return;
     }
 
     // 移动到临时变量执行，避免回调过程中修改链表或死锁
     callback_list callbacks;
     {
-        std::lock_guard<std::mutex> lock(m_mutex);
+        std::lock_guard lock(m_mutex);
         m_cancel_callbacks.swap(callbacks);
     }
     callbacks.execute_and_clear();
 
-    // 设置取消异常
-    bool need_ready = false;
     {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        if (!m_ready.load()) {
+        std::lock_guard lock(m_mutex);
+        if (get_completion_state() == completion_state::pending) {
             set_exception(std::make_exception_ptr(mc::canceled_exception()));
-            need_ready = true;
-            m_ready.store(true, std::memory_order_release);
+            set_completion_state(completion_state::cancelled);
         }
     }
 
-    if (need_ready) {
-        this->mark_ready();
-    }
+    mark_ready();
 }
 
 void state_base::add_cancel_callback(callback_type callback)
 {
-    if (!m_ready.load() && !m_cancelled.load()) {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        if (!m_ready.load() && !m_cancelled.load()) {
+    if (!is_ready() && !is_cancel_requested()) {
+        std::lock_guard lock(m_mutex);
+        if (!is_ready() && !is_cancel_requested()) {
             m_cancel_callbacks.push_back(std::move(callback));
             return;
         }
     }
 
-    if (m_cancelled.load()) {
+    if (is_cancel_requested()) {
         safe_invoke(std::move(callback));
     }
 }
 
 void state_base::destory()
 {
-    if (m_destory) {
-        m_destory(this);
-    }
     reset();
 }
 
 } // namespace mc::futures
+
+namespace mc::memory::detail {
+
+void shared_release_ops_for<mc::futures::state_base>::deallocate(shared_base* base) noexcept
+{
+    auto* state = static_cast<mc::futures::state_base*>(base);
+    if (!state) {
+        return;
+    }
+    if (!mc::futures::detail::pooled_state_try_release(state)) {
+        state->~state_base();
+        free(state);
+    }
+}
+
+} // namespace mc::memory::detail

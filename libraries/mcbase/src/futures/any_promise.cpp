@@ -22,31 +22,32 @@ namespace mc::futures {
 any_promise::any_promise(state_base_ptr state) : m_state(std::move(state))
 {}
 
-void any_promise::set_result_inner(bool strict_once)
+bool any_promise::set_result_inner(bool strict_once)
 {
-    if (!m_state || m_state->is_cancelled()) {
-        return;
+    if (!m_state || m_state->is_cancel_requested()) {
+        return false;
     }
 
     if (strict_once) {
         MC_ASSERT_THROW(!m_state->is_ready() && !m_state->is_bound(), promise_already_satisfied, "Promise 值已被设置");
     } else if (m_state->is_ready()) {
-        return;
+        return false;
     }
 
-    m_state->m_ready.store(true, std::memory_order_release);
+    m_state->set_ready();
+    return true;
 }
 
 void any_promise::set_current_exception(bool strict_once)
 {
     auto e = std::current_exception();
-    if (!m_state || m_state->is_cancelled()) {
+    if (!m_state || m_state->is_cancel_requested()) {
         return;
     }
 
     {
-        std::lock_guard<std::mutex> lock(m_state->m_mutex);
-        if (m_state->is_cancelled()) {
+        std::lock_guard lock(m_state->m_mutex);
+        if (m_state->is_cancel_requested()) {
             return;
         }
 
@@ -58,7 +59,7 @@ void any_promise::set_current_exception(bool strict_once)
         }
 
         m_state->set_exception(std::move(e));
-        m_state->m_ready.store(true, std::memory_order_release);
+        m_state->set_ready();
     }
 
     m_state->mark_ready();
@@ -75,13 +76,13 @@ void any_promise::set_exception(const mc::exception& e, bool strict_once)
 
 void any_promise::set_exception(std::exception_ptr e, bool strict_once)
 {
-    if (!m_state || m_state->is_cancelled()) {
+    if (!m_state || m_state->is_cancel_requested()) {
         return;
     }
 
     {
-        std::lock_guard<std::mutex> lock(m_state->m_mutex);
-        if (m_state->is_cancelled()) {
+        std::lock_guard lock(m_state->m_mutex);
+        if (m_state->is_cancel_requested()) {
             return;
         }
 
@@ -93,7 +94,7 @@ void any_promise::set_exception(std::exception_ptr e, bool strict_once)
         }
 
         m_state->set_exception(std::move(e));
-        m_state->m_ready.store(true, std::memory_order_release);
+        m_state->set_ready();
     }
 
     m_state->mark_ready();
@@ -118,12 +119,12 @@ any_future any_promise::get_future()
 
 bool any_promise::set_bound()
 {
-    if (!m_state || m_state->is_cancelled()) {
+    if (!m_state || m_state->is_cancel_requested()) {
         return false;
     }
 
     MC_ASSERT_THROW(!m_state->is_ready() && !m_state->is_bound(), promise_already_satisfied, "Promise 已被绑定");
-    m_state->m_bound.store(true, std::memory_order_release);
+    m_state->mark_bound();
     return true;
 }
 

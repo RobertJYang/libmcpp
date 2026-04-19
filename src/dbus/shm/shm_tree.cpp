@@ -27,7 +27,7 @@
 namespace mc::dbus {
 static uint32_t g_serial = 0;
 
-using mdb_interface = shm::mdb_interface;
+using mdb_interface = ::shm::mdb_interface;
 
 // 前置声明：用于在文件前部的 SHM 快速路径中加对象锁
 template <typename LibraryType>
@@ -39,8 +39,8 @@ using shm_tree_handler_t = std::optional<mc::variants> (*)(
     std::string_view service_name, std::string_view path, std::string_view interface,
     std::string_view method, std::string_view signature, const variants& args);
 
-// 前置声明：将 shm::property 转换为 mc::variant（读取时需已持有对应对象的共享锁）
-static std::optional<variant> read_property_variant(const shm::property& prop);
+// 前置声明：将 ::shm::property 转换为 mc::variant（读取时需已持有对应对象的共享锁）
+static std::optional<variant> read_property_variant(const ::shm::property& prop);
 
 std::optional<mc::variants> get_mdb_object_handler([[maybe_unused]] std::string_view service_name,
                                                    [[maybe_unused]] std::string_view path,
@@ -143,7 +143,7 @@ static bool equals_ignore_case(std::string_view a, std::string_view b)
 
 // 从属性中读取值并转换为 mc::variant，失败返回 std::nullopt
 // 注意：调用方需要保证已持有对应对象的共享锁（shm_object_lock_shared_exec）。
-static std::optional<variant> read_property_variant(const shm::property& prop)
+static std::optional<variant> read_property_variant(const ::shm::property& prop)
 {
     auto sig = prop.get_signature();
     if (sig.empty()) {
@@ -199,7 +199,7 @@ enum class object_filter_result {
 };
 
 // 基于已查到的 interface 做属性匹配
-static object_filter_result object_match_filter_shm_by_interface(shm::interface& iface,
+static object_filter_result object_match_filter_shm_by_interface(::shm::interface& iface,
                                                                  const dict& filter_dict, bool ignore_case)
 {
     bool need_rpc = false;
@@ -295,8 +295,28 @@ namespace {
 constexpr mc::milliseconds PROP_RPC_TIMEOUT{3000};
 constexpr std::string_view MDB_SERVICE_NAME{"bmc.kepler.maca"};
 constexpr std::string_view PROPS_IFACE{"bmc.kepler.Object.Properties"};
+constexpr std::string_view OBJECT_NAME_PROP{"ObjectName"};
+constexpr std::string_view CLASS_NAME_PROP{"ClassName"};
 constexpr std::string_view GET_WITH_CTX{"GetWithContext"};
 constexpr std::string_view GET_WITH_CTX_SIG{"a{ss}ss"};
+
+[[maybe_unused]] static void register_object_metadata_view(::shm::shared_memory& ins, ::shm::object& shm_obj,
+                                                           const mc::engine::abstract_object& obj)
+{
+    auto& iface = shm_obj.register_interface(ins, false, PROPS_IFACE);
+    shm_obj.add_named_object_view(ins, PROPS_IFACE);
+
+    auto add_string_property = [&](std::string_view property_name, std::string_view value) {
+        auto prop = iface.add_p(ins, property_name, "s");
+        prop->set_read_privilege(0);
+        prop->set_write_privilege(0);
+        prop->set_flags(0);
+        shm_tree::set_property_inner(prop, variant(std::string(value)));
+    };
+
+    add_string_property(OBJECT_NAME_PROP, obj.get_object_name());
+    add_string_property(CLASS_NAME_PROP, obj.get_class_name());
+}
 } // namespace
 
 // 构建 GetWithContext RPC 调用的参数
@@ -397,19 +417,19 @@ static bool match_candidate_via_rpc(const mdb_path_candidate& cand,
 
 // 共享内存扫描阶段：仅用共享内存中的已落盘属性值匹配；若发现缺值则记录 candidate，
 // 交给上层在释放全局锁后通过 RPC 再验证。
-static mdb_path_shm_scan_out scan_mdb_path_shm(shm::shared_memory& ins, std::string_view iface_name,
+static mdb_path_shm_scan_out scan_mdb_path_shm(::shm::shared_memory& ins, std::string_view iface_name,
                                                const dict& filter_dict, bool ignore_case)
 {
     mdb_path_shm_scan_out out;
     variants              result;
 
     // 回调语义：return false = 继续遍历下一个，return true = 停止遍历（与 get_mdb_interface_owners 一致）
-    ins.query_interface_view(iface_name, [&](shm::mdb_interface& miface) -> bool {
+    ins.query_interface_view(iface_name, [&](::shm::mdb_interface& miface) -> bool {
         if (!miface.o || !miface.i) {
             return false; // 继续下一个
         }
-        shm::object&    obj   = *miface.o;
-        shm::interface& iface = *miface.i;
+        ::shm::object&    obj   = *miface.o;
+        ::shm::interface& iface = *miface.i;
 
         std::string path_str(obj.path());
         auto*       tree         = obj.get_tree();
@@ -735,7 +755,7 @@ static const std::unordered_map<std::string_view, call_shm_interface_config>
               {"GetAllWithContext", call_shm_get_all_properties_handler},
               {"GetPropertiesByNames", call_shm_get_properties_by_names_handler}}}}};
 
-static bool has_interface(shm::mdb_object& obj, const variants& interfaces)
+static bool has_interface(::shm::mdb_object& obj, const variants& interfaces)
 {
     if (interfaces.empty()) {
         return true;
@@ -755,9 +775,9 @@ static bool has_interface(shm::mdb_object& obj, const variants& interfaces)
     return true;
 }
 
-shm::object_tree* find_tree(std::string_view name)
+::shm::object_tree* find_tree(std::string_view name)
 {
-    auto& ins      = shm::shared_memory::get_instance();
+    auto& ins      = ::shm::shared_memory::get_instance();
     auto& name_map = ins.get_object_tree_map(name);
     auto  it       = name_map.find(name);
     if (it == name_map.end()) {
@@ -829,7 +849,7 @@ variants shm_tree::get_mdb_path(std::string_view interface_name, std::string_vie
 variants shm_tree::get_mdb_path_impl(std::string_view interface_name, const dict& filter_dict,
                                      bool ignore_case)
 {
-    auto& ins = shm::shared_memory::get_instance();
+    auto& ins = ::shm::shared_memory::get_instance();
 
     auto shm_out = shm_global_lock_shared_exec(scan_mdb_path_shm, std::ref(ins), interface_name,
                                                std::cref(filter_dict), ignore_case);
@@ -861,7 +881,7 @@ static void append_iface(dict& service_map, std::string_view service_name, std::
 }
 
 // 收集对象的接口信息到 service_map，格式：{service_name -> [iface1, iface2, ...]}
-static void collect_object_interfaces(dict& service_map, shm::mdb_object& obj, const variants& interfaces)
+static void collect_object_interfaces(dict& service_map, ::shm::mdb_object& obj, const variants& interfaces)
 {
     if (interfaces.empty()) {
         // 收集所有接口
@@ -893,7 +913,7 @@ static void collect_object_interfaces(dict& service_map, shm::mdb_object& obj, c
 
 std::optional<dict> shm_tree::get_mdb_object(std::string_view path, const variants& interfaces)
 {
-    auto& ins = shm::shared_memory::get_instance();
+    auto& ins = ::shm::shared_memory::get_instance();
 
     return shm_global_lock_shared_exec([&]() -> std::optional<dict> {
         auto obj = ins.find_mdb_object(path, false);
@@ -917,7 +937,7 @@ std::optional<variants> shm_tree::get_mdb_sub_paths(std::string_view path, uint3
         top = std::numeric_limits<uint32_t>::max();
     }
 
-    auto& ins = shm::shared_memory::get_instance();
+    auto& ins = ::shm::shared_memory::get_instance();
     return shm_global_lock_shared_exec([&]() -> std::optional<variants> {
         auto&    ins_base = ins.get_base();
         variants result_arr;
@@ -935,7 +955,7 @@ std::optional<variants> shm_tree::get_mdb_sub_paths(std::string_view path, uint3
         }
         uint32_t travel_count = 0;
         uint32_t arr_count    = 0;
-        node->travel([&](shm::mdb_object& obj, int /*level*/) {
+        node->travel([&](::shm::mdb_object& obj, int /*level*/) {
             if (!has_interface(obj, interfaces) || ++travel_count <= skip) {
                 return true;
             }
@@ -950,7 +970,7 @@ std::optional<variants> shm_tree::get_mdb_sub_paths(std::string_view path, uint3
 
 bool shm_tree::is_valid_mdb_path(std::string_view path, bool ignore_case)
 {
-    auto& ins = shm::shared_memory::get_instance();
+    auto& ins = ::shm::shared_memory::get_instance();
     return shm_global_lock_shared_exec([&]() {
         auto obj = ins.find_mdb_object(path, ignore_case);
         return obj != nullptr;
@@ -960,7 +980,7 @@ bool shm_tree::is_valid_mdb_path(std::string_view path, bool ignore_case)
 variants shm_tree::get_mdb_interface_owners(std::string_view interface_name)
 {
     variants result_arr;
-    auto&    ins = shm::shared_memory::get_instance();
+    auto&    ins = ::shm::shared_memory::get_instance();
 
     shm_global_lock_shared_exec([&]() {
         auto f = [&result_arr](mdb_interface& iface) -> bool {
@@ -1039,8 +1059,8 @@ static bool iface_match(const GRegex* iface_regex, std::string_view iface_name)
                               nullptr, nullptr) != FALSE;
 }
 
-// 从 shm::object 收集匹配的接口名
-static variants collect_matched_ifaces(shm::object& obj, const GRegex* iface_regex)
+// 从 ::shm::object 收集匹配的接口名
+static variants collect_matched_ifaces(::shm::object& obj, const GRegex* iface_regex)
 {
     variants matched;
     for (const auto& p : obj.interfaces()) {
@@ -1052,12 +1072,12 @@ static variants collect_matched_ifaces(shm::object& obj, const GRegex* iface_reg
     return matched;
 }
 
-// 从 shm::object 获取对象名：优先从 bmc.kepler.Object.Properties 的 ObjectName 属性读取，
+// 从 ::shm::object 获取对象名：优先从 bmc.kepler.Object.Properties 的 ObjectName 属性读取，
 // 无法获取时使用完整路径。调用方需已持有 shm_global_lock_shared_exec。
-static std::string get_object_name_from_object(shm::object& obj)
+static std::string get_object_name_from_object(::shm::object& obj)
 {
     std::string_view path_sv = obj.path();
-    shm::interface*  intf    = nullptr;
+    ::shm::interface*  intf    = nullptr;
     for (const auto& p : obj.interfaces()) {
         if (std::string_view(p.first.data(), p.first.size()) == PROPS_IFACE) {
             intf = p.second ? &*p.second : nullptr;
@@ -1088,7 +1108,7 @@ static std::string get_object_name_from_object(shm::object& obj)
 std::optional<dict> shm_tree::get_mdb_sub_objects(std::string_view path, uint32_t depth,
                                                   const variants& interfaces)
 {
-    auto& ins = shm::shared_memory::get_instance();
+    auto& ins = ::shm::shared_memory::get_instance();
 
     return shm_global_lock_shared_exec([&]() -> std::optional<dict> {
         dict result;
@@ -1107,7 +1127,7 @@ std::optional<dict> shm_tree::get_mdb_sub_objects(std::string_view path, uint32_
         }
 
         node->travel(
-            [&](shm::mdb_object& obj, int /*level*/) {
+            [&](::shm::mdb_object& obj, int /*level*/) {
             if (!has_interface(obj, interfaces)) {
                 return true;
             }
@@ -1127,7 +1147,7 @@ std::optional<dict> shm_tree::get_mdb_sub_objects(std::string_view path, uint32_
 
 std::optional<dict> shm_tree::get_mdb_parent_objects(std::string_view path, const variants& interfaces)
 {
-    auto& ins = shm::shared_memory::get_instance();
+    auto& ins = ::shm::shared_memory::get_instance();
 
     return shm_global_lock_shared_exec([&]() -> std::optional<dict> {
         dict result;
@@ -1163,7 +1183,7 @@ std::optional<dict> shm_tree::get_mdb_parent_objects(std::string_view path, cons
 variants shm_tree::get_mdb_service_names()
 {
     variants result;
-    auto&    ins            = shm::shared_memory::get_instance();
+    auto&    ins            = ::shm::shared_memory::get_instance();
     auto&    wellknow_names = ins.get_wellknow_names();
     for (const auto& [name, value] : wellknow_names) {
         // 剔除前缀是 harbor 的服务名称
@@ -1178,7 +1198,7 @@ variants shm_tree::get_mdb_service_names()
 variants shm_tree::get_mdb_classes(std::string_view service_name)
 {
     variants result;
-    auto&    ins = shm::shared_memory::get_instance();
+    auto&    ins = ::shm::shared_memory::get_instance();
 
     return shm_global_lock_shared_exec([&]() {
         auto& ins_base   = ins.get_base();
@@ -1208,7 +1228,7 @@ variants shm_tree::get_mdb_classes(std::string_view service_name)
 variants shm_tree::get_mdb_object_list(std::string_view class_name)
 {
     variants result;
-    auto&    ins = shm::shared_memory::get_instance();
+    auto&    ins = ::shm::shared_memory::get_instance();
 
     return shm_global_lock_shared_exec([&]() {
         if (class_name.empty()) {
@@ -1265,7 +1285,7 @@ variants shm_tree::get_mdb_object_owner(std::string_view object_name)
         return result;
     }
 
-    auto& ins = shm::shared_memory::get_instance();
+    auto& ins = ::shm::shared_memory::get_instance();
 
     return shm_global_lock_shared_exec([&]() {
         auto& ins_base  = ins.get_base();
@@ -1301,7 +1321,7 @@ variants shm_tree::get_mdb_object_owner(std::string_view object_name)
 variants shm_tree::get_mdb_matched_objects(std::string_view service_name, std::string_view iface_pattern)
 {
     variants result;
-    auto&    ins = shm::shared_memory::get_instance();
+    auto&    ins = ::shm::shared_memory::get_instance();
 
     // iface_pattern 为空表示匹配所有接口；否则按正则匹配
     const auto iface_regex = iface_pattern.empty() ? nullptr : compile_iface_regex(iface_pattern);
@@ -1311,7 +1331,7 @@ variants shm_tree::get_mdb_matched_objects(std::string_view service_name, std::s
 
     return shm_global_lock_shared_exec([&]() {
         auto& w  = ins.get_wellknow_names();
-        auto  cb = [&](shm::object& obj, int /*level*/) {
+        auto  cb = [&](::shm::object& obj, int /*level*/) {
             auto matched = collect_matched_ifaces(obj, iface_regex ? iface_regex.get() : nullptr);
             if (matched.empty()) {
                 return true;
@@ -1348,21 +1368,12 @@ shm_tree::shm_tree(std::string_view harbor_name, std::string_view service_name,
 void shm_tree::register_object(mc::engine::abstract_object& obj)
 {
 #if defined(ENABLE_CONAN_COMPILE) && ENABLE_CONAN_COMPILE == 1
-    auto&           ins     = shm::shared_memory::get_instance();
+    auto&           ins     = ::shm::shared_memory::get_instance();
     auto            path    = obj.get_object_path();
-    shm::object&    shm_obj = m_tree->register_object(ins, path);
+    ::shm::object&    shm_obj = m_tree->register_object(ins, path);
     shm_obj_visitor visitor(shm_obj, obj);
     obj.get_metadata().visit(visitor);
-    // 需要创建上下文，common_properties_interface才能获取到对象信息
-    mc::engine::object_call_stack::context object_ctx{obj.get_service(), obj};
-
-    const auto&                    metadata = mc::engine::common_properties_interface::get_instance().get_metadata();
-    mc::engine::interface_metadata iface_metadata{nullptr, &metadata};
-    visitor.handle_interface_begin(iface_metadata);
-    metadata.visit(visitor);
-    visitor.handle_interface_end(iface_metadata);
-
-    shm_obj.add_named_object_view(ins, mc::engine::common_properties_name);
+    register_object_metadata_view(ins, shm_obj, obj);
     obj.property_update_shm().connect([this, &obj](const mc::variant& value, const auto& prop) {
         try {
             auto iface     = prop.get_interface()->get_interface_name();
@@ -1377,7 +1388,7 @@ void shm_tree::register_object(mc::engine::abstract_object& obj)
 
 void shm_tree::unregister_object(std::string_view path)
 {
-    auto& ins = shm::shared_memory::get_instance();
+    auto& ins = ::shm::shared_memory::get_instance();
     m_tree->unregister_object(ins, path);
 }
 
@@ -1453,10 +1464,10 @@ std::optional<mc::variants> shm_tree::timeout_call_with_sender(mc::milliseconds 
     return reply_msg.read();
 }
 
-static shm::shared_ptr<shm::property> find_shm_property(std::string_view service_name, std::string_view path,
+static ::shm::shared_ptr<::shm::property> find_shm_property(std::string_view service_name, std::string_view path,
                                                         std::string_view interface, std::string_view property)
 {
-    auto& ins  = shm::shared_memory::get_instance();
+    auto& ins  = ::shm::shared_memory::get_instance();
     auto  tree = ins.get_tree(service_name);
     if (tree == nullptr) {
         MC_THROW(mc::exception, "failed to get tree, service_name: ${service_name}", ("service_name", service_name));
@@ -1564,9 +1575,9 @@ variant shm_tree::get_property(std::string_view service_name, std::string_view p
     return res.value();
 }
 
-void shm_tree::set_property_inner(shm::shared_ptr<shm::property> prop, const variant& value)
+void shm_tree::set_property_inner(::shm::shared_ptr<::shm::property> prop, const variant& value)
 {
-    auto& ins = shm::shared_memory::get_instance();
+    auto& ins = ::shm::shared_memory::get_instance();
     if (value.is_null()) {
         prop->set_data(ins, std::string_view());
         return;
@@ -1610,7 +1621,7 @@ std::optional<variant> shm_tree::call_shm_get_property(std::string_view service_
 }
 
 // 查找接口的辅助函数（不抛异常，返回 optional）
-static shm::interface* find_shm_interface(shm::shared_memory& ins, std::string_view service_name,
+static ::shm::interface* find_shm_interface(::shm::shared_memory& ins, std::string_view service_name,
                                           std::string_view path, std::string_view interface_name)
 {
     auto tree = ins.get_tree(service_name);
@@ -1638,7 +1649,7 @@ struct properties_scan_out {
 };
 
 // 扫描所有属性的共享内存阶段
-static properties_scan_out get_all_shm_properties(shm::shared_memory& ins,
+static properties_scan_out get_all_shm_properties(::shm::shared_memory& ins,
                                                   std::string_view    service_name,
                                                   std::string_view    path,
                                                   std::string_view    interface_name)
@@ -1705,7 +1716,7 @@ std::optional<dict> shm_tree::call_shm_get_all_properties(std::string_view servi
 {
     // 1) 共享内存扫描阶段：在全局共享锁内收集已落盘的属性值，标记未落盘的属性名
     auto shm_out = shm_global_lock_shared_exec([&]() {
-        auto& ins = shm::shared_memory::get_instance();
+        auto& ins = ::shm::shared_memory::get_instance();
         return get_all_shm_properties(ins, service_name, path, interface_name);
     });
 
@@ -1721,7 +1732,7 @@ std::optional<dict> shm_tree::call_shm_get_all_properties(std::string_view servi
 }
 
 // 扫描指定属性名的共享内存阶段
-static properties_scan_out get_shm_properties_by_names(shm::shared_memory& ins,
+static properties_scan_out get_shm_properties_by_names(::shm::shared_memory& ins,
                                                        std::string_view    service_name,
                                                        std::string_view    path,
                                                        std::string_view    interface_name,
@@ -1769,7 +1780,7 @@ std::optional<variants> shm_tree::call_shm_get_properties_by_names(
 {
     // 1) 共享内存扫描阶段：在全局共享锁内收集已落盘的属性值，标记未落盘的属性名
     auto shm_out = shm_global_lock_shared_exec([&]() {
-        auto& ins = shm::shared_memory::get_instance();
+        auto& ins = ::shm::shared_memory::get_instance();
         return get_shm_properties_by_names(ins, service_name, path, interface_name, prop_names);
     });
 
@@ -1793,7 +1804,7 @@ std::optional<variants> shm_tree::call_shm_get_properties_by_names(
 void shm_tree::add_shm_match(match_rule& rule, std::string_view harbor_name, uint64_t id)
 {
     shm_global_lock_exec([this, &rule, harbor_name, id]() {
-        auto& ins      = shm::shared_memory::get_instance();
+        auto& ins      = ::shm::shared_memory::get_instance();
         auto& tree_map = ins.get_object_tree_map(harbor_name);
         auto  it       = tree_map.find(harbor_name);
         if (it == tree_map.end()) {
@@ -1831,7 +1842,7 @@ void shm_tree::remove_match(uint64_t id)
     });
 }
 
-shm::object_tree* shm_tree::get_tree() const
+::shm::object_tree* shm_tree::get_tree() const
 {
     return m_tree;
 }

@@ -4,9 +4,7 @@ subdir('core')
 subdir('crypto')
 subdir('dbus')
 subdir('debounce')
-subdir('engine')
 subdir('error_message')
-subdir('expr')
 subdir('interprocess')
 subdir('log')
 subdir('mdb')
@@ -31,8 +29,6 @@ test_files = [
   test_crypto_files,
   test_dbus_files,
   test_debounce_files,
-  test_engine_files,
-  test_expr_files,
   test_interprocess_files,
   test_log_files,
   test_variant_files,

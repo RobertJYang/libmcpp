@@ -59,16 +59,13 @@ struct compare_selector<DefaultCompare, mc::intrusive::compare<Compare>, Rest...
 };
 
 template <typename DefaultCompare, bool V, typename... Rest>
-struct compare_selector<DefaultCompare, constant_time_size<V>, Rest...>
-    : compare_selector<DefaultCompare, Rest...> {};
+struct compare_selector<DefaultCompare, constant_time_size<V>, Rest...> : compare_selector<DefaultCompare, Rest...> {};
 
 template <typename DefaultCompare, link_mode_type M, typename... Rest>
-struct compare_selector<DefaultCompare, link_mode<M>, Rest...>
-    : compare_selector<DefaultCompare, Rest...> {};
+struct compare_selector<DefaultCompare, link_mode<M>, Rest...> : compare_selector<DefaultCompare, Rest...> {};
 
 template <typename DefaultCompare, typename First, typename... Rest>
-struct compare_selector<DefaultCompare, First, Rest...>
-    : compare_selector<DefaultCompare, Rest...> {};
+struct compare_selector<DefaultCompare, First, Rest...> : compare_selector<DefaultCompare, Rest...> {};
 
 template <bool Enabled>
 struct set_size_counter {};
@@ -106,11 +103,9 @@ inline const T* set_value(const set_hook_state* hook) noexcept
 
 template <typename T, typename... Options>
 class set : private detail::set_size_counter<detail::set_constant_time_size_selector<true, Options...>::value> {
-    static_assert(std::is_base_of_v<detail::set_hook_state, T>,
-                  "T must inherit from mc::intrusive::set_base_hook");
+    static_assert(std::is_base_of_v<detail::set_hook_state, T>, "T must inherit from mc::intrusive::set_base_hook");
 
-    static constexpr bool has_constant_time_size =
-        detail::set_constant_time_size_selector<true, Options...>::value;
+    static constexpr bool has_constant_time_size = detail::set_constant_time_size_selector<true, Options...>::value;
 
 public:
     using value_type  = T;
@@ -136,12 +131,18 @@ private:
         iterator_impl(const iterator_impl<OtherConst>& other) : m_set(other.m_set), m_hook(other.m_hook)
         {}
 
-        reference operator*() const { return *value_from_hook(m_hook); }
-        pointer   operator->() const { return value_from_hook(m_hook); }
+        reference operator*() const
+        {
+            return *value_from_hook(m_hook);
+        }
+        pointer operator->() const
+        {
+            return value_from_hook(m_hook);
+        }
 
         iterator_impl& operator++()
         {
-            m_hook = detail::set_core::next(m_hook);
+            m_hook = m_set->m_core.next(m_hook);
             return *this;
         }
 
@@ -158,7 +159,7 @@ private:
                 // --end() => last element (max node)
                 m_hook = m_set->m_core.last();
             } else {
-                m_hook = detail::set_core::prev(m_hook);
+                m_hook = m_set->m_core.prev(m_hook);
             }
             return *this;
         }
@@ -208,7 +209,6 @@ public:
     using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
     set() = default;
-
     set(const set&)            = delete;
     set& operator=(const set&) = delete;
     set(set&&)                 = delete;
@@ -216,23 +216,62 @@ public:
 
     // --- Iterators ---
 
-    iterator               begin()        { return iterator(this, m_core.begin()); }
-    iterator               end()          { return iterator(this, nullptr); }
-    const_iterator         begin()  const { return cbegin(); }
-    const_iterator         end()    const { return cend(); }
-    const_iterator         cbegin() const { return const_iterator(this, m_core.begin()); }
-    const_iterator         cend()   const { return const_iterator(this, nullptr); }
+    iterator begin()
+    {
+        return iterator(this, m_core.begin());
+    }
+    iterator end()
+    {
+        return iterator(this, nullptr);
+    }
+    const_iterator begin() const
+    {
+        return cbegin();
+    }
+    const_iterator end() const
+    {
+        return cend();
+    }
+    const_iterator cbegin() const
+    {
+        return const_iterator(this, m_core.begin());
+    }
+    const_iterator cend() const
+    {
+        return const_iterator(this, nullptr);
+    }
 
-    reverse_iterator       rbegin()       { return reverse_iterator(end()); }
-    reverse_iterator       rend()         { return reverse_iterator(begin()); }
-    const_reverse_iterator rbegin() const { return const_reverse_iterator(end()); }
-    const_reverse_iterator rend()   const { return reverse_iterator(begin()); }
-    const_reverse_iterator crbegin() const { return const_reverse_iterator(cend()); }
-    const_reverse_iterator crend()   const { return reverse_iterator(cbegin()); }
+    reverse_iterator rbegin()
+    {
+        return reverse_iterator(end());
+    }
+    reverse_iterator rend()
+    {
+        return reverse_iterator(begin());
+    }
+    const_reverse_iterator rbegin() const
+    {
+        return const_reverse_iterator(end());
+    }
+    const_reverse_iterator rend() const
+    {
+        return reverse_iterator(begin());
+    }
+    const_reverse_iterator crbegin() const
+    {
+        return const_reverse_iterator(cend());
+    }
+    const_reverse_iterator crend() const
+    {
+        return reverse_iterator(cbegin());
+    }
 
     // --- Capacity ---
 
-    bool empty() const noexcept { return size() == 0; }
+    bool empty() const noexcept
+    {
+        return size() == 0;
+    }
 
     std::size_t size() const noexcept
     {
@@ -261,7 +300,7 @@ public:
             return end();
         }
         auto* hook = const_cast<detail::set_hook_state*>(pos.m_hook);
-        auto* nxt  = detail::set_core::next(hook);
+        auto* nxt  = m_core.next(hook);
         m_core.erase(hook);
         on_erase();
         return iterator(this, nxt);
@@ -270,7 +309,7 @@ public:
     void erase(T& value)
     {
         auto* hook = detail::set_hook_ptr(value);
-        if (hook->parent != nullptr || hook->left != nullptr || hook->right != nullptr || m_core.root() == hook) {
+        if (!hook->parent.is_null() || !hook->left.is_null() || !hook->right.is_null() || m_core.root() == hook) {
             m_core.erase(hook);
             on_erase();
         }
@@ -285,11 +324,9 @@ public:
     template <typename Disposer>
     void clear_and_dispose(Disposer d)
     {
-        m_core.clear_and_dispose(
-            [](detail::set_hook_state* node, void* ctx) {
-                (*static_cast<Disposer*>(ctx))(detail::set_value<T>(node));
-            },
-            &d);
+        m_core.clear_and_dispose([](detail::set_hook_state* node, void* ctx) {
+            (*static_cast<Disposer*>(ctx))(detail::set_value<T>(node));
+        }, &d);
         reset_size();
     }
 
@@ -310,7 +347,7 @@ public:
     void erase_and_dispose(T& value, Disposer d)
     {
         auto* hook = detail::set_hook_ptr(value);
-        if (hook->parent != nullptr || hook->left != nullptr || hook->right != nullptr || m_core.root() == hook) {
+        if (!hook->parent.is_null() || !hook->left.is_null() || !hook->right.is_null() || m_core.root() == hook) {
             m_core.erase(hook);
             on_erase();
         }
@@ -349,9 +386,15 @@ public:
         return iterator(this, const_cast<detail::set_hook_state*>(h));
     }
 
-    std::size_t count(const T& value) const { return find(value) != end() ? 1 : 0; }
+    std::size_t count(const T& value) const
+    {
+        return find(value) != end() ? 1 : 0;
+    }
 
-    bool contains(const T& value) const { return find(value) != end(); }
+    bool contains(const T& value) const
+    {
+        return find(value) != end();
+    }
 
     iterator lower_bound(const T& value)
     {
@@ -401,8 +444,14 @@ public:
 
     // --- Accessor ---
 
-    const key_compare& value_comp() const { return m_compare; }
-    const key_compare& key_comp() const { return m_compare; }
+    const key_compare& value_comp() const
+    {
+        return m_compare;
+    }
+    const key_compare& key_comp() const
+    {
+        return m_compare;
+    }
 
 private:
     static bool compare_dispatch(const void* a, const void* b, const void* ctx) noexcept

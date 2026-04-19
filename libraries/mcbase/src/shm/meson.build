@@ -1,0 +1,12 @@
+shm_src_files = files('allocator/allocator.cpp', 'allocator/slab.cpp', 'allocator/tlsf.cpp',
+                      'byte_string.cpp',
+                      'container/guard.cpp', 'container/journal.cpp', 'container/list_core.cpp',
+                      'container/map_core.cpp', 'container/node_header.cpp',
+                      'container/set_core.cpp',
+                      'container/detail/skip_list_ops.cpp',
+                      'detail/region_registry.cpp',
+                      'ipc_mutex.cpp', 'ipc_shared_mutex.cpp', 'message_queue/mq_channel.cpp',
+                      'message_queue/mq_protocol.cpp', 'message_queue/mq_notifier.cpp',
+                      'message_queue/mq_queue.cpp', 'message_queue/mq_watcher.cpp', 'region.cpp',
+                      'shared_memory_backend.cpp', 'shared_mapping_view.cpp', 'shm_runtime.cpp',
+                      'string.cpp', )

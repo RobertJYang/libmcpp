@@ -1,0 +1,516 @@
+/**
+ * Copyright (c) 2024 Huawei Technologies Co., Ltd.
+ * openUBMC is licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *         http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+#include <mc/engine/base.h>
+#include <mc/engine/engine.h>
+#include <mc/engine/path.h>
+#include <mc/engine/path_iterator.h>
+#include <mc/engine/service.h>
+#include <mc/engine/utils.h>
+#include <mc/exception.h>
+#if defined(MCENGINE_USE_SHM) && MCENGINE_USE_SHM
+#include <mc/engine/abstract_object_factory.h>
+#include <mc/engine/shm_object_ops.h>
+#include <mc/engine/shm_runtime_provider.h>
+#endif
+
+namespace mc::engine {
+
+using object_table_ptr = std::shared_ptr<service_object_table>;
+
+namespace {
+
+// 构造 per-service object_table；USE_SHM=ON 时绑定 shm_runtime allocator + 注入
+// extractor / reconstruct。base name = "<service>.object_table"
+object_table_ptr _create_service_object_table(mc::string_view service_name)
+{
+#if defined(MCENGINE_USE_SHM) && MCENGINE_USE_SHM
+    auto&          rt   = shm_runtime_provider::instance();
+    std::string    base = std::string(service_name) + ".object_table";
+    engine_alloc_t alloc(rt, base);
+    auto           tbl = std::make_shared<service_object_table>(service_name, alloc);
+
+    auto& eng = tbl->engine();
+    eng.set_shm_handle_extractor(
+        [](const abstract_object& o) noexcept { return o.get_shm_handle(); });
+    eng.set_reconstruct(&try_reconstruct_object);
+    return tbl;
+#else
+    return std::make_shared<service_object_table>(service_name);
+#endif
+}
+
+#if defined(MCENGINE_USE_SHM) && MCENGINE_USE_SHM
+// 在 SHM 中分配 shm_object 并锚定到 obj.m_shm_handle；幂等：handle 已存在则跳过
+void _ensure_shm_handle(abstract_object& obj)
+{
+    if (obj.get_shm_handle() != nullptr) {
+        return;
+    }
+    auto& rt    = shm_runtime_provider::instance();
+    auto  arena = rt.user_arena();
+    auto* sh    = shm_object_create(arena,
+                                    obj.get_object_id(),
+                                    std::string_view(obj.get_class_name().data(),
+                                                     obj.get_class_name().size()),
+                                    std::string_view(obj.get_object_name().data(),
+                                                     obj.get_object_name().size()),
+                                    std::string_view(obj.get_object_path().data(),
+                                                     obj.get_object_path().size()),
+                                    std::string_view(obj.get_position().data(),
+                                                     obj.get_position().size()));
+    MC_ASSERT_THROW(sh != nullptr, mc::invalid_arg_exception,
+                    "service.register_object: shm_object_create returned null");
+    obj.set_shm_handle(sh);
+}
+
+// 释放 obj 关联的 shm_object（若存在）；调用方必须保证 obj 已从所有 SHM 索引移除
+void _release_shm_handle(abstract_object& obj) noexcept
+{
+    auto* sh = obj.get_shm_handle();
+    if (sh == nullptr) {
+        return;
+    }
+    auto& rt    = shm_runtime_provider::instance();
+    auto  arena = rt.user_arena();
+    shm_object_destroy(arena, sh);
+    obj.set_shm_handle(nullptr);
+}
+#endif
+
+}  // namespace
+
+struct service_impl {
+    std::mutex           m_mutex;
+    service*             m_service{nullptr};
+    object_table_ptr     m_object_table;
+    bool                 m_registered{false};
+    bool                 m_started{false};
+    service_protocol_ptr m_protocol;
+
+    void             ensure_registered();
+    void             unregister_from_engine();
+    void             register_object(abstract_object& obj);
+    void             unregister_object(mc::string_view path);
+    abstract_object* find_owner(mc::string_view path) const;
+};
+
+void service_impl::ensure_registered()
+{
+    if (m_registered) {
+        return;
+    }
+
+    if (!m_object_table) {
+        m_object_table = _create_service_object_table(m_service->name());
+    }
+    mc::engine::engine::get_instance().register_table(m_object_table);
+    m_registered = true;
+}
+
+void service_impl::unregister_from_engine()
+{
+    if (!m_registered || !m_object_table) {
+        return;
+    }
+
+    m_object_table->clear();
+    mc::engine::engine::get_instance().unregister_table(m_object_table);
+    m_registered = false;
+}
+
+void service_impl::register_object(abstract_object& obj)
+{
+    auto shared_obj = obj.shared_from_this();
+    MC_ASSERT(shared_obj, "Object must be managed by shared_ptr");
+
+#if defined(MCENGINE_USE_SHM) && MCENGINE_USE_SHM
+    _ensure_shm_handle(obj);
+#endif
+
+    m_object_table->add(shared_obj);
+    obj.set_service(m_service);
+
+    auto* owner = find_owner(obj.get_object_path());
+    if (owner) {
+        obj.set_owner(owner);
+    }
+}
+
+abstract_object* service_impl::find_owner(mc::string_view path) const
+{
+    if (path.empty() || path[0] != '/') {
+        return nullptr;
+    }
+
+    if (!m_object_table) {
+        return nullptr;
+    }
+
+    mc::engine::path current_path{std::string(path)};
+    auto             parent_path = current_path.parent();
+    while (parent_path != "/") {
+        auto it = m_object_table->find<by_path>(parent_path.str());
+        if (!it.is_end()) {
+            return const_cast<abstract_object*>(&(*it));
+        }
+        parent_path = parent_path.parent();
+    }
+
+    auto root_it = m_object_table->find<by_path>("/");
+    if (!root_it.is_end()) {
+        return const_cast<abstract_object*>(&(*root_it));
+    }
+
+    return nullptr;
+}
+
+void service_impl::unregister_object(mc::string_view path)
+{
+    auto it = m_object_table->find<by_path>(path);
+    if (it.is_end()) {
+        return;
+    }
+
+    auto& obj = const_cast<abstract_object&>(*it);
+    for (auto& child : obj.get_children()) {
+        auto engine_child = mc::dynamic_pointer_cast<mc::engine::abstract_object>(child);
+        if (engine_child) {
+            unregister_object(engine_child->get_object_path());
+        }
+    }
+    m_object_table->remove(mc::shared_ptr<abstract_object>(&obj));
+
+    obj.set_owner(nullptr);
+    obj.set_service(nullptr);
+
+#if defined(MCENGINE_USE_SHM) && MCENGINE_USE_SHM
+    _release_shm_handle(obj);
+#endif
+}
+
+service::service(mc::string_view name, mc::object* parent)
+    : mc::object(parent), m_name(name), m_impl(std::make_unique<service_impl>())
+{
+    m_impl->m_service = this;
+    set_name(std::string(m_name));
+}
+
+service::~service()
+{
+    stop();
+}
+
+mc::string_view service::name() const
+{
+    return m_name;
+}
+
+bool service::init(dict args)
+{
+    m_impl->ensure_registered();
+    return on_init(std::move(args));
+}
+
+bool service::start()
+{
+    m_impl->ensure_registered();
+
+    service_protocol_ptr protocol;
+    {
+        std::lock_guard lock(m_impl->m_mutex);
+        if (m_impl->m_started) {
+            return true;
+        }
+        m_impl->m_started = true;
+        protocol          = m_impl->m_protocol;
+    }
+    if (protocol) {
+        protocol->attach(*this);
+    }
+    if (on_start()) {
+        return true;
+    }
+
+    if (protocol) {
+        protocol->detach();
+    }
+    {
+        std::lock_guard lock(m_impl->m_mutex);
+        m_impl->m_started = false;
+    }
+    m_impl->unregister_from_engine();
+    return false;
+}
+
+bool service::stop()
+{
+    service_protocol_ptr protocol;
+    if (m_impl) {
+        {
+            std::lock_guard lock(m_impl->m_mutex);
+            if (!m_impl->m_started) {
+                m_impl->unregister_from_engine();
+                return true;
+            }
+            protocol = m_impl->m_protocol;
+        }
+        if (!on_stop()) {
+            return false;
+        }
+        {
+            std::lock_guard lock(m_impl->m_mutex);
+            m_impl->m_started = false;
+        }
+        if (protocol) {
+            protocol->detach();
+        }
+        m_impl->unregister_from_engine();
+    }
+    return true;
+}
+
+void service::cleanup()
+{
+    on_cleanup();
+}
+
+bool service::is_healthy() const
+{
+    return true;
+}
+
+void service::on_dump(mc::dict context, mc::string filepath)
+{
+    MC_UNUSED(context);
+    MC_UNUSED(filepath);
+}
+
+void service::on_detach_debug_console(mc::dict context)
+{
+    MC_UNUSED(context);
+}
+
+int32_t service::on_reboot_prepare(mc::dict context)
+{
+    MC_UNUSED(context);
+    return 0;
+}
+
+int32_t service::on_reboot_process(mc::dict context)
+{
+    MC_UNUSED(context);
+    return 0;
+}
+
+int32_t service::on_reboot_action(mc::dict context)
+{
+    MC_UNUSED(context);
+    return 0;
+}
+
+void service::on_reboot_cancel(mc::dict context)
+{
+    MC_UNUSED(context);
+}
+
+bool service::on_init(dict args)
+{
+    MC_UNUSED(args);
+    return true;
+}
+
+bool service::on_start()
+{
+    return true;
+}
+
+bool service::on_stop()
+{
+    return true;
+}
+
+void service::on_cleanup()
+{}
+
+void service::register_object(abstract_object& obj)
+{
+    m_impl->ensure_registered();
+
+    if (!obj.has_valid_id()) {
+        obj.set_object_id(m_impl->m_object_table->generate_id());
+    }
+
+    auto path = obj.get_object_path();
+    MC_ASSERT(!path.empty(), "object path is empty");
+    MC_ASSERT(mc::engine::path::is_valid(path), "invalid object path ${path}", ("path", path));
+
+    m_impl->register_object(obj);
+
+    service_protocol_ptr protocol;
+    {
+        std::lock_guard lock(m_impl->m_mutex);
+        if (!m_impl->m_started) {
+            return;
+        }
+        protocol = m_impl->m_protocol;
+    }
+    if (protocol) {
+        protocol->register_object(obj);
+    }
+}
+
+void service::unregister_object(mc::string_view path)
+{
+    if (!m_impl->m_object_table) {
+        return;
+    }
+
+    service_protocol_ptr protocol;
+    {
+        std::lock_guard lock(m_impl->m_mutex);
+        if (m_impl->m_started) {
+            protocol = m_impl->m_protocol;
+        }
+    }
+    if (protocol) {
+        protocol->unregister_object(path);
+    }
+    m_impl->unregister_object(path);
+}
+
+service_object_table& service::get_object_table() const
+{
+    const_cast<service*>(this)->m_impl->ensure_registered();
+    return *m_impl->m_object_table;
+}
+
+void service::set_protocol(service_protocol_ptr protocol)
+{
+    service_protocol_ptr previous;
+    service_protocol_ptr current;
+    bool                 started = false;
+    {
+        std::lock_guard lock(m_impl->m_mutex);
+        if (m_impl->m_protocol == protocol) {
+            return;
+        }
+        previous           = std::move(m_impl->m_protocol);
+        m_impl->m_protocol = std::move(protocol);
+        current            = m_impl->m_protocol;
+        started            = m_impl->m_started;
+    }
+
+    if (previous && started) {
+        previous->detach();
+    }
+    if (started && current) {
+        current->attach(*this);
+    }
+}
+
+service_protocol_ptr service::get_protocol() const
+{
+    std::lock_guard lock(m_impl->m_mutex);
+    return m_impl->m_protocol;
+}
+
+mc::variant service::request(const service_operation& operation) const
+{
+    auto protocol = get_protocol();
+    MC_ASSERT_THROW(protocol, mc::invalid_arg_exception, "service protocol is not configured");
+    return protocol->request(operation);
+}
+
+mc::result<mc::variant> service::async_request(const service_operation& operation) const
+{
+    auto protocol = get_protocol();
+    MC_ASSERT_THROW(protocol, mc::invalid_arg_exception, "service protocol is not configured");
+    return protocol->async_request(operation);
+}
+
+mc::variant service::timeout_call(mc::milliseconds timeout, mc::string_view endpoint, mc::string_view path,
+                                  mc::string_view interface_name, mc::string_view method_name,
+                                  mc::string_view signature, mc::variants args, mc::dict context) const
+{
+    service_operation operation{
+        service_operation_kind::invoke_method,
+        invoke_method_operation{
+            service_operation_target{mc::string(endpoint), mc::string(path), mc::string(interface_name)},
+            mc::string(method_name),
+            mc::string(signature),
+            std::move(args),
+            std::move(context),
+            timeout,
+        },
+    };
+    return request(operation);
+}
+
+mc::result<mc::variant> service::async_timeout_call(mc::milliseconds timeout, mc::string_view endpoint,
+                                                    mc::string_view path, mc::string_view interface_name,
+                                                    mc::string_view method_name, mc::string_view signature,
+                                                    mc::variants args, mc::dict context) const
+{
+    service_operation operation{
+        service_operation_kind::invoke_method,
+        invoke_method_operation{
+            service_operation_target{mc::string(endpoint), mc::string(path), mc::string(interface_name)},
+            mc::string(method_name),
+            mc::string(signature),
+            std::move(args),
+            std::move(context),
+            timeout,
+        },
+    };
+    return async_request(operation);
+}
+
+uint64_t service::add_match(mc::dbus::match_rule& rule, std::function<void(mc::dbus::message&)>&& cb) const
+{
+    auto protocol = get_protocol();
+    MC_ASSERT_THROW(protocol, mc::invalid_arg_exception, "service protocol is not configured");
+    return protocol->add_match(rule, std::move(cb));
+}
+
+void service::remove_match(uint64_t id) const
+{
+    auto protocol = get_protocol();
+    MC_ASSERT_THROW(protocol, mc::invalid_arg_exception, "service protocol is not configured");
+    protocol->remove_match(id);
+}
+
+mc::string service::resolve_object_path(mc::string_view path_pattern, const abstract_object& obj)
+{
+    mc::string resolved_path;
+    if (!mc::engine::engine::resolve_path_template(mc::string_view(path_pattern), obj, resolved_path)) {
+        resolved_path = mc::string(path_pattern);
+    }
+
+    mc::string path = resolved_path;
+    mc::string::trim_inplace(path);
+    if (!path.empty() && path.front() == '/') {
+        return path;
+    }
+
+    auto parent = mc::static_pointer_cast<abstract_object>(obj.get_parent());
+    MC_ASSERT_THROW(parent, mc::invalid_arg_exception, "object parent is nullptr or not abstract_object");
+    auto parent_path = parent->get_object_path();
+
+    mc::string tmp;
+    tmp.reserve(parent_path.size() + 1 + path.size());
+    tmp = mc::string(parent_path);
+    tmp += "/";
+    tmp += path;
+    return tmp;
+}
+
+} // namespace mc::engine

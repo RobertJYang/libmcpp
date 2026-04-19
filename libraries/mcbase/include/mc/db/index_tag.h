@@ -20,6 +20,10 @@
 #include <type_traits>
 #include <vector>
 
+namespace mc::db::query {
+class field_expression;
+}
+
 namespace mc::db {
 
 /**
@@ -44,7 +48,8 @@ struct by_object_id_tag : public tag_base<by_object_id_tag> {};
  */
 template <const char* FieldName>
 struct field_tag : public tag_base<field_tag<FieldName>> {
-    static constexpr const char* field_name = FieldName;
+    static constexpr const char*         field_name = FieldName;
+    static const query::field_expression field;
 
     /**
      * 获取字段名称列表

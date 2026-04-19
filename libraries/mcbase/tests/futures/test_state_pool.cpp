@@ -12,25 +12,82 @@
 
 #include <gtest/gtest.h>
 
+#include <array>
+#include <cstdint>
 #include <mc/future.h>
 #include <mc/runtime/thread_list.h>
+#include <mc/singleton.h>
+#include <new>
+#include <type_traits>
+#include <utility>
 
+namespace {
+
+struct scoped_payload_alloc_fail_after {
+    explicit scoped_payload_alloc_fail_after(int fail_after) : m_fail_after(fail_after)
+    {
+        s_active     = true;
+        s_fail_after = fail_after;
+        s_call_count = 0;
+    }
+
+    ~scoped_payload_alloc_fail_after()
+    {
+        s_active = false;
+    }
+
+    int m_fail_after;
+
+    inline static thread_local bool s_active     = false;
+    inline static thread_local int  s_fail_after = -1;
+    inline static thread_local int  s_call_count = 0;
+};
+
+struct oom_probe_payload {
+    std::array<std::uint64_t, 40> data{};
+};
+
+static_assert(sizeof(std::optional<oom_probe_payload>) > mc::futures::state_base::s_inline_payload_bytes,
+              "oom_probe_payload 必须走 external payload 路径");
+
+} // namespace
+
+namespace mc::futures::detail {
+
+template <>
+struct state_payload_allocator<std::optional<oom_probe_payload>> {
+    using result_type = std::optional<oom_probe_payload>;
+
+    static result_type* allocate()
+    {
+        if (scoped_payload_alloc_fail_after::s_active &&
+            scoped_payload_alloc_fail_after::s_call_count++ >= scoped_payload_alloc_fail_after::s_fail_after) {
+            throw std::bad_alloc();
+        }
+        return new result_type();
+    }
+
+    static void deallocate(result_type* ptr) noexcept
+    {
+        delete ptr;
+    }
+};
+
+} // namespace mc::futures::detail
+
+// clear_all_pools 仅测试使用（产品约定）。策略：
+// - SetUpTestSuite：首次 instance + clear，得到干净起点；
+// - 各用例 SetUp 不再 clear，避免与「上一用例 TearDown 尚未执行」的时序假设纠缠；
+// - TearDown：仅主线程调用 clear，且要求用例内起的线程已全部 join（并发用例满足后再返回）。
 class state_pool_test : public ::testing::Test {
 protected:
-    void SetUp() override
+    static void SetUpTestSuite()
     {
-        // 重置池配置
-        mc::futures::state_pool_config config;
-        config.max_count_per_pool = 10;
-        config.max_pool_count     = 5;
-        config.max_cacheable_size = 256;
-
-        mc::futures::state_pool::instance().set_config(config);
+        mc::futures::state_pool::instance().clear_all_pools();
     }
 
     void TearDown() override
     {
-        // 清理池
         mc::futures::state_pool::instance().clear_all_pools();
     }
 
@@ -42,10 +99,10 @@ TEST_F(state_pool_test, basic_pool_functionality)
 {
     auto& pool = mc::futures::state_pool::instance();
 
-    // 获取初始统计
+    // 获取初始统计（统一控制块池在单例构造时已存在）
     auto initial_stats = pool.get_stats();
     EXPECT_EQ(initial_stats.total_global_states, 0);
-    EXPECT_EQ(initial_stats.total_pools, 0);
+    EXPECT_EQ(initial_stats.total_pools, 1);
 
     // 创建一些 promise/future 对
     std::vector<mc::promise<int>> promises;
@@ -102,14 +159,13 @@ TEST_F(state_pool_test, pool_reuse)
     EXPECT_EQ(stats.total_global_states, 1) << "应该有状态被缓存";
 }
 
-// 验证 State 从池中复用时，旧值的析构函数必须被调用（否则产生内存泄漏）
+// 验证 State 从池中复用时，旧 payload 的销毁逻辑必须仍然生效（否则会泄漏）
 //
 // 复现路径：
-//   1. 第一次使用 State<T>：构造时 m_destory = get_destory_()（非平凡类型不为 nullptr）
-//   2. 释放后 state_base::reset() 将 m_destory 置为 nullptr，State 进池
-//   3. 第二次从池中复用：State<T>::reuse() 未恢复 m_destory
-//   4. 第二次释放：destory() 因 m_destory==nullptr 跳过 destory_impl，
-//      m_result 中的值（如 DBusMessage* 引用计数）永远不会被析构 → 内存泄漏
+//   1. 第一次使用 State<T>：storage_ops 绑定到当前 ResultType，对应 payload 已正常构造
+//   2. 释放后 state_base::reset() 清空状态，State 进入统一控制块池
+//   3. 第二次从池中复用：若未完整重建 State<T>，旧 payload 的销毁/构造路径可能丢失
+//   4. 第二次释放：若 destroy_slot 未按当前类型执行，旧值会残留在 payload 中并造成泄漏
 //
 // 用 std::shared_ptr<int> 作为值类型，通过 weak_ptr::expired() 检测析构是否发生
 TEST_F(state_pool_test, pool_reuse_no_value_leak)
@@ -117,7 +173,7 @@ TEST_F(state_pool_test, pool_reuse_no_value_leak)
     std::weak_ptr<int> weak1;
     std::weak_ptr<int> weak2;
 
-    // 第一次使用：State 第一次创建，m_destory 正常，值应该被正确析构
+    // 第一次使用：基线验证，值应被正确析构
     {
         auto promise = mc::make_promise<std::shared_ptr<int>>(io_context_);
         auto future  = promise.get_future();
@@ -125,13 +181,12 @@ TEST_F(state_pool_test, pool_reuse_no_value_leak)
         weak1        = val;
         promise.set_value(std::move(val));
         EXPECT_EQ(*future.get(), 42);
-        // 离开作用域：future/promise 析构 → state ref count 归零 → destroy() 被调用
-        // m_destory 非 nullptr → destory_impl 被调用 → m_result 被清空 → val 引用计数归零
+        // 离开作用域：future/promise 析构 → state ref count 归零 → destroy_slot 路径清理 payload
     }
     // 第一次使用后值应该已经析构（基线验证，应该通过）
     EXPECT_TRUE(weak1.expired()) << "第一次使用后值应被正确析构（基线）";
 
-    // 第二次使用：从池中复用 State，此时存在 m_destory == nullptr 的 bug
+    // 第二次使用：从池中复用 State，验证 payload 析构/重建逻辑仍然正确
     {
         auto promise = mc::make_promise<std::shared_ptr<int>>(io_context_);
         auto future  = promise.get_future();
@@ -139,16 +194,13 @@ TEST_F(state_pool_test, pool_reuse_no_value_leak)
         weak2        = val;
         promise.set_value(std::move(val));
         EXPECT_EQ(*future.get(), 100);
-        // 离开作用域：future/promise 析构 → state ref count 归零 → destroy() 被调用
-        // BUG：m_destory == nullptr → destory_impl 未调用 → m_result 未被清空
-        // val 的引用计数保持为 1（m_result 持有），shared_ptr 不会析构 → 内存泄漏
+        // 离开作用域：future/promise 析构 → state ref count 归零 → payload 应被完整清理
     }
 
     // 第二次使用后，值也应该被析构
-    // BUG 存在时：weak2 未过期（m_result 仍然持有值），valgrind 会报告堆内存泄漏
-    // BUG 修复后：weak2 过期（m_result 已被清空），valgrind 无泄漏
+    // 若池复用路径丢失 payload 销毁逻辑，这里 weak2 将不会过期
     EXPECT_TRUE(weak2.expired()) << "第二次（池复用）使用后值应被正确析构；"
-                                    "若此断言失败，valgrind 将报告 State<T>::reuse() 未恢复 m_destory 导致的内存泄漏";
+                                    "若此断言失败，说明池复用后的 payload 销毁路径存在泄漏";
 }
 
 // 多次复用时值不泄漏：验证第3次、第4次复用同样正确
@@ -176,7 +228,7 @@ TEST_F(state_pool_test, pool_reuse_multiple_times_no_leak)
 // 非平凡类型（mc::string）复用时不泄漏：string 在堆上有动态分配，valgrind 可检测
 TEST_F(state_pool_test, pool_reuse_string_no_leak)
 {
-    // mc::string 是非平凡类型，m_destory 必须被正确恢复才能释放其堆内存
+    // mc::string 是非平凡类型，payload 销毁路径必须正确恢复才能释放其堆内存
     for (int i = 0; i < 3; ++i) {
         auto promise = mc::make_promise<mc::string>(io_context_);
         auto future  = promise.get_future();
@@ -187,7 +239,7 @@ TEST_F(state_pool_test, pool_reuse_string_no_leak)
     // valgrind 应无 "definitely lost" 报告
 }
 
-// void 类型复用不受 bug 影响（monostate 是平凡类型，m_destory 本来就是 nullptr）
+// void 类型复用不受影响（monostate 是平凡类型，没有额外 payload 资源需要释放）
 // 此用例验证修复不破坏 void future 的正常行为
 TEST_F(state_pool_test, pool_reuse_void_no_regression)
 {
@@ -199,7 +251,7 @@ TEST_F(state_pool_test, pool_reuse_void_no_regression)
     }
 }
 
-// 平凡类型（int）复用不受 bug 影响（get_destory_() 本就为 nullptr，修复是幂等的）
+// 平凡类型（int）复用不受影响（payload 无副作用析构，复用后也不应残留旧值）
 // 此用例验证修复不破坏平凡类型 future 的正常行为
 TEST_F(state_pool_test, pool_reuse_trivial_type_no_regression)
 {
@@ -239,50 +291,42 @@ TEST_F(state_pool_test, pool_reuse_exception_no_leak)
     EXPECT_TRUE(weak.expired()) << "异常路径下 val 应在作用域结束时析构";
 }
 
-// 池大小限制测试
-TEST_F(state_pool_test, pool_size_limit)
+// 约束：外围代码应通过 State<T> 同名 facade 访问 typed value，而不是直接依赖 detail::state_payload_access
+TEST_F(state_pool_test, state_typed_facade_keeps_legacy_names)
 {
-    auto& pool = mc::futures::state_pool::instance();
+    auto  promise = mc::make_promise<int>(io_context_);
+    auto  future  = promise.get_future();
+    auto& state   = *future.get_state();
 
-    // 设置较小的池大小
-    mc::futures::state_pool_config config;
-    config.max_count_per_pool = 2;
-    pool.set_config(config);
+    mc::futures::State<int>::set_value(state, 123);
+    state.set_ready();
 
-    // 创建超过池大小的 future
-    std::vector<mc::promise<int>> promises;
-    std::vector<mc::future<int>>  futures;
+    EXPECT_EQ(mc::futures::State<int>::get_value(state), 123);
+}
 
-    for (int i = 0; i < 5; ++i) {
+TEST_F(state_pool_test, pool_reuse_preserves_dynamic_state_type)
+{
+    {
         auto promise = mc::make_promise<int>(io_context_);
         auto future  = promise.get_future();
-
-        promises.push_back(std::move(promise));
-        futures.push_back(std::move(future));
+        EXPECT_NE(dynamic_cast<mc::futures::State<int>*>(future.get_state().get()), nullptr);
+        promise.set_value(1);
+        EXPECT_EQ(future.get(), 1);
     }
 
-    // 完成所有 future
-    for (int i = 0; i < 5; ++i) {
-        promises[i].set_value(i);
-        EXPECT_EQ(futures[i].get(), i);
+    {
+        auto promise = mc::make_promise<int>(io_context_);
+        auto future  = promise.get_future();
+        EXPECT_NE(dynamic_cast<mc::futures::State<int>*>(future.get_state().get()), nullptr);
+        promise.set_value(2);
+        EXPECT_EQ(future.get(), 2);
     }
-
-    // 清理引用
-    promises.clear();
-    futures.clear();
-
-    // 检查池大小不超过限制
-    auto stats = pool.get_stats();
-    EXPECT_LE(stats.total_global_states, 2) << "缓存的状态数不应超过池大小限制";
 }
 
 // 不同大小类型测试
 TEST_F(state_pool_test, different_size_types)
 {
     auto& pool = mc::futures::state_pool::instance();
-
-    // 清理初始状态
-    pool.clear_all_pools();
 
     // 创建不同大小的类型的 future
     {
@@ -300,21 +344,13 @@ TEST_F(state_pool_test, different_size_types)
     }
 
     auto stats = pool.get_stats();
-    EXPECT_EQ(stats.total_pools, 1) << "缓存池按8字节对齐，应该只有一个";
+    EXPECT_EQ(stats.total_pools, 1) << "统一 state_base 控制块池下，不同 value size 应共享同一个池";
 }
 
 // 相同大小类型共享池测试
 TEST_F(state_pool_test, same_size_types_share_pool)
 {
     auto& pool = mc::futures::state_pool::instance();
-
-    auto config = pool.get_config();
-    pool.set_config(config);
-
-    // 清理初始状态
-    pool.clear_all_pools();
-
-    static_assert(sizeof(int64_t) == sizeof(double), "int64_t 和 double 必须同样大小才能测试");
 
     // 创建并销毁 int future
     {
@@ -336,26 +372,41 @@ TEST_F(state_pool_test, same_size_types_share_pool)
     }
 
     auto stats_after_float = pool.get_stats();
-    EXPECT_EQ(stats_after_float.total_pools, 1) << "int64_t 和 double 应该共享同一个池";
-    EXPECT_EQ(stats_after_float.total_global_states, 1) << "int64_t 和 double 应该共享同一个状态";
+    EXPECT_EQ(stats_after_float.total_pools, 1) << "统一控制块池下，int64_t 和 double 应共享同一个池";
+    EXPECT_EQ(stats_after_float.total_global_states, 1) << "统一控制块池下，两次释放后应回收到同一个缓存槽位";
 }
 
-// 配置测试
-TEST_F(state_pool_test, pool_config)
+TEST_F(state_pool_test, different_value_sizes_within_same_size_class_share_pool_under_pool_limit)
 {
     auto& pool = mc::futures::state_pool::instance();
 
-    mc::futures::state_pool_config config;
-    config.max_count_per_pool = 500;
-    config.max_pool_count     = 20;
-    config.max_cacheable_size = 1024;
+    struct state_size_17 {
+        char data[16];
+    };
+    struct state_size_32 {
+        char data[31];
+    };
 
-    pool.set_config(config);
+    auto promise1 = mc::make_promise<state_size_17>(io_context_);
+    auto future1  = promise1.get_future();
+    auto promise2 = mc::make_promise<state_size_32>(io_context_);
+    auto future2  = promise2.get_future();
 
-    const auto& retrieved_config = pool.get_config();
-    EXPECT_EQ(retrieved_config.max_count_per_pool, 500);
-    EXPECT_EQ(retrieved_config.max_pool_count, 20);
-    EXPECT_EQ(retrieved_config.max_cacheable_size, 1024);
+    {
+        promise1.set_value(state_size_17{});
+        future1.get();
+        promise2.set_value(state_size_32{});
+        future2.get();
+    }
+
+    promise1 = {};
+    future1  = {};
+    promise2 = {};
+    future2  = {};
+
+    auto stats = pool.get_stats();
+    EXPECT_EQ(stats.total_pools, 1U) << "统一 state_base 控制块池下，不同 value size 应共享一个底层池";
+    EXPECT_EQ(stats.total_global_states, 2U) << "两个 state 都应进入统一控制块池";
 }
 
 // 清理测试
@@ -371,31 +422,22 @@ TEST_F(state_pool_test, pool_clear)
         EXPECT_EQ(future.get(), 123);
     }
 
-    // 清理池
+    // 清理池：销毁缓存并替换底层 fixed_size_pool，统计归零
     pool.clear_all_pools();
 
-    // 检查池被清空
     auto stats = pool.get_stats();
     EXPECT_EQ(stats.total_global_states, 0);
-    EXPECT_EQ(stats.total_pools, 0);
+    EXPECT_EQ(stats.total_pools, 1);
 }
 
-// 大size状态不缓存测试
-TEST_F(state_pool_test, large_state_not_cached)
+// 大 payload 走 external fallback，但控制块仍应进入统一池
+TEST_F(state_pool_test, large_payload_still_reuses_pooled_state_base)
 {
     auto& pool = mc::futures::state_pool::instance();
 
-    // 设置较小的max_cacheable_size
-    mc::futures::state_pool_config config;
-    config.max_cacheable_size = 32;
-    pool.set_config(config);
-
-    // 创建一个大的结构体
     struct large_state {
-        char data[64]; // 大于max_cacheable_size
+        std::array<std::uint64_t, 40> data{};
     };
-
-    // 创建并完成一个large_state future
     {
         auto        promise = mc::make_promise<large_state>(io_context_);
         auto        future  = promise.get_future();
@@ -404,119 +446,136 @@ TEST_F(state_pool_test, large_state_not_cached)
         future.get();
     }
 
-    // 检查池统计，不应该有缓存的状态
-    auto stats = pool.get_stats();
-    EXPECT_EQ(stats.total_global_states, 0) << "大size的状态不应该被缓存";
-    EXPECT_EQ(stats.total_pools, 0) << "不应该为大size状态创建池";
+    auto stats_after = pool.get_stats();
+    EXPECT_EQ(stats_after.total_pools, 1U) << "大 payload 也应复用统一 state_base 控制块池";
+    EXPECT_EQ(stats_after.total_global_states, 1U) << "大 payload 的控制块释放后应回到统一池";
 }
 
-// 池数量限制测试
-TEST_F(state_pool_test, pool_count_limit)
+// 大 payload 且含非平凡成员时，external 路径在多轮池复用后也必须正确析构堆对象
+TEST_F(state_pool_test, large_nontrivial_external_payload_reuse_no_leak)
+{
+    struct large_tracked_state {
+        std::array<std::uint64_t, 40> data{};
+        std::shared_ptr<int>          owner;
+    };
+
+    constexpr int                   rounds = 4;
+    std::vector<std::weak_ptr<int>> weaks(rounds);
+
+    for (int i = 0; i < rounds; ++i) {
+        auto promise = mc::make_promise<large_tracked_state>(io_context_);
+        auto future  = promise.get_future();
+
+        large_tracked_state value{};
+        value.data[0] = static_cast<std::uint64_t>(i + 1);
+        auto sp       = std::make_shared<int>(i + 1);
+        weaks[i]      = sp;
+        value.owner   = std::move(sp);
+
+        promise.set_value(std::move(value));
+        EXPECT_EQ(*future.get().owner, i + 1);
+    }
+
+    for (int i = 0; i < rounds; ++i) {
+        EXPECT_TRUE(weaks[i].expired()) << "第 " << i + 1
+                                        << " 轮 external payload 复用后，shared_ptr 持有的堆对象应已析构";
+    }
+
+    auto stats = mc::futures::state_pool::instance().get_stats();
+    EXPECT_EQ(stats.total_global_states, 1U) << "同一大 payload 类型多轮复用后，应仍只回收到一个控制块槽位";
+}
+
+TEST_F(state_pool_test, external_payload_oom_does_not_terminate_or_lose_pool_slot)
 {
     auto& pool = mc::futures::state_pool::instance();
 
-    // 设置较小的max_pool_count
-    mc::futures::state_pool_config config;
-    config.max_pool_count = 2;
-    pool.set_config(config);
-
-    // 创建不同大小的状态来触发新池创建
-    struct state_size_1 {
-        char data[16];
-    };
-    struct state_size_2 {
-        char data[32];
-    };
-    struct state_size_3 {
-        char data[48];
-    };
-
-    // 创建并完成future
     {
-        auto promise1 = mc::make_promise<state_size_1>(io_context_);
-        auto future1  = promise1.get_future();
-        promise1.set_value(state_size_1{});
-        future1.get();
+        auto promise = mc::make_promise<oom_probe_payload>(io_context_);
+        auto future  = promise.get_future();
+        promise.set_value(oom_probe_payload{});
+        future.get();
     }
 
-    {
-        auto promise2 = mc::make_promise<state_size_2>(io_context_);
-        auto future2  = promise2.get_future();
-        promise2.set_value(state_size_2{});
-        future2.get();
-    }
+    const auto stats_before = pool.get_stats();
+    EXPECT_EQ(stats_before.total_global_states, 1U) << "基线：应已有一个可复用的控制块槽位";
 
     {
-        auto promise3 = mc::make_promise<state_size_3>(io_context_);
-        auto future3  = promise3.get_future();
-        promise3.set_value(state_size_3{});
-        future3.get();
+        scoped_payload_alloc_fail_after fail_guard(0);
+        EXPECT_THROW((void)mc::make_promise<oom_probe_payload>(io_context_), mc::bad_alloc_exception);
     }
 
-    // 检查池数量不超过限制
-    auto stats = pool.get_stats();
-    EXPECT_LE(stats.total_pools, 2) << "池数量不应超过限制";
+    const auto stats_after_failure = pool.get_stats();
+    EXPECT_EQ(stats_after_failure.total_global_states, 1U) << "构造 external payload 失败后，不应丢失池中的控制块槽位";
+
+    {
+        auto promise = mc::make_promise<oom_probe_payload>(io_context_);
+        auto future  = promise.get_future();
+        promise.set_value(oom_probe_payload{});
+        future.get();
+    }
+
+    const auto stats_after_retry = pool.get_stats();
+    EXPECT_EQ(stats_after_retry.total_global_states, 1U) << "OOM 后再次分配应仍可正常复用同一个控制块槽位";
 }
 
-// =============================================================================
-// 验证 get_destory_() 的类型分类行为
-// =============================================================================
+// 泄漏验证辅助：先触发 external payload OOM fallback，再复用同一槽位并显式 clear_all_pools。
+// 若 fallback state_base 没有在复用前先析构，leaks 会在进程退出时报告残留的控制块子对象。
+TEST_F(state_pool_test, external_payload_oom_reuse_then_clear_pool_for_leak_check)
+{
+    auto& pool = mc::futures::state_pool::instance();
 
-namespace {
+    {
+        auto promise = mc::make_promise<oom_probe_payload>(io_context_);
+        auto future  = promise.get_future();
+        promise.set_value(oom_probe_payload{});
+        future.get();
+    }
 
-// ---- 编译期断言：哪些类型属于平凡析构（get_destory_() = nullptr） ----
-//
-// std::optional<T> 是平凡析构 当且仅当 T 是平凡析构；
-// get_destory_() 以 is_trivially_destructible_v<optional<T>> 作为判据。
+    {
+        scoped_payload_alloc_fail_after fail_guard(0);
+        EXPECT_THROW((void)mc::make_promise<oom_probe_payload>(io_context_), mc::bad_alloc_exception);
+    }
 
-// 平凡析构类型：不会调用 destory_impl，也不需要调用（无副作用析构）
-static_assert(std::is_trivially_destructible_v<std::optional<int>>,
-              "State<int>: get_destory_() 返回 nullptr，destory_impl 不被调用");
-static_assert(std::is_trivially_destructible_v<std::optional<double>>, "State<double>: get_destory_() 返回 nullptr");
-static_assert(std::is_trivially_destructible_v<std::optional<std::monostate>>,
-              "State<void>: monostate 是平凡析构，get_destory_() 返回 nullptr");
+    {
+        auto promise = mc::make_promise<oom_probe_payload>(io_context_);
+        auto future  = promise.get_future();
+        promise.set_value(oom_probe_payload{});
+        future.get();
+    }
 
-struct trivial_pod {
-    int   x;
-    float y;
-};
-static_assert(std::is_trivially_destructible_v<std::optional<trivial_pod>>,
-              "纯 POD 结构体：平凡析构，get_destory_() 返回 nullptr");
+    // 显式销毁缓存对象，便于把“复用前是否先析构 fallback 对象”的问题单独暴露给 leaks。
+    pool.clear_all_pools();
+    const auto stats = pool.get_stats();
+    EXPECT_EQ(stats.total_global_states, 0U);
+}
 
-// 非平凡析构类型：必须调用 destory_impl 才能释放资源
-static_assert(!std::is_trivially_destructible_v<std::optional<std::shared_ptr<int>>>,
-              "State<shared_ptr>: get_destory_() 必须返回 &destory_impl");
-static_assert(!std::is_trivially_destructible_v<std::optional<mc::string>>,
-              "State<string>: get_destory_() 必须返回 &destory_impl");
-static_assert(!std::is_trivially_destructible_v<std::optional<std::vector<int>>>,
-              "State<vector>: get_destory_() 必须返回 &destory_impl");
+// 析构路径验证辅助：不主动 clear_all_pools，而是直接 reset state_pool 单例。
+// 若 state_pool 析构前未先析构缓存 state，对应控制块内部资源会在进程退出时被 leaks 报出。
+TEST(state_pool_shutdown_test, reset_singleton_with_cached_state_for_leak_check)
+{
+    mc::runtime::thread_pool io_context{1, "state_pool_shutdown_test"};
 
-// 含用户提供析构函数的类型：即使析构体为空，也是非平凡析构
-struct user_dtor_empty {
-    int x;
-    ~user_dtor_empty()
-    {} // 空析构函数 → 非平凡析构
-};
-static_assert(!std::is_trivially_destructible_v<std::optional<user_dtor_empty>>,
-              "含用户析构函数（即使为空）的类型是非平凡析构，"
-              "get_destory_() 返回 &destory_impl");
+    auto& pool = mc::futures::state_pool::instance();
+    pool.clear_all_pools();
 
-// 含原始指针的"伪资源"类型：由于无用户析构函数，属于平凡析构；
-// m_destory = nullptr，state_pool 不会释放指针——指针生命周期由调用者负责。
-struct raw_ptr_holder {
-    int* p; // 持有裸指针但无析构函数
-};
-static_assert(std::is_trivially_destructible_v<std::optional<raw_ptr_holder>>,
-              "裸指针包装体没有用户析构函数，属于平凡析构；"
-              "get_destory_() 返回 nullptr，调用者必须自行管理指针生命周期");
+    {
+        auto promise = mc::make_promise<mc::string>(io_context);
+        auto future  = promise.get_future();
+        promise.set_value(mc::string(64, 'x'));
+        EXPECT_EQ(future.get().size(), 64U);
+    }
 
-} // anonymous namespace
+    const auto stats_before_reset = pool.get_stats();
+    EXPECT_EQ(stats_before_reset.total_global_states, 1U);
+
+    mc::singleton<mc::futures::state_pool>::reset_for_test();
+}
 
 // 运行期：含用户析构函数的类型，验证池复用时析构依然被调用
 //
 // tracked_struct 含 shared_ptr 成员和用户析构函数：
-//   - is_trivially_destructible = false → get_destory_() 返回 &destory_impl
-//   - 池复用时 State<T>::reuse() 必须恢复 m_destory，否则析构不会被调用
+//   - is_trivially_destructible = false → destroy_slot 必须执行 payload 析构
+//   - 池复用时必须完整重建 State<T>，否则旧 payload 可能残留
 TEST_F(state_pool_test, get_destory_user_dtor_type_dtor_called_on_pool_reuse)
 {
     struct tracked_struct {
@@ -524,8 +583,6 @@ TEST_F(state_pool_test, get_destory_user_dtor_type_dtor_called_on_pool_reuse)
         ~tracked_struct()
         {} // 用户析构函数 → 非平凡析构
     };
-    static_assert(!std::is_trivially_destructible_v<std::optional<tracked_struct>>);
-
     std::weak_ptr<int> weak1;
     std::weak_ptr<int> weak2;
 
@@ -540,7 +597,7 @@ TEST_F(state_pool_test, get_destory_user_dtor_type_dtor_called_on_pool_reuse)
     }
     EXPECT_TRUE(weak1.expired()) << "首次使用后析构应被调用（基线）";
 
-    // 第二轮（池复用）：关键验证——若 reuse() 未恢复 m_destory，析构不会被调用
+    // 第二轮（池复用）：关键验证——若池复用未完整重建类型对象，析构不会被调用
     {
         auto promise = mc::make_promise<tracked_struct>(io_context_);
         auto future  = promise.get_future();
@@ -550,15 +607,13 @@ TEST_F(state_pool_test, get_destory_user_dtor_type_dtor_called_on_pool_reuse)
         EXPECT_EQ(*future.get().owner, 2);
     }
     EXPECT_TRUE(weak2.expired()) << "池复用后，含用户析构函数的类型析构仍应被调用；"
-                                    "若此断言失败，说明 reuse() 未恢复 m_destory，destory_impl 被跳过";
+                                    "若此断言失败，说明池复用重建路径丢失析构逻辑，destory_impl 被跳过";
 }
 
 // 运行期：vector<shared_ptr> 多次复用，确保每轮所有堆对象均被析构
-// vector 是非平凡析构，get_destory_() 返回 &destory_impl
+// vector 是非平凡析构，destroy_slot 必须真正销毁 payload
 TEST_F(state_pool_test, get_destory_vector_heap_objects_freed_on_reuse)
 {
-    static_assert(!std::is_trivially_destructible_v<std::optional<std::vector<std::shared_ptr<int>>>>);
-
     constexpr int                   rounds    = 4;
     constexpr int                   per_round = 3;
     std::vector<std::weak_ptr<int>> weaks;
@@ -579,18 +634,15 @@ TEST_F(state_pool_test, get_destory_vector_heap_objects_freed_on_reuse)
 
     for (int i = 0; i < rounds * per_round; ++i) {
         EXPECT_TRUE(weaks[i].expired()) << "第 " << i / per_round + 1 << " 轮第 " << i % per_round + 1
-                                        << " 个元素应在 destory_impl 调用后析构";
+                                        << " 个元素应在 payload 销毁路径执行后析构";
     }
 }
 
-// 运行期：平凡析构类型（int）—— get_destory_() 返回 nullptr，destory_impl 不被调用；
-// 但因 reuse() 中有显式 m_result.~result_type()/placement-new，旧值不会泄露给新一轮。
+// 运行期：平凡析构类型（int）—— 不需要额外析构逻辑；
+// 但因池复用会完整重建 State<T> 对象，旧值不会泄露给新一轮。
 // 验证新一轮始终能获取到正确的新值，而非上一轮残留的旧值。
 TEST_F(state_pool_test, get_destory_trivial_type_no_stale_value_after_reuse)
 {
-    static_assert(std::is_trivially_destructible_v<std::optional<int>>, "int 是平凡析构：destory_impl 不被调用，"
-                                                                        "reuse() 的显式 placement-new 负责清除旧值");
-
     for (int i = 0; i < 5; ++i) {
         auto promise = mc::make_promise<int>(io_context_);
         auto future  = promise.get_future();
@@ -600,7 +652,7 @@ TEST_F(state_pool_test, get_destory_trivial_type_no_stale_value_after_reuse)
     }
 }
 
-// 多线程并发测试
+// 多线程并发测试（子线程全部 join 后再析构用例对象，避免与 TearDown 中 clear_all_pools 交叉）
 TEST_F(state_pool_test, concurrent_access)
 {
     auto& pool = mc::futures::state_pool::instance();
@@ -633,4 +685,31 @@ TEST_F(state_pool_test, concurrent_access)
     auto stats = pool.get_stats();
     EXPECT_GT(stats.total_global_states, 0) << "应该有状态被缓存";
     EXPECT_GT(stats.total_pools, 0) << "应该创建了缓存池";
+}
+
+TEST_F(state_pool_test, mixed_size_types_under_contention)
+{
+    // 同上：threads.join_all() 完成后才进入 TearDown
+    mc::runtime::thread_list threads;
+    std::atomic<int>         completed{0};
+
+    threads.start_threads(4, [&completed]() {
+        mc::runtime::thread_pool local_io(1, "state_pool_mix");
+        for (int i = 0; i < 500; ++i) {
+            auto promise1 = mc::make_promise<int>(local_io);
+            auto future1  = promise1.get_future();
+            auto promise2 = mc::make_promise<mc::string>(local_io);
+            auto future2  = promise2.get_future();
+
+            promise1.set_value(i);
+            promise2.set_value("payload");
+
+            EXPECT_EQ(future1.get(), i);
+            EXPECT_EQ(future2.get(), "payload");
+        }
+        ++completed;
+    });
+
+    threads.join_all();
+    EXPECT_EQ(completed.load(), 4);
 }

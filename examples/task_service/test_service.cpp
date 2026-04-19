@@ -31,8 +31,7 @@ bool test_service::start()
         return false;
     }
 
-    m_tasks = mc::make_shared<my_tasks_object>(this);
-    register_object(m_tasks);
+    setup_tasks_root();
     return true;
 }
 
@@ -46,6 +45,18 @@ bool test_service::stop()
     //     // task->stop();
     // }
     return true;
+}
+
+void test_service::setup_tasks_root()
+{
+    if (m_tasks) {
+        return;
+    }
+
+    m_tasks = my_tasks_object::create();
+    m_tasks->set_object_name("TasksObject");
+    m_tasks->set_object_path("/bmc/kepler/TaskService/Tasks");
+    register_object(m_tasks);
 }
 
 } // namespace test

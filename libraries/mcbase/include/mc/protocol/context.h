@@ -15,82 +15,103 @@
 
 #include <mc/protocol/request.h>
 
-namespace mc::protocol {
+namespace mc::proto::detail {
 
-template <typename Spec, typename CurrentLayer>
-class context;
+template <typename Spec, typename CurrentProtocol>
+class runtime_context;
 
-template <typename CurrentLayer, typename... Layers>
-class context<stack_spec<Layers...>, CurrentLayer> : public detail::context_core {
+template <typename CurrentProtocol, typename... Protocols>
+class runtime_context<stack_spec<Protocols...>, CurrentProtocol> : public context_core {
 public:
-    using spec_type    = stack_spec<Layers...>;
-    using request_type = mc::protocol::request<spec_type>;
+    using spec_type    = stack_spec<Protocols...>;
+    using request_type = mc::proto::request<spec_type>;
 
-    explicit context(request_type& request) : detail::context_core(request.core()), m_request(request)
+    explicit runtime_context(request_type& request) : context_core(request.core()), m_request(request)
     {}
 
-    detail::layer_state_t<CurrentLayer>& self()
+    detail::protocol_request_t<CurrentProtocol>& self()
     {
-        return m_request.template get<CurrentLayer>();
+        return m_request.template packet<CurrentProtocol>();
     }
 
-    const detail::layer_state_t<CurrentLayer>& self() const
+    const detail::protocol_request_t<CurrentProtocol>& self() const
     {
-        return m_request.template get<CurrentLayer>();
+        return m_request.template packet<CurrentProtocol>();
     }
 
-    template <typename Layer>
-    detail::layer_state_t<Layer>& get()
+    detail::protocol_context_t<CurrentProtocol>& self_context()
     {
-        return m_request.template get<Layer>();
+        return m_request.template context<CurrentProtocol>();
     }
 
-    template <typename Layer>
-    const detail::layer_state_t<Layer>& get() const
+    const detail::protocol_context_t<CurrentProtocol>& self_context() const
     {
-        return m_request.template get<Layer>();
+        return m_request.template context<CurrentProtocol>();
     }
 
-    const context& prepare_packet() const noexcept
+    template <typename Protocol>
+    detail::protocol_request_t<Protocol>& get()
     {
-        m_request.prepare_packet();
+        return m_request.template packet<Protocol>();
+    }
+
+    template <typename Protocol>
+    const detail::protocol_request_t<Protocol>& get() const
+    {
+        return m_request.template packet<Protocol>();
+    }
+
+    template <typename Protocol>
+    detail::protocol_context_t<Protocol>& context()
+    {
+        return m_request.template context<Protocol>();
+    }
+
+    template <typename Protocol>
+    const detail::protocol_context_t<Protocol>& context() const
+    {
+        return m_request.template context<Protocol>();
+    }
+
+    const runtime_context& prepare_buffer() const noexcept
+    {
+        m_request.prepare_buffer();
         return *this;
     }
 
-    const context& prepare_inbound() const noexcept
+    const runtime_context& prepare_inbound_buffer() const noexcept
     {
-        m_request.prepare_inbound();
+        m_request.prepare_inbound_buffer();
         return *this;
     }
 
-    const context& append_payload(const void* data, std::size_t len) const
+    const runtime_context& append_payload(const void* data, std::size_t len) const
     {
         m_request.append_payload(data, len);
         return *this;
     }
 
     template <typename T, std::size_t N>
-    const context& append_payload(const T (&arr)[N]) const
+    const runtime_context& append_payload(const T (&arr)[N]) const
     {
         m_request.append_payload(arr);
         return *this;
     }
 
-    command jump_to(std::size_t index, flow_direction direction = flow_direction::push) const noexcept
+    const runtime_context& prepare_packet() const noexcept
     {
-        return detail::context_core::jump_to(index, direction);
+        return prepare_buffer();
     }
 
-    template <typename Layer>
-    command jump_to(flow_direction direction = flow_direction::push) const noexcept
+    const runtime_context& prepare_inbound() const noexcept
     {
-        return jump_to(detail::layer_index<Layer, Layers...>::value, direction);
+        return prepare_inbound_buffer();
     }
 
 private:
     request_type& m_request;
 };
 
-} // namespace mc::protocol
+} // namespace mc::proto::detail
 
 #endif // MC_PROTOCOL_CONTEXT_H

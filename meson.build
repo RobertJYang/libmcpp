@@ -169,6 +169,29 @@ else
   mock_dynamic_module = []  # 空列表
 endif
 
+mcengine_subproject = subproject('mcengine', default_options: [
+  'default_library=static',
+  'tests=' + build_tests.to_string(),
+  'enable_coverage=' + enable_coverage.to_string(),
+])
+mcengine_dep = mcengine_subproject.get_variable('mcengine_dep')
+mcengine_lib = mcengine_subproject.get_variable('mcengine_lib')
+
+mcexpr_subproject = subproject('mcexpr', default_options: [
+  'default_library=static',
+  'tests=' + build_tests.to_string(),
+  'enable_coverage=' + enable_coverage.to_string(),
+])
+mcexpr_dep = mcexpr_subproject.get_variable('mcexpr_dep')
+mcexpr_lib = mcexpr_subproject.get_variable('mcexpr_lib')
+
+mcapp_subproject = subproject('mcapp', default_options: [
+  'tests=' + build_tests.to_string(),
+  'enable_coverage=' + enable_coverage.to_string(),
+])
+mcapp_dep = mcapp_subproject.get_variable('mcapp_dep')
+mcapp_lib = mcapp_subproject.get_variable('mcapp_lib')
+
 subdir('include')
 subdir('src')
 subdir('modules')

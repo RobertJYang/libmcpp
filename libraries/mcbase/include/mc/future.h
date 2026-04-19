@@ -144,7 +144,7 @@ auto timeout(FutureType future, Duration timeout_duration, Executor executor = m
     auto result_future = promise.get_future().on_cancel(future);
     result_future.timeout(future, timeout_duration,
                           [promise = std::move(promise), state = future.get_state()]() mutable {
-        promise.set_state_value(*static_cast<const typename FutureType::state_type*>(state.get()));
+        promise.set_state_value(*state);
     });
     return result_future;
 }

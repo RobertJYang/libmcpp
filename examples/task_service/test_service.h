@@ -23,12 +23,12 @@ public:
     test_service(std::string_view name);
     ~test_service();
 
-    bool init(mc::dict args) override;
-    bool start() override;
-    bool stop() override;
+    bool init(mc::dict args = {});
+    bool start();
+    bool stop();
 
 private:
-    void create_task();
+    void setup_tasks_root();
 
     tasks_object_ptr m_tasks;
 };

@@ -80,7 +80,7 @@ void any_future::wait() const
         return;
     }
 
-    std::unique_lock<std::mutex> lock(m_state->m_mutex);
+    std::unique_lock lock(m_state->m_mutex);
     while (!m_state->is_ready()) {
         auto guard = make_wait_hook_guard();
         m_state->m_cv.wait(lock);
@@ -101,6 +101,25 @@ void any_future::on_cancel_impl(callback_type callback)
     if (m_state) {
         m_state->add_cancel_callback(std::move(callback));
     }
+}
+
+void any_future::tap_error_impl(std::function<void(const mc::exception&)> inspector, launch policy)
+{
+    if (!m_state) {
+        return;
+    }
+
+    any_future::add_continuation([handler = std::move(inspector), state = get_state()]() mutable {
+        if (!state->is_rejected()) {
+            return;
+        }
+        if (auto exception = state->get_exception_object()) {
+            try {
+                handler(*exception);
+            } catch (...) {
+            }
+        }
+    }, policy, mc::any_executor(mc::runtime::immediate_executor()));
 }
 
 static void link_cancel_states(state_base_ptr& state, state_base_ptr other_state)
@@ -223,8 +242,8 @@ future_status any_future::wait_for_impl(std::chrono::steady_clock::duration dura
         return future_status::invalid;
     }
 
-    std::unique_lock<std::mutex> lock(m_state->m_mutex);
-    if (m_state->m_policy == launch::deferred) {
+    std::unique_lock lock(m_state->m_mutex);
+    if (m_state->get_policy() == launch::deferred) {
         return future_status::deferred;
     }
 
@@ -245,8 +264,8 @@ future_status any_future::wait_until_impl(std::chrono::steady_clock::time_point 
         return future_status::invalid;
     }
 
-    std::unique_lock<std::mutex> lock(m_state->m_mutex);
-    if (m_state->m_policy == launch::deferred) {
+    std::unique_lock lock(m_state->m_mutex);
+    if (m_state->get_policy() == launch::deferred) {
         return future_status::deferred;
     }
 
@@ -268,16 +287,15 @@ void any_future::timeout_impl(any_future& src_future, duration_type duration, ca
     }
 
     struct timer_data {
-        timer_data(any_executor executor, duration_type duration)
-            : timer(std::move(executor)), completed(false)
+        timer_data(any_executor executor, duration_type duration) : timer(std::move(executor)), completed(false)
         {
             timer.expires_after(duration);
         }
 
         mc::runtime::steady_timer timer;
-        std::atomic<bool> completed;
-        state_base_ptr    src_state;
-        state_base_ptr    dst_state;
+        std::atomic<bool>         completed;
+        state_base_ptr            src_state;
+        state_base_ptr            dst_state;
     };
     auto data       = std::make_shared<timer_data>(m_state->get_executor(), duration);
     data->src_state = src_future.get_state();

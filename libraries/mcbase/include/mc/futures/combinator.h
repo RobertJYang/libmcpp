@@ -201,8 +201,7 @@ void observe_child_future(const std::shared_ptr<State>& state, Future& future, S
         if constexpr (std::is_same_v<result_type, void> || std::is_same_v<result_type, std::monostate>) {
             success(std::monostate{});
         } else {
-            auto* typed_state = static_cast<const mc::futures::State<result_type>*>(child_state.get());
-            success(typed_state->get_value());
+            success(mc::futures::State<result_type>::get_value(*child_state));
         }
     });
     future.on_cancel(make_child_cancel_callback(state));

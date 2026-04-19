@@ -78,13 +78,4 @@ inline application& app()
 }
 } // namespace mc::core
 
-namespace mc {
-
-inline mc::core::application& app()
-{
-    return mc::core::app();
-}
-
-} // namespace mc
-
 #endif // MC_APPLICATION_H

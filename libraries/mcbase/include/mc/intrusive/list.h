@@ -122,7 +122,7 @@ inline const T* slist_value(const slist_hook_state* hook)
 
 class MC_API list_core {
 public:
-    list_core() = default;
+    list_core() noexcept = default;
 
     list_core(const list_core&)            = delete;
     list_core& operator=(const list_core&) = delete;
@@ -134,10 +134,10 @@ public:
     list_hook_state*       tail() noexcept;
     const list_hook_state* tail() const noexcept;
 
-    static list_hook_state*       next(list_hook_state* node) noexcept;
-    static const list_hook_state* next(const list_hook_state* node) noexcept;
-    static list_hook_state*       prev(list_hook_state* node) noexcept;
-    static const list_hook_state* prev(const list_hook_state* node) noexcept;
+    list_hook_state*       next(list_hook_state* node) noexcept;
+    const list_hook_state* next(const list_hook_state* node) const noexcept;
+    list_hook_state*       prev(list_hook_state* node) noexcept;
+    const list_hook_state* prev(const list_hook_state* node) const noexcept;
 
     void             push_front(list_hook_state* node) noexcept;
     void             push_back(list_hook_state* node) noexcept;
@@ -152,13 +152,13 @@ public:
 private:
     static void reset_hook(list_hook_state* node) noexcept;
 
-    list_hook_state* m_head{nullptr};
-    list_hook_state* m_tail{nullptr};
+    offset_ptr<list_hook_state> m_head{};
+    offset_ptr<list_hook_state> m_tail{};
 };
 
 class MC_API slist_core {
 public:
-    slist_core() = default;
+    slist_core() noexcept = default;
 
     slist_core(const slist_core&)            = delete;
     slist_core& operator=(const slist_core&) = delete;
@@ -168,8 +168,8 @@ public:
     slist_hook_state*       head() noexcept;
     const slist_hook_state* head() const noexcept;
 
-    static slist_hook_state*       next(slist_hook_state* node) noexcept;
-    static const slist_hook_state* next(const slist_hook_state* node) noexcept;
+    slist_hook_state*       next(slist_hook_state* node) noexcept;
+    const slist_hook_state* next(const slist_hook_state* node) const noexcept;
 
     void push_front(slist_hook_state* node) noexcept;
     void pop_front() noexcept;
@@ -183,7 +183,7 @@ public:
 private:
     static void reset_hook(slist_hook_state* node) noexcept;
 
-    slist_hook_state* m_head{nullptr};
+    offset_ptr<slist_hook_state> m_head{};
 };
 
 } // namespace detail
@@ -420,7 +420,7 @@ public:
         if constexpr (has_constant_time_size) {
             other_size = other.size();
         } else {
-            for (auto* cur = other.m_core.head(); cur != nullptr; cur = detail::list_core::next(cur)) {
+            for (auto* cur = other.m_core.head(); cur != nullptr; cur = other.m_core.next(cur)) {
                 ++other_size;
             }
         }
@@ -474,7 +474,7 @@ public:
             return this->m_size;
         } else {
             std::size_t count = 0;
-            for (auto* current = m_core.head(); current != nullptr; current = detail::list_core::next(current)) {
+            for (auto* current = m_core.head(); current != nullptr; current = m_core.next(current)) {
                 ++count;
             }
             return count;
@@ -487,22 +487,22 @@ private:
 
     hook_ptr next_hook(hook_ptr hook)
     {
-        return detail::list_core::next(hook);
+        return m_core.next(hook);
     }
 
     const_hook_ptr next_hook(const_hook_ptr hook) const
     {
-        return detail::list_core::next(hook);
+        return m_core.next(hook);
     }
 
     hook_ptr prev_hook(hook_ptr hook)
     {
-        return detail::list_core::prev(hook);
+        return m_core.prev(hook);
     }
 
     const_hook_ptr prev_hook(const_hook_ptr hook) const
     {
-        return detail::list_core::prev(hook);
+        return m_core.prev(hook);
     }
 
     hook_ptr tail_hook()
@@ -691,7 +691,7 @@ public:
             return end();
         }
         auto* hook    = pos.m_current;
-        auto* next_hk = detail::slist_core::next(hook);
+        auto* next_hk = m_core.next(hook);
         m_core.erase(hook);
         on_erase();
         return iterator(this, next_hk);
@@ -755,7 +755,7 @@ public:
             return this->m_size;
         } else {
             std::size_t count = 0;
-            for (auto* current = m_core.head(); current != nullptr; current = detail::slist_core::next(current)) {
+            for (auto* current = m_core.head(); current != nullptr; current = m_core.next(current)) {
                 ++count;
             }
             return count;
@@ -768,12 +768,12 @@ private:
 
     hook_ptr next_hook(hook_ptr hook)
     {
-        return detail::slist_core::next(hook);
+        return m_core.next(hook);
     }
 
     const_hook_ptr next_hook(const_hook_ptr hook) const
     {
-        return detail::slist_core::next(hook);
+        return m_core.next(hook);
     }
 
     void on_insert()

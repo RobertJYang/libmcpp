@@ -13,7 +13,7 @@
 #ifndef MC_DBUS_DISPATCH_WATCH_H
 #define MC_DBUS_DISPATCH_WATCH_H
 
-#include <mc/io/fd_watcher.h>
+#include <mc/io/native_waiter.h>
 
 #include "dbus/connection_impl.h"
 
@@ -23,7 +23,7 @@ class watch : public mc::enable_shared_from_this<watch> {
 public:
     template <typename Executor>
     watch(const Executor& executor, DBusWatch* watch)
-        : m_watch(watch), m_socket(executor, dbus_watch_get_unix_fd(watch))
+        : m_watch(watch), m_socket(executor, mc::io::native_waiter::from_descriptor(dbus_watch_get_unix_fd(watch)))
     {}
 
     ~watch();
@@ -36,8 +36,8 @@ private:
     void watch_writable(connection_weak_ptr conn, mc::shared_ptr<watch> self);
     bool handle_watch_ready(connection_ptr& conn, uint32_t flags);
 
-    DBusWatch*         m_watch;
-    mc::io::fd_watcher m_socket;
+    DBusWatch*            m_watch;
+    mc::io::native_waiter m_socket;
 };
 
 } // namespace mc::dbus

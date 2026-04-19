@@ -21,7 +21,7 @@
 namespace mc::db {
 
 // 前向声明
-template <typename ObjectType, typename KeyExtractor, bool IsUnique, typename Tag, typename Allocator>
+template <typename ObjectType, typename KeyExtractor, bool IsUnique, typename Tag, typename Allocator, typename Engine>
 class index;
 
 /**
@@ -278,7 +278,7 @@ private:
     bool         m_is_end;
 
     // 声明mem_index为友元类
-    template <typename, typename, bool, typename, typename>
+    template <typename, typename, bool, typename, typename, typename>
     friend class index;
 };
 

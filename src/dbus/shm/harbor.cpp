@@ -29,11 +29,11 @@ namespace mc::dbus {
 
 static constexpr size_t                                       MQ_BUFFER_SIZE     = 1024 * 1024;
 static uint32_t                                               g_reply_msg_serial = 0;
-static std::unordered_map<std::string, shm::message_queue_t*> g_msg_queues;
+static std::unordered_map<std::string, ::shm::message_queue_t*> g_msg_queues;
 static std::mutex                                             g_msg_queues_mutex;
 static std::atomic<uint64_t>                                  g_next_match_id{1};
 
-shm::object_tree* create_shm_tree(std::string_view harbor_name, std::string_view service_name,
+::shm::object_tree* create_shm_tree(std::string_view harbor_name, std::string_view service_name,
                                   std::string_view unique_name)
 {
     MC_ASSERT(!harbor_name.empty(), "harbor name is empty");
@@ -41,7 +41,7 @@ shm::object_tree* create_shm_tree(std::string_view harbor_name, std::string_view
     MC_ASSERT(!unique_name.empty(), "unique name is empty");
 #if defined(BUILD_TYPE) && defined(BUILD_TYPE_DT) && BUILD_TYPE != BUILD_TYPE_DT
     // 非DT环境下，需要等待framework进程创建好共享内存
-    while (!shm::shared_memory::is_exist()) {
+    while (!::shm::shared_memory::is_exist()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
 #endif
@@ -59,7 +59,7 @@ shm::object_tree* create_shm_tree(std::string_view harbor_name, std::string_view
         fclose(fp);
     }
     return shm_global_lock_exec([harbor_name, service_name, unique_name]() {
-        auto& ins = shm::shared_memory::get_instance();
+        auto& ins = ::shm::shared_memory::get_instance();
         ins.set_harbor_name(unique_name, harbor_name);
         auto tree = ins.get_tree(service_name);
         tree->set_unique_name(unique_name);
@@ -68,7 +68,7 @@ shm::object_tree* create_shm_tree(std::string_view harbor_name, std::string_view
     });
 }
 
-message_queue::message_queue(shm::message_queue_t& msg_queue) : m_msg_queue(msg_queue)
+message_queue::message_queue(::shm::message_queue_t& msg_queue) : m_msg_queue(msg_queue)
 {}
 
 message_queue::~message_queue()
@@ -166,7 +166,7 @@ void harbor::reset_for_test() {
 }
 
 void harbor::init_message_queue() {
-    auto& ins             = shm::shared_memory::get_instance();
+    auto& ins             = ::shm::shared_memory::get_instance();
     auto& harbor_tree_map = ins.get_object_tree_map(m_harbor_name);
     auto  harbor_it       = harbor_tree_map.find(m_harbor_name);
     if (harbor_it == harbor_tree_map.end()) {
@@ -210,9 +210,9 @@ static uint32_t set_serial(local_msg* msg)
     return g_reply_msg_serial;
 }
 
-static shm::object_tree* find_harbor_tree(std::string_view service_name)
+static ::shm::object_tree* find_harbor_tree(std::string_view service_name)
 {
-    auto&            ins      = shm::shared_memory::get_instance();
+    auto&            ins      = ::shm::shared_memory::get_instance();
     auto&            tree_map = ins.get_object_tree_map(service_name);
     auto             it       = tree_map.find(service_name);
     std::string_view harbor_name;
@@ -232,18 +232,18 @@ static shm::object_tree* find_harbor_tree(std::string_view service_name)
     return &*harbor_it->second;
 }
 
-static bool is_online(shm::object_tree* harbor_tree)
+static bool is_online(::shm::object_tree* harbor_tree)
 {
     return !harbor_tree->unique_name().empty();
 }
 
-shm::message_queue_t* harbor::get_destination_msg_queue(std::string_view destination)
+::shm::message_queue_t* harbor::get_destination_msg_queue(std::string_view destination)
 {
     MC_ASSERT(!destination.empty(), "destination is empty");
     std::string_view harbor_name;
     if (is_unique_name(destination)) {
         harbor_name = shm_global_lock_shared_exec([destination]() {
-            auto& ins = shm::shared_memory::get_instance();
+            auto& ins = ::shm::shared_memory::get_instance();
             return ins.get_harbor_name(destination);
         });
         if (harbor_name.empty()) {

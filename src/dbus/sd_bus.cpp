@@ -278,16 +278,16 @@ void sd_bus::register_object(mc::shared_ptr<dynamic_object> object)
     if (!shm_tree) {
         return;
     }
-    shm::object_tree* tree = shm_tree->get_tree();
+    ::shm::object_tree* tree = shm_tree->get_tree();
     if (!tree) {
         return;
     }
-    auto&        ins     = shm::shared_memory::get_instance();
-    shm::object& shm_obj = tree->register_object(ins, path);
+    auto&        ins     = ::shm::shared_memory::get_instance();
+    ::shm::object& shm_obj = tree->register_object(ins, path);
     for (auto& [name, interface] : object->get_interfaces()) {
-        shm::interface& shm_intf = shm_obj.register_interface(ins, false, name);
+        ::shm::interface& shm_intf = shm_obj.register_interface(ins, false, name);
         for (auto& [prop_name, prop] : interface->get_properties()) {
-            shm::shared_ptr<shm::property> shm_prop = shm_intf.add_p(ins, prop_name, prop.signature);
+            ::shm::shared_ptr<::shm::property> shm_prop = shm_intf.add_p(ins, prop_name, prop.signature);
             shm_prop->set_flags(prop.flags);
             shm_tree::set_property_inner(shm_prop, prop.value);
             prop.shm_prop = shm_prop;

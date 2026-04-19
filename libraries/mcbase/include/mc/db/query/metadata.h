@@ -13,8 +13,7 @@
 #ifndef MC_DATABASE_QUERY_METADATA_H
 #define MC_DATABASE_QUERY_METADATA_H
 
-#include <string>
-#include <string_view>
+#include <memory>
 #include <tuple>
 #include <typeindex>
 #include <typeinfo>
@@ -48,20 +47,18 @@ enum class key_extractor_type {
  * 索引元数据，描述一个索引的关键特性
  */
 struct index_metadata {
-    size_t                   index_id       = 0;                              // 索引ID
-    index_type               type           = index_type::ordered_unique;     // 索引类型
-    key_extractor_type       extractor_type = key_extractor_type::member_key; // 键提取类型
-    std::vector<mc::string> field_names; // 相关字段名称(对于复合键可能有多个)
-    std::type_index          key_type  = std::type_index(typeid(void)); // 键类型的类型索引
-    bool                     is_unique = true;                          // 是否唯一索引
+    size_t                  index_id       = 0;                              // 索引ID
+    index_type              type           = index_type::ordered_unique;     // 索引类型
+    key_extractor_type      extractor_type = key_extractor_type::member_key; // 键提取类型
+    std::vector<mc::string> field_names;                                     // 相关字段名称(对于复合键可能有多个)
+    std::type_index         key_type  = std::type_index(typeid(void));       // 键类型的类型索引
+    bool                    is_unique = true;                                // 是否唯一索引
 };
 
 /**
  * 表的索引元数据容器，管理一个表的所有索引元数据
- * @tparam ObjectType 表中存储的对象类型
  */
-template <typename ObjectType>
-class table_index_metadata {
+class table_index_metadata_base {
 public:
     using index_metadata_list = std::vector<std::unique_ptr<index_metadata>>;
 
@@ -69,34 +66,14 @@ public:
      * 添加索引元数据
      * @param metadata 要添加的索引元数据
      */
-    void add_index(const index_metadata& metadata)
-    {
-        auto& md = m_indices.emplace_back(std::make_unique<index_metadata>(metadata));
-
-        for (const auto& field_names : md->field_names) {
-            m_field_to_indices[field_names].push_back(m_indices.size() - 1);
-        }
-    }
+    MC_API void add_index(const index_metadata& metadata);
 
     /**
      * 检查字段是否有非唯一索引
      * @param field_name 字段名
      * @return 是否有非唯一索引
      */
-    bool has_non_unique_index(mc::string_view field_name) const
-    {
-        auto it = m_field_to_indices.find(field_name);
-        if (it == m_field_to_indices.end()) {
-            return false;
-        }
-
-        for (size_t index_id : it->second) {
-            if (!m_indices[index_id]->is_unique) {
-                return true;
-            }
-        }
-        return false;
-    }
+    MC_API bool has_non_unique_index(mc::string_view field_name) const;
 
     /**
      * 查找字段的最佳索引ID
@@ -104,60 +81,34 @@ public:
      * @param prefer_unique 是否优先选择唯一索引
      * @return 索引ID，如果没有找到则返回-1
      */
-    int find_best_index_id(mc::string_view field_name, bool prefer_unique = true) const
-    {
-        auto it = m_field_to_indices.find(field_name);
-        if (it == m_field_to_indices.end()) {
-            return -1;
-        }
-
-        // 优先查找唯一索引
-        if (prefer_unique) {
-            for (size_t index_id : it->second) {
-                if (m_indices[index_id]->is_unique && m_indices[index_id]->index_id > 0) {
-                    return static_cast<int>(m_indices[index_id]->index_id);
-                }
-            }
-        }
-
-        // 查找任意可用索引
-        for (size_t index_id : it->second) {
-            if (m_indices[index_id]->index_id > 0) {
-                return static_cast<int>(m_indices[index_id]->index_id);
-            }
-        }
-
-        return -1;
-    }
+    MC_API int find_best_index_id(mc::string_view field_name, bool prefer_unique = true) const;
 
     /**
      * 获取所有索引元数据
      * @return 索引元数据列表
      */
-    const index_metadata_list& get_all_indices() const
-    {
-        return m_indices;
-    }
+    MC_API const index_metadata_list& get_all_indices() const;
 
     /**
      * 根据索引ID获取索引元数据
      * @param index_id 索引ID
      * @return 索引元数据指针，如果不存在则返回nullptr
      */
-    const index_metadata* get_index_by_id(size_t index_id) const
-    {
-        if (index_id < m_indices.size()) {
-            return m_indices[index_id].get();
-        }
-        return nullptr;
-    }
+    MC_API const index_metadata* get_index_by_id(size_t index_id) const;
 
 private:
-    using field_to_indices_map = std::unordered_map<mc::string_view, std::vector<size_t>>;
+    using field_to_indices_map = std::unordered_map<mc::string, std::vector<size_t>>;
 
     index_metadata_list  m_indices;          // 所有索引元数据
     field_to_indices_map m_field_to_indices; // 字段到索引的映射
 };
+
+/**
+ * 表的索引元数据容器，管理一个表的所有索引元数据
+ * @tparam ObjectType 表中存储的对象类型
+ */
+template <typename ObjectType>
+class table_index_metadata : public table_index_metadata_base {};
 
 namespace detail {
 

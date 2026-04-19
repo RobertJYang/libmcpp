@@ -929,6 +929,8 @@ TEST_F(StringTest, StringLegacyStaticHelperCompatibility)
     mc::string::trim_inplace(mutable_text);
     EXPECT_EQ(mutable_text, "hello");
     EXPECT_TRUE(mc::string::starts_with(std::string_view("prefix_value"), "prefix"));
+    EXPECT_TRUE(mc::string::contains(std::string_view("prefix_value"), "value"));
+    EXPECT_EQ(mc::string::replace_all(std::string_view("prefix_body_tail"), "body", "core"), "prefix_core_tail");
 }
 
 TEST_F(StringTest, StringStdViewComparisonCompatibility)

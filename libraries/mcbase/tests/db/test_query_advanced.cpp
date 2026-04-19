@@ -13,6 +13,7 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <array>
 
 #include <mc/db/query/query.h>
 #include <mc/db/table.h>
@@ -24,6 +25,20 @@
 namespace {
 
 namespace mdb = mc::db;
+
+struct int_range {
+    std::vector<int> values;
+
+    auto begin() const
+    {
+        return values.begin();
+    }
+
+    auto end() const
+    {
+        return values.end();
+    }
+};
 
 // 定义标签类型
 struct by_age : mdb::tag_base<by_age> {};
@@ -87,7 +102,9 @@ public:
 
 } // namespace
 
-MC_REFLECT(test_user, ((m_id, "id"))((m_name, "name"))((m_age, "age"))((m_city, "city"))((m_score, "score")))
+MC_REFLECT(test_user,
+           ((m_id, "id"))((m_name, "name"))((m_age, "age"))((m_city, "city"))((m_score, "score"))((get_id_add_age,
+                                                                                                   "id_age")))
 
 namespace {
 MC_FIELD_INDEX_TAG(by_id_add_age, "id_age");
@@ -238,6 +255,53 @@ TEST_F(table_query_test, special_condition_query)
     }
 }
 
+TEST_F(table_query_test, in_supports_common_containers_and_generic_ranges)
+{
+    {
+        auto user_ids = query_users(mdb::field("city").in({"北京", "上海"}));
+        ASSERT_EQ(user_ids.size(), 3);
+        std::sort(user_ids.begin(), user_ids.end());
+        EXPECT_EQ(user_ids[0], 1);
+        EXPECT_EQ(user_ids[1], 2);
+        EXPECT_EQ(user_ids[2], 5);
+    }
+
+    {
+        auto user_ids = query_users(mdb::field("age").in(std::array<int, 2>{25, 35}));
+        ASSERT_EQ(user_ids.size(), 3);
+        std::sort(user_ids.begin(), user_ids.end());
+        EXPECT_EQ(user_ids[0], 1);
+        EXPECT_EQ(user_ids[1], 3);
+        EXPECT_EQ(user_ids[2], 4);
+    }
+
+    {
+        auto user_ids = query_users(mdb::field("age").in(mc::array<int>{25, 40}));
+        ASSERT_EQ(user_ids.size(), 3);
+        std::sort(user_ids.begin(), user_ids.end());
+        EXPECT_EQ(user_ids[0], 1);
+        EXPECT_EQ(user_ids[1], 3);
+        EXPECT_EQ(user_ids[2], 5);
+    }
+
+    {
+        auto user_ids = query_users(mdb::field("age").in(int_range{{30, 40}}));
+        ASSERT_EQ(user_ids.size(), 2);
+        std::sort(user_ids.begin(), user_ids.end());
+        EXPECT_EQ(user_ids[0], 2);
+        EXPECT_EQ(user_ids[1], 5);
+    }
+
+    {
+        auto user_ids = query_users(mdb::conditions::in("city", {"北京", "深圳"}));
+        ASSERT_EQ(user_ids.size(), 3);
+        std::sort(user_ids.begin(), user_ids.end());
+        EXPECT_EQ(user_ids[0], 1);
+        EXPECT_EQ(user_ids[1], 4);
+        EXPECT_EQ(user_ids[2], 5);
+    }
+}
+
 TEST_F(table_query_test, index_optimized_query)
 {
     // 测试按主键ID查询（应该使用主键索引）
@@ -281,15 +345,13 @@ TEST_F(table_query_test, query_limit_and_custom_handler)
 
         std::vector<mc::string>      names;
         mdb::table_query<user_table> executor(users);
-        executor.query(builder, [&names](const test_user& user) {
+        auto                         completed = executor.query(builder, [&names](const test_user& user) {
             names.push_back(user.name());
-            return true;
+            return false;
         });
 
-        ASSERT_EQ(names.size(), 2);
-        std::sort(names.begin(), names.end());
-        EXPECT_EQ(names[0], "张三");
-        EXPECT_EQ(names[1], "钱七");
+        EXPECT_FALSE(completed);
+        ASSERT_EQ(names.size(), 1);
     }
 
     // 测试复合条件查询
@@ -343,6 +405,115 @@ TEST_F(table_query_test, direct_query_builder)
         EXPECT_EQ(user_ids[1], 2);
         EXPECT_EQ(user_ids[2], 3);
     }
+}
+
+TEST_F(table_query_test, query_builder_where_in_supports_common_containers_and_generic_ranges)
+{
+    {
+        mdb::query_builder builder;
+        builder.where_in("city", {"北京", "上海"});
+
+        auto user_ids = query_users(builder);
+        ASSERT_EQ(user_ids.size(), 3);
+        std::sort(user_ids.begin(), user_ids.end());
+        EXPECT_EQ(user_ids[0], 1);
+        EXPECT_EQ(user_ids[1], 2);
+        EXPECT_EQ(user_ids[2], 5);
+    }
+
+    {
+        mdb::query_builder builder;
+        builder.where_in("age", std::array<int, 2>{25, 35});
+
+        auto user_ids = query_users(builder);
+        ASSERT_EQ(user_ids.size(), 3);
+        std::sort(user_ids.begin(), user_ids.end());
+        EXPECT_EQ(user_ids[0], 1);
+        EXPECT_EQ(user_ids[1], 3);
+        EXPECT_EQ(user_ids[2], 4);
+    }
+
+    {
+        mdb::query_builder builder;
+        builder.where_in("age", mc::array<int>{25, 40});
+
+        auto user_ids = query_users(builder);
+        ASSERT_EQ(user_ids.size(), 3);
+        std::sort(user_ids.begin(), user_ids.end());
+        EXPECT_EQ(user_ids[0], 1);
+        EXPECT_EQ(user_ids[1], 3);
+        EXPECT_EQ(user_ids[2], 5);
+    }
+
+    {
+        mdb::query_builder builder;
+        builder.where_in("age", int_range{{30, 40}});
+
+        auto user_ids = query_users(builder);
+        ASSERT_EQ(user_ids.size(), 2);
+        std::sort(user_ids.begin(), user_ids.end());
+        EXPECT_EQ(user_ids[0], 2);
+        EXPECT_EQ(user_ids[1], 5);
+    }
+}
+
+TEST_F(table_query_test, expression_dsl_query)
+{
+    {
+        auto user_ids = query_users((mdb::field("age") == 25) && (mdb::field("city") == "北京"));
+        ASSERT_EQ(user_ids.size(), 1);
+        EXPECT_EQ(user_ids[0], 1);
+    }
+
+    {
+        auto user_ids = query_users((mdb::field("age") == 25) || (mdb::field("city") == "北京"));
+        ASSERT_EQ(user_ids.size(), 3);
+        std::sort(user_ids.begin(), user_ids.end());
+        EXPECT_EQ(user_ids[0], 1);
+        EXPECT_EQ(user_ids[1], 3);
+        EXPECT_EQ(user_ids[2], 5);
+    }
+
+    {
+        auto user_ids = query_users(!(mdb::field("city") == "北京"));
+        ASSERT_EQ(user_ids.size(), 3);
+        std::sort(user_ids.begin(), user_ids.end());
+        EXPECT_EQ(user_ids[0], 2);
+        EXPECT_EQ(user_ids[1], 3);
+        EXPECT_EQ(user_ids[2], 4);
+    }
+}
+
+TEST_F(table_query_test, find_accepts_expression_condition)
+{
+    auto user_opt = users.find((mdb::field("age") == 25) && (mdb::field("city") == "北京"));
+    ASSERT_TRUE(user_opt != nullptr);
+    EXPECT_EQ(user_opt->id(), 1);
+    EXPECT_EQ(user_opt->name(), "张三");
+}
+
+TEST_F(table_query_test, find_accepts_reflected_method_condition)
+{
+    auto user_opt = users.find(mdb::field("id_age") == 32);
+    ASSERT_TRUE(user_opt != nullptr);
+    EXPECT_EQ(user_opt->id(), 2);
+    EXPECT_EQ(user_opt->name(), "李四");
+}
+
+TEST_F(table_query_test, find_object_accepts_expression_condition)
+{
+    auto user_opt = users.find_object((mdb::field("age") == 25) && (mdb::field("city") == "北京"));
+    ASSERT_TRUE(user_opt != nullptr);
+    EXPECT_EQ(user_opt->id(), 1);
+    EXPECT_EQ(user_opt->name(), "张三");
+}
+
+TEST_F(table_query_test, field_tag_exposes_legacy_field_expression)
+{
+    auto user_opt = users.find_object(by_id_add_age::field == 32);
+    ASSERT_TRUE(user_opt != nullptr);
+    EXPECT_EQ(user_opt->id(), 2);
+    EXPECT_EQ(user_opt->name(), "李四");
 }
 
 TEST_F(table_query_test, string_field_method)
@@ -420,6 +591,11 @@ TEST_F(table_query_test, query_helper_methods)
     mdb::table_query<user_table> executor(users);
 
     {
+        auto results = executor.query_limit(mdb::query_builder(), 2);
+        ASSERT_EQ(results.size(), 2);
+    }
+
+    {
         auto results = executor.query_all(mdb::query_builder(mc::dict{{"age", 25}}));
         ASSERT_EQ(results.size(), 2);
         std::vector<uint32_t> ids;
@@ -435,6 +611,41 @@ TEST_F(table_query_test, query_helper_methods)
         auto results = executor.query_limit(mdb::query_builder(mc::dict{{"age", mc::dict{{"$gte", 25}}}}), 2);
         ASSERT_EQ(results.size(), 2);
     }
+
+    {
+        auto results = executor.query_limit(mdb::query_builder(mc::dict{{"name", mc::dict{{"$contains", ""}}}}), 2);
+        ASSERT_EQ(results.size(), 2);
+    }
+}
+
+TEST_F(table_query_test, planner_generates_index_exact_match_for_indexed_eq)
+{
+    const auto& metadata = mdb::table_query<user_table>::get_metadata();
+    auto        plan =
+        mc::db::query::query_planner<test_user>(metadata).plan_for_query(mdb::query_builder(mc::dict{{"age", 25}}));
+
+    EXPECT_TRUE(plan.use_index);
+    EXPECT_EQ(plan.plan_type, mdb::query_plan_type::index_exact_match);
+    ASSERT_EQ(plan.fields.size(), 1);
+    EXPECT_EQ(plan.fields[0], "age");
+    EXPECT_EQ(plan.key_value, 25);
+    EXPECT_TRUE(plan.values.empty());
+}
+
+TEST_F(table_query_test, planner_merges_same_field_or_into_in_plan)
+{
+    const auto& metadata = mdb::table_query<user_table>::get_metadata();
+    auto        plan     = mc::db::query::query_planner<test_user>(metadata).plan_for_query(mdb::query_builder(mc::dict{
+                   {"$or", mc::variants{mc::dict{{"city", "北京"}}, mc::dict{{"city", "上海"}}}},
+    }));
+
+    EXPECT_TRUE(plan.use_index);
+    EXPECT_EQ(plan.plan_type, mdb::query_plan_type::index_exact_match);
+    ASSERT_EQ(plan.fields.size(), 1);
+    EXPECT_EQ(plan.fields[0], "city");
+    ASSERT_EQ(plan.values.size(), 2);
+    EXPECT_EQ(plan.values[0], "北京");
+    EXPECT_EQ(plan.values[1], "上海");
 }
 
 } // namespace

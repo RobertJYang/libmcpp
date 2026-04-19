@@ -1,0 +1,2 @@
+option('tests', type: 'boolean', value: false, description: 'Build mcapp tests')
+option('enable_coverage', type: 'boolean', value: false, description: 'Enable mcapp coverage')

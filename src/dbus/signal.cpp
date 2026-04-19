@@ -27,9 +27,9 @@ void send_signal(connection& conn, message& signal)
     auto                                         start = std::chrono::steady_clock::now();
     std::unordered_map<std::string, std::string> destinations;
     shm_global_lock_shared_exec([&]() {
-        auto& shm = shm::shared_memory::get_instance().get_base();
+        auto& shm = ::shm::shared_memory::get_instance().get_base();
         s_ctx.set_req(signal.get_dbus_message());
-        shm._matchs.run(s_ctx, [&](DBus::Match::Context& _, shm::object_tree* tree) {
+        shm._matchs.run(s_ctx, [&](DBus::Match::Context& _, ::shm::object_tree* tree) {
             std::string unique_name(tree->unique_name());
             if (destinations.find(unique_name) == destinations.end()) {
                 destinations[unique_name] = std::string(tree->wellknow_name());

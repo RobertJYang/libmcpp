@@ -27,9 +27,11 @@ template <typename R, typename... Args, std::size_t InlineSize, std::size_t Inli
 class inplace_function<R(Args...), InlineSize, InlineAlign> {
 public:
     inplace_function() noexcept = default;
+    inplace_function(std::nullptr_t) noexcept
+    {}
 
     template <typename Function, typename = std::enable_if_t<!std::is_same_v<std::decay_t<Function>, inplace_function>>>
-    explicit inplace_function(Function&& function)
+    inplace_function(Function&& function)
     {
         emplace(std::forward<Function>(function));
     }
@@ -62,6 +64,12 @@ public:
         return m_ops != nullptr;
     }
 
+    inplace_function& operator=(std::nullptr_t) noexcept
+    {
+        reset();
+        return *this;
+    }
+
     void reset() noexcept
     {
         if (!m_ops) {
@@ -79,7 +87,7 @@ public:
         m_inline = false;
     }
 
-    R operator()(Args... args)
+    R operator()(Args... args) const
     {
         if constexpr (std::is_void_v<R>) {
             m_ops->invoke(m_object, std::forward<Args>(args)...);

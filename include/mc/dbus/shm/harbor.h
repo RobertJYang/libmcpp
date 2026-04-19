@@ -44,7 +44,7 @@ struct message_data {
  * @param unique_name [in] 唯一名称
  * @return 返回共享内存对象树指针
  */
-MC_API shm::object_tree* create_shm_tree(std::string_view harbor_name, std::string_view service_name,
+MC_API ::shm::object_tree* create_shm_tree(std::string_view harbor_name, std::string_view service_name,
                                          std::string_view unique_name);
 
 /**
@@ -56,7 +56,7 @@ public:
      * @brief 构造函数
      * @param msg_queue [in/out] 共享内存消息队列引用
      */
-    message_queue(shm::message_queue_t& msg_queue);
+    message_queue(::shm::message_queue_t& msg_queue);
 
     /**
      * @brief 析构函数
@@ -72,7 +72,7 @@ public:
     void dispatch(int timeout_ms, int max_read_count, std::function<void(message_data&)> handler);
 
 private:
-    shm::message_queue_t&     m_msg_queue;
+    ::shm::message_queue_t&     m_msg_queue;
     std::vector<message_data> m_messages;
     std::timed_mutex          m_mutex;
     std::string               m_read_buf;
@@ -109,7 +109,7 @@ public:
      * @param destination [in] 目标名称
      * @return 返回消息队列指针
      */
-    static shm::message_queue_t* get_destination_msg_queue(std::string_view destination);
+    static ::shm::message_queue_t* get_destination_msg_queue(std::string_view destination);
 
     /**
      * @brief 设置港口名称

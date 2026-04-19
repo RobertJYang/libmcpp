@@ -122,7 +122,7 @@ template <typename T, typename Executor>
 auto make_resolved_state(T value, Executor executor)
 {
     auto state = make_pooled_state<T>(std::move(executor));
-    static_cast<State<T>*>(state.get())->set_value(std::move(value));
+    mc::futures::State<T>::set_value(*state, std::move(value));
     state->set_ready();
     return state;
 }
@@ -132,7 +132,7 @@ template <typename Executor>
 auto make_resolved_state(Executor executor)
 {
     auto state = make_pooled_state<void>(std::move(executor));
-    static_cast<State<void>*>(state.get())->set_value();
+    mc::futures::State<void>::set_value(*state);
     state->set_ready();
     return state;
 }

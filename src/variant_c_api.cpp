@@ -17,6 +17,7 @@
 #include <mc/variant.h>
 #include <mc/variant_c_api.h>
 
+#include <mc/dbus/shm/gvariant_convert.h>
 #include <mc/expr/context.h>
 #include <mc/expr/engine.h>
 
@@ -138,7 +139,8 @@ void* mc_engine_evaluate_as_gvariant(mc_engine_t* engine, const char* expr, cons
         }
         auto* e = reinterpret_cast<mc::expr::engine*>(engine);
         auto* c = reinterpret_cast<const mc::expr::context*>(context);
-        return e->evaluate_as_gvariant(std::string_view(expr), *c);
+        auto  result = e->evaluate(std::string_view(expr), *c);
+        return mc::dbus::gvariant_convert::to_gvariant(result);
     } catch (...) {
         return nullptr;
     }

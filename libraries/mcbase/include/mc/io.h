@@ -13,8 +13,8 @@
 #ifndef MC_IO_H
 #define MC_IO_H
 
-#include <mc/io/fd_watcher.h>
 #include <mc/io/future.h>
+#include <mc/io/native_waiter.h>
 #include <mc/io/io_buffer.h>
 #include <mc/io/io_stream.h>
 #include <mc/io/tcp_acceptor.h>

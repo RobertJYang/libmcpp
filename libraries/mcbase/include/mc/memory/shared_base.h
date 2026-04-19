@@ -18,8 +18,8 @@
 
 #include <mc/atomic_ref.h>
 #include <mc/common.h>
-#include <mc/string_view.h>
 #include <mc/gc/gc_head.h>
+#include <mc/string_view.h>
 
 /**
  * @file shared_counter.h
@@ -103,6 +103,7 @@ class weak_ptr;
 
 namespace detail {
 [[noreturn]] MC_API void throw_invalid_op_exception(mc::string_view msg);
+
 MC_API void destroy_managed_object(shared_base* counter);
 MC_API void deallocate_managed_object(shared_base* counter);
 MC_API bool try_dispatch_managed_final_release(gc::GCHead* head, shared_base* counter);
@@ -171,17 +172,15 @@ public:
     bool is_externally_owned() const;
     bool externalize_ownership();
 
-    void set_shared_release_protocol(const shared_release_ops* ops,
-                                     void*                     alloc_base = nullptr) noexcept;
-    void ensure_shared_release_protocol(const shared_release_ops* ops,
-                                        void*                     alloc_base = nullptr) noexcept;
+    void set_shared_release_protocol(const shared_release_ops* ops, void* alloc_base = nullptr) noexcept;
+    void ensure_shared_release_protocol(const shared_release_ops* ops, void* alloc_base = nullptr) noexcept;
     const shared_release_ops* shared_release_protocol() const noexcept;
-    void* shared_alloc_base() const noexcept;
+    void*                     shared_alloc_base() const noexcept;
 
 private:
-    mutable counter_type m_ref_count;  // 强引用计数
-    mutable counter_type m_weak_count; // 弱引用计数
-    void*                m_alloc_base;
+    mutable counter_type      m_ref_count;  // 强引用计数
+    mutable counter_type      m_weak_count; // 弱引用计数
+    void*                     m_alloc_base;
     const shared_release_ops* m_release_ops;
 };
 

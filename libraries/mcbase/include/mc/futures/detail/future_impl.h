@@ -81,7 +81,7 @@ inline void handle_error_state_common(Promise& promise, State& state, Body& body
     if constexpr (std::is_void_v<T>) {
         promise.set_value();
     } else {
-        promise.set_value(state.get_value());
+        promise.set_value(mc::futures::State<T>::get_value(state));
     }
 }
 
@@ -267,13 +267,13 @@ struct result_continuation_body {
     explicit result_continuation_body(Fin&& f) : func(std::forward<Fin>(f))
     {}
 
-    static void invoke(void* ptr, Promise& promise, State<T>& state)
+    static void invoke(void* ptr, Promise& promise, state_base& state)
     {
         auto* body = static_cast<result_continuation_body*>(ptr);
         if constexpr (std::is_void_v<T>) {
             set_promise_value_unchecked<T>(promise, body->func);
         } else {
-            set_promise_value_unchecked<T>(promise, body->func, state.get_value());
+            set_promise_value_unchecked<T>(promise, body->func, mc::futures::State<T>::get_value(state));
         }
     }
 
@@ -307,8 +307,8 @@ template <typename T, typename Promise, typename F>
 auto make_result_body(F&& func)
 {
     using body_type = result_continuation_body<T, Promise, std::decay_t<F>>;
-    return result_body_handle<Promise, State<T>>(create_body<body_type>(std::forward<F>(func)), &body_type::invoke,
-                                                 select_body_destroy<body_type>());
+    return result_body_handle<Promise, state_base>(create_body<body_type>(std::forward<F>(func)), &body_type::invoke,
+                                                   select_body_destroy<body_type>());
 }
 
 template <typename T, typename Promise, typename F>
@@ -326,7 +326,7 @@ struct continuation_callback_context {
     continuation_callback_context() = default;
 
     continuation_callback_context(Promise promise_in, state_base_ptr state_in,
-                                  continuation_erasure::result_body_handle<Promise, State<T>> body_in)
+                                  continuation_erasure::result_body_handle<Promise, state_base> body_in)
         : promise(std::move(promise_in)), state(std::move(state_in)), body(std::move(body_in))
     {}
 
@@ -337,12 +337,12 @@ struct continuation_callback_context {
 
     void apply()
     {
-        body.apply(promise, *static_cast<State<T>*>(state.get()));
+        body.apply(promise, *state);
     }
 
-    Promise                                                     promise;
-    state_base_ptr                                              state;
-    continuation_erasure::result_body_handle<Promise, State<T>> body;
+    Promise                                                       promise;
+    state_base_ptr                                                state;
+    continuation_erasure::result_body_handle<Promise, state_base> body;
 };
 
 template <typename T, typename Promise, typename F>
@@ -369,7 +369,7 @@ struct error_continuation_callback_context {
 
     void apply()
     {
-        handle_error_state_common<T>(promise, *static_cast<State<T>*>(state.get()), body);
+        handle_error_state_common<T>(promise, *state, body);
     }
 
     Promise                                          promise;
@@ -391,14 +391,12 @@ struct as_future_callback_context {
 
     void apply()
     {
-        auto* typed_state = static_cast<State<T>*>(state.get());
-        MC_UNUSED(typed_state);
         if constexpr (std::is_same_v<other_type, void>) {
             promise.set_value();
         } else if constexpr (std::is_void_v<T>) {
             promise.set_value(other_type{});
         } else {
-            promise.set_value(other_type(typed_state->get_value()));
+            promise.set_value(other_type(mc::futures::State<T>::get_value(*state)));
         }
     }
 
@@ -451,7 +449,7 @@ void Future<T>::async_get(CompletionToken&& token, launch policy, mc::any_execut
             if constexpr (std::is_void_v<T>) {
                 token();
             } else {
-                token(static_cast<State<T>*>(state.get())->get_value());
+                token(mc::futures::State<T>::get_value(*state));
             }
         }
     };
@@ -629,7 +627,7 @@ auto Future<T>::finally(F&& cleanup, launch policy, mc::any_executor executor) -
     auto future  = promise.get_future().on_cancel(*this);
     any_future::finally(promise, [promise, cleanup = std::forward<F>(cleanup), state = get_state()]() mutable {
         cleanup();
-        promise.set_state_value(*static_cast<const State<T>*>(state.get()));
+        promise.set_state_value(*state);
     }, policy, ex);
     return future;
 }
@@ -648,7 +646,7 @@ auto Future<T>::tap(F&& inspector, launch policy) -> future_type
             if constexpr (std::is_void_v<T>) {
                 inspector();
             } else {
-                inspector(static_cast<State<T>*>(state.get())->get_value());
+                inspector(mc::futures::State<T>::get_value(*state));
             }
         }
     }, policy, mc::any_executor(mc::runtime::immediate_executor())); // tap 回调立即执行

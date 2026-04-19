@@ -26,6 +26,7 @@
 namespace mc::db {
 using query::compare_op;
 using query::condition;
+using query::field;
 using query::logical_op;
 using query::query_builder;
 using query::query_plan;
@@ -33,6 +34,8 @@ using query::query_plan_type;
 using query::query_range;
 using query::table_query;
 using query::to_condition;
+
+namespace conditions = query::conditions;
 
 using namespace query::conditions;
 } // namespace mc::db

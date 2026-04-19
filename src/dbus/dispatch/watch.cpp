@@ -19,8 +19,8 @@
 #include "watch.h"
 
 namespace mc::dbus {
-constexpr auto wait_read  = mc::io::fd_watcher::wait_type::read;
-constexpr auto wait_write = mc::io::fd_watcher::wait_type::write;
+constexpr auto wait_read  = mc::io::native_waiter::wait_type::read;
+constexpr auto wait_write = mc::io::native_waiter::wait_type::write;
 
 watch::~watch()
 {

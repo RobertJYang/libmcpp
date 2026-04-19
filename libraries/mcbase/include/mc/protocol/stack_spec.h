@@ -20,62 +20,105 @@
 #include <tuple>
 #include <type_traits>
 
-namespace mc::protocol {
+namespace mc::proto {
 
-template <typename... Layers>
+template <typename... Protocols>
 struct stack_spec {
-    static constexpr std::size_t layer_count = sizeof...(Layers);
+    static_assert((std::is_base_of_v<protocol, Protocols> && ...),
+                  "stack_spec only accepts mc::proto::protocol derived types");
 
-    static constexpr std::size_t push_headroom = detail::stack_reserved_room<Layers...>::push_headroom;
-    static constexpr std::size_t push_tailroom = detail::stack_reserved_room<Layers...>::push_tailroom;
-    static constexpr std::size_t pop_headroom  = detail::stack_reserved_room<Layers...>::pop_headroom;
-    static constexpr std::size_t pop_tailroom  = detail::stack_reserved_room<Layers...>::pop_tailroom;
+    static constexpr std::size_t layer_count = sizeof...(Protocols);
+
+    static constexpr std::size_t push_headroom = detail::stack_reserved_room<Protocols...>::push_headroom;
+    static constexpr std::size_t push_tailroom = detail::stack_reserved_room<Protocols...>::push_tailroom;
+    static constexpr std::size_t pop_headroom  = detail::stack_reserved_room<Protocols...>::pop_headroom;
+    static constexpr std::size_t pop_tailroom  = detail::stack_reserved_room<Protocols...>::pop_tailroom;
 };
 
 namespace detail {
 
-struct empty_state {};
+struct empty_packet {};
+
+using empty_state = empty_packet;
+
+struct empty_context {};
 
 template <typename T>
 struct dependent_false : std::false_type {};
 
-template <typename Layer, typename = void>
-struct layer_state_type {
-    using type = empty_state;
+template <typename Protocol, typename = void>
+struct protocol_packet_type_from_state {
+    using type = empty_packet;
 };
 
-template <typename Layer>
-struct layer_state_type<Layer, std::void_t<typename Layer::state>> {
-    using type = typename Layer::state;
+template <typename Protocol>
+struct protocol_packet_type_from_state<Protocol, std::void_t<typename Protocol::state>> {
+    using type = typename Protocol::state;
 };
 
-template <typename Layer>
-using layer_state_t = typename layer_state_type<Layer>::type;
-
-template <typename Layer, typename... Layers>
-struct layer_index;
-
-template <typename Layer, typename First, typename... Rest>
-struct layer_index_impl;
-
-template <typename Layer, typename First, typename... Rest>
-struct layer_index_impl {
-    static constexpr std::size_t value = 1 + layer_index<Layer, Rest...>::value;
+template <typename Protocol, typename = void>
+struct protocol_packet_type_from_request_state {
+    using type = typename protocol_packet_type_from_state<Protocol>::type;
 };
 
-template <typename Layer, typename... Rest>
-struct layer_index_impl<Layer, Layer, Rest...> {
+template <typename Protocol>
+struct protocol_packet_type_from_request_state<Protocol, std::void_t<typename Protocol::request_state>> {
+    using type = typename Protocol::request_state;
+};
+
+template <typename Protocol, typename = void>
+struct protocol_packet_type {
+    using type = typename protocol_packet_type_from_request_state<Protocol>::type;
+};
+
+template <typename Protocol>
+struct protocol_packet_type<Protocol, std::void_t<typename Protocol::packet>> {
+    using type = typename Protocol::packet;
+};
+
+template <typename Protocol>
+using protocol_packet_t = typename protocol_packet_type<Protocol>::type;
+
+template <typename Protocol>
+using protocol_request_t = protocol_packet_t<Protocol>;
+
+template <typename Protocol, typename = void>
+struct protocol_context_type {
+    using type = empty_context;
+};
+
+template <typename Protocol>
+struct protocol_context_type<Protocol, std::void_t<typename Protocol::context>> {
+    using type = typename Protocol::context;
+};
+
+template <typename Protocol>
+using protocol_context_t = typename protocol_context_type<Protocol>::type;
+
+template <typename Protocol, typename... Protocols>
+struct protocol_index;
+
+template <typename Protocol, typename First, typename... Rest>
+struct protocol_index_impl;
+
+template <typename Protocol, typename First, typename... Rest>
+struct protocol_index_impl {
+    static constexpr std::size_t value = 1 + protocol_index<Protocol, Rest...>::value;
+};
+
+template <typename Protocol, typename... Rest>
+struct protocol_index_impl<Protocol, Protocol, Rest...> {
     static constexpr std::size_t value = 0;
 };
 
-template <typename Layer, typename First, typename... Rest>
-struct layer_index<Layer, First, Rest...> {
-    static constexpr std::size_t value = layer_index_impl<Layer, First, Rest...>::value;
+template <typename Protocol, typename First, typename... Rest>
+struct protocol_index<Protocol, First, Rest...> {
+    static constexpr std::size_t value = protocol_index_impl<Protocol, First, Rest...>::value;
 };
 
-template <typename Layer>
-struct layer_index<Layer> {
-    static_assert(dependent_false<Layer>::value, "Layer is not part of this stack_spec");
+template <typename Protocol>
+struct protocol_index<Protocol> {
+    static_assert(dependent_false<Protocol>::value, "Protocol is not part of this stack_spec");
 };
 
 template <typename Tuple, std::size_t Index = 0>
@@ -106,8 +149,14 @@ inline const void* tuple_ptr_at_const(const Tuple& tuple, std::size_t index) noe
     return nullptr;
 }
 
+template <typename Protocol>
+using layer_state_t = protocol_request_t<Protocol>;
+
+template <typename Protocol, typename... Protocols>
+using layer_index = protocol_index<Protocol, Protocols...>;
+
 } // namespace detail
 
-} // namespace mc::protocol
+} // namespace mc::proto
 
 #endif // MC_PROTOCOL_STACK_SPEC_H

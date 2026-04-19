@@ -13,12 +13,9 @@
 #ifndef MC_DATABASE_QUERY_BUILDER_H
 #define MC_DATABASE_QUERY_BUILDER_H
 
-#include <algorithm>
-#include <functional>
-#include <memory>
+#include <initializer_list>
 #include <optional>
-#include <string>
-#include <vector>
+#include <type_traits>
 
 #include <mc/db/query/condition.h>
 #include <mc/variant.h>
@@ -40,26 +37,17 @@ public:
      *
      * @param cond 条件对象
      */
-    query_builder(const condition& cond)
-    {
-        m_condition = cond;
-    }
+    MC_API query_builder(const condition& cond);
 
     /**
      * 从 dict AST 构造查询构建器
      */
-    explicit query_builder(const mc::dict& spec)
-    {
-        m_condition = to_condition(spec);
-    }
+    explicit MC_API query_builder(const mc::dict& spec);
 
     /**
      * 从 variant AST 构造查询构建器
      */
-    explicit query_builder(const mc::variant& spec)
-    {
-        m_condition = to_condition(spec);
-    }
+    explicit MC_API query_builder(const mc::variant& spec);
 
     /**
      * 添加一个等值条件
@@ -69,10 +57,7 @@ public:
      * @param value 比较值
      * @return 查询构建器引用，用于链式调用
      */
-    query_builder& where(mc::string_view field, const mc::variant& value)
-    {
-        return where(field, compare_op::eq, value);
-    }
+    MC_API query_builder& where(mc::string_view field, const mc::variant& value);
 
     /**
      * 添加一个比较条件
@@ -83,11 +68,7 @@ public:
      * @param value 比较值
      * @return 查询构建器引用，用于链式调用
      */
-    query_builder& where(mc::string_view field, compare_op op, const mc::variant& value)
-    {
-        condition cond(op, mc::string(field), value);
-        return add_condition(cond);
-    }
+    MC_API query_builder& where(mc::string_view field, compare_op op, const mc::variant& value);
 
     /**
      * 添加一个OR条件
@@ -96,10 +77,7 @@ public:
      * @param value 比较值
      * @return 查询构建器引用，用于链式调用
      */
-    query_builder& or_where(mc::string_view field, const mc::variant& value)
-    {
-        return or_where(field, compare_op::eq, value);
-    }
+    MC_API query_builder& or_where(mc::string_view field, const mc::variant& value);
 
     /**
      * 添加一个OR条件
@@ -109,25 +87,7 @@ public:
      * @param value 比较值
      * @return 查询构建器引用，用于链式调用
      */
-    query_builder& or_where(mc::string_view field, compare_op op, const mc::variant& value)
-    {
-        condition cond(op, mc::string(field), value);
-        if (!m_condition.has_value()) {
-            m_condition = cond;
-        } else {
-            std::vector<condition> conditions;
-            if (m_condition->is_logical() && m_condition->get_logical_op() == logical_op::OR) {
-                // 已有OR条件，添加子条件
-                conditions = m_condition->get_conditions();
-            } else {
-                // 转换为OR条件
-                conditions.push_back(*m_condition);
-            }
-            conditions.push_back(cond);
-            m_condition = condition(logical_op::OR, std::move(conditions));
-        }
-        return *this;
-    }
+    MC_API query_builder& or_where(mc::string_view field, compare_op op, const mc::variant& value);
 
     /**
      * 添加一个条件
@@ -135,10 +95,7 @@ public:
      * @param cond 条件
      * @return 查询构建器引用，用于链式调用
      */
-    query_builder& where(const condition& cond)
-    {
-        return add_condition(cond);
-    }
+    MC_API query_builder& where(const condition& cond);
 
     /**
      * 添加一个IN条件（检查字段值是否在给定列表中）
@@ -148,17 +105,30 @@ public:
      * @return 查询构建器引用，用于链式调用
      */
     template <typename T>
-    query_builder& where_in(mc::string_view field, const std::vector<T>& values)
+    query_builder& where_in(mc::string_view field, std::initializer_list<T> values)
     {
-        if (values.empty()) {
+        auto variants = detail::to_variants(values);
+        if (variants.empty()) {
             // 空值列表总是返回空结果
             // 添加一个永假条件
             condition false_cond(compare_op::eq, mc::string(field), mc::variant{});
             return add_condition(conditions::not_cond(false_cond));
         }
 
-        // 创建IN条件
-        condition in_cond = conditions::in(mc::string(field), values);
+        condition in_cond = condition(compare_op::in, mc::string(field), mc::variant(std::move(variants)));
+        return add_condition(in_cond);
+    }
+
+    template <typename Range, std::enable_if_t<detail::is_in_range<Range>::value, int> = 0>
+    query_builder& where_in(mc::string_view field, const Range& values)
+    {
+        auto variants = detail::to_variants(values);
+        if (variants.empty()) {
+            condition false_cond(compare_op::eq, mc::string(field), mc::variant{});
+            return add_condition(conditions::not_cond(false_cond));
+        }
+
+        condition in_cond = condition(compare_op::in, mc::string(field), mc::variant(std::move(variants)));
         return add_condition(in_cond);
     }
 
@@ -236,42 +206,25 @@ public:
      * @param pattern 模式字符串 (包含%通配符)
      * @return 查询构建器引用，用于链式调用
      */
-    query_builder& where_like(mc::string_view field, mc::string_view pattern)
-    {
-        condition like_cond = conditions::like(mc::string(field), mc::string(pattern));
-        return add_condition(like_cond);
-    }
+    MC_API query_builder& where_like(mc::string_view field, mc::string_view pattern);
 
     /**
      * 检查查询构建器是否为空（没有条件）
      * @return 是否为空
      */
-    bool is_empty() const
-    {
-        return !m_condition.has_value();
-    }
+    MC_API bool is_empty() const;
 
     /**
      * 检查是否有条件
      * @return 是否有条件
      */
-    bool has_condition() const
-    {
-        return m_condition.has_value();
-    }
+    MC_API bool has_condition() const;
 
     /**
      * 获取查询条件
      * @return 条件对象
      */
-    const condition& get_condition() const
-    {
-        if (!m_condition.has_value()) {
-            static condition empty_condition;
-            return empty_condition;
-        }
-        return m_condition.value();
-    }
+    MC_API const condition& get_condition() const;
 
     /**
      * 检查对象是否满足条件
@@ -292,73 +245,37 @@ public:
     /**
      * 清空所有条件
      */
-    void clear()
-    {
-        m_condition.reset();
-    }
+    MC_API void clear();
 
     /**
      * 获取条件的字符串表示（用于调试）
      */
-    mc::string to_string() const
-    {
-        if (!has_condition()) {
-            return "空条件";
-        }
-        return m_condition->to_string();
-    }
+    MC_API mc::string to_string() const;
 
     /**
      * 设置查询结果的最大数量
      * @param limit_value 最大数量
      * @return 查询构建器引用，用于链式调用
      */
-    query_builder& limit(size_t limit_value)
-    {
-        m_limit = limit_value;
-        return *this;
-    }
+    MC_API query_builder& limit(size_t limit_value);
 
     /**
      * 获取结果限制数量
      * @return 限制数量，如果未设置则为 0（表示无限制）
      */
-    size_t get_limit() const
-    {
-        return m_limit;
-    }
+    MC_API size_t get_limit() const;
 
     /**
      * 是否设置了结果限制
      * @return 是否设置限制
      */
-    bool has_limit() const
-    {
-        return m_limit > 0;
-    }
+    MC_API bool has_limit() const;
 
 private:
     /**
      * 添加条件，与现有条件使用AND连接
      */
-    query_builder& add_condition(const condition& cond)
-    {
-        if (!m_condition.has_value()) {
-            m_condition = cond;
-        } else {
-            std::vector<condition> conditions;
-            if (m_condition->is_logical() && m_condition->get_logical_op() == logical_op::AND) {
-                // 已有AND条件，添加子条件
-                conditions = m_condition->get_conditions();
-            } else {
-                // 转换为AND条件
-                conditions.push_back(*m_condition);
-            }
-            conditions.push_back(cond);
-            m_condition = condition(logical_op::AND, std::move(conditions));
-        }
-        return *this;
-    }
+    MC_API query_builder& add_condition(const condition& cond);
 
     std::optional<condition> m_condition; // 查询条件
     size_t                   m_limit = 0; // 结果限制数量，0表示无限制

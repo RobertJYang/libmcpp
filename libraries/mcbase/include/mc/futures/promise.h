@@ -71,9 +71,14 @@ public:
         any_promise::set_value();
     }
 
-    bool set_state_value(const state_type& state)
+    bool set_state_value(const state_base& state)
     {
         if (!state.is_ready()) {
+            return false;
+        }
+
+        if (state.is_cancelled()) {
+            cancel();
             return false;
         }
 
@@ -85,7 +90,7 @@ public:
         if constexpr (std::is_void_v<T>) {
             set_value();
         } else {
-            set_value(state.get_value());
+            set_value(mc::futures::State<T>::get_value(state));
         }
         return true;
     }

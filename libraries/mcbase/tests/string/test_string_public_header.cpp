@@ -32,6 +32,8 @@ TEST(StringPublicHeaderTest, StringHeaderExposesInlineMemberDefinitions)
     EXPECT_TRUE(value.contains("body"));
     EXPECT_TRUE(value.contains('b'));
     EXPECT_EQ(value.replace_all("body", "core"), "prefix_core_tail");
+    EXPECT_TRUE(mc::string::contains("prefix_body_tail", "body"));
+    EXPECT_EQ(mc::string::replace_all("prefix_body_tail", "body", "core"), "prefix_core_tail");
 }
 
 } // namespace test

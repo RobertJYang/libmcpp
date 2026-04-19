@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2024-2026 Huawei Technologies Co., Ltd.
  * openUBMC is licensed under Mulan PSL v2.
  * You can use this software according to the terms and conditions of the Mulan PSL v2.
  * You may obtain a copy of Mulan PSL v2 at:
@@ -18,10 +18,13 @@
 #include <mc/db/iterator.h>
 #include <mc/db/key.h>
 #include <mc/db/key_extractor.h>
+#include <mc/db/local_storage_engine.h>
+#include <mc/db/storage_engine.h>
 #include <mc/db/table_base.h>
 #include <mc/exception.h>
 #include <mc/string_utils.h>
 
+#include <cstddef>
 #include <functional>
 #include <memory>
 #include <string>
@@ -32,31 +35,44 @@ namespace mc::db {
 
 /**
  * 索引实现
- * @tparam ObjectType 对象类型
- * @tparam KeyExtractor 键提取器类型
- * @tparam IsUnique 是否唯一索引
- * @tparam Tag 标签类型
+ *
+ * db::index 退化为：
+ *   - key_extractor + index_id 元数据
+ *   - 通过 m_engine->op(m_index_id, ...) 转发所有读写
+ *
+ * 兼容 standalone 用法：
+ *   - 默认 Engine = local_storage_engine<Object, 1, Allocator>
+ *   - 构造时自动创建 owned engine（IndexCount = 1，即一棵 radix_tree）
+ *   - 现有 make_index<>() 工厂返回的 unique_ptr<index<...>> 直接可 add/find/...
+ *
+ * Table 模式：
+ *   - db::table 在构造期把所有 index 创建完毕后，调 set_engine(engine, idx_id)
+ *     注入外部共享 engine，丢弃 owned 实例
+ *
+ * @tparam ObjectType   对象类型
+ * @tparam KeyExtractor 键提取器
+ * @tparam IsUnique     是否唯一索引
+ * @tparam Tag          标签类型
+ * @tparam Allocator    内存分配器
+ * @tparam Engine       存储引擎类型
  */
 template <typename ObjectType, typename KeyExtractor, bool IsUnique = true, typename Tag = void,
-          typename Allocator = std::allocator<char>>
-class index : public index_base<ObjectType, Allocator> {
+          typename Allocator = std::allocator<char>,
+          typename Engine    = local_storage_engine<ObjectType, 1U, Allocator>>
+class index : public index_base<ObjectType, Allocator, Engine> {
     static_assert(std::is_base_of_v<mc::object_base, ObjectType>, "ObjectType必须继承自mc::object_base");
 
 public:
-    // 索引相关类型定义
     using key_extractor_type        = KeyExtractor;
     using object_type               = ObjectType;
     using object_ptr_type           = mc::shared_ptr<object_type>;
     using alloc_type                = Allocator;
     using tag_type                  = Tag;
+    using engine_type               = Engine;
     static constexpr bool is_unique = IsUnique;
 
-    // radix树配置
-    using tree_config   = mc::im::tree_config<object_ptr_type, alloc_type>;
-    using tree_type     = mc::im::radix_tree<tree_config>;
-    using raw_iterator  = typename tree_type::iterator;
-    using txn_type      = mc::im::transaction<tree_config>;
-    using self_type     = index<object_type, KeyExtractor, IsUnique, Tag, Allocator>;
+    using raw_iterator  = engine_raw_iterator_t<Engine>;
+    using self_type     = index<object_type, KeyExtractor, IsUnique, Tag, Allocator, Engine>;
     using iterator_type = iterator<self_type>;
 
     static constexpr int  key_count       = key_extractor_type::key_count;
@@ -65,17 +81,36 @@ public:
     // radix_tree 的倒序实现还有问题，暂时只支持从小到大排序
     static constexpr bool is_sort_great = true;
 
-    /**
-     * 构造函数
-     * @param extractor 键提取器
-     * @param alloc 内存分配器
-     */
     explicit index(const key_extractor_type& extractor = key_extractor_type(), const alloc_type& alloc = alloc_type(),
                    uint8_t index_id = 0, table_base* table = nullptr)
-        : m_extractor(extractor), m_txn(std::make_unique<txn_type>(alloc)), m_index_id(index_id), m_table(table)
+        : m_extractor(extractor), m_owned_engine(std::make_unique<Engine>(alloc)), m_engine(m_owned_engine.get()),
+          m_index_id(index_id), m_table(table)
     {
         m_key.init(key_count, is_unique);
         m_key1.init(key_count, is_unique);
+    }
+
+    /**
+     * Table 模式构造：不创建 owned engine，等待 set_engine() 注入
+     */
+    struct table_mode_t {};
+    static constexpr table_mode_t table_mode{};
+
+    index(table_mode_t, const key_extractor_type& extractor, uint8_t index_id, table_base* table)
+        : m_extractor(extractor), m_owned_engine(nullptr), m_engine(nullptr), m_index_id(index_id), m_table(table)
+    {
+        m_key.init(key_count, is_unique);
+        m_key1.init(key_count, is_unique);
+    }
+
+    /**
+     * Table 模式：注入外部 engine 并丢弃 owned 实例
+     */
+    void set_engine(Engine& engine, std::size_t index_id)
+    {
+        m_owned_engine.reset();
+        m_engine   = &engine;
+        m_index_id = static_cast<uint8_t>(index_id);
     }
 
     void set_table(table_base* table)
@@ -116,11 +151,6 @@ public:
         return std::make_pair(first, second);
     }
 
-    /**
-     * 返回大于等于给定键的第一个元素的迭代器
-     * @param key 键
-     * @return 迭代器
-     */
     template <typename... KeyType>
     iterator_type lower_bound(const KeyType&... keys)
     {
@@ -145,15 +175,12 @@ public:
         make_object_key(m_key, *obj_ptr);
 
         auto key_view     = m_key.key();
-        auto [_, updated] = m_txn->insert(key_view, obj_ptr);
-
+        auto [_, updated] = m_engine->insert(m_index_id, key_view, obj_ptr);
         if (updated) {
             MC_THROW(mc::invalid_arg_exception, "表 ${table} 索引键冲突: ${key}(${name})",
                      ("table", table_name())("name", index_name())("key", get_key_values(*obj_ptr)));
             return false;
         }
-
-        m_tree = m_txn->root();
         return true;
     }
 
@@ -172,29 +199,28 @@ public:
         auto new_key = m_key1.key();
 
         if (old_key != new_key) {
-            auto old = m_txn->remove(old_key);
+            auto old = m_engine->remove(m_index_id, old_key);
             if (!old.has_value()) {
                 MC_THROW(mc::invalid_arg_exception, "表 ${table} 源索引不存在: ${key}(${name})",
                          ("table", table_name())("name", index_name())("key", get_key_values(old_obj)));
                 return false;
             }
 
-            auto [_, update] = m_txn->insert(new_key, new_obj_ptr);
-            if (update) {
+            auto [_, updated] = m_engine->insert(m_index_id, new_key, new_obj_ptr);
+            if (updated) {
                 MC_THROW(mc::invalid_arg_exception, "表 ${table} 目标索引键冲突: ${key}(${name})",
                          ("table", table_name())("name", index_name())("key", get_key_values(*new_obj_ptr)));
                 return false;
             }
         } else {
-            auto [_, update] = m_txn->insert(new_key, new_obj_ptr);
-            if (!update) {
+            auto [_, updated] = m_engine->insert(m_index_id, new_key, new_obj_ptr);
+            if (!updated) {
                 MC_THROW(mc::invalid_arg_exception, "表 ${table} 源索引不存在: ${key}(${name})",
                          ("table", table_name())("name", index_name())("key", get_key_values(old_obj)));
                 return false;
             }
         }
 
-        m_tree = m_txn->root();
         return true;
     }
 
@@ -203,9 +229,7 @@ public:
         make_object_key(m_key, obj);
 
         auto key_view = m_key.key();
-        auto it       = m_txn->remove(key_view);
-        m_tree        = m_txn->root();
-        return it;
+        return m_engine->remove(m_index_id, key_view);
     }
 
     template <typename... KeyTypes>
@@ -214,106 +238,82 @@ public:
         make_keys(m_key, keys...);
 
         auto key_view = m_key.key();
-        auto ret      = m_txn->remove(key_view);
-        m_tree        = m_txn->root();
-        return ret;
+        return m_engine->remove(m_index_id, key_view);
     }
 
     /**
-     * 清空索引
+     * 清空索引：仅清当前 index 对应的子树
      */
     void clear()
     {
-        m_txn  = std::make_unique<txn_type>(alloc_type());
-        m_tree = m_txn->root();
+        m_engine->clear(m_index_id);
     }
 
-    /**
-     * 获取索引的起始迭代器
-     * @return 起始迭代器
-     */
     iterator_type begin()
     {
-        return make_iterator(m_txn->root().begin(), m_key);
+        return make_iterator(m_engine->begin(m_index_id), m_key);
     }
 
-    /**
-     * 获取索引的起始迭代器（常量版本）
-     * @return 起始迭代器
-     */
     iterator_type begin() const
     {
-        return iterator_type(m_txn->root().begin(), m_key.key().length(), m_key.key_num());
+        return iterator_type(m_engine->begin(m_index_id), m_key.key().length(), m_key.key_num());
     }
 
-    /**
-     * 获取索引的结束迭代器
-     * @return 结束迭代器
-     */
     iterator_type end()
     {
         return iterator_type();
     }
 
-    /**
-     * 提交当前事务
-     */
     void commit()
     {
-        m_txn->commit();
-        m_tree = m_txn->root();
+        m_engine->commit();
     }
 
-    /**
-     * 回滚当前事务
-     */
     void rollback()
     {
-        m_txn->rollback();
-        m_tree = m_txn->root();
+        m_engine->rollback();
     }
 
     int32_t last_savepoint_id() const
     {
-        return m_txn->current_save_point();
+        return m_engine->current_save_point();
     }
 
     int32_t alloc_save_point()
     {
-        return m_txn->save_point();
+        return m_engine->save_point();
     }
 
     void rollback_to(int32_t savepoint_id)
     {
-        m_txn->rollback(savepoint_id);
+        m_engine->rollback_to(savepoint_id);
     }
 
     void lock_db()
     {
-        m_txn->lock_db();
+        m_engine->lock_db();
     }
 
     void unlock_db()
     {
-        m_txn->unlock_db();
+        m_engine->unlock_db();
     }
 
     object_ptr_type raw_find(const mc::variant& value) override
     {
         make_keys(m_key, value);
 
-        auto& root     = m_txn->root();
-        auto  key_view = m_key.key();
+        auto key_view = m_key.key();
         if constexpr (is_unique) {
-            auto it = root.find(key_view);
-            if (it == root.end()) {
+            auto it = m_engine->find(m_index_id, key_view);
+            if (it == m_engine->end(m_index_id)) {
                 return nullptr;
             }
 
             return it->second;
         }
 
-        raw_iterator it = root.lower_bound(key_view);
+        raw_iterator it = m_engine->lower_bound(m_index_id, key_view);
         make_object_key(m_key1, *it->second);
         if (it->first != m_key1.key()) {
             raw_iterator();
@@ -326,22 +326,18 @@ public:
     {
         make_keys(m_key, value);
 
-        auto& root     = m_txn->root();
-        auto  key_view = m_key.key();
-        auto  it       = root.lower_bound(key_view);
-
-        return it;
+        auto key_view = m_key.key();
+        return m_engine->lower_bound(m_index_id, key_view);
     }
 
     raw_iterator raw_upper_bound(const mc::variant& value) override
     {
         make_keys(m_key, value);
 
-        auto& root     = m_txn->root();
-        auto  key_view = m_key.key();
-        auto  it       = root.upper_bound(key_view);
+        auto key_view = m_key.key();
+        auto it       = m_engine->upper_bound(m_index_id, key_view);
 
-        if (it == root.end()) {
+        if (it == m_engine->end(m_index_id)) {
             return raw_iterator();
         }
 
@@ -361,17 +357,17 @@ public:
 
     raw_iterator raw_begin() const override
     {
-        return m_txn->root().begin();
+        return m_engine->begin(m_index_id);
     }
 
     bool empty() const
     {
-        return m_txn->root().empty();
+        return m_engine->empty(m_index_id);
     }
 
     size_t size() const
     {
-        return m_txn->root().size();
+        return m_engine->size(m_index_id);
     }
 
     mc::string index_name() const
@@ -421,23 +417,16 @@ private:
         });
     }
 
-    /**
-     * 使用键提取器从对象生成键
-     * @param key 键对象
-     * @param obj 源对象
-     */
     template <bool KeyIsUnique = false, typename F>
     void make_key_internal(mdb_key& key, object_id_type id, F&& extract_key)
     {
         key.reset();
 
-        // 如果是唯一索引，直接使用提取器提取键
         if constexpr (KeyIsUnique) {
             extract_key(key);
             return;
         }
 
-        // 非唯一索引需要添加对象ID作为附加键
         extract_key(key);
 
         if (key.len() > 255) {
@@ -458,18 +447,12 @@ private:
         return iterator_type(it, key.key().length(), key.key_num());
     }
 
-    /**
-     * 内部查找实现
-     * @param key 键
-     * @return 迭代器
-     */
     iterator_type find_by_key_internal(const mdb_key& key, bool is_lower_bound = false)
     {
-        auto& root     = m_txn->root();
-        auto  key_view = key.key();
-        auto  it       = root.lower_bound(key_view);
+        auto key_view = key.key();
+        auto it       = m_engine->lower_bound(m_index_id, key_view);
 
-        if (it == root.end() || !mc::im::has_prefix(it->first, key_view)) {
+        if (it == m_engine->end(m_index_id) || !mc::im::has_prefix(it->first, key_view)) {
             return iterator_type();
         }
 
@@ -480,25 +463,21 @@ private:
         return make_iterator(it, key);
     }
 
-    // 索引基本属性
-    key_extractor_type        m_extractor;
-    std::unique_ptr<txn_type> m_txn;
-    tree_type                 m_tree;
-    uint8_t                   m_index_id;
-    table_base*               m_table{nullptr};
+    key_extractor_type      m_extractor;
+    std::unique_ptr<Engine> m_owned_engine; // standalone 模式持有；table 模式 set_engine 后置 null
+    Engine*                 m_engine{nullptr};
+    uint8_t                 m_index_id;
+    table_base*             m_table{nullptr};
 
-    // 缓存的键
     mdb_key m_key;
     mdb_key m_key1;
 };
 
 /**
- * 创建内存索引
- * @param extractor 键提取器
- * @param alloc 内存分配器
- * @tparam IsUnique 是否唯一索引
- * @tparam Tag 标签类型
- * @return 索引指针
+ * 创建独立索引（standalone 模式）
+ *
+ * 返回的 index 自带 owned engine（IndexCount = 1），可直接 add/find/...
+ * 适用于 mcbase test_index 等单测场景。生产代码应使用 db::table。
  */
 template <typename ObjectType, bool IsUnique, typename KeyExtractor, typename Tag = void,
           typename Alloc = std::allocator<ObjectType>>

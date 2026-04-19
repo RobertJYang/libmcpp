@@ -24,6 +24,8 @@ base_src_files = [
   'error_message_converter.cpp',
 
   compress_src_files,
+  dbus_src_files,
+  mdb_src_files,
   debounce_src_files,
   log_src_files,
   validate_src_files,
@@ -73,7 +75,7 @@ libmcpp_base_lib = library(
   'mcpp_base',
   base_src_files,
   include_directories: base_inc_dirs,
-  dependencies: base_dep_arr,
+  dependencies: base_dep_arr + [mcengine_dep, mcexpr_dep, mcapp_dep],
   install: true,
   install_dir: install_dir,
   build_by_default: true,
@@ -81,12 +83,12 @@ libmcpp_base_lib = library(
 libmcpp_base_dep = declare_dependency(
   include_directories: base_inc_dirs,
   link_with: libmcpp_base_lib,
-  dependencies: base_dep_arr,
+  dependencies: base_dep_arr + [mcengine_dep, mcexpr_dep, mcapp_dep],
 )
 libmcpp_base_internal_dep = declare_dependency(
   include_directories: base_inc_dirs,
   link_with: libmcpp_base_lib,
-  dependencies: dep_arr,
+  dependencies: base_dep_arr + [mcengine_dep, mcexpr_dep, mcapp_dep],
 )
 mcpp_deps += [libmcpp_base_dep]
 
@@ -109,22 +111,21 @@ else
   endif
 endif
 
-# 先构建核心库（core, engine, expr），因为这些库被 luaclib 依赖
+# 先构建核心库（core），engine/expr/app 由独立子工程提供
 subdir('core')
-subdir('engine')
-subdir('expr')
 
 # 创建静态库
 libmcpp_static_lib = static_library(
   'mcpp',
   libmcpp_src_files,
   include_directories: base_inc_dirs,
-  dependencies: [mcbase_dep, glib_dep],
+  dependencies: base_dep_arr + [mcengine_dep, mcexpr_dep, mcapp_dep],
   link_whole: [
     libmcpp_base_lib,
     libmcpp_core_lib,
-    libmcpp_engine_lib,
-    libmcpp_expr_lib,
+    mcapp_lib,
+    mcengine_lib,
+    mcexpr_lib,
   ],
 )
 
@@ -139,6 +140,7 @@ libmcpp_shared_lib = shared_library(
   link_whole: [
     libmcpp_static_lib,
   ],
+  dependencies: base_dep_arr + [mcengine_dep, mcexpr_dep, mcapp_dep],
   install: true,
   install_dir: install_dir,
   build_by_default: true,
@@ -156,7 +158,7 @@ libmcpp_lib = libmcpp_shared_lib
 libmcpp_dep = declare_dependency(
   include_directories: [incdir],
   link_with: libmcpp_shared_lib,
-  dependencies: base_dep_arr,
+  dependencies: base_dep_arr + [mcengine_dep, mcexpr_dep, mcapp_dep],
 )
 
 # 为项目内部测试程序
@@ -164,7 +166,7 @@ libmcpp_dep = declare_dependency(
 libmcpp_dep_with_link = declare_dependency(
   include_directories: incdir,
   link_whole: libmcpp_static_lib,
-  dependencies: dep_arr,
+  dependencies: base_dep_arr + [mcengine_dep, mcexpr_dep, mcapp_dep],
 )
 
 # Lua 模块构建（需要在所有库创建之后）

@@ -108,8 +108,8 @@ std::map<std::string, dynamic_property>& dynamic_interface::get_properties()
 dynamic_object::dynamic_object(mc::object* parent) : mc::engine::object_impl(parent), m_metadata(nullptr)
 {}
 
-bool dynamic_object::set_property(std::string_view property_name, const mc::variant& value,
-                                  std::string_view interface_name)
+bool dynamic_object::set_property(mc::string_view property_name, const mc::variant& value,
+                                  mc::string_view interface_name)
 {
     auto it = m_interfaces.find(std::string(interface_name));
     if (it == m_interfaces.end()) {
@@ -118,7 +118,7 @@ bool dynamic_object::set_property(std::string_view property_name, const mc::vari
     return it->second->set_property(std::string(property_name), value);
 }
 
-mc::variant dynamic_object::get_property(std::string_view property_name, std::string_view interface_name,
+mc::variant dynamic_object::get_property(mc::string_view property_name, mc::string_view interface_name,
                                          int options) const
 {
     MC_UNUSED(options);
@@ -129,7 +129,7 @@ mc::variant dynamic_object::get_property(std::string_view property_name, std::st
     return it->second->get_property(std::string(property_name));
 }
 
-mc::dict dynamic_object::get_all_properties(std::string_view interface_name, int options) const
+mc::dict dynamic_object::get_all_properties(mc::string_view interface_name, int options) const
 {
     MC_UNUSED(options);
     auto it = m_interfaces.find(std::string(interface_name));
@@ -139,7 +139,7 @@ mc::dict dynamic_object::get_all_properties(std::string_view interface_name, int
     return it->second->get_all_properties();
 }
 
-bool dynamic_object::has_property(std::string_view property_name, std::string_view interface_name) const
+bool dynamic_object::has_property(mc::string_view property_name, mc::string_view interface_name) const
 {
     auto it = m_interfaces.find(std::string(interface_name));
     if (it == m_interfaces.end()) {
@@ -148,8 +148,8 @@ bool dynamic_object::has_property(std::string_view property_name, std::string_vi
     return it->second->has_property(std::string(property_name));
 }
 
-std::tuple<int, mc::variant> dynamic_object::try_get_property(std::string_view property_name,
-                                                              std::string_view interface_name) const
+std::tuple<int, mc::variant> dynamic_object::try_get_property(mc::string_view property_name,
+                                                              mc::string_view interface_name) const
 {
     auto it = m_interfaces.find(std::string(interface_name));
     if (it == m_interfaces.end()) {
@@ -166,8 +166,8 @@ std::tuple<int, mc::variant> dynamic_object::try_get_property(std::string_view p
     }
 }
 
-int dynamic_object::try_set_property(std::string_view property_name, const mc::variant& value,
-                                     std::string_view interface_name)
+int dynamic_object::try_set_property(mc::string_view property_name, const mc::variant& value,
+                                     mc::string_view interface_name)
 {
     auto it = m_interfaces.find(std::string(interface_name));
     if (it == m_interfaces.end()) {
@@ -198,12 +198,12 @@ mc::shared_ptr<dynamic_interface> dynamic_object::get_interface(std::string intf
     return it->second;
 }
 
-std::string_view dynamic_object::get_class_name() const
+mc::string_view dynamic_object::get_class_name() const
 {
     return "";
 }
 
-std::string_view dynamic_object::get_path_pattern() const
+mc::string_view dynamic_object::get_path_pattern() const
 {
     return "*";
 }
@@ -219,8 +219,8 @@ const mc::engine::object_metadata& dynamic_object::get_metadata() const
     return *m_metadata;
 }
 
-void dynamic_object::update_shm_prop(std::string_view property_name, const mc::variant& value,
-                                     std::string_view interface_name)
+void dynamic_object::update_shm_prop(mc::string_view property_name, const mc::variant& value,
+                                     mc::string_view interface_name)
 {
     auto it = m_interfaces.find(std::string(interface_name));
     if (it == m_interfaces.end()) {

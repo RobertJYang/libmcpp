@@ -16,49 +16,58 @@ namespace mc::intrusive::detail {
 
 set_hook_state* set_core::root() noexcept
 {
-    return m_root;
+    return resolve(m_root);
 }
 
 const set_hook_state* set_core::root() const noexcept
 {
-    return m_root;
+    return resolve(m_root);
+}
+
+set_hook_state* set_core::resolve(const offset_ptr<set_hook_state>& ref) const noexcept
+{
+    return ref.get();
 }
 
 // --- Rotation helpers ---
 
-void set_core::rotate_left(set_hook_state* node, set_hook_state*& root) noexcept
+void set_core::rotate_left(set_hook_state* node, set_hook_state*& root_node) noexcept
 {
-    auto* child = node->right;
-    node->right = child->left;
-    if (child->left != nullptr) {
-        child->left->parent = node;
+    auto* child      = resolve(node->right);
+    auto* child_left = resolve(child->left);
+    node->right      = child->left;
+    if (child_left != nullptr) {
+        child_left->parent = node;
     }
     child->parent = node->parent;
-    if (node->parent == nullptr) {
-        root = child;
-    } else if (node == node->parent->left) {
-        node->parent->left = child;
+    auto* parent  = resolve(node->parent);
+    if (parent == nullptr) {
+        root_node = child;
+    } else if (node == resolve(parent->left)) {
+        parent->left = child;
     } else {
-        node->parent->right = child;
+        parent->right = child;
     }
     child->left  = node;
     node->parent = child;
 }
 
-void set_core::rotate_right(set_hook_state* node, set_hook_state*& root) noexcept
+void set_core::rotate_right(set_hook_state* node, set_hook_state*& root_node) noexcept
 {
-    auto* child = node->left;
-    node->left = child->right;
-    if (child->right != nullptr) {
-        child->right->parent = node;
+    auto* child       = resolve(node->left);
+    auto* child_right = resolve(child->right);
+    node->left        = child->right;
+    if (child_right != nullptr) {
+        child_right->parent = node;
     }
     child->parent = node->parent;
-    if (node->parent == nullptr) {
-        root = child;
-    } else if (node == node->parent->right) {
-        node->parent->right = child;
+    auto* parent  = resolve(node->parent);
+    if (parent == nullptr) {
+        root_node = child;
+    } else if (node == resolve(parent->right)) {
+        parent->right = child;
     } else {
-        node->parent->left = child;
+        parent->left = child;
     }
     child->right = node;
     node->parent = child;
@@ -66,16 +75,19 @@ void set_core::rotate_right(set_hook_state* node, set_hook_state*& root) noexcep
 
 // --- Rebalance after insert (CLRS-style) ---
 
-void set_core::rebalance_after_insert(set_hook_state* node, set_hook_state*& root) noexcept
+void set_core::rebalance_after_insert(set_hook_state* node, set_hook_state*& root_node) noexcept
 {
-    while (node != root && node->parent->is_red) {
-        auto* parent = node->parent;
-        auto* grand  = parent->parent;
+    while (node != root_node) {
+        auto* parent = resolve(node->parent);
+        if (parent == nullptr || !parent->is_red) {
+            break;
+        }
+        auto* grand = resolve(parent->parent);
         if (grand == nullptr) {
             break;
         }
-        if (parent == grand->left) {
-            auto* uncle = grand->right;
+        if (parent == resolve(grand->left)) {
+            auto* uncle = resolve(grand->right);
             if (uncle != nullptr && uncle->is_red) {
                 // Case 1: uncle is red — recolor
                 parent->is_red = false;
@@ -83,133 +95,144 @@ void set_core::rebalance_after_insert(set_hook_state* node, set_hook_state*& roo
                 grand->is_red  = true;
                 node           = grand;
             } else {
-                if (node == parent->right) {
+                if (node == resolve(parent->right)) {
                     // Case 2: left-rotate to convert to case 3
-                    node   = parent;
-                    rotate_left(node, root);
-                    parent = node->parent;
-                    grand  = parent->parent;
+                    node = parent;
+                    rotate_left(node, root_node);
+                    parent = resolve(node->parent);
+                    grand  = resolve(parent->parent);
                 }
                 // Case 3: recolor + right-rotate
                 parent->is_red = false;
                 grand->is_red  = true;
-                rotate_right(grand, root);
+                rotate_right(grand, root_node);
             }
         } else {
-            auto* uncle = grand->left;
+            auto* uncle = resolve(grand->left);
             if (uncle != nullptr && uncle->is_red) {
                 parent->is_red = false;
                 uncle->is_red  = false;
                 grand->is_red  = true;
                 node           = grand;
             } else {
-                if (node == parent->left) {
-                    node   = parent;
-                    rotate_right(node, root);
-                    parent = node->parent;
-                    grand  = parent->parent;
+                if (node == resolve(parent->left)) {
+                    node = parent;
+                    rotate_right(node, root_node);
+                    parent = resolve(node->parent);
+                    grand  = resolve(parent->parent);
                 }
                 parent->is_red = false;
                 grand->is_red  = true;
-                rotate_left(grand, root);
+                rotate_left(grand, root_node);
             }
         }
     }
-    root->is_red = false;
+    if (root_node != nullptr) {
+        root_node->is_red = false;
+    }
 }
 
 // --- Transplant ---
 
-void set_core::transplant(set_hook_state* u, set_hook_state* v, set_hook_state*& root) noexcept
+void set_core::transplant(set_hook_state* u, set_hook_state* v, set_hook_state*& root_node) noexcept
 {
-    if (u->parent == nullptr) {
-        root = v;
-    } else if (u == u->parent->left) {
-        u->parent->left = v;
+    auto* parent = resolve(u->parent);
+    if (parent == nullptr) {
+        root_node = v;
+    } else if (u == resolve(parent->left)) {
+        parent->left = v;
     } else {
-        u->parent->right = v;
+        parent->right = v;
     }
     if (v != nullptr) {
-        v->parent = u->parent;
+        v->parent = parent;
     }
 }
 
 // --- Rebalance after erase (CLRS-style) ---
 
-void set_core::rebalance_after_erase(set_hook_state* node, set_hook_state* parent,
-                                     set_hook_state*& root) noexcept
+void set_core::rebalance_after_erase(set_hook_state* node, set_hook_state* parent, set_hook_state*& root_node) noexcept
 {
-    while (node != root && (node == nullptr || !node->is_red)) {
-        if (node == parent->left) {
-            auto* sibling = parent->right;
+    while (node != root_node && (node == nullptr || !node->is_red)) {
+        if (parent == nullptr) {
+            break;
+        }
+        if (node == resolve(parent->left)) {
+            auto* sibling = resolve(parent->right);
             if (sibling == nullptr) {
                 break;
             }
             if (sibling->is_red) {
                 sibling->is_red = false;
                 parent->is_red  = true;
-                rotate_left(parent, root);
-                sibling = parent->right;
+                rotate_left(parent, root_node);
+                sibling = resolve(parent->right);
                 if (sibling == nullptr) {
                     break;
                 }
             }
-            if ((sibling->left == nullptr || !sibling->left->is_red) &&
-                (sibling->right == nullptr || !sibling->right->is_red)) {
+            auto* sibling_left  = resolve(sibling->left);
+            auto* sibling_right = resolve(sibling->right);
+            if ((sibling_left == nullptr || !sibling_left->is_red) &&
+                (sibling_right == nullptr || !sibling_right->is_red)) {
                 sibling->is_red = true;
                 node            = parent;
-                parent          = parent->parent;
+                parent          = resolve(parent->parent);
             } else {
-                if (sibling->right == nullptr || !sibling->right->is_red) {
-                    if (sibling->left != nullptr) {
-                        sibling->left->is_red = false;
+                if (sibling_right == nullptr || !sibling_right->is_red) {
+                    if (sibling_left != nullptr) {
+                        sibling_left->is_red = false;
                     }
                     sibling->is_red = true;
-                    rotate_right(sibling, root);
-                    sibling = parent->right;
+                    rotate_right(sibling, root_node);
+                    sibling       = resolve(parent->right);
+                    sibling_right = resolve(sibling->right);
                 }
                 sibling->is_red = parent->is_red;
                 parent->is_red  = false;
-                if (sibling->right != nullptr) {
-                    sibling->right->is_red = false;
+                if (sibling_right != nullptr) {
+                    sibling_right->is_red = false;
                 }
-                rotate_left(parent, root);
+                rotate_left(parent, root_node);
                 break;
             }
         } else {
-            auto* sibling = parent->left;
+            auto* sibling = resolve(parent->left);
             if (sibling == nullptr) {
                 break;
             }
             if (sibling->is_red) {
                 sibling->is_red = false;
                 parent->is_red  = true;
-                rotate_right(parent, root);
-                sibling = parent->left;
+                rotate_right(parent, root_node);
+                sibling = resolve(parent->left);
                 if (sibling == nullptr) {
                     break;
                 }
             }
-            if ((sibling->right == nullptr || !sibling->right->is_red) &&
-                (sibling->left == nullptr || !sibling->left->is_red)) {
+            auto* sibling_left  = resolve(sibling->left);
+            auto* sibling_right = resolve(sibling->right);
+            if ((sibling_right == nullptr || !sibling_right->is_red) &&
+                (sibling_left == nullptr || !sibling_left->is_red)) {
                 sibling->is_red = true;
                 node            = parent;
-                parent          = parent->parent;
+                parent          = resolve(parent->parent);
             } else {
-                if (sibling->left == nullptr || !sibling->left->is_red) {
-                    if (sibling->right != nullptr) {
-                        sibling->right->is_red = false;
+                if (sibling_left == nullptr || !sibling_left->is_red) {
+                    if (sibling_right != nullptr) {
+                        sibling_right->is_red = false;
                     }
                     sibling->is_red = true;
-                    rotate_left(sibling, root);
-                    sibling = parent->left;
+                    rotate_left(sibling, root_node);
+                    sibling      = resolve(parent->left);
+                    sibling_left = resolve(sibling->left);
                 }
                 sibling->is_red = parent->is_red;
                 parent->is_red  = false;
-                if (sibling->left != nullptr) {
-                    sibling->left->is_red = false;
+                if (sibling_left != nullptr) {
+                    sibling_left->is_red = false;
                 }
-                rotate_right(parent, root);
+                rotate_right(parent, root_node);
                 break;
             }
         }
@@ -221,9 +244,9 @@ void set_core::rebalance_after_erase(set_hook_state* node, set_hook_state* paren
 
 void set_core::reset_hook(set_hook_state* node) noexcept
 {
-    node->parent = nullptr;
-    node->left   = nullptr;
-    node->right  = nullptr;
+    node->parent.reset();
+    node->left.reset();
+    node->right.reset();
     node->is_red = true;
 }
 
@@ -233,15 +256,16 @@ set_hook_state* set_core::insert(set_hook_state* node, set_compare_fn cmp, const
 {
     reset_hook(node);
 
-    set_hook_state* parent = nullptr;
-    set_hook_state* current = m_root;
+    auto*           root_node = root();
+    set_hook_state* parent    = nullptr;
+    set_hook_state* current   = root_node;
 
     while (current != nullptr) {
         parent = current;
         if (cmp(node, current, ctx)) {
-            current = current->left;
+            current = resolve(current->left);
         } else if (cmp(current, node, ctx)) {
-            current = current->right;
+            current = resolve(current->right);
         } else {
             // Duplicate
             return current;
@@ -250,14 +274,15 @@ set_hook_state* set_core::insert(set_hook_state* node, set_compare_fn cmp, const
 
     node->parent = parent;
     if (parent == nullptr) {
-        m_root = node;
+        root_node = node;
     } else if (cmp(node, parent, ctx)) {
         parent->left = node;
     } else {
         parent->right = node;
     }
 
-    rebalance_after_insert(node, m_root);
+    rebalance_after_insert(node, root_node);
+    m_root = root_node;
     return nullptr;
 }
 
@@ -265,12 +290,12 @@ set_hook_state* set_core::insert(set_hook_state* node, set_compare_fn cmp, const
 
 const set_hook_state* set_core::find(const void* key, set_compare_fn cmp, const void* ctx) const noexcept
 {
-    auto* current = m_root;
+    auto* current = root();
     while (current != nullptr) {
         if (cmp(key, current, ctx)) {
-            current = current->left;
+            current = resolve(current->left);
         } else if (cmp(current, key, ctx)) {
-            current = current->right;
+            current = resolve(current->right);
         } else {
             return current;
         }
@@ -288,13 +313,13 @@ set_hook_state* set_core::lower_bound(const void* key, set_compare_fn cmp, const
 const set_hook_state* set_core::lower_bound(const void* key, set_compare_fn cmp, const void* ctx) const noexcept
 {
     const set_hook_state* result  = nullptr;
-    const set_hook_state* current = m_root;
+    const set_hook_state* current = root();
     while (current != nullptr) {
         if (!cmp(current, key, ctx)) {
             result  = current;
-            current = current->left;
+            current = resolve(current->left);
         } else {
-            current = current->right;
+            current = resolve(current->right);
         }
     }
     return result;
@@ -310,13 +335,13 @@ set_hook_state* set_core::upper_bound(const void* key, set_compare_fn cmp, const
 const set_hook_state* set_core::upper_bound(const void* key, set_compare_fn cmp, const void* ctx) const noexcept
 {
     const set_hook_state* result  = nullptr;
-    const set_hook_state* current = m_root;
+    const set_hook_state* current = root();
     while (current != nullptr) {
         if (cmp(key, current, ctx)) {
             result  = current;
-            current = current->left;
+            current = resolve(current->left);
         } else {
-            current = current->right;
+            current = resolve(current->right);
         }
     }
     return result;
@@ -326,47 +351,49 @@ const set_hook_state* set_core::upper_bound(const void* key, set_compare_fn cmp,
 
 void set_core::erase(set_hook_state* node) noexcept
 {
-    auto* y      = node;
-    auto* x      = static_cast<set_hook_state*>(nullptr);
-    auto* x_par  = static_cast<set_hook_state*>(nullptr);
-    bool  y_orig = y->is_red;
+    auto* root_node = root();
+    auto* y         = node;
+    auto* x         = static_cast<set_hook_state*>(nullptr);
+    auto* x_par     = static_cast<set_hook_state*>(nullptr);
+    bool  y_orig    = y->is_red;
 
-    if (node->left == nullptr) {
-        x = node->right;
-        transplant(node, node->right, m_root);
-        x_par = node->parent;
-    } else if (node->right == nullptr) {
-        x = node->left;
-        transplant(node, node->left, m_root);
-        x_par = node->parent;
+    if (node->left.is_null()) {
+        x     = resolve(node->right);
+        x_par = resolve(node->parent);
+        transplant(node, x, root_node);
+    } else if (node->right.is_null()) {
+        x     = resolve(node->left);
+        x_par = resolve(node->parent);
+        transplant(node, x, root_node);
     } else {
         // Find successor (leftmost in right subtree)
-        y     = node->right;
-        while (y->left != nullptr) {
-            y = y->left;
+        y = resolve(node->right);
+        while (!y->left.is_null()) {
+            y = resolve(y->left);
         }
         y_orig = y->is_red;
-        x      = y->right;
+        x      = resolve(y->right);
 
-        if (y->parent == node) {
+        if (resolve(y->parent) == node) {
             x_par = y;
         } else {
-            transplant(y, y->right, m_root);
-            y->right         = node->right;
-            y->right->parent = y;
-            x_par            = y->parent;
+            x_par = resolve(y->parent);
+            transplant(y, x, root_node);
+            y->right                  = node->right;
+            resolve(y->right)->parent = y;
         }
-        transplant(node, y, m_root);
-        y->left         = node->left;
-        y->left->parent = y;
-        y->is_red       = node->is_red;
+        transplant(node, y, root_node);
+        y->left                  = node->left;
+        resolve(y->left)->parent = y;
+        y->is_red                = node->is_red;
     }
 
     if (!y_orig && x_par != nullptr) {
-        rebalance_after_erase(x, x_par, m_root);
+        rebalance_after_erase(x, x_par, root_node);
     }
 
     reset_hook(node);
+    m_root = root_node;
 }
 
 // --- Clear ---
@@ -374,43 +401,47 @@ void set_core::erase(set_hook_state* node) noexcept
 void set_core::clear() noexcept
 {
     // Iterative post-order traversal to reset all hooks
-    auto* current = m_root;
+    auto* current = root();
     while (current != nullptr) {
-        if (current->left != nullptr) {
-            current = current->left;
-        } else if (current->right != nullptr) {
-            current = current->right;
+        auto* left  = resolve(current->left);
+        auto* right = resolve(current->right);
+        if (left != nullptr) {
+            current = left;
+        } else if (right != nullptr) {
+            current = right;
         } else {
-            auto* p = current->parent;
+            auto* p = resolve(current->parent);
             if (p != nullptr) {
-                if (p->left == current) {
-                    p->left = nullptr;
+                if (resolve(p->left) == current) {
+                    p->left.reset();
                 } else {
-                    p->right = nullptr;
+                    p->right.reset();
                 }
             }
             reset_hook(current);
             current = p;
         }
     }
-    m_root = nullptr;
+    m_root.reset();
 }
 
 void set_core::clear_and_dispose(set_dispose_fn fn, void* ctx)
 {
-    auto* current = m_root;
+    auto* current = root();
     while (current != nullptr) {
-        if (current->left != nullptr) {
-            current = current->left;
-        } else if (current->right != nullptr) {
-            current = current->right;
+        auto* left  = resolve(current->left);
+        auto* right = resolve(current->right);
+        if (left != nullptr) {
+            current = left;
+        } else if (right != nullptr) {
+            current = right;
         } else {
-            auto* p = current->parent;
+            auto* p = resolve(current->parent);
             if (p != nullptr) {
-                if (p->left == current) {
-                    p->left = nullptr;
+                if (resolve(p->left) == current) {
+                    p->left.reset();
                 } else {
-                    p->right = nullptr;
+                    p->right.reset();
                 }
             }
             auto* to_dispose = current;
@@ -419,22 +450,22 @@ void set_core::clear_and_dispose(set_dispose_fn fn, void* ctx)
             fn(to_dispose, ctx);
         }
     }
-    m_root = nullptr;
+    m_root.reset();
 }
 
 // --- Swap ---
 
 void set_core::swap(set_core& other) noexcept
 {
-    auto* tmp       = m_root;
-    m_root          = other.m_root;
-    other.m_root    = tmp;
+    auto tmp     = m_root;
+    m_root       = other.m_root;
+    other.m_root = tmp;
     // Re-parent
-    if (m_root != nullptr) {
-        m_root->parent = nullptr;
+    if (auto* root_node = root(); root_node != nullptr) {
+        root_node->parent.reset();
     }
-    if (other.m_root != nullptr) {
-        other.m_root->parent = nullptr;
+    if (auto* other_root = other.root(); other_root != nullptr) {
+        other_root->parent.reset();
     }
 }
 
@@ -442,48 +473,48 @@ void set_core::swap(set_core& other) noexcept
 
 set_hook_state* set_core::begin() noexcept
 {
-    if (m_root == nullptr) {
+    auto* node = root();
+    if (node == nullptr) {
         return nullptr;
     }
-    auto* node = m_root;
-    while (node->left != nullptr) {
-        node = node->left;
+    while (auto* left = resolve(node->left)) {
+        node = left;
     }
     return node;
 }
 
 const set_hook_state* set_core::begin() const noexcept
 {
-    if (m_root == nullptr) {
+    auto* node = root();
+    if (node == nullptr) {
         return nullptr;
     }
-    auto* node = m_root;
-    while (node->left != nullptr) {
-        node = node->left;
+    while (auto* left = resolve(node->left)) {
+        node = left;
     }
     return node;
 }
 
 set_hook_state* set_core::last() noexcept
 {
-    if (m_root == nullptr) {
+    auto* node = root();
+    if (node == nullptr) {
         return nullptr;
     }
-    auto* node = m_root;
-    while (node->right != nullptr) {
-        node = node->right;
+    while (auto* right = resolve(node->right)) {
+        node = right;
     }
     return node;
 }
 
 const set_hook_state* set_core::last() const noexcept
 {
-    if (m_root == nullptr) {
+    auto* node = root();
+    if (node == nullptr) {
         return nullptr;
     }
-    auto* node = m_root;
-    while (node->right != nullptr) {
-        node = node->right;
+    while (auto* right = resolve(node->right)) {
+        node = right;
     }
     return node;
 }
@@ -493,24 +524,24 @@ set_hook_state* set_core::next(set_hook_state* node) noexcept
     if (node == nullptr) {
         return nullptr;
     }
-    if (node->right != nullptr) {
-        node = node->right;
-        while (node->left != nullptr) {
-            node = node->left;
+    if (auto* right = resolve(node->right); right != nullptr) {
+        node = right;
+        while (auto* left = resolve(node->left)) {
+            node = left;
         }
         return node;
     }
-    auto* p = node->parent;
-    while (p != nullptr && node == p->right) {
+    auto* p = resolve(node->parent);
+    while (p != nullptr && node == resolve(p->right)) {
         node = p;
-        p    = p->parent;
+        p    = resolve(p->parent);
     }
     return p;
 }
 
-const set_hook_state* set_core::next(const set_hook_state* node) noexcept
+const set_hook_state* set_core::next(const set_hook_state* node) const noexcept
 {
-    return next(const_cast<set_hook_state*>(node));
+    return const_cast<set_core*>(this)->next(const_cast<set_hook_state*>(node));
 }
 
 set_hook_state* set_core::prev(set_hook_state* node) noexcept
@@ -518,24 +549,24 @@ set_hook_state* set_core::prev(set_hook_state* node) noexcept
     if (node == nullptr) {
         return nullptr;
     }
-    if (node->left != nullptr) {
-        node = node->left;
-        while (node->right != nullptr) {
-            node = node->right;
+    if (auto* left = resolve(node->left); left != nullptr) {
+        node = left;
+        while (auto* right = resolve(node->right)) {
+            node = right;
         }
         return node;
     }
-    auto* p = node->parent;
-    while (p != nullptr && node == p->left) {
+    auto* p = resolve(node->parent);
+    while (p != nullptr && node == resolve(p->left)) {
         node = p;
-        p    = p->parent;
+        p    = resolve(p->parent);
     }
     return p;
 }
 
-const set_hook_state* set_core::prev(const set_hook_state* node) noexcept
+const set_hook_state* set_core::prev(const set_hook_state* node) const noexcept
 {
-    return prev(const_cast<set_hook_state*>(node));
+    return const_cast<set_core*>(this)->prev(const_cast<set_hook_state*>(node));
 }
 
 std::size_t set_core::count_all() const noexcept

@@ -10,7 +10,8 @@ install_headers(
 )
 
 if build_tests
-  install_headers(
-    subdir : 'test_utilities',
+  install_subdir(
+    'test_utilities',
+    install_dir: get_option('includedir'),
   )
 endif

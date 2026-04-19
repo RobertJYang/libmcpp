@@ -138,7 +138,8 @@ public:
     template <bool IsConst>
     class iterator_impl {
         using container_type = std::conditional_t<IsConst, const unordered_set, unordered_set>;
-        using hook_ptr       = std::conditional_t<IsConst, const detail::unordered_hook_state*, detail::unordered_hook_state*>;
+        using hook_ptr =
+            std::conditional_t<IsConst, const detail::unordered_hook_state*, detail::unordered_hook_state*>;
 
     public:
         using iterator_category = std::forward_iterator_tag;
@@ -154,8 +155,14 @@ public:
         iterator_impl(const iterator_impl<OtherConst>& other) : m_set(other.m_set), m_state(other.m_state)
         {}
 
-        reference operator*() const { return *value_from_hook(m_state.current); }
-        pointer   operator->() const { return value_from_hook(m_state.current); }
+        reference operator*() const
+        {
+            return *value_from_hook(m_state.current);
+        }
+        pointer operator->() const
+        {
+            return value_from_hook(m_state.current);
+        }
 
         iterator_impl& operator++()
         {
@@ -215,12 +222,30 @@ public:
     unordered_set(unordered_set&&)                 = delete;
     unordered_set& operator=(unordered_set&&)      = delete;
 
-    iterator       begin()        { return iterator(this, m_core.begin()); }
-    iterator       end()          { return iterator(this, {}); }
-    const_iterator begin()  const { return cbegin(); }
-    const_iterator end()    const { return cend(); }
-    const_iterator cbegin() const { return const_iterator(this, m_core.begin()); }
-    const_iterator cend()   const { return const_iterator(this, {}); }
+    iterator begin()
+    {
+        return iterator(this, m_core.begin());
+    }
+    iterator end()
+    {
+        return iterator(this, {});
+    }
+    const_iterator begin() const
+    {
+        return cbegin();
+    }
+    const_iterator end() const
+    {
+        return cend();
+    }
+    const_iterator cbegin() const
+    {
+        return const_iterator(this, m_core.begin());
+    }
+    const_iterator cend() const
+    {
+        return const_iterator(this, {});
+    }
 
     const hasher& hash_function() const
     {
@@ -245,31 +270,47 @@ public:
     template <typename Key, typename SearchHasher, typename SearchEqual>
     iterator find(const Key& key, const SearchHasher& hash_fn, const SearchEqual& equal_fn)
     {
-        if (m_core.bucket_count() == 0) { return end(); }
-        const auto h   = hash_fn(key);
-        const auto idx = h & (m_core.bucket_count() - 1);
-        auto* current  = const_cast<detail::unordered_hook_state*>(m_core.find(idx, h, &key, &match_key<Key, SearchEqual>, &equal_fn));
-        if (current == nullptr) { return end(); }
+        if (m_core.bucket_count() == 0) {
+            return end();
+        }
+        const auto h       = hash_fn(key);
+        const auto idx     = h & (m_core.bucket_count() - 1);
+        auto*      current = const_cast<detail::unordered_hook_state*>(
+            m_core.find(idx, h, &key, &match_key<Key, SearchEqual>, &equal_fn));
+        if (current == nullptr) {
+            return end();
+        }
         return iterator(this, detail::unordered_iterator_state{idx, current});
     }
 
     template <typename Key>
-    iterator find(const Key& key) { return find(key, m_hasher, m_key_equal); }
+    iterator find(const Key& key)
+    {
+        return find(key, m_hasher, m_key_equal);
+    }
 
     // Const find
     template <typename Key, typename SearchHasher, typename SearchEqual>
     const_iterator find(const Key& key, const SearchHasher& hash_fn, const SearchEqual& equal_fn) const
     {
-        if (m_core.bucket_count() == 0) { return end(); }
-        const auto h   = hash_fn(key);
-        const auto idx = h & (m_core.bucket_count() - 1);
-        auto* current  = const_cast<detail::unordered_hook_state*>(m_core.find(idx, h, &key, &match_key<Key, SearchEqual>, &equal_fn));
-        if (current == nullptr) { return end(); }
+        if (m_core.bucket_count() == 0) {
+            return end();
+        }
+        const auto h       = hash_fn(key);
+        const auto idx     = h & (m_core.bucket_count() - 1);
+        auto*      current = const_cast<detail::unordered_hook_state*>(
+            m_core.find(idx, h, &key, &match_key<Key, SearchEqual>, &equal_fn));
+        if (current == nullptr) {
+            return end();
+        }
         return const_iterator(this, detail::unordered_iterator_state{idx, current});
     }
 
     template <typename Key>
-    const_iterator find(const Key& key) const { return find(key, m_hasher, m_key_equal); }
+    const_iterator find(const Key& key) const
+    {
+        return find(key, m_hasher, m_key_equal);
+    }
 
     template <typename Key>
     std::size_t count(const Key& key) const
@@ -285,7 +326,7 @@ public:
 
     std::pair<iterator, bool> insert(T& value)
     {
-        const auto h             = m_hasher(value);
+        const auto h            = m_hasher(value);
         const auto bucket_index = h & (m_core.bucket_count() - 1);
         // Check for duplicate using core find with hash comparison + key_equal
         auto* existing = const_cast<detail::unordered_hook_state*>(
@@ -315,7 +356,9 @@ public:
 
     void erase(iterator it)
     {
-        if (it == end()) { return; }
+        if (it == end()) {
+            return;
+        }
         if (m_core.erase(it.m_state.bucket_idx, it.m_state.current)) {
             on_erase();
         }
@@ -323,7 +366,9 @@ public:
 
     void erase(const_iterator it)
     {
-        if (it == end()) { return; }
+        if (it == end()) {
+            return;
+        }
         if (m_core.erase(it.m_state.bucket_idx, const_cast<detail::unordered_hook_state*>(it.m_state.current))) {
             on_erase();
         }
@@ -347,18 +392,18 @@ public:
     template <typename Disposer>
     void clear_and_dispose(Disposer disposer)
     {
-        m_core.clear_and_dispose(
-            [](detail::unordered_hook_state* node, void* ctx) {
-                (*static_cast<Disposer*>(ctx))(detail::unordered_value<T>(node));
-            },
-            &disposer);
+        m_core.clear_and_dispose([](detail::unordered_hook_state* node, void* ctx) {
+            (*static_cast<Disposer*>(ctx))(detail::unordered_value<T>(node));
+        }, &disposer);
         reset_size();
     }
 
     template <typename Disposer>
     void erase_and_dispose(iterator it, Disposer disposer)
     {
-        if (it == end()) { return; }
+        if (it == end()) {
+            return;
+        }
         auto* hook    = const_cast<detail::unordered_hook_state*>(it.m_state.current);
         auto* value_p = detail::unordered_value<T>(hook);
         m_core.erase(it.m_state.bucket_idx, hook);
@@ -379,7 +424,9 @@ public:
 
     void swap(unordered_set& other)
     {
-        if (this == &other) { return; }
+        if (this == &other) {
+            return;
+        }
         m_core.swap_rehash(other.m_core);
         if constexpr (has_constant_time_size) {
             std::swap(this->m_size, other.m_size);

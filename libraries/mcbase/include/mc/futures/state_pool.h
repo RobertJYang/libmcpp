@@ -13,36 +13,26 @@
 #ifndef MC_FUTURES_STATE_POOL_H
 #define MC_FUTURES_STATE_POOL_H
 
+#include <cstdint>
 #include <functional>
 #include <memory>
-#include <mutex>
+#include <new>
 
+#include <mc/common.h>
 #include <mc/futures/state.h>
 
 namespace mc::futures {
 
-// State 缓存池配置结构
-struct state_pool_config {
-    std::size_t max_pool_count     = 32;  // 最大缓存池数量（相同大小的 State 一个缓存池）
-    std::size_t max_count_per_pool = 100; // 每个缓存池最大缓存的 State 数量
-    std::size_t max_cacheable_size =
-        1024; // 最大可缓存的 State 大小，超过此大小不会被缓存（实际是比较 Stete::state_value 对齐后的大小）
-    std::size_t alignment = 8; // 缓存池对齐大小
-};
-
-// 前向声明
-class state_pool;
-
 using state_base_ptr = mc::shared_ptr<state_base>;
 
-// State 缓存池类
+namespace detail {
+MC_API void recover_state_slot_to_pool(void* ptr);
+}
+
 class MC_API state_pool {
 public:
     static state_pool& instance();
     ~state_pool();
-
-    void                     set_config(const state_pool_config& config);
-    const state_pool_config& get_config() const;
 
     // 获取或创建一个 State 对象
     template <typename T, typename Executor>
@@ -50,28 +40,37 @@ public:
     {
         using state_type = State<T>;
 
-        void* ptr = try_acquire_state(sizeof(typename state_type::result_type));
-        if (ptr) {
-            auto* state = static_cast<state_type*>(ptr);
-            state->reuse(std::move(executor));
+        auto result = try_acquire_state(sizeof(typename state_type::result_type));
+        MC_ASSERT_THROW(result.ptr != nullptr, mc::runtime_exception, "无法从统一 state_base 池分配控制块");
+        try {
+            if (result.reused) {
+                auto* state = static_cast<state_base*>(result.ptr);
+                state->destroy_cached_state_object();
+            }
+
+            auto* state = new (result.ptr) state_type(std::move(executor));
             return state_base_ptr{static_cast<state_base*>(state)};
-        } else {
-            ptr         = malloc(sizeof(state_type));
-            auto* state = new (ptr) state_type(std::move(executor));
-            return state_base_ptr{static_cast<state_base*>(state)};
+        } catch (const std::bad_alloc&) {
+            detail::recover_state_slot_to_pool(result.ptr);
+            MC_THROW(mc::bad_alloc_exception, "创建 Future 状态对象时内存分配失败");
         }
     }
 
+    struct acquire_state_result {
+        void* ptr{nullptr};
+        bool  reused{false};
+    };
+
     // 池统计信息结构
     struct pool_stats {
-        std::size_t total_global_states = 0; // 全局池中缓存的 State 数量
-        std::size_t total_pools         = 0; // State 池的总数量
+        std::size_t total_global_states = 0; // 统一控制块池中缓存的 state_base 数量
+        std::size_t total_pools         = 0; // 当前活跃的控制块池数量
     };
 
     pool_stats get_stats() const;
 
     void clear_all_pools();
-    bool try_release_to_pool(state_base* ptr, std::size_t state_size);
+    bool try_release_to_pool(state_base* ptr);
 
 private:
     class impl;
@@ -79,7 +78,7 @@ private:
 
     state_pool();
 
-    void* try_acquire_state(std::size_t state_size);
+    acquire_state_result try_acquire_state(std::size_t state_size);
 };
 
 // 从缓存池创建 State 对象
@@ -93,7 +92,8 @@ auto make_pooled_state(Executor executor)
 
 namespace mc::memory {
 
-extern template class shared_ptr<mc::futures::state_base>;
+// 显式实例化声明：与 state_pool.cpp 中定义配对；MC_API 使 Windows 等环境下从 mcbase 动态库导出符号
+extern template class MC_API mc::memory::shared_ptr<mc::futures::state_base>;
 
 } // namespace mc::memory
 

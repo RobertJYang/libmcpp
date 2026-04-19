@@ -23,7 +23,7 @@ namespace mc::intrusive::detail {
 using unordered_match_fn = bool (*)(const void* key, const unordered_hook_state* node, const void* ctx) noexcept;
 
 struct unordered_bucket {
-    unordered_hook_state* head{nullptr};
+    offset_ptr<unordered_hook_state> head{};
 };
 
 struct unordered_iterator_state {
@@ -50,8 +50,8 @@ public:
                                      const void* ctx) const noexcept;
     std::size_t                 count_all() const noexcept;
 
-    static unordered_hook_state*       next(unordered_hook_state* node) noexcept;
-    static const unordered_hook_state* next(const unordered_hook_state* node) noexcept;
+    unordered_hook_state*       next(unordered_hook_state* node) noexcept;
+    const unordered_hook_state* next(const unordered_hook_state* node) const noexcept;
 
     void insert_front(std::size_t index, std::size_t hash, unordered_hook_state* node) noexcept;
     bool erase(std::size_t index, unordered_hook_state* node) noexcept;
@@ -69,12 +69,13 @@ public:
     unordered_iterator_state advance(const unordered_iterator_state& state) const noexcept;
 
 private:
-    static void reset_hook(unordered_hook_state* node) noexcept;
-    void        refresh_cached_begin() noexcept;
+    unordered_bucket*     bucket_at(std::size_t index) const noexcept;
+    static void           reset_hook(unordered_hook_state* node) noexcept;
+    void                  refresh_cached_begin() noexcept;
 
-    unordered_bucket* m_buckets{nullptr};
-    std::size_t       m_bucket_count{0};
-    std::size_t       m_cached_begin{0};
+    offset_ptr<unordered_bucket> m_buckets{};
+    std::size_t                  m_bucket_count{0};
+    std::size_t                  m_cached_begin{0};
 };
 
 } // namespace mc::intrusive::detail

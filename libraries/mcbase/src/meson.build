@@ -8,6 +8,7 @@ subdir('reflect')
 subdir('signal')
 subdir('protocol')
 subdir('runtime')
+subdir('shm')
 subdir('string')
 subdir('variant')
 subdir('db')
@@ -40,6 +41,7 @@ base_src_files = [
   signal_src_files,
   protocol_src_files,
   runtime_src_files,
+  shm_src_files,
   string_src_files,
   variant_src_files,
   db_src_files,

@@ -223,7 +223,7 @@ TEST_F(FuturesTest, AnyExecutorAcceptsMoveOnlyTask)
     auto done = std::make_unique<std::promise<void>>();
     auto wait = done->get_future();
 
-    std::atomic<bool>      executed{false};
+    std::atomic<bool>         executed{false};
     mc::runtime::any_executor executor(get_io_context().get_executor());
 
     executor.post([done = std::move(done), &executed]() mutable {
@@ -240,7 +240,7 @@ TEST_F(FuturesTest, RuntimeStrandAcceptsMoveOnlyTask)
     auto done = std::make_unique<std::promise<void>>();
     auto wait = done->get_future();
 
-    std::atomic<bool>       executed{false};
+    std::atomic<bool>           executed{false};
     mc::runtime::runtime_strand strand;
     strand.bound_pool(&get_io_context());
 
@@ -1367,6 +1367,30 @@ TEST_F(FuturesTest, CancelCallbackExecution)
     delayed_future.cancel();
     EXPECT_THROW(delayed_future.get(), mc::canceled_exception);
     EXPECT_TRUE(callback_called);
+}
+
+TEST_F(FuturesTest, CancelCallbackRunsBeforeCancelledStatePublished)
+{
+    auto delayed_future = mc::delay(100ms, get_io_context());
+    auto state          = delayed_future.get_state();
+
+    bool ready_in_callback     = true;
+    bool cancelled_in_callback = true;
+    bool exception_in_callback = true;
+
+    delayed_future.on_cancel([&]() {
+        ready_in_callback     = state->is_ready();
+        cancelled_in_callback = state->is_cancelled();
+        exception_in_callback = state->get_exception() != nullptr;
+    });
+
+    delayed_future.cancel();
+
+    EXPECT_FALSE(ready_in_callback);
+    EXPECT_FALSE(cancelled_in_callback);
+    EXPECT_FALSE(exception_in_callback);
+    EXPECT_THROW(delayed_future.get(), mc::canceled_exception);
+    EXPECT_TRUE(delayed_future.is_cancelled());
 }
 
 // 测试嵌套调用 cancel 回调

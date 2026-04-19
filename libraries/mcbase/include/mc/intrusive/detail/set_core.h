@@ -24,7 +24,7 @@ using set_compare_fn = bool (*)(const void* a, const void* b, const void* ctx) n
 
 class MC_API set_core {
 public:
-    set_core() = default;
+    set_core() noexcept = default;
 
     set_core(const set_core&)            = delete;
     set_core& operator=(const set_core&) = delete;
@@ -56,22 +56,23 @@ public:
     set_hook_state*       last() noexcept;
     const set_hook_state* last() const noexcept;
 
-    static set_hook_state*       next(set_hook_state* node) noexcept;
-    static const set_hook_state* next(const set_hook_state* node) noexcept;
-    static set_hook_state*       prev(set_hook_state* node) noexcept;
-    static const set_hook_state* prev(const set_hook_state* node) noexcept;
+    set_hook_state*       next(set_hook_state* node) noexcept;
+    const set_hook_state* next(const set_hook_state* node) const noexcept;
+    set_hook_state*       prev(set_hook_state* node) noexcept;
+    const set_hook_state* prev(const set_hook_state* node) const noexcept;
 
     std::size_t count_all() const noexcept;
 
 private:
-    static void rotate_left(set_hook_state* node, set_hook_state*& root) noexcept;
-    static void rotate_right(set_hook_state* node, set_hook_state*& root) noexcept;
-    static void rebalance_after_insert(set_hook_state* node, set_hook_state*& root) noexcept;
-    static void rebalance_after_erase(set_hook_state* node, set_hook_state* parent, set_hook_state*& root) noexcept;
-    static void transplant(set_hook_state* u, set_hook_state* v, set_hook_state*& root) noexcept;
+    set_hook_state* resolve(const offset_ptr<set_hook_state>& ref) const noexcept;
+    void            rotate_left(set_hook_state* node, set_hook_state*& root_node) noexcept;
+    void            rotate_right(set_hook_state* node, set_hook_state*& root_node) noexcept;
+    void            rebalance_after_insert(set_hook_state* node, set_hook_state*& root_node) noexcept;
+    void rebalance_after_erase(set_hook_state* node, set_hook_state* parent, set_hook_state*& root_node) noexcept;
+    void transplant(set_hook_state* u, set_hook_state* v, set_hook_state*& root_node) noexcept;
     static void reset_hook(set_hook_state* node) noexcept;
 
-    set_hook_state* m_root{nullptr};
+    offset_ptr<set_hook_state> m_root{};
 };
 
 } // namespace mc::intrusive::detail

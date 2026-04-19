@@ -23,7 +23,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace mc::protocol {
+namespace mc::proto {
 
 /// 第 i 层对应掩码中的第 i 位，仅支持 0..63。
 [[nodiscard]] constexpr std::uint64_t layer_bit(std::size_t layer_index) noexcept
@@ -53,6 +53,6 @@ struct trace_sink {
     void (*emit)(void* user_data, const trace_event& e);
 };
 
-} // namespace mc::protocol
+} // namespace mc::proto
 
 #endif // MC_PROTOCOL_TRACE_H

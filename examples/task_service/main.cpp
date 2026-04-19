@@ -25,12 +25,12 @@ int main(int argc, char* argv[])
 
     ilog("服务连接示例启动");
 
-    auto service = mc::make_shared<test::test_service>("org.openubmc.test_service");
-    service->init({});
-    service->start();
+    test::test_service service("org.openubmc.test_service");
+    service.init({});
+    service.start();
 
-    mc::app().start();
-    mc::app().exec();
+    mc::core::app().start();
+    mc::core::app().exec();
 
     ilog("服务连接示例结束");
     return 0;

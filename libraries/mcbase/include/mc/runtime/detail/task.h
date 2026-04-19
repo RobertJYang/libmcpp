@@ -13,12 +13,12 @@
 #ifndef MC_RUNTIME_DETAIL_TASK_H
 #define MC_RUNTIME_DETAIL_TASK_H
 
-#include <mc/runtime/detail/inplace_function.h>
+#include <mc/small_function.h>
 
 namespace mc::runtime::detail {
 
 /// @brief 固定大小的 move-only 无参可调用对象，用于 executor 任务投递。
-using task = inplace_function<void(), 48>;
+using task = mc::small_function<void(), 48>;
 
 } // namespace mc::runtime::detail
 

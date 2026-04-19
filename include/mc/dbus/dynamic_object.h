@@ -15,10 +15,12 @@
 
 #include <map>
 #include <mc/dict.h>
+#include <mc/dbus/shm/mock_shm.h>
 #include <mc/engine/object.h>
 #include <mc/memory.h>
 #include <mc/object.h>
 #include <mc/reflect/metadata_info.h>
+#include <mc/string_view.h>
 #include <mc/sync/small_mutex.h>
 #include <mc/variant.h>
 #include <string>
@@ -56,7 +58,7 @@ struct MC_API dynamic_property {
     mc::variant                  value;
     bool                         readonly;
     uint8_t                      flags;
-    shm::weak_ptr<shm::property> shm_prop;
+    ::shm::weak_ptr<::shm::property> shm_prop;
 };
 
 struct MC_API dynamic_signal {
@@ -94,24 +96,24 @@ public:
     dynamic_object(mc::object* parent = nullptr);
     using mc::engine::object_impl::get_interface;
 
-    mc::variant get_property(std::string_view property_name, std::string_view interface_name,
+    mc::variant get_property(mc::string_view property_name, mc::string_view interface_name,
                              int options = 0) const override;
-    bool        set_property(std::string_view property_name, const mc::variant& value,
-                             std::string_view interface_name) override;
-    mc::dict    get_all_properties(std::string_view interface_name = {}, int options = 0) const override;
-    bool        has_property(std::string_view property_name, std::string_view interface_name) const override;
-    std::tuple<int, mc::variant> try_get_property(std::string_view property_name,
-                                                  std::string_view interface_name) const;
-    int try_set_property(std::string_view property_name, const mc::variant& value, std::string_view interface_name);
+    bool        set_property(mc::string_view property_name, const mc::variant& value,
+                             mc::string_view interface_name) override;
+    mc::dict    get_all_properties(mc::string_view interface_name = {}, int options = 0) const override;
+    bool        has_property(mc::string_view property_name, mc::string_view interface_name) const override;
+    std::tuple<int, mc::variant> try_get_property(mc::string_view property_name,
+                                                  mc::string_view interface_name) const;
+    int try_set_property(mc::string_view property_name, const mc::variant& value, mc::string_view interface_name);
 
     void                              add_interface(mc::shared_ptr<dynamic_interface>);
     mc::shared_ptr<dynamic_interface> get_interface(std::string intf_name) const;
 
-    std::string_view                   get_class_name() const override;
-    std::string_view                   get_path_pattern() const override;
+    mc::string_view                    get_class_name() const override;
+    mc::string_view                    get_path_pattern() const override;
     const mc::engine::object_metadata& get_metadata() const override;
 
-    void update_shm_prop(std::string_view property_name, const mc::variant& value, std::string_view interface_name);
+    void update_shm_prop(mc::string_view property_name, const mc::variant& value, mc::string_view interface_name);
 
     std::map<std::string, mc::shared_ptr<dynamic_interface>>& get_interfaces();
 

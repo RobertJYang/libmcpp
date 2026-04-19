@@ -13,12 +13,12 @@
 #ifndef MC_RUNTIME_DETAIL_COMPLETION_HANDLER_H
 #define MC_RUNTIME_DETAIL_COMPLETION_HANDLER_H
 
-#include <mc/runtime/detail/inplace_function.h>
+#include <mc/small_function.h>
 
 namespace mc::runtime::detail {
 
 template <typename Signature>
-using completion_handler = inplace_function<Signature, 64>;
+using completion_handler = mc::small_function<Signature, 64>;
 
 } // namespace mc::runtime::detail
 

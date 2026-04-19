@@ -1,0 +1,11 @@
+install_subdir(
+  'mc',
+  install_dir: get_option('includedir'),
+)
+
+if build_tests
+  install_headers(
+    'test_utilities/engine_test_base.h',
+    subdir: 'test_utilities',
+  )
+endif

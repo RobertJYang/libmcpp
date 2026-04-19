@@ -50,7 +50,6 @@ class AppConan(ConanBase):
             tc.project_options["tests"] = True
         else:
             tc.project_options["tests"] = False
-        tc.project_options["tests_utilities"] = self.options.test
         tc.project_options["meson_build"] = False
 
         ms = VirtualBuildEnv(self)
@@ -106,6 +105,20 @@ class AppConan(ConanBase):
         mcbase_include = os.path.join(self.source_folder, "libraries", "mcbase", "include")
         if os.path.isdir(mcbase_include):
             copy(self, "*", src=mcbase_include, dst=os.path.join(self.package_folder, "include"))
+        mcengine_test_include = os.path.join(
+            self.source_folder,
+            "libraries",
+            "mcengine",
+            "include",
+            "test_utilities",
+        )
+        if os.path.isdir(mcengine_test_include):
+            copy(
+                self,
+                "engine_test_base.h",
+                src=mcengine_test_include,
+                dst=os.path.join(self.package_folder, "include", "test_utilities"),
+            )
 
         # 对静态库运行ranlib以创建符号索引
         self._run_ranlib_on_static_libs()
@@ -229,7 +242,7 @@ class AppConan(ConanBase):
 
         # 配置libmcpp的pkg-config
         self.cpp_info.components["libmcpp"].libs = ["libmcpp", "libmcbase"]
-        self.cpp_info.components["libmcpp"].libdirs = ["usr/lib64"]
+        self.cpp_info.components["libmcpp"].libdirs = [libdir]
         self.cpp_info.components["libmcpp"].includedirs = include_dirs
         self.cpp_info.components["libmcpp"].set_property("pkg_config_name", "libmcpp")
         self.cpp_info.components["libmcpp"].requires = ["libsomp::libsomp", "liblogger::liblogger", "boost::boost", "skynet::skynet", "json::json", "huawei_secure_c::securec"]
@@ -238,13 +251,21 @@ class AppConan(ConanBase):
            "Requires: dbus-1 glib-2.0\n")
 
         # 配置test_utilities的pkg-config
-        self.cpp_info.components["test_utilities"].libs = ["mc_test_utilities", "mcbase_test_utilities"]
-        self.cpp_info.components["test_utilities"].libdirs = ["usr/lib64"]
+        self.cpp_info.components["test_utilities"].libs = ["mc_test_utilities"]
+        if self.options.test:
+            self.cpp_info.components["test_utilities"].libs.append("mcbase_test_utilities")
+        self.cpp_info.components["test_utilities"].libdirs = [libdir]
         self.cpp_info.components["test_utilities"].includedirs = include_dirs
         self.cpp_info.components["test_utilities"].set_property("pkg_config_name", "test_utilities")
+        self.cpp_info.components["test_utilities"].requires = ["libmcpp"]
+        if self.options.test:
+            self.cpp_info.components["test_utilities"].requires.append("gtest::gtest")
         self.cpp_info.components["test_utilities"].set_property("pkg_config_custom_content",
            f"libdir=${{prefix}}/{libdir}\n"
-           "Requires: dbus-1\n")
+           "Requires: libmcpp dbus-1\n")
 
         if self.options.test:
-            self.cpp_info.components["libmcpp_test"].requires.append("gtest::gtest")
+            # 与 Meson 侧测试目标对齐：先声明组件再挂依赖，避免未定义组件就 append
+            self.cpp_info.components["libmcpp_test"].libs = []
+            self.cpp_info.components["libmcpp_test"].includedirs = include_dirs
+            self.cpp_info.components["libmcpp_test"].requires = ["test_utilities", "gtest::gtest"]

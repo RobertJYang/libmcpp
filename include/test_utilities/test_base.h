@@ -15,16 +15,16 @@
 
 #include <mc/core/application.h>
 #include <mc/dbus/shm/harbor.h>
-#include <mc/engine.h>
 #include <mc/singleton.h>
 
 #include <test_utilities/base.h>
 #include <test_utilities/dbus_daemon_manager.h>
+#include <test_utilities/engine_test_base.h>
 
 namespace mc {
 namespace test {
 
-class MC_API TestWithDbusDaemon : public TestWithRuntime {
+class MC_API TestWithDbusDaemon : public TestWithEngine {
 protected:
     static dbus_daemon_manager& get_dbus_daemon()
     {
@@ -34,14 +34,14 @@ protected:
     static void SetUpTestSuite()
     {
         mc::dbus::harbor::reset_for_test();
-        TestWithRuntime::SetUpTestSuite();
+        TestWithEngine::SetUpTestSuite();
         ASSERT_TRUE(get_dbus_daemon().start()) << "启动 DBus 守护进程失败";
     }
 
     static void TearDownTestSuite()
     {
         mc::dbus::harbor::reset_for_test();
-        TestWithRuntime::TearDownTestSuite();
+        TestWithEngine::TearDownTestSuite();
     };
 };
 
@@ -62,25 +62,6 @@ protected:
     };
 };
 
-class MC_API TestWithEngine : public TestWithApplication {
-protected:
-    static mc::engine::engine& get_engine()
-    {
-        return mc::engine::get_engine();
-    }
-
-    static void SetUpTestSuite()
-    {
-        mc::engine::engine::reset_for_test();
-        TestWithApplication::SetUpTestSuite();
-    }
-
-    static void TearDownTestSuite()
-    {
-        TestWithApplication::TearDownTestSuite();
-        mc::engine::engine::reset_for_test();
-    }
-};
 } // namespace test
 } // namespace mc
 

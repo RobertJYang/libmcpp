@@ -32,12 +32,12 @@ public:
     test_service() : mc::engine::service("org.test.privilege.service")
     {}
 
-    bool start() override
+    bool start()
     {
         return true;
     }
 
-    bool stop() override
+    bool stop()
     {
         return true;
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2024-2026 Huawei Technologies Co., Ltd.
  * openUBMC is licensed under Mulan PSL v2.
  * You can use this software according to the terms and conditions of the Mulan PSL v2.
  * You may obtain a copy of Mulan PSL v2 at:
@@ -13,8 +13,9 @@
 #define MC_DATABASE_TABLE_BASE_H
 
 #include <mc/db/common.h>
+#include <mc/db/local_storage_engine.h>
+#include <mc/db/storage_engine.h>
 #include <mc/db/transaction.h>
-#include <mc/im/radix_tree.h>
 #include <mc/signal/signal.h>
 
 namespace mc::db {
@@ -49,15 +50,19 @@ protected:
     virtual object_ptr do_add_object(const mc::dict& var, transaction* txn) = 0;
 };
 
-template <typename ObjectType, typename Allocator = std::allocator<char>>
+// index_base：索引对外的虚基类（v3）
+//
+// Engine 模板参数决定 raw_iterator 的具体类型。默认 = local_storage_engine
+// 单棵树形态（与 db::index<> 默认 Engine 对齐，方便 standalone 用法）。
+template <typename ObjectType, typename Allocator = std::allocator<char>,
+          typename Engine = local_storage_engine<ObjectType, 1U, Allocator>>
 class index_base {
 public:
     using object_type     = ObjectType;
     using alloc_type      = Allocator;
     using object_ptr_type = mc::shared_ptr<object_type>;
-    using tree_config     = mc::im::tree_config<object_ptr_type, alloc_type>;
-    using tree_type       = mc::im::radix_tree<tree_config>;
-    using raw_iterator    = typename tree_type::iterator;
+    using engine_type     = Engine;
+    using raw_iterator    = engine_raw_iterator_t<Engine>;
 
     virtual ~index_base() = default;
 

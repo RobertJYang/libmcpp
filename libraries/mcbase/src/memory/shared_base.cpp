@@ -21,7 +21,7 @@ struct final_release_context_storage {
 
 void execute_final_release_impl(mc::gc::gc_final_release_context_t opaque)
 {
-    auto* ctx = static_cast<final_release_context_storage*>(opaque);
+    auto* ctx     = static_cast<final_release_context_storage*>(opaque);
     auto* counter = ctx->counter;
     mc::memory::detail::destroy_managed_object(counter);
     if (counter->release_weak_ref()) {
@@ -34,11 +34,7 @@ void execute_final_release_impl(mc::gc::gc_final_release_context_t opaque)
 
 namespace mc::memory {
 
-shared_counter::shared_counter()
-    : m_ref_count(INVALID),
-      m_weak_count(1),
-      m_alloc_base(nullptr),
-      m_release_ops(nullptr)
+shared_counter::shared_counter() : m_ref_count(INVALID), m_weak_count(1), m_alloc_base(nullptr), m_release_ops(nullptr)
 {
     gc_init();
 }
@@ -54,10 +50,7 @@ shared_counter::~shared_counter()
 }
 
 shared_counter::shared_counter(const shared_counter&)
-    : m_ref_count(INVALID),
-      m_weak_count(1),
-      m_alloc_base(nullptr),
-      m_release_ops(nullptr)
+    : m_ref_count(INVALID), m_weak_count(1), m_alloc_base(nullptr), m_release_ops(nullptr)
 {
     gc_init();
 }
@@ -68,10 +61,7 @@ shared_counter& shared_counter::operator=(const shared_counter&)
 }
 
 shared_counter::shared_counter(shared_counter&&) noexcept
-    : m_ref_count(INVALID),
-      m_weak_count(1),
-      m_alloc_base(nullptr),
-      m_release_ops(nullptr)
+    : m_ref_count(INVALID), m_weak_count(1), m_alloc_base(nullptr), m_release_ops(nullptr)
 {
     gc_init();
 }
@@ -115,8 +105,7 @@ bool shared_counter::release_ref() const
         }
     }
 
-    detail::throw_invalid_op_exception(
-        "attempt to release reference to a destroyed or not managed object");
+    detail::throw_invalid_op_exception("attempt to release reference to a destroyed or not managed object");
 }
 
 void shared_counter::add_weak_ref() const
@@ -207,15 +196,13 @@ bool shared_counter::externalize_ownership()
     return true;
 }
 
-void shared_counter::set_shared_release_protocol(const shared_release_ops* ops,
-                                                 void* alloc_base) noexcept
+void shared_counter::set_shared_release_protocol(const shared_release_ops* ops, void* alloc_base) noexcept
 {
     m_release_ops = ops;
     m_alloc_base  = alloc_base ? alloc_base : const_cast<shared_counter*>(this);
 }
 
-void shared_counter::ensure_shared_release_protocol(const shared_release_ops* ops,
-                                                    void* alloc_base) noexcept
+void shared_counter::ensure_shared_release_protocol(const shared_release_ops* ops, void* alloc_base) noexcept
 {
     if (!m_release_ops) {
         set_shared_release_protocol(ops, alloc_base);

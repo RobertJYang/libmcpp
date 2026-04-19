@@ -44,7 +44,7 @@ static uint16_t           g_lock_service_id           = 0;
 
 class shm_lock {
 public:
-    shm_lock() : m_shm(shm::shared_memory::get_instance()), m_locked(false)
+    shm_lock() : m_shm(::shm::shared_memory::get_instance()), m_locked(false)
     {
         lock();
     }
@@ -75,7 +75,7 @@ public:
     }
 
 private:
-    shm::shared_memory& m_shm;
+    ::shm::shared_memory& m_shm;
     bool                m_locked;
 };
 

@@ -18,14 +18,15 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace mc::protocol {
+namespace mc::proto {
 namespace detail {
 struct packet_access;
+struct buffer_access;
 } // namespace detail
 
-class packet {
+class buffer {
 public:
-    packet() = default;
+    buffer() = default;
 
     void clear() noexcept
     {
@@ -68,7 +69,7 @@ public:
         return m_payload_base;
     }
 
-    packet& append_payload(const void* data, std::size_t len)
+    buffer& append_payload(const void* data, std::size_t len)
     {
         const std::size_t off = length() < m_payload_base ? m_payload_base : length();
         write_at_offset(off, data, len);
@@ -76,7 +77,7 @@ public:
     }
 
     template <typename T, std::size_t N>
-    packet& append_payload(const T (&arr)[N])
+    buffer& append_payload(const T (&arr)[N])
     {
         return append_payload(static_cast<const void*>(arr), N * sizeof(T));
     }
@@ -96,6 +97,7 @@ public:
 
 private:
     friend struct detail::packet_access;
+    friend struct detail::buffer_access;
 
     void rearm(std::size_t min_headroom, std::size_t min_tailroom, std::size_t payload_base) noexcept
     {
@@ -108,17 +110,26 @@ private:
     std::size_t       m_payload_base{0};
 };
 
+using packet = buffer;
+
 namespace detail {
+
+struct buffer_access {
+    static void arm(buffer& b, std::size_t headroom, std::size_t tailroom, std::size_t payload_base) noexcept
+    {
+        b.rearm(headroom, tailroom, payload_base);
+    }
+};
 
 struct packet_access {
     static void arm(packet& p, std::size_t headroom, std::size_t tailroom, std::size_t payload_base) noexcept
     {
-        p.rearm(headroom, tailroom, payload_base);
+        buffer_access::arm(p, headroom, tailroom, payload_base);
     }
 };
 
 } // namespace detail
 
-} // namespace mc::protocol
+} // namespace mc::proto
 
 #endif // MC_PROTOCOL_PACKET_H
