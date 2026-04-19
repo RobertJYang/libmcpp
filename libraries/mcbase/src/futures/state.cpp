@@ -78,6 +78,7 @@ state_base::state_base(executor_type executor) noexcept : m_executor(std::move(e
 
 state_base::~state_base()
 {
+    destroy_deferred_task_locked();
     destroy_slot_locked();
 }
 
@@ -258,6 +259,7 @@ void state_base::copy_exception_to(any_promise& promise, bool strict_once) const
 
 void state_base::reset()
 {
+    destroy_deferred_task_locked();
     destroy_slot_locked();
     m_state_flags.store(encode_completion_state_bits(completion_state::pending) | encode_policy_bits(launch::async),
                         std::memory_order_release);
@@ -270,6 +272,20 @@ void state_base::reset()
 }
 
 void state_base::mark_ready()
+{
+    // launch::deferred：把发布动作推迟到 executor 下一 tick；executor 不可用时降级同步发布。
+    const auto policy = decode_policy_bits(m_state_flags.load(std::memory_order_acquire));
+    if (policy == launch::deferred && m_executor.valid()) {
+        state_base_ptr self{this};
+        m_executor.post([self = std::move(self)]() mutable noexcept {
+            self->mark_ready_immediate();
+        });
+        return;
+    }
+    mark_ready_immediate();
+}
+
+void state_base::mark_ready_immediate() noexcept
 {
     callback_list callbacks;
     callback_list cancel_callbacks;
@@ -284,6 +300,76 @@ void state_base::mark_ready()
 
     // 直接清空 cancel_callbacks 因为不再需要执行了
     cancel_callbacks.clear();
+}
+
+void state_base::install_deferred_task(deferred_task_fn task_fn, void* context, deferred_task_dtor ctx_dtor)
+{
+    MC_ASSERT(task_fn != nullptr, "deferred task_fn 不可为 nullptr");
+    MC_ASSERT(m_deferred_task_fn == nullptr, "同一 state 上不可重复装载 deferred task");
+    MC_ASSERT(!is_deferred_task_started(), "deferred task 已启动后不可再次装载");
+    MC_ASSERT(!is_ready(), "已就绪 state 不可装载 deferred task");
+
+    m_deferred_task_fn   = task_fn;
+    m_deferred_task_ctx  = context;
+    m_deferred_task_dtor = ctx_dtor;
+}
+
+bool state_base::try_start_deferred_task() noexcept
+{
+    if (m_deferred_task_fn == nullptr) {
+        return false;
+    }
+
+    const auto flags_snapshot = m_state_flags.load(std::memory_order_acquire);
+    if (decode_policy_bits(flags_snapshot) != launch::deferred) {
+        return false;
+    }
+
+    // 已是终态（cancel/exception/resolved）：不再启动任务体，避免无效调度。
+    if (decode_completion_state_bits(flags_snapshot) != completion_state::pending) {
+        return false;
+    }
+
+    auto flags = flags_snapshot;
+    while (true) {
+        if ((flags & s_deferred_task_started_flag) != 0) {
+            return false;
+        }
+        const auto desired = flags | s_deferred_task_started_flag;
+        if (m_state_flags.compare_exchange_weak(flags, desired, std::memory_order_acq_rel, std::memory_order_acquire)) {
+            break;
+        }
+    }
+
+    auto fn  = m_deferred_task_fn;
+    auto ctx = m_deferred_task_ctx;
+
+    if (!m_executor.valid()) {
+        fn(ctx);
+        return true;
+    }
+
+    // self 引用保活 state 与 ctx 直到任务体执行完。
+    state_base_ptr self{this};
+    m_executor.post([self = std::move(self), fn, ctx]() mutable noexcept {
+        fn(ctx);
+    });
+    return true;
+}
+
+void state_base::destroy_deferred_task_locked() noexcept
+{
+    if (m_deferred_task_fn == nullptr) {
+        return;
+    }
+    auto dtor            = m_deferred_task_dtor;
+    auto ctx             = m_deferred_task_ctx;
+    m_deferred_task_fn   = nullptr;
+    m_deferred_task_ctx  = nullptr;
+    m_deferred_task_dtor = nullptr;
+    if (dtor != nullptr) {
+        dtor(ctx);
+    }
 }
 
 void state_base::cancel()

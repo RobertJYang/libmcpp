@@ -54,6 +54,23 @@ auto make_promise(Execution& execution) -> std::enable_if_t<futures::detail::is_
     return mc::futures::make_promise<T>(execution.get_executor());
 }
 
+template <typename T, typename Executor, typename Task>
+auto make_deferred_future(Executor executor, Task&& task)
+    -> std::enable_if_t<futures::detail::is_executor_v<Executor>,
+                        decltype(mc::futures::make_deferred_future<T>(std::move(executor), std::forward<Task>(task)))>
+{
+    return mc::futures::make_deferred_future<T>(std::move(executor), std::forward<Task>(task));
+}
+
+template <typename T, typename Execution, typename Task>
+auto make_deferred_future(Execution& execution, Task&& task)
+    -> std::enable_if_t<futures::detail::is_execution_context_v<Execution>,
+                        decltype(mc::futures::make_deferred_future<T>(execution.get_executor(),
+                                                                      std::forward<Task>(task)))>
+{
+    return mc::futures::make_deferred_future<T>(execution.get_executor(), std::forward<Task>(task));
+}
+
 template <typename T>
 using future = mc::futures::Future<T>;
 

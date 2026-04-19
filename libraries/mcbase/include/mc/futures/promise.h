@@ -107,6 +107,65 @@ auto make_promise(Executor executor)
 {
     return Promise<detail::state_tt<T>>(std::move(executor));
 }
+
+namespace detail {
+
+// make_deferred_future 的内部 holder
+template <typename T, typename Task>
+struct deferred_future_holder {
+    Promise<T> promise;
+    Task       task;
+
+    template <typename U>
+    deferred_future_holder(Promise<T> p, U&& t) : promise(std::move(p)), task(std::forward<U>(t))
+    {}
+};
+
+template <typename T, typename Task>
+void deferred_future_task_fn(void* ctx) noexcept
+{
+    auto* holder = static_cast<deferred_future_holder<T, Task>*>(ctx);
+    try {
+        if constexpr (std::is_void_v<T>) {
+            holder->task();
+            holder->promise.set_value();
+        } else {
+            holder->promise.set_value(holder->task());
+        }
+    } catch (...) {
+        holder->promise.set_current_exception();
+    }
+}
+
+template <typename T, typename Task>
+void deferred_future_task_dtor(void* ctx) noexcept
+{
+    delete static_cast<deferred_future_holder<T, Task>*>(ctx);
+}
+
+} // namespace detail
+
+template <typename T, typename Executor, typename Task>
+auto make_deferred_future(Executor executor, Task&& task)
+{
+    using value_type = detail::state_tt<T>;
+    using task_type  = std::decay_t<Task>;
+
+    auto promise = make_promise<T>(std::move(executor));
+    promise.set_policy(launch::deferred);
+
+    auto future = promise.get_future();
+
+    using holder_type = detail::deferred_future_holder<value_type, task_type>;
+    auto* holder      = new holder_type(std::move(promise), std::forward<Task>(task));
+
+    future.get_state()->install_deferred_task(&detail::deferred_future_task_fn<value_type, task_type>,
+                                              static_cast<void*>(holder),
+                                              &detail::deferred_future_task_dtor<value_type, task_type>);
+
+    return future;
+}
+
 } // namespace mc::futures
 
 #include <mc/futures/detail/promise_impl.h>

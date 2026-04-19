@@ -80,6 +80,8 @@ void any_future::wait() const
         return;
     }
 
+    m_state->try_start_deferred_task();
+
     std::unique_lock lock(m_state->m_mutex);
     while (!m_state->is_ready()) {
         auto guard = make_wait_hook_guard();
@@ -189,6 +191,9 @@ void any_future::add_continuation_impl(callback_type continuation, launch policy
         return;
     }
 
+    // 注册 continuation 也是 deferred 任务的拉取触发点。
+    m_state->try_start_deferred_task();
+
     std::unique_lock lock(m_state->m_mutex);
 
     if (m_state->is_ready()) {
@@ -242,10 +247,14 @@ future_status any_future::wait_for_impl(std::chrono::steady_clock::duration dura
         return future_status::invalid;
     }
 
-    std::unique_lock lock(m_state->m_mutex);
-    if (m_state->get_policy() == launch::deferred) {
+    // 与 std::future 一致：deferred 任务未启动时返回 deferred 状态而不主动触发；
+    // 任务已启动后退化为正常超时等待（worker 线程上 m_cv.wait_until 会嵌套驱动 task 队列）。
+    if (m_state->get_policy() == launch::deferred && !m_state->is_ready()
+        && !m_state->is_deferred_task_started()) {
         return future_status::deferred;
     }
+
+    std::unique_lock lock(m_state->m_mutex);
 
     using duration_type = std::chrono::steady_clock::duration;
     auto timeout_at     = std::chrono::steady_clock::now() + static_cast<duration_type>(duration);
@@ -264,10 +273,13 @@ future_status any_future::wait_until_impl(std::chrono::steady_clock::time_point 
         return future_status::invalid;
     }
 
-    std::unique_lock lock(m_state->m_mutex);
-    if (m_state->get_policy() == launch::deferred) {
+    // 与 std::future 一致：deferred 任务未启动时返回 deferred 状态而不主动触发。
+    if (m_state->get_policy() == launch::deferred && !m_state->is_ready()
+        && !m_state->is_deferred_task_started()) {
         return future_status::deferred;
     }
+
+    std::unique_lock lock(m_state->m_mutex);
 
     using time_point_type = std::chrono::steady_clock::time_point;
     auto deadline         = time_point_type(timeout_time);

@@ -81,6 +81,10 @@ public:
     using executor_type           = mc::runtime::any_executor;
     using cached_state_destroy_fn = void (*)(state_base*) noexcept;
 
+    // launch::deferred 任务签名。ctx_dtor 为 nullptr 表示 context 由外部管理生命周期。
+    using deferred_task_fn   = void (*)(void* context) noexcept;
+    using deferred_task_dtor = void (*)(void* context) noexcept;
+
     static constexpr std::size_t s_inline_payload_bytes = 32;
 
     state_base(executor_type executor) noexcept;
@@ -91,6 +95,36 @@ public:
     void mark_ready();
     void cancel();
     void set_policy(launch policy) noexcept;
+
+    // 装载 launch::deferred 任务：
+    //   - lazy 启动：第一次 wait/get/add_continuation 时由 executor 异步执行；
+    //     wait_for/wait_until 与 std::future 一致，未启动时返回 future_status::deferred 不触发；
+    //   - 异步唤醒：set_value/set_exception 触发的 mark_ready 不在生产者栈上直接 cv.notify
+    //     和触发 continuations，而是 post 到 m_executor 下一 tick 才发布，保证生产者
+    //     协程栈帧上的局部对象在等待方被唤醒前已析构（避免 use-after-free 类竞态）。
+    //
+    // 使用边界：deferred future 的拉取语义是消费者通过 add_continuation 异步等待。
+    // 不要在串行化执行器（runtime_context::create_strand / create_io_strand /
+    // create_work_strand 返回的 any_executor）的 worker 上同步 wait/get 自身派发的
+    // deferred future——串行化执行器同时只能跑一个任务，当前任务还在栈上时下一个任务
+    // 拿不到调度槽，wait/get 会无限挂起。普通 thread_pool 上由其他 worker 拉起，
+    // 或同 worker 经 mc::runtime::condition_variable 嵌套驱动，都不存在该限制。
+    //
+    // 约束：state 必须 pending 且未装载过，policy 应为 launch::deferred；
+    //       context 生命周期由 ctx_dtor 在 state 析构 / reset 时回收；
+    //       task_fn 自身负责调用 promise.set_value / set_exception。
+    void install_deferred_task(deferred_task_fn task_fn, void* context, deferred_task_dtor ctx_dtor = nullptr);
+    bool try_start_deferred_task() noexcept;
+
+    inline bool has_deferred_task() const noexcept
+    {
+        return m_deferred_task_fn != nullptr;
+    }
+
+    inline bool is_deferred_task_started() const noexcept
+    {
+        return has_flag(s_deferred_task_started_flag, std::memory_order_acquire);
+    }
 
     // 设置取消回调
     // 注意：回调函数会在取消时立即执行，不会投递到 executor 执行，不要在回调函数中作阻塞动作
@@ -169,14 +203,15 @@ protected:
     friend struct detail::state_payload_access;
     friend void detail::recover_state_slot_to_pool(void* ptr);
 
-    static constexpr uint32_t s_completion_state_shift   = 0;
-    static constexpr uint32_t s_completion_state_mask    = 0x3u << s_completion_state_shift;
-    static constexpr uint32_t s_bound_flag               = 1u << 2;
-    static constexpr uint32_t s_policy_shift             = 3;
-    static constexpr uint32_t s_policy_mask              = 0x3u << s_policy_shift;
-    static constexpr uint32_t s_storage_kind_shift       = 5;
-    static constexpr uint32_t s_storage_kind_mask        = 0x3u << s_storage_kind_shift;
-    static constexpr uint32_t s_payload_constructed_flag = 1u << 7;
+    static constexpr uint32_t s_completion_state_shift     = 0;
+    static constexpr uint32_t s_completion_state_mask      = 0x3u << s_completion_state_shift;
+    static constexpr uint32_t s_bound_flag                 = 1u << 2;
+    static constexpr uint32_t s_policy_shift               = 3;
+    static constexpr uint32_t s_policy_mask                = 0x3u << s_policy_shift;
+    static constexpr uint32_t s_storage_kind_shift         = 5;
+    static constexpr uint32_t s_storage_kind_mask          = 0x3u << s_storage_kind_shift;
+    static constexpr uint32_t s_payload_constructed_flag   = 1u << 7;
+    static constexpr uint32_t s_deferred_task_started_flag = 1u << 8;
 
     static constexpr uint32_t encode_completion_state_bits(completion_state state) noexcept
     {
@@ -322,6 +357,9 @@ protected:
     std::exception_ptr get_exception_locked() const noexcept;
     void               validate_get_value_locked() const;
 
+    void mark_ready_immediate() noexcept;
+    void destroy_deferred_task_locked() noexcept;
+
     executor_type      m_executor;
     callback_list      m_continuations;
     callback_list      m_cancel_callbacks;
@@ -334,6 +372,11 @@ protected:
     std::atomic_bool           m_cancel_requested{false};
     mutable mc::small_mutex    m_mutex;
     cached_state_destroy_fn    m_cached_state_destroy{nullptr};
+
+    // launch::deferred 任务体槽位
+    deferred_task_fn   m_deferred_task_fn{nullptr};
+    void*              m_deferred_task_ctx{nullptr};
+    deferred_task_dtor m_deferred_task_dtor{nullptr};
 };
 
 namespace detail {
