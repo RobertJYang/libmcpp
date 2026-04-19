@@ -19,6 +19,18 @@
 
 namespace mc::engine {
 
+const char* property_type_tag_name(property_type_tag t) noexcept
+{
+    switch (t) {
+        case property_type_tag::null:    return "null";
+        case property_type_tag::int64:   return "int64";
+        case property_type_tag::string:  return "string";
+        case property_type_tag::bytes:   return "bytes";
+        case property_type_tag::double_: return "double";
+    }
+    return "unknown";
+}
+
 namespace {
 
 // IEEE 802.3 反射多项式 0xEDB88320 的 table-based 实现
@@ -38,9 +50,12 @@ constexpr std::array<std::uint32_t, 256> build_crc32_table() noexcept
 
 constexpr auto k_crc32_table = build_crc32_table();
 
-// shm_object CRC 覆盖范围：从 object_id 字段开始（offset 8）到结构末尾
+// shm_object CRC 覆盖范围：[object_id..children]，不含 padding 与 journal
+// （journal 自带 atomic 提交点，padding 内容未定义）
 constexpr std::size_t k_shadow_crc_offset = offsetof(shm_object, object_id);
-constexpr std::size_t k_shadow_crc_size   = sizeof(shm_object) - k_shadow_crc_offset;
+constexpr std::size_t k_shadow_crc_size =
+    offsetof(shm_object, children) + sizeof(static_cast<shm_object*>(nullptr)->children)
+    - k_shadow_crc_offset;
 static_assert(k_shadow_crc_size == 72U, "shm_object CRC 覆盖范围必须是 72B");
 
 // slab CRC 覆盖范围辅助：从 0 开始到 slots 末尾，但跳过 crc32 字段本身
@@ -117,7 +132,7 @@ std::uint32_t child_slab_compute_crc(const child_slab& slab) noexcept
     return slab_compute_crc_skip_field(
         &slab, sizeof(child_slab), k_child_slab_crc_field_offset,
         static_cast<std::size_t>(slab.slot_count)
-            * sizeof(mc::intrusive::offset_ptr<shm_object>));
+            * sizeof(shm_ptr<shm_object>));
 }
 
 bool child_slab_check(const child_slab& slab) noexcept

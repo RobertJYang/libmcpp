@@ -12,9 +12,10 @@
 
 #include <mc/engine/errors/std_errors.h>
 #include <mc/engine/object.h>
+#include <mc/engine/internal/shm_binding.h>
 #include <mc/engine/path.h>
 #include <mc/engine/service.h>
-#include <mc/engine/shm_property_sync.h>
+#include "shm_property_sync.h"
 #include <mc/engine/utils.h>
 #include <mc/log/log.h>
 
@@ -265,6 +266,8 @@ void object_impl::set_owner(abstract_object* new_owner)
         return;
     }
 
+    auto* old_owner = m_owner;
+
     // 将当前对象从旧的 owner 中移除
     if (m_owner != nullptr) {
         m_owner->remove_managed_object(this);
@@ -275,6 +278,7 @@ void object_impl::set_owner(abstract_object* new_owner)
                 child_objects.begin()->second->set_owner(m_owner);
             }
             m_owner = nullptr;
+            _sync_owner_to_shm(old_owner, /*new_owner=*/nullptr);
             return;
         }
     }
@@ -284,6 +288,13 @@ void object_impl::set_owner(abstract_object* new_owner)
         new_owner->add_managed_object(this);
     }
     m_owner = new_owner;
+    _sync_owner_to_shm(old_owner, new_owner);
+}
+
+void object_impl::_sync_owner_to_shm(abstract_object* old_owner,
+                                     abstract_object* new_owner) noexcept
+{
+    shm_binding::sync_owner(*this, old_owner, new_owner);
 }
 
 /**
@@ -303,7 +314,8 @@ mc::string_view object_impl::get_object_name() const
  */
 void object_impl::set_object_name(mc::string_view name)
 {
-    // 直接调用基类方法，检查逻辑已在基类中实现
+    // 基类 set_name 不允许 register 后重复设置；走到这里时 m_shm_handle 必然为 null，
+    // 后续 _ensure_shm_handle 会把当时的 name 一次性写入 SHM。
     this->set_name(name);
 }
 
@@ -343,6 +355,7 @@ mc::string_view object_impl::get_position() const
 void object_impl::set_position(mc::string_view position)
 {
     m_position = position;
+    shm_binding::sync_position(*this, std::string_view(position.data(), position.size()));
 }
 
 void object_impl::set_service(service* s)

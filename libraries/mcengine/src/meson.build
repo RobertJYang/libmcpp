@@ -9,6 +9,7 @@ engine_src_files = files(
   'interface.cpp',
   'metadata.cpp',
   'object.cpp',
+  'shm_binding.cpp',
   'shm_object.cpp',
   'shm_object_ops.cpp',
   'shm_property_sync.cpp',

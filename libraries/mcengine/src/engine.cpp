@@ -11,41 +11,14 @@
  */
 
 #include <mc/engine/engine.h>
+#include <mc/engine/internal/shm_binding.h>
 #include <mc/engine/object.h>
-#if defined(MCENGINE_USE_SHM) && MCENGINE_USE_SHM
-#include <mc/engine/abstract_object_factory.h>
-#include <mc/engine/shm_object_ops.h>
-#include <mc/engine/shm_runtime_provider.h>
-#endif
 #include <thread>
 
 namespace mc::engine {
 using object_table_ptr     = std::shared_ptr<object_table>;
 using table_connection_map = std::multimap<std::string, mc::connection_type>;
 using thread_list          = std::list<std::thread>;
-
-namespace {
-
-// 构造全局 object_table；USE_SHM=ON 时绑定 shm_runtime allocator + 注入
-// extractor / reconstruct。
-object_table_ptr _create_global_object_table()
-{
-#if defined(MCENGINE_USE_SHM) && MCENGINE_USE_SHM
-    auto&          rt = shm_runtime_provider::instance();
-    engine_alloc_t alloc(rt, "object_table");
-    auto           tbl = std::make_shared<object_table>(alloc);
-
-    auto& eng = tbl->engine();
-    eng.set_shm_handle_extractor(
-        [](const abstract_object& o) noexcept { return o.get_shm_handle(); });
-    eng.set_reconstruct(&try_reconstruct_object);
-    return tbl;
-#else
-    return std::make_shared<object_table>();
-#endif
-}
-
-}  // namespace
 
 struct engine::engine_impl {
 public:
@@ -62,7 +35,8 @@ public:
     table_connection_map m_connections;
 };
 
-engine::engine_impl::engine_impl() : m_object_table(_create_global_object_table())
+engine::engine_impl::engine_impl()
+    : m_object_table(shm_binding::create_global_object_table())
 {
     m_database.register_table(m_object_table);
 }
@@ -124,11 +98,9 @@ engine& engine::get_instance()
 void engine::reset_for_test()
 {
     mc::singleton<engine>::reset_for_test();
-#if defined(MCENGINE_USE_SHM) && MCENGINE_USE_SHM
     // 清掉 SHM region，下一次 lazy 创建从干净状态开始（避免上一个 case 的残留 entry
-    // 经 _bind_all 后被当成新数据），保证测试间隔离。
-    shm_runtime_provider::reset_for_test();
-#endif
+    // 经 _bind_all 后被当成新数据），保证测试间隔离。OFF 模式下是 no-op。
+    shm_binding::reset_runtime_for_test();
 }
 
 mc::db::database& engine::get_database()

@@ -13,7 +13,7 @@
 // shm_object / property_slot / property_slab / child_slab POD 布局测试
 //
 // 范围：
-//   1. sizeof / alignof 锁定（80B shm_object + 32B slot + 16B slab 头）
+//   1. sizeof / alignof 锁定（144B shm_object + 32B slot + 16B slab 头）
 //   2. 字段 offset 锁定（防止 reorder 破坏 ABI）
 //   3. CRC32 helper 基本正确性 + slab CRC 跳过自身字段验证
 //   4. POD / triviality 性质
@@ -28,6 +28,7 @@
 
 #include <mc/engine/shm_object.h>
 
+using mc::engine::shm_ptr;
 using mc::engine::child_slab;
 using mc::engine::child_slab_alloc_size;
 using mc::engine::child_slab_check;
@@ -50,15 +51,15 @@ namespace {
 // 1. sizeof / alignof
 // ============================================================================
 
-TEST(shm_object_layout, sizeof_shm_object_is_80)
+TEST(shm_object_layout, sizeof_shm_object_is_192)
 {
-    EXPECT_EQ(sizeof(shm_object), 80U);
-    EXPECT_EQ(alignof(shm_object), 8U);
+    EXPECT_EQ(sizeof(shm_object), 192U);
+    EXPECT_EQ(alignof(shm_object), 64U);
 }
 
-TEST(shm_object_layout, abi_version_is_v2)
+TEST(shm_object_layout, abi_version_is_v3)
 {
-    EXPECT_EQ(shm_object_abi_version, 2U);
+    EXPECT_EQ(shm_object_abi_version, 3U);
 }
 
 TEST(shm_object_layout, sizeof_property_slot_is_32)
@@ -98,6 +99,7 @@ TEST(shm_object_layout, shm_object_field_offsets_locked)
     EXPECT_EQ(offsetof(shm_object, parent), 56U);
     EXPECT_EQ(offsetof(shm_object, properties), 64U);
     EXPECT_EQ(offsetof(shm_object, children), 72U);
+    EXPECT_EQ(offsetof(shm_object, journal), 128U);
 }
 
 TEST(shm_object_layout, property_slot_field_offsets_locked)
@@ -251,14 +253,14 @@ TEST(shm_object_crc, child_slab_compute_skips_crc_field_itself)
     // 用两个虚拟地址填 offset_ptr（offset_ptr 是 self-relative，不需要真实对象）
     shm_object dummy_a{};
     shm_object dummy_b{};
-    slab->slots[0] = mc::intrusive::offset_ptr<shm_object>(&dummy_a);
-    slab->slots[1] = mc::intrusive::offset_ptr<shm_object>(&dummy_b);
+    slab->slots[0] = shm_ptr<shm_object>(&dummy_a);
+    slab->slots[1] = shm_ptr<shm_object>(&dummy_b);
 
     slab->crc32 = child_slab_compute_crc(*slab);
     EXPECT_TRUE(child_slab_check(*slab));
 
     // 篡改 slot 内容（指向不同地址）→ CRC 失配
-    slab->slots[0] = mc::intrusive::offset_ptr<shm_object>(&dummy_b);
+    slab->slots[0] = shm_ptr<shm_object>(&dummy_b);
     EXPECT_FALSE(child_slab_check(*slab));
     slab->crc32 = child_slab_compute_crc(*slab);
     EXPECT_TRUE(child_slab_check(*slab));

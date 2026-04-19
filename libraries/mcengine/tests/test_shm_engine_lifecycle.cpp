@@ -35,8 +35,10 @@
 
 #include <mc/engine.h>
 #include <mc/engine/shm_object.h>
-#include <mc/engine/shm_object_ops.h>
-#include <mc/engine/shm_runtime_provider.h>
+
+#include "shm_object_ops.h"
+#include "shm_property_sync.h"
+#include "shm_runtime_provider.h"
 #include <mc/exception.h>
 #include <mc/format.h>
 #include <mc/shm/shm_runtime.h>
@@ -128,13 +130,17 @@ TEST_F(shm_engine_lifecycle_test, register_object_writes_identity_and_properties
     std::string_view  str_out;
     mc::engine::property_type_tag tag_out{};
 
-    EXPECT_TRUE(mc::engine::shm_object_get_property_int64(*shadow, "counter", int_out));
+    auto k_counter = mc::engine::shm_property_compose_key("org.test.lifecycle_iface", "counter");
+    auto k_score   = mc::engine::shm_property_compose_key("org.test.lifecycle_iface", "score");
+    auto k_label   = mc::engine::shm_property_compose_key("org.test.lifecycle_iface", "label");
+
+    EXPECT_TRUE(mc::engine::shm_object_get_property_int64(*shadow, k_counter, int_out));
     EXPECT_EQ(int_out, 42);
 
-    EXPECT_TRUE(mc::engine::shm_object_get_property_double(*shadow, "score", dbl_out));
+    EXPECT_TRUE(mc::engine::shm_object_get_property_double(*shadow, k_score, dbl_out));
     EXPECT_DOUBLE_EQ(dbl_out, 3.14);
 
-    EXPECT_TRUE(mc::engine::shm_object_get_property_blob(*shadow, "label", str_out, tag_out));
+    EXPECT_TRUE(mc::engine::shm_object_get_property_blob(*shadow, k_label, str_out, tag_out));
     EXPECT_EQ(tag_out, mc::engine::property_type_tag::string);
     EXPECT_EQ(str_out, "hello-shm");
 }
@@ -161,10 +167,13 @@ TEST_F(shm_engine_lifecycle_test, property_mutation_reflected_in_shm)
     std::string_view  str_out;
     mc::engine::property_type_tag tag_out{};
 
-    EXPECT_TRUE(mc::engine::shm_object_get_property_int64(*shadow, "counter", int_out));
+    auto k_counter = mc::engine::shm_property_compose_key("org.test.lifecycle_iface", "counter");
+    auto k_label   = mc::engine::shm_property_compose_key("org.test.lifecycle_iface", "label");
+
+    EXPECT_TRUE(mc::engine::shm_object_get_property_int64(*shadow, k_counter, int_out));
     EXPECT_EQ(int_out, 99);
 
-    EXPECT_TRUE(mc::engine::shm_object_get_property_blob(*shadow, "label", str_out, tag_out));
+    EXPECT_TRUE(mc::engine::shm_object_get_property_blob(*shadow, k_label, str_out, tag_out));
     EXPECT_EQ(str_out, "final-value");
 }
 
@@ -211,19 +220,24 @@ TEST_F(shm_engine_lifecycle_test, fork_child_reads_parent_property)
         std::string_view              label;
         mc::engine::property_type_tag tag{};
 
+        auto k_counter = mc::engine::shm_property_compose_key(
+            "org.test.lifecycle_iface", "counter");
+        auto k_label = mc::engine::shm_property_compose_key(
+            "org.test.lifecycle_iface", "label");
+
         if (mc::engine::shm_object_class_name(*shadow) != "ShmLifecycleObject") {
             std::_Exit(20);
         }
         if (mc::engine::shm_object_path(*shadow) != "/org/test/lifecycle/forked") {
             std::_Exit(21);
         }
-        if (!mc::engine::shm_object_get_property_int64(*shadow, "counter", counter)) {
+        if (!mc::engine::shm_object_get_property_int64(*shadow, k_counter, counter)) {
             std::_Exit(22);
         }
         if (counter != 7) {
             std::_Exit(23);
         }
-        if (!mc::engine::shm_object_get_property_blob(*shadow, "label", label, tag)) {
+        if (!mc::engine::shm_object_get_property_blob(*shadow, k_label, label, tag)) {
             std::_Exit(24);
         }
         if (tag != mc::engine::property_type_tag::string || label != "parent-wrote-this") {
@@ -382,6 +396,67 @@ TEST_F(shm_engine_lifecycle_test, corrupted_crc_isolated_on_recover)
 
     EXPECT_NE((bad_shadow->flags & mc::engine::shm_object_flags::isolated), 0U)
         << "CRC 损坏的 shm_object 应该被 reconstruct_fn 隔离";
+}
+
+// gc_isolated 把 isolated shm_object 从所有索引清掉 + 释放 SHM 占用。
+TEST_F(shm_engine_lifecycle_test, gc_isolated_purges_orphans_from_indices_and_arena)
+{
+    auto& rt    = mc::engine::shm_runtime_provider::instance();
+    auto  arena = rt.user_arena();
+
+    constexpr int kCount = 4;
+    for (int i = 0; i < kCount; ++i) {
+        auto good = lifecycle_object::create();
+        good->set_object_path(sformat("/org/test/lifecycle/gc_good/{}", i));
+        good->set_object_name(sformat("gc_good_{}", i));
+        good->set_position(sformat("g-{:03d}", i));
+        m_service->register_object(good);
+
+        auto bad = lifecycle_object::create();
+        bad->set_object_path(sformat("/org/test/lifecycle/gc_bad/{}", i));
+        bad->set_object_name(sformat("gc_bad_{}", i));
+        bad->set_position(sformat("b-{:03d}", i));
+        m_service->register_object(bad);
+
+        auto* sh = bad->get_shm_handle();
+        ASSERT_NE(sh, nullptr);
+        ASSERT_TRUE(mc::engine::shm_object_set_class_name(arena, *sh, "NeverRegisteredClass"));
+    }
+
+    auto& tbl = m_service->get_object_table();
+    tbl.engine().recover();
+
+    const std::size_t arena_before_gc = arena.allocated_size();
+    const std::size_t reclaimed       = m_service->gc_isolated();
+    EXPECT_EQ(reclaimed, static_cast<std::size_t>(kCount))
+        << "gc_isolated 必须回收恰好 " << kCount << " 个 isolated 对象";
+
+    // 索引层验证：bad path 应当在所有 3 个 idx 都消失；good 仍可达。
+    for (int i = 0; i < kCount; ++i) {
+        EXPECT_TRUE(
+            tbl.find<mc::engine::by_path>(
+                   mc::string(sformat("/org/test/lifecycle/gc_bad/{}", i)))
+                .is_end())
+            << "isolated 对象 path 仍残留在 by_path 索引";
+        EXPECT_TRUE(tbl.find<mc::engine::by_object_name>(mc::string(sformat("gc_bad_{}", i)))
+                        .is_end())
+            << "isolated 对象 name 仍残留在 by_object_name 索引";
+
+        EXPECT_FALSE(tbl.find<mc::engine::by_path>(
+                            mc::string(sformat("/org/test/lifecycle/gc_good/{}", i)))
+                         .is_end())
+            << "正常对象不应被误删";
+    }
+
+    // 内存层验证：每个 isolated shm_object 至少占 192B 自身 + 4 个 byte_string + slab 元数据。
+    // 用一个保守下限（kCount * 200B）确认 arena 真的回吐了空间。
+    const std::size_t arena_after_gc = arena.allocated_size();
+    EXPECT_LT(arena_after_gc, arena_before_gc) << "GC 后 arena 占用应该下降";
+    EXPECT_GT(arena_before_gc - arena_after_gc, static_cast<std::size_t>(kCount) * 200U)
+        << "GC 释放的字节数太少，怀疑 ShmRecord 自身没有 destroy";
+
+    // 二次调用应是 no-op（已无 isolated 对象）。
+    EXPECT_EQ(m_service->gc_isolated(), 0U);
 }
 
 }  // namespace shm_engine_lifecycle_test

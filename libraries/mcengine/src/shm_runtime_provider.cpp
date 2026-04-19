@@ -10,7 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <mc/engine/shm_runtime_provider.h>
+#include "shm_runtime_provider.h"
 
 #include <cstdlib>
 #include <mutex>
@@ -23,9 +23,12 @@ namespace mc::engine {
 namespace {
 
 struct provider_state {
-    std::mutex                            mutex;
-    std::shared_ptr<mc::shm::shm_runtime> runtime;
-    mc::string                            last_region_name;
+    std::mutex                                          mutex;
+    std::shared_ptr<mc::shm::shm_runtime>               runtime;
+    mc::string                                          last_region_name;
+    std::size_t                                         arena_threshold = 0U;
+    shm_runtime_provider::arena_threshold_callback      arena_callback;
+    bool                                                arena_breached  = false;
 };
 
 provider_state& _state() noexcept
@@ -116,6 +119,54 @@ mc::string_view shm_runtime_provider::default_region_name() noexcept
         return mc::string_view(env);
     }
     return mc::string_view(k_default_region_fallback);
+}
+
+void shm_runtime_provider::set_arena_threshold(std::size_t              threshold_bytes,
+                                               arena_threshold_callback callback) noexcept
+{
+    auto&                       st = _state();
+    std::lock_guard<std::mutex> lock(st.mutex);
+    st.arena_threshold = threshold_bytes;
+    st.arena_callback  = std::move(callback);
+    st.arena_breached  = false;
+}
+
+void shm_runtime_provider::check_arena_usage() noexcept
+{
+    arena_threshold_callback cb;
+    std::size_t              used      = 0U;
+    std::size_t              threshold = 0U;
+    {
+        auto&                       st = _state();
+        std::lock_guard<std::mutex> lock(st.mutex);
+        if (!st.runtime || !st.arena_callback || st.arena_threshold == 0U) {
+            return;
+        }
+        try {
+            used = st.runtime->user_arena().allocated_size();
+        } catch (...) {
+            return;
+        }
+        threshold = st.arena_threshold;
+        if (used >= threshold) {
+            if (st.arena_breached) {
+                return;
+            }
+            st.arena_breached = true;
+            cb                = st.arena_callback;
+        } else if (st.arena_breached) {
+            // 跌回阈值以下，解锁下次跨阈值再触发
+            st.arena_breached = false;
+            return;
+        } else {
+            return;
+        }
+    }
+    try {
+        cb(used, threshold);
+    } catch (...) {
+        // callback 异常不应反向污染热路径
+    }
 }
 
 }  // namespace mc::engine

@@ -208,6 +208,10 @@ protected:
     bool handle_override(property_base* prop, mc::string_view property_name, const mc::variant& value,
                          mc::string_view interface_name);
 
+    // owner 关系发生变更后把当前对象的 SHM parent / 旧 owner.children / 新 owner.children
+    // 三处一起更新；OFF 模式或缺 m_shm_handle 时为 no-op。
+    void _sync_owner_to_shm(abstract_object* old_owner, abstract_object* new_owner) noexcept;
+
 protected:
     mutable std::string                                           m_object_path;
     mutable std::string                                           m_position;

@@ -10,13 +10,17 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <mc/engine/shm_service_ops.h>
+#include "shm_service_ops.h"
 
+#include <signal.h>
+
+#include <cerrno>
 #include <cstring>
 #include <new>
 #include <utility>
 
-#include <mc/engine/shm_object_ops.h>  // 复用 shm_byte_string_create / _destroy
+#include "shm_object_ops.h"  // 复用 shm_byte_string_create / _destroy
+#include "shm_service.h"     // shm_service_check
 
 namespace mc::engine {
 
@@ -29,7 +33,7 @@ void shm_service_refresh_crc(shm_service& svc) noexcept
     svc.crc32_self = shm_service_compute_crc(svc);
 }
 
-shm_service* shm_service_create(mc::shm::shm_allocator& alloc, std::string_view service_name,
+shm_service* shm_service_create(shm_allocator& alloc, std::string_view service_name,
                                 std::uint32_t initial_pid, std::uint64_t initial_epoch) noexcept
 {
     void* mem = alloc.allocate(sizeof(shm_service), alignof(shm_service));
@@ -53,7 +57,7 @@ shm_service* shm_service_create(mc::shm::shm_allocator& alloc, std::string_view 
     return svc;
 }
 
-void shm_service_destroy(mc::shm::shm_allocator& alloc, shm_service* svc) noexcept
+void shm_service_destroy(shm_allocator& alloc, shm_service* svc) noexcept
 {
     if (svc == nullptr) {
         return;
@@ -98,6 +102,18 @@ std::string_view shm_service_name(const shm_service& svc) noexcept
 
 namespace {
 
+// pid==0 视为已死；其余仅 ESRCH 视为已死，权限不足等保守判为存活以拒绝接管。
+bool _pid_alive(std::uint32_t pid) noexcept
+{
+    if (pid == 0U) {
+        return false;
+    }
+    if (::kill(static_cast<::pid_t>(pid), 0) == 0) {
+        return true;
+    }
+    return errno != ESRCH;
+}
+
 // 从 map 中按 service_name 查找已存在的 svc，命中则更新 pid/epoch；返回 svc 或 nullptr。
 shm_service* takeover_existing(shm_service_map& map, std::string_view service_name,
                                std::uint32_t current_pid) noexcept
@@ -118,10 +134,25 @@ shm_service* takeover_existing(shm_service_map& map, std::string_view service_na
 
 }  // namespace
 
-shm_service* shm_service_attach(mc::shm::shm_allocator& alloc, shm_service_map& map,
+shm_service* shm_service_attach(shm_allocator& alloc, shm_service_map& map,
                                 std::string_view service_name,
-                                std::uint32_t    current_pid) noexcept
+                                std::uint32_t    current_pid,
+                                bool             force) noexcept
 {
+    // liveness 检查必须在 takeover_existing 改写 pid 之前完成。
+    // CRC 损坏的 svc 视同无主（写入半成品 / 跨版本残留），跳过 liveness 检查直接接管。
+    if (!force) {
+        if (auto mp = map.find(service_name); mp) {
+            shm_service* svc = mp.value->get();
+            if (svc != nullptr && shm_service_check(*svc)
+                && svc->state == static_cast<std::uint8_t>(shm_service_state::alive)
+                && svc->pid != 0U && svc->pid != current_pid
+                && _pid_alive(svc->pid)) {
+                return nullptr;
+            }
+        }
+    }
+
     if (auto* existing = takeover_existing(map, service_name, current_pid); existing != nullptr) {
         return existing;
     }
@@ -131,14 +162,13 @@ shm_service* shm_service_attach(mc::shm::shm_allocator& alloc, shm_service_map& 
         return nullptr;
     }
 
-    auto bs = mc::shm::byte_string::create(alloc, service_name);
+    auto bs = shm_byte_string::create(alloc, service_name);
     if (bs.size() == 0 && !service_name.empty()) {
         shm_service_destroy(alloc, svc);
         return nullptr;
     }
 
-    auto [_, inserted] = map.try_emplace(std::move(bs),
-                                         mc::intrusive::offset_ptr<shm_service>{svc});
+    auto [_, inserted] = map.try_emplace(std::move(bs), shm_ptr<shm_service>{svc});
     if (inserted) {
         return svc;
     }

@@ -16,13 +16,6 @@
 #include <string>
 #include <unordered_map>
 
-#if defined(MCENGINE_USE_SHM) && MCENGINE_USE_SHM
-#include <mc/engine/shm_object.h>
-#include <mc/engine/shm_object_ops.h>
-#include <mc/engine/shm_property_sync.h>
-#include <mc/log/log.h>
-#endif
-
 namespace mc::engine {
 
 namespace {
@@ -74,60 +67,5 @@ void clear_abstract_object_factories_for_test() noexcept
     std::lock_guard<std::mutex> lock(reg.mutex);
     reg.factories.clear();
 }
-
-#if defined(MCENGINE_USE_SHM) && MCENGINE_USE_SHM
-
-mc::shared_ptr<abstract_object> try_reconstruct_object(shm_object* sh) noexcept
-{
-    if (sh == nullptr) {
-        return {};
-    }
-
-    if (!shm_object_check(*sh)) {
-        sh->flags |= shm_object_flags::isolated;
-        wlog("shm_object CRC 校验失败 → 隔离 object_id=${id}", ("id", sh->object_id));
-        return {};
-    }
-
-    auto cn = shm_object_class_name(*sh);
-    if (cn.empty()) {
-        sh->flags |= shm_object_flags::isolated;
-        wlog("shm_object class_name 为空 → 隔离 object_id=${id}", ("id", sh->object_id));
-        return {};
-    }
-
-    auto obj = try_create_abstract_object(cn);
-    if (!obj) {
-        sh->flags |= shm_object_flags::isolated;
-        wlog("class 未注册 → 隔离 class_name=${c} object_id=${id}",
-             ("c", std::string(cn))("id", sh->object_id));
-        return {};
-    }
-
-    try {
-        obj->set_shm_handle(sh);
-        obj->set_object_id(sh->object_id);
-        obj->set_object_name(std::string(shm_object_name(*sh)));
-        obj->set_object_path(std::string(shm_object_path(*sh)));
-        obj->set_position(std::string(shm_object_position(*sh)));
-
-        // property 反向回填：sh.properties → obj 内 property<T> 实例
-        shm_load_properties_into(*obj, *sh);
-    } catch (const std::exception& e) {
-        sh->flags |= shm_object_flags::isolated;
-        wlog("reconstruct 异常 → 隔离 class_name=${c} object_id=${id} err=${e}",
-             ("c", std::string(cn))("id", sh->object_id)("e", e.what()));
-        return {};
-    } catch (...) {
-        sh->flags |= shm_object_flags::isolated;
-        wlog("reconstruct 未知异常 → 隔离 class_name=${c} object_id=${id}",
-             ("c", std::string(cn))("id", sh->object_id));
-        return {};
-    }
-
-    return obj;
-}
-
-#endif  // MCENGINE_USE_SHM
 
 }  // namespace mc::engine

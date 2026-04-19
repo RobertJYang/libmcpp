@@ -12,95 +12,40 @@
 #include <mc/engine/base.h>
 #include <mc/engine/engine.h>
 #include <mc/engine/path.h>
+#include <mc/engine/internal/shm_binding.h>
 #include <mc/engine/path_iterator.h>
 #include <mc/engine/service.h>
 #include <mc/engine/utils.h>
 #include <mc/exception.h>
-#if defined(MCENGINE_USE_SHM) && MCENGINE_USE_SHM
-#include <mc/engine/abstract_object_factory.h>
-#include <mc/engine/shm_object_ops.h>
-#include <mc/engine/shm_runtime_provider.h>
-#endif
+#include <cstdio>
 
 namespace mc::engine {
 
 using object_table_ptr = std::shared_ptr<service_object_table>;
 
-namespace {
-
-// 构造 per-service object_table；USE_SHM=ON 时绑定 shm_runtime allocator + 注入
-// extractor / reconstruct。base name = "<service>.object_table"
-object_table_ptr _create_service_object_table(mc::string_view service_name)
-{
-#if defined(MCENGINE_USE_SHM) && MCENGINE_USE_SHM
-    auto&          rt   = shm_runtime_provider::instance();
-    std::string    base = std::string(service_name) + ".object_table";
-    engine_alloc_t alloc(rt, base);
-    auto           tbl = std::make_shared<service_object_table>(service_name, alloc);
-
-    auto& eng = tbl->engine();
-    eng.set_shm_handle_extractor(
-        [](const abstract_object& o) noexcept { return o.get_shm_handle(); });
-    eng.set_reconstruct(&try_reconstruct_object);
-    return tbl;
-#else
-    return std::make_shared<service_object_table>(service_name);
-#endif
-}
-
-#if defined(MCENGINE_USE_SHM) && MCENGINE_USE_SHM
-// 在 SHM 中分配 shm_object 并锚定到 obj.m_shm_handle；幂等：handle 已存在则跳过
-void _ensure_shm_handle(abstract_object& obj)
-{
-    if (obj.get_shm_handle() != nullptr) {
-        return;
-    }
-    auto& rt    = shm_runtime_provider::instance();
-    auto  arena = rt.user_arena();
-    auto* sh    = shm_object_create(arena,
-                                    obj.get_object_id(),
-                                    std::string_view(obj.get_class_name().data(),
-                                                     obj.get_class_name().size()),
-                                    std::string_view(obj.get_object_name().data(),
-                                                     obj.get_object_name().size()),
-                                    std::string_view(obj.get_object_path().data(),
-                                                     obj.get_object_path().size()),
-                                    std::string_view(obj.get_position().data(),
-                                                     obj.get_position().size()));
-    MC_ASSERT_THROW(sh != nullptr, mc::invalid_arg_exception,
-                    "service.register_object: shm_object_create returned null");
-    obj.set_shm_handle(sh);
-}
-
-// 释放 obj 关联的 shm_object（若存在）；调用方必须保证 obj 已从所有 SHM 索引移除
-void _release_shm_handle(abstract_object& obj) noexcept
-{
-    auto* sh = obj.get_shm_handle();
-    if (sh == nullptr) {
-        return;
-    }
-    auto& rt    = shm_runtime_provider::instance();
-    auto  arena = rt.user_arena();
-    shm_object_destroy(arena, sh);
-    obj.set_shm_handle(nullptr);
-}
-#endif
-
-}  // namespace
-
 struct service_impl {
-    std::mutex           m_mutex;
-    service*             m_service{nullptr};
-    object_table_ptr     m_object_table;
-    bool                 m_registered{false};
-    bool                 m_started{false};
-    service_protocol_ptr m_protocol;
+    std::mutex                    m_mutex;
+    service*                      m_service{nullptr};
+    object_table_ptr              m_object_table;
+    bool                          m_registered{false};
+    bool                          m_started{false};
+    service_protocol_ptr          m_protocol;
+    // 始终持有；OFF 模式下 create_service_state 返回 nullptr，所有 binding 调用
+    // 走 inline no-op。
+    shm_binding::service_state*   m_shm_state{nullptr};
+
+    service_impl() : m_shm_state(shm_binding::create_service_state()) {}
+    ~service_impl() { shm_binding::destroy_service_state(m_shm_state); }
 
     void             ensure_registered();
     void             unregister_from_engine();
     void             register_object(abstract_object& obj);
     void             unregister_object(mc::string_view path);
     abstract_object* find_owner(mc::string_view path) const;
+    // recover 后按 path 反查 owner，把 heap 端 owner 关系建上；触发的 set_owner
+    // 会通过 shm_binding::sync_owner 顺带把 SHM parent/children 一并刷新。
+    // 独立一遍是为了避免 owner-children 顺序敏感。
+    void _restore_owner_relations();
 };
 
 void service_impl::ensure_registered()
@@ -110,10 +55,16 @@ void service_impl::ensure_registered()
     }
 
     if (!m_object_table) {
-        m_object_table = _create_service_object_table(m_service->name());
+        m_object_table = shm_binding::create_service_object_table(m_service->name());
     }
     mc::engine::engine::get_instance().register_table(m_object_table);
     m_registered = true;
+
+    shm_binding::attach_and_recover(m_shm_state, m_service->name(), *m_object_table);
+    _restore_owner_relations();
+    // 上一次崩溃 / 升级遗留下来的 isolated 对象在这里立刻清掉，避免它们持续
+    // 占用 user_arena 直到业务侧手动调 gc。
+    (void)m_service->gc_isolated();
 }
 
 void service_impl::unregister_from_engine()
@@ -122,9 +73,28 @@ void service_impl::unregister_from_engine()
         return;
     }
 
+    // 显式 stop / unregister 走"主动 detach"语义：清掉 SHM 数据并把 shm_service 标
+    // detached + pid=0。crash 路径（进程没机会走到这里）下次 attach 时则按 takeover
+    // 语义自动接管旧 shm_object。
     m_object_table->clear();
+    shm_binding::detach(m_shm_state);
     mc::engine::engine::get_instance().unregister_table(m_object_table);
     m_registered = false;
+}
+
+void service_impl::_restore_owner_relations()
+{
+    for (auto it = m_object_table->begin(0U); it != m_object_table->end(0U); ++it) {
+        const auto& obj_ptr = (*it).second;
+        if (!obj_ptr) {
+            continue;
+        }
+        obj_ptr->set_service(m_service);
+        auto* owner = find_owner(obj_ptr->get_object_path());
+        if (owner != nullptr && owner != obj_ptr.get()) {
+            obj_ptr->set_owner(owner);
+        }
+    }
 }
 
 void service_impl::register_object(abstract_object& obj)
@@ -132,17 +102,19 @@ void service_impl::register_object(abstract_object& obj)
     auto shared_obj = obj.shared_from_this();
     MC_ASSERT(shared_obj, "Object must be managed by shared_ptr");
 
-#if defined(MCENGINE_USE_SHM) && MCENGINE_USE_SHM
-    _ensure_shm_handle(obj);
-#endif
+    shm_binding::ensure_object_handle(obj, m_shm_state);
 
     m_object_table->add(shared_obj);
     obj.set_service(m_service);
 
     auto* owner = find_owner(obj.get_object_path());
     if (owner) {
+        // set_owner 会通过 shm_binding::sync_owner 把 SHM 的 parent /
+        // new_owner.children 一起更新，跨 path 的 ownership 由此自动持久化。
         obj.set_owner(owner);
     }
+
+    shm_binding::notify_after_register();
 }
 
 abstract_object* service_impl::find_owner(mc::string_view path) const
@@ -189,12 +161,12 @@ void service_impl::unregister_object(mc::string_view path)
     }
     m_object_table->remove(mc::shared_ptr<abstract_object>(&obj));
 
+    // set_owner(nullptr) 触发 shm_binding::sync_owner，从 SHM 旧 parent.children
+    // 中移除本体并把 sh->parent 置 null；随后 release_object_handle 销毁 sh。
     obj.set_owner(nullptr);
     obj.set_service(nullptr);
 
-#if defined(MCENGINE_USE_SHM) && MCENGINE_USE_SHM
-    _release_shm_handle(obj);
-#endif
+    shm_binding::release_object_handle(obj);
 }
 
 service::service(mc::string_view name, mc::object* parent)
@@ -391,6 +363,14 @@ service_object_table& service::get_object_table() const
 {
     const_cast<service*>(this)->m_impl->ensure_registered();
     return *m_impl->m_object_table;
+}
+
+std::size_t service::gc_isolated()
+{
+    if (!m_impl || !m_impl->m_object_table) {
+        return 0U;
+    }
+    return shm_binding::gc_isolated(m_impl->m_shm_state, *m_impl->m_object_table);
 }
 
 void service::set_protocol(service_protocol_ptr protocol)

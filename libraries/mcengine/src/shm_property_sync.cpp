@@ -10,15 +10,18 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <mc/engine/shm_property_sync.h>
+#include "shm_property_sync.h"
+
+#include <string>
 
 #include <mc/engine/base.h>
 #include <mc/variant.h>
 
 #if defined(MCENGINE_USE_SHM) && MCENGINE_USE_SHM
 #include <mc/engine/shm_object.h>
-#include <mc/engine/shm_object_ops.h>
-#include <mc/engine/shm_runtime_provider.h>
+
+#include "shm_object_ops.h"
+#include "shm_runtime_provider.h"
 #include <mc/shm/shm_runtime.h>
 #endif
 
@@ -29,8 +32,9 @@ namespace mc::engine {
 namespace {
 
 // 把 mc::variant 写到 shadow.properties[key]。
-// 仅覆盖标量 + string；复合/扩展类型不持久化，silently skip。
-bool _write_one(mc::shm::shm_allocator& alloc, shm_object& shadow, std::string_view key,
+// 覆盖：bool / int* / uint* / double / string / blob(bytes)。
+// 复合类型（array / dict / extension）暂不持久化，silent skip。
+bool _write_one(shm_allocator& alloc, shm_object& shadow, std::string_view key,
                 const mc::variant& v) noexcept
 {
     try {
@@ -54,7 +58,13 @@ bool _write_one(mc::shm::shm_allocator& alloc, shm_object& shadow, std::string_v
                                                 std::string_view(s.data(), s.size()),
                                                 property_type_tag::string);
         }
-        // bytes / blob / array / dict / extension：不持久化
+        if (v.is_blob()) {
+            auto b = v.as<mc::blob>();
+            return shm_object_set_property_blob(alloc, shadow, key,
+                                                std::string_view(b.data.data(), b.data.size()),
+                                                property_type_tag::bytes);
+        }
+        // array / dict / extension：暂不持久化
         return false;
     } catch (...) {
         return false;
@@ -79,9 +89,16 @@ void shm_sync_property(abstract_object& obj, const mc::variant& value,
     auto  arena = rt.user_arena();
 
     auto key_view = prop.get_name();
-    std::string_view key(key_view.data(), key_view.size());
+    std::string_view name(key_view.data(), key_view.size());
 
-    (void)_write_one(arena, *shadow, key, value);
+    std::string_view iface{};
+    if (auto* itf = prop.get_interface(); itf != nullptr) {
+        auto iv = itf->get_interface_name();
+        iface   = std::string_view(iv.data(), iv.size());
+    }
+
+    auto composite = shm_property_compose_key(iface, name);
+    (void)_write_one(arena, *shadow, composite, value);
 }
 
 void shm_load_properties_into(abstract_object& obj, const shm_object& sh) noexcept
@@ -99,6 +116,9 @@ void shm_load_properties_into(abstract_object& obj, const shm_object& sh) noexce
         }
 
         std::string_view key_sv = key_bs->as_string_view();
+        std::string_view iface_sv;
+        std::string_view name_sv;
+        shm_property_decompose_key(key_sv, iface_sv, name_sv);
 
         try {
             mc::variant v;
@@ -118,17 +138,24 @@ void shm_load_properties_into(abstract_object& obj, const shm_object& sh) noexce
                     v            = mc::string(blob_sv.data(), blob_sv.size());
                     break;
                 }
-                case property_type_tag::bytes:
-                    // bytes 不灌回（mc::variant blob 通路未对接）
-                    continue;
+                case property_type_tag::bytes: {
+                    auto* blob = slot.v_blob.get();
+                    if (blob == nullptr) {
+                        continue;
+                    }
+                    auto sv = blob->as_string_view();
+                    v       = mc::blob(sv.data(), sv.size());
+                    break;
+                }
                 case property_type_tag::null:
                 default:
                     continue;
             }
 
-            // interface_name 留空：跨所有接口按 property name 查找；不存在则
-            // set_property 返回 false，本层视作 schema 演化容错，silent skip。
-            (void)obj.set_property(key_sv, v, mc::string_view{});
+            // 携带 interface 信息时严格绑定到对应接口，避免不同接口同名 property
+            // 之间相互覆盖；旧数据（无分隔符）iface 为空，按全局 property name 查找。
+            (void)obj.set_property(name_sv, v,
+                                   mc::string_view(iface_sv.data(), iface_sv.size()));
         } catch (...) {
             // 单 slot 解析失败不阻断其他 slot 的回填
             continue;

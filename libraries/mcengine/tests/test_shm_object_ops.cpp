@@ -31,7 +31,7 @@
 #include <unistd.h>
 #include <vector>
 
-#include <mc/engine/shm_object_ops.h>
+#include "shm_object_ops.h"
 #include <mc/shm/allocator.h>
 #include <mc/shm/region.h>
 
@@ -78,7 +78,7 @@ using mc::engine::property_type_tag;
 using mc::engine::shm_byte_string_create;
 using mc::engine::shm_byte_string_destroy;
 using mc::engine::slab_grow_capacity;
-using mc::shm::shm_allocator;
+using mc::engine::shm_allocator;
 using mc::shm::shm_region;
 using mc::shm::shm_region_options;
 

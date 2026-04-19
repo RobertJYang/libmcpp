@@ -28,8 +28,8 @@
 #include <string_view>
 #include <unistd.h>
 
-#include <mc/engine/shm_service.h>
-#include <mc/engine/shm_service_ops.h>
+#include "shm_service.h"
+#include "shm_service_ops.h"
 #include <mc/shm/allocator.h>
 #include <mc/shm/container/map.h>
 #include <mc/shm/region.h>
@@ -46,7 +46,7 @@ using mc::engine::shm_service_name;
 using mc::engine::shm_service_set_pid;
 using mc::engine::shm_service_set_state;
 using mc::engine::shm_service_state;
-using mc::shm::shm_allocator;
+using mc::engine::shm_allocator;
 using mc::shm::shm_region;
 using mc::shm::shm_region_options;
 using mc::shm::container::map_control;
@@ -219,11 +219,13 @@ TEST_F(shm_service_ops_fixture, attach_takes_over_existing_with_epoch_bump)
     {
         shm_service_map map(*ctrl, m_alloc);
 
-        shm_service* first = shm_service_attach(m_alloc, map, "ipmi", 1111U);
+        // 任意 pid 易与本机活进程冲突；本用例只验证 attach 写入语义，
+        // 全程 force=true 跳过 liveness（liveness 行为由 takeover 套件覆盖）。
+        shm_service* first = shm_service_attach(m_alloc, map, "ipmi", 1111U, /*force=*/true);
         ASSERT_NE(first, nullptr);
         EXPECT_EQ(first->epoch, 1U);
 
-        shm_service* second = shm_service_attach(m_alloc, map, "ipmi", 2222U);
+        shm_service* second = shm_service_attach(m_alloc, map, "ipmi", 2222U, /*force=*/true);
         ASSERT_NE(second, nullptr);
         EXPECT_EQ(second, first) << "同名 attach 必须返回同一 shm_service POD";
         EXPECT_EQ(second->pid, 2222U);
@@ -270,12 +272,13 @@ TEST_F(shm_service_ops_fixture, attach_repeated_increments_epoch_each_time)
     {
         shm_service_map map(*ctrl, m_alloc);
 
-        shm_service* svc = shm_service_attach(m_alloc, map, "svc", 100U);
+        shm_service* svc = shm_service_attach(m_alloc, map, "svc", 100U, /*force=*/true);
         ASSERT_NE(svc, nullptr);
         EXPECT_EQ(svc->epoch, 1U);
 
         for (std::uint32_t i = 0; i < 5; ++i) {
-            shm_service* again = shm_service_attach(m_alloc, map, "svc", 100U + i);
+            shm_service* again =
+                shm_service_attach(m_alloc, map, "svc", 100U + i, /*force=*/true);
             EXPECT_EQ(again, svc);
         }
         EXPECT_EQ(svc->epoch, 6U);  // 1 + 5 次 ++

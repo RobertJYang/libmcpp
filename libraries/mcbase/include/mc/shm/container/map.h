@@ -631,6 +631,10 @@ bool map<Key, Value, Compare>::erase(const Key& k) noexcept
     if (ok) {
         if constexpr (!std::is_trivially_destructible_v<Value>) vp->~Value();
         if constexpr (!std::is_trivially_destructible_v<Key>) kp->~Key();
+        // 节点已从 skiplist 解链，归还内存给 allocator 防止 arena 增长。
+        if (m_alloc != nullptr) {
+            m_alloc->deallocate(node);
+        }
     }
     return ok;
 }
@@ -653,6 +657,9 @@ bool map<Key, Value, Compare>::erase(const Probe& p) noexcept
     if (ok) {
         if constexpr (!std::is_trivially_destructible_v<Value>) vp->~Value();
         if constexpr (!std::is_trivially_destructible_v<Key>) kp->~Key();
+        if (m_alloc != nullptr) {
+            m_alloc->deallocate(node);
+        }
     }
     return ok;
 }
@@ -672,6 +679,9 @@ void map<Key, Value, Compare>::clear() noexcept
         if (!detail::map_erase_commit(*m_control, node, &compare_bridge)) break;
         if constexpr (!std::is_trivially_destructible_v<Value>) vp->~Value();
         if constexpr (!std::is_trivially_destructible_v<Key>) kp->~Key();
+        if (m_alloc != nullptr) {
+            m_alloc->deallocate(node);
+        }
     }
 }
 

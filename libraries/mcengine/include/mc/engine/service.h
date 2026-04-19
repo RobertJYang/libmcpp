@@ -71,6 +71,10 @@ public:
     }
     void unregister_object(mc::string_view path);
 
+    // 回收所有 isolated 状态的 shm_object（recover 时无法重建的残留），
+    // 返回回收数量；非 SHM 编译下永远返回 0。
+    std::size_t gc_isolated();
+
     service_object_table& get_object_table() const;
     void                  set_protocol(service_protocol_ptr protocol);
     service_protocol_ptr  get_protocol() const;

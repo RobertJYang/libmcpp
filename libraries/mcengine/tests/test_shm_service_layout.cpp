@@ -24,7 +24,7 @@
 #include <cstdint>
 #include <type_traits>
 
-#include <mc/engine/shm_service.h>
+#include "shm_service.h"
 
 using mc::engine::shm_service;
 using mc::engine::shm_service_abi_version;

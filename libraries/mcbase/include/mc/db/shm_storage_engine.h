@@ -149,6 +149,12 @@ public:
         mc::shm::container::map<mc::shm::byte_string, shm_record_ptr, mc::shm::byte_string_less>;
     using shm_handle_extractor_fn = std::function<ShmRecord*(const Object&)>;
     using reconstruct_fn          = std::function<object_ptr_type(ShmRecord*)>;
+    using recover_hook_fn         = std::function<void(ShmRecord*)>;
+    // remove(idx0, key) / clear() 等"释放主索引上一条记录"路径会调用 destroy_hook
+    // 让上层把 ShmRecord 自身在 SHM allocator 中的占用回收。
+    // 未注入时跳过 destroy（行为保持原状：只解除 map 引用，ShmRecord 留在 arena 里），
+    // 这是为了不破坏纯测试里直接拼装 ShmRecord 但不用 mcengine 注入释放器的场景。
+    using destroy_hook_fn         = std::function<void(ShmRecord*)>;
 
     class raw_iterator;
 
@@ -176,6 +182,13 @@ public:
     }
     // 注入点：recover 时从 ShmRecord 重建 shared_ptr<Object>
     void set_reconstruct(reconstruct_fn fn) noexcept { m_reconstruct = std::move(fn); }
+    // 注入点：recover 遍历 idx0 时，在 reconstruct 之前对每个 ShmRecord 调用一次；
+    // 用于让上层做 crash-safe journal redo/undo（例如 shm_object_journal_recover）。
+    // 未注入时跳过该步骤。
+    void set_recover_hook(recover_hook_fn fn) noexcept { m_recover_hook = std::move(fn); }
+    // 注入点：remove(idx0)/clear() 时对每个被 drop 的 ShmRecord 调用一次。
+    // 用于让上层在解除 map 引用的同时回收 ShmRecord 自身的 SHM 占用，避免泄漏。
+    void set_destroy_hook(destroy_hook_fn fn) noexcept { m_destroy_hook = std::move(fn); }
 
     // ----- per-index 写 -----
     std::pair<leaf_type, bool> insert(std::size_t idx, mc::string_view key, object_ptr_type v)
@@ -271,6 +284,15 @@ public:
         }
     }
 
+    // 只清进程本地 heap pool，不动 SHM map。供 takeover 语义使用：service stop 时
+    // 释放本进程的 shared_ptr<Object>，但保留 SHM 中的 ShmRecord，让其它进程或同进程
+    // 下次 attach 仍能 recover 出完整对象。
+    void clear_pool_only() noexcept
+    {
+        std::lock_guard lk(m_pool_mutex);
+        m_pool.clear();
+    }
+
     // ----- per-index 读 -----
     leaf_type get(std::size_t idx, mc::string_view key) const
     {
@@ -316,10 +338,43 @@ public:
     std::size_t size(std::size_t idx) const { return _at(idx).size(); }
 
     // ----- engine-wide -----
+    //
+    // 释放顺序为关键：必须**先**收集 idx0 中所有 ShmRecord 指针并 destroy（让上层
+    // 把对象关联的 byte_string / property slab / child slab 等 SHM 子分配回收），
+    // **再**清 map。如果先 m_maps[0]->clear() 会丢掉 ShmRecord 指针，导致 SHM 内
+    // 全部对象彻底泄漏。
+    //
+    // 未注入 destroy_hook 时退化到旧行为（只清 map），用于纯 SHM 数据测试或外部
+    // 自管理 ShmRecord 生命周期的场景。
     void clear()
     {
-        for (std::size_t i = 0; i < IndexCount; ++i) {
-            m_maps[i]->clear();
+        if (m_destroy_hook && m_maps[0]) {
+            std::vector<ShmRecord*> to_destroy;
+            to_destroy.reserve(m_maps[0]->size());
+            for (auto it = m_maps[0]->cbegin(); it != m_maps[0]->cend(); ++it) {
+                auto kv = *it;
+                if (kv.value == nullptr) {
+                    continue;
+                }
+                ShmRecord* sh = kv.value->get();
+                if (sh != nullptr) {
+                    to_destroy.push_back(sh);
+                }
+            }
+            for (std::size_t i = 0; i < IndexCount; ++i) {
+                if (m_maps[i]) {
+                    m_maps[i]->clear();
+                }
+            }
+            for (ShmRecord* sh : to_destroy) {
+                m_destroy_hook(sh);
+            }
+        } else {
+            for (std::size_t i = 0; i < IndexCount; ++i) {
+                if (m_maps[i]) {
+                    m_maps[i]->clear();
+                }
+            }
         }
         std::lock_guard lk(m_pool_mutex);
         m_pool.clear();
@@ -354,6 +409,9 @@ public:
             ShmRecord* sh = kv.value->get();
             if (sh == nullptr) {
                 continue;
+            }
+            if (m_recover_hook) {
+                m_recover_hook(sh);
             }
             object_ptr_type p = m_reconstruct(sh);
             if (p) {
@@ -426,6 +484,8 @@ private:
     mutable std::unordered_map<ShmRecord*, object_ptr_type> m_pool;
     shm_handle_extractor_fn                                 m_handle_extractor;
     reconstruct_fn                                          m_reconstruct;
+    recover_hook_fn                                         m_recover_hook;
+    destroy_hook_fn                                         m_destroy_hook;
 };
 
 // ============================================================================

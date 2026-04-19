@@ -10,12 +10,12 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <mc/engine/shm_service.h>
+#include "shm_service.h"
 
 #include <cstddef>
 #include <cstdint>
 
-#include <mc/engine/shm_object.h>  // 复用 crc32_ieee（同 IEEE 802.3 多项式实现）
+#include <mc/engine/shm_object.h>
 
 namespace mc::engine {
 
@@ -27,7 +27,7 @@ constexpr std::size_t k_service_crc_offset = offsetof(shm_service, pid);
 constexpr std::size_t k_service_crc_size   = sizeof(shm_service) - k_service_crc_offset;
 static_assert(k_service_crc_size == 56U, "shm_service CRC 覆盖范围必须是 56B");
 
-}  // namespace
+} // namespace
 
 std::uint32_t shm_service_compute_crc(const shm_service& svc) noexcept
 {
@@ -43,4 +43,4 @@ bool shm_service_check(const shm_service& svc) noexcept
     return shm_service_compute_crc(svc) == svc.crc32_self;
 }
 
-}  // namespace mc::engine
+} // namespace mc::engine
