@@ -1,5 +1,8 @@
 # Changelog
 All notable changes to this project will be documented in this file.
+## [1.2.71] - 2026-04-20
+补充DT用例
+
 ## [1.2.70] - 2026-04-15
 异步处理DBus方法调用，避免阻塞DBus消息调度流程
 
