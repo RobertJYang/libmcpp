@@ -19,6 +19,7 @@ namespace mc::reflect {
 struct struct_metadata::impl {
     using members_map_t        = std::unordered_map<mc::string_view, member_node<member_info_base>>;
     using offset_members_map_t = std::unordered_map<std::uintptr_t, const member_info_base*>;
+    using quark_members_map_t  = std::unordered_map<mc::quark::id_type, const member_info_base*>;
     using owner_members_t      = std::vector<const member_info_base*>;
 
     struct data_t {
@@ -29,9 +30,8 @@ struct struct_metadata::impl {
 
         members_map_t        name_to_members;
         offset_members_map_t offset_to_members;
+        quark_members_map_t  quark_to_members;
 
-        // 在原始反射元数据不满足要求需要调整的场景，因为传入的元数据是编译期常量，而编译期常量可能会放到只读数据段，
-        // 这里克隆一份后再调整更安全，我们用 owner_members 来持有这个克隆数据的所有权。
         owner_members_t owner_members;
     };
 
@@ -47,16 +47,18 @@ struct struct_metadata::impl {
     mc::string_view name;
     type_id_type    type_id;
 
-    // TODO:: 理论上这里也是不需要锁的，元数据缓存在构建单例的时候一次性创建，之后不会再有变化。
-    // 其他读取接口也都不需要加锁，唯一的场景就是动态模块注册的反射元数据，在动态库卸载的时候会被释放，
-    // 但这也应该由模块管理器来管理，这里不需要关心。
-    // 先加上锁吧，暂时用 unsafe_get_data() 来规避，后续再想办法优化。
     mc::mutex_box<data_t, mc::shared_mutex> m_data;
 };
 
 member_node<member_info_base>& struct_metadata::impl::add_member_info(data_t& data, const member_info_base* member)
 {
     auto it = data.name_to_members.emplace(member->name, member_node<member_info_base>{member});
+    if (!member->name.empty()) {
+        const auto qid = member->name_quark.valid()
+                             ? member->name_quark.id()
+                             : mc::detail::intern_trusted_literal(member->name);
+        data.quark_to_members.emplace(qid, member);
+    }
     return reinterpret_cast<member_node<member_info_base>&>(it.first->second);
 }
 
@@ -191,6 +193,7 @@ struct_metadata::~struct_metadata()
     // member_node<member_info_base> 所有权在这里，最后释放
     data.name_to_members.clear();
     data.offset_to_members.clear();
+    data.quark_to_members.clear();
 }
 
 type_id_type struct_metadata::get_type_id() const noexcept
@@ -315,6 +318,61 @@ const member_info_base* struct_metadata::get_custom_info(mc::string_view name, s
     }
 
     return it->second.member;
+}
+
+const property_type_info* struct_metadata::get_property_info(mc::quark name) const
+{
+    if (!name.valid()) {
+        return nullptr;
+    }
+    auto& data = m_impl->m_data.unsafe_get_data();
+    auto  it   = data.quark_to_members.find(name.id());
+    if (it == data.quark_to_members.end() || !it->second->is_property_type()) {
+        return nullptr;
+    }
+    return static_cast<const property_type_info*>(it->second);
+}
+
+const method_type_info* struct_metadata::get_method_info(mc::quark name) const
+{
+    if (!name.valid()) {
+        return nullptr;
+    }
+    auto& data = m_impl->m_data.unsafe_get_data();
+    auto  it   = data.quark_to_members.find(name.id());
+    if (it == data.quark_to_members.end() || it->second->type() != member_info_type::method) {
+        return nullptr;
+    }
+    return static_cast<const method_type_info*>(it->second);
+}
+
+const base_class_type_info* struct_metadata::get_base_class_info(mc::quark name) const
+{
+    if (!name.valid()) {
+        return nullptr;
+    }
+    auto& data = m_impl->m_data.unsafe_get_data();
+    auto  it   = data.quark_to_members.find(name.id());
+    if (it == data.quark_to_members.end() || it->second->type() != member_info_type::base_class) {
+        return nullptr;
+    }
+    return static_cast<const base_class_type_info*>(it->second);
+}
+
+const member_info_base* struct_metadata::get_custom_info(mc::quark name, size_t reflect_type) const
+{
+    if (!name.valid()) {
+        return nullptr;
+    }
+    auto& data = m_impl->m_data.unsafe_get_data();
+    auto  it   = data.quark_to_members.find(name.id());
+    if (it == data.quark_to_members.end() || it->second->type() < member_info_type::custom_start) {
+        return nullptr;
+    }
+    if (reflect_type != 0 && it->second->type() != reflect_type) {
+        return nullptr;
+    }
+    return it->second;
 }
 
 void struct_metadata::visit_properties(const property_visitor_t& visitor) const

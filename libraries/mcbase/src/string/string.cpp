@@ -17,6 +17,7 @@
 
 #include <mc/exception.h>
 #include <mc/memory.h>
+#include <mc/quark.h>
 #include <mc/string.h>
 
 #include "securec.h"
@@ -265,7 +266,8 @@ struct string_bytes {
 };
 
 struct string_storage : mc::shared_base {
-    string_bytes bytes;
+    mc::quark::id_type m_quark_id{0U};
+    string_bytes       bytes;
 
     string_storage() = default;
 
@@ -274,6 +276,51 @@ struct string_storage : mc::shared_base {
 
     explicit string_storage(std::size_t n, char ch) : bytes(n, ch)
     {}
+
+    explicit string_storage(mc::quark::id_type id) noexcept : m_quark_id{id}
+    {}
+
+    bool is_quark() const noexcept
+    {
+        return m_quark_id != 0U;
+    }
+
+    mc::string_view view_const() const noexcept
+    {
+        if (is_quark()) {
+            return mc::quark{m_quark_id}.view();
+        }
+        return bytes.view();
+    }
+
+    const char* data_const() const noexcept
+    {
+        if (is_quark()) {
+            return mc::quark{m_quark_id}.c_str();
+        }
+        return bytes.data();
+    }
+
+    std::size_t size_const() const noexcept
+    {
+        if (is_quark()) {
+            return mc::quark{m_quark_id}.size();
+        }
+        return bytes.size();
+    }
+
+    bool empty_const() const noexcept
+    {
+        return size_const() == 0U;
+    }
+
+    std::size_t capacity_const() const noexcept
+    {
+        if (is_quark()) {
+            return mc::quark{m_quark_id}.size();
+        }
+        return bytes.capacity();
+    }
 };
 
 struct string_mutable_impl {
@@ -293,6 +340,8 @@ string_bytes& string_mutable_impl::mutable_storage(string& s, std::size_t min_ca
 {
     if (!s.m_storage) {
         s.m_storage = mc::make_shared<string_storage>();
+    } else if (s.m_storage->is_quark()) {
+        s.m_storage = mc::make_shared<string_storage>(s.m_storage->view_const());
     } else if (s.m_storage->ref_count() > 1U) {
         s.m_storage = mc::make_shared<string_storage>(s.m_storage->bytes.view());
     }
@@ -349,12 +398,12 @@ string::string(std::size_t count, char ch)
 
 std::size_t string::size() const noexcept
 {
-    return m_storage ? m_storage->bytes.size() : 0U;
+    return m_storage ? m_storage->size_const() : 0U;
 }
 
 std::size_t string::capacity() const noexcept
 {
-    return m_storage ? m_storage->bytes.capacity() : 0U;
+    return m_storage ? m_storage->capacity_const() : 0U;
 }
 
 bool string::empty() const noexcept
@@ -369,12 +418,12 @@ char* string::data() noexcept
 
 const char* string::data() const noexcept
 {
-    return m_storage ? m_storage->bytes.data() : "";
+    return m_storage ? m_storage->data_const() : "";
 }
 
 mc::string_view string::view() const noexcept
 {
-    return mc::string_view(data(), size());
+    return m_storage ? m_storage->view_const() : mc::string_view();
 }
 
 string string::substr(size_type pos, size_type count) const
@@ -463,7 +512,12 @@ int string::compare(size_type pos, size_type count, const char* str, size_type c
 
 std::size_t string::hash() const noexcept
 {
-    return std::hash<mc::string_view>{}(mc::string_view(data(), size()));
+    // quark 模式直接复用缓存 hash；heap 模式现算。两条路径同算法（mc::string_hash）
+    if (m_storage && m_storage->is_quark()) {
+        return mc::quark{m_storage->m_quark_id}.hash();
+    }
+    const auto v = view();
+    return mc::string_hash(v.data(), v.size());
 }
 
 void string::swap(string& other) noexcept
@@ -471,8 +525,36 @@ void string::swap(string& other) noexcept
     m_storage.swap(other.m_storage);
 }
 
+string::string(quark q) noexcept
+{
+    if (q.valid()) {
+        m_storage = mc::make_shared<detail::string_storage>(q.id());
+    }
+}
+
+string string::from_quark(quark q) noexcept
+{
+    return string(q);
+}
+
+bool string::is_quark() const noexcept
+{
+    return m_storage && m_storage->is_quark();
+}
+
+quark string::to_quark() const noexcept
+{
+    if (is_quark()) {
+        return quark{m_storage->m_quark_id};
+    }
+    return quark::try_from(view());
+}
+
 bool operator==(const string& lhs, const string& rhs) noexcept
 {
+    if (lhs.is_quark() && rhs.is_quark()) {
+        return lhs.to_quark() == rhs.to_quark();
+    }
     return lhs.view() == rhs.view();
 }
 
@@ -546,7 +628,7 @@ void string::clear() noexcept
     if (!m_storage) {
         return;
     }
-    if (m_storage->ref_count() > 1U) {
+    if (m_storage->is_quark() || m_storage->ref_count() > 1U) {
         m_storage = mc::make_shared<detail::string_storage>();
         return;
     }

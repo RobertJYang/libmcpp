@@ -66,6 +66,12 @@ public:
     const method_type_info*      get_method_info(mc::string_view name) const override;
     const base_class_type_info*  get_base_class_info(mc::string_view name) const override;
     const member_info_base*      get_custom_info(mc::string_view name, size_t reflect_type) const override;
+
+    const property_type_info*   get_property_info(mc::quark name) const override;
+    const method_type_info*     get_method_info(mc::quark name) const override;
+    const base_class_type_info* get_base_class_info(mc::quark name) const override;
+    const member_info_base*     get_custom_info(mc::quark name, size_t reflect_type) const override;
+
     std::vector<mc::string_view> get_property_names() const override;
     std::vector<mc::string_view> get_method_names() const override;
 
@@ -150,13 +156,6 @@ private:
     std::shared_ptr<T> m_obj;
 };
 
-/**
- * @brief 类型反射元数据缓存
- *
- * 缓存一个类型的反射元数据，提供高效的成员查找功能
- *
- * @tparam T 要缓存元数据的类型
- */
 template <typename T>
 class reflection<T, std::enable_if_t<is_reflectable<T>() && !std::is_enum<T>()>>
     : public detail::struct_reflection_bridge {
@@ -165,24 +164,23 @@ public:
 
     ~reflection() override = default;
 
-    /**
-     * @brief 获取指定名称的成员信息
-     *
-     * @param name 成员名称
-     * @return const property_info_base<T>* 成员信息指针，如果不存在则返回nullptr
-     */
     const property_info_base<T>* get_property_info(mc::string_view name) const override
     {
         return static_cast<const property_info_base<T>*>(detail::struct_reflection_bridge::get_property_info(name));
     }
 
-    /**
-     * @brief 获取指定名称的方法信息
-     *
-     * @param name 方法名称
-     * @return const method_info_base<T>* 方法信息指针，如果不存在则返回nullptr
-     */
+    // quark 重载
+    const property_info_base<T>* get_property_info(mc::quark name) const override
+    {
+        return static_cast<const property_info_base<T>*>(detail::struct_reflection_bridge::get_property_info(name));
+    }
+
     const method_info_base<T>* get_method_info(mc::string_view name) const override
+    {
+        return static_cast<const method_info_base<T>*>(detail::struct_reflection_bridge::get_method_info(name));
+    }
+
+    const method_info_base<T>* get_method_info(mc::quark name) const override
     {
         return static_cast<const method_info_base<T>*>(detail::struct_reflection_bridge::get_method_info(name));
     }
@@ -194,12 +192,6 @@ public:
         return static_cast<const method_info_base<T>*>(get_metadata_ref().get_method_info(offset));
     }
 
-    /**
-     * @brief 获取指定偏移量的成员信息
-     *
-     * @param offset 成员偏移量
-     * @return const property_info_base<T>* 成员信息指针，如果不存在则返回nullptr
-     */
     const property_info_base<T>* get_property_info(size_t offset) const
     {
         return static_cast<const property_info_base<T>*>(get_metadata_ref().get_property_info(offset));
@@ -212,14 +204,16 @@ public:
         return get_property_info(MC_MEMBER_OFFSETOF(T, member));
     }
 
-    /**
-     * @brief 获取成员属性值
-     *
-     * @param obj 对象实例
-     * @param key 属性名
-     * @return mc::variant 属性值，如果不存在返回mc::variant::null_type
-     */
     mc::variant get_property(const T& obj, mc::string_view key) const
+    {
+        const property_info_base<T>* property = get_property_info(key);
+        if (property) {
+            return property->get_value(obj);
+        }
+        return mc::variant();
+    }
+
+    mc::variant get_property(const T& obj, mc::quark key) const
     {
         const property_info_base<T>* property = get_property_info(key);
         if (property) {
@@ -233,14 +227,11 @@ public:
         return static_cast<const base_class_info_base<T>*>(detail::struct_reflection_bridge::get_base_class_info(name));
     }
 
-    /**
-     * @brief 获取成员属性值
-     *
-     * @param obj 对象实例
-     * @param key 属性名
-     * @param base_class_name 基类名称
-     * @return mc::variant 属性值，如果不存在返回mc::variant::null_type
-     */
+    const base_class_info_base<T>* get_base_class_info(mc::quark name) const override
+    {
+        return static_cast<const base_class_info_base<T>*>(detail::struct_reflection_bridge::get_base_class_info(name));
+    }
+
     mc::variant get_property(const T& obj, mc::string_view key, mc::string_view base_class_name) const
     {
         const auto* base_class_info = get_base_class_info(base_class_name);
@@ -251,12 +242,6 @@ public:
         return mc::variant();
     }
 
-    /**
-     * @brief 获取对象所有属性值
-     *
-     * @param obj 对象实例
-     * @return mc::dict 所有属性值
-     */
     mc::dict get_all_properties(const T& obj) const
     {
         mc::dict result;
@@ -268,14 +253,6 @@ public:
         return result;
     }
 
-    /**
-     * @brief 调用对象的方法
-     *
-     * @param obj 对象实例
-     * @param method_name 方法名称
-     * @param args 方法参数
-     * @return mc::variant 方法返回值，如果方法不存在则返回mc::variant::null_type
-     */
     mc::variant invoke_method(T& obj, mc::string_view method_name, const mc::variants& args = {}) const
     {
         const method_info_base<T>* method = get_method_info(method_name);
@@ -316,14 +293,6 @@ public:
         throw_method_not_exist(method_name);
     }
 
-    /**
-     * @brief 设置成员属性值
-     *
-     * @param obj 对象实例
-     * @param key 属性名
-     * @param value 属性值
-     * @return bool 设置是否成功
-     */
     bool set_property(T& obj, mc::string_view key, const mc::variant& value) const
     {
         const property_info_base<T>* property = get_property_info(key);
@@ -334,15 +303,16 @@ public:
         return false;
     }
 
-    /**
-     * @brief 设置成员属性值
-     *
-     * @param obj 对象实例
-     * @param key 属性名
-     * @param base_class_name 基类名称
-     * @param value 属性值
-     * @return bool 设置是否成功
-     */
+    bool set_property(T& obj, mc::quark key, const mc::variant& value) const
+    {
+        const property_info_base<T>* property = get_property_info(key);
+        if (property) {
+            property->set_value(obj, value);
+            return true;
+        }
+        return false;
+    }
+
     bool set_property(T& obj, mc::string_view key, mc::string_view base_class_name, const mc::variant& value) const
     {
         const auto* base_class_info = get_base_class_info(base_class_name);
@@ -353,12 +323,6 @@ public:
         return false;
     }
 
-    /**
-     * @brief 获取成员名称
-     *
-     * @param offset 成员偏移量
-     * @return mc::string_view 成员名称，如果不存在则返回空字符串
-     */
     mc::string_view get_property_name(size_t offset) const
     {
         const property_info_base<T>* property = get_property_info(offset);
@@ -416,12 +380,6 @@ private:
     {}
 };
 
-/**
- * @brief 获取类型的元数据
- *
- * @tparam T 类型
- * @return reflection<T>& 元数据引用
- */
 template <typename T>
 auto& get_reflection()
 {

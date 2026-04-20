@@ -16,7 +16,6 @@ namespace mc::reflect::detail {
 
 std::mutex& reflection_singleton_creation_mutex() noexcept
 {
-    // 反射单例初始化频率很低，共享一把锁可避免每个类型都生成独立 mutex。
     static std::mutex mutex;
     return mutex;
 }
@@ -117,6 +116,26 @@ const base_class_type_info* struct_reflection_bridge::get_base_class_info(mc::st
 }
 
 const member_info_base* struct_reflection_bridge::get_custom_info(mc::string_view name, size_t reflect_type) const
+{
+    return m_metadata->get_custom_info(name, reflect_type);
+}
+
+const property_type_info* struct_reflection_bridge::get_property_info(mc::quark name) const
+{
+    return m_metadata->get_property_info(name);
+}
+
+const method_type_info* struct_reflection_bridge::get_method_info(mc::quark name) const
+{
+    return m_metadata->get_method_info(name);
+}
+
+const base_class_type_info* struct_reflection_bridge::get_base_class_info(mc::quark name) const
+{
+    return m_metadata->get_base_class_info(name);
+}
+
+const member_info_base* struct_reflection_bridge::get_custom_info(mc::quark name, size_t reflect_type) const
 {
     return m_metadata->get_custom_info(name, reflect_type);
 }

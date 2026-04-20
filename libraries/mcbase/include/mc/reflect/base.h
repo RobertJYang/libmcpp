@@ -13,6 +13,7 @@
 #define MC_REFLECT_BASE_H
 
 #include <mc/memory.h>
+#include <mc/quark.h>
 #include <mc/string_utils.h>
 #include <mc/variant.h>
 
@@ -29,7 +30,7 @@ class result;
 namespace mc::reflect {
 
 namespace detail {
-// 反射名称来自宏参数中的字符串字面量；经函数模板推导为数组长度，避免退化为 const char* 导致失去 constexpr。
+// 反射名称来自字符串字面量。
 template <std::size_t N>
 constexpr mc::string_view reflect_name_from_literal(const char (&s)[N]) noexcept
 {
@@ -73,11 +74,6 @@ using factory_id_type    = int32_t;
 constexpr type_id_type    INVALID_TYPE_ID    = -1;
 constexpr factory_id_type INVALID_FACTORY_ID = -1;
 
-/**
- * @brief 反射器模板类
- *
- * @tparam T 要反射的类型
- */
 template <typename T>
 struct reflectable {
     using is_defined = std::false_type;
@@ -100,33 +96,18 @@ struct has_reflectable<T, std::enable_if_t<std::is_same_v<typename T::is_reflect
 
 } // namespace detail
 
-/**
- * 检查类型是否可反射
- * @tparam T 要检查的类型
- * @return 如果类型可反射则返回true，否则返回false
- */
 template <typename T>
 constexpr bool is_reflectable()
 {
     return reflectable<std::decay_t<T>>::is_defined::value || detail::has_reflectable<T>::value;
 }
 
-/**
- * 检查类型是否为枚举
- * @tparam T 要检查的类型
- * @return 如果类型是枚举则返回true，否则返回false
- */
 template <typename T>
 constexpr bool is_enum()
 {
     return reflectable<T>::is_enum::value;
 }
 
-/**
- * 检查类型是否为非反射的普通枚举
- * @tparam T 要检查的类型
- * @return 如果类型是普通的枚举则返回true，否则返回false
- */
 template <typename T>
 constexpr bool is_normal_enum()
 {
@@ -143,19 +124,6 @@ constexpr mc::string_view get_type_name()
     }
 }
 
-/*
- * 检查类型名称是否有效
- *
- * 由于类型名称由命名空间加类型名组成，以 . 或 :: 分隔，支持多级命名空间：
- * 1. 类型名称不能为空
- * 2. 类型名称按点号分隔，每段名称只能包含字母、数字、下划线，每段不能以数字开头
- * 3. 不能有连续的点号，也不能以点号开头或结尾
- * 例如：
- * - mc.devices.Sensor：表示 mc.devices 命名空间下的 Sensor 类型
- * - mc::devices::Sensor：表示 mc.devices 命名空间下的 Sensor 类型
- * - mc::devices.Sensor：表示 mc.devices 命名空间下的 Sensor 类型
- * - mc::devices.sensors.TemperatureSensor：表示 mc.devices.sensors 命名空间下的 TemperatureSensor 类型
- */
 constexpr std::size_t max_type_name_length = 255;
 constexpr inline bool is_valid_type_name(mc::string_view name)
 {
@@ -248,12 +216,7 @@ template <typename T>
 struct has_reflect_namespace<T, std::enable_if_t<!std::is_same_v<typename reflect_namespace<T>::type, void>>>
     : std::true_type {};
 
-/**
- * 检查类型是否在命名空间中，为了兼容C++宏自动填充的类型名，类型名可以用 :: 或 . 分隔，但命名空间只能用 . 分隔
- * @param type_name 类型名，格式为：mc.devices.TemperatureSensor 或 mc::devices::TemperatureSensor
- * @param namespace_name 命名空间名，格式为：mc.devices
- * @return 如果类型在命名空间中则返回true，否则返回false
- */
+/** @brief 检查类型是否在命名空间中 */
 inline bool type_in_namespace(mc::string_view type_name, mc::string_view namespace_name)
 {
     if (!is_valid_type_name(type_name) || !is_valid_type_name(namespace_name)) {
@@ -301,142 +264,70 @@ inline bool check_type_namespace(mc::string_view type_name)
 }
 } // namespace detail
 
-/**
- * @brief 反射对象基类
- *
- * 提供对反射对象的动态访问接口，无需知道具体类型
- */
+/** @brief 反射对象基类 */
 class reflected_object {
 public:
     virtual ~reflected_object() = default;
 
-    /**
-     * @brief 获取类型ID
-     * @return int 类型ID
-     */
     virtual type_id_type get_type_id() const = 0;
 
-    /**
-     * @brief 获取属性值
-     * @param name 属性名
-     * @return variant 属性值
-     */
     virtual variant get_property(mc::string_view name) const = 0;
 
-    /**
-     * @brief 设置属性值
-     * @param name 属性名
-     * @param value 属性值
-     */
     virtual void set_property(mc::string_view name, const variant& value) = 0;
 
-    /**
-     * @brief 调用方法
-     * @param name 方法名
-     * @param args 参数列表
-     * @return variant 返回值
-     */
     virtual variant      invoke_method(mc::string_view name, const std::vector<variant>& args)       = 0;
     virtual async_result async_invoke_method(mc::string_view name, const std::vector<variant>& args) = 0;
 
-    /**
-     * @brief 获取所有属性名
-     * @return std::vector<mc::string_view> 属性名列表
-     */
     virtual std::vector<mc::string_view> get_property_names() const = 0;
 
-    /**
-     * @brief 获取所有方法名
-     * @return std::vector<mc::string_view> 方法名列表
-     */
     virtual std::vector<mc::string_view> get_method_names() const = 0;
 };
 
-/**
- * @brief 反射元数据基类
- *
- * 提供类型信息和对象创建功能
- */
+/** @brief 反射元数据基类 */
 class reflection_base : public mc::shared_base {
 public:
     virtual ~reflection_base() = default;
 
-    /**
-     * @brief 创建反射对象
-     * @return std::shared_ptr<reflected_object> 反射对象实例
-     */
     virtual std::shared_ptr<reflected_object> create_object() = 0;
 
-    /**
-     * @brief 获取类型名
-     * @return mc::string_view 类型名
-     */
     virtual mc::string_view get_type_name() const = 0;
 
-    /**
-     * @brief 获取类型ID
-     * @return type_id_type 类型ID
-     */
     virtual type_id_type get_type_id() const = 0;
 
-    /**
-     * @brief 获取基类类型ID列表
-     * @return std::vector<int> 基类类型ID列表
-     */
     virtual std::vector<type_id_type> get_base_type_ids() const = 0;
 
-    /**
-     * @brief 检查是否是某个类型的子类
-     * @param base_type_id 基类类型ID
-     * @return bool 是否为子类
-     */
     virtual bool is_derived_from(type_id_type base_type_id) const = 0;
 
-    /**
-     * @brief 获取属性信息
-     * @param name 属性名
-     * @return const property_type_info* 属性信息指针，需要转换为具体类型
-     */
     virtual const property_type_info* get_property_info(mc::string_view name) const = 0;
 
-    /**
-     * @brief 获取方法信息
-     * @param name 方法名
-     * @return const method_type_info* 方法信息指针，需要转换为具体类型
-     */
     virtual const method_type_info* get_method_info(mc::string_view name) const = 0;
 
-    /**
-     * @brief 获取基类信息
-     * @param name 基类名
-     * @return const base_class_type_info* 基类信息指针，需要转换为具体类型
-     */
     virtual const base_class_type_info* get_base_class_info(mc::string_view name) const = 0;
 
-    /**
-     * @brief 获取自定义信息
-     * @param name 自定义信息名
-     * @param reflect_type 反射类型
-     * @return const member_info_base* 自定义信息指针，需要转换为具体类型
-     */
     virtual const member_info_base* get_custom_info(mc::string_view name, size_t reflect_type) const = 0;
 
-    /**
-     * @brief 获取所有属性名
-     * @return std::vector<mc::string_view> 属性名列表
-     */
+    // quark 重载默认转到 string_view
+    virtual const property_type_info* get_property_info(mc::quark name) const
+    {
+        return get_property_info(name.view());
+    }
+    virtual const method_type_info* get_method_info(mc::quark name) const
+    {
+        return get_method_info(name.view());
+    }
+    virtual const base_class_type_info* get_base_class_info(mc::quark name) const
+    {
+        return get_base_class_info(name.view());
+    }
+    virtual const member_info_base* get_custom_info(mc::quark name, size_t reflect_type) const
+    {
+        return get_custom_info(name.view(), reflect_type);
+    }
+
     virtual std::vector<mc::string_view> get_property_names() const = 0;
 
-    /**
-     * @brief 获取所有方法名
-     * @return std::vector<mc::string_view> 方法名列表
-     */
     virtual std::vector<mc::string_view> get_method_names() const = 0;
 
-    /**
-     * @brief 获取是否为枚举类型
-     * @return bool 是否为枚举类型
-     */
     bool is_enum() const
     {
         return m_is_enum;

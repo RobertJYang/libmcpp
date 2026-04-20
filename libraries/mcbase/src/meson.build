@@ -7,6 +7,7 @@ subdir('memory')
 subdir('reflect')
 subdir('signal')
 subdir('protocol')
+subdir('quark')
 subdir('runtime')
 subdir('shm')
 subdir('string')
@@ -40,6 +41,7 @@ base_src_files = [
   reflect_src_files,
   signal_src_files,
   protocol_src_files,
+  quark_src_files,
   runtime_src_files,
   shm_src_files,
   string_src_files,
@@ -79,7 +81,7 @@ mcbase_lib = library(
   base_src_files,
   include_directories: [incdir, srcdir],
   dependencies: dep_arr,
-  cpp_args: mcbase_sanitizer_cpp_args,
+  cpp_args: mcbase_sanitizer_cpp_args + quark_cpp_args,
   link_args: mcbase_sanitizer_link_args,
   install: true,
   install_dir: install_dir,
@@ -93,6 +95,6 @@ mcbase_dep = declare_dependency(
   include_directories: incdir,
   link_with: mcbase_lib,
   dependencies: dep_arr,
-  compile_args: mcbase_sanitizer_cpp_args,
+  compile_args: mcbase_sanitizer_cpp_args + quark_cpp_args,
   link_args: mcbase_sanitizer_link_args,
 )

@@ -4,6 +4,7 @@ shm_src_files = files('allocator/allocator.cpp', 'allocator/slab.cpp', 'allocato
                       'container/map_core.cpp', 'container/node_header.cpp',
                       'container/set_core.cpp',
                       'container/detail/skip_list_ops.cpp',
+                      'default_runtime.cpp',
                       'detail/region_registry.cpp',
                       'ipc_mutex.cpp', 'ipc_shared_mutex.cpp', 'message_queue/mq_channel.cpp',
                       'message_queue/mq_protocol.cpp', 'message_queue/mq_notifier.cpp',

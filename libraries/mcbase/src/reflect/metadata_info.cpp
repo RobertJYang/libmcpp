@@ -29,7 +29,11 @@ property_info::property_info(mc::string_view n, uint32_t relative_offset, get_va
                              mc::string_view signature)
     : property_type_info(n), m_relative_offset(relative_offset), m_get_value(getter), m_set_value(setter),
       m_typeinfo(typeinfo), m_type_name(type_name), m_signature(signature)
-{}
+{
+    if (!n.empty()) {
+        this->name_quark = mc::quark{mc::detail::intern_trusted_literal(n)};
+    }
+}
 
 mc::variant property_info::get_value_erased(const void* obj) const
 {
@@ -105,7 +109,11 @@ method_info::method_info(mc::string_view n, uint32_t relative_offset, uint32_t f
       m_async_invoke_raw(async_invoke_raw_func), m_invoke_static_raw(invoke_static_raw_func),
       m_async_invoke_static_raw(async_invoke_static_raw_func), m_typeinfo(typeinfo), m_type_name(type_name),
       m_args_signature(args_signature), m_result_signature(result_signature)
-{}
+{
+    if (!n.empty()) {
+        this->name_quark = mc::quark{mc::detail::intern_trusted_literal(n)};
+    }
+}
 
 method_info* method_info::create(mc::string_view n, uint32_t relative_offset, uint32_t function_size,
                                  uint32_t method_arg_count, bool is_static_method, invoke_func_t invoke_func,

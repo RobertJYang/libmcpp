@@ -47,3 +47,32 @@ option(
     value: 'disabled',
     description: '是否启用外部 securec 库：enabled 强制使用外部库，disabled 使用 mcbase 内建实现，auto 为找到则使用否则回退内建实现',
 )
+
+option(
+    'quark_storage',
+    type: 'combo',
+    choices: ['process', 'shared_memory'],
+    value: 'process',
+    description: 'quark 存储后端：process 进程内，shared_memory 共享内存',
+)
+
+option(
+    'quark_initial_buckets',
+    type: 'integer',
+    value: 8192,
+    description: 'quark 哈希表初始桶数',
+)
+
+option(
+    'quark_max_count',
+    type: 'integer',
+    value: 8192,
+    description: 'quark 数量规划值，超过后会告警',
+)
+
+option(
+    'quark_max_literal_length',
+    type: 'integer',
+    value: 256,
+    description: 'quark 字面量最大长度（字节），超长返回 invalid_id',
+)

@@ -21,6 +21,8 @@
 #include <string_view>
 #include <type_traits>
 
+#include <mc/string_hash.h>
+
 namespace mc {
 
 namespace detail {
@@ -60,7 +62,6 @@ public:
     constexpr string_view(const char* data, std::size_t size) noexcept : m_value{data, static_cast<std::uint64_t>(size)}
     {}
 
-    // 字符串字面量优先匹配本模板，以便在 constexpr 上下文中使用（避免走下方 const char* 运行期求长）
     template <std::size_t N>
     constexpr string_view(const char (&literal)[N]) noexcept : string_view(literal, N - 1)
     {}
@@ -217,7 +218,7 @@ public:
         return std::string_view(data(), size());
     }
 
-    /** @brief 隐式转换为 std::string，便于与现有代码兼容 */
+    /** @brief 隐式转换为 std::string */
     operator std::string() const
     {
         return std::string(data(), size());
@@ -423,11 +424,12 @@ inline std::ostream& operator<<(std::ostream& os, string_view sv)
 
 namespace std {
 
+// 所有 mc 字符串 hash 入口统一走 mc::string_hash（FNV-1a32），与 quark 缓存对齐
 template <>
 struct hash<mc::string_view> {
     std::size_t operator()(mc::string_view s) const noexcept
     {
-        return hash<string_view>{}(static_cast<string_view>(s));
+        return mc::string_hash(s.data(), s.size());
     }
 };
 

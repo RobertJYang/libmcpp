@@ -9,4 +9,5 @@ test_reflect_files = [
     'reflect/test_reflect_errors.cpp',
     'reflect/test_reflect_metadata_info.cpp',
     'reflect/test_reflect_subheaders.cpp',
+    'reflect/test_reflect_quark.cpp',
 ]

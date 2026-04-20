@@ -37,9 +37,12 @@
 #include <mc/common.h>
 #include <mc/memory.h>
 #include <mc/pretty_name.h>
+#include <mc/quark_fwd.h>
 #include <mc/string_view.h>
 
 namespace mc {
+
+class quark;
 
 namespace detail {
 // 仅用于 mcbase 内部在 .cpp 中访问可变存储；不在公开头文件中暴露 std::string& 等签名。
@@ -67,6 +70,14 @@ public:
 
     inline string(const char* value) : string(mc::string_view(value))
     {}
+
+    string(quark q) noexcept;
+
+    static string from_quark(quark q) noexcept;
+
+    /** @brief 是否处于 quark 模式 */
+    bool  is_quark() const noexcept;
+    quark to_quark() const noexcept;
 
     std::size_t size() const noexcept;
     std::size_t capacity() const noexcept;
@@ -123,7 +134,7 @@ public:
         return compare(pos1, count1, mc::string_view(str.data(), str.size()), pos2, count2);
     }
 
-    /** @brief 隐式转换为 std::string；头文件内联，便于与现有代码兼容 */
+    /** @brief 隐式转换为 std::string */
     operator std::string() const noexcept
     {
         mc::string_view v = view();
@@ -465,7 +476,7 @@ public:
     void append(const string& str);
     void append(const string& str, size_type pos, size_type n = npos);
 
-    /** @brief 追加 std::string；头文件内联，委托 append(string_view)。 */
+    /** @brief 追加 std::string */
     inline void append(const std::string& str)
     {
         append(mc::string_view(str.data(), str.size()));
@@ -629,7 +640,7 @@ public:
     string& operator+=(const string& v);
     string& operator+=(const char* str);
 
-    /** @brief 追加 std::string；头文件内联，委托 operator+=(string_view)。 */
+    /** @brief 追加 std::string */
     inline string& operator+=(const std::string& str)
     {
         *this += mc::string_view(str.data(), str.size());
@@ -646,8 +657,7 @@ private:
 // 抑制隐式实例化以避免不完整类型上的模板展开，
 // 同时减少每个包含 string.h 的翻译单元的编译开销。
 // 对应的显式实例化定义在 src/string/string.cpp 中。
-extern template class MC_API mc::memory::shared_ptr<mc::detail::string_storage,
-                                             mc::detail::string_storage*>;
+extern template class MC_API mc::memory::shared_ptr<mc::detail::string_storage, mc::detail::string_storage*>;
 
 inline std::string to_std_string(const string& s)
 {

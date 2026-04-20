@@ -13,6 +13,7 @@ subdir('futures')
 subdir('im')
 subdir('intrusive')
 subdir('io')
+subdir('quark')
 subdir('runtime')
 subdir('shm')
 subdir('protocol')
@@ -45,6 +46,7 @@ mcbase_test_sources = [
   test_db_files,
   test_io_files,
   test_protocol_files,
+  test_quark_files,
   test_runtime_files,
   test_shm_files,
 ]

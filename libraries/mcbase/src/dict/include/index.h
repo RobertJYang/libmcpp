@@ -34,6 +34,8 @@ public:
 
     entry* find(mc::string_view key) const;
     entry* find(const variant& key) const;
+    // 预算 hash 入口：quark 等已持有 mc::string_hash 结果的查找路径用，省一次 hash
+    entry* find(mc::string_view key, std::size_t hash_code) const;
 
     void insert(entry& item);
     void erase(entry& item) noexcept;

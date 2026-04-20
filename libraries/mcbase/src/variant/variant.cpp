@@ -290,14 +290,10 @@ void throw_container_overflow_error(mc::string_view container_type)
     MC_THROW(mc::overflow_exception, "容器${type}元素过多", ("type", container_type));
 }
 
-// 计算字符串的哈希值
+// 走 mc::string_hash（FNV-1a32）；不再为空串特判，保持 dict 桶与 quark 缓存一致
 size_t calculate_str_hash(mc::string_view data)
 {
-    if (data.empty()) {
-        return 0;
-    }
-
-    return std::hash<mc::string_view>()(data);
+    return mc::string_hash(data.data(), data.size());
 }
 
 } // namespace mc

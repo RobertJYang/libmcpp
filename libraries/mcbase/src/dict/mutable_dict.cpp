@@ -63,6 +63,14 @@ dict::entry* dict::find_entry(const variant& key)
     return m_data->index->find(key);
 }
 
+dict::entry* dict::find_entry(mc::string_view key, std::size_t hash_code)
+{
+    if (!m_data) {
+        return nullptr;
+    }
+    return m_data->index->find(key, hash_code);
+}
+
 dict& dict::operator()(variant key, variant value)
 {
     auto* e = find_entry(key);
@@ -236,6 +244,60 @@ variant& dict::at(const variant& key)
         throw std::out_of_range(mc::to_std_string(mc::string("字典中不存在键: ") + key.to_string()));
     }
     return e->value;
+}
+
+// quark mutable 重载：descriptor() 单次 resolve 拿 (view, hash)，复用 fast-path
+
+dict::iterator dict::find(mc::quark key)
+{
+    if (!m_data) {
+        return end();
+    }
+    const auto d = key.descriptor();
+    auto* e = find_entry(d.view, d.hash);
+    if (e) {
+        return m_data->entries.iterator_to(*e);
+    }
+    return m_data->entries.end();
+}
+
+variant& dict::operator[](mc::quark key)
+{
+    const auto d = key.descriptor();
+    auto* e = find_entry(d.view, d.hash);
+    if (e) {
+        return e->value;
+    }
+    auto&  data      = ensure_data();
+    entry* new_entry = data.create_entry(mc::string(d.view), variant());
+    data.entries.push_back(*new_entry);
+    data.index->insert(*new_entry);
+    data.invalidate_order_cache();
+    return new_entry->value;
+}
+
+variant& dict::at(mc::quark key)
+{
+    const auto d = key.descriptor();
+    auto* e = find_entry(d.view, d.hash);
+    if (!e) {
+        throw std::out_of_range(mc::to_std_string(mc::string("字典中不存在键: ") + d.view));
+    }
+    return e->value;
+}
+
+bool dict::erase(mc::quark key)
+{
+    const auto d = key.descriptor();
+    auto* e = find_entry(d.view, d.hash);
+    if (e) {
+        m_data->index->erase(*e);
+        m_data->entries.erase(m_data->entries.iterator_to(*e));
+        m_data->invalidate_order_cache();
+        m_data->destroy_entry(e);
+        return true;
+    }
+    return false;
 }
 
 dict::iterator dict::find(const mc::string& key)

@@ -10,10 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
-/**
- * @file method.h
- * @brief 反射方法调用辅助函数
- */
+/** @file method.h */
 #ifndef MC_REFLECT_METHOD_H
 #define MC_REFLECT_METHOD_H
 
@@ -21,13 +18,6 @@
 #include <mc/variant.h>
 
 namespace mc::reflect {
-/**
- * @brief 获取指定名称的方法信息
- *
- * @tparam T 类型
- * @param method_name 方法名称
- * @return const method_info_base<T>* 方法信息指针，如果不存在则返回nullptr
- */
 template <typename T>
 const method_info_base<T>* get_method_info(mc::string_view method_name)
 {
@@ -35,13 +25,6 @@ const method_info_base<T>* get_method_info(mc::string_view method_name)
     return get_reflection<clean_type>().get_method_info(method_name);
 }
 
-/**
- * @brief 获取指定名称的方法信息
- *
- * @tparam T 类型
- * @param method_name 方法名称
- * @return const method_info_base<T>* 方法信息指针，如果不存在则返回nullptr
- */
 template <typename T, typename M>
 const method_info_base<T>* get_method_info(M T::*member_ptr)
 {
@@ -49,24 +32,6 @@ const method_info_base<T>* get_method_info(M T::*member_ptr)
     return get_reflection<clean_type>().get_method_info(member_ptr);
 }
 
-/**
- * @brief 调用对象的方法
- *
- * @tparam T 对象类型
- * @param obj 对象实例
- * @param method_name 方法名
- * @param args 方法参数
- * @return mc::variant 方法返回值
- *
- * 示例:
- * ```cpp
- * MyClass obj;
- * // 调用无参数方法
- * auto result1 =  mc::reflect::invoke(obj, "no_arg_method");
- * // 调用有参数方法
- * auto result2 = mc::reflect::invoke(obj, "method_with_args", {1, "arg2", 3.14});
- * ```
- */
 template <typename T>
 mc::variant invoke(T& obj, mc::string_view method_name, const mc::variants& args = {})
 {
@@ -81,15 +46,6 @@ mc::variant invoke(mc::string_view method_name, const mc::variants& args = {})
     return get_reflection<clean_type>().invoke_method(method_name, args);
 }
 
-/**
- * @brief 异步调用对象的方法
- *
- * @tparam T 对象类型
- * @param obj 对象实例
- * @param method_name 方法名
- * @param args 方法参数
- * @return mc::variant 方法返回值
- */
 template <typename T>
 async_result async_invoke(T& obj, mc::string_view method_name, const mc::variants& args = {})
 {
@@ -104,13 +60,6 @@ async_result async_invoke(mc::string_view method_name, const mc::variants& args 
     return get_reflection<clean_type>().async_invoke_method(method_name, args);
 }
 
-/**
- * @brief 检查对象是否有指定名称的方法
- *
- * @tparam T 对象类型
- * @param method_name 方法名
- * @return bool 是否存在方法
- */
 template <typename T>
 bool has_method(mc::string_view method_name)
 {
@@ -118,13 +67,6 @@ bool has_method(mc::string_view method_name)
     return get_reflection<clean_type>().get_method_info(method_name) != nullptr;
 }
 
-/**
- * @brief 获取对象方法的参数数量
- *
- * @tparam T 对象类型
- * @param method_name 方法名
- * @return size_t 参数数量，如果方法不存在返回size_t(-1)
- */
 template <typename T>
 size_t method_arg_count(mc::string_view method_name)
 {
@@ -133,13 +75,6 @@ size_t method_arg_count(mc::string_view method_name)
     return method ? method->arg_count() : static_cast<size_t>(-1);
 }
 
-/**
- * @brief 获取对象方法的返回类型名称
- *
- * @tparam T 对象类型
- * @param method_name 方法名
- * @return mc::string_view 返回类型名称，如果方法不存在返回空字符串
- */
 template <typename T>
 mc::string_view method_return_type(mc::string_view method_name)
 {

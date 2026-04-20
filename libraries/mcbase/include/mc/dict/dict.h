@@ -30,6 +30,7 @@
 #include <unordered_map>
 
 #include <mc/memory.h>
+#include <mc/quark.h>
 #include <mc/variant/variant_common.h>
 
 namespace mc {
@@ -224,6 +225,7 @@ public:
     variant& operator[](int key);     // 支持整数键，避免 int 转换为 const char*
     variant& operator[](int64_t key); // 支持整数键
     variant& operator[](const variant& key);
+    variant& operator[](mc::quark key);
 
     /**
      * @brief 获取指定键的值（const 版本）
@@ -243,6 +245,7 @@ public:
     const variant& operator[](int key) const;     // 支持整数键，避免 int 转换为 const char*
     const variant& operator[](int64_t key) const; // 支持整数键
     const variant& operator[](const variant& key) const;
+    const variant& operator[](mc::quark key) const;
     /**
      * @brief 获取指定键的值，如果不存在则返回默认值
      */
@@ -258,6 +261,7 @@ public:
     }
     const variant& get(const char* key, const variant& default_value) const;
     const variant& get(const variant& key, const variant& default_value) const;
+    const variant& get(mc::quark key, const variant& default_value) const;
     /**
      * @brief 判断是否包含指定键
      */
@@ -275,6 +279,7 @@ public:
     bool contains(int key) const;     // 支持整数键，避免 int 转换为 const char*
     bool contains(int64_t key) const; // 支持整数键
     bool contains(const variant& key) const;
+    bool contains(mc::quark key) const;
 
     /**
      * @brief 获取键值对数量
@@ -303,6 +308,7 @@ public:
     }
     bool erase(const char* key);
     bool erase(const variant& key);
+    bool erase(mc::quark key);
 
     /**
      * @brief 清空所有键值对
@@ -367,6 +373,7 @@ public:
     }
     variant& at(const char* key);
     variant& at(const variant& key);
+    variant& at(mc::quark key);
 
     /**
      * @brief 获取指定键的值（const 版本）
@@ -385,6 +392,7 @@ public:
     const variant& at(const char* key) const;
     const variant& at(const variant& key) const;
     const variant& at(std::size_t index) const;
+    const variant& at(mc::quark key) const;
 
     /**
      * @brief 查找键的索引位置
@@ -402,6 +410,7 @@ public:
     }
     int find_index(const char* key) const;
     int find_index(const variant& key) const;
+    int find_index(mc::quark key) const;
     /**
      * @brief 比较两个 dict 对象是否相等
      * @param other 要比较的 dict 对象
@@ -443,6 +452,7 @@ public:
     iterator       find(std::string_view key);
     iterator       find(const char* key);
     iterator       find(const variant& key);
+    iterator       find(mc::quark key);
     const_iterator find(const mc::string& key) const;
     const_iterator find(mc::string_view key) const;
     const_iterator find(const std::string& key) const;
@@ -450,6 +460,7 @@ public:
     const_iterator find(const char* key) const;
     const_iterator find(const variant& key) const;
     const_iterator find(std::size_t index) const;
+    const_iterator find(mc::quark key) const;
     mc::string     to_string() const;
 
     /**
@@ -623,6 +634,9 @@ protected:
     const entry* find_entry(mc::string_view key) const;
     const entry* find_entry(const char* key) const;
     const entry* find_entry(const variant& key) const;
+    // 复用调用方已有的 hash_code（如 quark.hash()），省一次 mc::string_hash
+    entry*       find_entry(mc::string_view key, std::size_t hash_code);
+    const entry* find_entry(mc::string_view key, std::size_t hash_code) const;
     /**
      * @brief 计算指定元素在列表中的索引位置
      * @param e 要计算索引的元素指针

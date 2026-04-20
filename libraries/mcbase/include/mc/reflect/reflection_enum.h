@@ -25,11 +25,7 @@
 
 namespace mc::reflect {
 
-/**
- * @brief 枚举反射元数据类
- *
- * 专门用于处理枚举类型的反射，提供枚举值的访问和转换功能
- */
+/** @brief 枚举反射元数据类 */
 template <typename T>
 class reflection<T, std::enable_if_t<is_reflectable<T>() && std::is_enum<T>()>>
     : public detail::registered_reflection_bridge {
@@ -38,40 +34,21 @@ public:
 
     ~reflection() override = default;
 
-    /**
-     * @brief 通过名称获取枚举值
-     * @param name 枚举值名称
-     * @return uint64_t 枚举值
-     */
     uint64_t get_enum_value(mc::string_view name) const override
     {
         return m_data.get_value(name);
     }
 
-    /**
-     * @brief 通过枚举值获取名称
-     * @param value 枚举值
-     * @return mc::string_view 枚举值名称
-     */
     mc::string_view get_enum_name(uint64_t value) const override
     {
         return m_data.get_name(value);
     }
 
-    /**
-     * @brief 获取所有枚举值名称
-     * @return std::vector<mc::string_view> 枚举值名称列表
-     */
     std::vector<mc::string_view> get_enum_names() const override
     {
         return m_data.get_names();
     }
 
-    /**
-     * @brief 检查是否包含指定枚举值
-     * @param name 枚举值名称
-     * @return bool 是否包含
-     */
     bool has_enum_value(mc::string_view name) const override
     {
         return m_data.has_value(name);

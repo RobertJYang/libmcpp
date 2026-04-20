@@ -88,10 +88,17 @@ entry* dict_index::find(mc::string_view key) const
     if (m_size == 0) {
         return nullptr;
     }
+    return find(key, key_hash{}(key));
+}
 
-    const std::size_t hash_code = key_hash{}(key);
-    std::size_t       index     = ideal_index(hash_code);
-    std::size_t       distance  = 0;
+entry* dict_index::find(mc::string_view key, std::size_t hash_code) const
+{
+    if (m_size == 0) {
+        return nullptr;
+    }
+
+    std::size_t index    = ideal_index(hash_code);
+    std::size_t distance = 0;
 
     while (true) {
         auto* current = m_slots[index];

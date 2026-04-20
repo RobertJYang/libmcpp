@@ -102,6 +102,15 @@ const dict::entry* dict::find_entry(const variant& key) const
     return m_data->index->find(key);
 }
 
+// quark fast-path：调用方喂入预计算 hash_code，省一次 mc::string_hash
+const dict::entry* dict::find_entry(mc::string_view key, std::size_t hash_code) const
+{
+    if (!m_data) {
+        return nullptr;
+    }
+    return m_data->index->find(key, hash_code);
+}
+
 // 获取指定键的值
 const variant& dict::operator[](const mc::string& key) const
 {
@@ -500,6 +509,59 @@ dict::const_iterator dict::find(const variant& key) const
     }
     auto base_it = m_data->entries.iterator_to(*const_cast<entry*>(e));
     return const_iterator(iterator(base_it));
+}
+
+// quark const 重载：descriptor() 单次 resolve 拿 (view, hash)，复用 fast-path
+
+dict::const_iterator dict::find(mc::quark key) const
+{
+    const auto d = key.descriptor();
+    const auto* e = find_entry(d.view, d.hash);
+    if (!e) {
+        return end();
+    }
+    auto base_it = m_data->entries.iterator_to(*const_cast<entry*>(e));
+    return const_iterator(iterator(base_it));
+}
+
+const variant& dict::operator[](mc::quark key) const
+{
+    const auto d = key.descriptor();
+    const auto* e = find_entry(d.view, d.hash);
+    if (e) {
+        return e->value;
+    }
+    throw std::out_of_range(mc::to_std_string(mc::string("字典中不存在键: ") + d.view));
+}
+
+const variant& dict::get(mc::quark key, const variant& default_value) const
+{
+    const auto d = key.descriptor();
+    const auto* e = find_entry(d.view, d.hash);
+    return e ? e->value : default_value;
+}
+
+bool dict::contains(mc::quark key) const
+{
+    const auto d = key.descriptor();
+    return find_entry(d.view, d.hash) != nullptr;
+}
+
+const variant& dict::at(mc::quark key) const
+{
+    const auto d = key.descriptor();
+    const auto* e = find_entry(d.view, d.hash);
+    if (!e) {
+        throw std::out_of_range(mc::to_std_string(mc::string("字典中不存在键: ") + d.view));
+    }
+    return e->value;
+}
+
+int dict::find_index(mc::quark key) const
+{
+    const auto d = key.descriptor();
+    const auto* e = find_entry(d.view, d.hash);
+    return e == nullptr ? -1 : find_entry_index(e);
 }
 
 dict::const_iterator dict::find(std::size_t index) const

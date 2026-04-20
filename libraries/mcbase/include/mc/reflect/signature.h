@@ -43,48 +43,16 @@ inline char first_type(mc::string_view sig)
 
 class MC_API signature {
 public:
-    /**
-     * 默认构造函数，创建空签名
-     */
     signature();
 
-    /**
-     * 使用字符串构造签名
-     *
-     * @param sig 签名字符串
-     * @throws invalid_signature_exception 如果签名格式无效
-     */
     explicit signature(mc::string sig);
 
-    /**
-     * 使用C风格字符串构造签名
-     *
-     * @param sig 签名C风格字符串
-     * @throws invalid_signature_exception 如果签名格式无效
-     */
     explicit signature(const char* sig);
 
-    /**
-     * 使用类型构造签名
-     *
-     * @param type 类型
-     */
     explicit signature(type_code type);
 
-    /**
-     * 追加另一个签名
-     *
-     * @param other 要追加的签名
-     * @return 追加后的签名引用
-     */
     signature& operator+=(const signature& other);
 
-    /**
-     * 追加单个类型字符
-     *
-     * @param c 类型字符
-     * @return 追加后的签名引用
-     */
     signature& operator+=(char c);
 
     signature operator+(char c) const
@@ -102,32 +70,14 @@ public:
         return signature(*this) += str;
     }
 
-    /**
-     * 追加类型代码
-     *
-     * @param c 类型代码
-     * @return 追加后的签名引用
-     */
     signature& operator+=(type_code c)
     {
         operator+=(type_to_char(c));
         return *this;
     }
 
-    /**
-     * 追加字符串
-     *
-     * @param str 要追加的字符串
-     * @return 追加后的签名引用
-     */
     signature& operator+=(mc::string_view str);
 
-    /**
-     * 连接两个签名
-     *
-     * @param other 要连接的签名
-     * @return 连接后的新签名
-     */
     signature operator+(const signature& other) const;
 
     signature& operator=(mc::string_view str);
@@ -164,107 +114,35 @@ public:
 
     operator mc::string_view() const;
 
-    /**
-     * 获取签名字符串
-     *
-     * @return 签名字符串
-     */
     mc::string_view str() const;
 
-    /**
-     * 获取签名长度
-     *
-     * @return 签名长度
-     */
     size_t size() const;
 
-    /**
-     * 等于比较运算符
-     *
-     * @param other 要比较的签名
-     * @return 如果签名相等返回true
-     */
     bool operator==(const signature& other) const;
 
-    /**
-     * 不等于比较运算符
-     *
-     * @param other 要比较的签名
-     * @return 如果签名不相等返回true
-     */
     bool operator!=(const signature& other) const;
 
-    /**
-     * 检查签名是否为空
-     *
-     * @return 如果签名为空返回true
-     */
     bool is_empty() const;
 
-    /**
-     * 清空签名
-     */
     void clear();
 
     bool is_valid() const;
 
-    /**
-     * 验证签名字符串是否有效
-     *
-     * @param sig 要验证的签名字符串
-     * @return 如果签名有效返回true
-     */
     static bool is_valid(mc::string_view sig);
 
-    /**
-     * 检查字符是否为完整类型
-     *
-     * @param c 要检查的字符
-     * @return 如果字符是完整类型返回true
-     */
     static bool is_complete_type(char c);
     static bool is_complete_type(type_code type);
 
-    /**
-     * 检查字符是否为基本类型
-     *
-     * @param c 要检查的字符
-     * @return 如果字符是基本类型返回true
-     */
     static bool is_basic_type(char c);
     static bool is_basic_type(type_code type);
 
-    /**
-     * 检查字符是否为容器类型
-     *
-     * @param c 要检查的字符
-     * @return 如果字符是容器类型返回true
-     */
     static bool is_container_type(char c);
     static bool is_container_type(type_code type);
 
-    /**
-     * 检查给定的签名是否表示一个单一的完整类型
-     *
-     * @param sig 要检查的签名
-     * @return 如果签名是单一完整类型返回true
-     */
     static bool is_single_complete_type(mc::string_view sig);
 
-    /**
-     * 获取一个完整类型的长度
-     *
-     * @param sig 签名字符串
-     * @param start_pos 起始位置
-     * @return 完整类型的长度
-     */
     static size_t get_complete_type_length(mc::string_view sig, size_t start_pos = 0);
 
-    /**
-     * 获取签名的所有完整类型
-     *
-     * @return 完整类型列表
-     */
     std::vector<signature> get_complete_types() const;
 
     void        validate() const;
@@ -277,35 +155,17 @@ private:
     mc::string m_sig;
 };
 
-/**
- * 输出流操作符重载
- */
 inline std::ostream& operator<<(std::ostream& os, const signature& sig)
 {
     return os << sig.str();
 }
 
-/**
- * 用于遍历DBus签名的迭代器
- */
 class MC_API signature_iterator {
 public:
     signature_iterator();
 
-    /**
-     * 构造函数
-     *
-     * @param sig 要遍历的签名
-     * @param pos 开始位置，默认为0
-     */
     signature_iterator(const signature& sig, size_t pos = 0);
 
-    /**
-     * 使用字符串构造迭代器
-     *
-     * @param sig 要遍历的签名
-     * @param pos 开始位置，默认为0
-     */
     signature_iterator(mc::string_view sig, size_t pos = 0);
     signature_iterator(std::string_view sig, size_t pos = 0) : signature_iterator(mc::string_view(sig), pos)
     {}
@@ -317,88 +177,28 @@ public:
     signature_iterator(const mc::string& sig, size_t pos = 0) : signature_iterator(mc::string_view(sig), pos)
     {}
 
-    /**
-     * 获取当前类型
-     *
-     * @return 当前类型的签名
-     */
     mc::string_view current_type() const;
 
-    /**
-     * 获取当前类型字符
-     *
-     * @return 当前类型字符
-     */
     char current_type_char() const;
 
-    /**
-     * 获取当前类型的数据类型枚举值
-     *
-     * @return 当前类型的数据类型
-     */
     type_code current_type_code() const;
 
-    /**
-     * 检查当前类型是否为容器类型
-     *
-     * @return 如果当前类型是容器类型返回true
-     */
     bool is_container() const;
 
-    /**
-     * 检查当前类型是否为基本类型
-     *
-     * @return 如果当前类型是基本类型返回true
-     */
     bool is_basic() const;
 
-    /**
-     * 检查当前位置是否有效
-     *
-     * @return 如果当前位置有效返回true
-     */
     bool is_valid() const;
 
-    /**
-     * 检查签名是否为空
-     *
-     * @return 如果签名为空返回true
-     */
     bool is_empty() const;
 
-    /**
-     * 检查迭代器是否已遍历到末尾
-     *
-     * @return 如果已遍历到末尾返回true
-     */
     bool at_end() const;
 
-    /**
-     * 前进到下一个类型
-     *
-     * @return 移动后的迭代器引用
-     */
     signature_iterator& next();
 
-    /**
-     * 如果当前类型是容器，获取其值类型的迭代器
-     *
-     * @return 值类型的迭代器
-     */
     signature_iterator get_content_iterator() const;
 
-    /**
-     * 如果当前类型是字典项，获取其键类型的迭代器
-     *
-     * @return 键类型的迭代器
-     */
     signature_iterator get_dict_key_iterator() const;
 
-    /**
-     * 如果当前类型是字典项，获取其值类型的迭代器
-     *
-     * @return 值类型的迭代器
-     */
     signature_iterator get_dict_value_iterator() const;
     mc::string_view    str() const;
     size_t             pos() const;

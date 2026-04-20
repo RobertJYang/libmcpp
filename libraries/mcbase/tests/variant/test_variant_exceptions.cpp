@@ -981,8 +981,10 @@ TEST_F(VariantEdgeCasesTest, VariantThrowHelperFunctions)
     EXPECT_THROW(mc::throw_extension_null_error(), mc::runtime_exception);
     EXPECT_THROW(mc::throw_container_overflow_error("array"), mc::overflow_exception);
 
-    EXPECT_EQ(mc::calculate_str_hash(""), 0U);
-    EXPECT_NE(mc::calculate_str_hash("hash"), 0U);
+    // calculate_str_hash 现在直接走 mc::string_hash（FNV-1a32），不再为空串特判
+    EXPECT_EQ(mc::calculate_str_hash(""), mc::string_hash(nullptr, 0));
+    EXPECT_EQ(mc::calculate_str_hash("hash"), mc::string_hash("hash", 4));
+    EXPECT_NE(mc::calculate_str_hash("hash"), mc::calculate_str_hash(""));
 }
 
 } // namespace test

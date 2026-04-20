@@ -28,6 +28,7 @@
 
 #include <mc/error.h>
 #include <mc/future.h>
+#include <mc/quark.h>
 #include <mc/reflect/base.h>
 #include <mc/reflect/signature_helper.h>
 #include <mc/result.h>
@@ -105,16 +106,15 @@ enum member_info_type {
 //------------------------------------------------------------------------------
 
 // 成员信息基类
-// @note 我们预留了 flags 用于存储自定义其他信息，比如 engine 模块的 MC_REFLECT_FLAG_PROPERTY_TPL 用于标记该属性是
-// property<T> 类型。 这里不做过多约定由用户自己决定如何使用，为了保证定义的 flags 位不冲突，要求必须用宏定义 FLAG，并以
-// MC_REFLECT_FLAG_* 作为开头命名，这样 通过简单的字符串查找就可以检查是否冲突
 struct member_info_base {
     mc::string_view name;
+    // 与 name 对应的 quark
+    mc::quark       name_quark{};
     uint32_t        flags;           // 扩展 flags，用于存储自定义其他信息
     uint32_t        base_offset = 0; // 如果该反射信息表示的是其他类的基类，则该值为基类相对于子类基址的偏移量，否则为 0
     uint64_t        data;            // 扩展数据，用于存储自定义其他信息
 
-    constexpr member_info_base(mc::string_view n) : name(n), flags(0), base_offset(0), data(0)
+    constexpr member_info_base(mc::string_view n) : name(n), name_quark(), flags(0), base_offset(0), data(0)
     {}
 
     virtual std::type_index   typeinfo() const  = 0;
@@ -440,7 +440,14 @@ struct computed_property_info : public property_type_info {
 
     member_info_base* clone() const override
     {
-        return new computed_property_info<C, Getter, Setter>(this->name, m_getter, m_setter);
+        auto* p        = new computed_property_info<C, Getter, Setter>(this->name, m_getter, m_setter);
+        p->name_quark  = this->name_quark.valid()
+                             ? this->name_quark
+                             : mc::quark{mc::detail::intern_trusted_literal(this->name)};
+        p->flags       = this->flags;
+        p->base_offset = this->base_offset;
+        p->data        = this->data;
+        return p;
     }
 
     const C& get_object(const C& obj) const noexcept
@@ -1026,7 +1033,6 @@ struct base_class_type_info : public member_info_base {
     virtual mc::string_view        get_signature() const = 0;
     virtual const struct_metadata& get_metadata() const  = 0;
 
-    // 使用反射信息基类直接获取基类属性值和调用基类方法，用于动态反射类型擦除后使用
     mc::variant  get_value(void* obj, mc::string_view name) const;
     void         set_value(void* obj, mc::string_view name, const mc::variant& value) const;
     mc::variant  invoke(void* obj, mc::string_view name, const mc::variants& args) const;
@@ -1117,7 +1123,14 @@ struct base_class_info : public base_class_info_base<C> {
 
     member_info_base* clone() const override
     {
-        return new base_class_info<C, BaseT>(this->name);
+        auto* p        = new base_class_info<C, BaseT>(this->name);
+        p->name_quark  = this->name_quark.valid()
+                             ? this->name_quark
+                             : mc::quark{mc::detail::intern_trusted_literal(this->name)};
+        p->flags       = this->flags;
+        p->base_offset = this->base_offset;
+        p->data        = this->data;
+        return p;
     }
 
     const BaseT& get_object(const C& obj) const noexcept
@@ -1155,42 +1168,7 @@ struct enum_member_info {
     constexpr enum_member_info& operator=(enum_member_info&&)      = default;
 };
 
-/**
- * @brief 用户可以通过特化此模板为自定义成员类型提供反射支持
- *
- * 示例：假设有信号成员类型 mc::signal<T>，用户可以这样特化：
- *
- * // 首先定义信号标签类型
- * namespace mc::reflect {
- * struct signal_tag {};
- * }
- *
- * // 然后定义信号信息类
- * template <typename C, typename Signature>
- * struct signal_info : public member_info_base {
- *     using tag_type = mc::reflect::signal_tag;
- *
- *     mc::signal<Signature> C::* signal_ptr;
- *
- *     constexpr signal_info(mc::string_view n, mc::signal<Signature> C::* ptr)
- *         : member_info_base(n), signal_ptr(ptr) {}
- *
- *     std::type_index typeinfo() const override { return typeid(mc::signal<Signature>); }
- *     mc::string_view type_name() const noexcept override { return "signal"; }
- * };
- *
- * // 最后特化 member_info_creator
- * template <typename T, typename Signature, typename BaseT>
- * struct member_info_creator<T, mc::signal<Signature>, BaseT, void> {
- *     static constexpr auto create(mc::signal<Signature> BaseT::* member_ptr, mc::string_view
- * name) { return std::tuple<signal_info<T, Signature>>{signal_info<T, Signature>{name,
- * member_ptr}};
- *     }
- * };
- *
- * // 然后可以使用 get_members_by_tag 提取信号成员
- * auto signals = reflector<T>::get_members_by_tag<mc::reflect::signal_tag>();
- */
+/** @brief 自定义成员类型的扩展点 */
 template <typename T, typename M, typename BaseT = T, typename = void>
 struct member_info_creator {
     static constexpr auto create(M BaseT::* member_ptr, mc::string_view name)
@@ -1199,7 +1177,7 @@ struct member_info_creator {
         MC_UNUSED(name);
         static_assert(is_property_v<M BaseT::*> || is_method_v<M BaseT::*>,
                       "不支持的成员类型，请为此类型创建特化版本的 member_info_creator");
-        return std::tuple<>(); // 永远不会执行到这里
+        return std::tuple<>();
     }
 };
 
