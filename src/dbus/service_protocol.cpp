@@ -16,7 +16,6 @@
 #include <mc/engine/service.h>
 #include <mc/error.h>
 #include <mc/exception.h>
-#include <mc/protocol.h>
 
 namespace mc::dbus {
 
@@ -29,6 +28,23 @@ namespace {
 
 constexpr std::string_view PROPERTIES_INTERFACE = "org.freedesktop.DBus.Properties";
 constexpr std::string_view PROPERTIES_CHANGED   = "PropertiesChanged";
+
+struct dispatch_state {
+    const mc::engine::service_operation*                              operation{nullptr};
+    mc::engine::abstract_object*                                      object{nullptr};
+    std::function<void(mc::engine::abstract_object&)>                 export_object;
+    std::function<void(std::string_view)>                             unexport_object;
+    std::function<void(const mc::engine::update_property_operation&)> publish_property_update;
+    sd_bus*                                                           bus{nullptr};
+    std::string                                                       endpoint;
+    std::string                                                       path;
+    std::string                                                       interface_name;
+    std::string                                                       method_name;
+    std::string                                                       signature;
+    mc::variants                                                      args;
+    mc::milliseconds                                                  timeout{mc::minutes(10)};
+    mc::variant                                                       result;
+};
 
 void send_reply_message(DBusConnection* raw_conn, message& reply)
 {
@@ -60,78 +76,7 @@ void write_method_result(message& reply, mc::string_view signature, const mc::va
     writer.write_variant(signature_iterator(signature), value, 0);
 }
 
-struct dispatch_layer : public mc::proto::protocol {
-    struct state {
-        const mc::engine::service_operation*                              operation{nullptr};
-        mc::engine::abstract_object*                                      object{nullptr};
-        std::function<void(mc::engine::abstract_object&)>                 export_object;
-        std::function<void(std::string_view)>                             unexport_object;
-        std::function<void(const mc::engine::update_property_operation&)> publish_property_update;
-        sd_bus*                                                           bus{nullptr};
-        std::string                                                       endpoint;
-        std::string                                                       path;
-        std::string                                                       interface_name;
-        std::string                                                       method_name;
-        std::string                                                       signature;
-        mc::variants                                                      args;
-        mc::milliseconds                                                  timeout{mc::minutes(10)};
-        mc::variant                                                       result;
-    };
-
-    template <typename Req>
-    static mc::proto::command on_push(Req& req)
-    {
-        auto& self = req.template packet<dispatch_layer>();
-        if (self.operation == nullptr) {
-            return req.fail("mc.dbus.service_protocol.invalid_request", "service operation is null");
-        }
-        if (self.bus == nullptr) {
-            return req.fail("mc.dbus.service_protocol.invalid_bus", "dbus bus is null");
-        }
-
-        switch (self.operation->kind) {
-            case mc::engine::service_operation_kind::register_object:
-                if (self.object == nullptr) {
-                    return req.fail("mc.dbus.service_protocol.invalid_object", "register_object target is null");
-                }
-                self.export_object(*self.object);
-                return req.complete();
-            case mc::engine::service_operation_kind::unregister_object: {
-                auto* unregister_object =
-                    std::get_if<mc::engine::unregister_object_operation>(&self.operation->payload);
-                if (unregister_object == nullptr) {
-                    return req.fail("mc.dbus.service_protocol.invalid_payload", "unregister_object payload is invalid");
-                }
-                self.unexport_object(unregister_object->path);
-                return req.complete();
-            }
-            case mc::engine::service_operation_kind::update_property: {
-                auto* update_property = std::get_if<mc::engine::update_property_operation>(&self.operation->payload);
-                if (update_property == nullptr) {
-                    return req.fail("mc.dbus.service_protocol.invalid_payload", "update_property payload is invalid");
-                }
-                self.publish_property_update(*update_property);
-                return req.complete();
-            }
-            case mc::engine::service_operation_kind::invoke_method: {
-                if (!prepare_invoke_request(self)) {
-                    return req.fail("mc.dbus.service_protocol.invalid_payload", "invoke_method payload is invalid");
-                }
-                return req.push_next();
-            }
-        }
-
-        return req.complete();
-    }
-
-    template <typename Req>
-    static mc::proto::command on_pop(Req& req)
-    {
-        return req.complete();
-    }
-};
-
-bool prepare_invoke_request(dispatch_layer::state& self)
+bool prepare_invoke_request(dispatch_state& self)
 {
     auto* invoke = std::get_if<mc::engine::invoke_method_operation>(&self.operation->payload);
     if (invoke == nullptr) {
@@ -148,62 +93,10 @@ bool prepare_invoke_request(dispatch_layer::state& self)
     return true;
 }
 
-static method_call_params make_method_call_params(const dispatch_layer::state& state)
+static method_call_params make_method_call_params(const dispatch_state& state)
 {
     return {state.endpoint, state.path, state.interface_name, state.method_name, state.signature, state.args};
 }
-
-struct shm_layer : public mc::proto::protocol {
-    template <typename Req>
-    static mc::proto::command on_push(Req& req)
-    {
-        auto& entry = req.template packet<dispatch_layer>();
-        if (entry.operation->kind != mc::engine::service_operation_kind::invoke_method) {
-            return req.complete();
-        }
-
-        auto* invoke = std::get_if<mc::engine::invoke_method_operation>(&entry.operation->payload);
-        if (invoke == nullptr) {
-            return req.fail("mc.dbus.service_protocol.invalid_payload", "invoke_method payload is invalid");
-        }
-
-        auto result = entry.bus->shm_timeout_call(entry.timeout, make_method_call_params(entry));
-        if (result.has_value()) {
-            entry.result = mc::variant(result.value());
-            return req.complete();
-        }
-
-        return req.push_next();
-    }
-
-    template <typename Req>
-    static mc::proto::command on_pop(Req& req)
-    {
-        return req.pop_next();
-    }
-};
-
-struct dbus_layer : public mc::proto::protocol {
-    template <typename Req>
-    static mc::proto::command on_push(Req& req)
-    {
-        auto& entry = req.template packet<dispatch_layer>();
-        if (entry.operation->kind != mc::engine::service_operation_kind::invoke_method) {
-            return req.complete();
-        }
-
-        entry.result = mc::variant(entry.bus->timeout_call(entry.timeout, make_method_call_params(entry)));
-        return req.complete();
-    }
-
-    template <typename Req>
-    static mc::proto::command on_pop(Req& req)
-    {
-        return req.pop_next();
-    }
-};
-
-using dbus_service_protocol_stack = mc::proto::stack_spec<dispatch_layer, shm_layer, dbus_layer>;
 
 } // namespace
 
@@ -269,12 +162,11 @@ mc::variant dbus_service_protocol::request(const mc::engine::service_operation& 
 mc::variant dbus_service_protocol::perform_request(const mc::engine::service_operation& operation,
                                                    mc::engine::abstract_object*         obj)
 {
-    mc::proto::request<dbus_service_protocol_stack> request;
-    auto&                                           entry = request.packet<dispatch_layer>();
-    entry.operation                                       = &operation;
-    entry.object                                          = obj;
-    entry.bus                                             = m_bus;
-    entry.export_object                                   = [this](mc::engine::abstract_object& target) {
+    dispatch_state entry;
+    entry.operation        = &operation;
+    entry.object           = obj;
+    entry.bus              = m_bus;
+    entry.export_object    = [this](mc::engine::abstract_object& target) {
         export_object(target);
     };
     entry.unexport_object = [this](std::string_view path) {
@@ -284,14 +176,44 @@ mc::variant dbus_service_protocol::perform_request(const mc::engine::service_ope
         publish_property_update(update_property);
     };
 
-    auto state = mc::proto::runtime<dbus_service_protocol_stack>::push(request);
-    if (state == mc::proto::execution_state::completed) {
-        return entry.result;
+    if (entry.operation == nullptr) {
+        MC_THROW(mc::invalid_arg_exception, "dbus service protocol request failed: service operation is null");
+    }
+    if (entry.bus == nullptr) {
+        MC_THROW(mc::invalid_op_exception, "dbus service protocol request failed: dbus bus is null");
     }
 
-    const auto& error = request.error();
-    MC_THROW(mc::exception, "dbus service protocol request failed: ${name}, ${message}",
-             ("name", error.name)("message", error.message));
+    switch (entry.operation->kind) {
+        case mc::engine::service_operation_kind::register_object:
+            MC_ASSERT_THROW(entry.object != nullptr, mc::invalid_arg_exception, "register_object target is null");
+            entry.export_object(*entry.object);
+            return entry.result;
+        case mc::engine::service_operation_kind::unregister_object: {
+            auto* unregister_object = std::get_if<mc::engine::unregister_object_operation>(&entry.operation->payload);
+            MC_ASSERT_THROW(unregister_object != nullptr, mc::invalid_arg_exception,
+                            "unregister_object payload is invalid");
+            entry.unexport_object(unregister_object->path);
+            return entry.result;
+        }
+        case mc::engine::service_operation_kind::update_property: {
+            auto* update_property = std::get_if<mc::engine::update_property_operation>(&entry.operation->payload);
+            MC_ASSERT_THROW(update_property != nullptr, mc::invalid_arg_exception, "update_property payload is invalid");
+            entry.publish_property_update(*update_property);
+            return entry.result;
+        }
+        case mc::engine::service_operation_kind::invoke_method:
+            MC_ASSERT_THROW(prepare_invoke_request(entry), mc::invalid_arg_exception,
+                            "invoke_method payload is invalid");
+            if (auto result = entry.bus->shm_timeout_call(entry.timeout, make_method_call_params(entry));
+                result.has_value()) {
+                entry.result = mc::variant(result.value());
+            } else {
+                entry.result = mc::variant(entry.bus->timeout_call(entry.timeout, make_method_call_params(entry)));
+            }
+            return entry.result;
+    }
+
+    return entry.result;
 }
 
 mc::result<mc::variant> dbus_service_protocol::async_request(const mc::engine::service_operation& operation)

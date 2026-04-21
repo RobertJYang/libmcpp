@@ -1,4 +1,4 @@
 protocol_src_files = [
-    'protocol/common.cpp',
-    'protocol/runtime.cpp',
+    'protocol/protocol.cpp',
+    'protocol/request.cpp',
 ]

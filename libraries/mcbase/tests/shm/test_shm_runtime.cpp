@@ -95,10 +95,9 @@ TEST_F(shm_runtime_test, runtime_opens_queue_and_recovers_stale_endpoint)
     ASSERT_TRUE(queue.is_valid());
     ASSERT_TRUE(queue.send_message(endpoint->endpoint_id, endpoint->instance_id, "hello"));
 
-    auto received = queue.try_receive_message([&](std::uint32_t writer_id, std::uint64_t instance_id) {
-        return runtime.writer_instance_is_current(writer_id, instance_id);
-    });
+    auto received = queue.try_receive_message();
     ASSERT_TRUE(received.has_value());
+    EXPECT_TRUE(runtime.writer_instance_is_current(received->writer_id, received->writer_instance_id));
     EXPECT_EQ(received->payload, "hello");
 
     std::this_thread::sleep_for(std::chrono::milliseconds(5));

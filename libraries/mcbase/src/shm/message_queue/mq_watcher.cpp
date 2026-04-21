@@ -16,19 +16,23 @@
 
 namespace mc::shm::detail {
 
-mq_watcher::mq_watcher(mc::runtime::any_executor executor, mq_queue* queue, mq_queue_event_handler handler)
-    : m_queue(queue), m_handler(std::move(handler)), m_running(false)
+mq_watcher::mq_watcher(mc::runtime::any_executor executor, mq_queue* queue, mq_queue_event_handler handler,
+                       source watcher_source)
+    : m_queue(queue), m_handler(std::move(handler)), m_running(false), m_source(watcher_source)
 {
-    if (queue == nullptr || !queue->is_valid() || queue->m_impl == nullptr ||
-        !queue->m_impl->data_notifier.is_valid() || queue->m_impl->data_notifier.m_impl == nullptr) {
+    auto* notifier =
+        queue == nullptr || queue->m_impl == nullptr
+            ? nullptr
+            : (watcher_source == source::space ? &queue->m_impl->space_notifier : &queue->m_impl->data_notifier);
+    if (queue == nullptr || !queue->is_valid() || notifier == nullptr || !notifier->is_valid() || notifier->m_impl == nullptr) {
         return;
     }
 
 #ifndef _WIN32
     m_waiter = std::make_unique<mc::io::native_waiter>(
-        std::move(executor), mc::io::native_waiter::from_descriptor(queue->m_impl->data_notifier.native_handle()));
+        std::move(executor), mc::io::native_waiter::from_descriptor(notifier->native_handle()));
 #else
-    const auto duplicated = duplicate_wait_handle(queue->m_impl->data_notifier.m_impl->handle);
+    const auto duplicated = duplicate_wait_handle(notifier->m_impl->handle);
     if (duplicated != nullptr) {
         m_waiter = std::make_unique<mc::io::native_waiter>(std::move(executor),
                                                            mc::io::native_waiter::from_waitable_handle(duplicated));
@@ -47,9 +51,17 @@ void mq_watcher::start()
         return;
     }
 
+    auto* notifier =
+        m_queue->m_impl == nullptr
+            ? nullptr
+            : (m_source == source::space ? &m_queue->m_impl->space_notifier : &m_queue->m_impl->data_notifier);
+    if (notifier == nullptr) {
+        return;
+    }
+
     m_running = true;
     arm_wait();
-    m_queue->m_impl->data_notifier.drain();
+    notifier->drain();
     if (m_handler) {
         m_handler();
     }
@@ -82,7 +94,14 @@ void mq_watcher::arm_wait()
             return;
         }
 
-        self->m_queue->m_impl->data_notifier.drain();
+        auto* notifier =
+            self->m_queue->m_impl == nullptr
+                ? nullptr
+                : (self->m_source == source::space ? &self->m_queue->m_impl->space_notifier
+                                                   : &self->m_queue->m_impl->data_notifier);
+        if (notifier != nullptr) {
+            notifier->drain();
+        }
         if (self->m_handler) {
             self->m_handler();
         }

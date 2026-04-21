@@ -14,7 +14,6 @@
 #include <mc/engine.h>
 #include <mc/exception.h>
 #include <mc/format.h>
-#include <mc/protocol.h>
 #include <mc/singleton.h>
 #include <mc/string.h>
 #include <test_utilities/engine_test_base.h>
@@ -34,16 +33,6 @@ struct test_service : public mc::engine::service {
     test_service() : mc::engine::service("org.openubmc.test_service")
     {}
 };
-
-struct protocol_binding_test_layer : public mc::proto::protocol {
-    template <typename Req>
-    static mc::proto::command on_push(Req& req)
-    {
-        return req.complete();
-    }
-};
-
-using service_protocol_test_stack = mc::proto::stack_spec<protocol_binding_test_layer>;
 
 class test_service_protocol : public mc::engine::service_protocol {
 public:
@@ -79,9 +68,6 @@ public:
     mc::variant request(const mc::engine::service_operation& operation) override
     {
         last_operation = operation;
-        mc::proto::request<service_protocol_test_stack> request;
-        auto state = mc::proto::runtime<service_protocol_test_stack>::push(request);
-        MC_ASSERT(state == mc::proto::execution_state::completed, "service protocol test request should complete");
         return static_cast<int32_t>(operation.kind);
     }
 

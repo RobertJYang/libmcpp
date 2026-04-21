@@ -13,19 +13,15 @@
 #ifndef MC_PROTOCOL_COMMON_H
 #define MC_PROTOCOL_COMMON_H
 
+#include <mc/common.h>
 #include <mc/string.h>
 #include <mc/string_view.h>
 
-#include <cstddef>
 #include <cstdint>
 
 namespace mc::proto {
 
-class instance;
-
-namespace detail {
-class request_core;
-}
+class protocol;
 
 enum class flow_direction : uint8_t {
     push = 0,
@@ -40,14 +36,6 @@ enum class execution_state : uint8_t {
     failed,
 };
 
-enum class step_kind : uint8_t {
-    push_next = 0,
-    pop_next,
-    suspend,
-    complete,
-    fail,
-};
-
 struct protocol_error {
     mc::string name;
     mc::string message;
@@ -59,53 +47,49 @@ struct protocol_error {
     }
 };
 
-struct command {
-    step_kind kind{step_kind::push_next};
-};
-
-class MC_API protocol {
+class protocol_list_view {
 public:
-    virtual ~protocol();
+    using value_type = protocol*;
+    using iterator   = protocol* const*;
 
-    void set_parent(protocol* parent) noexcept
-    {
-        m_parent = parent;
-    }
+    constexpr protocol_list_view() noexcept = default;
 
-    [[nodiscard]] protocol* parent() const noexcept
-    {
-        return m_parent;
-    }
-
-    virtual bool on_continue(detail::request_core& request) noexcept
-    {
-        return m_parent != nullptr ? m_parent->on_continue(request) : false;
-    }
-
-    virtual bool on_failed(detail::request_core& request) noexcept
-    {
-        return m_parent != nullptr ? m_parent->on_failed(request) : false;
-    }
-
-    virtual void on_start(instance&)
+    constexpr protocol_list_view(protocol* const* data, std::size_t size) noexcept : m_data(data), m_size(size)
     {}
 
-    virtual void on_stop(instance&)
-    {}
-
-    void set_layer_index(std::size_t index) noexcept
+    constexpr iterator begin() const noexcept
     {
-        m_layer_index = index;
+        return m_data;
     }
 
-    [[nodiscard]] std::size_t layer_index() const noexcept
+    constexpr iterator end() const noexcept
     {
-        return m_layer_index;
+        return m_data + m_size;
+    }
+
+    constexpr protocol* operator[](std::size_t index) const noexcept
+    {
+        return m_data[index];
+    }
+
+    constexpr protocol* const* data() const noexcept
+    {
+        return m_data;
+    }
+
+    constexpr std::size_t size() const noexcept
+    {
+        return m_size;
+    }
+
+    constexpr bool empty() const noexcept
+    {
+        return m_size == 0;
     }
 
 private:
-    protocol*   m_parent{nullptr};
-    std::size_t m_layer_index{0};
+    protocol* const* m_data{nullptr};
+    std::size_t      m_size{0};
 };
 
 } // namespace mc::proto

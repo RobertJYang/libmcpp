@@ -71,9 +71,12 @@ meson.override_dependency('mcengine', mcengine_dep)
 if build_tests
   mcengine_test_sources = files(
     'tests/test_error_engine.cpp',
+    'tests/test_engine_proto_node.cpp',
+    'tests/test_engine_proto_protocol2_stack.cpp',
     'tests/test_interface.cpp',
     'tests/test_interface_inherit.cpp',
     'tests/test_object.cpp',
+    'tests/test_standard_message_protocol.cpp',
     'tests/test_shm_engine_business.cpp',
     'tests/test_shm_engine_lifecycle.cpp',
     'tests/test_shm_object_journal.cpp',
@@ -88,6 +91,7 @@ if build_tests
     'tests/test_context.cpp',
     'tests/test_path.cpp',
     'tests/test_service_utils.cpp',
+    'tests/test_service_protocol2.cpp',
     'tests/test_path_iterator.cpp',
     'tests/test_async_invoke.cpp',
     'tests/test_result.cpp',

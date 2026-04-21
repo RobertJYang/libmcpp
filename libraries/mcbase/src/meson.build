@@ -10,6 +10,7 @@ subdir('protocol')
 subdir('quark')
 subdir('runtime')
 subdir('shm')
+subdir('metric')
 subdir('string')
 subdir('variant')
 subdir('db')
@@ -44,6 +45,7 @@ base_src_files = [
   quark_src_files,
   runtime_src_files,
   shm_src_files,
+  metric_src_files,
   string_src_files,
   variant_src_files,
   db_src_files,

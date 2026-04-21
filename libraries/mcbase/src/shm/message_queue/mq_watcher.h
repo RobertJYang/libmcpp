@@ -25,7 +25,13 @@ using mq_queue_event_handler = mc::small_function<void(), 64>;
 
 class mq_watcher : public std::enable_shared_from_this<mq_watcher> {
 public:
-    mq_watcher(mc::runtime::any_executor executor, mq_queue* queue, mq_queue_event_handler handler);
+    enum class source : std::uint8_t {
+        data  = 0,
+        space = 1,
+    };
+
+    mq_watcher(mc::runtime::any_executor executor, mq_queue* queue, mq_queue_event_handler handler,
+               source watcher_source = source::data);
     ~mq_watcher();
 
     mq_watcher(const mq_watcher&)            = delete;
@@ -40,6 +46,7 @@ private:
     mq_queue*                              m_queue;
     mq_queue_event_handler                 m_handler;
     bool                                   m_running;
+    source                                 m_source;
     std::unique_ptr<mc::io::native_waiter> m_waiter;
 };
 

@@ -27,6 +27,13 @@ class engine;
 struct service_impl;
 class abstract_object;
 class service_object_table;
+} // namespace mc::engine
+
+namespace mc::proto {
+class protocol;
+}
+
+namespace mc::engine {
 
 class MC_API service : public mc::object {
 public:
@@ -78,17 +85,22 @@ public:
     service_object_table& get_object_table() const;
     void                  set_protocol(service_protocol_ptr protocol);
     service_protocol_ptr  get_protocol() const;
-    mc::variant           request(const service_operation& operation) const;
+
+    // 把 protocol 根节点作为本 service 与外界通信的唯一通道。
+    // 根节点必须是 mc::engine::engine_proto；service 会把自身 dispatcher
+    // 注入进去，入站请求经 engine_proto 解码后直接分发到 object 体系。
+    void                    set_proto(mc::proto::protocol* proto);
+    mc::proto::protocol*    get_proto() const;
+    mc::variant             request(const service_operation& operation) const;
     mc::result<mc::variant> async_request(const service_operation& operation) const;
     mc::variant             timeout_call(mc::milliseconds timeout, mc::string_view endpoint, mc::string_view path,
-                                         mc::string_view interface_name, mc::string_view method_name,
-                                         mc::string_view signature, mc::variants args = {}, mc::dict context = {}) const;
+                                         mc::string_view interface_name, mc::string_view method_name, mc::string_view signature,
+                                         mc::variants args = {}, mc::dict context = {}) const;
     mc::result<mc::variant> async_timeout_call(mc::milliseconds timeout, mc::string_view endpoint, mc::string_view path,
                                                mc::string_view interface_name, mc::string_view method_name,
                                                mc::string_view signature, mc::variants args = {},
                                                mc::dict context = {}) const;
-    uint64_t                add_match(mc::dbus::match_rule& rule,
-                                      std::function<void(mc::dbus::message&)>&& cb) const;
+    uint64_t                add_match(mc::dbus::match_rule& rule, std::function<void(mc::dbus::message&)>&& cb) const;
     void                    remove_match(uint64_t id) const;
 
     static mc::string resolve_object_path(mc::string_view path_pattern, const abstract_object& obj);

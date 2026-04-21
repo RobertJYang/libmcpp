@@ -15,7 +15,6 @@
 
 #include <cstdint>
 
-#include <mc/small_function.h>
 #include <mc/string.h>
 #include <mc/string_view.h>
 
@@ -34,9 +33,6 @@ struct mq_queue_message {
     std::uint8_t  priority           = 0;
     mc::string    payload;
 };
-
-using mq_queue_writer_validator =
-    mc::small_function<bool(std::uint32_t writer_id, std::uint64_t writer_instance_id), 48>;
 
 } // namespace mc::shm
 

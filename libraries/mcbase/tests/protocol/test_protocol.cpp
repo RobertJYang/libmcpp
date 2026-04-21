@@ -13,922 +13,349 @@
 #include <gtest/gtest.h>
 
 #include <mc/protocol.h>
-#include <mc/protocol/detail/runtime_core.h>
 #include <mc/runtime.h>
-#include <mc/time.h>
 #include <test_utilities/base.h>
 
 #include <chrono>
 #include <future>
-#include <vector>
 
 namespace {
 
-struct routing_proto;
-struct codec_proto;
-struct inbound_transport_proto;
+using namespace std::chrono_literals;
 
-struct application_proto : public mc::proto::protocol {
-    struct packet {
-        int push_count{0};
-        int pop_count{0};
-        int observed_code{0};
-    };
-
-    template <typename Req>
-    static mc::proto::command on_push(Req& req)
-    {
-        auto& self = req.template packet<application_proto>();
-        ++self.push_count;
-        req.template packet<routing_proto>().route_code = 41;
-        return req.push_next();
-    }
-
-    template <typename Req>
-    static mc::proto::command on_pop(Req& req)
-    {
-        auto& self = req.template packet<application_proto>();
-        ++self.pop_count;
-        self.observed_code = req.template packet<routing_proto>().decoded_code;
-        return req.complete();
-    }
+struct route_hint_context : public mc::proto::proto_context {
+    int branch{0};
 };
 
-struct routing_proto : public mc::proto::protocol {
-    struct packet {
-        int route_code{0};
-        int decoded_code{0};
-    };
-
-    template <typename Req>
-    static mc::proto::command on_push(Req& req)
-    {
-        req.buffer().flags = static_cast<uint32_t>(req.template packet<routing_proto>().route_code);
-        return req.push_next();
-    }
-
-    template <typename Req>
-    static mc::proto::command on_pop(Req& req)
-    {
-        req.template packet<routing_proto>().decoded_code = req.template packet<codec_proto>().decoded_code;
-        return req.pop_next();
-    }
+struct shared_context : public mc::proto::proto_context {
+    int value{0};
 };
 
-struct codec_proto : public mc::proto::protocol {
-    struct packet {
-        int encoded_code{0};
-        int decoded_code{0};
-    };
-
-    template <typename Req>
-    static mc::proto::command on_push(Req& req)
-    {
-        auto& self        = req.template packet<codec_proto>();
-        auto& buffer      = req.buffer();
-        self.encoded_code = static_cast<int>(buffer.flags) + 1;
-        buffer.flags      = static_cast<uint32_t>(self.encoded_code);
-        return req.push_next();
-    }
-
-    template <typename Req>
-    static mc::proto::command on_pop(Req& req)
-    {
-        req.template packet<codec_proto>().decoded_code = static_cast<int>(req.buffer().flags);
-        return req.pop_next();
-    }
+struct right_leaf_state : public mc::proto::proto_context {
+    int push_hits{0};
+    int pop_hits{0};
 };
 
-struct transport_proto : public mc::proto::protocol {
-    struct packet {
-        int send_count{0};
-    };
-
-    template <typename Req>
-    static mc::proto::command on_push(Req& req)
-    {
-        ++req.template packet<transport_proto>().send_count;
-        req.buffer().flags += 100;
-        return req.pop_next();
-    }
+struct terminal_state : public mc::proto::proto_context {
+    int hits{0};
 };
 
-using roundtrip_proto = mc::proto::stack<application_proto, routing_proto, codec_proto, transport_proto>;
+class right_leaf_protocol;
 
-class copied_descriptor_instance : public mc::proto::instance {
+class root_protocol : public mc::proto::protocol {
 public:
-    explicit copied_descriptor_instance(const mc::proto::detail::stack_descriptor& descriptor)
-        : m_descriptor(descriptor)
-    {}
+    mc::proto::protocol* m_right{nullptr};
+    int                  m_pop_hits{0};
 
 protected:
-    const mc::proto::detail::stack_descriptor& stack_descriptor() const noexcept override
+    mc::proto::execution_state on_push(mc::proto::proto_request& req) override
     {
-        return m_descriptor;
-    }
-
-    void* protocol_storage() noexcept override
-    {
-        return nullptr;
-    }
-
-    const void* protocol_storage() const noexcept override
-    {
-        return nullptr;
-    }
-
-    mc::shared_ptr<mc::proto::detail::request_session> make_session() override
-    {
-        return nullptr;
-    }
-
-    void* unsafe_protocol(const std::type_info&) noexcept override
-    {
-        return nullptr;
-    }
-
-    const void* unsafe_protocol(const std::type_info&) const noexcept override
-    {
-        return nullptr;
-    }
-
-private:
-    mc::proto::detail::stack_descriptor m_descriptor;
-};
-
-struct async_proto : public mc::proto::protocol {
-    struct packet {
-        int  push_count{0};
-        bool ready{false};
-    };
-
-    template <typename Req>
-    static mc::proto::command on_push(Req& req)
-    {
-        auto& self = req.template packet<async_proto>();
-        ++self.push_count;
-        if (!self.ready) {
-            self.ready = true;
-            return req.suspend();
+        const auto* hint = req.find_context<route_hint_context>();
+        if (hint != nullptr && hint->branch == 2 && m_right != nullptr) {
+            return push_to(req, *m_right);
         }
-        return req.push_next();
+        return push_next(req);
+    }
+
+    mc::proto::execution_state on_pop(mc::proto::proto_request& req) override
+    {
+        ++m_pop_hits;
+        req.buffer().flags |= 0x80u;
+        return push_next(req);
     }
 };
 
-struct terminal_proto : public mc::proto::protocol {
-    struct packet {
-        int enter_count{0};
-    };
+class left_leaf_protocol : public mc::proto::protocol {
+public:
+    int m_push_hits{0};
+    int m_pop_hits{0};
 
-    template <typename Req>
-    static mc::proto::command on_push(Req& req)
+protected:
+    mc::proto::execution_state on_push(mc::proto::proto_request& req) override
     {
-        ++req.template packet<terminal_proto>().enter_count;
-        return req.complete();
-    }
-};
-
-using suspend_proto = mc::proto::stack<async_proto, terminal_proto>;
-
-struct unsafe_source_proto : public mc::proto::protocol {
-    struct packet {
-        int value{77};
-    };
-};
-
-struct unsafe_probe_proto : public mc::proto::protocol {
-    struct packet {
-        int observed_value{0};
-    };
-
-    template <typename Req>
-    static mc::proto::command on_push(Req& req)
-    {
-        auto* source = static_cast<unsafe_source_proto::packet*>(req.unsafe_layer_ptr(
-            mc::proto::detail::layer_index<unsafe_source_proto, unsafe_source_proto, unsafe_probe_proto>::value));
-        req.template packet<unsafe_probe_proto>().observed_value = source != nullptr ? source->value : -1;
-        return req.complete();
-    }
-};
-
-using unsafe_proto = mc::proto::stack<unsafe_source_proto, unsafe_probe_proto>;
-
-struct inbound_app_proto : public mc::proto::protocol {
-    struct packet {
-        int decoded_value{0};
-    };
-
-    template <typename Req>
-    static mc::proto::command on_pop(Req& req)
-    {
-        req.template packet<inbound_app_proto>().decoded_value =
-            req.template packet<inbound_transport_proto>().wire_value;
-        return req.complete();
-    }
-};
-
-struct inbound_transport_proto : public mc::proto::protocol {
-    struct packet {
-        int wire_value{0};
-    };
-
-    template <typename Req>
-    static mc::proto::command on_pop(Req& req)
-    {
-        req.template packet<inbound_transport_proto>().wire_value = static_cast<int>(req.buffer().flags) + 5;
-        return req.pop_next();
-    }
-};
-
-using inbound_proto = mc::proto::stack<inbound_app_proto, inbound_transport_proto>;
-
-struct notify_top_proto : public mc::proto::protocol {
-    int done_hits{0};
-    int fail_hits{0};
-
-    bool on_continue(mc::proto::detail::request_core&) noexcept override
-    {
-        ++done_hits;
-        return true;
-    }
-
-    bool on_failed(mc::proto::detail::request_core&) noexcept override
-    {
-        ++fail_hits;
-        return true;
-    }
-};
-
-struct notify_mid_proto : public mc::proto::protocol {};
-struct notify_leaf_proto : public mc::proto::protocol {};
-
-using notify_proto = mc::proto::stack<notify_top_proto, notify_mid_proto, notify_leaf_proto>;
-
-struct inbound_handler {
-    int           call_count{0};
-    std::uint32_t last_flags{0};
-
-    void on_message(const mc::proto::packet& packet)
-    {
-        ++call_count;
-        last_flags = packet.flags;
-    }
-};
-
-struct application_dispatch_proto : public mc::proto::protocol {
-    struct packet {
-        inbound_handler* handler{nullptr};
-    };
-
-    template <typename Req>
-    static mc::proto::command on_pop(Req& req)
-    {
-        auto& self = req.template packet<application_dispatch_proto>();
-        EXPECT_NE(self.handler, nullptr);
-        self.handler->on_message(req.buffer());
-        return req.complete();
-    }
-};
-
-struct checksum_proto : public mc::proto::protocol {
-    struct packet {
-        int checksum_hits{0};
-    };
-
-    template <typename Req>
-    static mc::proto::command on_pop(Req& req)
-    {
-        ++req.template packet<checksum_proto>().checksum_hits;
-        req.buffer().flags |= 0x10u;
-        return req.pop_next();
-    }
-};
-
-struct example_transport_proto : public mc::proto::protocol {
-    struct packet {
-        int receive_hits{0};
-    };
-
-    template <typename Req>
-    static mc::proto::command on_pop(Req& req)
-    {
-        ++req.template packet<example_transport_proto>().receive_hits;
+        ++m_push_hits;
         req.buffer().flags |= 0x01u;
-        return req.pop_next();
+        return complete(req);
     }
-};
 
-using inbound_handler_proto = mc::proto::stack<application_dispatch_proto, checksum_proto, example_transport_proto>;
-
-struct failing_proto : public mc::proto::protocol {
-    struct packet {
-        int hit_count{0};
-    };
-
-    template <typename Req>
-    static mc::proto::command on_push(Req& req)
+    mc::proto::execution_state on_pop(mc::proto::proto_request& req) override
     {
-        ++req.template packet<failing_proto>().hit_count;
-        return req.fail("missing_route", "route lookup failed");
+        ++m_pop_hits;
+        return pop_next(req);
     }
 };
 
-using failing_proto_stack = mc::proto::stack<failing_proto>;
+class right_leaf_protocol : public mc::proto::protocol {
+public:
+    int m_push_hits{0};
+    int m_pop_hits{0};
 
-struct context_source_protocol : public mc::proto::protocol {
-    struct context {
-        int base_code{0};
-    };
-
-    template <typename Req>
-    static mc::proto::command on_push(Req& req)
+protected:
+    mc::proto::execution_state on_push(mc::proto::proto_request& req) override
     {
-        req.template context<context_source_protocol>().base_code = 21;
-        return req.push_next();
+        ++m_push_hits;
+        auto& ctx = ensure_context<right_leaf_state>(req);
+        ++ctx.push_hits;
+        req.buffer().flags |= 0x20u;
+        return complete(req);
     }
-};
 
-struct context_sink_protocol : public mc::proto::protocol {
-    struct packet {
-        int observed_code{0};
-    };
-
-    struct context {
-        bool touched{false};
-    };
-
-    template <typename Req>
-    static mc::proto::command on_push(Req& req)
+    mc::proto::execution_state on_pop(mc::proto::proto_request& req) override
     {
-        auto& self         = req.template packet<context_sink_protocol>();
-        self.observed_code = req.template context<context_source_protocol>().base_code +
-                             (req.template context<context_sink_protocol>().touched ? 1 : 0);
-        return req.complete();
+        ++m_pop_hits;
+        auto& ctx = ensure_context<right_leaf_state>(req);
+        ++ctx.pop_hits;
+        req.buffer().flags |= 0x08u;
+        return pop_next(req);
     }
 };
 
-using context_proto = mc::proto::stack<context_source_protocol, context_sink_protocol>;
-
-struct member_suspend_protocol : public mc::proto::protocol {
-    struct packet {
-        int observed_hits{0};
-    };
-
+class suspend_protocol : public mc::proto::protocol {
+public:
     int m_hits{0};
 
-    template <typename Req>
-    mc::proto::command on_push(Req& req)
+protected:
+    mc::proto::execution_state on_push(mc::proto::proto_request& req) override
     {
         ++m_hits;
-        req.template packet<member_suspend_protocol>().observed_hits = m_hits;
         if (m_hits == 1) {
-            return req.suspend();
+            return suspend(req);
         }
-        return req.complete();
+        return push_next(req);
+    }
+
+    mc::proto::execution_state on_pop(mc::proto::proto_request& req) override
+    {
+        (void)req;
+        return fail(req, "unexpected_pop", "suspend_protocol does not handle pop");
     }
 };
 
-using member_suspend_proto = mc::proto::stack<member_suspend_protocol>;
-
-struct request_view_proto : public mc::proto::protocol {
-    struct packet {
-        int observed_hits{0};
-    };
-
-    struct context {
-        int base_code{11};
-    };
-
-    using request_type = mc::proto::request_view<packet, context>;
-
-    static mc::proto::command on_push(request_type& req)
+class terminal_protocol : public mc::proto::protocol {
+protected:
+    mc::proto::execution_state on_push(mc::proto::proto_request& req) override
     {
-        ++req.packet().observed_hits;
-        req.buffer().flags = static_cast<std::uint32_t>(req.context().base_code + req.packet().observed_hits);
-        return req.complete();
+        auto& ctx = ensure_context<terminal_state>(req);
+        ++ctx.hits;
+        req.buffer().flags |= 0x40u;
+        return complete(req);
+    }
+
+    mc::proto::execution_state on_pop(mc::proto::proto_request& req) override
+    {
+        (void)req;
+        return fail(req, "unexpected_pop", "terminal_protocol does not handle pop");
     }
 };
 
-using request_view_stack = mc::proto::stack<request_view_proto>;
+class pull_child_protocol : public mc::proto::protocol {
+public:
+    int        m_pop_hits{0};
+    mc::string m_first_payload{"part-a"};
+    mc::string m_second_payload{"part-b"};
 
-struct dual_signature_proto : public mc::proto::protocol {
-    struct packet {
-        int typed_hits{0};
-        int template_hits{0};
-    };
-
-    struct context {
-        int marker{0};
-    };
-
-    using request_type = mc::proto::request_view<packet, context>;
-
-    static mc::proto::command on_push(request_type& req)
+protected:
+    mc::proto::execution_state on_push(mc::proto::proto_request& req) override
     {
-        ++req.packet().typed_hits;
-        req.context().marker = 19;
-        return req.complete();
+        (void)req;
+        return fail(req, "unexpected_push", "pull_child_protocol does not handle push");
     }
 
-    template <typename Req>
-    static mc::proto::command on_push(Req& req)
+    mc::proto::execution_state on_pop(mc::proto::proto_request& req) override
     {
-        ++req.template packet<dual_signature_proto>().template_hits;
-        return req.complete();
-    }
-};
-
-using dual_signature_stack = mc::proto::stack<dual_signature_proto>;
-
-struct request_view_head_proto : public mc::proto::protocol {
-    struct packet {
-        int push_hits{0};
-    };
-
-    struct context {
-        int next_code{31};
-    };
-
-    using request_type = mc::proto::request_view<packet, context>;
-
-    static mc::proto::command on_push(request_type& req)
-    {
-        ++req.packet().push_hits;
-        req.buffer().flags = static_cast<std::uint32_t>(req.context().next_code);
-        return req.push_next();
+        ++m_pop_hits;
+        req.buffer().clear();
+        if (m_pop_hits == 1) {
+            req.buffer().append_payload(m_first_payload.data(), m_first_payload.size());
+            return pop_next(req);
+        }
+        if (m_pop_hits == 2) {
+            req.buffer().append_payload(m_second_payload.data(), m_second_payload.size());
+            return pop_next(req);
+        }
+        return suspend(req);
     }
 };
 
-using mixed_view_stack = mc::proto::stack<request_view_head_proto, transport_proto>;
+class pull_parent_protocol : public mc::proto::protocol {
+protected:
+    mc::proto::execution_state on_push(mc::proto::proto_request& req) override
+    {
+        (void)req;
+        return fail(req, "unexpected_push", "pull_parent_protocol does not handle push");
+    }
 
-} // namespace
+    mc::proto::execution_state on_pop(mc::proto::proto_request& req) override
+    {
+        const auto& buffer = req.buffer();
+        const auto  base   = buffer.payload_base();
+        const auto  size   = buffer.length() >= base ? buffer.length() - base : 0U;
+        if (size == 0U) {
+            return pull_next(req);
+        }
+
+        const auto payload = mc::string(reinterpret_cast<const char*>(buffer.data() + base), size);
+        if (payload == "part-a") {
+            return pull_next(req);
+        }
+        if (payload == "part-b") {
+            req.buffer().flags |= 0x10u;
+            return complete(req);
+        }
+        return fail(req, "unexpected_payload", "pull_parent_protocol received unexpected payload");
+    }
+};
 
 class protocol_async_timer_test : public mc::test::TestWithRuntime {};
 
-TEST(protocol, umbrella_header_push_pop_roundtrip)
+TEST(protocol, pop_response_returns_along_recorded_branch)
 {
-    roundtrip_proto::request request;
+    root_protocol       root;
+    left_leaf_protocol  left;
+    right_leaf_protocol right;
 
-    auto& app       = request.packet<application_proto>();
-    auto& route     = request.packet<routing_proto>();
-    auto& codec     = request.packet<codec_proto>();
-    auto& transport = request.packet<transport_proto>();
+    root.add_child(left);
+    root.add_child(right);
+    root.m_right = &right;
 
-    auto result = mc::proto::runtime<roundtrip_proto::spec_type>::push(request);
+    mc::proto::proto_request req;
 
-    EXPECT_EQ(result, mc::proto::execution_state::completed);
-    EXPECT_EQ(app.push_count, 1);
-    EXPECT_EQ(app.pop_count, 1);
-    EXPECT_EQ(app.observed_code, 142);
-    EXPECT_EQ(route.route_code, 41);
-    EXPECT_EQ(route.decoded_code, 142);
-    EXPECT_EQ(codec.encoded_code, 42);
-    EXPECT_EQ(codec.decoded_code, 142);
-    EXPECT_EQ(transport.send_count, 1);
+    const auto state = right.pop(req);
+
+    EXPECT_EQ(state, mc::proto::execution_state::completed);
+    EXPECT_EQ(root.m_pop_hits, 1);
+    EXPECT_EQ(left.m_push_hits, 0);
+    EXPECT_EQ(right.m_pop_hits, 1);
+    EXPECT_EQ(right.m_push_hits, 1);
+
+    auto* leaf_ctx = req.find_context<right_leaf_state>(&right);
+    ASSERT_NE(leaf_ctx, nullptr);
+    EXPECT_EQ(leaf_ctx->pop_hits, 1);
+    EXPECT_EQ(leaf_ctx->push_hits, 1);
+    EXPECT_EQ(req.buffer().flags, 0xA8u);
 }
 
-TEST(protocol, make_instance_push_roundtrip)
+TEST(protocol, context_lookup_supports_owner_scoped_search)
 {
-    mc::proto_ptr proto = roundtrip_proto::create();
-    ASSERT_TRUE(proto != nullptr);
+    root_protocol       root;
+    right_leaf_protocol right;
 
-    auto req = roundtrip_proto::make_request();
+    root.add_child(right);
+    root.m_right = &right;
 
-    auto& app       = req.packet<application_proto>();
-    auto& route     = req.packet<routing_proto>();
-    auto& codec     = req.packet<codec_proto>();
-    auto& transport = req.packet<transport_proto>();
+    mc::proto::proto_request req;
+    req.add_context<shared_context>(&root).value  = 11;
+    req.add_context<shared_context>(&right).value = 22;
 
-    req.prepare_buffer();
-    auto result = proto->push(req);
+    auto* latest = req.find_context<shared_context>();
+    ASSERT_NE(latest, nullptr);
+    EXPECT_EQ(latest->value, 22);
 
-    EXPECT_EQ(result, mc::proto::execution_state::completed);
-    EXPECT_EQ(app.push_count, 1);
-    EXPECT_EQ(app.pop_count, 1);
-    EXPECT_EQ(app.observed_code, 142);
-    EXPECT_EQ(route.route_code, 41);
-    EXPECT_EQ(route.decoded_code, 142);
-    EXPECT_EQ(codec.encoded_code, 42);
-    EXPECT_EQ(codec.decoded_code, 142);
-    EXPECT_EQ(transport.send_count, 1);
-    EXPECT_EQ(req.buffer().flags, 142u);
+    auto* root_ctx = req.find_context<shared_context>(&root);
+    ASSERT_NE(root_ctx, nullptr);
+    EXPECT_EQ(root_ctx->value, 11);
 }
 
-TEST(protocol, runtime_push_async_resolves_for_completed_request)
+TEST(protocol, suspend_then_resume_reenters_current_node)
 {
-    auto req = roundtrip_proto::make_request();
-    req.prepare_buffer();
+    suspend_protocol  head;
+    terminal_protocol tail;
+    head.add_child(tail);
 
-    auto future = mc::proto::runtime<roundtrip_proto::spec_type>::push_async(req);
+    mc::proto::proto_request req;
 
-    ASSERT_EQ(future.wait_for(std::chrono::seconds{2}), mc::future_status::ready);
-    EXPECT_NO_THROW(future.get());
-    EXPECT_EQ(req.packet<application_proto>().push_count, 1);
-    EXPECT_EQ(req.packet<application_proto>().pop_count, 1);
-    EXPECT_EQ(req.packet<application_proto>().observed_code, 142);
+    const auto first = head.push(req);
+    EXPECT_EQ(first, mc::proto::execution_state::suspended);
+    EXPECT_EQ(head.m_hits, 1);
+
+    const auto second = head.resume(req);
+    EXPECT_EQ(second, mc::proto::execution_state::completed);
+    EXPECT_EQ(head.m_hits, 2);
+
+    auto* ctx = req.find_context<terminal_state>(&tail);
+    ASSERT_NE(ctx, nullptr);
+    EXPECT_EQ(ctx->hits, 1);
+    EXPECT_EQ(req.buffer().flags, 0x40u);
 }
 
-TEST(protocol, runtime_pop_async_resolves_for_completed_request)
+TEST(protocol, push_next_fails_when_branch_is_ambiguous)
 {
-    inbound_proto::request request;
-    request.buffer().flags = 13;
+    root_protocol       root;
+    left_leaf_protocol  left;
+    right_leaf_protocol right;
 
-    auto future = mc::proto::runtime<inbound_proto::spec_type>::pop_async(request);
+    root.add_child(left);
+    root.add_child(right);
 
-    ASSERT_EQ(future.wait_for(std::chrono::seconds{2}), mc::future_status::ready);
-    EXPECT_NO_THROW(future.get());
-    EXPECT_EQ(request.packet<inbound_transport_proto>().wire_value, 18);
-    EXPECT_EQ(request.packet<inbound_app_proto>().decoded_value, 18);
+    mc::proto::proto_request req;
+
+    const auto state = root.push(req);
+
+    EXPECT_EQ(state, mc::proto::execution_state::failed);
+    EXPECT_EQ(req.error().name, "ambiguous_route");
 }
 
-TEST(protocol, request_view_signature_accesses_current_layer_packet_and_context)
+TEST(protocol, resume_without_suspend_fails)
 {
-    request_view_stack::request request;
+    suspend_protocol  head;
+    terminal_protocol tail;
+    head.add_child(tail);
 
-    request.context<request_view_proto>().base_code = 20;
+    mc::proto::proto_request req;
 
-    auto result = mc::proto::runtime<request_view_stack::spec_type>::push(request);
+    const auto state = head.resume(req);
 
-    EXPECT_EQ(result, mc::proto::execution_state::completed);
-    EXPECT_EQ(request.packet<request_view_proto>().observed_hits, 1);
-    EXPECT_EQ(request.buffer().flags, 21u);
+    EXPECT_EQ(state, mc::proto::execution_state::failed);
+    EXPECT_EQ(req.error().name, "invalid_resume");
 }
 
-TEST(protocol, request_view_signature_has_priority_over_template_request_signature)
+TEST(protocol, pull_next_reenters_child_on_pop_path)
 {
-    dual_signature_stack::request request;
+    pull_parent_protocol parent;
+    pull_child_protocol  child;
+    parent.add_child(child);
 
-    auto result = mc::proto::runtime<dual_signature_stack::spec_type>::push(request);
+    mc::proto::proto_request req;
 
-    EXPECT_EQ(result, mc::proto::execution_state::completed);
-    EXPECT_EQ(request.packet<dual_signature_proto>().typed_hits, 1);
-    EXPECT_EQ(request.packet<dual_signature_proto>().template_hits, 0);
-    EXPECT_EQ(request.context<dual_signature_proto>().marker, 19);
-}
+    const auto state = parent.pop(req);
 
-TEST(protocol, request_view_signature_coexists_with_template_protocols)
-{
-    mixed_view_stack::request request;
-
-    auto result = mc::proto::runtime<mixed_view_stack::spec_type>::push(request);
-
-    EXPECT_EQ(result, mc::proto::execution_state::completed);
-    EXPECT_EQ(request.packet<request_view_head_proto>().push_hits, 1);
-    EXPECT_EQ(request.packet<transport_proto>().send_count, 1);
-    EXPECT_EQ(request.buffer().flags, 131u);
-}
-
-TEST(protocol, request_deadline_is_available_without_async_completion)
-{
-    roundtrip_proto::request request;
-    const auto               deadline = mc::time_point(mc::milliseconds(1234));
-
-    request.set_deadline(deadline);
-
-    ASSERT_TRUE(request.has_deadline());
-    ASSERT_TRUE(request.deadline().has_value());
-    EXPECT_EQ(*request.deadline(), deadline);
-}
-
-TEST(protocol, request_cancel_propagates_between_request_and_async_future)
-{
-    roundtrip_proto::request request;
-    auto                     future = request.enable_async_completion();
-
-    future.cancel();
-    EXPECT_TRUE(request.is_cancelled());
-    EXPECT_TRUE(future.is_cancelled());
-
-    auto other_request = roundtrip_proto::make_request();
-    auto other_future  = other_request.enable_async_completion();
-
-    other_request.cancel();
-    EXPECT_TRUE(other_request.is_cancelled());
-    EXPECT_TRUE(other_future.is_cancelled());
-}
-
-TEST(protocol, copied_descriptor_instance_is_rejected)
-{
-    auto req = roundtrip_proto::make_request();
-    req.prepare_buffer();
-
-    auto proto = mc::make_shared<copied_descriptor_instance>(
-        mc::proto::detail::stack_descriptor_for<roundtrip_proto::spec_type>());
-    ASSERT_TRUE(proto != nullptr);
-
-    EXPECT_THROW((void)proto->push(req), mc::invalid_arg_exception);
-}
-
-TEST(protocol, suspend_then_resume)
-{
-    suspend_proto::request request;
-
-    auto& async    = request.packet<async_proto>();
-    auto& terminal = request.packet<terminal_proto>();
-
-    auto first_result = mc::proto::runtime<suspend_proto::spec_type>::push(request);
-    EXPECT_EQ(first_result, mc::proto::execution_state::suspended);
-    EXPECT_EQ(async.push_count, 1);
-    EXPECT_EQ(terminal.enter_count, 0);
-
-    auto resume_result = mc::proto::runtime<suspend_proto::spec_type>::resume(request);
-    EXPECT_EQ(resume_result, mc::proto::execution_state::completed);
-    EXPECT_EQ(async.push_count, 2);
-    EXPECT_EQ(terminal.enter_count, 1);
-}
-
-TEST(protocol, make_instance_suspend_then_resume)
-{
-    auto proto = suspend_proto::create();
-    ASSERT_TRUE(proto != nullptr);
-
-    auto req = suspend_proto::make_request();
-
-    auto& async    = req.packet<async_proto>();
-    auto& terminal = req.packet<terminal_proto>();
-
-    auto first_result = proto->push(req);
-    EXPECT_EQ(first_result, mc::proto::execution_state::suspended);
-    EXPECT_EQ(async.push_count, 1);
-    EXPECT_EQ(terminal.enter_count, 0);
-
-    auto resume_result = proto->resume(req);
-    EXPECT_EQ(resume_result, mc::proto::execution_state::completed);
-    EXPECT_EQ(async.push_count, 2);
-    EXPECT_EQ(terminal.enter_count, 1);
-}
-
-TEST(protocol, runtime_resume_preserves_member_protocol_state)
-{
-    member_suspend_proto::request request;
-
-    auto first_result = mc::proto::runtime<member_suspend_proto::spec_type>::push(request);
-    EXPECT_EQ(first_result, mc::proto::execution_state::suspended);
-    EXPECT_EQ(request.packet<member_suspend_protocol>().observed_hits, 1);
-
-    auto resume_result = mc::proto::runtime<member_suspend_proto::spec_type>::resume(request);
-    EXPECT_EQ(resume_result, mc::proto::execution_state::completed);
-    EXPECT_EQ(request.packet<member_suspend_protocol>().observed_hits, 2);
-}
-
-TEST(protocol, suspended_request_rejects_resume_from_different_instance)
-{
-    auto first_proto  = member_suspend_proto::create();
-    auto second_proto = member_suspend_proto::create();
-    ASSERT_NE(first_proto, nullptr);
-    ASSERT_NE(second_proto, nullptr);
-
-    auto request = member_suspend_proto::make_request();
-
-    auto first_result = first_proto->push(request);
-    EXPECT_EQ(first_result, mc::proto::execution_state::suspended);
-
-    auto wrong_resume = second_proto->resume(request);
-    EXPECT_EQ(wrong_resume, mc::proto::execution_state::failed);
-    EXPECT_EQ(request.error().name, "resume_source_mismatch");
+    EXPECT_EQ(state, mc::proto::execution_state::completed);
+    EXPECT_EQ(child.m_pop_hits, 2);
+    EXPECT_EQ(req.buffer().flags, 0x10u);
 }
 
 TEST_F(protocol_async_timer_test, suspend_resume_from_timer_callback)
 {
-    using namespace std::chrono_literals;
+    suspend_protocol  head;
+    terminal_protocol tail;
+    head.add_child(tail);
 
-    suspend_proto::request request;
+    mc::proto::proto_request req;
 
-    auto first_result = mc::proto::runtime<suspend_proto::spec_type>::push(request);
-    EXPECT_EQ(first_result, mc::proto::execution_state::suspended);
-    EXPECT_EQ(request.packet<async_proto>().push_count, 1);
-    EXPECT_EQ(request.packet<terminal_proto>().enter_count, 0);
+    const auto first = head.push(req);
+    EXPECT_EQ(first, mc::proto::execution_state::suspended);
+    EXPECT_EQ(head.m_hits, 1);
 
     std::promise<void> done;
     auto               wait_done = done.get_future();
 
     mc::runtime::steady_timer timer(mc::get_io_executor());
     timer.expires_after(20ms);
-    timer.async_wait([&request, p = std::move(done)](const std::error_code& ec) mutable {
+    timer.async_wait([&head, &tail, &req, p = std::move(done)](const std::error_code& ec) mutable {
         EXPECT_FALSE(ec);
-        auto resume_result = mc::proto::runtime<suspend_proto::spec_type>::resume(request);
-        EXPECT_EQ(resume_result, mc::proto::execution_state::completed);
-        EXPECT_EQ(request.packet<async_proto>().push_count, 2);
-        EXPECT_EQ(request.packet<terminal_proto>().enter_count, 1);
+
+        const auto second = head.resume(req);
+        EXPECT_EQ(second, mc::proto::execution_state::completed);
+        EXPECT_EQ(head.m_hits, 2);
+
+        auto* ctx = req.find_context<terminal_state>(&tail);
+        ASSERT_NE(ctx, nullptr);
+        EXPECT_EQ(ctx->hits, 1);
+        EXPECT_EQ(req.buffer().flags, 0x40u);
         p.set_value();
     });
 
     EXPECT_EQ(wait_done.wait_for(5s), std::future_status::ready);
 }
 
-TEST(protocol, pop_from_bottom_routes_to_application)
-{
-    inbound_proto::request request;
-
-    auto& app       = request.packet<inbound_app_proto>();
-    auto& transport = request.packet<inbound_transport_proto>();
-
-    request.buffer().flags = 13;
-
-    auto result = mc::proto::runtime<inbound_proto::spec_type>::pop(request);
-
-    EXPECT_EQ(result, mc::proto::execution_state::completed);
-    EXPECT_EQ(transport.wire_value, 18);
-    EXPECT_EQ(app.decoded_value, 18);
-}
-
-TEST(protocol, trace_emit_order_inbound_pop)
-{
-    inbound_proto::request request;
-    request.buffer().flags = 1;
-
-    std::vector<std::size_t> layers;
-    mc::proto::trace_sink    sink{};
-    sink.user_data = &layers;
-    sink.emit      = [](void* user, const mc::proto::trace_event& e) {
-        static_cast<std::vector<std::size_t>*>(user)->push_back(e.layer_index);
-    };
-    request.set_trace(sink);
-
-    auto result = mc::proto::runtime<inbound_proto::spec_type>::pop(request);
-    EXPECT_EQ(result, mc::proto::execution_state::completed);
-    ASSERT_EQ(layers.size(), 2u);
-    EXPECT_EQ(layers[0], 1u);
-    EXPECT_EQ(layers[1], 0u);
-}
-
-TEST(protocol, trace_filter_and_layer_mask_gate)
-{
-    // filter：仅第 0 层进入 emit（与 gate 不同代码路径）
-    {
-        inbound_proto::request request;
-        request.buffer().flags = 1;
-
-        int                   emit_count = 0;
-        mc::proto::trace_sink sink{};
-        sink.user_data = &emit_count;
-        sink.filter    = [](void* user, const mc::proto::trace_event& e) {
-            (void)user;
-            return e.layer_index == 0;
-        };
-        sink.emit = [](void* user, const mc::proto::trace_event& e) {
-            (void)e;
-            ++*static_cast<int*>(user);
-        };
-        request.set_trace(sink);
-
-        auto result = mc::proto::runtime<inbound_proto::spec_type>::pop(request);
-        EXPECT_EQ(result, mc::proto::execution_state::completed);
-        EXPECT_EQ(emit_count, 1);
-    }
-    // layer_mask：仅第 0 位，不调用其它层的 filter
-    {
-        inbound_proto::request request;
-        request.buffer().flags = 1;
-
-        std::vector<std::size_t> layers;
-        mc::proto::trace_sink    sink{};
-        sink.user_data  = &layers;
-        sink.layer_mask = mc::proto::layer_bit(0);
-        sink.emit       = [](void* user, const mc::proto::trace_event& e) {
-            static_cast<std::vector<std::size_t>*>(user)->push_back(e.layer_index);
-        };
-        request.set_trace(sink);
-
-        auto result = mc::proto::runtime<inbound_proto::spec_type>::pop(request);
-        EXPECT_EQ(result, mc::proto::execution_state::completed);
-        ASSERT_EQ(layers.size(), 1u);
-        EXPECT_EQ(layers[0], 0u);
-    }
-}
-
-TEST(protocol, trace_clear_disables_emit)
-{
-    inbound_proto::request request;
-    request.buffer().flags = 1;
-
-    int                   emit_count = 0;
-    mc::proto::trace_sink sink{};
-    sink.user_data = &emit_count;
-    sink.emit      = [](void* user, const mc::proto::trace_event& e) {
-        (void)e;
-        ++*static_cast<int*>(user);
-    };
-    request.set_trace(sink);
-    request.clear_trace();
-
-    auto result = mc::proto::runtime<inbound_proto::spec_type>::pop(request);
-    EXPECT_EQ(result, mc::proto::execution_state::completed);
-    EXPECT_EQ(emit_count, 0);
-}
-
-TEST(protocol, pop_inbound_chain_delegates_handler_from_layer_state)
-{
-    inbound_handler                handler;
-    inbound_handler_proto::request request;
-
-    auto& dispatch  = request.packet<application_dispatch_proto>();
-    auto& checksum  = request.packet<checksum_proto>();
-    auto& transport = request.packet<example_transport_proto>();
-
-    dispatch.handler       = &handler;
-    request.buffer().flags = 0x20u;
-
-    auto result = mc::proto::runtime<inbound_handler_proto::spec_type>::pop(request);
-
-    EXPECT_EQ(result, mc::proto::execution_state::completed);
-    EXPECT_EQ(transport.receive_hits, 1);
-    EXPECT_EQ(checksum.checksum_hits, 1);
-    EXPECT_EQ(handler.call_count, 1);
-    EXPECT_EQ(handler.last_flags, 0x31u);
-}
-
-TEST(protocol, unsafe_layer_ptr_and_fail)
-{
-    roundtrip_proto::request request;
-
-    auto& route = request.packet<routing_proto>();
-
-    auto* route_state = static_cast<routing_proto::packet*>(request.unsafe_layer_ptr(1));
-    ASSERT_NE(route_state, nullptr);
-    route_state->route_code = 99;
-    EXPECT_EQ(route.route_code, 99);
-    EXPECT_EQ(request.unsafe_layer_ptr(99), nullptr);
-
-    failing_proto_stack::request failing_request;
-    auto&                        failing = failing_request.packet<failing_proto>();
-    auto                         result  = mc::proto::runtime<failing_proto_stack::spec_type>::push(failing_request);
-
-    EXPECT_EQ(result, mc::proto::execution_state::failed);
-    EXPECT_EQ(failing.hit_count, 1);
-    EXPECT_EQ(failing_request.error().name, "missing_route");
-    EXPECT_EQ(failing_request.error().message, "route lookup failed");
-}
-
-TEST(protocol, context_unsafe_layer_ptr_reads_other_layer_state)
-{
-    unsafe_proto::request request;
-
-    auto& probe = request.packet<unsafe_probe_proto>();
-
-    auto result = mc::proto::runtime<unsafe_proto::spec_type>::push_from<unsafe_probe_proto>(request);
-
-    EXPECT_EQ(result, mc::proto::execution_state::completed);
-    EXPECT_EQ(probe.observed_value, 77);
-}
-
-TEST(protocol, request_aggregates_typed_contexts_per_protocol)
-{
-    auto request = context_proto::make_request();
-
-    request.context<context_sink_protocol>().touched = true;
-
-    auto result = mc::proto::runtime<context_proto::spec_type>::push(request);
-
-    EXPECT_EQ(result, mc::proto::execution_state::completed);
-    EXPECT_EQ(request.context<context_source_protocol>().base_code, 21);
-    EXPECT_TRUE(request.context<context_sink_protocol>().touched);
-    EXPECT_EQ(request.packet<context_sink_protocol>().observed_code, 22);
-}
-
-TEST(protocol, runtime_bind_links_protocol_parent_chain)
-{
-    notify_proto::request                                            request;
-    mc::proto::runtime<notify_proto::spec_type>::protocol_tuple_type protocols;
-
-    auto result = mc::proto::runtime<notify_proto::spec_type>::push(request, protocols);
-
-    EXPECT_EQ(result, mc::proto::execution_state::completed);
-    auto& top  = std::get<0>(protocols);
-    auto& mid  = std::get<1>(protocols);
-    auto& leaf = std::get<2>(protocols);
-    EXPECT_EQ(top.parent(), nullptr);
-    EXPECT_EQ(mid.parent(), static_cast<mc::proto::protocol*>(&top));
-    EXPECT_EQ(leaf.parent(), static_cast<mc::proto::protocol*>(&mid));
-}
-
-TEST(protocol, runtime_continue_and_failed_route_to_parent)
-{
-    notify_proto::request                                            request;
-    mc::proto::runtime<notify_proto::spec_type>::protocol_tuple_type protocols;
-
-    auto result = mc::proto::runtime<notify_proto::spec_type>::push(request, protocols);
-
-    EXPECT_EQ(result, mc::proto::execution_state::completed);
-    auto& top = std::get<0>(protocols);
-
-    EXPECT_TRUE(mc::proto::detail::continue_request(request.unsafe_core(), 2));
-    EXPECT_TRUE(mc::proto::detail::fail_request(request.unsafe_core(), 2));
-    EXPECT_EQ(top.done_hits, 1);
-    EXPECT_EQ(top.fail_hits, 1);
-}
-
-namespace protocol_usability_demo {
-struct head_a : public mc::proto::protocol {
-    static constexpr std::size_t push_headroom = 2;
-};
-struct head_b : public mc::proto::protocol {
-    static constexpr std::size_t push_headroom = 5;
-};
-} // namespace protocol_usability_demo
-
-TEST(protocol, stack_spec_sums_layer_headroom)
-{
-    using proto = mc::proto::stack<protocol_usability_demo::head_a, protocol_usability_demo::head_b>;
-    EXPECT_EQ(proto::spec_type::push_headroom, 7u);
-}
+} // namespace

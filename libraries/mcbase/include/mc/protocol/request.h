@@ -13,378 +13,141 @@
 #ifndef MC_PROTOCOL_REQUEST_H
 #define MC_PROTOCOL_REQUEST_H
 
+#include <mc/exception.h>
 #include <mc/protocol/common.h>
-#include <mc/protocol/detail/runtime_core.h>
+#include <mc/protocol/context.h>
 #include <mc/protocol/packet.h>
-#include <mc/protocol/stack_spec.h>
 
-#include <optional>
-#include <tuple>
+#include <cstddef>
+#include <memory>
 #include <type_traits>
+#include <utility>
+#include <vector>
 
 namespace mc::proto {
 
-template <typename Spec>
-class runtime;
+class protocol;
 
-namespace detail {
-template <typename Spec, typename CurrentProtocol>
-class runtime_context;
-
-template <typename Spec>
-void prepare_push_view_buffer(request_core& core) noexcept
-{
-    buffer_access::arm(core.packet(), Spec::push_headroom, Spec::push_tailroom, Spec::push_headroom);
-}
-
-template <typename Spec>
-void prepare_pop_view_buffer(request_core& core) noexcept
-{
-    buffer_access::arm(core.packet(), Spec::pop_headroom, Spec::pop_tailroom, Spec::pop_headroom);
-}
-} // namespace detail
-
-template <typename Spec>
-class request;
-
-template <typename... Protocols>
-using request_for_t = request<stack_spec<Protocols...>>;
-
-template <typename Packet, typename Context>
-class request_view : public detail::request_view_base {
+class MC_API proto_request {
 public:
-    request_view(detail::request_view_base base, Packet& packet, Context& context) noexcept
-        : detail::request_view_base(base), m_packet(&packet), m_context(&context)
-    {}
+    proto_request();
+    ~proto_request();
 
-    Packet& packet() noexcept
+    mc::proto::buffer& buffer() noexcept;
+
+    const mc::proto::buffer& buffer() const noexcept;
+
+    execution_state state() const noexcept;
+
+    flow_direction direction() const noexcept;
+
+    const protocol_error& error() const noexcept;
+
+    void clear_error() noexcept;
+
+    void set_error(mc::string_view name, mc::string_view message);
+
+    template <typename Context, typename... Args>
+    Context& add_context(protocol* owner, Args&&... args)
     {
-        return *m_packet;
+        static_assert(std::is_base_of_v<proto_context, Context>, "context must derive from proto_context");
+        auto ctx = std::make_unique<Context>(std::forward<Args>(args)...);
+        return static_cast<Context&>(_append_context(std::move(ctx), owner));
     }
 
-    const Packet& packet() const noexcept
+    template <typename Context>
+    Context* find_context() noexcept
     {
-        return *m_packet;
+        static_assert(std::is_base_of_v<proto_context, Context>, "context must derive from proto_context");
+        return static_cast<Context*>(_find_context_if(nullptr, &_match_context<Context>));
     }
 
-    Context& context() noexcept
+    template <typename Context>
+    const Context* find_context() const noexcept
     {
-        return *m_context;
+        static_assert(std::is_base_of_v<proto_context, Context>, "context must derive from proto_context");
+        return static_cast<const Context*>(_find_context_if(nullptr, &_match_context<Context>));
     }
 
-    const Context& context() const noexcept
+    template <typename Context>
+    Context* find_context(const protocol* owner) noexcept
     {
-        return *m_context;
+        static_assert(std::is_base_of_v<proto_context, Context>, "context must derive from proto_context");
+        return static_cast<Context*>(_find_context_if(owner, &_match_context<Context>));
     }
 
-private:
-    Packet*  m_packet{nullptr};
-    Context* m_context{nullptr};
-};
-
-template <typename... Protocols>
-request_for_t<Protocols...> make_request()
-{
-    static_assert(sizeof...(Protocols) > 0, "make_request requires at least one protocol");
-    return request_for_t<Protocols...>();
-}
-
-template <typename... Protocols>
-class request<stack_spec<Protocols...>> {
-public:
-    using spec_type            = stack_spec<Protocols...>;
-    using packets_type         = std::tuple<detail::protocol_packet_t<Protocols>...>;
-    using contexts_type        = std::tuple<detail::protocol_context_t<Protocols>...>;
-    using protocols_type       = std::tuple<Protocols...>;
-    using owned_protocols_type = std::tuple<Protocols...>;
-    using runtime_core         = detail::request_core;
-
-    static constexpr std::size_t layer_count = sizeof...(Protocols);
-
-    request() = default;
-
-    request(const request&)            = delete;
-    request& operator=(const request&) = delete;
-    request(request&&)                 = delete;
-    request& operator=(request&&)      = delete;
-
-    mc::proto::buffer& buffer() noexcept
+    template <typename Context>
+    const Context* find_context(const protocol* owner) const noexcept
     {
-        return m_core.packet();
+        static_assert(std::is_base_of_v<proto_context, Context>, "context must derive from proto_context");
+        return static_cast<const Context*>(_find_context_if(owner, &_match_context<Context>));
     }
 
-    const mc::proto::buffer& buffer() const noexcept
+    template <typename Context, typename... Args>
+    Context& ensure_context(protocol* owner, Args&&... args)
     {
-        return m_core.packet();
-    }
-
-    request& prepare_buffer() noexcept
-    {
-        detail::prepare_push_view_buffer<spec_type>(m_core);
-        return *this;
-    }
-
-    request& prepare_inbound_buffer() noexcept
-    {
-        detail::prepare_pop_view_buffer<spec_type>(m_core);
-        return *this;
-    }
-
-    request& append_payload(const void* data, std::size_t len)
-    {
-        buffer().append_payload(data, len);
-        return *this;
-    }
-
-    template <typename T, std::size_t N>
-    request& append_payload(const T (&arr)[N])
-    {
-        buffer().append_payload(arr);
-        return *this;
-    }
-
-    request& prepare_packet() noexcept
-    {
-        return prepare_buffer();
-    }
-
-    request& prepare_inbound() noexcept
-    {
-        return prepare_inbound_buffer();
-    }
-
-    mc::proto::buffer& packet() noexcept
-    {
-        return buffer();
-    }
-
-    const mc::proto::buffer& packet() const noexcept
-    {
-        return buffer();
-    }
-
-    template <typename Protocol>
-    detail::protocol_packet_t<Protocol>& packet()
-    {
-        constexpr std::size_t index = detail::protocol_index<Protocol, Protocols...>::value;
-        return std::get<index>(m_packets);
-    }
-
-    template <typename Protocol>
-    const detail::protocol_packet_t<Protocol>& packet() const
-    {
-        constexpr std::size_t index = detail::protocol_index<Protocol, Protocols...>::value;
-        return std::get<index>(m_packets);
-    }
-
-    command push_next() const noexcept
-    {
-        return {step_kind::push_next};
-    }
-
-    command pop_next() const noexcept
-    {
-        return {step_kind::pop_next};
-    }
-
-    command suspend() const noexcept
-    {
-        return {step_kind::suspend};
-    }
-
-    command complete() const noexcept
-    {
-        return {step_kind::complete};
-    }
-
-    command fail(mc::string_view name, mc::string_view message)
-    {
-        m_core.set_error(name, message);
-        return {step_kind::fail};
-    }
-
-    void* unsafe_packet_ptr(std::size_t index) noexcept
-    {
-        return detail::tuple_ptr_at(m_packets, index);
-    }
-
-    const void* unsafe_packet_ptr(std::size_t index) const noexcept
-    {
-        return detail::tuple_ptr_at_const(m_packets, index);
-    }
-
-    void* unsafe_layer_ptr(std::size_t index) noexcept
-    {
-        return unsafe_packet_ptr(index);
-    }
-
-    const void* unsafe_layer_ptr(std::size_t index) const noexcept
-    {
-        return unsafe_packet_ptr(index);
-    }
-
-    execution_state status() const noexcept
-    {
-        return m_core.state();
-    }
-
-    execution_state state() const noexcept
-    {
-        return m_core.state();
-    }
-
-    bool is_suspended() const noexcept
-    {
-        return m_core.is_suspended();
-    }
-
-    bool is_completed() const noexcept
-    {
-        return m_core.is_completed();
-    }
-
-    bool has_failed() const noexcept
-    {
-        return m_core.has_failed();
-    }
-
-    template <typename Protocol>
-    detail::protocol_context_t<Protocol>& context()
-    {
-        constexpr std::size_t index = detail::protocol_index<Protocol, Protocols...>::value;
-        return std::get<index>(m_contexts);
-    }
-
-    template <typename Protocol>
-    const detail::protocol_context_t<Protocol>& context() const
-    {
-        constexpr std::size_t index = detail::protocol_index<Protocol, Protocols...>::value;
-        return std::get<index>(m_contexts);
-    }
-
-    const protocol_error& error() const noexcept
-    {
-        return m_core.error();
-    }
-
-    void set_trace(const trace_sink& sink) noexcept
-    {
-        m_core.set_trace(sink);
-    }
-
-    void clear_trace() noexcept
-    {
-        m_core.clear_trace();
-    }
-
-    const trace_sink& trace() const noexcept
-    {
-        return m_core.trace();
-    }
-
-    mc::future<void> enable_async_completion()
-    {
-        return m_core.enable_async_completion();
-    }
-
-    bool has_async_completion() const noexcept
-    {
-        return m_core.has_async_completion();
-    }
-
-    request& set_deadline(mc::time_point deadline)
-    {
-        m_core.set_deadline(deadline);
-        return *this;
-    }
-
-    request& set_timeout(mc::milliseconds timeout)
-    {
-        m_core.set_timeout(timeout);
-        return *this;
-    }
-
-    bool has_deadline() const noexcept
-    {
-        return m_core.has_deadline();
-    }
-
-    std::optional<mc::time_point> deadline() const
-    {
-        return m_core.deadline();
-    }
-
-    request& cancel() noexcept
-    {
-        m_core.cancel();
-        return *this;
-    }
-
-    bool is_cancelled() const noexcept
-    {
-        return m_core.is_cancelled();
-    }
-
-    runtime_core& unsafe_core() noexcept
-    {
-        return m_core;
-    }
-
-    const runtime_core& unsafe_core() const noexcept
-    {
-        return m_core;
-    }
-
-private:
-    template <typename>
-    friend class runtime;
-
-    template <typename, typename>
-    friend class detail::runtime_context;
-
-    runtime_core& core() noexcept
-    {
-        return m_core;
-    }
-
-    const runtime_core& core() const noexcept
-    {
-        return m_core;
-    }
-
-    void bind_runtime(const detail::stack_descriptor& descriptor, void* request_object, void* runtime_object) noexcept
-    {
-        m_core.bind(descriptor, request_object, runtime_object);
-    }
-
-    void set_error(mc::string_view name, mc::string_view message)
-    {
-        m_core.set_error(name, message);
-    }
-
-    owned_protocols_type& owned_protocols()
-    {
-        static_assert((std::is_default_constructible_v<Protocols> && ...),
-                      "single-argument runtime path requires default-constructible protocols; "
-                      "use proto::instance or runtime(..., protocols) otherwise");
-        if (!m_owned_protocols.has_value()) {
-            m_owned_protocols.emplace();
+        if (auto* ctx = find_context<Context>(owner)) {
+            return *ctx;
         }
-        return *m_owned_protocols;
+        return add_context<Context>(owner, std::forward<Args>(args)...);
     }
 
-    const owned_protocols_type& owned_protocols() const
+    template <typename Context>
+    Context& require_context(protocol* owner)
     {
-        static_assert((std::is_default_constructible_v<Protocols> && ...),
-                      "single-argument runtime path requires default-constructible protocols; "
-                      "use proto::instance or runtime(..., protocols) otherwise");
-        return const_cast<request*>(this)->owned_protocols();
+        auto* ctx = find_context<Context>(owner);
+        MC_ASSERT_THROW(ctx != nullptr, mc::invalid_arg_exception, "缺少请求上下文");
+        return *ctx;
     }
 
-    runtime_core                        m_core;
-    packets_type                        m_packets;
-    contexts_type                       m_contexts;
-    std::optional<owned_protocols_type> m_owned_protocols;
+    template <typename Visitor>
+    void visit_contexts(Visitor&& visitor)
+    {
+        for (auto* ctx = m_context_tail; ctx != nullptr; ctx = ctx->prev()) {
+            visitor(*ctx);
+        }
+    }
+
+    protocol_list_view route_trace() const noexcept;
+
+private:
+    friend class protocol;
+    using context_matcher = bool (*)(const proto_context&) noexcept;
+
+    void begin(protocol& entry, flow_direction direction);
+    proto_context& _append_context(std::unique_ptr<proto_context> ctx, protocol* owner);
+
+    void set_state(execution_state state) noexcept;
+    void set_resume(protocol* proto, flow_direction direction) noexcept;
+
+    protocol*      resume_protocol() const noexcept;
+    flow_direction resume_direction() const noexcept;
+    protocol*      current_protocol() const noexcept;
+    protocol*      next_traced_child() const noexcept;
+    protocol*      prev_traced_parent() const noexcept;
+    void           enter_push(protocol& target);
+    void           enter_pop(protocol& target);
+    void           enter_pull(protocol& target);
+    proto_context* _find_context_if(const protocol* owner, context_matcher matcher) noexcept;
+    const proto_context* _find_context_if(const protocol* owner, context_matcher matcher) const noexcept;
+
+    template <typename Context>
+    static bool _match_context(const proto_context& ctx) noexcept
+    {
+        return dynamic_cast<const Context*>(&ctx) != nullptr;
+    }
+
+    proto::buffer                               m_buffer;
+    execution_state                             m_state{execution_state::idle};
+    flow_direction                              m_direction{flow_direction::push};
+    protocol_error                              m_error;
+    proto_context*                              m_context_tail{nullptr};
+    std::vector<std::unique_ptr<proto_context>> m_contexts;
+    std::vector<protocol*>                      m_route_trace;
+    std::size_t                                 m_route_index{0};
+    protocol*                                   m_current{nullptr};
+    protocol*                                   m_resume_protocol{nullptr};
+    flow_direction                              m_resume_direction{flow_direction::push};
 };
 
 } // namespace mc::proto

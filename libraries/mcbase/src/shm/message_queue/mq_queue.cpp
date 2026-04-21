@@ -191,15 +191,11 @@ bool mq_queue::send_message_wait(std::uint32_t writer_id, std::uint64_t writer_i
     }
 }
 
-std::optional<mq_queue_message> mq_queue::try_receive_message(const mq_queue_writer_validator& validator)
+std::optional<mq_queue_message> mq_queue::try_receive_message()
 {
     if (!is_valid()) {
         return std::nullopt;
     }
-
-    const auto writer_is_current = [&](std::uint32_t writer_id, std::uint64_t writer_instance_id) {
-        return !validator || validator(writer_id, writer_instance_id);
-    };
 
     while (true) {
         const auto head  = m_impl->header->head_seq.load(std::memory_order_acquire);
@@ -214,20 +210,11 @@ std::optional<mq_queue_message> mq_queue::try_receive_message(const mq_queue_wri
         }
 
         if (state == 1) {
-            if (!writer_is_current(first.writer_id, first.writer_instance_id)) {
-                m_impl->release_range(head, 1);
-                continue;
-            }
             return std::nullopt;
         }
 
         if (state != 2) {
             return std::nullopt;
-        }
-
-        if (!writer_is_current(first.writer_id, first.writer_instance_id)) {
-            m_impl->release_range(head, 1);
-            continue;
         }
 
         mq_queue_message message;

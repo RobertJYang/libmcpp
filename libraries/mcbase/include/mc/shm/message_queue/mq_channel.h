@@ -15,51 +15,67 @@
 
 #include <cstdint>
 #include <memory>
+#include <vector>
 
 #include <mc/protocol.h>
+#include <mc/shm/message_queue/mq_proto.h>
+#include <mc/shm/message_queue/mq_transport_proto.h>
 #include <mc/shm/message_queue/mq_queue.h>
 #include <mc/shm/shm_runtime.h>
 #include <mc/string.h>
 
 namespace mc::shm {
 
-class mq_proto;
-class mq_transport_proto;
-
 class mq_channel {
 public:
     mq_channel();
     ~mq_channel();
 
-    void set_protocol(const mc::proto_ptr& proto);
+    void set_protocol(mc::proto::protocol* proto);
     void start(std::shared_ptr<shm_runtime> runtime, const endpoint& ep, uint32_t instance_id);
     void stop();
+    mc::proto::execution_state send(mc::proto::proto_request& req);
 
     template <typename Protocol>
     Protocol* get_protocol() const noexcept
     {
-        auto proto = protocol_instance();
-        if (proto == nullptr) {
-            return nullptr;
-        }
-        return mc::proto::detail::instance_access::try_get_protocol<Protocol>(*proto);
-    }
-
-    template <typename... Protocols>
-    mc::proto::execution_state send(mc::proto::request_for_t<Protocols...>& req)
-    {
-        auto proto = protocol_instance();
-        if (proto == nullptr) {
-            return mc::proto::execution_state::failed;
-        }
-        return proto->push(req);
+        return protocol_instance<Protocol>();
     }
 
 private:
     class impl;
-    mc::proto_ptr         protocol_instance() const noexcept;
+    mc::proto::protocol* protocol_instance() const noexcept;
+
+    template <typename Protocol>
+    Protocol* protocol_instance() const noexcept;
+
     std::shared_ptr<impl> m_impl;
 };
+
+template <typename Protocol>
+Protocol* mq_channel::protocol_instance() const noexcept
+{
+    auto* root = protocol_instance();
+    if (root == nullptr) {
+        return nullptr;
+    }
+
+    if (auto* typed = dynamic_cast<Protocol*>(root)) {
+        return typed;
+    }
+
+    std::vector<mc::proto::protocol*> pending{root};
+    for (std::size_t i = 0; i < pending.size(); ++i) {
+        auto* current = pending[i];
+        for (auto* child : current->children()) {
+            if (auto* typed = dynamic_cast<Protocol*>(child)) {
+                return typed;
+            }
+            pending.push_back(child);
+        }
+    }
+    return nullptr;
+}
 
 } // namespace mc::shm
 

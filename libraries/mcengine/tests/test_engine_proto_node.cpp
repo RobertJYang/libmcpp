@@ -1,0 +1,117 @@
+/*
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
+ * openUBMC is licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *         http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+
+#include <gtest/gtest.h>
+
+#include <mc/engine/engine_proto.h>
+#include <mc/protocol.h>
+
+namespace {
+
+mc::string buffer_payload_view(const mc::proto::proto_request& req)
+{
+    const auto& buffer = req.buffer();
+    const auto  base   = buffer.payload_base();
+    const auto  size   = buffer.length() >= base ? buffer.length() - base : 0U;
+    return mc::string(reinterpret_cast<const char*>(buffer.data() + base), size);
+}
+
+mc::engine::message make_method_call_message()
+{
+    mc::engine::message msg;
+    msg.header.type        = mc::engine::message_type::method_call;
+    msg.header.member_name = "add";
+    msg.header.serial      = 7;
+    msg.body               = mc::engine::make_payload<mc::engine::method_call_payload>("ii", mc::variants{1, 2});
+    return msg;
+}
+
+mc::engine::message make_method_return_message(std::uint64_t reply_serial)
+{
+    mc::engine::message msg;
+    msg.header.type         = mc::engine::message_type::method_return;
+    msg.header.reply_serial = reply_serial;
+    msg.body                = mc::engine::make_payload<mc::engine::method_return_payload>(mc::variant(3), "i");
+    return msg;
+}
+
+class capture_transport : public mc::proto::protocol {
+public:
+    mc::string last_payload;
+    int        push_hits{0};
+    int        pop_hits{0};
+
+protected:
+    mc::proto::execution_state on_push(mc::proto::proto_request& req) override
+    {
+        ++push_hits;
+        last_payload = buffer_payload_view(req);
+        return complete(req);
+    }
+
+    mc::proto::execution_state on_pop(mc::proto::proto_request& req) override
+    {
+        ++pop_hits;
+        return pop_next(req);
+    }
+};
+
+TEST(engine_proto, push_serializes_message_to_child_transport)
+{
+    mc::engine::engine_proto engine;
+    capture_transport        transport;
+    engine.add_child(transport);
+
+    mc::proto::proto_request req;
+    auto&                    ctx = req.ensure_context<mc::engine::engine_proto::message_context>(&engine);
+    auto                     msg = make_method_call_message();
+    ctx.msg                      = msg;
+
+    const auto state = engine.push(req);
+
+    EXPECT_EQ(state, mc::proto::execution_state::completed);
+    EXPECT_EQ(transport.push_hits, 1);
+    EXPECT_EQ(transport.last_payload, msg.to_bytes());
+}
+
+TEST(engine_proto, pop_routes_response_back_to_same_transport)
+{
+    mc::engine::engine_proto engine;
+    capture_transport        transport;
+    engine.add_child(transport);
+    engine.set_inbound_handler([](mc::engine::message request) {
+        EXPECT_EQ(request.header.type, mc::engine::message_type::method_call);
+        EXPECT_EQ(request.header.member_name, "add");
+        return make_method_return_message(request.header.serial);
+    });
+
+    mc::proto::proto_request req;
+    auto                     inbound = make_method_call_message().to_bytes();
+    req.buffer().append_payload(inbound.data(), inbound.size());
+
+    const auto state = transport.pop(req);
+
+    EXPECT_EQ(state, mc::proto::execution_state::completed);
+    EXPECT_EQ(transport.pop_hits, 1);
+    EXPECT_EQ(transport.push_hits, 1);
+
+    auto* ctx = req.find_context<mc::engine::engine_proto::message_context>(&engine);
+    ASSERT_NE(ctx, nullptr);
+    EXPECT_EQ(ctx->msg.header.type, mc::engine::message_type::method_return);
+    EXPECT_EQ(ctx->msg.header.reply_serial, 7u);
+
+    const auto outbound = mc::engine::message::from_bytes(transport.last_payload);
+    EXPECT_EQ(outbound.header.type, mc::engine::message_type::method_return);
+    EXPECT_EQ(outbound.header.reply_serial, 7u);
+}
+
+} // namespace

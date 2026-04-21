@@ -14,7 +14,8 @@
 #define MC_SHM_MQ_H
 
 #include <mc/shm/message_queue/mq_channel.h>
-#include <mc/shm/message_queue/mq_protocol.h>
+#include <mc/shm/message_queue/mq_proto.h>
+#include <mc/shm/message_queue/mq_transport_proto.h>
 #include <mc/shm/message_queue/mq_queue.h>
 #include <mc/shm/message_queue/mq_types.h>
 

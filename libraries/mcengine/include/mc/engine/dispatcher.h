@@ -10,10 +10,18 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <mc/protocol/common.h>
+#ifndef MC_ENGINE_DISPATCHER_H
+#define MC_ENGINE_DISPATCHER_H
 
-namespace mc::proto {
+#include <mc/common.h>
+#include <mc/engine/message.h>
 
-protocol::~protocol() = default;
+namespace mc::engine {
 
-} // namespace mc::proto
+class service;
+
+MC_API message dispatch(const service& svc, const message& request);
+
+} // namespace mc::engine
+
+#endif // MC_ENGINE_DISPATCHER_H

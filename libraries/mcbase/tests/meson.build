@@ -16,6 +16,7 @@ subdir('io')
 subdir('quark')
 subdir('runtime')
 subdir('shm')
+subdir('metric')
 subdir('protocol')
 
 # 测试源文件列表（不包括 main.cpp，因为主项目会有自己的 main）
@@ -49,6 +50,7 @@ mcbase_test_sources = [
   test_quark_files,
   test_runtime_files,
   test_shm_files,
+  test_metric_files,
 ]
 
 # 构建 mcbase 测试静态库（.a 文件）

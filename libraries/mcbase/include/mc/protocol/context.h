@@ -13,105 +13,41 @@
 #ifndef MC_PROTOCOL_CONTEXT_H
 #define MC_PROTOCOL_CONTEXT_H
 
-#include <mc/protocol/request.h>
+namespace mc::proto {
 
-namespace mc::proto::detail {
+class protocol;
 
-template <typename Spec, typename CurrentProtocol>
-class runtime_context;
-
-template <typename CurrentProtocol, typename... Protocols>
-class runtime_context<stack_spec<Protocols...>, CurrentProtocol> : public context_core {
+class proto_context {
 public:
-    using spec_type    = stack_spec<Protocols...>;
-    using request_type = mc::proto::request<spec_type>;
+    virtual ~proto_context() = default;
 
-    explicit runtime_context(request_type& request) : context_core(request.core()), m_request(request)
-    {}
-
-    detail::protocol_request_t<CurrentProtocol>& self()
+    proto_context* prev() noexcept
     {
-        return m_request.template packet<CurrentProtocol>();
+        return m_prev;
     }
 
-    const detail::protocol_request_t<CurrentProtocol>& self() const
+    const proto_context* prev() const noexcept
     {
-        return m_request.template packet<CurrentProtocol>();
+        return m_prev;
     }
 
-    detail::protocol_context_t<CurrentProtocol>& self_context()
+    protocol* owner() noexcept
     {
-        return m_request.template context<CurrentProtocol>();
+        return m_owner;
     }
 
-    const detail::protocol_context_t<CurrentProtocol>& self_context() const
+    const protocol* owner() const noexcept
     {
-        return m_request.template context<CurrentProtocol>();
-    }
-
-    template <typename Protocol>
-    detail::protocol_request_t<Protocol>& get()
-    {
-        return m_request.template packet<Protocol>();
-    }
-
-    template <typename Protocol>
-    const detail::protocol_request_t<Protocol>& get() const
-    {
-        return m_request.template packet<Protocol>();
-    }
-
-    template <typename Protocol>
-    detail::protocol_context_t<Protocol>& context()
-    {
-        return m_request.template context<Protocol>();
-    }
-
-    template <typename Protocol>
-    const detail::protocol_context_t<Protocol>& context() const
-    {
-        return m_request.template context<Protocol>();
-    }
-
-    const runtime_context& prepare_buffer() const noexcept
-    {
-        m_request.prepare_buffer();
-        return *this;
-    }
-
-    const runtime_context& prepare_inbound_buffer() const noexcept
-    {
-        m_request.prepare_inbound_buffer();
-        return *this;
-    }
-
-    const runtime_context& append_payload(const void* data, std::size_t len) const
-    {
-        m_request.append_payload(data, len);
-        return *this;
-    }
-
-    template <typename T, std::size_t N>
-    const runtime_context& append_payload(const T (&arr)[N]) const
-    {
-        m_request.append_payload(arr);
-        return *this;
-    }
-
-    const runtime_context& prepare_packet() const noexcept
-    {
-        return prepare_buffer();
-    }
-
-    const runtime_context& prepare_inbound() const noexcept
-    {
-        return prepare_inbound_buffer();
+        return m_owner;
     }
 
 private:
-    request_type& m_request;
+    friend class proto_request;
+
+    proto_context* m_prev{nullptr};
+    protocol*      m_owner{nullptr};
 };
 
-} // namespace mc::proto::detail
+} // namespace mc::proto
 
 #endif // MC_PROTOCOL_CONTEXT_H

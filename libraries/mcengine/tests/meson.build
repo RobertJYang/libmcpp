@@ -1,27 +1,3 @@
-mcengine_test_files = files(
-  'test_error_engine.cpp',
-  'test_interface.cpp',
-  'test_interface_inherit.cpp',
-  'test_object.cpp',
-  'test_shm_engine_business.cpp',
-  'test_shm_engine_lifecycle.cpp',
-  'test_shm_object_journal.cpp',
-  'test_shm_object_layout.cpp',
-  'test_shm_object_ops.cpp',
-  'test_shm_service_layout.cpp',
-  'test_shm_service_ops.cpp',
-  'test_shm_service_takeover.cpp',
-  'test_utils.cpp',
-  'test_engine.cpp',
-  'test_property_concurrent_fix.cpp',
-  'test_context.cpp',
-  'test_path.cpp',
-  'test_service_utils.cpp',
-  'test_path_iterator.cpp',
-  'test_async_invoke.cpp',
-  'test_result.cpp',
-)
-
 mcengine_test_support_files = files()
 
 mcengine_test_main = configure_file(

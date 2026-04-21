@@ -49,7 +49,7 @@ public:
                       std::uint8_t priority = 0);
     bool send_message_wait(std::uint32_t writer_id, std::uint64_t writer_instance_id, mc::string_view payload,
                            std::chrono::steady_clock::duration timeout, std::uint8_t priority = 0);
-    std::optional<mq_queue_message> try_receive_message(const mq_queue_writer_validator& validator);
+    std::optional<mq_queue_message> try_receive_message();
 
 private:
     friend class detail::mq_watcher;

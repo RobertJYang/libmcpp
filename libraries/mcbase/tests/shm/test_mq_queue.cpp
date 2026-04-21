@@ -72,9 +72,7 @@ TEST_F(mq_queue_test, rejects_oversized_single_message_but_keeps_normal_delivery
     EXPECT_FALSE(queue.send_message(9, 1, std::string(600, 'x')));
 
     ASSERT_TRUE(queue.send_message(1, 7, "ready"));
-    auto received = queue.try_receive_message([](std::uint32_t writer_id, std::uint64_t instance_id) {
-        return writer_id == 1 && instance_id == 7;
-    });
+    auto received = queue.try_receive_message();
     ASSERT_TRUE(received.has_value());
     EXPECT_EQ(received->payload, "ready");
 }
@@ -89,9 +87,7 @@ TEST_F(mq_queue_test, watcher_integrates_with_runtime_executor)
 
     auto watcher =
         std::make_shared<mc::shm::detail::mq_watcher>(mc::get_io_executor(), &queue, [&queue, &promise]() mutable {
-        auto message = queue.try_receive_message([](std::uint32_t writer_id, std::uint64_t instance_id) {
-            return writer_id == 3 && instance_id == 9;
-        });
+        auto message = queue.try_receive_message();
         if (message.has_value()) {
             promise.set_value(*message);
         }
@@ -115,9 +111,7 @@ TEST_F(mq_queue_test, watcher_accepts_move_only_handler)
 
     auto watcher = std::make_shared<mc::shm::detail::mq_watcher>(mc::get_io_executor(), &queue,
                                                                  [&queue, done = std::move(done)]() mutable {
-        auto message = queue.try_receive_message([](std::uint32_t writer_id, std::uint64_t instance_id) {
-            return writer_id == 5 && instance_id == 11;
-        });
+        auto message = queue.try_receive_message();
         if (message.has_value()) {
             done->set_value(*message);
         }
@@ -131,7 +125,7 @@ TEST_F(mq_queue_test, watcher_accepts_move_only_handler)
     watcher->stop();
 }
 
-TEST_F(mq_queue_test, try_receive_message_skips_old_instance_message)
+TEST_F(mq_queue_test, try_receive_message_preserves_fifo_order)
 {
     mc::shm::mq_queue queue(make_options());
     ASSERT_TRUE(queue.is_valid());
@@ -139,14 +133,12 @@ TEST_F(mq_queue_test, try_receive_message_skips_old_instance_message)
     ASSERT_TRUE(queue.send_message(7, 1, "old"));
     ASSERT_TRUE(queue.send_message(7, 2, "new"));
 
-    auto received = queue.try_receive_message([](std::uint32_t writer_id, std::uint64_t instance_id) {
-        return writer_id == 7 && instance_id == 2;
-    });
+    auto received = queue.try_receive_message();
 
     ASSERT_TRUE(received.has_value());
     EXPECT_EQ(received->writer_id, 7U);
-    EXPECT_EQ(received->writer_instance_id, 2U);
-    EXPECT_EQ(received->payload, "new");
+    EXPECT_EQ(received->writer_instance_id, 1U);
+    EXPECT_EQ(received->payload, "old");
 }
 
 TEST_F(mq_queue_test, watcher_drains_backlog_after_start)
@@ -174,9 +166,7 @@ TEST_F(mq_queue_test, watcher_drains_backlog_after_start)
 
     auto watcher = std::make_shared<mc::shm::detail::mq_watcher>(pool.get_executor(), &queue, [&]() mutable {
         while (true) {
-            auto message = queue.try_receive_message([](std::uint32_t, std::uint64_t) {
-                return true;
-            });
+            auto message = queue.try_receive_message();
             if (!message.has_value()) {
                 return;
             }
@@ -228,9 +218,7 @@ TEST_F(mq_queue_test, multi_writer_single_reader_receives_all_messages)
 
     auto watcher = std::make_shared<mc::shm::detail::mq_watcher>(pool.get_executor(), &queue, [&]() mutable {
         while (true) {
-            auto message = queue.try_receive_message([](std::uint32_t, std::uint64_t) {
-                return true;
-            });
+            auto message = queue.try_receive_message();
             if (!message.has_value()) {
                 return;
             }
@@ -294,18 +282,14 @@ TEST_F(mq_queue_test, send_message_wait_succeeds_after_reader_frees_space)
 
     EXPECT_EQ(writer.wait_for(std::chrono::milliseconds(50)), std::future_status::timeout);
 
-    auto first = queue.try_receive_message([](std::uint32_t, std::uint64_t) {
-        return true;
-    });
+    auto first = queue.try_receive_message();
     ASSERT_TRUE(first.has_value());
     EXPECT_EQ(first->payload, "first");
 
     ASSERT_EQ(writer.wait_for(std::chrono::seconds(2)), std::future_status::ready);
     EXPECT_TRUE(writer.get());
 
-    auto second = queue.try_receive_message([](std::uint32_t, std::uint64_t) {
-        return true;
-    });
+    auto second = queue.try_receive_message();
     ASSERT_TRUE(second.has_value());
     EXPECT_EQ(second->payload, "second");
 }

@@ -9,33 +9,40 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
+#include <cstdio>
 #include <mc/engine/base.h>
+#include <mc/engine/dispatcher.h>
 #include <mc/engine/engine.h>
-#include <mc/engine/path.h>
+#include <mc/engine/engine_proto.h>
 #include <mc/engine/internal/shm_binding.h>
+#include <mc/engine/path.h>
 #include <mc/engine/path_iterator.h>
 #include <mc/engine/service.h>
 #include <mc/engine/utils.h>
 #include <mc/exception.h>
-#include <cstdio>
 
 namespace mc::engine {
 
 using object_table_ptr = std::shared_ptr<service_object_table>;
 
 struct service_impl {
-    std::mutex                    m_mutex;
-    service*                      m_service{nullptr};
-    object_table_ptr              m_object_table;
-    bool                          m_registered{false};
-    bool                          m_started{false};
-    service_protocol_ptr          m_protocol;
+    std::mutex           m_mutex;
+    service*             m_service{nullptr};
+    object_table_ptr     m_object_table;
+    bool                 m_registered{false};
+    bool                 m_started{false};
+    service_protocol_ptr m_protocol;
+    mc::proto::protocol* m_proto{nullptr};
     // 始终持有；OFF 模式下 create_service_state 返回 nullptr，所有 binding 调用
     // 走 inline no-op。
-    shm_binding::service_state*   m_shm_state{nullptr};
+    shm_binding::service_state* m_shm_state{nullptr};
 
-    service_impl() : m_shm_state(shm_binding::create_service_state()) {}
-    ~service_impl() { shm_binding::destroy_service_state(m_shm_state); }
+    service_impl() : m_shm_state(shm_binding::create_service_state())
+    {}
+    ~service_impl()
+    {
+        shm_binding::destroy_service_state(m_shm_state);
+    }
 
     void             ensure_registered();
     void             unregister_from_engine();
@@ -401,6 +408,52 @@ service_protocol_ptr service::get_protocol() const
 {
     std::lock_guard lock(m_impl->m_mutex);
     return m_impl->m_protocol;
+}
+
+namespace {
+
+engine_proto* _resolve_engine_proto(mc::proto::protocol* proto)
+{
+    auto* engine = dynamic_cast<engine_proto*>(proto);
+    MC_ASSERT_THROW(engine != nullptr, mc::invalid_arg_exception,
+                    "service::set_proto requires mc::engine::engine_proto as root");
+    return engine;
+}
+
+} // namespace
+
+void service::set_proto(mc::proto::protocol* proto)
+{
+    mc::proto::protocol* previous = nullptr;
+    mc::proto::protocol* current  = nullptr;
+    {
+        std::lock_guard lock(m_impl->m_mutex);
+        if (m_impl->m_proto == proto) {
+            return;
+        }
+        previous        = std::move(m_impl->m_proto);
+        m_impl->m_proto = std::move(proto);
+        current         = m_impl->m_proto;
+    }
+
+    if (auto* prev_engine = dynamic_cast<engine_proto*>(previous); prev_engine != nullptr) {
+        prev_engine->clear_inbound_handler();
+    }
+
+    if (!current) {
+        return;
+    }
+
+    auto* engine = _resolve_engine_proto(current);
+    engine->set_inbound_handler([this](message request) -> message {
+        return mc::engine::dispatch(*this, request);
+    });
+}
+
+mc::proto::protocol* service::get_proto() const
+{
+    std::lock_guard lock(m_impl->m_mutex);
+    return m_impl->m_proto;
 }
 
 mc::variant service::request(const service_operation& operation) const
