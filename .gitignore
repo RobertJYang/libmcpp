@@ -14,6 +14,9 @@ subprojects/*
 !subprojects/*.wrap
 !subprojects/packagefiles/
 
+tests/smart-build-*.log
+tests/bingo*.log
+
 # OS specific files
 .DS_Store
 temp/*
