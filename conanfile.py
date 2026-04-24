@@ -50,6 +50,7 @@ class AppConan(ConanBase):
             tc.project_options["tests"] = True
         else:
             tc.project_options["tests"] = False
+        tc.project_options["tests_utilities"] = self.options.test
         tc.project_options["meson_build"] = False
 
         ms = VirtualBuildEnv(self)
@@ -237,7 +238,7 @@ class AppConan(ConanBase):
            "Requires: dbus-1 glib-2.0\n")
 
         # 配置test_utilities的pkg-config
-        self.cpp_info.components["test_utilities"].libs = ["mc_test_utilities"]
+        self.cpp_info.components["test_utilities"].libs = ["mc_test_utilities", "mcbase_test_utilities"]
         self.cpp_info.components["test_utilities"].libdirs = ["usr/lib64"]
         self.cpp_info.components["test_utilities"].includedirs = include_dirs
         self.cpp_info.components["test_utilities"].set_property("pkg_config_name", "test_utilities")

@@ -6,7 +6,7 @@ test_utilities_sources = [
   'test_base.cpp',
 ]
 
-install_dir = get_option('libdir')
+install_dir = 'usr/lib64'
 test_utilities_lib = static_library(
   'mcbase_test_utilities',
   test_utilities_sources,
