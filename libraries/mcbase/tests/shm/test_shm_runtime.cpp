@@ -44,11 +44,20 @@ protected:
 
     void TearDown() override
     {
-        mc::shm::detail::mq_notifier::remove(
-            mc::shm::detail::mq_notifier::make_default_name("mc_shm_queue_service.alpha"));
-        mc::shm::detail::mq_notifier::remove(
-            mc::shm::detail::mq_notifier::make_space_name("mc_shm_queue_service.alpha"));
-        mc::shm::detail::shared_memory_backend::remove("mc_shm_queue_service.alpha");
+        mc::shm::runtime_options options;
+        options.region_name = m_region_name;
+        mc::shm::shm_runtime runtime(options);
+        if (runtime.is_valid()) {
+            for (std::uint16_t endpoint_id = 1; endpoint_id <= mc::shm::shm_runtime::max_endpoints; ++endpoint_id) {
+                auto info = runtime.get_endpoint(endpoint_id);
+                if (!info.has_value()) {
+                    continue;
+                }
+                mc::shm::detail::mq_notifier::remove(info->notifier_name);
+                mc::shm::detail::mq_notifier::remove(mc::shm::detail::mq_notifier::make_space_name(info->queue_name));
+                mc::shm::detail::shared_memory_backend::remove(info->queue_name);
+            }
+        }
         mc::shm::detail::shared_memory_backend::remove(m_region_name);
     }
 
@@ -106,6 +115,34 @@ TEST_F(shm_runtime_test, runtime_opens_queue_and_recovers_stale_endpoint)
     auto snapshot = runtime.get_endpoint(endpoint->endpoint_id);
     ASSERT_TRUE(snapshot.has_value());
     EXPECT_EQ(snapshot->state, mc::shm::endpoint_state::aborting);
+}
+
+TEST_F(shm_runtime_test, endpoint_queue_resources_are_unique_across_runtimes)
+{
+    mc::shm::runtime_options options_a;
+    options_a.region_name = m_region_name;
+
+    const auto               region_b = make_unique_name("mc_shm_runtime_peer");
+    mc::shm::runtime_options options_b;
+    options_b.region_name = region_b;
+
+    mc::shm::shm_runtime runtime_a(options_a);
+    mc::shm::shm_runtime runtime_b(options_b);
+    ASSERT_TRUE(runtime_a.is_valid());
+    ASSERT_TRUE(runtime_b.is_valid());
+
+    auto endpoint_a = runtime_a.register_endpoint("service.shared", 16);
+    auto endpoint_b = runtime_b.register_endpoint("service.shared", 16);
+    ASSERT_TRUE(endpoint_a.has_value());
+    ASSERT_TRUE(endpoint_b.has_value());
+
+    EXPECT_NE(endpoint_a->queue_name, endpoint_b->queue_name);
+    EXPECT_NE(endpoint_a->notifier_name, endpoint_b->notifier_name);
+
+    mc::shm::detail::mq_notifier::remove(endpoint_b->notifier_name);
+    mc::shm::detail::mq_notifier::remove(mc::shm::detail::mq_notifier::make_space_name(endpoint_b->queue_name));
+    mc::shm::detail::shared_memory_backend::remove(endpoint_b->queue_name);
+    mc::shm::detail::shared_memory_backend::remove(region_b);
 }
 
 TEST_F(shm_runtime_test, named_mutex_is_cached_and_serializes_threads)

@@ -29,6 +29,8 @@ class object;
 
 namespace mc::runtime {
 
+using global_event_filter = std::function<void(mc::object& target, mc::event& e)>;
+
 class runtime_context;
 
 struct runtime_config {
@@ -66,6 +68,9 @@ public:
     void post_event(mc::object& target, std::unique_ptr<mc::event> e, int priority);
     void send_posted_events(mc::object* target = nullptr, mc::event_type_id type = mc::invalid_event_type);
     void remove_posted_events(mc::object* target = nullptr, mc::event_type_id type = mc::invalid_event_type);
+
+    global_event_filter install_global_filter(mc::event_type_id type, global_event_filter filter);
+    void remove_global_filter(mc::event_type_id type);
 
     static any_executor create_strand();
     any_executor        create_io_strand();

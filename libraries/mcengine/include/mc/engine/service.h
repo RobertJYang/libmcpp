@@ -14,7 +14,8 @@
 #define MC_ENGINE_MIDDLEWARE_DBUS_SERVICE_H
 #include <mc/common.h>
 #include <mc/dict.h>
-#include <mc/engine/service_protocol.h>
+#include <mc/engine/match.h>
+#include <mc/engine/message.h>
 #include <mc/object.h>
 #include <mc/string.h>
 #include <mc/string_view.h>
@@ -27,11 +28,8 @@ class engine;
 struct service_impl;
 class abstract_object;
 class service_object_table;
+class service_proto;
 } // namespace mc::engine
-
-namespace mc::proto {
-class protocol;
-}
 
 namespace mc::engine {
 
@@ -78,30 +76,18 @@ public:
     }
     void unregister_object(mc::string_view path);
 
-    // 回收所有 isolated 状态的 shm_object（recover 时无法重建的残留），
-    // 返回回收数量；非 SHM 编译下永远返回 0。
     std::size_t gc_isolated();
 
     service_object_table& get_object_table() const;
-    void                  set_protocol(service_protocol_ptr protocol);
-    service_protocol_ptr  get_protocol() const;
 
-    // 把 protocol 根节点作为本 service 与外界通信的唯一通道。
-    // 根节点必须是 mc::engine::engine_proto；service 会把自身 dispatcher
-    // 注入进去，入站请求经 engine_proto 解码后直接分发到 object 体系。
-    void                    set_proto(mc::proto::protocol* proto);
-    mc::proto::protocol*    get_proto() const;
-    mc::variant             request(const service_operation& operation) const;
-    mc::result<mc::variant> async_request(const service_operation& operation) const;
-    mc::variant             timeout_call(mc::milliseconds timeout, mc::string_view endpoint, mc::string_view path,
-                                         mc::string_view interface_name, mc::string_view method_name, mc::string_view signature,
-                                         mc::variants args = {}, mc::dict context = {}) const;
-    mc::result<mc::variant> async_timeout_call(mc::milliseconds timeout, mc::string_view endpoint, mc::string_view path,
-                                               mc::string_view interface_name, mc::string_view method_name,
-                                               mc::string_view signature, mc::variants args = {},
-                                               mc::dict context = {}) const;
-    uint64_t                add_match(mc::dbus::match_rule& rule, std::function<void(mc::dbus::message&)>&& cb) const;
-    void                    remove_match(uint64_t id) const;
+    void           set_proto(service_proto* proto);
+    service_proto* get_proto() const;
+
+    void emit(const message& msg) const;
+
+    match_id add_match(match_rule rule, filter_spec spec, match_callback callback) const;
+    void     remove_match(match_id id) const;
+    void     dispatch_event(const message& msg) const;
 
     static mc::string resolve_object_path(mc::string_view path_pattern, const abstract_object& obj);
 

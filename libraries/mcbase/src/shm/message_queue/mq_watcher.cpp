@@ -70,6 +70,8 @@ void mq_watcher::start()
 void mq_watcher::stop()
 {
     m_running = false;
+    m_queue   = nullptr;
+    m_handler = nullptr;
 
     if (m_waiter != nullptr) {
         m_waiter->close();
@@ -78,11 +80,11 @@ void mq_watcher::stop()
 
 void mq_watcher::arm_wait()
 {
+    auto self = shared_from_this();
     if (m_waiter == nullptr) {
         return;
     }
 
-    auto self = shared_from_this();
     m_waiter->async_wait(
 #ifndef _WIN32
         mc::io::native_waiter::wait_type::read,

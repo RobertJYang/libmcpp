@@ -135,6 +135,9 @@ public:
         return get_completion_state() != completion_state::pending;
     }
 
+    // 同步等待直到 state 变为 ready。用于 deferred continuation 执行前等待上游就绪。
+    void wait_until_ready();
+
     inline bool is_cancel_requested() const noexcept
     {
         return m_cancel_requested.load(std::memory_order_acquire);

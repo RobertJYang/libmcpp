@@ -114,8 +114,12 @@ message dispatch_method_call(const service& svc, const message& request, const m
 
 message dispatch(const service& svc, const message& request)
 {
+    if (request.header.type == message_type::signal) {
+        svc.dispatch_event(request);
+        return {};
+    }
     if (request.header.type != message_type::method_call) {
-        return make_engine_error_response(request, errors::invalid_args);
+        return {};
     }
 
     auto* payload = request.try_as<method_call_payload>();

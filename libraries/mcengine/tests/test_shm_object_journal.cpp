@@ -10,17 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
-// T8：shm_object 写路径 journal 三步协议 + crash recovery
-//
-// 范围：
-//   T8.1 同进程：人为模拟"begin 但未 end"（拷贝 shm_object snapshot 后重放写入
-//        中间状态），调 shm_object_journal_recover 验证字段最终值要么是旧值
-//        要么是新值，不出现撕裂。
-//   T8.2 多进程：fork 出子进程持续高频写 property，父进程 SIGKILL 子进程后
-//        attach 同一 region，对所有 shadow 跑 recover，验证 SHM 中 property 值
-//        与最后一次成功写入一致（旧或新），slab CRC 一致。
-//   T8.3 ABI：构造一个 abi=2 的旧版 shm_object 二进制（journal 全零），recover
-//        是 no-op；abi 校验由调用方负责。
+// shm_object 写路径 journal 三步协议 + crash recovery。USE_SHM=OFF 时不参与编译。
 
 #include <gtest/gtest.h>
 
@@ -116,9 +106,7 @@ struct shadow_snapshot {
 
 }  // namespace
 
-// ============================================================================
-// T8.1 同进程：journal 三步协议正常路径下 op 始终被清回 none
-// ============================================================================
+// journal 三步协议正常路径：op 始终被清回 none。
 
 TEST_F(shadow_journal_fixture, normal_setter_leaves_journal_clean)
 {
@@ -157,7 +145,7 @@ TEST_F(shadow_journal_fixture, recover_redo_byte_string_replace_after_commit_vis
     auto* shadow = shm_object_create(m_alloc, 1, "C", "n", "/p", "0001");
     ASSERT_NE(shadow, nullptr);
 
-    // 模拟 W3 byte_string_replace 的"已写字段 + 已刷 CRC + 未 end"中间态：
+    // 模拟 byte_string_replace 的"已写字段 + 已刷 CRC + 未 end"中间态：
     //   实现层面：保留 setter 写入完成后 journal payload 仍存在 + 手动重置 op = update
     shm_object_set_name(m_alloc, *shadow, "new-name");
     // 重读 journal payload（setter 内部 saved_a/b 已被 end 后清空？ 不，end 只清 op，
@@ -220,7 +208,7 @@ TEST_F(shadow_journal_fixture, recover_undo_byte_string_replace_when_field_not_y
     shm_object_destroy(m_alloc, shadow);
 }
 
-// W1 property 覆盖：模拟"begin 完成、slot 还没改"中间态，recover undo 后值=旧
+// 模拟"begin 完成、slot 还没改"中间态，recover undo 后值=旧。
 TEST_F(shadow_journal_fixture, recover_undo_property_value_simple)
 {
     auto* shadow = shm_object_create(m_alloc, 1, "C", "n", "/p", "0001");
@@ -268,8 +256,7 @@ TEST_F(shadow_journal_fixture, recover_undo_property_value_simple)
     shm_object_destroy(m_alloc, shadow);
 }
 
-// W2 grow：模拟"alloc 新 slab + transfer + journal_begin"中途 crash → undo 路径
-// 应把 shadow.properties 还原回旧 slab，并 free 新 slab。
+// 模拟"alloc 新 slab + transfer + journal_begin"中途 crash，undo 应还原旧 slab。
 TEST_F(shadow_journal_fixture, recover_undo_property_slab_replace_when_field_not_yet_switched)
 {
     auto* shadow = shm_object_create(m_alloc, 1, "C", "n", "/p", "0001");
@@ -280,7 +267,7 @@ TEST_F(shadow_journal_fixture, recover_undo_property_slab_replace_when_field_not
     ASSERT_NE(old_slab, nullptr);
     const std::uint16_t old_cap = old_slab->slot_capacity;
 
-    // 手工分配新 slab 模拟 W2 中途
+    // 手工分配新 slab 模拟 grow 中途
     const std::uint16_t new_cap = static_cast<std::uint16_t>(old_cap * 2U);
     auto* new_slab = mc::engine::property_slab_create(m_alloc, new_cap);
     ASSERT_NE(new_slab, nullptr);
@@ -312,17 +299,13 @@ TEST_F(shadow_journal_fixture, recover_undo_property_slab_replace_when_field_not
     shm_object_destroy(m_alloc, shadow);
 }
 
-// ============================================================================
-// T8.2 fork+SIGKILL：父子共享 SHM region，子进程持续写 property，父进程
-// 随机时刻 SIGKILL 子进程；attach 后对所有 shadow 跑 recover，验证 property
-// 值要么旧要么新，slab CRC 不撕裂。
-// ============================================================================
+// fork+SIGKILL：子进程持续写 property，父进程 SIGKILL 后 recover 验证不撕裂。
 
 TEST_F(shadow_journal_fixture, fork_sigkill_during_write_recover_keeps_invariant)
 {
     auto* shadow = shm_object_create(m_alloc, 1, "ForkT8", "f8", "/t/8", "0001");
     ASSERT_NE(shadow, nullptr);
-    // 预填一个 property 槽，避免子进程同时触发 W2 grow 时的复杂窗口
+    // 预填一个 property 槽，避免子进程同时触发 grow 时的复杂窗口
     ASSERT_TRUE(shm_object_set_property_int64(m_alloc, *shadow, "n", 0));
 
     // 用 SHM 内一个原子标志做"父子准备同步"
@@ -339,7 +322,7 @@ TEST_F(shadow_journal_fixture, fork_sigkill_during_write_recover_keeps_invariant
         std::int64_t counter = 1;
         while (true) {
             shm_object_set_property_int64(m_alloc, *shadow, "n", counter);
-            // 偶尔写 blob 触发 W1 blob ownership 路径
+            // 偶尔写 blob 触发 blob ownership 路径
             if ((counter & 0x3F) == 0) {
                 std::string s = "v" + std::to_string(counter);
                 shm_object_set_property_blob(m_alloc, *shadow, "n", s,
@@ -388,10 +371,7 @@ TEST_F(shadow_journal_fixture, fork_sigkill_during_write_recover_keeps_invariant
     shm_object_destroy(m_alloc, shadow);
 }
 
-// ============================================================================
-// T8.2b fork+SIGKILL（identity setter）：循环切 path/name/position 不等长字符串
-// 高频走 journaled_byte_string_replace；recover 后三个字段不能撕裂为空。
-// ============================================================================
+// fork+SIGKILL identity setter：循环切 path/name/position 不等长字符串，recover 后不撕裂。
 
 TEST_F(shadow_journal_fixture, fork_sigkill_during_identity_setters_recover_keeps_invariant)
 {
@@ -453,11 +433,7 @@ TEST_F(shadow_journal_fixture, fork_sigkill_during_identity_setters_recover_keep
     shm_object_destroy(m_alloc, shadow);
 }
 
-// ============================================================================
-// T8.2c fork+SIGKILL（property slab grow）：80 个互不相同的 key 持续写入，
-// 反复触发 W2 grow（property_slab_replace）。recover 后 slab CRC 自洽，
-// 已写入 key 数量在 [0, 80] 内（视 SIGKILL 命中点是 undo 还是 redo）。
-// ============================================================================
+// fork+SIGKILL property slab grow：80 个 key 持续写入反复触发 grow，recover 后 CRC 自洽。
 
 TEST_F(shadow_journal_fixture, fork_sigkill_during_property_slab_grow_recover_keeps_invariant)
 {
@@ -508,11 +484,7 @@ TEST_F(shadow_journal_fixture, fork_sigkill_during_property_slab_grow_recover_ke
     shm_object_destroy(m_alloc, shadow);
 }
 
-// ============================================================================
-// T8.2d fork+SIGKILL（child add）：循环 add/remove 多个预分配 child，
-// 触发 child_slab grow + update；recover 后 parent 自洽，child_count 在
-// [0, kChildCount] 内。
-// ============================================================================
+// fork+SIGKILL child add：循环 add/remove child 触发 slab grow，recover 后 parent 自洽。
 
 TEST_F(shadow_journal_fixture, fork_sigkill_during_child_add_recover_keeps_invariant)
 {
@@ -580,10 +552,7 @@ TEST_F(shadow_journal_fixture, fork_sigkill_during_child_add_recover_keeps_invar
     shm_object_destroy(m_alloc, parent);
 }
 
-// ============================================================================
-// T8.3 ABI：旧版本 shm_object 数据（abi=2，且 journal 全零）走 recover
-// 是 no-op；abi 校验在调用方
-// ============================================================================
+// ABI 旧版本数据（abi=2, journal 全零）走 recover 是 no-op。
 
 TEST_F(shadow_journal_fixture, recover_is_noop_when_journal_op_none)
 {

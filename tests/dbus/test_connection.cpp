@@ -18,7 +18,7 @@
 #include <mc/dbus/message.h>
 #include <mc/runtime/thread_pool.h>
 
-#include "dbus/connection_impl.h"
+#include "connection_impl.h"
 
 #include <atomic>
 #include <chrono>

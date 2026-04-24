@@ -131,6 +131,8 @@ protected:
     void on_cancel(any_promise& other_promise);
     void on_cancel(any_future& other_future);
 
+    void install_deferred_continuation(state_base_ptr downstream, callback_type continuation);
+
     template <typename Cleanup>
     auto finally(any_promise& promise, Cleanup&& cleanup, launch policy = launch::async)
         -> std::enable_if_t<std::is_invocable_v<Cleanup>>

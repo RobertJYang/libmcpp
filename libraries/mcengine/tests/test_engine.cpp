@@ -22,84 +22,11 @@
 #include <memory>
 #include <optional>
 
-namespace mc::dbus {
-class message {};
-class match_rule {};
-} // namespace mc::dbus
-
 namespace test_engine {
 
 struct test_service : public mc::engine::service {
     test_service() : mc::engine::service("org.openubmc.test_service")
     {}
-};
-
-class test_service_protocol : public mc::engine::service_protocol {
-public:
-    mc::string_view name() const noexcept override
-    {
-        return "test.service_protocol";
-    }
-
-    void attach(mc::engine::service& service) override
-    {
-        ++attach_count;
-        attached_service = &service;
-    }
-
-    void detach() override
-    {
-        ++detach_count;
-        attached_service = nullptr;
-    }
-
-    void register_object(mc::engine::abstract_object& obj) override
-    {
-        ++register_count;
-        registered_paths.emplace_back(obj.get_object_path());
-    }
-
-    void unregister_object(mc::string_view path) override
-    {
-        ++unregister_count;
-        unregistered_paths.emplace_back(path);
-    }
-
-    mc::variant request(const mc::engine::service_operation& operation) override
-    {
-        last_operation = operation;
-        return static_cast<int32_t>(operation.kind);
-    }
-
-    mc::result<mc::variant> async_request(const mc::engine::service_operation& operation) override
-    {
-        last_operation = operation;
-        return mc::make_result(request(operation));
-    }
-
-    std::size_t                                  attach_count{0};
-    std::size_t                                  detach_count{0};
-    std::size_t                                  register_count{0};
-    std::size_t                                  unregister_count{0};
-    mc::engine::service*                         attached_service{nullptr};
-    std::vector<std::string>                     registered_paths;
-    std::vector<std::string>                     unregistered_paths;
-    std::optional<mc::engine::service_operation> last_operation;
-    std::size_t                                  add_match_count{0};
-    std::size_t                                  remove_match_count{0};
-    uint64_t                                     last_removed_match_id{0};
-
-    uint64_t add_match(mc::dbus::match_rule&, std::function<void(mc::dbus::message&)>&&) override
-    {
-        ++add_match_count;
-        return 77;
-    }
-
-    void remove_match(uint64_t id) override
-    {
-        ++remove_match_count;
-        last_removed_match_id = id;
-    }
 };
 
 template <typename T>
@@ -646,112 +573,103 @@ TEST_F(engine_test, test_object_rewite_method)
     EXPECT_THROW(obj_ptr->invoke("not_rewite_method", {"222"}, "org.test.test_interface_1"), mc::method_call_exception);
 }
 
-TEST_F(engine_test, test_service_protocol_contract)
+TEST_F(engine_test, test_service_add_match_works_without_protocol)
 {
-    test_service service;
-    auto         protocol = mc::make_shared<test_service_protocol>();
+    mc::engine::match_rule rule;
+    rule.type = "signal";
 
-    service.set_protocol(protocol);
-    ASSERT_EQ(service.get_protocol(), protocol);
-    ASSERT_TRUE(service.start());
-    EXPECT_EQ(protocol->attach_count, 1u);
-    EXPECT_EQ(protocol->attached_service, &service);
+    int hits = 0;
+    auto id  = service.add_match(rule, mc::engine::filter_spec{}, [&](const mc::engine::message&) {
+        ++hits;
+    });
+    ASSERT_NE(id, 0u);
 
-    auto obj = test_object::create();
-    obj->set_object_path("/org/test/service_protocol");
-    obj->set_object_name(sformat("{}_local", obj->get_class_name()));
-    obj->set_position("0101");
-    service.register_object(obj);
-    ASSERT_EQ(protocol->register_count, 1u);
-    ASSERT_EQ(protocol->registered_paths.size(), 1u);
-    EXPECT_EQ(protocol->registered_paths.front(), obj->get_object_path());
+    mc::engine::message msg;
+    msg.header.type = mc::engine::message_type::signal;
+    service.dispatch_event(msg);
+    EXPECT_EQ(hits, 1);
 
-    mc::engine::service_operation operation{
-        mc::engine::service_operation_kind::invoke_method,
-        mc::engine::invoke_method_operation{
-            {"remote.endpoint", "/org/test/service_protocol", "org.test.test_interface_1"},
-            "add_values",
-            "ii",
-            {mc::variant(1), mc::variant(2)},
-            {},
-        },
-    };
-    auto result = protocol->request(operation);
-    EXPECT_EQ(result.as<int32_t>(), static_cast<int32_t>(mc::engine::service_operation_kind::invoke_method));
-
-    service.unregister_object(obj->get_object_path());
-    ASSERT_EQ(protocol->unregister_count, 1u);
-    ASSERT_EQ(protocol->unregistered_paths.size(), 1u);
-    EXPECT_EQ(protocol->unregistered_paths.front(), obj->get_object_path());
-
-    ASSERT_TRUE(service.stop());
-    EXPECT_EQ(protocol->detach_count, 1u);
-    EXPECT_EQ(protocol->attached_service, nullptr);
+    service.remove_match(id);
 }
 
-TEST_F(engine_test, test_service_timeout_call_delegates_to_protocol)
+TEST_F(engine_test, test_service_add_match_rejects_unknown_filter_backend)
 {
-    auto protocol = mc::make_shared<test_service_protocol>();
-    service.set_protocol(protocol);
+    mc::engine::match_rule  rule;
+    mc::engine::filter_spec spec;
+    spec.backend_type = 9999; // 任意未注册的 backend type
+    spec.text         = "{}";
 
-    auto result = service.timeout_call(mc::milliseconds(1500), "remote.endpoint", "/org/test/remote", "org.test.remote",
-                                       "Echo", "s", {mc::variant("payload")});
-
-    ASSERT_TRUE(protocol->last_operation.has_value());
-    EXPECT_EQ(result.as<int32_t>(), static_cast<int32_t>(mc::engine::service_operation_kind::invoke_method));
-    EXPECT_EQ(protocol->last_operation->kind, mc::engine::service_operation_kind::invoke_method);
-
-    auto* invoke = std::get_if<mc::engine::invoke_method_operation>(&protocol->last_operation->payload);
-    ASSERT_NE(invoke, nullptr);
-    EXPECT_EQ(invoke->target.endpoint, "remote.endpoint");
-    EXPECT_EQ(invoke->target.path, "/org/test/remote");
-    EXPECT_EQ(invoke->target.interface_name, "org.test.remote");
-    EXPECT_EQ(invoke->method_name, "Echo");
-    EXPECT_EQ(invoke->signature, "s");
-    ASSERT_EQ(invoke->args.size(), 1u);
-    EXPECT_EQ(invoke->args[0], "payload");
-    EXPECT_EQ(invoke->timeout, mc::milliseconds(1500));
+    EXPECT_THROW(service.add_match(rule, std::move(spec), [](const mc::engine::message&) {
+                 }), mc::invalid_arg_exception);
 }
 
-TEST_F(engine_test, test_service_async_timeout_call_delegates_to_protocol)
+TEST_F(engine_test, test_service_callback_exception_does_not_block_other_subscribers)
 {
-    auto protocol = mc::make_shared<test_service_protocol>();
-    service.set_protocol(protocol);
+    mc::engine::match_rule rule;
+    rule.type = "signal";
 
-    auto result = service
-                      .async_timeout_call(mc::milliseconds(2300), "remote.endpoint", "/org/test/async_remote",
-                                          "org.test.remote", "EchoAsync", "s", {mc::variant("payload_async")})
-                      .get();
-
-    ASSERT_TRUE(protocol->last_operation.has_value());
-    EXPECT_EQ(result.as<int32_t>(), static_cast<int32_t>(mc::engine::service_operation_kind::invoke_method));
-    EXPECT_EQ(protocol->last_operation->kind, mc::engine::service_operation_kind::invoke_method);
-
-    auto* invoke = std::get_if<mc::engine::invoke_method_operation>(&protocol->last_operation->payload);
-    ASSERT_NE(invoke, nullptr);
-    EXPECT_EQ(invoke->target.endpoint, "remote.endpoint");
-    EXPECT_EQ(invoke->target.path, "/org/test/async_remote");
-    EXPECT_EQ(invoke->target.interface_name, "org.test.remote");
-    EXPECT_EQ(invoke->method_name, "EchoAsync");
-    EXPECT_EQ(invoke->signature, "s");
-    ASSERT_EQ(invoke->args.size(), 1u);
-    EXPECT_EQ(invoke->args[0], "payload_async");
-    EXPECT_EQ(invoke->timeout, mc::milliseconds(2300));
-}
-
-TEST_F(engine_test, test_service_add_match_delegates_to_protocol)
-{
-    auto protocol = mc::make_shared<test_service_protocol>();
-    service.set_protocol(protocol);
-
-    mc::dbus::match_rule rule;
-    auto                 match_id = service.add_match(rule, [](mc::dbus::message&) {
+    int hits = 0;
+    auto bad = service.add_match(rule, mc::engine::filter_spec{}, [](const mc::engine::message&) {
+        throw std::runtime_error("boom");
+    });
+    auto good = service.add_match(rule, mc::engine::filter_spec{}, [&](const mc::engine::message&) {
+        ++hits;
     });
 
-    EXPECT_EQ(match_id, 77u);
-    EXPECT_EQ(protocol->add_match_count, 1u);
+    mc::engine::message msg;
+    msg.header.type = mc::engine::message_type::signal;
+    service.dispatch_event(msg);
+    EXPECT_EQ(hits, 1);
 
-    service.remove_match(match_id);
-    EXPECT_EQ(protocol->remove_match_count, 1u);
-    EXPECT_EQ(protocol->last_removed_match_id, 77u);
+    service.remove_match(bad);
+    service.remove_match(good);
+}
+
+TEST_F(engine_test, test_service_stop_clears_match_registry)
+{
+    mc::engine::match_rule rule;
+    rule.type = "signal";
+
+    int hits = 0;
+    service.add_match(rule, mc::engine::filter_spec{}, [&](const mc::engine::message&) {
+        ++hits;
+    });
+
+    service.stop();
+
+    mc::engine::message msg;
+    msg.header.type = mc::engine::message_type::signal;
+    service.dispatch_event(msg);
+    EXPECT_EQ(hits, 0);
+}
+
+TEST_F(engine_test, test_service_add_match_dispatches_only_matching_messages)
+{
+    mc::engine::match_rule rule;
+    rule.type           = "signal";
+    rule.interface_name = "org.test.events";
+
+    int hits = 0;
+    auto id  = service.add_match(rule, mc::engine::filter_spec{}, [&](const mc::engine::message& /*msg*/) {
+        ++hits;
+    });
+
+    EXPECT_NE(id, 0u);
+
+    mc::engine::message hit_msg;
+    hit_msg.header.type           = mc::engine::message_type::signal;
+    hit_msg.header.interface_name = "org.test.events";
+    hit_msg.header.member_name    = "Updated";
+    service.dispatch_event(hit_msg);
+    EXPECT_EQ(hits, 1);
+
+    mc::engine::message miss_msg;
+    miss_msg.header.type           = mc::engine::message_type::signal;
+    miss_msg.header.interface_name = "org.test.other";
+    service.dispatch_event(miss_msg);
+    EXPECT_EQ(hits, 1);
+
+    service.remove_match(id);
+    service.dispatch_event(hit_msg);
+    EXPECT_EQ(hits, 1);
 }

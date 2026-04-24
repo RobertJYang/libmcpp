@@ -27,158 +27,56 @@ namespace mc::shm {
 struct mq_transport_proto::send_runtime : public std::enable_shared_from_this<mq_transport_proto::send_runtime> {
     mq_transport_proto*                   owner{nullptr};
     mq_queue*                             queue{nullptr};
+    mc::runtime::any_executor             watcher_executor;
     std::shared_ptr<detail::mq_watcher>   space_watcher;
     std::deque<mc::proto::proto_request*> pending_requests;
     bool                                  processing{false};
     bool                                  kick_scheduled{false};
     bool                                  waiting_for_space{false};
+    bool                                  shutting_down{false};
     std::mutex                            mutex;
 
     ~send_runtime()
     {
-        if (space_watcher != nullptr) {
-            space_watcher->stop();
-            space_watcher.reset();
-        }
+        shutdown();
     }
 
     void rebind(mq_transport_proto* proto, mq_queue& bound_queue)
     {
-        owner = proto;
-        queue = &bound_queue;
-        if (space_watcher != nullptr) {
-            space_watcher->stop();
-            space_watcher.reset();
-        }
-
-        auto weak_self = weak_from_this();
-        space_watcher =
-            std::make_shared<detail::mq_watcher>(mc::runtime::get_default_executor(), &bound_queue, [weak_self]() {
-            if (auto self = weak_self.lock()) {
-                self->process_pending();
-            }
-        }, detail::mq_watcher::source::space);
-        space_watcher->start();
-    }
-
-    void enqueue(mc::proto::proto_request& req)
-    {
-        bool should_schedule_kick = false;
         {
             std::lock_guard<std::mutex> lock(mutex);
-            if (std::find(pending_requests.begin(), pending_requests.end(), &req) == pending_requests.end()) {
-                pending_requests.push_back(&req);
-            }
-            if (!processing && !kick_scheduled && !waiting_for_space) {
-                kick_scheduled       = true;
-                should_schedule_kick = true;
-            }
-        }
-
-        if (!should_schedule_kick) {
-            return;
-        }
-
-        auto weak_self = weak_from_this();
-        mc::runtime::post([weak_self]() {
-            if (auto self = weak_self.lock()) {
-                self->process_pending();
-            }
-        });
-    }
-
-    void process_pending()
-    {
-        {
-            std::lock_guard<std::mutex> lock(mutex);
-            if (processing || owner == nullptr) {
-                return;
-            }
-            processing        = true;
+            owner             = proto;
+            queue             = &bound_queue;
+            watcher_executor  = mc::runtime::get_default_executor();
+            processing        = false;
             kick_scheduled    = false;
             waiting_for_space = false;
+            shutting_down     = false;
+            pending_requests.clear();
         }
-
-        while (true) {
-            mc::proto::proto_request* req = nullptr;
-            {
-                std::lock_guard<std::mutex> lock(mutex);
-                while (!pending_requests.empty() &&
-                       pending_requests.front()->state() != mc::proto::execution_state::suspended) {
-                    pending_requests.pop_front();
-                }
-                if (pending_requests.empty()) {
-                    processing = false;
-                    return;
-                }
-                req = pending_requests.front();
-            }
-
-            const auto state = owner->resume(*req);
-            if (state == mc::proto::execution_state::suspended) {
-                std::lock_guard<std::mutex> lock(mutex);
-                processing        = false;
-                waiting_for_space = true;
-                return;
-            }
-
-            {
-                std::lock_guard<std::mutex> lock(mutex);
-                if (!pending_requests.empty() && pending_requests.front() == req) {
-                    pending_requests.pop_front();
-                } else {
-                    pending_requests.erase(std::remove(pending_requests.begin(), pending_requests.end(), req),
-                                           pending_requests.end());
-                }
-                if (pending_requests.empty()) {
-                    waiting_for_space = false;
-                }
-            }
-        }
-    }
-};
-
-struct mq_transport_proto::receive_runtime : public std::enable_shared_from_this<mq_transport_proto::receive_runtime> {
-    mq_transport_proto*                             owner{nullptr};
-    mq_queue*                                       queue{nullptr};
-    std::shared_ptr<detail::mq_watcher>             data_watcher;
-    std::deque<mc::proto::proto_request*>           pending_requests;
-    std::shared_ptr<mc::small_function<void(), 64>> completion_handler;
-    bool                                            processing{false};
-    bool                                            kick_scheduled{false};
-    bool                                            waiting_for_data{false};
-    std::mutex                                      mutex;
-
-    ~receive_runtime()
-    {
-        if (data_watcher != nullptr) {
-            data_watcher->stop();
-            data_watcher.reset();
+        if (space_watcher != nullptr) {
+            space_watcher->stop();
+            space_watcher.reset();
         }
     }
 
-    void rebind(mq_transport_proto* proto, mq_queue& bound_queue)
+    void shutdown()
     {
-        owner = proto;
-        queue = &bound_queue;
-        std::shared_ptr<detail::mq_watcher> old_watcher;
+        std::shared_ptr<detail::mq_watcher> watcher_to_stop;
         {
             std::lock_guard<std::mutex> lock(mutex);
-            old_watcher = std::move(data_watcher);
+            shutting_down     = true;
+            owner             = nullptr;
+            queue             = nullptr;
+            processing        = false;
+            kick_scheduled    = false;
+            waiting_for_space = false;
+            pending_requests.clear();
+            watcher_to_stop = std::move(space_watcher);
         }
-        if (old_watcher != nullptr) {
-            old_watcher->stop();
+        if (watcher_to_stop != nullptr) {
+            watcher_to_stop->stop();
         }
-    }
-
-    void set_completion_handler(mc::small_function<void(), 64> handler)
-    {
-        std::lock_guard<std::mutex> lock(mutex);
-        if (handler) {
-            completion_handler = std::make_shared<mc::small_function<void(), 64>>(std::move(handler));
-            return;
-        }
-        completion_handler.reset();
     }
 
     void enqueue(mc::proto::proto_request& req)
@@ -190,8 +88,8 @@ struct mq_transport_proto::receive_runtime : public std::enable_shared_from_this
             if (std::find(pending_requests.begin(), pending_requests.end(), &req) == pending_requests.end()) {
                 pending_requests.push_back(&req);
             }
-            should_start_watcher = data_watcher == nullptr;
-            if (!processing && !kick_scheduled && !waiting_for_data) {
+            should_start_watcher = space_watcher == nullptr;
+            if (!processing && !kick_scheduled && !waiting_for_space) {
                 kick_scheduled       = true;
                 should_schedule_kick = true;
             }
@@ -215,15 +113,223 @@ struct mq_transport_proto::receive_runtime : public std::enable_shared_from_this
 
     void process_pending()
     {
+        mq_transport_proto* current_owner = nullptr;
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            if (processing || owner == nullptr || shutting_down) {
+                return;
+            }
+            processing        = true;
+            kick_scheduled    = false;
+            waiting_for_space = false;
+            current_owner     = owner;
+        }
+
+        while (true) {
+            mc::proto::proto_request* req = nullptr;
+            {
+                std::lock_guard<std::mutex> lock(mutex);
+                while (!pending_requests.empty() &&
+                       pending_requests.front()->state() != mc::proto::execution_state::suspended) {
+                    pending_requests.pop_front();
+                }
+                if (pending_requests.empty()) {
+                    processing = false;
+                    return;
+                }
+                req = pending_requests.front();
+            }
+
+            const auto state = current_owner->resume(*req);
+            if (state == mc::proto::execution_state::suspended) {
+                std::lock_guard<std::mutex> lock(mutex);
+                processing        = false;
+                waiting_for_space = true;
+                return;
+            }
+
+            {
+                std::lock_guard<std::mutex> lock(mutex);
+                if (!pending_requests.empty() && pending_requests.front() == req) {
+                    pending_requests.pop_front();
+                } else {
+                    pending_requests.erase(std::remove(pending_requests.begin(), pending_requests.end(), req),
+                                           pending_requests.end());
+                }
+                if (pending_requests.empty()) {
+                    waiting_for_space = false;
+                }
+            }
+        }
+    }
+
+    void ensure_watcher_started()
+    {
+        std::shared_ptr<detail::mq_watcher> watcher;
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            if (space_watcher != nullptr || queue == nullptr) {
+                return;
+            }
+            auto weak_self = weak_from_this();
+            watcher =
+                std::make_shared<detail::mq_watcher>(watcher_executor, queue, [weak_self]() {
+                if (auto self = weak_self.lock()) {
+                    self->process_pending();
+                }
+            }, detail::mq_watcher::source::space);
+            space_watcher = watcher;
+        }
+        watcher->start();
+    }
+};
+
+struct mq_transport_proto::receive_runtime : public std::enable_shared_from_this<mq_transport_proto::receive_runtime> {
+    mq_transport_proto*                             owner{nullptr};
+    mq_queue*                                       queue{nullptr};
+    mc::runtime::any_executor                       watcher_executor;
+    std::shared_ptr<detail::mq_watcher>             data_watcher;
+    std::deque<mc::proto::proto_request*>           pending_requests;
+    std::shared_ptr<mc::small_function<void(), 64>> completion_handler;
+    bool                                            processing{false};
+    bool                                            kick_scheduled{false};
+    bool                                            waiting_for_data{false};
+    bool                                            shutting_down{false};
+    std::mutex                                      mutex;
+
+    ~receive_runtime()
+    {
+        shutdown();
+    }
+
+    void rebind(mq_transport_proto* proto, mq_queue& bound_queue)
+    {
+        std::shared_ptr<detail::mq_watcher> old_watcher;
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            owner            = proto;
+            queue            = &bound_queue;
+            watcher_executor = mc::runtime::get_default_executor();
+            processing       = false;
+            kick_scheduled   = false;
+            waiting_for_data = false;
+            shutting_down    = false;
+            pending_requests.clear();
+            old_watcher = std::move(data_watcher);
+        }
+        if (old_watcher != nullptr) {
+            old_watcher->stop();
+        }
+    }
+
+    void set_completion_handler(mc::small_function<void(), 64> handler)
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        if (handler) {
+            completion_handler = std::make_shared<mc::small_function<void(), 64>>(std::move(handler));
+            return;
+        }
+        completion_handler.reset();
+    }
+
+    void complete_request(mc::proto::proto_request& req)
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        pending_requests.erase(std::remove(pending_requests.begin(), pending_requests.end(), &req), pending_requests.end());
+        if (pending_requests.empty()) {
+            waiting_for_data = false;
+        }
+    }
+
+    void shutdown()
+    {
         std::shared_ptr<detail::mq_watcher> watcher_to_stop;
         {
             std::lock_guard<std::mutex> lock(mutex);
-            if (processing || owner == nullptr) {
-                return;
-            }
-            processing       = true;
+            shutting_down    = true;
+            owner            = nullptr;
+            queue            = nullptr;
+            processing       = false;
             kick_scheduled   = false;
             waiting_for_data = false;
+            pending_requests.clear();
+            completion_handler.reset();
+            watcher_to_stop = std::move(data_watcher);
+        }
+        if (watcher_to_stop != nullptr) {
+            watcher_to_stop->stop();
+        }
+    }
+
+    void enqueue(mc::proto::proto_request& req)
+    {
+        bool should_schedule_kick = false;
+        bool should_start_watcher = false;
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            if (std::find(pending_requests.begin(), pending_requests.end(), &req) == pending_requests.end()) {
+                pending_requests.push_back(&req);
+            }
+            should_start_watcher = data_watcher == nullptr;
+            const bool external_completion = completion_handler != nullptr;
+            if (!external_completion && !processing && !kick_scheduled && !waiting_for_data) {
+                kick_scheduled       = true;
+                should_schedule_kick = true;
+            }
+        }
+
+        if (should_start_watcher) {
+            ensure_watcher_started();
+        }
+
+        if (!should_schedule_kick) {
+            return;
+        }
+
+        auto weak_self = weak_from_this();
+        mc::runtime::post([weak_self]() {
+            if (auto self = weak_self.lock()) {
+                self->process_pending();
+            }
+        });
+    }
+
+    void process_pending()
+    {
+        mq_transport_proto* current_owner = nullptr;
+        std::shared_ptr<detail::mq_watcher> watcher_to_stop;
+        std::shared_ptr<mc::small_function<void(), 64>> completion;
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            if (owner == nullptr || shutting_down) {
+                return;
+            }
+            completion = completion_handler;
+            if (completion != nullptr && *completion) {
+                kick_scheduled = false;
+                if (pending_requests.empty()) {
+                    waiting_for_data = false;
+                    watcher_to_stop  = std::move(data_watcher);
+                }
+                current_owner = owner;
+            } else {
+                if (processing) {
+                    return;
+                }
+                processing       = true;
+                kick_scheduled   = false;
+                waiting_for_data = false;
+                current_owner    = owner;
+            }
+        }
+
+        if (completion != nullptr && *completion) {
+            (*completion)();
+            if (watcher_to_stop != nullptr) {
+                watcher_to_stop->stop();
+            }
+            MC_UNUSED(current_owner);
+            return;
         }
 
         while (true) {
@@ -246,7 +352,7 @@ struct mq_transport_proto::receive_runtime : public std::enable_shared_from_this
                 break;
             }
 
-            const auto state = owner->resume(*req);
+            const auto state = current_owner->resume(*req);
             if (state == mc::proto::execution_state::suspended) {
                 std::lock_guard<std::mutex> lock(mutex);
                 processing       = false;
@@ -288,7 +394,7 @@ struct mq_transport_proto::receive_runtime : public std::enable_shared_from_this
                 return;
             }
             auto weak_self = weak_from_this();
-            watcher = std::make_shared<detail::mq_watcher>(mc::runtime::get_default_executor(), queue, [weak_self]() {
+            watcher = std::make_shared<detail::mq_watcher>(watcher_executor, queue, [weak_self]() {
                 if (auto self = weak_self.lock()) {
                     self->process_pending();
                 }
@@ -298,6 +404,11 @@ struct mq_transport_proto::receive_runtime : public std::enable_shared_from_this
         watcher->start();
     }
 };
+
+mq_transport_proto::~mq_transport_proto()
+{
+    shutdown();
+}
 
 void mq_transport_proto::configure(mq_queue& queue, std::uint32_t writer_id, std::uint64_t writer_instance_id)
 {
@@ -320,6 +431,20 @@ void mq_transport_proto::set_receive_completion_handler(mc::small_function<void(
         m_receive_runtime = std::make_shared<receive_runtime>();
     }
     m_receive_runtime->set_completion_handler(std::move(handler));
+}
+
+void mq_transport_proto::shutdown() noexcept
+{
+    m_queue              = nullptr;
+    m_writer_id          = 0;
+    m_writer_instance_id = 0;
+
+    if (m_send_runtime != nullptr) {
+        m_send_runtime->shutdown();
+    }
+    if (m_receive_runtime != nullptr) {
+        m_receive_runtime->shutdown();
+    }
 }
 
 mc::proto::execution_state mq_transport_proto::on_push(mc::proto::proto_request& req)
@@ -360,6 +485,9 @@ mc::proto::execution_state mq_transport_proto::on_pop(mc::proto::proto_request& 
         return state;
     }
 
+    if (m_receive_runtime != nullptr) {
+        m_receive_runtime->complete_request(req);
+    }
     _replace_payload(req.buffer(), payload);
     return pop_next(req);
 }

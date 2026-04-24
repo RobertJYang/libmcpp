@@ -1,6 +1,8 @@
 mcapp_src_files = files(
+  'app_proto.cpp',
   'base_app.cpp',
   'application.cpp',
+  'dbus_proto.cpp',
   'service.cpp',
   'service_registry.cpp',
 )

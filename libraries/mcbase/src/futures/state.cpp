@@ -402,6 +402,15 @@ void state_base::cancel()
     mark_ready();
 }
 
+void state_base::wait_until_ready()
+{
+    try_start_deferred_task();
+    std::unique_lock lock(m_mutex);
+    while (!is_ready()) {
+        m_cv.wait(lock);
+    }
+}
+
 void state_base::add_cancel_callback(callback_type callback)
 {
     if (!is_ready() && !is_cancel_requested()) {

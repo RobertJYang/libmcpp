@@ -32,11 +32,18 @@ struct registry_state {
     std::vector<entry>        entries; // 按 user_base 升序
 };
 
-// 使用 Meyers singleton：首次访问时构造，避免静态初始化顺序问题
+// 使用 leaky singleton：首次访问时在堆上构造，永不析构。
+// 原因：region_registry 被 shm_region 析构路径 unregister_region 调用，而
+// shm_region 通常由 mc::singleton<shm_runtime> 持有。如果用 Meyer's singleton，
+// registry_state 的构造发生在 singleton_manager 之后（lazy），反向析构顺序会
+// 导致 registry_state 先于 shm_runtime 被销毁 —— shm_runtime 析构触发
+// shm_region 析构再去 unregister_region，命中已析构的 shared_mutex，抛出
+// system_error("mutex lock failed: Invalid argument") 并触发 terminate。
+// registry_state 内存占用极小（一个 vector + 一个 mutex），泄漏可接受。
 registry_state& state() noexcept
 {
-    static registry_state s;
-    return s;
+    static registry_state* s = new registry_state();
+    return *s;
 }
 
 // 按 user_base 二分：返回首个 it->user_base > key 的位置

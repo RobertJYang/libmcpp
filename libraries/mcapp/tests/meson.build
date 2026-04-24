@@ -2,6 +2,9 @@ mcapp_test_files = files(
   'test_base_app.cpp',
   'test_application.cpp',
   'test_service_registry.cpp',
+  'test_app_proto.cpp',
+  'test_dbus_proto.cpp',
+  'test_bus_name_invalid.cpp',
 )
 
 mcapp_test_main = configure_file(

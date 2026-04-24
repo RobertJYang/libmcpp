@@ -41,8 +41,9 @@ if enable_conan_compile
   test_files += 'test_json_wrapper.cpp'
 endif
 
+mcdbus_src_incdir = include_directories('../libraries/mcdbus/src')
 # 构建 include_directories 列表（使用根目录定义的 stubdir_global）
-test_inc_dirs = [incdir, srcdir]
+test_inc_dirs = [incdir, srcdir, mcdbus_src_incdir]
 if not enable_conan_compile
   test_inc_dirs += [stubdir_global]
 endif

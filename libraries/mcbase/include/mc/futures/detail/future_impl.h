@@ -480,7 +480,13 @@ auto Future<T>::then(F&& func, launch policy, mc::any_executor executor)
     auto promise = make_promise<ResultType>(ex);
     auto future  = promise.get_future().on_cancel(*this);
     promise.set_policy(policy);
-    add_continuation(make_continuation<T>(std::move(promise), std::forward<F>(func), get_state()), policy, ex);
+
+    auto continuation = make_continuation<T>(std::move(promise), std::forward<F>(func), get_state());
+    if (policy == launch::deferred) {
+        install_deferred_continuation(future.get_state(), std::move(continuation));
+    } else {
+        add_continuation(std::move(continuation), policy, ex);
+    }
     return future;
 }
 
@@ -507,7 +513,13 @@ auto Future<T>::then(F&& func, launch policy, mc::any_executor executor)
     auto promise = make_promise<ResultType>(ex);
     auto future  = promise.get_future().on_cancel(*this);
     promise.set_policy(policy);
-    add_continuation(make_continuation<T>(std::move(promise), std::forward<F>(func), get_state()), policy, ex);
+
+    auto continuation = make_continuation<T>(std::move(promise), std::forward<F>(func), get_state());
+    if (policy == launch::deferred) {
+        install_deferred_continuation(future.get_state(), std::move(continuation));
+    } else {
+        add_continuation(std::move(continuation), policy, ex);
+    }
     return future;
 }
 
@@ -571,9 +583,14 @@ auto Future<T>::catch_error(F&& func, launch policy, mc::any_executor executor)
         return future.catch_error(std::forward<F>(func), policy, executor);
     }
 
-    auto promise = make_promise<T>(ex);
-    auto future  = promise.get_future().on_cancel(*this);
-    add_continuation(make_error_continuation<T>(std::move(promise), std::forward<F>(func), get_state()), policy, ex);
+    auto promise      = make_promise<T>(ex);
+    auto future       = promise.get_future().on_cancel(*this);
+    auto continuation = make_error_continuation<T>(std::move(promise), std::forward<F>(func), get_state());
+    if (policy == launch::deferred) {
+        install_deferred_continuation(future.get_state(), std::move(continuation));
+    } else {
+        add_continuation(std::move(continuation), policy, ex);
+    }
     return future;
 }
 
@@ -600,9 +617,14 @@ auto Future<T>::catch_error(F&& func, launch policy, mc::any_executor executor)
         return future.catch_error(std::forward<F>(func), policy, executor);
     }
 
-    auto promise = make_promise<T>(ex);
-    auto future  = promise.get_future().on_cancel(*this);
-    add_continuation(make_error_continuation<T>(std::move(promise), std::forward<F>(func), get_state()), policy, ex);
+    auto promise      = make_promise<T>(ex);
+    auto future       = promise.get_future().on_cancel(*this);
+    auto continuation = make_error_continuation<T>(std::move(promise), std::forward<F>(func), get_state());
+    if (policy == launch::deferred) {
+        install_deferred_continuation(future.get_state(), std::move(continuation));
+    } else {
+        add_continuation(std::move(continuation), policy, ex);
+    }
     return future;
 }
 
@@ -625,10 +647,20 @@ auto Future<T>::finally(F&& cleanup, launch policy, mc::any_executor executor) -
 
     auto promise = make_promise<T>(ex);
     auto future  = promise.get_future().on_cancel(*this);
-    any_future::finally(promise, [promise, cleanup = std::forward<F>(cleanup), state = get_state()]() mutable {
-        cleanup();
-        promise.set_state_value(*state);
-    }, policy, ex);
+    promise.set_policy(policy);
+    auto continuation = callback_type([promise, cleanup = std::forward<F>(cleanup), state = get_state()]() mutable {
+        try {
+            cleanup();
+            promise.set_state_value(*state);
+        } catch (...) {
+            promise.set_current_exception();
+        }
+    });
+    if (policy == launch::deferred) {
+        install_deferred_continuation(future.get_state(), std::move(continuation));
+    } else {
+        add_continuation(std::move(continuation), policy, ex);
+    }
     return future;
 }
 

@@ -83,6 +83,18 @@ void append_payload(mc::proto::buffer& buffer, const std::string& payload)
     buffer.append_payload(payload.data(), payload.size());
 }
 
+bool wait_until(const std::function<bool()>& predicate, std::chrono::milliseconds timeout = std::chrono::seconds(2))
+{
+    const auto deadline = std::chrono::steady_clock::now() + timeout;
+    while (std::chrono::steady_clock::now() < deadline) {
+        if (predicate()) {
+            return true;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    return predicate();
+}
+
 class mq_channel_test : public mc::test::TestWithRuntime {
 protected:
     void SetUp() override
@@ -262,6 +274,9 @@ TEST_F(mq_channel_test, send_large_message_auto_resumes_when_space_is_released)
     ASSERT_NE(state, mc::proto::execution_state::failed);
     ASSERT_EQ(received.wait_for(2s), std::future_status::ready);
     EXPECT_EQ(received.get(), payload);
+    ASSERT_TRUE(wait_until([&outbound]() {
+        return outbound.state() == mc::proto::execution_state::completed;
+    }));
     EXPECT_EQ(outbound.state(), mc::proto::execution_state::completed);
 
     channel.stop();

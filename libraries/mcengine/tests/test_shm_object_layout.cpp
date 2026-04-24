@@ -47,9 +47,7 @@ namespace shadow_flags = mc::engine::shm_object_flags;
 
 namespace {
 
-// ============================================================================
-// 1. sizeof / alignof
-// ============================================================================
+// sizeof / alignof
 
 TEST(shm_object_layout, sizeof_shm_object_is_192)
 {
@@ -80,9 +78,7 @@ TEST(shm_object_layout, sizeof_child_slab_header_is_16)
     EXPECT_EQ(alignof(child_slab), 8U);
 }
 
-// ============================================================================
-// 2. 字段 offset
-// ============================================================================
+// 字段 offset
 
 TEST(shm_object_layout, shm_object_field_offsets_locked)
 {
@@ -142,9 +138,7 @@ TEST(shm_object_layout, slab_alloc_sizes_correct)
     EXPECT_EQ(child_slab_alloc_size(128), 16U + 128U * 8U);
 }
 
-// ============================================================================
-// 3. POD 性质
-// ============================================================================
+// POD 性质
 
 TEST(shm_object_layout, types_are_trivially_destructible)
 {
@@ -162,9 +156,7 @@ TEST(shm_object_layout, types_are_standard_layout)
     EXPECT_TRUE(std::is_standard_layout_v<shm_object>);
 }
 
-// ============================================================================
-// 4. CRC32 正确性
-// ============================================================================
+// CRC32 正确性
 
 TEST(shm_object_crc, crc32_known_vectors)
 {

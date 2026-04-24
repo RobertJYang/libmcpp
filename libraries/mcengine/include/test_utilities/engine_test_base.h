@@ -39,6 +39,7 @@ protected:
         mc::engine::engine::reset_for_test();
     }
 };
+
 } // namespace test
 } // namespace mc
 

@@ -1,0 +1,3 @@
+option('tests', type: 'boolean', value: false, description: 'Build mcdbus tests')
+option('enable_coverage', type: 'boolean', value: false, description: 'Enable mcdbus coverage')
+option('enable_conan_compile', type: 'boolean', value: false, description: 'Align with libmcpp ENABLE_CONAN_COMPILE')

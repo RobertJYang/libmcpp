@@ -62,6 +62,11 @@ else
   mcbase_test_utilities_dep = declare_dependency()
 endif
 
+# 非 SHM 配置下 mcengine_test_utilities 库不构建（见 tests/test_utilities/
+# meson.build），这里给一个占位空 dep，保证 mcengine_test_lib 的 deps 语法
+# 在两种配置下都合法。
+mcengine_test_utilities_dep = declare_dependency()
+
 dep_arr = [mcbase_dep]
 
 subdir('include')
@@ -69,33 +74,47 @@ subdir('src')
 meson.override_dependency('mcengine', mcengine_dep)
 
 if build_tests
+  # 与 SHM 无关、任何 use_shm 配置都会编译的用例。
   mcengine_test_sources = files(
     'tests/test_error_engine.cpp',
-    'tests/test_engine_proto_node.cpp',
-    'tests/test_engine_proto_protocol2_stack.cpp',
+    'tests/test_service_proto_node.cpp',
     'tests/test_interface.cpp',
     'tests/test_interface_inherit.cpp',
     'tests/test_object.cpp',
-    'tests/test_standard_message_protocol.cpp',
-    'tests/test_shm_engine_business.cpp',
-    'tests/test_shm_engine_lifecycle.cpp',
     'tests/test_shm_object_journal.cpp',
     'tests/test_shm_object_layout.cpp',
     'tests/test_shm_object_ops.cpp',
     'tests/test_shm_service_layout.cpp',
     'tests/test_shm_service_ops.cpp',
-    'tests/test_shm_service_takeover.cpp',
     'tests/test_utils.cpp',
     'tests/test_engine.cpp',
+    'tests/test_match.cpp',
     'tests/test_property_concurrent_fix.cpp',
     'tests/test_context.cpp',
     'tests/test_path.cpp',
     'tests/test_service_utils.cpp',
-    'tests/test_service_protocol2.cpp',
+    'tests/test_service_emit.cpp',
     'tests/test_path_iterator.cpp',
+    'tests/test_path_pattern.cpp',
     'tests/test_async_invoke.cpp',
     'tests/test_result.cpp',
   )
+
+  # 仅在 use_shm=true 时才编译的用例：内部大段代码依赖 shm_runtime / shared_table /
+  # SHM-only 公共机制。关 SHM 时这些文件整体不进编译单元，避免原来靠
+  # #if MCENGINE_USE_SHM + GTEST_SKIP 的"空壳"样板。
+  if use_shm
+    mcengine_test_sources += files(
+      'tests/test_shared_table.cpp',
+      'tests/test_shm_engine_business.cpp',
+      'tests/test_shm_engine_lifecycle.cpp',
+      'tests/test_shm_service_takeover.cpp',
+    )
+
+    # mcengine 侧 SHM 专属的测试辅助库（TestWithEngineShmRegion 等）。只在开
+    # SHM 时编译，避免关 SHM 时引入 shm_runtime 等头的编译噪声。
+    subdir('tests/test_utilities')
+  endif
 
   mcengine_test_lib = static_library(
     'mcengine_test_lib',
@@ -106,6 +125,7 @@ if build_tests
       boost_dep,
       mcengine_dep,
       mcbase_test_utilities_dep,
+      mcengine_test_utilities_dep,
     ],
     install: false,
   )

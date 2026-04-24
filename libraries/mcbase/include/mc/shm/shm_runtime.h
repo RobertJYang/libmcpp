@@ -78,9 +78,9 @@ struct endpoint_info {
 
 class MC_API shm_runtime {
 public:
-    static constexpr std::size_t max_endpoints        = 32;
-    static constexpr std::size_t max_named_locks      = 32;
-    static constexpr std::size_t max_named_lock_name  = 64;
+    static constexpr std::size_t max_endpoints       = 32;
+    static constexpr std::size_t max_named_locks     = 32;
+    static constexpr std::size_t max_named_lock_name = 64;
 
     explicit shm_runtime(const runtime_options& options);
     ~shm_runtime();
@@ -104,6 +104,16 @@ public:
     std::size_t                  recover_stale_endpoints();
     std::optional<endpoint_info> get_endpoint(std::uint16_t endpoint_id) const;
     bool                         writer_instance_is_current(std::uint16_t endpoint_id, std::uint64_t instance_id) const;
+
+    // 按名字查 endpoint；未注册返回 nullopt。与 get_endpoint 对称的只读接口，
+    // 调用者可用来做"名字冲突检测"、"是否需要 takeover 旧 slot"的判断。
+    std::optional<endpoint_info> find_endpoint_by_name(mc::string_view endpoint_name) const;
+
+    // 判断指定 slot 当前是否"活着"（state ∈ {starting, running} 且 owner_pid
+    // 在内核看仍存活）。名字冲突 policy 的判定器：发现 slot 已被活进程占用
+    // 时，新进程应拒绝 register_endpoint，而不是挤掉对方。
+    // 非法 endpoint_id / 空槽 / 已 abort / 已 recover 都返回 false。
+    bool is_endpoint_alive(std::uint16_t endpoint_id) const;
 
     mq_queue open_queue(const endpoint& endpoint) const;
 
@@ -143,8 +153,6 @@ public:
     // 本方法会清空容器所有元素后释放 control 块；失败返回 false。
     bool drop_named_container(mc::string_view name) noexcept;
 
-    // ---------------- 底层工厂 helper（非模板，供模板 wrapper 调用） -------
-    //
     // kind_code：'L' / 'S' / 'M' 表示 list / set / map（未来若扩展容器类型
     // 请拓展此 enum）。同一 name 不同 kind 属于不同命名空间。
     struct named_container_spec {
@@ -152,13 +160,16 @@ public:
         mc::string_view name;
         std::size_t     ctrl_size;
         std::size_t     ctrl_align;
-        std::uint64_t   signature;  // 跨进程类型一致性校验
-        void          (*init_fn)(void* control, std::uint32_t self_tag);
+        std::uint64_t   signature; // 跨进程类型一致性校验
+        void (*init_fn)(void* control, std::uint32_t self_tag);
     };
     struct named_container_handle {
         void*          control   = nullptr;
         shm_allocator* allocator = nullptr;
-        explicit operator bool() const noexcept { return control != nullptr; }
+        explicit       operator bool() const noexcept
+        {
+            return control != nullptr;
+        }
     };
     named_container_handle ensure_named_container(const named_container_spec& spec) noexcept;
 
@@ -167,16 +178,11 @@ public:
 private:
     struct impl;
 
-    static std::uint64_t make_container_signature(char kind_code, std::uint32_t key_size,
-                                                  std::uint32_t value_size, std::uint32_t key_align,
-                                                  std::uint32_t value_align) noexcept;
+    static std::uint64_t make_container_signature(char kind_code, std::uint32_t key_size, std::uint32_t value_size,
+                                                  std::uint32_t key_align, std::uint32_t value_align) noexcept;
 
     std::shared_ptr<impl> m_impl;
 };
-
-// ==========================================================================
-// 模板实现（放在头末尾，避免侵入 public 区块）
-// ==========================================================================
 
 template <typename T>
 std::optional<container::list<T>> shm_runtime::get_or_create_list(mc::string_view name)
@@ -196,8 +202,7 @@ std::optional<container::list<T>> shm_runtime::get_or_create_list(mc::string_vie
     if (!handle) {
         return std::nullopt;
     }
-    return container::list<T>(*static_cast<container::list_control*>(handle.control),
-                              *handle.allocator);
+    return container::list<T>(*static_cast<container::list_control*>(handle.control), *handle.allocator);
 }
 
 template <typename Key, typename Compare>
@@ -218,13 +223,11 @@ std::optional<container::set<Key, Compare>> shm_runtime::get_or_create_set(mc::s
     if (!handle) {
         return std::nullopt;
     }
-    return container::set<Key, Compare>(*static_cast<container::set_control*>(handle.control),
-                                        *handle.allocator);
+    return container::set<Key, Compare>(*static_cast<container::set_control*>(handle.control), *handle.allocator);
 }
 
 template <typename Key, typename Value, typename Compare>
-std::optional<container::map<Key, Value, Compare>>
-shm_runtime::get_or_create_map(mc::string_view name)
+std::optional<container::map<Key, Value, Compare>> shm_runtime::get_or_create_map(mc::string_view name)
 {
     named_container_spec spec;
     spec.kind_code  = 'M';
@@ -242,8 +245,8 @@ shm_runtime::get_or_create_map(mc::string_view name)
     if (!handle) {
         return std::nullopt;
     }
-    return container::map<Key, Value, Compare>(
-        *static_cast<container::map_control*>(handle.control), *handle.allocator);
+    return container::map<Key, Value, Compare>(*static_cast<container::map_control*>(handle.control),
+                                               *handle.allocator);
 }
 
 } // namespace mc::shm

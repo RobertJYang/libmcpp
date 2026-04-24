@@ -16,7 +16,6 @@
 #include <mc/array.h>
 #include <mc/engine.h>
 #include <mc/engine/service.h>
-#include <mc/engine/service_protocol.h>
 #include <mc/filesystem.h>
 #include <mc/json.h>
 #include <mc/reflect.h>
@@ -61,67 +60,6 @@ public:
     sample_service_config m_config;
     int                   m_start_count{0};
     int                   m_stop_count{0};
-};
-
-class test_engine_service : public mc::app::service {
-public:
-    explicit test_engine_service(mc::string name) : mc::app::service(std::move(name))
-    {}
-
-    bool on_start() override
-    {
-        return true;
-    }
-
-    bool on_stop() override
-    {
-        return true;
-    }
-};
-
-class test_engine_protocol : public mc::engine::service_protocol {
-public:
-    mc::string_view name() const noexcept override
-    {
-        return "test.engine.protocol";
-    }
-
-    void attach(mc::engine::service& service) override
-    {
-        ++attach_count;
-        attached_service = &service;
-    }
-
-    void detach() override
-    {
-        ++detach_count;
-        attached_service = nullptr;
-    }
-
-    void register_object(mc::engine::abstract_object& obj) override
-    {
-        MC_UNUSED(obj);
-    }
-
-    void unregister_object(mc::string_view path) override
-    {
-        MC_UNUSED(path);
-    }
-
-    mc::variant request(const mc::engine::service_operation& operation) override
-    {
-        MC_UNUSED(operation);
-        return {};
-    }
-
-    mc::result<mc::variant> async_request(const mc::engine::service_operation& operation) override
-    {
-        return mc::make_result(request(operation));
-    }
-
-    std::size_t          attach_count{0};
-    std::size_t          detach_count{0};
-    mc::engine::service* attached_service{nullptr};
 };
 
 } // namespace test_mcapp
@@ -189,7 +127,7 @@ TEST_F(application_test, initialize_builds_service_plan_from_config)
         {
             "api_version": "v1",
             "kind": "Service",
-            "meta": {"name": "alpha"},
+            "meta": {"name": "mc.test.alpha"},
             "type": "sample_service",
             "enabled": true,
             "properties": {
@@ -211,10 +149,10 @@ TEST_F(application_test, initialize_builds_service_plan_from_config)
     EXPECT_EQ(plan.application.name, "sample-app");
     EXPECT_EQ(plan.application.io_threads, 2U);
     EXPECT_EQ(plan.application.work_threads, 4U);
-    EXPECT_EQ(plan.services[0].name, "alpha");
+    EXPECT_EQ(plan.services[0].name, "mc.test.alpha");
     EXPECT_EQ(plan.services[0].type, "sample_service");
 
-    auto service = m_app->get_service("alpha");
+    auto service = m_app->get_service("mc.test.alpha");
     ASSERT_NE(service, nullptr);
     auto typed = mc::static_pointer_cast<test_mcapp::sample_service>(service);
     EXPECT_EQ(typed->m_config.greeting, "hello");
@@ -231,7 +169,7 @@ TEST_F(application_test, command_line_overrides_service_properties)
         {
             "api_version": "v1",
             "kind": "Service",
-            "meta": {"name": "alpha"},
+            "meta": {"name": "mc.test.alpha"},
             "type": "sample_service",
             "enabled": true,
             "properties": {
@@ -241,7 +179,7 @@ TEST_F(application_test, command_line_overrides_service_properties)
     ])");
 
     std::string          config_arg   = config_path.string();
-    std::string          override_arg = "--service.alpha.greeting=\"world\"";
+    std::string          override_arg = "--service.mc.test.alpha.greeting=\"world\"";
     char                 arg0[]       = "mcapp_test";
     char                 arg1[]       = "--config";
     char*                argv[]       = {arg0, arg1, config_arg.data(), override_arg.data(), nullptr};
@@ -249,7 +187,7 @@ TEST_F(application_test, command_line_overrides_service_properties)
 
     ASSERT_TRUE(m_app->initialize(options));
 
-    auto service = m_app->get_service("alpha");
+    auto service = m_app->get_service("mc.test.alpha");
     ASSERT_NE(service, nullptr);
     auto typed = mc::static_pointer_cast<test_mcapp::sample_service>(service);
     EXPECT_EQ(typed->m_config.greeting, "world");
@@ -266,7 +204,7 @@ TEST_F(application_test, initialize_merges_manifest_imports_service_dirs_and_cli
         {
             "api_version": "v1",
             "kind": "Service",
-            "meta": {"name": "alpha"},
+            "meta": {"name": "mc.test.alpha"},
             "type": "sample_service",
             "enabled": true,
             "properties": {
@@ -277,7 +215,7 @@ TEST_F(application_test, initialize_merges_manifest_imports_service_dirs_and_cli
     write_file("services.d/20-alpha.json", R"({
         "api_version": "v1",
         "kind": "Service",
-        "meta": {"name": "alpha"},
+        "meta": {"name": "mc.test.alpha"},
         "enabled": true,
         "properties": {
             "greeting": "from-service-dir"
@@ -295,7 +233,7 @@ TEST_F(application_test, initialize_merges_manifest_imports_service_dirs_and_cli
             {
                 "api_version": "v1",
                 "kind": "Service",
-                "meta": {"name": "alpha"},
+                "meta": {"name": "mc.test.alpha"},
                 "type": "sample_service",
                 "enabled": true,
                 "properties": {
@@ -306,7 +244,7 @@ TEST_F(application_test, initialize_merges_manifest_imports_service_dirs_and_cli
     })");
 
     std::string config_arg   = config_path.string();
-    std::string override_arg = "--service.alpha.greeting=\"from-cli\"";
+    std::string override_arg = "--service.mc.test.alpha.greeting=\"from-cli\"";
     char        arg0[]       = "mcapp_test";
     char        arg1[]       = "--config";
     char        arg2[]       = "--threads";
@@ -322,7 +260,7 @@ TEST_F(application_test, initialize_merges_manifest_imports_service_dirs_and_cli
     EXPECT_EQ(plan.application.work_threads, 3U);
     EXPECT_EQ(plan.application.modules.size(), 0U);
 
-    auto service = m_app->get_service("alpha");
+    auto service = m_app->get_service("mc.test.alpha");
     ASSERT_NE(service, nullptr);
     auto typed = mc::static_pointer_cast<test_mcapp::sample_service>(service);
     EXPECT_EQ(typed->m_config.greeting, "from-cli");
@@ -339,7 +277,7 @@ TEST_F(application_test, start_and_stop_manage_service_lifecycle)
         {
             "api_version": "v1",
             "kind": "Service",
-            "meta": {"name": "alpha"},
+            "meta": {"name": "mc.test.alpha"},
             "type": "sample_service",
             "enabled": true,
             "properties": {
@@ -357,7 +295,7 @@ TEST_F(application_test, start_and_stop_manage_service_lifecycle)
     ASSERT_TRUE(m_app->initialize(options));
     ASSERT_TRUE(m_app->start());
 
-    auto service = m_app->get_service("alpha");
+    auto service = m_app->get_service("mc.test.alpha");
     ASSERT_NE(service, nullptr);
     auto typed = mc::static_pointer_cast<test_mcapp::sample_service>(service);
     EXPECT_EQ(typed->state(), mc::app::service_state::running);
@@ -379,7 +317,7 @@ TEST_F(application_test, initialize_applies_descriptor_default_properties_before
         {
             "api_version": "v1",
             "kind": "Service",
-            "meta": {"name": "alpha"},
+            "meta": {"name": "mc.test.alpha"},
             "type": "sample_service",
             "enabled": true
         }
@@ -393,7 +331,7 @@ TEST_F(application_test, initialize_applies_descriptor_default_properties_before
 
     ASSERT_TRUE(m_app->initialize(options));
 
-    auto service = m_app->get_service("alpha");
+    auto service = m_app->get_service("mc.test.alpha");
     ASSERT_NE(service, nullptr);
     auto typed = mc::static_pointer_cast<test_mcapp::sample_service>(service);
     EXPECT_EQ(typed->m_config.greeting, "default-greeting");
@@ -428,7 +366,7 @@ TEST_F(application_test, initialize_creates_root_service_and_derives_service_pat
         {
             "api_version": "v1",
             "kind": "Service",
-            "meta": {"name": "alpha.beta"},
+            "meta": {"name": "mc.test.alpha.beta"},
             "type": "sample_service",
             "enabled": true
         }
@@ -446,10 +384,10 @@ TEST_F(application_test, initialize_creates_root_service_and_derives_service_pat
     ASSERT_NE(root, nullptr);
     EXPECT_EQ(root->path(), "/");
 
-    auto service = m_app->get_service("alpha.beta");
+    auto service = m_app->get_service("mc.test.alpha.beta");
     ASSERT_NE(service, nullptr);
-    EXPECT_EQ(service->name(), "alpha.beta");
-    EXPECT_EQ(service->path(), "/alpha/beta");
+    EXPECT_EQ(service->name(), "mc.test.alpha.beta");
+    EXPECT_EQ(service->path(), "/mc/test/alpha/beta");
 
     auto children = root->get_children();
     ASSERT_EQ(children.size(), 1U);
@@ -470,7 +408,7 @@ TEST_F(application_test, initialize_keeps_explicit_service_path)
             "api_version": "v1",
             "kind": "Service",
             "meta": {
-                "name": "alpha.beta",
+                "name": "mc.test.alpha.beta",
                 "path": "/services/custom"
             },
             "type": "sample_service",
@@ -486,7 +424,7 @@ TEST_F(application_test, initialize_keeps_explicit_service_path)
 
     ASSERT_TRUE(m_app->initialize(options));
 
-    auto service = m_app->get_service("alpha.beta");
+    auto service = m_app->get_service("mc.test.alpha.beta");
     ASSERT_NE(service, nullptr);
     EXPECT_EQ(service->path(), "/services/custom");
 }
@@ -496,7 +434,7 @@ TEST_F(application_test, initialize_allows_cli_override_for_dotted_service_name_
     write_file("services.d/20-alpha.json", R"({
         "api_version": "v1",
         "kind": "Service",
-        "meta": {"name": "alpha.beta"},
+        "meta": {"name": "mc.test.alpha.beta"},
         "type": "sample_service",
         "enabled": true,
         "properties": {
@@ -513,7 +451,7 @@ TEST_F(application_test, initialize_allows_cli_override_for_dotted_service_name_
             {
                 "api_version": "v1",
                 "kind": "Service",
-                "meta": {"name": "alpha.beta"},
+                "meta": {"name": "mc.test.alpha.beta"},
                 "type": "sample_service",
                 "enabled": true,
                 "properties": {
@@ -524,7 +462,7 @@ TEST_F(application_test, initialize_allows_cli_override_for_dotted_service_name_
     })");
 
     std::string config_arg   = config_path.string();
-    std::string override_arg = "--service.alpha.beta.greeting=\"from-cli\"";
+    std::string override_arg = "--service.mc.test.alpha.beta.greeting=\"from-cli\"";
     char        arg0[]       = "mcapp_test";
     char        arg1[]       = "--config";
     char*       argv[]       = {arg0, arg1, config_arg.data(), override_arg.data(), nullptr};
@@ -532,9 +470,9 @@ TEST_F(application_test, initialize_allows_cli_override_for_dotted_service_name_
 
     ASSERT_TRUE(m_app->initialize(options));
 
-    auto service = m_app->get_service("alpha.beta");
+    auto service = m_app->get_service("mc.test.alpha.beta");
     ASSERT_NE(service, nullptr);
-    EXPECT_EQ(service->path(), "/alpha/beta");
+    EXPECT_EQ(service->path(), "/mc/test/alpha/beta");
 
     auto typed = mc::static_pointer_cast<test_mcapp::sample_service>(service);
     EXPECT_EQ(typed->m_config.greeting, "from-cli");
@@ -552,7 +490,7 @@ TEST_F(application_test, initialize_rejects_invalid_explicit_service_path)
             "api_version": "v1",
             "kind": "Service",
             "meta": {
-                "name": "alpha.beta",
+                "name": "mc.test.alpha.beta",
                 "path": "invalid/path"
             },
             "type": "sample_service",
@@ -569,54 +507,3 @@ TEST_F(application_test, initialize_rejects_invalid_explicit_service_path)
     EXPECT_FALSE(m_app->initialize(options));
 }
 
-TEST_F(application_test, application_directly_bridges_engine_protocol_and_lifecycle)
-{
-    static_assert(std::is_base_of_v<mc::engine::service, test_mcapp::test_engine_service>,
-                  "app service should also be engine service");
-    test_mcapp::test_engine_protocol* protocol = nullptr;
-    m_app->set_protocol_factory([&protocol](const mc::app::service_definition& definition) {
-        EXPECT_EQ(definition.name, "alpha");
-        auto created = mc::make_shared<test_mcapp::test_engine_protocol>();
-        protocol     = created.get();
-        return created;
-    });
-    m_app->register_service<test_mcapp::test_engine_service>("engine_test_service");
-
-    auto config_path = write_config(R"([
-        {
-            "api_version": "v1",
-            "kind": "Application",
-            "meta": {"name": "engine-app"}
-        },
-        {
-            "api_version": "v1",
-            "kind": "Service",
-            "meta": {"name": "alpha"},
-            "type": "engine_test_service",
-            "enabled": true
-        }
-    ])");
-
-    std::string          config_arg = config_path.string();
-    char                 arg0[]     = "mcapp_engine_test";
-    char                 arg1[]     = "--config";
-    char*                argv[]     = {arg0, arg1, config_arg.data(), nullptr};
-    mc::app::app_options options{3, argv};
-
-    ASSERT_TRUE(m_app->initialize(options));
-
-    auto service = m_app->get_service("alpha");
-    ASSERT_NE(service, nullptr);
-    auto typed_service = mc::static_pointer_cast<test_mcapp::test_engine_service>(service);
-    ASSERT_NE(protocol, nullptr);
-    EXPECT_EQ(typed_service->name(), "alpha");
-    EXPECT_EQ(typed_service->get_protocol().get(), protocol);
-    EXPECT_EQ(protocol->attach_count, 0U);
-
-    ASSERT_TRUE(m_app->start());
-    EXPECT_EQ(protocol->attach_count, 1U);
-    EXPECT_EQ(protocol->attached_service, typed_service.get());
-
-    ASSERT_TRUE(m_app->stop());
-    EXPECT_EQ(protocol->detach_count, 1U);
-}

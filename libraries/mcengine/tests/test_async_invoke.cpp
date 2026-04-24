@@ -14,6 +14,7 @@
 #include <mc/engine.h>
 #include <mc/engine/event.h>
 #include <mc/exception.h>
+#include <test_utilities/base.h>
 
 using namespace std::chrono_literals;
 
@@ -141,13 +142,17 @@ MC_REFLECT(AsyncInterface,
                                                                                     "OperationCompleted")))
 MC_REFLECT(AsyncObject, ((m_iface, "async")))
 
-class async_invoke_test : public ::testing::Test {
+class async_invoke_test : public mc::test::TestWithRuntime {
 protected:
     void SetUp() override
-    {}
+    {
+        mc::test::TestWithRuntime::SetUp();
+    }
 
     void TearDown() override
-    {}
+    {
+        mc::test::TestWithRuntime::TearDown();
+    }
 
     AsyncObject                  obj;
     mc::engine::abstract_object& obj_base = obj;

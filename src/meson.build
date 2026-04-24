@@ -4,7 +4,6 @@ srcdir = include_directories('.')
 
 # 包含子目录的 meson.build 文件
 subdir('crypto')
-subdir('dbus')
 subdir('mdb')
 subdir('debounce')
 subdir('interprocess')
@@ -24,7 +23,6 @@ base_src_files = [
   'error_message_converter.cpp',
 
   compress_src_files,
-  dbus_src_files,
   mdb_src_files,
   debounce_src_files,
   log_src_files,
@@ -41,7 +39,7 @@ endif
 libmcpp_src_files = ['variant_c_api.cpp']
 
 zlib_dep = dependency('zlib', required: true)
-dep_arr = [mcbase_dep, boost_dep, boost_program_options_dep, dbus_dep, glib_dep]
+dep_arr = [mcbase_dep, boost_dep, boost_program_options_dep, dbus_dep, glib_dep, mcdbus_dep]
 base_dep_arr = dep_arr + [zlib_dep]
 mcpp_deps = []
 
@@ -126,6 +124,7 @@ libmcpp_static_lib = static_library(
     mcapp_lib,
     mcengine_lib,
     mcexpr_lib,
+    mcdbus_lib,
   ],
 )
 

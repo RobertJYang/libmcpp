@@ -55,6 +55,7 @@ public:
     std::mutex                                   mutex;
     uint64_t                                     next_sequence{1};
     std::unordered_map<uint64_t, receiver_state> receivers;
+    std::unordered_map<mc::event_type_id, global_event_filter> global_filters;
 };
 
 event_dispatcher::event_dispatcher() : m_impl(std::make_unique<impl>())
@@ -64,6 +65,22 @@ event_dispatcher::~event_dispatcher() = default;
 
 void event_dispatcher::send_event(mc::object& target, mc::event& e)
 {
+    global_event_filter filter_copy;
+    {
+        std::lock_guard lock(m_impl->mutex);
+        auto it = m_impl->global_filters.find(e.type());
+        if (it != m_impl->global_filters.end()) {
+            filter_copy = it->second;
+        }
+    }
+    if (filter_copy) {
+        filter_copy(target, e);
+    }
+
+    if (!should_continue_propagation(e)) {
+        return;
+    }
+
     deliver_to_object(target, e);
     if (!should_continue_propagation(e)) {
         return;
@@ -300,6 +317,20 @@ void event_dispatcher::deliver_to_object(mc::object& target, mc::event& e) const
     }
 
     target.on_event(e);
+}
+
+global_event_filter event_dispatcher::install_global_filter(mc::event_type_id type, global_event_filter filter)
+{
+    std::lock_guard lock(m_impl->mutex);
+    auto old = std::move(m_impl->global_filters[type]);
+    m_impl->global_filters[type] = std::move(filter);
+    return old;
+}
+
+void event_dispatcher::remove_global_filter(mc::event_type_id type)
+{
+    std::lock_guard lock(m_impl->mutex);
+    m_impl->global_filters.erase(type);
 }
 
 } // namespace mc::runtime

@@ -10,6 +10,9 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include <atomic>
+#include <future>
+
 #include <mc/runtime.h>
 #include <mc/shm/message_queue/mq_channel.h>
 
@@ -19,19 +22,63 @@ class mq_channel::impl {
 public:
     mc::proto::protocol*                      protocol{nullptr};
     mq_queue                                  queue;
-    bool                                      started{false};
+    mc::runtime::any_executor                 receive_lane;
+    std::atomic<bool>                         started{false};
+    std::atomic<std::uint64_t>                receive_epoch{0};
+    std::atomic<mq_transport_proto*>          transport_proto_layer{nullptr};
     std::unique_ptr<mc::proto::proto_request> inbound_request;
 
     mq_proto*           mq_proto_layer{nullptr};
-    mq_transport_proto* transport_proto_layer{nullptr};
+
+    void schedule_pump(const std::shared_ptr<impl>& self, std::uint64_t epoch)
+    {
+        if (!receive_lane.valid()) {
+            return;
+        }
+
+        receive_lane.post([self, epoch]() {
+            if (!self || !self->started.load(std::memory_order_acquire) ||
+                self->receive_epoch.load(std::memory_order_acquire) != epoch) {
+                return;
+            }
+            self->pump();
+        });
+    }
+
+    void drain_lane(const std::shared_ptr<impl>& self)
+    {
+        if (!receive_lane.valid()) {
+            return;
+        }
+
+        std::promise<void> drained;
+        auto               done = drained.get_future();
+        receive_lane.post([self, promise = std::move(drained)]() mutable {
+            MC_UNUSED(self);
+            promise.set_value();
+        });
+        done.wait();
+    }
 
     void pump()
     {
-        if (protocol == nullptr || transport_proto_layer == nullptr) {
+        if (!started.load(std::memory_order_acquire)) {
+            return;
+        }
+        if (protocol == nullptr) {
+            return;
+        }
+        auto* transport = transport_proto_layer.load(std::memory_order_acquire);
+        if (transport == nullptr) {
             return;
         }
 
         while (true) {
+            if (!started.load(std::memory_order_acquire) ||
+                transport_proto_layer.load(std::memory_order_acquire) != transport) {
+                return;
+            }
+
             if (!inbound_request) {
                 inbound_request = std::make_unique<mc::proto::proto_request>();
             }
@@ -41,8 +88,13 @@ public:
                 inbound_request = std::make_unique<mc::proto::proto_request>();
             }
 
-            auto state = transport_proto_layer->pop(*inbound_request);
+            auto state = transport->pop(*inbound_request);
             if (state == mc::proto::execution_state::suspended) {
+                return;
+            }
+            if (state == mc::proto::execution_state::failed &&
+                (!started.load(std::memory_order_acquire) ||
+                 transport_proto_layer.load(std::memory_order_acquire) != transport)) {
                 return;
             }
         }
@@ -75,11 +127,11 @@ void mq_channel::set_protocol(mc::proto::protocol* proto)
 {
     m_impl->protocol = proto;
     if (proto) {
-        m_impl->mq_proto_layer        = protocol_instance<mq_proto>();
-        m_impl->transport_proto_layer = protocol_instance<mq_transport_proto>();
+        m_impl->mq_proto_layer = protocol_instance<mq_proto>();
+        m_impl->transport_proto_layer.store(protocol_instance<mq_transport_proto>(), std::memory_order_release);
     } else {
-        m_impl->mq_proto_layer        = nullptr;
-        m_impl->transport_proto_layer = nullptr;
+        m_impl->mq_proto_layer = nullptr;
+        m_impl->transport_proto_layer.store(nullptr, std::memory_order_release);
     }
 }
 
@@ -89,13 +141,26 @@ void mq_channel::start(std::shared_ptr<shm_runtime> runtime, const endpoint& ep,
         return;
     }
 
+    m_impl->receive_lane = mc::runtime::make_io_strand();
+    const auto epoch     = m_impl->receive_epoch.fetch_add(1, std::memory_order_acq_rel) + 1;
+    m_impl->started.store(true, std::memory_order_release);
+
+    if (m_impl->protocol != nullptr &&
+        (m_impl->mq_proto_layer == nullptr || m_impl->transport_proto_layer.load() == nullptr)) {
+        m_impl->mq_proto_layer = protocol_instance<mq_proto>();
+        m_impl->transport_proto_layer.store(protocol_instance<mq_transport_proto>(), std::memory_order_release);
+    }
+
     m_impl->queue = runtime->open_queue(ep);
-    if (m_impl->transport_proto_layer != nullptr) {
-        m_impl->transport_proto_layer->configure(m_impl->queue, ep.endpoint_id, instance_id);
-        m_impl->transport_proto_layer->set_receive_completion_handler([impl = m_impl]() {
-            if (impl) {
-                impl->pump();
+    auto* transport = m_impl->transport_proto_layer.load(std::memory_order_acquire);
+    if (transport != nullptr) {
+        transport->configure(m_impl->queue, ep.endpoint_id, instance_id);
+        transport->set_receive_completion_handler([impl = m_impl, epoch]() {
+            if (!impl || !impl->started.load(std::memory_order_acquire) ||
+                impl->receive_epoch.load(std::memory_order_acquire) != epoch) {
+                return;
             }
+            impl->schedule_pump(impl, epoch);
         });
     }
     if (m_impl->mq_proto_layer != nullptr) {
@@ -109,12 +174,10 @@ void mq_channel::start(std::shared_ptr<shm_runtime> runtime, const endpoint& ep,
         });
         m_impl->mq_proto_layer->configure(instance_id, ep.endpoint_id, fragment_payload);
     }
-    if (m_impl->transport_proto_layer != nullptr) {
+    if (transport != nullptr) {
         m_impl->inbound_request = std::make_unique<mc::proto::proto_request>();
-        m_impl->pump();
+        m_impl->schedule_pump(m_impl, epoch);
     }
-
-    m_impl->started = true;
 }
 
 void mq_channel::stop()
@@ -123,12 +186,19 @@ void mq_channel::stop()
         return;
     }
 
-    if (m_impl->transport_proto_layer != nullptr) {
-        m_impl->transport_proto_layer->set_receive_completion_handler({});
+    m_impl->started.store(false, std::memory_order_release);
+    m_impl->receive_epoch.fetch_add(1, std::memory_order_acq_rel);
+
+    auto* transport = m_impl->transport_proto_layer.exchange(nullptr, std::memory_order_acq_rel);
+    if (transport != nullptr) {
+        transport->set_receive_completion_handler({});
+        transport->shutdown();
     }
 
+    m_impl->drain_lane(m_impl);
+
     m_impl->inbound_request.reset();
-    m_impl->started = false;
+    m_impl->mq_proto_layer = nullptr;
 }
 
 } // namespace mc::shm

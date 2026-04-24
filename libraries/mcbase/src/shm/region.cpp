@@ -67,9 +67,9 @@ void write_name(char* target, std::size_t capacity, mc::string_view value)
 struct shm_region::impl {
     shm_region_options  options;
     shared_mapping_view mapping;
-    region_header*      header            = nullptr;
-    root_entry*         roots             = nullptr;
-    void*               registered_base   = nullptr; // 已注册到 process registry 的 user_base，用于析构注销
+    region_header*      header          = nullptr;
+    root_entry*         roots           = nullptr;
+    void*               registered_base = nullptr; // 已注册到 process registry 的 user_base，用于析构注销
 
     ~impl()
     {
@@ -93,9 +93,10 @@ shm_region::shm_region(const shm_region_options& options) : m_impl(std::make_sha
 
     m_impl->header = static_cast<region_header*>(m_impl->mapping.data());
     if (m_impl->mapping.created()) {
-        const auto root_capacity = std::max<std::size_t>(1, options.root_capacity);
+        const auto root_capacity     = std::max<std::size_t>(1, options.root_capacity);
         const auto root_table_offset = align_up(sizeof(region_header), alignof(root_entry));
-        const auto user_offset = align_up(root_table_offset + sizeof(root_entry) * root_capacity, alignof(std::max_align_t));
+        const auto user_offset =
+            align_up(root_table_offset + sizeof(root_entry) * root_capacity, alignof(std::max_align_t));
         const auto user_size = options.total_size > user_offset ? options.total_size - user_offset : 0;
         if (user_size <= sizeof(std::max_align_t)) {
             m_impl.reset();
@@ -103,15 +104,16 @@ shm_region::shm_region(const shm_region_options& options) : m_impl(std::make_sha
         }
 
         new (m_impl->header) region_header{};
-        m_impl->header->magic = region_magic;
-        m_impl->header->version = region_version;
-        m_impl->header->total_size = options.total_size;
-        m_impl->header->root_capacity = root_capacity;
+        m_impl->header->magic             = region_magic;
+        m_impl->header->version           = region_version;
+        m_impl->header->total_size        = options.total_size;
+        m_impl->header->root_capacity     = root_capacity;
         m_impl->header->root_table_offset = root_table_offset;
-        m_impl->header->user_offset = user_offset;
-        m_impl->header->user_size = user_size;
+        m_impl->header->user_offset       = user_offset;
+        m_impl->header->user_size         = user_size;
 
-        m_impl->roots = reinterpret_cast<root_entry*>(static_cast<std::byte*>(m_impl->mapping.data()) + root_table_offset);
+        m_impl->roots =
+            reinterpret_cast<root_entry*>(static_cast<std::byte*>(m_impl->mapping.data()) + root_table_offset);
         for (std::size_t i = 0; i < root_capacity; ++i) {
             new (&m_impl->roots[i]) root_entry{};
         }
@@ -131,8 +133,7 @@ shm_region::shm_region(const shm_region_options& options) : m_impl(std::make_sha
                                                   m_impl->header->root_table_offset);
 
     // 注册到进程级 registry：使 mc::shm::string 等 owning 对象能通过自身地址反查 allocator
-    void* const       user_base = static_cast<std::byte*>(m_impl->mapping.data())
-                                  + m_impl->header->user_offset;
+    void* const       user_base = static_cast<std::byte*>(m_impl->mapping.data()) + m_impl->header->user_offset;
     const std::size_t user_size = static_cast<std::size_t>(m_impl->header->user_size);
     detail::register_region(user_base, user_size);
     m_impl->registered_base = user_base;
@@ -198,8 +199,8 @@ bool shm_region::contains(const void* ptr) const noexcept
         return false;
     }
 
-    const auto* begin = static_cast<const std::byte*>(m_impl->mapping.data());
-    const auto* end = begin + m_impl->mapping.size();
+    const auto* begin   = static_cast<const std::byte*>(m_impl->mapping.data());
+    const auto* end     = begin + m_impl->mapping.size();
     const auto* current = static_cast<const std::byte*>(ptr);
     return current >= begin && current < end;
 }
@@ -210,7 +211,7 @@ std::uint64_t shm_region::offset_of(const void* ptr) const noexcept
         return 0;
     }
 
-    const auto* begin = static_cast<const std::byte*>(m_impl->mapping.data());
+    const auto* begin   = static_cast<const std::byte*>(m_impl->mapping.data());
     const auto* current = static_cast<const std::byte*>(ptr);
     return static_cast<std::uint64_t>(current - begin);
 }
@@ -239,8 +240,8 @@ bool shm_region::upsert_root(mc::string_view name, std::uint64_t offset, std::ui
         if (entry.in_use.load(std::memory_order_acquire) != 0) {
             if (read_name(entry.name, sizeof(entry.name)) == name) {
                 entry.offset = offset;
-                entry.size = size;
-                entry.kind = static_cast<std::uint32_t>(kind);
+                entry.size   = size;
+                entry.kind   = static_cast<std::uint32_t>(kind);
                 entry.generation.store(generation, std::memory_order_release);
                 return true;
             }
@@ -258,11 +259,62 @@ bool shm_region::upsert_root(mc::string_view name, std::uint64_t offset, std::ui
 
     write_name(free_entry->name, sizeof(free_entry->name), name);
     free_entry->offset = offset;
-    free_entry->size = size;
-    free_entry->kind = static_cast<std::uint32_t>(kind);
+    free_entry->size   = size;
+    free_entry->kind   = static_cast<std::uint32_t>(kind);
     free_entry->generation.store(generation, std::memory_order_release);
     free_entry->in_use.store(1, std::memory_order_release);
     return true;
+}
+
+std::optional<root_record> shm_region::insert_root_if_absent(mc::string_view name, std::uint64_t offset,
+                                                             std::uint64_t size, root_kind kind,
+                                                             std::uint64_t generation) noexcept
+{
+    if (!is_valid() || name.empty() || name.size() >= max_root_name_size) {
+        return std::nullopt;
+    }
+
+    ipc_mutex_guard guard(m_impl->header->root_lock);
+
+    root_entry* free_entry = nullptr;
+    for (std::size_t i = 0; i < m_impl->header->root_capacity; ++i) {
+        auto& entry = m_impl->roots[i];
+        if (entry.in_use.load(std::memory_order_acquire) != 0) {
+            if (read_name(entry.name, sizeof(entry.name)) == name) {
+                return root_record{
+                    read_name(entry.name, sizeof(entry.name)),
+                    entry.offset,
+                    entry.size,
+                    static_cast<root_kind>(entry.kind),
+                    entry.generation.load(std::memory_order_acquire),
+                };
+            }
+            continue;
+        }
+
+        if (free_entry == nullptr) {
+            free_entry = &entry;
+        }
+    }
+
+    if (free_entry == nullptr) {
+        return std::nullopt;
+    }
+
+    write_name(free_entry->name, sizeof(free_entry->name), name);
+    free_entry->offset = offset;
+    free_entry->size   = size;
+    free_entry->kind   = static_cast<std::uint32_t>(kind);
+    free_entry->generation.store(generation, std::memory_order_release);
+    free_entry->in_use.store(1, std::memory_order_release);
+
+    return root_record{
+        read_name(free_entry->name, sizeof(free_entry->name)),
+        free_entry->offset,
+        free_entry->size,
+        static_cast<root_kind>(free_entry->kind),
+        free_entry->generation.load(std::memory_order_acquire),
+    };
 }
 
 std::optional<root_record> shm_region::find_root(mc::string_view name) const noexcept
@@ -309,8 +361,8 @@ bool shm_region::erase_root(mc::string_view name) noexcept
             entry.in_use.store(0, std::memory_order_release);
             entry.generation.store(0, std::memory_order_release);
             entry.offset = 0;
-            entry.size = 0;
-            entry.kind = static_cast<std::uint32_t>(root_kind::opaque);
+            entry.size   = 0;
+            entry.kind   = static_cast<std::uint32_t>(root_kind::opaque);
             std::memset(entry.name, 0, sizeof(entry.name));
             return true;
         }

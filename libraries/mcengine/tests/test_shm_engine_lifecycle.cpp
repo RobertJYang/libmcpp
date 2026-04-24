@@ -18,11 +18,10 @@
 //   - engine.recover() 重建 heap 对象并回填 property
 //   - 未注册 class 与 CRC 损坏的 shm_object 被 isolate，活对象不受影响
 //
-// USE_SHM=OFF 时整个文件 SKIP（m_shm_handle 永为 null，没有可观测点）。
+// USE_SHM=OFF 时本文件不进编译单元（由 meson 按 use_shm 开关控制），
+// 因此无需再在源码里加 #if MCENGINE_USE_SHM 守卫。
 
 #include <gtest/gtest.h>
-
-#if defined(MCENGINE_USE_SHM) && MCENGINE_USE_SHM
 
 #include <sys/wait.h>
 #include <unistd.h>
@@ -460,12 +459,3 @@ TEST_F(shm_engine_lifecycle_test, gc_isolated_purges_orphans_from_indices_and_ar
 }
 
 }  // namespace shm_engine_lifecycle_test
-
-#else   // MCENGINE_USE_SHM = OFF
-
-TEST(ShmEngineLifecycleTest, SkippedWhenShmDisabled)
-{
-    GTEST_SKIP() << "MCENGINE_USE_SHM=OFF：无 m_shm_handle 可观测点";
-}
-
-#endif  // MCENGINE_USE_SHM

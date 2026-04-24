@@ -10,24 +10,9 @@
  * See the Mulan PSL v2 for more details.
  */
 
-// mcengine 业务层 + shm_storage_engine 端到端覆盖：
-//
-//   §0  shm_object.service 字段在 register / unregister / takeover 路径下被正确写入
-//   M1  两个 service 各自构造一棵子树 → 全局 object_table 能完整查到所有节点
-//   M2  跨 service 父子语义负例：service B 注册子路径不应"借用" service A 的对象做 owner
-//   Q2  service 表 by_class_name 范围查询命中所有同类对象
-//   Q3  service 表 by_object_name 唯一查询命中
-//   Q4  recover 之后 by_path / by_class_name / by_object_name 三个索引同时仍可用
-//   W2  大 string property（走 byte_string slab）→ reopen 完整恢复
-//   W3  set_object_name / set_position 修改后 → reopen 反映最新值
-//   C2  takeover 后继续 register 新对象，旧对象与新对象都能被查到 + property 一致
-//   C3  takeover 后能 unregister 旧对象，shm_object 被释放，索引清掉
-//
-// USE_SHM=OFF 时整个文件 SKIP。
+// mcengine SHM 业务层端到端测试。USE_SHM=OFF 时不参与编译。
 
 #include <gtest/gtest.h>
-
-#if defined(MCENGINE_USE_SHM) && MCENGINE_USE_SHM
 
 #include <sys/wait.h>
 #include <unistd.h>
@@ -145,12 +130,8 @@ protected:
     }
 };
 
-// ============================================================================
-// §0 register 后 shm_object.service 指向当前进程 attach 出来的 shm_service POD
-// ============================================================================
-//
-// 跨进程通过全局 object_table 拿到 shm_object 后，应能反查到"持有它的 service"。
-// 本用例比对 shm_object.service 与 shm_service_map 中查出来的 POD 地址是否相同。
+// register 后 shm_object.service 指向当前进程的 shm_service POD。
+// 通过全局 object_table 反查时应指向同一个 POD。
 
 TEST_F(shm_engine_business_test, register_links_shm_object_to_owning_shm_service)
 {
@@ -202,13 +183,7 @@ TEST_F(shm_engine_business_test, unregister_then_register_keeps_service_link_con
     svc->stop();
 }
 
-// ============================================================================
-// M1 两个 service 各自一棵子树 → 全局 object_table BFS 能取到所有节点
-// ============================================================================
-//
-// 设计文档 §1：service 表 path 唯一；object_table 是全局非唯一索引，所有服务的
-// 对象都聚拢到全局表用于 cross-service 查询。这里造两棵互不相交的子树 + 验证
-// 全局表能 BFS 到全部 7 个节点，且每个节点的 owner 链在自己的 service 表里完整。
+// 两个 service 各自一棵子树，全局 object_table 应能看到全部节点且 owner 链完整。
 
 TEST_F(shm_engine_business_test, multi_service_each_owns_subtree_global_table_sees_all)
 {
@@ -275,15 +250,8 @@ TEST_F(shm_engine_business_test, multi_service_each_owns_subtree_global_table_se
     b->stop();
 }
 
-// ============================================================================
-// M2 跨 service 父子语义负例：service B 注册一个深路径，不应"借用" service A 的对象
-// 当 owner
-// ============================================================================
-//
-// service.find_owner() 只在 m_object_table（自己的 service 表）里找父亲。
-// 因此即便 service A 已经注册了 /shared/root，service B 注册 /shared/root/leaf
-// 时也只会沿路径向上找自己表里的父亲，找不到就 owner=null。
-// 这条边界要锁住，避免日后误改成"全局表查 owner"导致跨 service 关系幽灵生效。
+// 跨 service 父子语义负例：service B 的 find_owner 只查自己的表，
+// 不应"借用" service A 的对象做 owner。
 
 TEST_F(shm_engine_business_test, cross_service_parent_lookup_does_not_leak)
 {
@@ -313,9 +281,7 @@ TEST_F(shm_engine_business_test, cross_service_parent_lookup_does_not_leak)
     b->stop();
 }
 
-// ============================================================================
-// Q2 service 表 by_class_name 范围查询：注册同 class 多个对象 → equal_range 命中全部
-// ============================================================================
+// by_class_name 范围查询：同 class 多个对象应全部命中。
 
 TEST_F(shm_engine_business_test, service_table_by_class_name_finds_all_same_class_objects)
 {
@@ -345,9 +311,7 @@ TEST_F(shm_engine_business_test, service_table_by_class_name_finds_all_same_clas
     svc->stop();
 }
 
-// ============================================================================
-// Q3 service 表 by_object_name 唯一查询
-// ============================================================================
+// by_object_name 唯一查询。
 
 TEST_F(shm_engine_business_test, service_table_by_object_name_unique_lookup)
 {
@@ -370,12 +334,7 @@ TEST_F(shm_engine_business_test, service_table_by_object_name_unique_lookup)
     svc->stop();
 }
 
-// ============================================================================
-// Q4 recover 之后 by_path / by_class_name / by_object_name 三个索引同时可用
-// ============================================================================
-//
-// 之前的 lifecycle 测试只验证了 by_path 在 recover 后能命中。这里把另外两条索引
-// 一起测，确保 reconstruct + 索引重建路径是完整的。
+// recover 后 by_path / by_class_name / by_object_name 三个索引同时可用。
 
 TEST_F(shm_engine_business_test, recover_rebuilds_all_three_indices)
 {
@@ -412,9 +371,7 @@ TEST_F(shm_engine_business_test, recover_rebuilds_all_three_indices)
     svc->stop();
 }
 
-// ============================================================================
-// W2 大 string property（走 byte_string slab 路径）→ recover 能完整回填
-// ============================================================================
+// 大 string property（走 byte_string slab 路径）recover 能完整回填。
 
 TEST_F(shm_engine_business_test, large_string_property_survives_recover)
 {
@@ -446,9 +403,7 @@ TEST_F(shm_engine_business_test, large_string_property_survives_recover)
     svc->stop();
 }
 
-// ============================================================================
-// W3 set_object_name / set_position 修改后 → reopen 反映最新值
-// ============================================================================
+// set_object_name / set_position 修改后 reopen 反映最新值。
 
 TEST_F(shm_engine_business_test, identity_setter_updates_persist_through_recover)
 {
@@ -618,9 +573,7 @@ TEST_F(shm_engine_business_test, unregister_removes_from_parent_children_slab)
     svc->stop();
 }
 
-// ============================================================================
-// liveness 拒绝接管：旧 owner 仍存活时 attach 必须被拒，stop 后才允许接管
-// ============================================================================
+// 旧 owner 仍存活时 attach 必须被拒，stop 后才允许接管。
 TEST_F(shm_engine_business_test, attach_rejects_takeover_while_owner_alive)
 {
     auto parent_svc = std::make_unique<svc_alpha>();
@@ -672,11 +625,7 @@ TEST_F(shm_engine_business_test, attach_rejects_takeover_while_owner_alive)
     }
 }
 
-// ============================================================================
-// service.stop() 必须释放所有 shm_object：用 N 轮 start/register/stop 稳态
-// 不增长来检验泄漏被堵住（首轮可能因 map free-list 延迟略高，从第二轮起
-// arena 占用稳定）。
-// ============================================================================
+// service.stop() 必须释放所有 shm_object，N 轮 start/register/stop 稳态不增长。
 TEST_F(shm_engine_business_test, service_stop_releases_shm_object_memory)
 {
     auto& rt = mc::engine::shm_runtime_provider::instance();
@@ -741,8 +690,7 @@ TEST_F(shm_engine_business_test, service_stop_releases_shm_object_memory)
     }
 }
 
-// 同进程辅助用例：在不 fork 的前提下验证一个 service 内部 register → unregister →
-// 再 register 同 path 新对象 → unregister 的路径完全不崩。这条路径是 C2/C3 fork
+// 同进程辅助用例：一个 service 内部 register → unregister → 再 register 同 path 新对象，路径完全不崩。
 // 版本的子进程动作的最小化复现：先把它跑通能更精确定位 fork 版用例的崩点是
 // (a) 子进程 SHM/single-process 状态污染 还是 (b) 我们这套路径本身的 bug。
 TEST_F(shm_engine_business_test, in_process_register_unregister_loop_smoke)
@@ -773,30 +721,9 @@ TEST_F(shm_engine_business_test, in_process_register_unregister_loop_smoke)
     svc->stop();
 }
 
-// ============================================================================
-// C2 / C3 takeover 后业务读写继续可用
-// ============================================================================
-//
-// 真实场景：进程 A crash，进程 B 接管同名 service。在 mcengine 视角下，B 启动
-// 后应能：
-//   (a) 读到 A 写过的对象 + property（已被 fork_child_takes_over_and_recovers_objects
-//       覆盖）
-//   (b) 在 A 写过的对象上继续写 property（C2 写路径活着）
-//   (c) 在 takeover 后注册新对象 / 注销旧对象（C2/C3 register/unregister 路径）
-//
-// (a)(b) 用 fork 子进程跑：fork 后子进程对 SHM 的访问与新进程一致；mcengine
-//   engine 单例从父进程继承的部分对纯 property 写不构成污染（property 走
-//   shm_object_set_property_*，不触发 m_object_table.add/remove 信号链）。
-// (c) 单独用 in_process_register_unregister_loop_smoke（上面）覆盖：fork 后
-//   engine 单例继承父进程的信号订阅 + table 注册，会让 register/unregister
-//   触发 double-fired 回调，这是 fork 模型自身的限制，不是 takeover 语义本身的问题。
-//
-// 通过子进程退出码精确定位失败点：
-//   31  start 失败
-//   40  takeover 后找不到旧对象
-//   41  旧 property 还原值不对
-//   50  property 写后再读不一致（写路径在 takeover 进程下挂了）
-//   70/71 §0 service 链路指针在 takeover 进程下不正确
+// takeover 后业务读写继续可用：fork 子进程验证接管后能读到旧 property 并继续写入。
+// 退出码：31=start失败 40=找不到旧对象 41=旧值不对 50=写后读不一致 70/71=service链路异常
+
 TEST_F(shm_engine_business_test, takeover_can_continue_writing_old_object)
 {
     auto parent_svc = std::make_unique<svc_alpha>();
@@ -839,7 +766,7 @@ TEST_F(shm_engine_business_test, takeover_can_continue_writing_old_object)
                 std::_Exit(41);
             }
 
-            // C2 写路径：在被接管的对象上修改 property → 再读必须一致
+            // 写路径：在被接管的对象上修改 property → 再读必须一致
             const_cast<biz_object*>(pre_casted)->m_iface.m_counter.set_value(9999);
             const_cast<biz_object*>(pre_casted)->m_iface.m_label.set_value("post-takeover");
             if (pre_casted->m_iface.m_counter.value() != 9999) {
@@ -849,8 +776,7 @@ TEST_F(shm_engine_business_test, takeover_can_continue_writing_old_object)
                 std::_Exit(51);
             }
 
-            // §0：被接管对象的 shm_object.service 经 _restore_object_relations
-            // 应被刷成本进程 attach 的 shm_service POD
+            // 被接管对象的 shm_object.service 应被刷成本进程 attach 的 shm_service POD
             auto* shm_svc = _lookup_shm_service("org.openubmc.biz_test.alpha");
             if (shm_svc == nullptr) {
                 std::_Exit(70);
@@ -876,12 +802,3 @@ TEST_F(shm_engine_business_test, takeover_can_continue_writing_old_object)
 }
 
 }  // namespace shm_engine_business_test
-
-#else  // MCENGINE_USE_SHM = OFF
-
-TEST(ShmEngineBusinessTest, SkippedWhenShmDisabled)
-{
-    GTEST_SKIP() << "MCENGINE_USE_SHM=OFF：业务层 SHM 路径不可观测";
-}
-
-#endif  // MCENGINE_USE_SHM

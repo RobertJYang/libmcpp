@@ -12,12 +12,21 @@
 
 #include <mc/app/service.h>
 
+#include <mc/dbus/validator.h>
 #include <mc/exception.h>
 
 namespace mc::app {
 
 service::service(mc::string name) : mc::engine::service(name)
-{}
+{
+    if (!mc::dbus::validator::is_valid_bus_name(name)) {
+        MC_THROW(
+            mc::exception,
+            "invalid app service name '" + name
+                + "': must be a valid DBus bus name "
+                  "(dot-separated segments of [A-Za-z_][A-Za-z0-9_]*, at least 2 segments)");
+    }
+}
 
 service::~service() = default;
 

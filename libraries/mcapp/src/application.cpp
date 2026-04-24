@@ -12,13 +12,18 @@
 
 #include <mc/app/application.h>
 
-#include <mc/exception.h>
+#include <mc/engine/engine.h>
 #include <mc/engine/path.h>
+#include <mc/exception.h>
 #include <mc/filesystem.h>
 #include <mc/json.h>
 #include <mc/log/log.h>
 #include <mc/log/log_manager.h>
 #include <mc/runtime/runtime_context.h>
+
+#if defined(MCENGINE_USE_SHM) && MCENGINE_USE_SHM
+#include <mc/engine/endpoint_service.h>
+#endif
 
 #include <algorithm>
 #include <fstream>
@@ -625,11 +630,6 @@ const service_registry& application::registry() const
     return m_registry;
 }
 
-void application::set_protocol_factory(service_protocol_factory factory)
-{
-    m_protocol_factory = std::move(factory);
-}
-
 bool application::initialize(const app_options& options)
 {
     return initialize_internal(options);
@@ -737,9 +737,6 @@ bool application::create_services()
         }
 
         service_instance->set_path(definition.path);
-        if (m_protocol_factory) {
-            service_instance->set_protocol(m_protocol_factory(definition));
-        }
         service_context context(*this, m_plan, definition);
         if (!service_instance->configure(context, definition.properties)) {
             elog("configure mcapp service failed: ${name}", ("name", definition.name));
@@ -784,9 +781,15 @@ bool application::start()
     runtime.start();
     m_runtime_started = true;
 
+    if (!bootstrap_engine_endpoint()) {
+        clear_runtime_state();
+        return false;
+    }
+
     std::vector<service_ptr> started_services;
     if (m_root_service != nullptr) {
         if (!m_root_service->start()) {
+            teardown_engine_endpoint();
             clear_runtime_state();
             return false;
         }
@@ -805,6 +808,7 @@ bool application::start()
             for (auto it = started_services.rbegin(); it != started_services.rend(); ++it) {
                 (*it)->stop();
             }
+            teardown_engine_endpoint();
             clear_runtime_state();
             return false;
         }
@@ -836,6 +840,8 @@ bool application::stop_services()
 bool application::stop()
 {
     bool success = stop_services();
+
+    teardown_engine_endpoint();
 
     if (m_runtime_started) {
         mc::runtime::get_runtime_context().stop();
@@ -920,6 +926,49 @@ void application::clear_runtime_state()
 {
     mc::runtime::reset_runtime_context();
     m_runtime_started = false;
+}
+
+bool application::bootstrap_engine_endpoint()
+{
+#if defined(MCENGINE_USE_SHM) && MCENGINE_USE_SHM
+    auto app_name = m_plan.application.name;
+    if (app_name.empty()) {
+        return true;
+    }
+
+    m_endpoint_service = std::make_unique<mc::engine::endpoint_service>(app_name);
+    if (!m_endpoint_service->init()) {
+        elog("mcapp: endpoint_service.init 失败 name=${name}", ("name", app_name));
+        m_endpoint_service.reset();
+        return false;
+    }
+    if (!m_endpoint_service->start()) {
+        elog("mcapp: endpoint_service.start 失败 name=${name}", ("name", app_name));
+        m_endpoint_service.reset();
+        return false;
+    }
+
+    if (auto table = m_endpoint_service->create_match_table(); table) {
+        mc::engine::engine::set_match_table(std::move(table));
+    } else {
+        elog("mcapp: endpoint_service.create_match_table 返回空，保留默认 match_table");
+    }
+    return true;
+#else
+    return true;
+#endif
+}
+
+void application::teardown_engine_endpoint()
+{
+#if defined(MCENGINE_USE_SHM) && MCENGINE_USE_SHM
+    if (!m_endpoint_service) {
+        return;
+    }
+    mc::engine::engine::set_match_table(nullptr);
+    m_endpoint_service->stop();
+    m_endpoint_service.reset();
+#endif
 }
 
 void application::clear_application_state()

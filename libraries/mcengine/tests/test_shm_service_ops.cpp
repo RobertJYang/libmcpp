@@ -103,9 +103,7 @@ protected:
 
 }  // namespace
 
-// ============================================================================
 // shm_service_create / destroy
-// ============================================================================
 
 TEST_F(shm_service_ops_fixture, create_default_state)
 {
@@ -146,9 +144,7 @@ TEST_F(shm_service_ops_fixture, destroy_releases_all)
     EXPECT_EQ(m_alloc.allocated_size(), before);
 }
 
-// ============================================================================
 // setter / epoch
-// ============================================================================
 
 TEST_F(shm_service_ops_fixture, set_pid_updates_field_and_crc)
 {
@@ -187,9 +183,7 @@ TEST_F(shm_service_ops_fixture, increment_epoch_returns_new_value)
     shm_service_destroy(m_alloc, svc);
 }
 
-// ============================================================================
 // attach
-// ============================================================================
 
 TEST_F(shm_service_ops_fixture, attach_creates_when_absent)
 {

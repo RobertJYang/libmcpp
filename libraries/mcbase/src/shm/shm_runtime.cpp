@@ -81,9 +81,43 @@ struct runtime_control_block {
     named_lock_record named_locks[shm_runtime::max_named_locks]{};
 };
 
-mc::string make_queue_segment_name(mc::string_view endpoint_name)
+std::uint64_t fnv1a_append(std::uint64_t hash, mc::string_view value) noexcept
 {
-    return "mc_shm_queue_" + endpoint_name;
+    for (unsigned char ch : value) {
+        hash ^= static_cast<std::uint64_t>(ch);
+        hash *= 1099511628211ULL;
+    }
+    return hash;
+}
+
+mc::string make_queue_segment_name(mc::string_view region_name, mc::string_view endpoint_name)
+{
+    constexpr std::size_t max_queue_name_len = max_queue_name_size - 1;
+    constexpr char        hex_digits[]       = "0123456789abcdef";
+
+    std::uint64_t hash = 1469598103934665603ULL;
+    hash               = fnv1a_append(hash, region_name);
+    hash ^= static_cast<std::uint64_t>(':');
+    hash *= 1099511628211ULL;
+    hash = fnv1a_append(hash, endpoint_name);
+
+    char hash_hex[17]{};
+    for (int i = 15; i >= 0; --i) {
+        hash_hex[i] = hex_digits[hash & 0xFu];
+        hash >>= 4;
+    }
+
+    std::string result = "mc_shm_queue_";
+    result.append(hash_hex, 16);
+
+    const auto used = result.size();
+    if (used < max_queue_name_len) {
+        result.push_back('_');
+        const auto remaining = max_queue_name_len - result.size();
+        result.append(endpoint_name.data(), std::min<std::size_t>(remaining, endpoint_name.size()));
+    }
+
+    return mc::string(result.c_str());
 }
 
 std::optional<std::size_t> find_endpoint_slot(runtime_control_block* control, mc::string_view endpoint_name)
@@ -120,7 +154,7 @@ struct shm_runtime::impl {
     // 同进程内多线程串行化命名容器 / 命名锁工厂调用；
     // 跨进程互斥由 control->lock 提供。两道锁顺序固定：
     //   factory_mutex（本地）先，control->lock（跨进程）后。
-    std::mutex             factory_mutex;
+    std::mutex factory_mutex;
 };
 
 shm_runtime::shm_runtime(const runtime_options& options) : m_impl(std::make_shared<impl>())
@@ -160,13 +194,18 @@ shm_runtime::shm_runtime(const runtime_options& options) : m_impl(std::make_shar
             control->endpoints[i].slot_count  = 256;
         }
 
-        if (!m_impl->region.upsert_root(runtime_control_root_name, m_impl->region.offset_of(control), sizeof(*control),
-                                        root_kind::runtime_control, 1)) {
+        control_root =
+            m_impl->region.insert_root_if_absent(runtime_control_root_name, m_impl->region.offset_of(control),
+                                                 sizeof(*control), root_kind::runtime_control, 1);
+        if (!control_root.has_value()) {
             allocator.destroy(control);
             m_impl.reset();
             return;
         }
-        control_root = m_impl->region.find_root(runtime_control_root_name);
+
+        if (control_root->offset != m_impl->region.offset_of(control)) {
+            allocator.destroy(control);
+        }
     }
 
     if (!control_root.has_value()) {
@@ -248,7 +287,7 @@ std::optional<endpoint> shm_runtime::register_endpoint(mc::string_view endpoint_
 
     write_c_string(entry.endpoint_name, endpoint_name);
     if (entry.queue_name[0] == '\0') {
-        const auto queue_name = make_queue_segment_name(endpoint_name);
+        const auto queue_name = make_queue_segment_name(m_impl->options.region_name, endpoint_name);
         write_c_string(entry.queue_name, queue_name);
     }
     if (entry.notifier_name[0] == '\0') {
@@ -383,6 +422,58 @@ bool shm_runtime::writer_instance_is_current(std::uint16_t endpoint_id, std::uin
            (snapshot->state == endpoint_state::starting || snapshot->state == endpoint_state::running);
 }
 
+std::optional<endpoint_info> shm_runtime::find_endpoint_by_name(mc::string_view endpoint_name) const
+{
+    if (!is_valid() || endpoint_name.empty() || endpoint_name.size() >= max_endpoint_name_size) {
+        return std::nullopt;
+    }
+
+    ipc_mutex_guard guard(m_impl->control->lock);
+    for (std::size_t i = 0; i < max_endpoints; ++i) {
+        const auto& entry = m_impl->control->endpoints[i];
+        if (entry.in_use.load(std::memory_order_acquire) == 0) {
+            continue;
+        }
+        if (read_c_string(entry.endpoint_name) != endpoint_name) {
+            continue;
+        }
+
+        endpoint_info snapshot;
+        snapshot.endpoint_id           = entry.endpoint_id;
+        snapshot.instance_id           = entry.instance_id.load(std::memory_order_acquire);
+        snapshot.state                 = static_cast<endpoint_state>(entry.state.load(std::memory_order_acquire));
+        snapshot.slot_count            = entry.slot_count;
+        snapshot.endpoint_name         = read_c_string(entry.endpoint_name);
+        snapshot.queue_name            = read_c_string(entry.queue_name);
+        snapshot.notifier_name         = read_c_string(entry.notifier_name);
+        snapshot.owner_pid             = entry.owner_pid.load(std::memory_order_acquire);
+        snapshot.heartbeat_deadline_ns = entry.heartbeat_deadline_ns.load(std::memory_order_acquire);
+        return snapshot;
+    }
+    return std::nullopt;
+}
+
+bool shm_runtime::is_endpoint_alive(std::uint16_t endpoint_id) const
+{
+    if (!is_valid() || endpoint_id == 0 || endpoint_id > max_endpoints) {
+        return false;
+    }
+
+    ipc_mutex_guard guard(m_impl->control->lock);
+    const auto&     entry = m_impl->control->endpoints[endpoint_id - 1];
+    if (entry.in_use.load(std::memory_order_acquire) == 0) {
+        return false;
+    }
+
+    const auto state = static_cast<endpoint_state>(entry.state.load(std::memory_order_acquire));
+    if (state != endpoint_state::starting && state != endpoint_state::running) {
+        return false;
+    }
+
+    const auto owner_pid = static_cast<std::uint32_t>(entry.owner_pid.load(std::memory_order_acquire));
+    return ipc_mutex::is_process_alive(owner_pid);
+}
+
 mq_queue shm_runtime::open_queue(const endpoint& endpoint) const
 {
     mq_queue_options options;
@@ -398,12 +489,10 @@ bool named_lock_name_is_valid(mc::string_view name) noexcept
     return !name.empty() && name.size() < shm_runtime::max_named_lock_name;
 }
 
-std::pair<std::size_t, named_lock_kind> find_named_lock_slot(const runtime_control_block* control,
-                                                             mc::string_view              name)
+std::pair<std::size_t, named_lock_kind> find_named_lock_slot(const runtime_control_block* control, mc::string_view name)
 {
     for (std::size_t i = 0; i < shm_runtime::max_named_locks; ++i) {
-        const auto kind =
-            static_cast<named_lock_kind>(control->named_locks[i].kind.load(std::memory_order_acquire));
+        const auto kind = static_cast<named_lock_kind>(control->named_locks[i].kind.load(std::memory_order_acquire));
         if (kind == named_lock_kind::none) {
             continue;
         }
@@ -523,10 +612,8 @@ full_name_buf make_full_name(char kind_code, mc::string_view user_name) noexcept
 
 } // namespace
 
-std::uint64_t shm_runtime::make_container_signature(char kind_code, std::uint32_t key_size,
-                                                    std::uint32_t value_size,
-                                                    std::uint32_t key_align,
-                                                    std::uint32_t value_align) noexcept
+std::uint64_t shm_runtime::make_container_signature(char kind_code, std::uint32_t key_size, std::uint32_t value_size,
+                                                    std::uint32_t key_align, std::uint32_t value_align) noexcept
 {
     // 64 位布局：
     //   [63:56] kind_code（ASCII，'L'/'S'/'M'）
@@ -542,8 +629,7 @@ std::uint64_t shm_runtime::make_container_signature(char kind_code, std::uint32_
     return (k << 56) | (ka << 48) | (va << 40) | (ks << 20) | vs;
 }
 
-shm_runtime::named_container_handle
-shm_runtime::ensure_named_container(const named_container_spec& spec) noexcept
+shm_runtime::named_container_handle shm_runtime::ensure_named_container(const named_container_spec& spec) noexcept
 {
     named_container_handle empty;
     if (!is_valid() || spec.init_fn == nullptr || spec.ctrl_size == 0 || spec.ctrl_align == 0) {
@@ -562,7 +648,7 @@ shm_runtime::ensure_named_container(const named_container_spec& spec) noexcept
 
     if (auto existing = m_impl->region.find_root(full_name); existing.has_value()) {
         if (existing->size != spec.ctrl_size || existing->generation != spec.signature) {
-            return empty;  // 同名不同类型 → 类型冲突
+            return empty; // 同名不同类型 → 类型冲突
         }
         named_container_handle handle;
         handle.control   = m_impl->region.address_from_offset(existing->offset);
@@ -583,8 +669,7 @@ shm_runtime::ensure_named_container(const named_container_spec& spec) noexcept
     const auto          self_tag    = static_cast<std::uint32_t>(ctrl_offset);
     spec.init_fn(mem, self_tag);
 
-    if (!m_impl->region.upsert_root(full_name, ctrl_offset, spec.ctrl_size, root_kind::opaque,
-                                    spec.signature)) {
+    if (!m_impl->region.upsert_root(full_name, ctrl_offset, spec.ctrl_size, root_kind::opaque, spec.signature)) {
         // 登记失败（root_table 满）；释放控制块避免泄漏
         m_impl->arena.deallocate(mem);
         return empty;
@@ -625,23 +710,23 @@ bool shm_runtime::drop_named_container_impl(char kind_code, mc::string_view name
     // 按 kind 校验 size == 0 + head 为 0；否则拒绝 drop，避免泄漏二级分配。
     bool empty = false;
     switch (kind_code) {
-    case 'L': {
-        auto* lc = static_cast<container::list_control*>(ctrl);
-        empty    = lc->size.load(std::memory_order_acquire) == 0 && lc->head_offset == 0;
-        break;
-    }
-    case 'S': {
-        auto* sc = static_cast<container::set_control*>(ctrl);
-        empty    = sc->size.load(std::memory_order_acquire) == 0 && sc->head_forward[0] == 0;
-        break;
-    }
-    case 'M': {
-        auto* mc_ctrl = static_cast<container::map_control*>(ctrl);
-        empty = mc_ctrl->size.load(std::memory_order_acquire) == 0 && mc_ctrl->head_forward[0] == 0;
-        break;
-    }
-    default:
-        return false;
+        case 'L': {
+            auto* lc = static_cast<container::list_control*>(ctrl);
+            empty    = lc->size.load(std::memory_order_acquire) == 0 && lc->head_offset == 0;
+            break;
+        }
+        case 'S': {
+            auto* sc = static_cast<container::set_control*>(ctrl);
+            empty    = sc->size.load(std::memory_order_acquire) == 0 && sc->head_forward[0] == 0;
+            break;
+        }
+        case 'M': {
+            auto* mc_ctrl = static_cast<container::map_control*>(ctrl);
+            empty         = mc_ctrl->size.load(std::memory_order_acquire) == 0 && mc_ctrl->head_forward[0] == 0;
+            break;
+        }
+        default:
+            return false;
     }
 
     if (!empty) {
@@ -661,7 +746,9 @@ bool shm_runtime::drop_named_container(mc::string_view name) noexcept
     // 同名不同 kind 的容器逻辑上属于不同命名空间，只会命中一个。
     for (char kind : {'L', 'S', 'M'}) {
         const auto full = make_full_name(kind, name);
-        if (!full.valid) continue;
+        if (!full.valid) {
+            continue;
+        }
         const mc::string_view full_name(full.storage, full.length);
 
         if (m_impl->region.find_root(full_name).has_value()) {

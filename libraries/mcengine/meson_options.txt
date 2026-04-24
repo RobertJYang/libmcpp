@@ -27,5 +27,5 @@ option(
   'with_benches',
   type: 'boolean',
   value: false,
-  description: '构建 mcengine SHM 微基准（bench_shm_object_throughput / bench_shm_recovery_time）',
+  description: '构建 mcengine SHM 微基准',
 )

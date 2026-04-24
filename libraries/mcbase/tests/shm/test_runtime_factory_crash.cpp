@@ -41,9 +41,15 @@ std::string make_unique_region_name(std::string_view prefix)
 
 class shm_runtime_factory_crash_fixture : public ::testing::Test {
 protected:
-    void SetUp() override { m_region_name = make_unique_region_name("mc_shm_fac_crash"); }
+    void SetUp() override
+    {
+        m_region_name = make_unique_region_name("mc_shm_fac_crash");
+    }
 
-    void TearDown() override { mc::shm::detail::shared_memory_backend::remove(m_region_name); }
+    void TearDown() override
+    {
+        mc::shm::detail::shared_memory_backend::remove(m_region_name);
+    }
 
     mc::shm::runtime_options opts() const
     {
@@ -74,12 +80,16 @@ TEST_F(shm_runtime_factory_crash_fixture, child_sigkill_during_factory_leaves_re
     ASSERT_GE(child, 0);
     if (child == 0) {
         mc::shm::shm_runtime rt(opts());
-        if (!rt.is_valid()) _exit(11);
+        if (!rt.is_valid()) {
+            _exit(11);
+        }
         // 热循环不停 get_or_create，极大概率命中 factory 的各个阶段
         for (int i = 0;; ++i) {
             const auto name = std::string("busy_") + std::to_string(i % 4);
             auto       s    = rt.get_or_create_set<int>(name);
-            if (!s.has_value()) continue;
+            if (!s.has_value()) {
+                continue;
+            }
             s->insert(i);
         }
     }
@@ -107,7 +117,7 @@ TEST_F(shm_runtime_factory_crash_fixture, child_sigkill_during_factory_leaves_re
         const auto name = std::string("busy_") + std::to_string(k);
         auto       s    = parent_rt.get_or_create_set<int>(name);
         ASSERT_TRUE(s.has_value());
-        EXPECT_GE(s->size(), 3u);  // 至少 parent 的 3 轮插入
+        EXPECT_GE(s->size(), 3u); // 至少 parent 的 3 轮插入
     }
 }
 
@@ -121,19 +131,26 @@ TEST_F(shm_runtime_factory_crash_fixture, repeated_child_crashes_still_converge)
     mc::shm::shm_runtime parent_rt(opts());
     ASSERT_TRUE(parent_rt.is_valid());
 
-    constexpr int rounds = 20;
+    constexpr int rounds           = 20;
+    constexpr int child_key_window = 32;
     for (int r = 0; r < rounds; ++r) {
         const auto pid = fork();
         ASSERT_GE(pid, 0);
         if (pid == 0) {
             mc::shm::shm_runtime rt(opts());
-            if (!rt.is_valid()) _exit(11);
-            // 在一个独立 name 上循环首次创建 + insert，被外部随时 SIGKILL
-            const auto name = std::string("roundN");  // 公共 name，刻意让它跨轮复用
+            if (!rt.is_valid()) {
+                _exit(11);
+            }
+            // 在公共 name 上反复 get_or_create + insert，被外部随时 SIGKILL。
+            // key 空间保持有界，避免测试退化成“把 region 吃满”的容量压力用例。
+            const auto name = std::string("roundN");
             for (int i = 0;; ++i) {
                 auto m = rt.get_or_create_map<int, int>(name);
-                if (!m.has_value()) continue;
-                m->try_emplace(r * 10000 + i, i);
+                if (!m.has_value()) {
+                    continue;
+                }
+                const int key = r * 1000 + (i % child_key_window);
+                m->try_emplace(key, i);
             }
         }
 
@@ -146,8 +163,8 @@ TEST_F(shm_runtime_factory_crash_fixture, repeated_child_crashes_still_converge)
         auto m = parent_rt.get_or_create_map<int, int>("roundN");
         ASSERT_TRUE(m.has_value()) << "round " << r;
         // parent 自身插入一条，验证可写
-        m->try_emplace(-(r + 1), r);
-        ASSERT_TRUE(m->find(-(r + 1)));
+        ASSERT_TRUE(m->try_emplace(-(r + 1), r).second) << "round " << r;
+        ASSERT_TRUE(m->find(-(r + 1))) << "round " << r;
     }
 }
 
@@ -163,17 +180,23 @@ TEST_F(shm_runtime_factory_crash_fixture, child_killed_before_drop_keeps_contain
     ASSERT_TRUE(parent_rt.is_valid());
     auto s = parent_rt.get_or_create_set<int>("pre_drop");
     ASSERT_TRUE(s.has_value());
-    for (int i = 0; i < 10; ++i) s->insert(i);
+    for (int i = 0; i < 10; ++i) {
+        s->insert(i);
+    }
     const auto old_ctrl = s->control();
 
     const auto child = fork();
     ASSERT_GE(child, 0);
     if (child == 0) {
         mc::shm::shm_runtime rt(opts());
-        if (!rt.is_valid()) _exit(11);
+        if (!rt.is_valid()) {
+            _exit(11);
+        }
         // clear + drop 之间可能被杀；两种结果均可接受
         auto cs = rt.get_or_create_set<int>("pre_drop");
-        if (!cs.has_value()) _exit(12);
+        if (!cs.has_value()) {
+            _exit(12);
+        }
         cs->clear();
         // 不等父进程 kill，这里主动退出，parent 验证 drop 是否被观察到
         (void)rt.drop_named_container("pre_drop");
@@ -199,7 +222,10 @@ TEST_F(shm_runtime_factory_crash_fixture, child_killed_before_drop_keeps_contain
 
 #else
 
-TEST(shm_runtime_factory_crash_stub, requires_unix_fork) { GTEST_SKIP(); }
+TEST(shm_runtime_factory_crash_stub, requires_unix_fork)
+{
+    GTEST_SKIP();
+}
 
 #endif
 

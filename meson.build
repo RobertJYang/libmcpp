@@ -185,6 +185,15 @@ mcexpr_subproject = subproject('mcexpr', default_options: [
 mcexpr_dep = mcexpr_subproject.get_variable('mcexpr_dep')
 mcexpr_lib = mcexpr_subproject.get_variable('mcexpr_lib')
 
+mcdbus_subproject = subproject('mcdbus', default_options: [
+  'default_library=static',
+  'tests=' + build_tests.to_string(),
+  'enable_coverage=' + enable_coverage.to_string(),
+  'enable_conan_compile=' + enable_conan_compile.to_string(),
+])
+mcdbus_dep = mcdbus_subproject.get_variable('mcdbus_dep')
+mcdbus_lib = mcdbus_subproject.get_variable('mcdbus_lib')
+
 mcapp_subproject = subproject('mcapp', default_options: [
   'tests=' + build_tests.to_string(),
   'enable_coverage=' + enable_coverage.to_string(),

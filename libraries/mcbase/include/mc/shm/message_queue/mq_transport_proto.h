@@ -27,9 +27,11 @@ class mq_queue;
 class MC_API mq_transport_proto : public mc::proto::protocol {
 public:
     mq_transport_proto() = default;
+    ~mq_transport_proto() override;
 
     void configure(mq_queue& queue, std::uint32_t writer_id, std::uint64_t writer_instance_id);
     void set_receive_completion_handler(mc::small_function<void(), 64> handler);
+    void shutdown() noexcept;
 
 protected:
     mc::proto::execution_state on_push(mc::proto::proto_request& req) override;

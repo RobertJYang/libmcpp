@@ -746,6 +746,44 @@ TEST_F(FuturesTest, FutureFinallyOnReadyState)
     EXPECT_TRUE(cleanup_called.load());
 }
 
+TEST_F(FuturesTest, FutureFinallyDeferredOnReadyState)
+{
+    auto promise = mc::make_promise<int>(get_io_context());
+    auto future  = promise.get_future();
+    promise.set_value(20);
+
+    std::atomic<bool> cleanup_called{false};
+    auto              deferred_future = future.finally([&cleanup_called]() {
+        cleanup_called.store(true);
+    }, mc::launch::deferred);
+
+    EXPECT_FALSE(cleanup_called.load());
+    EXPECT_EQ(deferred_future.wait_for(1ms), mc::futures::future_status::deferred);
+
+    deferred_future.cancel();
+    EXPECT_FALSE(cleanup_called.load());
+    EXPECT_THROW(deferred_future.get(), mc::canceled_exception);
+}
+
+TEST_F(FuturesTest, FutureThenDeferredCanBeDestroyedAfterExecution)
+{
+    auto promise = mc::make_promise<int>(get_io_context());
+    auto future  = promise.get_future();
+    promise.set_value(8);
+
+    std::atomic<int> executed{0};
+    {
+        auto deferred_future = future.then([&executed](int value) {
+            executed.fetch_add(1);
+            return value + 2;
+        }, mc::launch::deferred);
+
+        EXPECT_EQ(deferred_future.get(), 10);
+    }
+
+    EXPECT_EQ(executed.load(), 1);
+}
+
 TEST_F(FuturesTest, FutureThenUsesExplicitExecutorOverride)
 {
     mc::runtime::thread_pool override_pool(1, "future_override_then");

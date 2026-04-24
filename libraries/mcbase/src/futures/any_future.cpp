@@ -15,6 +15,7 @@
 #include <mc/futures/any_future.h>
 #include <mc/futures/any_promise.h>
 #include <mc/futures/exceptions.h>
+#include <mc/runtime/immediate_context.h>
 #include <mc/runtime/steady_timer.h>
 
 #include <mutex>
@@ -185,6 +186,28 @@ void any_future::add_continuation_impl(callback_type continuation, launch policy
     add_continuation_impl(std::move(continuation), policy, m_state->m_executor);
 }
 
+void any_future::install_deferred_continuation(state_base_ptr downstream, callback_type continuation)
+{
+    struct deferred_data {
+        callback_type  continuation;
+        state_base_ptr upstream;
+    };
+
+    auto* data = new deferred_data{std::move(continuation), m_state};
+
+    downstream->install_deferred_task([](void* ctx) noexcept {
+        auto* d = static_cast<deferred_data*>(ctx);
+        try {
+            d->upstream->wait_until_ready();
+            d->continuation();
+        } catch (...) {
+            // continuation 内部已有异常处理（set_current_exception 到下游 promise）
+        }
+    }, data, [](void* ctx) noexcept {
+        delete static_cast<deferred_data*>(ctx);
+    });
+}
+
 void any_future::add_continuation_impl(callback_type continuation, launch policy, executor_type executor)
 {
     if (!m_state) {
@@ -197,21 +220,35 @@ void any_future::add_continuation_impl(callback_type continuation, launch policy
     std::unique_lock lock(m_state->m_mutex);
 
     if (m_state->is_ready()) {
-        lock.unlock(); // 解锁，防止 dispatch 或 immediate_executor 立即执行回调造成死锁
+        lock.unlock();
 
-        if (policy == launch::dispatch) {
+        if (policy == launch::deferred) {
+            // deferred continuation 不应在上游 ready 时自动执行，
+            // 正确路径应走 install_deferred_continuation。此处作为兜底
+            // 使用 immediate_executor 同步执行，避免 post 到线程池引入竞态。
+            mc::runtime::immediate_executor ie;
+            ie.post(std::move(continuation), std::allocator<void>{});
+        } else if (policy == launch::dispatch) {
             executor.dispatch(std::move(continuation));
         } else {
             executor.post(std::move(continuation));
         }
     } else {
-        m_state->m_continuations.push_back([e = std::move(executor), policy, c = std::move(continuation)]() {
-            if (policy == launch::dispatch) {
-                e.dispatch(std::move(c));
-            } else {
-                e.post(std::move(c));
-            }
-        });
+        if (policy == launch::deferred) {
+            // 同上兜底：上游未 ready 时用 immediate_executor，上游 mark_ready 时同步执行。
+            auto ie = mc::any_executor(mc::runtime::immediate_executor());
+            m_state->m_continuations.push_back([ie, c = std::move(continuation)]() mutable {
+                ie.post(std::move(c));
+            });
+        } else {
+            m_state->m_continuations.push_back([e = std::move(executor), policy, c = std::move(continuation)]() {
+                if (policy == launch::dispatch) {
+                    e.dispatch(std::move(c));
+                } else {
+                    e.post(std::move(c));
+                }
+            });
+        }
     }
 }
 
@@ -249,8 +286,7 @@ future_status any_future::wait_for_impl(std::chrono::steady_clock::duration dura
 
     // 与 std::future 一致：deferred 任务未启动时返回 deferred 状态而不主动触发；
     // 任务已启动后退化为正常超时等待（worker 线程上 m_cv.wait_until 会嵌套驱动 task 队列）。
-    if (m_state->get_policy() == launch::deferred && !m_state->is_ready()
-        && !m_state->is_deferred_task_started()) {
+    if (m_state->get_policy() == launch::deferred && !m_state->is_ready() && !m_state->is_deferred_task_started()) {
         return future_status::deferred;
     }
 
@@ -274,8 +310,7 @@ future_status any_future::wait_until_impl(std::chrono::steady_clock::time_point 
     }
 
     // 与 std::future 一致：deferred 任务未启动时返回 deferred 状态而不主动触发。
-    if (m_state->get_policy() == launch::deferred && !m_state->is_ready()
-        && !m_state->is_deferred_task_started()) {
+    if (m_state->get_policy() == launch::deferred && !m_state->is_ready() && !m_state->is_deferred_task_started()) {
         return future_status::deferred;
     }
 

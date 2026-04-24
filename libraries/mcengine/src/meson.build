@@ -6,9 +6,19 @@ engine_src_files = files(
   'context.cpp',
   'dispatcher.cpp',
   'engine.cpp',
-  'engine_proto.cpp',
+  'engine_codec.cpp',
+  'service_proto.cpp',
   'event.cpp',
   'interface.cpp',
+  'match/condition_backend.cpp',
+  'match/condition_filter.cpp',
+  'match/endpoint_sweep.cpp',
+  'match/local_table.cpp',
+  'match/path_pattern.cpp',
+  'match/registry.cpp',
+  'match/rule.cpp',
+  'match/shared_table.cpp',
+  'match/types.cpp',
   'message_codec.cpp',
   'metadata.cpp',
   'object.cpp',
@@ -31,6 +41,12 @@ engine_src_files = files(
   'property/ref_object.cpp',
   'property/instantiation.cpp'
 )
+
+if use_shm
+  # endpoint_service 依赖 shm_runtime / mq_channel / mq_proto，仅在 SHM ON
+  # 时编译；SHM OFF 下 engine::init 跳过其构造，从而避免引入 shm_runtime 符号。
+  engine_src_files += files('endpoint_service.cpp')
+endif
 
 base_inc_dirs = [incdir, srcdir]
 

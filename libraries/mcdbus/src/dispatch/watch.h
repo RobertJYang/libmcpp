@@ -1,0 +1,44 @@
+/*
+ * Copyright (c) 2024 Huawei Technologies Co., Ltd.
+ * openUBMC is licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *         http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+
+#ifndef MC_DBUS_DISPATCH_WATCH_H
+#define MC_DBUS_DISPATCH_WATCH_H
+
+#include <mc/io/native_waiter.h>
+
+#include "connection_impl.h"
+
+namespace mc::dbus {
+
+class watch : public mc::enable_shared_from_this<watch> {
+public:
+    template <typename Executor>
+    watch(const Executor& executor, DBusWatch* watch)
+        : m_watch(watch), m_socket(executor, mc::io::native_waiter::from_descriptor(dbus_watch_get_unix_fd(watch)))
+    {}
+
+    ~watch();
+
+    void start(connection_weak_ptr conn);
+    void stop();
+
+private:
+    void watch_readable(connection_weak_ptr conn, mc::shared_ptr<watch> self);
+    void watch_writable(connection_weak_ptr conn, mc::shared_ptr<watch> self);
+    bool handle_watch_ready(connection_ptr& conn, uint32_t flags);
+
+    DBusWatch*            m_watch;
+    mc::io::native_waiter m_socket;
+};
+
+} // namespace mc::dbus
+#endif // MC_DBUS_DISPATCH_WATCH_H

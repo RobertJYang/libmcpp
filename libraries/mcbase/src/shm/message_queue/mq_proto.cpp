@@ -308,6 +308,12 @@ mc::proto::execution_state mq_proto::on_push(mc::proto::proto_request& req)
             continue;
         }
         if (state == mc::proto::execution_state::suspended) {
+            // 发送侧 transport 可能在当前栈帧返回前被 space watcher 立刻恢复。
+            // 若恢复路径已经把请求推进到 completed/failed，再次 suspend 会把最终状态
+            // 覆盖回 suspended，导致调用方永远看不到完成态。
+            if (req.state() != mc::proto::execution_state::suspended) {
+                return req.state();
+            }
             return suspend(req);
         }
         if (state == mc::proto::execution_state::failed) {

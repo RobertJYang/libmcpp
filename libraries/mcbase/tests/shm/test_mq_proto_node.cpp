@@ -137,6 +137,11 @@ struct protocol_chain {
         return ctx == nullptr ? mc::string{} : ctx->inbound_payload;
     }
 
+    void shutdown()
+    {
+        transport.shutdown();
+    }
+
     mq_application              app;
     mc::shm::mq_proto           mq;
     mc::shm::mq_transport_proto transport;
@@ -158,6 +163,11 @@ struct direct_protocol_chain {
     mc::proto::execution_state pop(mc::proto::proto_request& req)
     {
         return mq.pop(req);
+    }
+
+    void shutdown()
+    {
+        transport.shutdown();
     }
 
     mc::shm::mq_proto           mq;
@@ -314,7 +324,12 @@ TEST_F(mq_proto_test, direct_push_auto_resumes_without_manual_resume)
 
     ASSERT_EQ(receive_future.wait_for(std::chrono::seconds(2)), std::future_status::ready);
     EXPECT_EQ(receive_future.get(), payload);
+    ASSERT_TRUE(wait_until([&req]() {
+        return req.state() == mc::proto::execution_state::completed;
+    }));
     EXPECT_EQ(req.state(), mc::proto::execution_state::completed);
+    sender_transport.shutdown();
+    receiver.shutdown();
 }
 
 TEST_F(mq_proto_test, top_level_pop_auto_resumes_without_channel)
@@ -349,6 +364,8 @@ TEST_F(mq_proto_test, top_level_pop_auto_resumes_without_channel)
         return inbound.state() == mc::proto::execution_state::completed;
     }));
     EXPECT_EQ(payload_from_buffer(inbound.buffer()), payload);
+    sender.shutdown();
+    receiver.shutdown();
 }
 
 TEST_F(mq_proto_test, interleaved_fragments_reassemble_across_pop_requests)
@@ -413,9 +430,11 @@ TEST_F(mq_proto_test, dead_source_fragments_are_discarded)
     source_alive = true;
     ASSERT_TRUE(queue.send_message(7, 1, make_fragment(2, 1, 7, 1, "fresh")));
 
-    mc::proto::proto_request fresh;
-    ASSERT_EQ(receiver.pop(fresh), mc::proto::execution_state::completed);
-    EXPECT_EQ(payload_from_buffer(fresh.buffer()), "fresh");
+    ASSERT_TRUE(wait_until([&dropped]() {
+        return dropped.state() == mc::proto::execution_state::completed;
+    }));
+    EXPECT_EQ(payload_from_buffer(dropped.buffer()), "fresh");
+    receiver.shutdown();
 }
 
 TEST_F(mq_proto_test, partial_assembly_is_dropped_after_source_dies)
@@ -444,4 +463,5 @@ TEST_F(mq_proto_test, partial_assembly_is_dropped_after_source_dies)
 
     mc::proto::proto_request stale_tail;
     EXPECT_EQ(receiver.pop(stale_tail), mc::proto::execution_state::suspended);
+    receiver.shutdown();
 }

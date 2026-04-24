@@ -112,9 +112,7 @@ protected:
 
 }  // namespace
 
-// ============================================================================
 // slab_grow_capacity
-// ============================================================================
 
 TEST(slab_grow_capacity_test, doubles_until_meets_needed)
 {
@@ -131,9 +129,7 @@ TEST(slab_grow_capacity_test, large_values_clamp_to_needed)
     EXPECT_EQ(slab_grow_capacity(0xC000, 0xD000), 0xD000);
 }
 
-// ============================================================================
 // shm_byte_string_create / destroy
-// ============================================================================
 
 TEST_F(shadow_ops_fixture, byte_string_create_round_trip)
 {
@@ -157,9 +153,7 @@ TEST_F(shadow_ops_fixture, byte_string_destroy_null_is_noop)
     shm_byte_string_destroy(m_alloc, nullptr);
 }
 
-// ============================================================================
 // property_slab basic ops
-// ============================================================================
 
 TEST_F(shadow_ops_fixture, property_slab_create_default_state)
 {
@@ -255,9 +249,7 @@ TEST_F(shadow_ops_fixture, property_slab_remove_swap_pop)
     property_slab_destroy(m_alloc, slab);
 }
 
-// ============================================================================
 // property_slab copy-on-grow（offset_ptr 重新基址正确性）
-// ============================================================================
 
 TEST_F(shadow_ops_fixture, property_slab_grows_on_capacity_exhausted)
 {
@@ -307,9 +299,7 @@ TEST_F(shadow_ops_fixture, property_slab_grow_preserves_blob_offset_ptr)
     property_slab_destroy(m_alloc, slab);
 }
 
-// ============================================================================
 // child_slab ops
-// ============================================================================
 
 TEST_F(shadow_ops_fixture, child_slab_add_find_remove)
 {
@@ -367,9 +357,7 @@ TEST_F(shadow_ops_fixture, child_slab_grows_and_preserves_offsets)
     }
 }
 
-// ============================================================================
 // shm_object_create / destroy（identity + CRC）
-// ============================================================================
 
 TEST_F(shadow_ops_fixture, shm_object_create_default_state)
 {
@@ -416,9 +404,7 @@ TEST_F(shadow_ops_fixture, shm_object_set_class_name_replaces_byte_string)
     shm_object_destroy(m_alloc, sh);
 }
 
-// ============================================================================
 // shm_object 高层 property/child setter
-// ============================================================================
 
 TEST_F(shadow_ops_fixture, shm_object_set_property_lazy_alloc_slab)
 {
@@ -559,9 +545,7 @@ TEST_F(shadow_ops_fixture, shm_object_set_service_updates_offset_and_crc)
     shm_object_destroy(m_alloc, sh);
 }
 
-// ============================================================================
-// 综合：写入 + reopen 模拟（重新读取 region 内同一 shadow 指针）
-// ============================================================================
+// 综合：写入 + reopen 模拟
 
 TEST_F(shadow_ops_fixture, shm_object_full_field_round_trip)
 {

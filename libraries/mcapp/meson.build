@@ -50,6 +50,12 @@ mcengine_dep = dependency(
   required: true,
 )
 
+mcdbus_dep = dependency(
+  'mcdbus',
+  fallback: ['mcdbus', 'mcdbus_dep'],
+  required: true,
+)
+
 if build_tests
   gtest_dep = dependency('gtest', method: 'pkg-config', required: true)
   mcbase_test_utilities_dep = mcbase_subproject.get_variable('test_utilities_dep')
@@ -58,7 +64,7 @@ else
   mcbase_test_utilities_dep = declare_dependency()
 endif
 
-dep_arr = [mcbase_dep, mcengine_dep]
+dep_arr = [mcbase_dep, mcengine_dep, mcdbus_dep]
 
 subdir('include')
 subdir('src')

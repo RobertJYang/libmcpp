@@ -17,16 +17,18 @@
 #include <mc/app/service_registry.h>
 #include <mc/array.h>
 #include <mc/engine/service.h>
-#include <mc/engine/service_protocol.h>
 #include <mc/module.h>
 #include <mc/small_function.h>
 
+#include <memory>
 #include <unordered_map>
 #include <vector>
 
-namespace mc::app {
+namespace mc::engine {
+class endpoint_service;
+} // namespace mc::engine
 
-using service_protocol_factory = mc::small_function<mc::engine::service_protocol_ptr(const service_definition&), 64>;
+namespace mc::app {
 
 class MC_API application : public base_app {
 public:
@@ -51,8 +53,6 @@ public:
     {
         m_registry.register_service<ServiceType>(std::move(type_name), execution_model, enabled_by_default);
     }
-
-    void set_protocol_factory(service_protocol_factory factory);
 
     bool initialize(const app_options& options = {});
     bool start();
@@ -81,9 +81,11 @@ private:
     void assign_service_executor(const service_definition& definition, const service_ptr& service_instance);
     bool stop_services();
 
+    bool bootstrap_engine_endpoint();
+    void teardown_engine_endpoint();
+
     service_registry                             m_registry;
     service_plan                                 m_plan;
-    service_protocol_factory                     m_protocol_factory;
     service_ptr                                  m_root_service;
     std::unordered_map<std::string, service_ptr> m_services;
     std::vector<mc::string>                      m_service_order;
@@ -92,6 +94,8 @@ private:
     bool                                         m_running{false};
     bool                                         m_runtime_started{false};
     int                                          m_exit_code{0};
+
+    std::unique_ptr<mc::engine::endpoint_service> m_endpoint_service;
 };
 
 } // namespace mc::app

@@ -348,6 +348,16 @@ void runtime_context::remove_posted_events(mc::object* target, mc::event_type_id
     m_impl->dispatcher().remove_posted_events(target, type);
 }
 
+global_event_filter runtime_context::install_global_filter(mc::event_type_id type, global_event_filter filter)
+{
+    return m_impl->dispatcher().install_global_filter(type, std::move(filter));
+}
+
+void runtime_context::remove_global_filter(mc::event_type_id type)
+{
+    m_impl->dispatcher().remove_global_filter(type);
+}
+
 any_executor runtime_context::create_strand()
 {
     return any_executor(runtime_strand());

@@ -34,9 +34,7 @@ using mc::engine::shm_service_state;
 
 namespace {
 
-// ============================================================================
-// 1. sizeof / alignof / abi_version
-// ============================================================================
+// sizeof / alignof / abi_version
 
 TEST(shm_service_layout, sizeof_is_64)
 {
@@ -49,9 +47,7 @@ TEST(shm_service_layout, abi_version_is_v1)
     EXPECT_EQ(shm_service_abi_version, 1U);
 }
 
-// ============================================================================
-// 2. 字段 offset
-// ============================================================================
+// 字段 offset
 
 TEST(shm_service_layout, field_offsets_locked)
 {
@@ -66,9 +62,7 @@ TEST(shm_service_layout, field_offsets_locked)
     EXPECT_EQ(offsetof(shm_service, _reserved), 32U);
 }
 
-// ============================================================================
-// 3. POD 性质
-// ============================================================================
+// POD 性质
 
 TEST(shm_service_layout, is_trivially_destructible_and_standard_layout)
 {
@@ -76,9 +70,7 @@ TEST(shm_service_layout, is_trivially_destructible_and_standard_layout)
     EXPECT_TRUE(std::is_standard_layout_v<shm_service>);
 }
 
-// ============================================================================
-// 4. CRC32 helper
-// ============================================================================
+// CRC32 helper
 
 TEST(shm_service_crc, compute_and_check)
 {

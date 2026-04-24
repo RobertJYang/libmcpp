@@ -70,9 +70,9 @@ TEST(service_registry_test, register_service_exposes_descriptor_and_creator)
     ASSERT_NE(descriptor, nullptr);
     EXPECT_EQ(descriptor->type_name, "registry_test_service");
 
-    auto service = registry.create_service("registry_test_service", "demo");
+    auto service = registry.create_service("registry_test_service", "mc.test.demo");
     ASSERT_NE(service, nullptr);
-    EXPECT_EQ(service->name(), "demo");
+    EXPECT_EQ(service->name(), "mc.test.demo");
 }
 
 TEST(service_registry_test, validate_properties_uses_config_type)
@@ -115,7 +115,7 @@ TEST(service_registry_test, import_global_services_keeps_registration_available)
 
     ASSERT_TRUE(registry.has_service("global_registry_test_service"));
 
-    auto service = registry.create_service("global_registry_test_service", "global-demo");
+    auto service = registry.create_service("global_registry_test_service", "mc.test.global_demo");
     ASSERT_NE(service, nullptr);
-    EXPECT_EQ(service->name(), "global-demo");
+    EXPECT_EQ(service->name(), "mc.test.global_demo");
 }

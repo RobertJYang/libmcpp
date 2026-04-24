@@ -13,17 +13,122 @@
 #include <mc/engine/base.h>
 #include <mc/engine/dispatcher.h>
 #include <mc/engine/engine.h>
-#include <mc/engine/engine_proto.h>
+#include <mc/engine/event.h>
+#include <mc/engine/service_proto.h>
 #include <mc/engine/internal/shm_binding.h>
+#include <mc/engine/match.h>
+#include <mc/engine/message.h>
+#include <mc/engine/metadata.h>
 #include <mc/engine/path.h>
 #include <mc/engine/path_iterator.h>
+#include <mc/engine/property/types.h>
 #include <mc/engine/service.h>
 #include <mc/engine/utils.h>
 #include <mc/exception.h>
+#include <mc/runtime/runtime_context.h>
+
+#include <mutex>
+#include <unordered_map>
+#include <unordered_set>
+
+#if defined(MCENGINE_USE_SHM) && MCENGINE_USE_SHM
+#include "match/shared_table.h"
+#endif
 
 namespace mc::engine {
 
+namespace {
+
+message _make_interfaces_added(mc::string_view sender, const abstract_object& obj)
+{
+    message msg;
+    msg.header.type           = message_type::signal;
+    msg.header.sender         = mc::string(sender);
+    msg.header.path           = mc::string(obj.get_object_path());
+    msg.header.interface_name = "org.freedesktop.DBus.ObjectManager";
+    msg.header.member_name    = "InterfacesAdded";
+    msg.body                  = make_payload<signal_payload>(
+        "oa{sa{sv}}", mc::variants{mc::variant(mc::string(obj.get_object_path())),
+                                   mc::variant(obj.get_all_properties({}, property_options::memory))});
+    return msg;
+}
+
+message _make_interfaces_removed(mc::string_view sender, const abstract_object& obj)
+{
+    mc::variants iface_names;
+    obj.get_metadata().visit_interfaces([&](const interface_metadata& iface) {
+        if (iface.metadata != nullptr) {
+            iface_names.push_back(mc::variant(mc::string(iface.metadata->get_class_name())));
+        }
+    });
+
+    message msg;
+    msg.header.type           = message_type::signal;
+    msg.header.sender         = mc::string(sender);
+    msg.header.path           = mc::string(obj.get_object_path());
+    msg.header.interface_name = "org.freedesktop.DBus.ObjectManager";
+    msg.header.member_name    = "InterfacesRemoved";
+    msg.body                  = make_payload<signal_payload>(
+        "oas", mc::variants{mc::variant(mc::string(obj.get_object_path())), mc::variant(std::move(iface_names))});
+    return msg;
+}
+
+message _make_properties_changed(mc::string_view sender, const abstract_object& obj, const property_base& prop,
+                                 const mc::variant& value)
+{
+    const auto* iface = prop.get_interface();
+    MC_ASSERT(iface != nullptr, "property base does not carry interface metadata");
+    auto iface_name = iface->get_interface_name();
+    auto prop_name  = prop.get_name();
+
+    mc::dict changed;
+    changed[mc::string(prop_name)] = value;
+
+    message msg;
+    msg.header.type           = message_type::signal;
+    msg.header.sender         = mc::string(sender);
+    msg.header.path           = mc::string(obj.get_object_path());
+    msg.header.interface_name = "org.freedesktop.DBus.Properties";
+    msg.header.member_name    = "PropertiesChanged";
+    msg.body = make_payload<signal_payload>("sa{sv}as",
+                                            mc::variants{mc::variant(mc::string(iface_name)),
+                                                         mc::variant(std::move(changed)), mc::variant(mc::variants{})});
+    return msg;
+}
+
+} // namespace
+
 using object_table_ptr = std::shared_ptr<service_object_table>;
+
+namespace {
+
+// property_changed → PropertiesChanged signal 的全局事件过滤器。
+void _property_changed_global_filter(mc::object& target, mc::event& e)
+{
+    auto* property_event = dynamic_cast<property_changed_event*>(&e);
+    if (property_event == nullptr) {
+        return;
+    }
+
+    auto* obj = property_event->property().get_object();
+    if (obj == nullptr) {
+        return;
+    }
+
+    auto* svc = obj->get_service();
+    if (svc == nullptr) {
+        return;
+    }
+
+    const auto& prop   = property_event->property();
+    const auto& value  = property_event->value();
+    auto        msg    = _make_properties_changed(svc->name(), *obj, prop, value);
+    svc->emit(msg);
+}
+
+std::once_flag g_property_filter_once;
+
+} // namespace
 
 struct service_impl {
     std::mutex           m_mutex;
@@ -31,10 +136,10 @@ struct service_impl {
     object_table_ptr     m_object_table;
     bool                 m_registered{false};
     bool                 m_started{false};
-    service_protocol_ptr m_protocol;
-    mc::proto::protocol* m_proto{nullptr};
-    // 始终持有；OFF 模式下 create_service_state 返回 nullptr，所有 binding 调用
-    // 走 inline no-op。
+    service_proto* m_proto{nullptr};
+
+    std::mutex                          m_match_mutex;
+    std::unordered_set<match::match_id> m_owned_matches;
     shm_binding::service_state* m_shm_state{nullptr};
 
     service_impl() : m_shm_state(shm_binding::create_service_state())
@@ -49,9 +154,6 @@ struct service_impl {
     void             register_object(abstract_object& obj);
     void             unregister_object(mc::string_view path);
     abstract_object* find_owner(mc::string_view path) const;
-    // recover 后按 path 反查 owner，把 heap 端 owner 关系建上；触发的 set_owner
-    // 会通过 shm_binding::sync_owner 顺带把 SHM parent/children 一并刷新。
-    // 独立一遍是为了避免 owner-children 顺序敏感。
     void _restore_owner_relations();
 };
 
@@ -61,16 +163,20 @@ void service_impl::ensure_registered()
         return;
     }
 
+    std::call_once(g_property_filter_once, []() {
+        mc::runtime::get_runtime_context().install_global_filter(
+            property_changed_event_id, _property_changed_global_filter);
+    });
+
     if (!m_object_table) {
         m_object_table = shm_binding::create_service_object_table(m_service->name());
     }
     mc::engine::engine::get_instance().register_table(m_object_table);
+    mc::engine::engine::register_service(m_service);
     m_registered = true;
 
     shm_binding::attach_and_recover(m_shm_state, m_service->name(), *m_object_table);
     _restore_owner_relations();
-    // 上一次崩溃 / 升级遗留下来的 isolated 对象在这里立刻清掉，避免它们持续
-    // 占用 user_arena 直到业务侧手动调 gc。
     (void)m_service->gc_isolated();
 }
 
@@ -80,13 +186,24 @@ void service_impl::unregister_from_engine()
         return;
     }
 
-    // 显式 stop / unregister 走"主动 detach"语义：清掉 SHM 数据并把 shm_service 标
-    // detached + pid=0。crash 路径（进程没机会走到这里）下次 attach 时则按 takeover
-    // 语义自动接管旧 shm_object。
     m_object_table->clear();
     shm_binding::detach(m_shm_state);
+    mc::engine::engine::unregister_service(m_service);
     mc::engine::engine::get_instance().unregister_table(m_object_table);
     m_registered = false;
+    std::unordered_set<match::match_id> drained;
+    {
+        std::lock_guard lock(m_match_mutex);
+        drained.swap(m_owned_matches);
+    }
+    if (!drained.empty()) {
+        auto table = mc::engine::engine::get_match_table();
+        if (table) {
+            for (auto id : drained) {
+                table->unsubscribe(id);
+            }
+        }
+    }
 }
 
 void service_impl::_restore_owner_relations()
@@ -116,8 +233,6 @@ void service_impl::register_object(abstract_object& obj)
 
     auto* owner = find_owner(obj.get_object_path());
     if (owner) {
-        // set_owner 会通过 shm_binding::sync_owner 把 SHM 的 parent /
-        // new_owner.children 一起更新，跨 path 的 ownership 由此自动持久化。
         obj.set_owner(owner);
     }
 
@@ -168,8 +283,6 @@ void service_impl::unregister_object(mc::string_view path)
     }
     m_object_table->remove(mc::shared_ptr<abstract_object>(&obj));
 
-    // set_owner(nullptr) 触发 shm_binding::sync_owner，从 SHM 旧 parent.children
-    // 中移除本体并把 sh->parent 置 null；随后 release_object_handle 销毁 sh。
     obj.set_owner(nullptr);
     obj.set_service(nullptr);
 
@@ -203,25 +316,17 @@ bool service::start()
 {
     m_impl->ensure_registered();
 
-    service_protocol_ptr protocol;
     {
         std::lock_guard lock(m_impl->m_mutex);
         if (m_impl->m_started) {
             return true;
         }
         m_impl->m_started = true;
-        protocol          = m_impl->m_protocol;
-    }
-    if (protocol) {
-        protocol->attach(*this);
     }
     if (on_start()) {
         return true;
     }
 
-    if (protocol) {
-        protocol->detach();
-    }
     {
         std::lock_guard lock(m_impl->m_mutex);
         m_impl->m_started = false;
@@ -232,7 +337,6 @@ bool service::start()
 
 bool service::stop()
 {
-    service_protocol_ptr protocol;
     if (m_impl) {
         {
             std::lock_guard lock(m_impl->m_mutex);
@@ -240,7 +344,6 @@ bool service::stop()
                 m_impl->unregister_from_engine();
                 return true;
             }
-            protocol = m_impl->m_protocol;
         }
         if (!on_stop()) {
             return false;
@@ -248,9 +351,6 @@ bool service::stop()
         {
             std::lock_guard lock(m_impl->m_mutex);
             m_impl->m_started = false;
-        }
-        if (protocol) {
-            protocol->detach();
         }
         m_impl->unregister_from_engine();
     }
@@ -320,6 +420,112 @@ bool service::on_stop()
 void service::on_cleanup()
 {}
 
+namespace {
+
+struct local_endpoint_id {
+    std::uint16_t endpoint_id{0};
+    std::uint32_t instance_id{0};
+};
+
+local_endpoint_id _resolve_local_endpoint(const match::table_ptr& table)
+{
+#if defined(MCENGINE_USE_SHM) && MCENGINE_USE_SHM
+    if (auto* shared = dynamic_cast<match::shared_table*>(table.get())) {
+        return {shared->local_endpoint_id(), shared->local_instance_id()};
+    }
+#else
+    (void)table;
+#endif
+    return {0U, 0U};
+}
+
+struct endpoint_key {
+    std::uint16_t endpoint_id;
+    std::uint32_t instance_id;
+    bool          operator==(const endpoint_key& o) const noexcept
+    {
+        return endpoint_id == o.endpoint_id && instance_id == o.instance_id;
+    }
+};
+
+struct endpoint_key_hash {
+    std::size_t operator()(const endpoint_key& k) const noexcept
+    {
+        return (static_cast<std::size_t>(k.instance_id) << 16) ^ static_cast<std::size_t>(k.endpoint_id);
+    }
+};
+
+using target_pairs = std::vector<std::pair<mc::string, match::match_id>>;
+
+std::unordered_map<endpoint_key, target_pairs, endpoint_key_hash>
+_group_targets_by_endpoint(const std::vector<match::target>& targets)
+{
+    std::unordered_map<endpoint_key, target_pairs, endpoint_key_hash> groups;
+    for (const auto& t : targets) {
+        groups[endpoint_key{t.endpoint_id, t.instance_id}].emplace_back(t.service_name, t.id);
+    }
+    return groups;
+}
+
+message _attach_match_ids(const message& msg, const target_pairs& pairs)
+{
+    message cloned = msg;
+    match::set_target_match_ids(cloned.header, pairs);
+    return cloned;
+}
+
+void _push_to_proto_tree(service_proto& root, const message& msg)
+{
+    try {
+        mc::proto::proto_request req;
+        auto&                    ctx = req.ensure_context<service_proto::message_context>(&root);
+        ctx.msg                      = msg;
+        (void)root.push(req);
+    } catch (...) {
+    }
+}
+
+} // namespace
+
+void service::emit(const message& msg) const
+{
+    message m = msg;
+    if (m.header.sender.empty()) {
+        m.header.sender = m_name;
+    }
+
+    auto table = engine::get_match_table();
+    if (!table) {
+        return;
+    }
+
+    auto targets = table->find_targets(m);
+    if (targets.empty()) {
+        return;
+    }
+
+    auto groups   = _group_targets_by_endpoint(targets);
+    auto local_ep = _resolve_local_endpoint(table);
+
+    service_proto* proto = nullptr;
+    {
+        std::lock_guard lock(m_impl->m_mutex);
+        proto = m_impl->m_proto;
+    }
+
+    for (const auto& [key, pairs] : groups) {
+        bool is_local = (key.endpoint_id == 0U) ||
+                        (key.endpoint_id == local_ep.endpoint_id && key.instance_id == local_ep.instance_id);
+        if (is_local) {
+            engine::route_inbound(_attach_match_ids(m, pairs));
+            continue;
+        }
+        if (proto != nullptr) {
+            _push_to_proto_tree(*proto, _attach_match_ids(m, pairs));
+        }
+    }
+}
+
 void service::register_object(abstract_object& obj)
 {
     m_impl->ensure_registered();
@@ -334,17 +540,17 @@ void service::register_object(abstract_object& obj)
 
     m_impl->register_object(obj);
 
-    service_protocol_ptr protocol;
+    bool started = false;
     {
         std::lock_guard lock(m_impl->m_mutex);
-        if (!m_impl->m_started) {
-            return;
-        }
-        protocol = m_impl->m_protocol;
+        started = m_impl->m_started;
     }
-    if (protocol) {
-        protocol->register_object(obj);
+    // 未启动时不发 InterfacesAdded。
+    if (!started) {
+        return;
     }
+
+    emit(_make_interfaces_added(m_name, obj));
 }
 
 void service::unregister_object(mc::string_view path)
@@ -353,16 +559,12 @@ void service::unregister_object(mc::string_view path)
         return;
     }
 
-    service_protocol_ptr protocol;
-    {
-        std::lock_guard lock(m_impl->m_mutex);
-        if (m_impl->m_started) {
-            protocol = m_impl->m_protocol;
-        }
+    // 先构造再注销：需要从 table 里读 metadata。
+    if (auto it = m_impl->m_object_table->find<by_path>(path); !it.is_end()) {
+        const auto& obj = *it;
+        emit(_make_interfaces_removed(m_name, obj));
     }
-    if (protocol) {
-        protocol->unregister_object(path);
-    }
+
     m_impl->unregister_object(path);
 }
 
@@ -380,145 +582,120 @@ std::size_t service::gc_isolated()
     return shm_binding::gc_isolated(m_impl->m_shm_state, *m_impl->m_object_table);
 }
 
-void service::set_protocol(service_protocol_ptr protocol)
-{
-    service_protocol_ptr previous;
-    service_protocol_ptr current;
-    bool                 started = false;
-    {
-        std::lock_guard lock(m_impl->m_mutex);
-        if (m_impl->m_protocol == protocol) {
-            return;
-        }
-        previous           = std::move(m_impl->m_protocol);
-        m_impl->m_protocol = std::move(protocol);
-        current            = m_impl->m_protocol;
-        started            = m_impl->m_started;
-    }
-
-    if (previous && started) {
-        previous->detach();
-    }
-    if (started && current) {
-        current->attach(*this);
-    }
-}
-
-service_protocol_ptr service::get_protocol() const
-{
-    std::lock_guard lock(m_impl->m_mutex);
-    return m_impl->m_protocol;
-}
-
 namespace {
-
-engine_proto* _resolve_engine_proto(mc::proto::protocol* proto)
-{
-    auto* engine = dynamic_cast<engine_proto*>(proto);
-    MC_ASSERT_THROW(engine != nullptr, mc::invalid_arg_exception,
-                    "service::set_proto requires mc::engine::engine_proto as root");
-    return engine;
-}
 
 } // namespace
 
-void service::set_proto(mc::proto::protocol* proto)
+void service::set_proto(service_proto* proto)
 {
-    mc::proto::protocol* previous = nullptr;
-    mc::proto::protocol* current  = nullptr;
+    service_proto* previous = nullptr;
     {
         std::lock_guard lock(m_impl->m_mutex);
         if (m_impl->m_proto == proto) {
             return;
         }
-        previous        = std::move(m_impl->m_proto);
-        m_impl->m_proto = std::move(proto);
-        current         = m_impl->m_proto;
+        previous        = m_impl->m_proto;
+        m_impl->m_proto = proto;
     }
 
-    if (auto* prev_engine = dynamic_cast<engine_proto*>(previous); prev_engine != nullptr) {
-        prev_engine->clear_inbound_handler();
+    if (previous != nullptr) {
+        previous->clear_inbound_handler();
     }
 
-    if (!current) {
+    if (proto == nullptr) {
         return;
     }
 
-    auto* engine = _resolve_engine_proto(current);
-    engine->set_inbound_handler([this](message request) -> message {
+    proto->set_inbound_handler([this](message request) -> message {
         return mc::engine::dispatch(*this, request);
     });
 }
 
-mc::proto::protocol* service::get_proto() const
+service_proto* service::get_proto() const
 {
     std::lock_guard lock(m_impl->m_mutex);
     return m_impl->m_proto;
 }
 
-mc::variant service::request(const service_operation& operation) const
+match::match_id service::add_match(match::match_rule rule, match::filter_spec spec,
+                                   match::match_callback callback) const
 {
-    auto protocol = get_protocol();
-    MC_ASSERT_THROW(protocol, mc::invalid_arg_exception, "service protocol is not configured");
-    return protocol->request(operation);
+    MC_ASSERT_THROW(callback, mc::invalid_arg_exception, "service::add_match 需要非空 callback");
+
+    auto table = engine::get_match_table();
+    MC_ASSERT_THROW(table, mc::invalid_arg_exception, "engine match table 未初始化");
+
+    auto id = table->subscribe(m_name, std::move(rule), std::move(spec), std::move(callback));
+
+    {
+        std::lock_guard lock(m_impl->m_match_mutex);
+        m_impl->m_owned_matches.insert(id);
+    }
+    return id;
 }
 
-mc::result<mc::variant> service::async_request(const service_operation& operation) const
+void service::remove_match(match::match_id id) const
 {
-    auto protocol = get_protocol();
-    MC_ASSERT_THROW(protocol, mc::invalid_arg_exception, "service protocol is not configured");
-    return protocol->async_request(operation);
+    if (id == 0) {
+        return;
+    }
+
+    bool owned = false;
+    {
+        std::lock_guard lock(m_impl->m_match_mutex);
+        owned = m_impl->m_owned_matches.erase(id) > 0;
+    }
+    if (!owned) {
+        return;
+    }
+    if (auto table = engine::get_match_table()) {
+        table->unsubscribe(id);
+    }
 }
 
-mc::variant service::timeout_call(mc::milliseconds timeout, mc::string_view endpoint, mc::string_view path,
-                                  mc::string_view interface_name, mc::string_view method_name,
-                                  mc::string_view signature, mc::variants args, mc::dict context) const
+void service::dispatch_event(const message& msg) const
 {
-    service_operation operation{
-        service_operation_kind::invoke_method,
-        invoke_method_operation{
-            service_operation_target{mc::string(endpoint), mc::string(path), mc::string(interface_name)},
-            mc::string(method_name),
-            mc::string(signature),
-            std::move(args),
-            std::move(context),
-            timeout,
-        },
-    };
-    return request(operation);
-}
+    auto table = engine::get_match_table();
+    if (!table) {
+        return;
+    }
 
-mc::result<mc::variant> service::async_timeout_call(mc::milliseconds timeout, mc::string_view endpoint,
-                                                    mc::string_view path, mc::string_view interface_name,
-                                                    mc::string_view method_name, mc::string_view signature,
-                                                    mc::variants args, mc::dict context) const
-{
-    service_operation operation{
-        service_operation_kind::invoke_method,
-        invoke_method_operation{
-            service_operation_target{mc::string(endpoint), mc::string(path), mc::string(interface_name)},
-            mc::string(method_name),
-            mc::string(signature),
-            std::move(args),
-            std::move(context),
-            timeout,
-        },
-    };
-    return async_request(operation);
-}
+    auto pairs = match::get_target_match_ids(msg.header);
+    if (!pairs.empty()) {
+        for (const auto& p : pairs) {
+            if (p.first != m_name) {
+                continue;
+            }
+            auto cb = table->lookup_callback(m_name, p.second);
+            if (!cb) {
+                continue;
+            }
+            try {
+                cb(msg);
+            } catch (...) {
+            }
+        }
+        return;
+    }
 
-uint64_t service::add_match(mc::dbus::match_rule& rule, std::function<void(mc::dbus::message&)>&& cb) const
-{
-    auto protocol = get_protocol();
-    MC_ASSERT_THROW(protocol, mc::invalid_arg_exception, "service protocol is not configured");
-    return protocol->add_match(rule, std::move(cb));
-}
-
-void service::remove_match(uint64_t id) const
-{
-    auto protocol = get_protocol();
-    MC_ASSERT_THROW(protocol, mc::invalid_arg_exception, "service protocol is not configured");
-    protocol->remove_match(id);
+    // Fallback：自发自收路径，走 find_targets 按名过滤。
+    auto targets = table->find_targets(msg);
+    if (targets.empty()) {
+        return;
+    }
+    for (const auto& tgt : targets) {
+        if (tgt.service_name != m_name) {
+            continue;
+        }
+        auto cb = table->lookup_callback(tgt.service_name, tgt.id);
+        if (!cb) {
+            continue;
+        }
+        try {
+            cb(msg);
+        } catch (...) {
+        }
+    }
 }
 
 mc::string service::resolve_object_path(mc::string_view path_pattern, const abstract_object& obj)

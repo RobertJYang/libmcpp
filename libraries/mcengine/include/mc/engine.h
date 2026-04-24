@@ -13,7 +13,8 @@
 #define MC_ENGINE_H
 
 #include <mc/engine/engine.h>
-#include <mc/engine/engine_proto.h>
+#include <mc/engine/engine_codec.h>
+#include <mc/engine/service_proto.h>
 #include <mc/engine/errors/std_errors.h>
 #include <mc/engine/interface.h>
 #include <mc/engine/macro.h>

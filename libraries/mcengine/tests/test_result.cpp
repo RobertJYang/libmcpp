@@ -24,13 +24,17 @@ using namespace std::chrono_literals;
 
 namespace {
 
-class result_test : public mc::test::TestBase {
+class result_test : public mc::test::TestWithRuntime {
 protected:
     void SetUp() override
-    {}
+    {
+        mc::test::TestWithRuntime::SetUp();
+    }
 
     void TearDown() override
-    {}
+    {
+        mc::test::TestWithRuntime::TearDown();
+    }
 };
 
 constexpr std::string_view TestErrorName = "Test.TestError";
