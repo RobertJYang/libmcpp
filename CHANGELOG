@@ -1,6 +1,15 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [1.2.73] - 2026-04-24
+- smart_build.sh v2.0：新增时间戳显示、日志落盘、阶段计时统计、ccache 自动配置（可写目录探测 + 调优）、cgroup CPU 配额检测、更精确的并发计算、测试超时自动重试、帮助信息、额外 meson 参数支持
+- smart_build.sh：新增 `-C`（二级清理：conan 缓存）和 `-X`（三级清理：ccache）参数
+- 修复 `CCACHE_BASEDIR` 相对路径问题（`"."` → `"$(pwd)"`）
+- 修复 `print_summary()` 数组索引 bug
+- 修复 CI-UT 构建失败：devmon 测试链接时缺少 `mcbase_test_utilities.a` 中的 `mc::test::get_executable_path()` / `get_build_root()` 符号
+  - `conanfile.py`：`test_utilities` 组件追加 `mcbase_test_utilities` 库，并显式传递 `tests_utilities` meson 选项
+  - `libraries/mcbase/tests/test_utilities/meson.build`：修正安装目录为 `usr/lib64` 以确保与 conan package 的 libdirs 一致
+
 ## [1.2.72] - 2026-04-24
 修复 `MC_FIELD_INDEX_TAG` 宏生成的 inline constexpr char 数组符号可见性问题：
 为 `field_by_object_name` 等字段标签变量显式添加 `__attribute__((visibility("default")))`，
