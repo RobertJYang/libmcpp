@@ -1,5 +1,11 @@
 # Changelog
 All notable changes to this project will be documented in this file.
+
+## [1.2.72] - 2026-04-24
+修复 `MC_FIELD_INDEX_TAG` 宏生成的 inline constexpr char 数组符号可见性问题：
+为 `field_by_object_name` 等字段标签变量显式添加 `__attribute__((visibility("default")))`，
+解决外部共享库（如 component_drivers 的 libInternal.so）在链接时因引用 hidden symbol 而失败的问题。
+
 ## [1.2.71] - 2026-04-20
 补充DT用例
 
