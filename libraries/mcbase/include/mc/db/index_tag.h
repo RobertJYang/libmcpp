@@ -277,7 +277,7 @@ using ordered_non_unique =
 
 // 定义单个字段标签
 #define MC_FIELD_INDEX_TAG(tag_name, field_name)                                                                       \
-    inline constexpr char field_##tag_name[] = field_name;                                                             \
+    inline constexpr char field_##tag_name[] __attribute__((visibility("default"))) = field_name;                      \
     using tag_name                           = mc::db::field_tag<field_##tag_name>;
 
 #endif // MC_DATABASE_INDEX_TAG_H
