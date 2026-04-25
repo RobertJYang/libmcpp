@@ -141,4 +141,4 @@ MC_MODULE_REFLECT(mc_task_service_gen, test::task_interface, (m_id, "Id")(m_name
 MC_MODULE_REFLECT(mc_task_service_gen, test::tasks_interface, (create_task, "CreateTask")(get_tasks, "GetTasks"))
 
 // 继承的接口的放在全局命名空间（这里是测试，实际使用时应该放在对应模块中，尽量不放到全局命名空间）
-MC_REFLECT(test::my_task_interface)
+MC_REFLECT(test::my_task_interface, MC_BASE_CLASS(test::task_interface))

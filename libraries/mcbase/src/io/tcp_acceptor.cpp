@@ -55,7 +55,8 @@ tcp_acceptor::tcp_acceptor(mc::runtime::any_executor executor) : m_executor(std:
     static_assert(sizeof(native_acceptor) <= storage_size, "tcp_acceptor storage is too small");
     static_assert(alignof(native_acceptor) <= storage_align, "tcp_acceptor storage alignment is too small");
 
-    new (m_storage.data()) native_acceptor(mc::runtime::detail::any_executor_access::get_native_io_executor(m_executor));
+    new (m_storage.data())
+        native_acceptor(mc::runtime::detail::any_executor_access::get_native_io_executor(m_executor));
 }
 
 tcp_acceptor::~tcp_acceptor()
@@ -74,7 +75,7 @@ tcp_acceptor& tcp_acceptor::operator=(tcp_acceptor&& other) noexcept
         return *this;
     }
 
-    m_executor = std::move(other.m_executor);
+    m_executor                    = std::move(other.m_executor);
     storage_as<native_acceptor>() = std::move(other.storage_as<native_acceptor>());
     return *this;
 }
@@ -127,18 +128,19 @@ void tcp_acceptor::close()
 
 void tcp_acceptor::async_accept_impl(accept_handler_type handler)
 {
-    auto accepted_socket = std::make_unique<tcp_socket>(m_executor);
+    storage_as<native_acceptor>().async_accept([executor = m_executor, handler = std::move(handler)](
+                                                   const auto& ec, native_socket accepted_native_socket) mutable {
+        if (ec) {
+            handler(to_std_error_code(ec), tcp_socket());
+            return;
+        }
 
-    storage_as<native_acceptor>().async_accept(
-        accepted_socket->storage_as<native_socket>(),
-        [accepted_socket = std::move(accepted_socket), handler = std::move(handler)](const auto& ec) mutable {
-            if (ec) {
-                handler(to_std_error_code(ec), tcp_socket());
-                return;
-            }
-
-            handler({}, std::move(*accepted_socket));
-        });
+        tcp_socket accepted_socket;
+        accepted_socket.m_executor = std::move(executor);
+        new (accepted_socket.m_storage.data()) native_socket(std::move(accepted_native_socket));
+        accepted_socket.m_initialized = true;
+        handler({}, std::move(accepted_socket));
+    });
 }
 
 } // namespace mc::io

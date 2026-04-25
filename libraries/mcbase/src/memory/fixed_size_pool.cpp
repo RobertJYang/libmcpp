@@ -16,6 +16,7 @@
 #include <cstdlib>
 #include <new>
 #include <stdexcept>
+#include <stdlib.h>
 #include <vector>
 
 namespace mc::memory {
@@ -209,7 +210,7 @@ void fixed_size_pool::allocate_segment_locked(std::size_t capacity)
         throw std::overflow_error("fixed_size_pool: segment 大小溢出");
     }
 
-    void* storage = std::aligned_alloc(m_alignment, raw_bytes);
+    void* storage = ::aligned_alloc(m_alignment, raw_bytes);
     if (storage == nullptr) {
         throw std::bad_alloc();
     }

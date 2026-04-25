@@ -16,6 +16,7 @@
 #include <cstdlib>
 #include <limits>
 #include <stdexcept>
+#include <stdlib.h>
 
 namespace mc::memory {
 
@@ -90,7 +91,7 @@ void* allocate_overflow_system(std::size_t request_size, std::size_t alignment) 
     if (raw < request_size) {
         return nullptr;
     }
-    return std::aligned_alloc(alignment, raw);
+    return ::aligned_alloc(alignment, raw);
 }
 
 } // namespace

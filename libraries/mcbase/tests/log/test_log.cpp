@@ -694,15 +694,9 @@ TEST(LoggerTest, MoveConstructorAndAssignment)
     EXPECT_EQ(logger3.get_name(), "move_test");
     EXPECT_EQ(logger3.get_level(), mc::log::level::warn);
 
-    // 测试自移动赋值（覆盖 this == &other 分支，抑制编译器自移动告警）
-#if defined(__clang__)
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wself-move"
-#endif
-    logger3 = std::move(logger3);
-#if defined(__clang__)
-#pragma clang diagnostic pop
-#endif
+    // 通过别名触发自移动路径，避免编译器将其视为可疑的同名自移动表达式。
+    auto& logger_alias = logger3;
+    logger3            = std::move(logger_alias);
     EXPECT_EQ(logger3.get_name(), "move_test");
 }
 

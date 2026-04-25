@@ -69,8 +69,8 @@ struct service_b : public mc::engine::service {
 
 } // namespace shm_service_takeover_test
 
-MC_REFLECT(shm_service_takeover_test::takeover_iface, (m_counter, "counter")(m_label, "label"), )
-MC_REFLECT(shm_service_takeover_test::takeover_object, (m_iface, "iface"), )
+MC_REFLECT(shm_service_takeover_test::takeover_iface, (m_counter, "counter")(m_label, "label"))
+MC_REFLECT(shm_service_takeover_test::takeover_object, (m_iface, "iface"))
 
 namespace shm_service_takeover_test {
 

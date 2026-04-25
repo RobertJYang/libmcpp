@@ -16,6 +16,7 @@
 #include <mc/runtime/runtime_context.h>
 #include <mc/runtime/thread_pool.h>
 #include <mc/signal/signal.h>
+#include <test_utilities/base.h>
 
 #include <gtest/gtest.h>
 
@@ -79,7 +80,7 @@ protected:
         if (e.type() == test_event::type_id) {
             trace.push_back(std::string(get_name()) + ":on_event");
             if (on_event_promise != nullptr) {
-                auto* promise   = on_event_promise;
+                auto* promise    = on_event_promise;
                 on_event_promise = nullptr;
                 promise->set_value();
             }
@@ -157,7 +158,7 @@ protected:
         }
 
         if (entered_promise != nullptr) {
-            auto* promise  = entered_promise;
+            auto* promise   = entered_promise;
             entered_promise = nullptr;
             promise->set_value();
         }
@@ -189,7 +190,7 @@ private:
     std::mutex trace_mutex;
 };
 
-class EventDispatcherTest : public ::testing::Test {};
+class EventDispatcherTest : public mc::test::TestWithRuntime {};
 
 } // namespace
 
@@ -351,7 +352,7 @@ TEST_F(EventDispatcherTest, PostEventUsesTargetEventLaneInsteadOfGlobalWorkQueue
 {
     auto& ctx = mc::runtime::get_runtime_context();
 
-    auto work_executor = ctx.get_work_executor();
+    auto               work_executor = ctx.get_work_executor();
     std::promise<void> global_worker_started;
     auto               global_worker_started_future = global_worker_started.get_future();
     std::promise<void> release_global_worker;
@@ -421,7 +422,7 @@ TEST_F(EventDispatcherTest, PostEventHonorsPriorityWithinSameReceiver)
 {
     auto& ctx = mc::runtime::get_runtime_context();
 
-    auto work_executor = ctx.get_work_executor();
+    auto               work_executor = ctx.get_work_executor();
     std::promise<void> global_worker_started;
     auto               global_worker_started_future = global_worker_started.get_future();
     std::promise<void> release_global_worker;
@@ -437,7 +438,7 @@ TEST_F(EventDispatcherTest, PostEventHonorsPriorityWithinSameReceiver)
 
     std::promise<void> done;
     auto               done_future = done.get_future();
-    target->after_record = [&](mc::event& e) {
+    target->after_record           = [&](mc::event& e) {
         if (auto* named = dynamic_cast<named_test_event*>(&e); named != nullptr && named->name == "low") {
             done.set_value();
         }
@@ -507,7 +508,7 @@ TEST_F(EventDispatcherTest, RuntimeContextSendPostedEventsFlushesMatchingPending
 {
     auto& ctx = mc::runtime::get_runtime_context();
 
-    auto work_executor = ctx.get_work_executor();
+    auto               work_executor = ctx.get_work_executor();
     std::promise<void> global_worker_started;
     auto               global_worker_started_future = global_worker_started.get_future();
     std::promise<void> release_global_worker;

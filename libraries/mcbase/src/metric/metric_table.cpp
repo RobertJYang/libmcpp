@@ -43,7 +43,7 @@ inline std::size_t clamp_string_len(std::size_t n) noexcept
 void metric_table::initialize(void* base, const table_init_params& params) noexcept
 {
     auto* hdr = reinterpret_cast<metric_table_header*>(base);
-    std::memset(hdr, 0, sizeof(*hdr));
+    std::memset(static_cast<void*>(hdr), 0, sizeof(*hdr));
     hdr->magic.store(metric_table_magic, std::memory_order_relaxed);
     hdr->version.store(metric_table_version, std::memory_order_relaxed);
     hdr->capacity        = params.capacity;
@@ -279,7 +279,7 @@ hist_data_layout* metric_table::ensure_hist_data(metric_slot* slot, const descri
     }
 
     auto* data = reinterpret_cast<hist_data_layout*>(hist_arena() + (off - 1U));
-    std::memset(data, 0, data_size);
+    std::memset(static_cast<void*>(data), 0, data_size);
     data->bucket_count = bc;
     auto* bounds       = reinterpret_cast<double*>(reinterpret_cast<std::uint8_t*>(data) + sizeof(hist_data_layout));
     for (std::uint32_t i = 0; i < bc; ++i) {

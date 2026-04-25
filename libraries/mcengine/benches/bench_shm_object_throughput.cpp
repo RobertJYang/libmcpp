@@ -34,26 +34,26 @@
 
 namespace {
 
+using mc::engine::shm_allocator;
 using mc::engine::shm_object;
 using mc::engine::shm_object_add_child;
 using mc::engine::shm_object_create;
 using mc::engine::shm_object_destroy;
 using mc::engine::shm_object_set_property_int64;
-using mc::engine::shm_allocator;
 using mc::shm::shm_region;
 using mc::shm::shm_region_options;
 
-constexpr std::size_t REGION_SIZE_BYTES   = 256ULL * 1024ULL * 1024ULL;  // 256MB
-constexpr std::size_t SHM_ROOT_CAPACITY   = 16U;
-constexpr int         WARMUP_ITERS        = 1024;
-constexpr int         REPEATS             = 5;
+constexpr std::size_t REGION_SIZE_BYTES = 256ULL * 1024ULL * 1024ULL; // 256MB
+constexpr std::size_t SHM_ROOT_CAPACITY = 16U;
+constexpr int         WARMUP_ITERS      = 1024;
+constexpr int         REPEATS           = 5;
 
 struct bench_result {
-    std::string   name;
-    std::size_t   ops;
-    double        best_ns_per_op;
-    double        avg_ns_per_op;
-    double        best_mops_per_sec;
+    std::string name;
+    std::size_t ops;
+    double      best_ns_per_op;
+    double      avg_ns_per_op;
+    double      best_mops_per_sec;
 };
 
 // 禁止编译器把 op() 的返回值/副作用优化掉
@@ -68,7 +68,7 @@ shm_region make_region()
     std::random_device rd;
     std::mt19937       rng(rd());
     char               buf[128];
-    std::snprintf(buf, sizeof(buf), "mc_bench_throughput_%d_%u", ::getpid(), rng());
+    std::snprintf(buf, sizeof(buf), "mc_bench_throughput_%d_%lu", ::getpid(), static_cast<unsigned long>(rng()));
 
     shm_region_options opts;
     opts.segment_name  = mc::string(buf);
@@ -95,15 +95,15 @@ bench_result run_bench(const std::string& name, std::size_t ops, Setup&& setup, 
         for (std::size_t i = 0; i < ops; ++i) {
             op(static_cast<int>(i));
         }
-        const auto t1     = std::chrono::steady_clock::now();
+        const auto t1 = std::chrono::steady_clock::now();
         const auto elapsed_ns =
             static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
         const double ns_per_op = elapsed_ns / static_cast<double>(ops);
-        r.best_ns_per_op = std::min(r.best_ns_per_op, ns_per_op);
+        r.best_ns_per_op       = std::min(r.best_ns_per_op, ns_per_op);
         total_avg += ns_per_op;
     }
-    r.avg_ns_per_op       = total_avg / static_cast<double>(REPEATS);
-    r.best_mops_per_sec   = 1000.0 / r.best_ns_per_op;  // ns/op -> Mops/s
+    r.avg_ns_per_op     = total_avg / static_cast<double>(REPEATS);
+    r.best_mops_per_sec = 1000.0 / r.best_ns_per_op; // ns/op -> Mops/s
     return r;
 }
 
@@ -116,9 +116,8 @@ void print_header()
 
 void print_row(const bench_result& r)
 {
-    std::printf("| %-46s | %8zu | %10.1f | %10.1f | %11.3f |\n",
-                r.name.c_str(), r.ops, r.best_ns_per_op, r.avg_ns_per_op,
-                r.best_mops_per_sec);
+    std::printf("| %-46s | %8zu | %10.1f | %10.1f | %11.3f |\n", r.name.c_str(), r.ops, r.best_ns_per_op,
+                r.avg_ns_per_op, r.best_mops_per_sec);
     std::fflush(stdout);
 }
 
@@ -126,8 +125,8 @@ void print_row(const bench_result& r)
 
 bench_result bench_set_property_same_key(shm_allocator& alloc, std::size_t ops)
 {
-    shm_object* obj = nullptr;
-    auto setup = [&]() {
+    shm_object* obj   = nullptr;
+    auto        setup = [&]() {
         if (obj != nullptr) {
             shm_object_destroy(alloc, obj);
         }
@@ -148,7 +147,7 @@ bench_result bench_set_property_same_key(shm_allocator& alloc, std::size_t ops)
 
 bench_result bench_set_property_growing_keys(shm_allocator& alloc, std::size_t ops)
 {
-    shm_object* obj = nullptr;
+    shm_object*              obj = nullptr;
     std::vector<std::string> keys;
     keys.reserve(ops);
     for (std::size_t i = 0; i < ops; ++i) {
@@ -163,8 +162,7 @@ bench_result bench_set_property_growing_keys(shm_allocator& alloc, std::size_t o
         obj = shm_object_create(alloc, 2, "Cls", "name", "/path", "pos");
     };
     auto op = [&](int i) {
-        bool ok = shm_object_set_property_int64(alloc, *obj,
-                                                keys[static_cast<std::size_t>(i)], i);
+        bool ok = shm_object_set_property_int64(alloc, *obj, keys[static_cast<std::size_t>(i)], i);
         do_not_optimize(ok);
     };
     auto r = run_bench("set_property_int64 unique keys (with grow)", ops, setup, op);
@@ -180,7 +178,7 @@ bench_result bench_add_child_idempotent(shm_allocator& alloc, std::size_t ops)
 {
     shm_object* parent = nullptr;
     shm_object* child  = nullptr;
-    auto setup = [&]() {
+    auto        setup  = [&]() {
         if (parent != nullptr) {
             shm_object_destroy(alloc, parent);
         }
@@ -212,7 +210,7 @@ bench_result bench_add_child_growing(shm_allocator& alloc, std::size_t ops)
 {
     shm_object*              parent = nullptr;
     std::vector<shm_object*> children;
-    auto cleanup_children = [&]() {
+    auto                     cleanup_children = [&]() {
         for (auto* c : children) {
             if (c != nullptr) {
                 shm_object_destroy(alloc, c);
@@ -234,8 +232,7 @@ bench_result bench_add_child_growing(shm_allocator& alloc, std::size_t ops)
         }
     };
     auto op = [&](int i) {
-        bool ok = shm_object_add_child(alloc, *parent,
-                                        children[static_cast<std::size_t>(i)]);
+        bool ok = shm_object_add_child(alloc, *parent, children[static_cast<std::size_t>(i)]);
         do_not_optimize(ok);
     };
     auto r = run_bench("add_child unique children (with grow)", ops, setup, op);
@@ -246,14 +243,14 @@ bench_result bench_add_child_growing(shm_allocator& alloc, std::size_t ops)
     return r;
 }
 
-}  // namespace
+} // namespace
 
 int main(int argc, char** argv)
 {
     // grow 路径在 property_slab 内部是 O(slot_count) 线性 find-by-key + 偶发拷贝，
     // 整体随 ops 平方放大；ops_small 控制在 5000 内总耗时可控。
-    std::size_t ops_small = 5000;    // grow 路径（每次新 key/child）
-    std::size_t ops_large = 200000;  // 同 key/child 的 cheap 路径
+    std::size_t ops_small = 5000;   // grow 路径（每次新 key/child）
+    std::size_t ops_large = 200000; // 同 key/child 的 cheap 路径
     if (argc >= 2) {
         ops_small = static_cast<std::size_t>(std::atoll(argv[1]));
     }

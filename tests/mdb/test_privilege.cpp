@@ -57,7 +57,7 @@ public:
 
 } // namespace
 
-MC_REFLECT(test_object, ())
+MC_REFLECT(test_object)
 
 // ========== 测试 get_privilege_str 函数 ==========
 

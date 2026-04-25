@@ -14,10 +14,11 @@
 
 #include <gtest/gtest.h>
 
+#include <signal.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#include <signal.h>
 
+#include <algorithm>
 #include <atomic>
 #include <cstdint>
 #include <cstdio>
@@ -37,8 +38,11 @@
 using mc::engine::property_slab;
 using mc::engine::property_slab_check;
 using mc::engine::property_type_tag;
+using mc::engine::shm_allocator;
 using mc::engine::shm_object;
+using mc::engine::shm_object_add_child;
 using mc::engine::shm_object_check;
+using mc::engine::shm_object_child_count;
 using mc::engine::shm_object_class_name;
 using mc::engine::shm_object_create;
 using mc::engine::shm_object_destroy;
@@ -47,22 +51,19 @@ using mc::engine::shm_object_get_property_int64;
 using mc::engine::shm_object_journal_recover;
 using mc::engine::shm_object_name;
 using mc::engine::shm_object_path;
-using mc::engine::shm_object_property_count;
-using mc::engine::shm_object_add_child;
-using mc::engine::shm_object_child_count;
 using mc::engine::shm_object_position;
+using mc::engine::shm_object_property_count;
 using mc::engine::shm_object_set_class_name;
 using mc::engine::shm_object_set_name;
 using mc::engine::shm_object_set_path;
 using mc::engine::shm_object_set_position;
 using mc::engine::shm_object_set_property_blob;
 using mc::engine::shm_object_set_property_int64;
-using mc::engine::shm_allocator;
 using mc::shm::shm_region;
 using mc::shm::shm_region_options;
-using mc::shm::container::container_op;
 using mc::shm::container::container_journal;
 using mc::shm::container::container_journal_view;
+using mc::shm::container::container_op;
 using mc::shm::container::journal_load;
 
 namespace {
@@ -76,7 +77,7 @@ protected:
         std::random_device rd;
         std::mt19937       rng(rd());
         char               buf[128];
-        std::snprintf(buf, sizeof(buf), "mc_shadow_journal_test_%d_%u", ::getpid(), rng());
+        std::snprintf(buf, sizeof(buf), "mc_shadow_journal_test_%d_%lu", ::getpid(), static_cast<unsigned long>(rng()));
 
         shm_region_options opts;
         opts.segment_name  = mc::string(buf);
@@ -101,10 +102,13 @@ struct shadow_snapshot {
     {
         std::memcpy(bytes, &s, sizeof(s));
     }
-    void restore(shm_object& s) const noexcept { std::memcpy(&s, bytes, sizeof(s)); }
+    void restore(shm_object& s) const noexcept
+    {
+        std::copy_n(bytes, sizeof(s), reinterpret_cast<std::byte*>(&s));
+    }
 };
 
-}  // namespace
+} // namespace
 
 // journal 三步协议正常路径：op 始终被清回 none。
 
@@ -114,22 +118,18 @@ TEST_F(shadow_journal_fixture, normal_setter_leaves_journal_clean)
     ASSERT_NE(shadow, nullptr);
 
     shm_object_set_name(m_alloc, *shadow, "renamed");
-    EXPECT_EQ(shadow->journal.op.load(std::memory_order_acquire),
-              static_cast<std::uint8_t>(container_op::none));
+    EXPECT_EQ(shadow->journal.op.load(std::memory_order_acquire), static_cast<std::uint8_t>(container_op::none));
     EXPECT_TRUE(shm_object_check(*shadow));
     EXPECT_EQ(shm_object_name(*shadow), "renamed");
 
     shm_object_set_property_int64(m_alloc, *shadow, "n", 42);
-    EXPECT_EQ(shadow->journal.op.load(std::memory_order_acquire),
-              static_cast<std::uint8_t>(container_op::none));
+    EXPECT_EQ(shadow->journal.op.load(std::memory_order_acquire), static_cast<std::uint8_t>(container_op::none));
     int64_t v = 0;
     EXPECT_TRUE(shm_object_get_property_int64(*shadow, "n", v));
     EXPECT_EQ(v, 42);
 
-    shm_object_set_property_blob(m_alloc, *shadow, "label", "hello",
-                                 property_type_tag::string);
-    EXPECT_EQ(shadow->journal.op.load(std::memory_order_acquire),
-              static_cast<std::uint8_t>(container_op::none));
+    shm_object_set_property_blob(m_alloc, *shadow, "label", "hello", property_type_tag::string);
+    EXPECT_EQ(shadow->journal.op.load(std::memory_order_acquire), static_cast<std::uint8_t>(container_op::none));
     std::string_view              s_out;
     mc::engine::property_type_tag tag_out{};
     EXPECT_TRUE(shm_object_get_property_blob(*shadow, "label", s_out, tag_out));
@@ -151,18 +151,16 @@ TEST_F(shadow_journal_fixture, recover_redo_byte_string_replace_after_commit_vis
     // 重读 journal payload（setter 内部 saved_a/b 已被 end 后清空？ 不，end 只清 op，
     // payload 留存）
     container_journal_view v_before{};
-    (void)journal_load(shadow->journal, v_before);  // op == none → false，不取
+    (void)journal_load(shadow->journal, v_before); // op == none → false，不取
     // 手动复原"未 commit"中间态：保留 saved_a/b，把 op 重置回 update
-    shadow->journal.op.store(static_cast<std::uint8_t>(container_op::update),
-                             std::memory_order_release);
+    shadow->journal.op.store(static_cast<std::uint8_t>(container_op::update), std::memory_order_release);
     container_journal_view v{};
     ASSERT_TRUE(journal_load(shadow->journal, v));
-    EXPECT_EQ(v.anchor_offset, 100U);  // sub_op::byte_string_replace
+    EXPECT_EQ(v.anchor_offset, 100U); // sub_op::byte_string_replace
     EXPECT_EQ(v.target_node_offset, offsetof(shm_object, name));
 
     shm_object_journal_recover(m_alloc, *shadow);
-    EXPECT_EQ(shadow->journal.op.load(std::memory_order_acquire),
-              static_cast<std::uint8_t>(container_op::none));
+    EXPECT_EQ(shadow->journal.op.load(std::memory_order_acquire), static_cast<std::uint8_t>(container_op::none));
     EXPECT_EQ(shm_object_name(*shadow), "new-name");
     EXPECT_TRUE(shm_object_check(*shadow));
 
@@ -185,23 +183,20 @@ TEST_F(shadow_journal_fixture, recover_undo_byte_string_replace_when_field_not_y
     std::memcpy(&saved_a, &shadow->name, sizeof(saved_a));
 
     // saved_b = 假设把 new_bs 写入 field 后字段位模式
-    const auto diff =
-        static_cast<std::int64_t>(reinterpret_cast<const std::byte*>(new_bs)
-                                  - reinterpret_cast<const std::byte*>(&shadow->name));
+    const auto          diff    = static_cast<std::int64_t>(reinterpret_cast<const std::byte*>(new_bs) -
+                                                            reinterpret_cast<const std::byte*>(&shadow->name));
     const std::uint64_t saved_b = static_cast<std::uint64_t>(diff);
 
-    mc::shm::container::journal_begin(
-        shadow->journal, container_op::update,
-        static_cast<std::uint64_t>(reinterpret_cast<const std::byte*>(&shadow->name)
-                                   - reinterpret_cast<const std::byte*>(shadow)),
-        100U,  // sub_op::byte_string_replace
-        saved_a, saved_b, 0, 0);
+    mc::shm::container::journal_begin(shadow->journal, container_op::update,
+                                      static_cast<std::uint64_t>(reinterpret_cast<const std::byte*>(&shadow->name) -
+                                                                 reinterpret_cast<const std::byte*>(shadow)),
+                                      100U, // sub_op::byte_string_replace
+                                      saved_a, saved_b, 0, 0);
 
     // 这里"模拟 crash"，不写 field 也不 refresh CRC，直接 recover
     shm_object_journal_recover(m_alloc, *shadow);
 
-    EXPECT_EQ(shadow->journal.op.load(std::memory_order_acquire),
-              static_cast<std::uint8_t>(container_op::none));
+    EXPECT_EQ(shadow->journal.op.load(std::memory_order_acquire), static_cast<std::uint8_t>(container_op::none));
     EXPECT_EQ(shm_object_name(*shadow), "old");
     EXPECT_TRUE(shm_object_check(*shadow));
 
@@ -230,24 +225,21 @@ TEST_F(shadow_journal_fixture, recover_undo_property_value_simple)
 
     // sub_op::property_value_simple = 200
     // extra: (old_type=int64=1) | (new_type=int64=1 << 8) | (idx<<16) | (key_hash<<32)
-    const std::uint8_t old_type = static_cast<std::uint8_t>(property_type_tag::int64);
-    const std::uint8_t new_type = old_type;
-    const std::uint64_t extra = static_cast<std::uint64_t>(old_type)
-                                | (static_cast<std::uint64_t>(new_type) << 8)
-                                | (static_cast<std::uint64_t>(idx) << 16)
-                                | (static_cast<std::uint64_t>(slot.key_hash) << 32);
+    const std::uint8_t  old_type = static_cast<std::uint8_t>(property_type_tag::int64);
+    const std::uint8_t  new_type = old_type;
+    const std::uint64_t extra    = static_cast<std::uint64_t>(old_type) | (static_cast<std::uint64_t>(new_type) << 8) |
+                                (static_cast<std::uint64_t>(idx) << 16) |
+                                (static_cast<std::uint64_t>(slot.key_hash) << 32);
 
-    mc::shm::container::journal_begin(
-        shadow->journal, container_op::update,
-        static_cast<std::uint64_t>(reinterpret_cast<const std::byte*>(&slot)
-                                   - reinterpret_cast<const std::byte*>(shadow)),
-        200U, saved_a, saved_b, extra, 0);
+    mc::shm::container::journal_begin(shadow->journal, container_op::update,
+                                      static_cast<std::uint64_t>(reinterpret_cast<const std::byte*>(&slot) -
+                                                                 reinterpret_cast<const std::byte*>(shadow)),
+                                      200U, saved_a, saved_b, extra, 0);
 
     // 不动 slot，模拟 crash，recover 应 undo
     shm_object_journal_recover(m_alloc, *shadow);
 
-    EXPECT_EQ(shadow->journal.op.load(std::memory_order_acquire),
-              static_cast<std::uint8_t>(container_op::none));
+    EXPECT_EQ(shadow->journal.op.load(std::memory_order_acquire), static_cast<std::uint8_t>(container_op::none));
     int64_t v = 0;
     EXPECT_TRUE(shm_object_get_property_int64(*shadow, "k", v));
     EXPECT_EQ(v, old_v);
@@ -267,30 +259,28 @@ TEST_F(shadow_journal_fixture, recover_undo_property_slab_replace_when_field_not
     ASSERT_NE(old_slab, nullptr);
     const std::uint16_t old_cap = old_slab->slot_capacity;
 
-    // 手工分配新 slab 模拟 grow 中途
-    const std::uint16_t new_cap = static_cast<std::uint16_t>(old_cap * 2U);
-    auto* new_slab = mc::engine::property_slab_create(m_alloc, new_cap);
+    // 手工分配新 slab 模拟 W2 中途
+    const std::uint16_t new_cap  = static_cast<std::uint16_t>(old_cap * 2U);
+    auto*               new_slab = mc::engine::property_slab_create(m_alloc, new_cap);
     ASSERT_NE(new_slab, nullptr);
     // 不 transfer slot（recover undo 不依赖新 slab 内容）
 
     std::uint64_t saved_a = 0;
     std::memcpy(&saved_a, &shadow->properties, sizeof(saved_a));
-    const auto diff =
-        static_cast<std::int64_t>(reinterpret_cast<const std::byte*>(new_slab)
-                                  - reinterpret_cast<const std::byte*>(&shadow->properties));
+    const auto          diff    = static_cast<std::int64_t>(reinterpret_cast<const std::byte*>(new_slab) -
+                                                            reinterpret_cast<const std::byte*>(&shadow->properties));
     const std::uint64_t saved_b = static_cast<std::uint64_t>(diff);
 
     mc::shm::container::journal_begin(
         shadow->journal, container_op::update,
-        static_cast<std::uint64_t>(reinterpret_cast<const std::byte*>(&shadow->properties)
-                                   - reinterpret_cast<const std::byte*>(shadow)),
-        210U,  // sub_op::property_slab_replace
+        static_cast<std::uint64_t>(reinterpret_cast<const std::byte*>(&shadow->properties) -
+                                   reinterpret_cast<const std::byte*>(shadow)),
+        210U, // sub_op::property_slab_replace
         saved_a, saved_b, 0, 0);
 
     shm_object_journal_recover(m_alloc, *shadow);
 
-    EXPECT_EQ(shadow->journal.op.load(std::memory_order_acquire),
-              static_cast<std::uint8_t>(container_op::none));
+    EXPECT_EQ(shadow->journal.op.load(std::memory_order_acquire), static_cast<std::uint8_t>(container_op::none));
     EXPECT_EQ(shadow->properties.get(), old_slab);
     int64_t v = 0;
     EXPECT_TRUE(shm_object_get_property_int64(*shadow, "a", v));
@@ -309,8 +299,8 @@ TEST_F(shadow_journal_fixture, fork_sigkill_during_write_recover_keeps_invariant
     ASSERT_TRUE(shm_object_set_property_int64(m_alloc, *shadow, "n", 0));
 
     // 用 SHM 内一个原子标志做"父子准备同步"
-    std::atomic<int>* sync_flag = static_cast<std::atomic<int>*>(
-        m_alloc.allocate(sizeof(std::atomic<int>), alignof(std::atomic<int>)));
+    std::atomic<int>* sync_flag =
+        static_cast<std::atomic<int>*>(m_alloc.allocate(sizeof(std::atomic<int>), alignof(std::atomic<int>)));
     ASSERT_NE(sync_flag, nullptr);
     new (sync_flag) std::atomic<int>(0);
 
@@ -325,8 +315,7 @@ TEST_F(shadow_journal_fixture, fork_sigkill_during_write_recover_keeps_invariant
             // 偶尔写 blob 触发 blob ownership 路径
             if ((counter & 0x3F) == 0) {
                 std::string s = "v" + std::to_string(counter);
-                shm_object_set_property_blob(m_alloc, *shadow, "n", s,
-                                             property_type_tag::string);
+                shm_object_set_property_blob(m_alloc, *shadow, "n", s, property_type_tag::string);
             }
             ++counter;
             if ((counter & 0xFFF) == 0) {
@@ -350,8 +339,7 @@ TEST_F(shadow_journal_fixture, fork_sigkill_during_write_recover_keeps_invariant
     // recover（journal 里可能有未完成事务）
     shm_object_journal_recover(m_alloc, *shadow);
 
-    EXPECT_EQ(shadow->journal.op.load(std::memory_order_acquire),
-              static_cast<std::uint8_t>(container_op::none));
+    EXPECT_EQ(shadow->journal.op.load(std::memory_order_acquire), static_cast<std::uint8_t>(container_op::none));
     EXPECT_TRUE(shm_object_check(*shadow));
     auto* slab = shadow->properties.get();
     ASSERT_NE(slab, nullptr);
@@ -363,8 +351,7 @@ TEST_F(shadow_journal_fixture, fork_sigkill_during_write_recover_keeps_invariant
     mc::engine::property_type_tag tag_out{};
     const bool                    int_ok = shm_object_get_property_int64(*shadow, "n", i_out);
     const bool                    str_ok = shm_object_get_property_blob(*shadow, "n", s_out, tag_out);
-    EXPECT_TRUE(int_ok || str_ok)
-        << "property n 必须能按某种 type 被读出，不允许撕裂为无类型";
+    EXPECT_TRUE(int_ok || str_ok) << "property n 必须能按某种 type 被读出，不允许撕裂为无类型";
 
     sync_flag->~atomic();
     m_alloc.deallocate(sync_flag);
@@ -378,8 +365,8 @@ TEST_F(shadow_journal_fixture, fork_sigkill_during_identity_setters_recover_keep
     auto* shadow = shm_object_create(m_alloc, 1, "ForkIdent", "n0", "/p0", "0001");
     ASSERT_NE(shadow, nullptr);
 
-    std::atomic<int>* sync_flag = static_cast<std::atomic<int>*>(
-        m_alloc.allocate(sizeof(std::atomic<int>), alignof(std::atomic<int>)));
+    std::atomic<int>* sync_flag =
+        static_cast<std::atomic<int>*>(m_alloc.allocate(sizeof(std::atomic<int>), alignof(std::atomic<int>)));
     ASSERT_NE(sync_flag, nullptr);
     new (sync_flag) std::atomic<int>(0);
 
@@ -396,8 +383,7 @@ TEST_F(shadow_journal_fixture, fork_sigkill_during_identity_setters_recover_keep
                     shm_object_set_name(m_alloc, *shadow, payload);
                     break;
                 case 1:
-                    shm_object_set_path(m_alloc, *shadow,
-                                        std::string("/x/") + payload);
+                    shm_object_set_path(m_alloc, *shadow, std::string("/x/") + payload);
                     break;
                 default:
                     shm_object_set_position(m_alloc, *shadow, payload);
@@ -417,8 +403,7 @@ TEST_F(shadow_journal_fixture, fork_sigkill_during_identity_setters_recover_keep
 
     shm_object_journal_recover(m_alloc, *shadow);
 
-    EXPECT_EQ(shadow->journal.op.load(std::memory_order_acquire),
-              static_cast<std::uint8_t>(container_op::none));
+    EXPECT_EQ(shadow->journal.op.load(std::memory_order_acquire), static_cast<std::uint8_t>(container_op::none));
     EXPECT_TRUE(shm_object_check(*shadow));
 
     auto name_v = shm_object_name(*shadow);
@@ -440,8 +425,8 @@ TEST_F(shadow_journal_fixture, fork_sigkill_during_property_slab_grow_recover_ke
     auto* shadow = shm_object_create(m_alloc, 1, "ForkGrow", "g", "/g", "0001");
     ASSERT_NE(shadow, nullptr);
 
-    std::atomic<int>* sync_flag = static_cast<std::atomic<int>*>(
-        m_alloc.allocate(sizeof(std::atomic<int>), alignof(std::atomic<int>)));
+    std::atomic<int>* sync_flag =
+        static_cast<std::atomic<int>*>(m_alloc.allocate(sizeof(std::atomic<int>), alignof(std::atomic<int>)));
     ASSERT_NE(sync_flag, nullptr);
     new (sync_flag) std::atomic<int>(0);
 
@@ -452,8 +437,7 @@ TEST_F(shadow_journal_fixture, fork_sigkill_during_property_slab_grow_recover_ke
         std::int64_t counter = 0;
         while (true) {
             char key[16];
-            std::snprintf(key, sizeof(key), "k%03lld",
-                          static_cast<long long>(counter % 80));
+            std::snprintf(key, sizeof(key), "k%03lld", static_cast<long long>(counter % 80));
             shm_object_set_property_int64(m_alloc, *shadow, key, counter);
             ++counter;
         }
@@ -469,8 +453,7 @@ TEST_F(shadow_journal_fixture, fork_sigkill_during_property_slab_grow_recover_ke
 
     shm_object_journal_recover(m_alloc, *shadow);
 
-    EXPECT_EQ(shadow->journal.op.load(std::memory_order_acquire),
-              static_cast<std::uint8_t>(container_op::none));
+    EXPECT_EQ(shadow->journal.op.load(std::memory_order_acquire), static_cast<std::uint8_t>(container_op::none));
     EXPECT_TRUE(shm_object_check(*shadow));
     auto* slab = shadow->properties.get();
     ASSERT_NE(slab, nullptr) << "grow 路径中 properties 不应为 null";
@@ -491,7 +474,7 @@ TEST_F(shadow_journal_fixture, fork_sigkill_during_child_add_recover_keeps_invar
     auto* parent = shm_object_create(m_alloc, 1, "ForkParent", "P", "/P", "0001");
     ASSERT_NE(parent, nullptr);
 
-    constexpr std::size_t       kChildCount = 24;
+    constexpr std::size_t                kChildCount = 24;
     std::array<shm_object*, kChildCount> children{};
     for (std::size_t i = 0; i < kChildCount; ++i) {
         char name[16];
@@ -502,8 +485,8 @@ TEST_F(shadow_journal_fixture, fork_sigkill_during_child_add_recover_keeps_invar
         ASSERT_NE(children[i], nullptr);
     }
 
-    std::atomic<int>* sync_flag = static_cast<std::atomic<int>*>(
-        m_alloc.allocate(sizeof(std::atomic<int>), alignof(std::atomic<int>)));
+    std::atomic<int>* sync_flag =
+        static_cast<std::atomic<int>*>(m_alloc.allocate(sizeof(std::atomic<int>), alignof(std::atomic<int>)));
     ASSERT_NE(sync_flag, nullptr);
     new (sync_flag) std::atomic<int>(0);
 
@@ -533,8 +516,7 @@ TEST_F(shadow_journal_fixture, fork_sigkill_during_child_add_recover_keeps_invar
 
     shm_object_journal_recover(m_alloc, *parent);
 
-    EXPECT_EQ(parent->journal.op.load(std::memory_order_acquire),
-              static_cast<std::uint8_t>(container_op::none));
+    EXPECT_EQ(parent->journal.op.load(std::memory_order_acquire), static_cast<std::uint8_t>(container_op::none));
     EXPECT_TRUE(shm_object_check(*parent));
 
     // children 允许为 null（grow 早期窗口被 undo），否则 child_count 必须在 [0, kChildCount]。

@@ -41,6 +41,19 @@ using mc::engine::child_slab_create;
 using mc::engine::child_slab_destroy;
 using mc::engine::child_slab_find;
 using mc::engine::child_slab_remove;
+using mc::engine::property_slab;
+using mc::engine::property_slab_check;
+using mc::engine::property_slab_create;
+using mc::engine::property_slab_destroy;
+using mc::engine::property_slab_find;
+using mc::engine::property_slab_remove;
+using mc::engine::property_slab_set_blob;
+using mc::engine::property_slab_set_double;
+using mc::engine::property_slab_set_int64;
+using mc::engine::property_type_tag;
+using mc::engine::shm_allocator;
+using mc::engine::shm_byte_string_create;
+using mc::engine::shm_byte_string_destroy;
 using mc::engine::shm_object;
 using mc::engine::shm_object_add_child;
 using mc::engine::shm_object_check;
@@ -52,33 +65,20 @@ using mc::engine::shm_object_get_property_blob;
 using mc::engine::shm_object_get_property_double;
 using mc::engine::shm_object_get_property_int64;
 using mc::engine::shm_object_name;
+using mc::engine::shm_object_parent;
 using mc::engine::shm_object_path;
 using mc::engine::shm_object_position;
 using mc::engine::shm_object_property_count;
 using mc::engine::shm_object_remove_child;
 using mc::engine::shm_object_remove_property;
-using mc::engine::shm_object_set_class_name;
-using mc::engine::shm_object_parent;
 using mc::engine::shm_object_service;
+using mc::engine::shm_object_set_class_name;
 using mc::engine::shm_object_set_parent;
-using mc::engine::shm_object_set_service;
 using mc::engine::shm_object_set_property_blob;
 using mc::engine::shm_object_set_property_double;
 using mc::engine::shm_object_set_property_int64;
-using mc::engine::property_slab;
-using mc::engine::property_slab_check;
-using mc::engine::property_slab_create;
-using mc::engine::property_slab_destroy;
-using mc::engine::property_slab_find;
-using mc::engine::property_slab_remove;
-using mc::engine::property_slab_set_blob;
-using mc::engine::property_slab_set_double;
-using mc::engine::property_slab_set_int64;
-using mc::engine::property_type_tag;
-using mc::engine::shm_byte_string_create;
-using mc::engine::shm_byte_string_destroy;
+using mc::engine::shm_object_set_service;
 using mc::engine::slab_grow_capacity;
-using mc::engine::shm_allocator;
 using mc::shm::shm_region;
 using mc::shm::shm_region_options;
 
@@ -93,7 +93,7 @@ protected:
         std::random_device rd;
         std::mt19937       rng(rd());
         char               buf[128];
-        std::snprintf(buf, sizeof(buf), "mc_shadow_ops_test_%d_%u", ::getpid(), rng());
+        std::snprintf(buf, sizeof(buf), "mc_shadow_ops_test_%d_%lu", ::getpid(), static_cast<unsigned long>(rng()));
 
         shm_region_options opts;
         opts.segment_name  = mc::string(buf);
@@ -110,7 +110,7 @@ protected:
     shm_allocator m_alloc;
 };
 
-}  // namespace
+} // namespace
 
 // slab_grow_capacity
 
@@ -227,7 +227,7 @@ TEST_F(shadow_ops_fixture, property_slab_overwrite_blob_with_int_releases_old_bl
     ASSERT_TRUE(property_slab_set_blob(m_alloc, slab, "k", "longvalue", property_type_tag::string));
     const std::size_t after_blob = m_alloc.allocated_size();
     ASSERT_TRUE(property_slab_set_int64(m_alloc, slab, "k", 7));
-    EXPECT_LT(m_alloc.allocated_size(), after_blob);  // 旧 blob 已释放
+    EXPECT_LT(m_alloc.allocated_size(), after_blob); // 旧 blob 已释放
     property_slab_destroy(m_alloc, slab);
 }
 
@@ -253,7 +253,7 @@ TEST_F(shadow_ops_fixture, property_slab_remove_swap_pop)
 
 TEST_F(shadow_ops_fixture, property_slab_grows_on_capacity_exhausted)
 {
-    auto* slab = property_slab_create(m_alloc, 4);
+    auto* slab     = property_slab_create(m_alloc, 4);
     auto* original = slab;
 
     for (int i = 0; i < 20; ++i) {
@@ -336,8 +336,8 @@ TEST_F(shadow_ops_fixture, child_slab_grows_and_preserves_offsets)
 {
     std::vector<shm_object*> kids;
     for (int i = 0; i < 20; ++i) {
-        kids.push_back(shm_object_create(m_alloc, static_cast<std::uint64_t>(i), "C",
-                                            "n" + std::to_string(i), "/p" + std::to_string(i), ""));
+        kids.push_back(shm_object_create(m_alloc, static_cast<std::uint64_t>(i), "C", "n" + std::to_string(i),
+                                         "/p" + std::to_string(i), ""));
         ASSERT_NE(kids.back(), nullptr);
     }
     child_slab* slab = nullptr;
@@ -361,8 +361,7 @@ TEST_F(shadow_ops_fixture, child_slab_grows_and_preserves_offsets)
 
 TEST_F(shadow_ops_fixture, shm_object_create_default_state)
 {
-    auto* sh = shm_object_create(m_alloc, 42, "mc.bmc.MemberInfo", "info0",
-                                    "/redfish/v1/MemberInfo/0", "0");
+    auto* sh = shm_object_create(m_alloc, 42, "mc.bmc.MemberInfo", "info0", "/redfish/v1/MemberInfo/0", "0");
     ASSERT_NE(sh, nullptr);
     EXPECT_EQ(sh->object_id, 42U);
     EXPECT_EQ(shm_object_class_name(*sh), "mc.bmc.MemberInfo");
@@ -431,7 +430,7 @@ TEST_F(shadow_ops_fixture, shm_object_get_property_blob_round_trip)
     auto* sh = shm_object_create(m_alloc, 1, "C", "n", "/p", "");
     ASSERT_TRUE(shm_object_set_property_blob(m_alloc, *sh, "name", "alice", property_type_tag::string));
     ASSERT_TRUE(shm_object_set_property_blob(m_alloc, *sh, "raw", std::string_view("\x00\x01\x02", 3),
-                                                property_type_tag::bytes));
+                                             property_type_tag::bytes));
 
     std::string_view  view;
     property_type_tag tag;
@@ -448,7 +447,7 @@ TEST_F(shadow_ops_fixture, shm_object_get_property_blob_round_trip)
 
 TEST_F(shadow_ops_fixture, shm_object_set_property_double)
 {
-    auto*  sh = shm_object_create(m_alloc, 1, "C", "n", "/p", "");
+    auto* sh = shm_object_create(m_alloc, 1, "C", "n", "/p", "");
     ASSERT_TRUE(shm_object_set_property_double(m_alloc, *sh, "pi", 3.14));
     double v = 0.0;
     EXPECT_TRUE(shm_object_get_property_double(*sh, "pi", v));
@@ -531,7 +530,7 @@ TEST_F(shadow_ops_fixture, shm_object_set_service_updates_offset_and_crc)
 
     // 用一个虚拟地址模拟 shm_service*（offset_ptr 是 self-relative，不需要真实对象）
     alignas(8) std::byte fake_service_storage[64]{};
-    auto* fake_service = reinterpret_cast<mc::engine::shm_service*>(&fake_service_storage[0]);
+    auto*                fake_service = reinterpret_cast<mc::engine::shm_service*>(&fake_service_storage[0]);
 
     shm_object_set_service(*sh, fake_service);
     EXPECT_EQ(sh->service.get(), fake_service);
@@ -549,12 +548,10 @@ TEST_F(shadow_ops_fixture, shm_object_set_service_updates_offset_and_crc)
 
 TEST_F(shadow_ops_fixture, shm_object_full_field_round_trip)
 {
-    auto* sh = shm_object_create(m_alloc, 0xDEADBEEFULL, "mc.test.A", "obj0",
-                                    "/svc/A/0", "0");
+    auto* sh = shm_object_create(m_alloc, 0xDEADBEEFULL, "mc.test.A", "obj0", "/svc/A/0", "0");
     ASSERT_TRUE(shm_object_set_property_int64(m_alloc, *sh, "n", 42));
     ASSERT_TRUE(shm_object_set_property_double(m_alloc, *sh, "pi", 3.14));
-    ASSERT_TRUE(shm_object_set_property_blob(m_alloc, *sh, "name", "alice",
-                                                property_type_tag::string));
+    ASSERT_TRUE(shm_object_set_property_blob(m_alloc, *sh, "name", "alice", property_type_tag::string));
 
     EXPECT_TRUE(shm_object_check(*sh));
     EXPECT_EQ(shm_object_property_count(*sh), 3);

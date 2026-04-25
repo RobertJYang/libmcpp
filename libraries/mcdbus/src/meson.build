@@ -35,3 +35,9 @@ mcdbus_dep = declare_dependency(
   link_with: mcdbus_lib,
   dependencies: dep_arr,
 )
+
+mcdbus_internal_dep = declare_dependency(
+  include_directories: mcdbus_inc_dirs,
+  link_with: mcdbus_lib,
+  dependencies: dep_arr,
+)

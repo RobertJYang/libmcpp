@@ -25,8 +25,8 @@
 #include <mc/quark.h>
 
 #if defined(MC_QUARK_STORAGE_SHARED_MEMORY)
-#include <mc/shm/default_runtime.h>
 #include "include/shm_quark_provider.h"
+#include <mc/shm/default_runtime.h>
 #else
 #include "include/process_quark_provider.h"
 #endif
@@ -57,10 +57,9 @@ quark_provider* _build_default_provider()
 {
 #if defined(MC_QUARK_STORAGE_SHARED_MEMORY)
     auto& runtime = mc::shm::default_runtime();
-    auto* shm_p = new shm_quark_provider(runtime,
-                                         static_cast<std::size_t>(MC_QUARK_INITIAL_BUCKETS),
-                                         static_cast<std::size_t>(MC_QUARK_MAX_COUNT),
-                                         static_cast<std::size_t>(MC_QUARK_SHM_ARENA_SIZE));
+    auto* shm_p   = new shm_quark_provider(runtime, static_cast<std::size_t>(MC_QUARK_INITIAL_BUCKETS),
+                                           static_cast<std::size_t>(MC_QUARK_MAX_COUNT),
+                                           static_cast<std::size_t>(MC_QUARK_SHM_ARENA_SIZE));
     if (!shm_p->is_valid()) {
         elog("mc::quark shm backend unavailable");
     }
@@ -94,8 +93,7 @@ quark::id_type intern_trusted_literal(mc::string_view value) noexcept
 
 quark::id_type slow_intern_slot(quark_slot& slot) noexcept
 {
-    const auto id = intern_trusted_literal(
-        mc::string_view(slot.literal, static_cast<std::size_t>(slot.length)));
+    const auto id = intern_trusted_literal(mc::string_view(slot.literal, static_cast<std::size_t>(slot.length)));
     slot.id.store(id, std::memory_order_release);
     return id;
 }
@@ -120,7 +118,7 @@ __attribute__((constructor(150))) void initialize_quark_slots() noexcept
     if (__start_mc_quark_slots == nullptr || __stop_mc_quark_slots == nullptr) {
         return;
     }
-    if (__start_mc_quark_slots == __stop_mc_quark_slots) {
+    if (+__start_mc_quark_slots == +__stop_mc_quark_slots) {
         return;
     }
 
@@ -129,8 +127,8 @@ __attribute__((constructor(150))) void initialize_quark_slots() noexcept
         if (slot->id.load(std::memory_order_relaxed) != mc::quark::invalid_id) {
             continue;
         }
-        const auto id = mc::detail::intern_trusted_literal(
-            mc::string_view(slot->literal, static_cast<std::size_t>(slot->length)));
+        const auto id =
+            mc::detail::intern_trusted_literal(mc::string_view(slot->literal, static_cast<std::size_t>(slot->length)));
         slot->id.store(id, std::memory_order_release);
     }
 }

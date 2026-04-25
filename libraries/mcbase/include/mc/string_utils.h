@@ -17,6 +17,8 @@
 #include <mc/string.h>
 #endif
 
+#include <system_error>
+
 namespace mc::strings {
 
 namespace detail {
@@ -31,10 +33,16 @@ void append_formatted_number(StringLike& result, T val, const char* format)
     }
 }
 
+struct to_chars_result {
+    char*     ptr;
+    std::errc ec;
+};
+
 [[noreturn]] MC_API void throw_bad_cast_error(mc::string_view type);
 [[noreturn]] MC_API void throw_overflow_error(mc::string_view type, mc::string_view s);
 
 MC_API std::pair<int, mc::string_view> detect_number_radix(mc::string_view s);
+MC_API to_chars_result to_chars_double(char* first, char* last, double value) noexcept;
 
 /**
  * @brief 准备一个以尾0结尾的字符串，用于安全地转换为数字

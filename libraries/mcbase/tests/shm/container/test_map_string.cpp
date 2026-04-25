@@ -44,7 +44,7 @@ protected:
         std::random_device rd;
         std::mt19937       rng(rd());
         char               name[128];
-        std::snprintf(name, sizeof(name), "mc_map_str_%d_%u", ::getpid(), rng());
+        std::snprintf(name, sizeof(name), "mc_map_str_%d_%lu", ::getpid(), static_cast<unsigned long>(rng()));
 
         shm_region_options opts;
         opts.segment_name  = mc::string(name);
@@ -58,9 +58,9 @@ protected:
 
         void* mem = m_alloc.allocate(sizeof(map_control), alignof(map_control));
         ASSERT_NE(mem, nullptr);
-        m_control = new (mem) map_control();
-        auto* user_base = static_cast<std::byte*>(m_region.user_base());
-        const auto tag  = static_cast<std::uint32_t>(static_cast<std::byte*>(mem) - user_base);
+        m_control            = new (mem) map_control();
+        auto*      user_base = static_cast<std::byte*>(m_region.user_base());
+        const auto tag       = static_cast<std::uint32_t>(static_cast<std::byte*>(mem) - user_base);
         map<string, string, string_less>::init(*m_control, tag);
     }
 
@@ -86,8 +86,8 @@ TEST_F(shm_map_string_fixture, try_emplace_rvalue_transfers_ownership)
 {
     map<string, string, string_less> m(*m_control, m_alloc);
 
-    auto k = string::create(m_alloc, "/xyz/obj/0");
-    auto v = string::create(m_alloc, "hello");
+    auto k        = string::create(m_alloc, "/xyz/obj/0");
+    auto v        = string::create(m_alloc, "hello");
     auto [p, ins] = m.try_emplace(std::move(k), std::move(v));
     ASSERT_TRUE(ins);
     EXPECT_TRUE(k.empty());
@@ -116,13 +116,11 @@ TEST_F(shm_map_string_fixture, heterogeneous_erase_releases_key_and_value_buffer
 {
     map<string, string, string_less> m(*m_control, m_alloc);
     m.try_emplace(string::create(m_alloc, "/keep"), string::create(m_alloc, "K"));
-    m.try_emplace(string::create(m_alloc,
-                                 "/drop/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"),
-                   string::create(m_alloc, "DROPPED_VALUE_PAYLOAD_FOR_SIZE_CHECKXXXX"));
+    m.try_emplace(string::create(m_alloc, "/drop/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"),
+                  string::create(m_alloc, "DROPPED_VALUE_PAYLOAD_FOR_SIZE_CHECKXXXX"));
     const auto peak = m_alloc.allocated_size();
 
-    EXPECT_TRUE(m.erase(std::string_view(
-        "/drop/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")));
+    EXPECT_TRUE(m.erase(std::string_view("/drop/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")));
     EXPECT_EQ(1U, m.size());
     EXPECT_LT(m_alloc.allocated_size(), peak);
 
@@ -169,7 +167,7 @@ TEST_F(shm_map_string_fixture, clear_releases_all_buffers)
 TEST_F(shm_map_string_fixture, iteration_in_order)
 {
     map<string, string, string_less> m(*m_control, m_alloc);
-    const std::vector<std::string> keys = {"/z", "/a", "/m", "/b"};
+    const std::vector<std::string>   keys = {"/z", "/a", "/m", "/b"};
     for (const auto& k : keys) {
         m.try_emplace(string::create(m_alloc, k), string::create(m_alloc, k + "_v"));
     }

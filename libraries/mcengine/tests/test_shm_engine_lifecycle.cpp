@@ -69,11 +69,10 @@ struct lifecycle_service : public mc::engine::service {
     {}
 };
 
-}  // namespace shm_engine_lifecycle_test
+} // namespace shm_engine_lifecycle_test
 
-MC_REFLECT(shm_engine_lifecycle_test::lifecycle_iface,
-           (m_counter, "counter")(m_label, "label")(m_score, "score"), )
-MC_REFLECT(shm_engine_lifecycle_test::lifecycle_object, (m_iface, "iface"), )
+MC_REFLECT(shm_engine_lifecycle_test::lifecycle_iface, (m_counter, "counter")(m_label, "label")(m_score, "score"))
+MC_REFLECT(shm_engine_lifecycle_test::lifecycle_object, (m_iface, "iface"))
 
 namespace shm_engine_lifecycle_test {
 
@@ -124,9 +123,9 @@ TEST_F(shm_engine_lifecycle_test, register_object_writes_identity_and_properties
     obj->m_iface.m_label.set_value("hello-shm");
     obj->m_iface.m_score.set_value(3.14);
 
-    int64_t           int_out = 0;
-    double            dbl_out = 0.0;
-    std::string_view  str_out;
+    int64_t                       int_out = 0;
+    double                        dbl_out = 0.0;
+    std::string_view              str_out;
     mc::engine::property_type_tag tag_out{};
 
     auto k_counter = mc::engine::shm_property_compose_key("org.test.lifecycle_iface", "counter");
@@ -162,8 +161,8 @@ TEST_F(shm_engine_lifecycle_test, property_mutation_reflected_in_shm)
     obj->m_iface.m_label.set_value("second");
     obj->m_iface.m_label.set_value("final-value");
 
-    int64_t           int_out = 0;
-    std::string_view  str_out;
+    int64_t                       int_out = 0;
+    std::string_view              str_out;
     mc::engine::property_type_tag tag_out{};
 
     auto k_counter = mc::engine::shm_property_compose_key("org.test.lifecycle_iface", "counter");
@@ -219,10 +218,8 @@ TEST_F(shm_engine_lifecycle_test, fork_child_reads_parent_property)
         std::string_view              label;
         mc::engine::property_type_tag tag{};
 
-        auto k_counter = mc::engine::shm_property_compose_key(
-            "org.test.lifecycle_iface", "counter");
-        auto k_label = mc::engine::shm_property_compose_key(
-            "org.test.lifecycle_iface", "label");
+        auto k_counter = mc::engine::shm_property_compose_key("org.test.lifecycle_iface", "counter");
+        auto k_label   = mc::engine::shm_property_compose_key("org.test.lifecycle_iface", "label");
 
         if (mc::engine::shm_object_class_name(*shadow) != "ShmLifecycleObject") {
             std::_Exit(20);
@@ -249,9 +246,8 @@ TEST_F(shm_engine_lifecycle_test, fork_child_reads_parent_property)
     int status = -1;
     ASSERT_EQ(::waitpid(child, &status, 0), child);
     ASSERT_TRUE(WIFEXITED(status)) << "子进程异常退出 raw status=" << status;
-    EXPECT_EQ(WEXITSTATUS(status), 0)
-        << "子进程退出码：20=class_name 不匹配，21=path，22/24=property 缺失，"
-           "23=counter 值错，25=label 值错";
+    EXPECT_EQ(WEXITSTATUS(status), 0) << "子进程退出码：20=class_name 不匹配，21=path，22/24=property 缺失，"
+                                         "23=counter 值错，25=label 值错";
 }
 
 // recover() 重建路径：
@@ -432,18 +428,12 @@ TEST_F(shm_engine_lifecycle_test, gc_isolated_purges_orphans_from_indices_and_ar
 
     // 索引层验证：bad path 应当在所有 3 个 idx 都消失；good 仍可达。
     for (int i = 0; i < kCount; ++i) {
-        EXPECT_TRUE(
-            tbl.find<mc::engine::by_path>(
-                   mc::string(sformat("/org/test/lifecycle/gc_bad/{}", i)))
-                .is_end())
+        EXPECT_TRUE(tbl.find<mc::engine::by_path>(mc::string(sformat("/org/test/lifecycle/gc_bad/{}", i))).is_end())
             << "isolated 对象 path 仍残留在 by_path 索引";
-        EXPECT_TRUE(tbl.find<mc::engine::by_object_name>(mc::string(sformat("gc_bad_{}", i)))
-                        .is_end())
+        EXPECT_TRUE(tbl.find<mc::engine::by_object_name>(mc::string(sformat("gc_bad_{}", i))).is_end())
             << "isolated 对象 name 仍残留在 by_object_name 索引";
 
-        EXPECT_FALSE(tbl.find<mc::engine::by_path>(
-                            mc::string(sformat("/org/test/lifecycle/gc_good/{}", i)))
-                         .is_end())
+        EXPECT_FALSE(tbl.find<mc::engine::by_path>(mc::string(sformat("/org/test/lifecycle/gc_good/{}", i))).is_end())
             << "正常对象不应被误删";
     }
 
@@ -458,4 +448,4 @@ TEST_F(shm_engine_lifecycle_test, gc_isolated_purges_orphans_from_indices_and_ar
     EXPECT_EQ(m_service->gc_isolated(), 0U);
 }
 
-}  // namespace shm_engine_lifecycle_test
+} // namespace shm_engine_lifecycle_test

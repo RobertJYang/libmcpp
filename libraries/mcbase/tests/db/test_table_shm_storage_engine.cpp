@@ -41,16 +41,29 @@ public:
     MC_REFLECTABLE("mc.test.shm_table.User")
 
     user() = default;
-    user(mc::string name, int age) : m_name(std::move(name)), m_age(age) {}
+    user(mc::string name, int age) : m_name(std::move(name)), m_age(age)
+    {}
 
-    const mc::string& name() const { return m_name; }
-    int               get_age() const { return m_age; }
+    const mc::string& name() const
+    {
+        return m_name;
+    }
+    int get_age() const
+    {
+        return m_age;
+    }
 
-    void set_handle(fake_shm_record* sh) noexcept { m_handle = sh; }
-    fake_shm_record* handle() const noexcept { return m_handle; }
+    void set_handle(fake_shm_record* sh) noexcept
+    {
+        m_handle = sh;
+    }
+    fake_shm_record* handle() const noexcept
+    {
+        return m_handle;
+    }
 
     mc::string       m_name;
-    int              m_age = 0;
+    int              m_age    = 0;
     fake_shm_record* m_handle = nullptr;
 };
 
@@ -60,8 +73,7 @@ MC_REFLECT(test_table_shm_engine::user, ((m_name, "name"))((m_age, "age")))
 
 namespace test_table_shm_engine {
 
-using indices_def = mdb::indexed_by<mdb::ordered_unique<&user::m_name>,
-                                    mdb::ordered_non_unique<&user::get_age>>;
+using indices_def = mdb::indexed_by<mdb::ordered_unique<&user::m_name>, mdb::ordered_non_unique<&user::get_age>>;
 
 // IndexCount = 用户索引数(2) + object_id 默认索引(1) = 3
 using shm_engine_t   = mdb::shm_storage_engine<user, fake_shm_record, 3U, mdb::shm_engine_alloc>;
@@ -74,7 +86,7 @@ protected:
         std::random_device rd;
         std::mt19937       rng(rd());
         char               nm[128];
-        std::snprintf(nm, sizeof(nm), "mc_table_shm_%d_%u", ::getpid(), rng());
+        std::snprintf(nm, sizeof(nm), "mc_table_shm_%d_%lu", ::getpid(), static_cast<unsigned long>(rng()));
 
         mc::shm::runtime_options opts;
         opts.region_name     = mc::string(nm);
@@ -121,8 +133,9 @@ protected:
     // 设置 table-engine 的 shm_handle_extractor：从 user 中读出已绑定的 ShmRecord*
     void install_extractor(shm_user_table& t)
     {
-        t.engine().set_shm_handle_extractor(
-            [](const user& u) -> fake_shm_record* { return u.handle(); });
+        t.engine().set_shm_handle_extractor([](const user& u) -> fake_shm_record* {
+            return u.handle();
+        });
     }
 
     // add 助手：先分配 ShmRecord 绑定到 obj，再调用 table.add。
@@ -132,7 +145,10 @@ protected:
         return t.add(std::move(obj), txn);
     }
 
-    std::uint64_t _next_fake_id() noexcept { return ++m_next_fake_id; }
+    std::uint64_t _next_fake_id() noexcept
+    {
+        return ++m_next_fake_id;
+    }
 
     std::unique_ptr<mc::shm::shm_runtime> m_runtime;
     mdb::shm_engine_alloc                 m_alloc;

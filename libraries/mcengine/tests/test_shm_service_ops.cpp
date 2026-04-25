@@ -22,8 +22,8 @@
 
 #include <gtest/gtest.h>
 
-#include <cstdio>
 #include <cstdint>
+#include <cstdio>
 #include <random>
 #include <string_view>
 #include <unistd.h>
@@ -34,6 +34,7 @@
 #include <mc/shm/container/map.h>
 #include <mc/shm/region.h>
 
+using mc::engine::shm_allocator;
 using mc::engine::shm_service;
 using mc::engine::shm_service_abi_version;
 using mc::engine::shm_service_attach;
@@ -46,7 +47,6 @@ using mc::engine::shm_service_name;
 using mc::engine::shm_service_set_pid;
 using mc::engine::shm_service_set_state;
 using mc::engine::shm_service_state;
-using mc::engine::shm_allocator;
 using mc::shm::shm_region;
 using mc::shm::shm_region_options;
 using mc::shm::container::map_control;
@@ -62,7 +62,8 @@ protected:
         std::random_device rd;
         std::mt19937       rng(rd());
         char               buf[128];
-        std::snprintf(buf, sizeof(buf), "mc_shm_service_ops_test_%d_%u", ::getpid(), rng());
+        std::snprintf(buf, sizeof(buf), "mc_shm_service_ops_test_%d_%lu", ::getpid(),
+                      static_cast<unsigned long>(rng()));
 
         shm_region_options opts;
         opts.segment_name  = mc::string(buf);
@@ -82,8 +83,7 @@ protected:
         auto* mem = m_alloc.allocate(sizeof(map_control), alignof(map_control));
         EXPECT_NE(mem, nullptr);
         auto*      ctrl = new (mem) map_control();
-        const auto tag  = static_cast<std::uint32_t>(reinterpret_cast<std::uintptr_t>(ctrl)
-                                                    & 0xFFFFFFFFU);
+        const auto tag  = static_cast<std::uint32_t>(reinterpret_cast<std::uintptr_t>(ctrl) & 0xFFFFFFFFU);
         shm_service_map::init(*ctrl, tag);
         return ctrl;
     }
@@ -101,7 +101,7 @@ protected:
     shm_allocator m_alloc;
 };
 
-}  // namespace
+} // namespace
 
 // shm_service_create / destroy
 
@@ -271,11 +271,10 @@ TEST_F(shm_service_ops_fixture, attach_repeated_increments_epoch_each_time)
         EXPECT_EQ(svc->epoch, 1U);
 
         for (std::uint32_t i = 0; i < 5; ++i) {
-            shm_service* again =
-                shm_service_attach(m_alloc, map, "svc", 100U + i, /*force=*/true);
+            shm_service* again = shm_service_attach(m_alloc, map, "svc", 100U + i, /*force=*/true);
             EXPECT_EQ(again, svc);
         }
-        EXPECT_EQ(svc->epoch, 6U);  // 1 + 5 次 ++
+        EXPECT_EQ(svc->epoch, 6U); // 1 + 5 次 ++
 
         shm_service_destroy(m_alloc, svc);
         map.clear();

@@ -328,6 +328,11 @@ data_t::~data_t()
     });
 }
 
+void data_t::clear_index() noexcept
+{
+    index.reset();
+}
+
 entry* data_t::create_entry(variant key, variant value)
 {
     return entry_storage_create(std::move(key), std::move(value));

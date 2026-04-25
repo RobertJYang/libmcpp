@@ -54,6 +54,7 @@ test_deps = [
   gtest_dep,
   test_utilities_dep,
   lua_dep,
+  mcdbus_internal_dep,
   libmcpp_dep_with_link,
 ]
 if enable_coverage

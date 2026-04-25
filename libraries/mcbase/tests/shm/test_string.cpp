@@ -40,7 +40,7 @@ protected:
         std::random_device rd;
         std::mt19937       rng(rd());
         char               name[128];
-        std::snprintf(name, sizeof(name), "mc_shm_string_test_%d_%u", ::getpid(), rng());
+        std::snprintf(name, sizeof(name), "mc_shm_string_test_%d_%lu", ::getpid(), static_cast<unsigned long>(rng()));
 
         shm_region_options opts;
         opts.segment_name  = mc::string(name);
@@ -162,17 +162,17 @@ TEST_F(shm_string_region_fixture, move_self_assignment_is_safe)
 {
     auto s = string::create(m_alloc, "self");
 #if defined(__clang__)
-#    pragma clang diagnostic push
-#    pragma clang diagnostic ignored "-Wself-move"
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wself-move"
 #elif defined(__GNUC__)
-#    pragma GCC diagnostic push
-#    pragma GCC diagnostic ignored "-Wself-move"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wself-move"
 #endif
-    s      = std::move(s);
+    s = std::move(s);
 #if defined(__clang__)
-#    pragma clang diagnostic pop
+#pragma clang diagnostic pop
 #elif defined(__GNUC__)
-#    pragma GCC diagnostic pop
+#pragma GCC diagnostic pop
 #endif
     EXPECT_EQ("self", s.std_view());
 }
@@ -347,8 +347,8 @@ TEST(shm_string_multi_region, destroy_routes_to_correct_region)
     std::mt19937       rng(rd());
     char               name_a[128];
     char               name_b[128];
-    std::snprintf(name_a, sizeof(name_a), "mc_string_multi_a_%d_%u", ::getpid(), rng());
-    std::snprintf(name_b, sizeof(name_b), "mc_string_multi_b_%d_%u", ::getpid(), rng());
+    std::snprintf(name_a, sizeof(name_a), "mc_string_multi_a_%d_%lu", ::getpid(), static_cast<unsigned long>(rng()));
+    std::snprintf(name_b, sizeof(name_b), "mc_string_multi_b_%d_%lu", ::getpid(), static_cast<unsigned long>(rng()));
 
     shm_region_options opt_a;
     opt_a.segment_name = mc::string(name_a);

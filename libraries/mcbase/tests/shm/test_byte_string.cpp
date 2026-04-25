@@ -41,7 +41,7 @@ protected:
         std::random_device rd;
         std::mt19937       rng(rd());
         char               name[128];
-        std::snprintf(name, sizeof(name), "mc_shm_bstr_test_%d_%u", ::getpid(), rng());
+        std::snprintf(name, sizeof(name), "mc_shm_bstr_test_%d_%lu", ::getpid(), static_cast<unsigned long>(rng()));
 
         shm_region_options opts;
         opts.segment_name  = mc::string(name);
@@ -72,7 +72,7 @@ TEST_F(shm_byte_string_fixture, default_is_empty)
 TEST_F(shm_byte_string_fixture, create_from_string_view)
 {
     std::string_view sv{"/org/openbmc/object/0"};
-    auto b = byte_string::create(m_alloc, sv);
+    auto             b = byte_string::create(m_alloc, sv);
     EXPECT_FALSE(b.empty());
     EXPECT_EQ(b.size(), sv.size());
     EXPECT_TRUE(b.buffer_intact());
@@ -229,17 +229,17 @@ TEST_F(shm_byte_string_fixture, compare_with_string_view)
 TEST_F(shm_byte_string_fixture, compare_byte_wise_with_embedded_nul)
 {
     // "a\0b" (3B) vs "a" (1B)：按字节比较应视 3B 者更大（长度更长且 prefix 相同）
-    const char left[]  = {'a', '\0', 'b'};
-    auto       a       = byte_string::create(m_alloc, left, sizeof(left));
-    auto       b       = byte_string::create(m_alloc, "a");
+    const char left[] = {'a', '\0', 'b'};
+    auto       a      = byte_string::create(m_alloc, left, sizeof(left));
+    auto       b      = byte_string::create(m_alloc, "a");
     EXPECT_TRUE(b < a);
     EXPECT_FALSE(a == b);
 }
 
 TEST_F(shm_byte_string_fixture, byte_string_less_heterogeneous)
 {
-    auto a = byte_string::create(m_alloc, "aa");
-    auto b = byte_string::create(m_alloc, "bb");
+    auto             a = byte_string::create(m_alloc, "aa");
+    auto             b = byte_string::create(m_alloc, "bb");
     byte_string_less cmp;
     EXPECT_TRUE(cmp(a, b));
     EXPECT_FALSE(cmp(b, a));
@@ -253,9 +253,9 @@ TEST_F(shm_byte_string_fixture, buffer_intact_detects_corruption)
     auto b = byte_string::create(m_alloc, "check");
     ASSERT_TRUE(b.buffer_intact());
     // 破坏 magic
-    auto* raw = const_cast<std::byte*>(b.data()) - byte_string::buffer_header_size;
+    auto* raw   = const_cast<std::byte*>(b.data()) - byte_string::buffer_header_size;
     auto* magic = reinterpret_cast<std::uint32_t*>(raw);
-    *magic = 0xDEADBEEFU;
+    *magic      = 0xDEADBEEFU;
     EXPECT_FALSE(b.buffer_intact());
     // destroy 应该静默跳过（不崩溃）
     b.destroy(m_alloc);

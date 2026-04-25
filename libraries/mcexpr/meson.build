@@ -13,6 +13,7 @@ project(
 
 build_tests = get_option('tests')
 enable_coverage = get_option('enable_coverage')
+cpp_compiler = meson.get_compiler('cpp')
 
 if enable_coverage
   coverage_args = [
@@ -30,7 +31,10 @@ incdir = include_directories('include')
 srcdir = include_directories('src')
 mcexpr_test_incdir = include_directories('include', 'tests')
 
-boost_dep = dependency('boost', method: 'pkg-config', required: true)
+if not cpp_compiler.has_header('boost/version.hpp', required: true)
+  error('Boost headers not found')
+endif
+boost_dep = declare_dependency()
 mcengine_dep = dependency(
   'mcengine',
   fallback: ['mcengine', 'mcengine_dep'],

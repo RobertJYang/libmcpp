@@ -28,21 +28,21 @@
 
 #include <mc/engine/shm_object.h>
 
-using mc::engine::shm_ptr;
 using mc::engine::child_slab;
 using mc::engine::child_slab_alloc_size;
 using mc::engine::child_slab_check;
 using mc::engine::child_slab_compute_crc;
-using mc::engine::shm_object;
-using mc::engine::shm_object_abi_version;
-using mc::engine::shm_object_check;
-using mc::engine::shm_object_compute_crc;
 using mc::engine::property_slab;
 using mc::engine::property_slab_alloc_size;
 using mc::engine::property_slab_check;
 using mc::engine::property_slab_compute_crc;
 using mc::engine::property_slot;
 using mc::engine::property_type_tag;
+using mc::engine::shm_object;
+using mc::engine::shm_object_abi_version;
+using mc::engine::shm_object_check;
+using mc::engine::shm_object_compute_crc;
+using mc::engine::shm_ptr;
 namespace shadow_flags = mc::engine::shm_object_flags;
 
 namespace {
@@ -191,13 +191,13 @@ TEST(shm_object_crc, property_slab_compute_skips_crc_field_itself)
 {
     constexpr std::uint16_t capacity = 2;
     std::vector<std::byte>  buf(property_slab_alloc_size(capacity));
-    auto*                   slab = new (buf.data()) property_slab{};
-    slab->abi_version            = shm_object_abi_version;
-    slab->slot_capacity          = capacity;
-    slab->slot_count             = 2;
+    std::memset(buf.data(), 0, buf.size());
+    auto* slab          = reinterpret_cast<property_slab*>(buf.data());
+    slab->abi_version   = shm_object_abi_version;
+    slab->slot_capacity = capacity;
+    slab->slot_count    = 2;
 
     auto fill_slot = [](property_slot& s, std::uint32_t key, std::int64_t v) noexcept {
-        std::memset(&s, 0, sizeof(s));
         s.key_hash = key;
         s.type     = property_type_tag::int64;
         s.v_int64  = v;
@@ -215,9 +215,9 @@ TEST(shm_object_crc, property_slab_compute_skips_crc_field_itself)
     EXPECT_TRUE(property_slab_check(*slab));
 
     // crc32 字段本身的值不影响 compute 结果
-    auto crc_before    = property_slab_compute_crc(*slab);
-    slab->crc32        = 0xFFFFFFFFU;
-    auto crc_after     = property_slab_compute_crc(*slab);
+    auto crc_before = property_slab_compute_crc(*slab);
+    slab->crc32     = 0xFFFFFFFFU;
+    auto crc_after  = property_slab_compute_crc(*slab);
     EXPECT_EQ(crc_before, crc_after);
 }
 
@@ -225,10 +225,11 @@ TEST(shm_object_crc, property_slab_check_rejects_count_exceeds_capacity)
 {
     constexpr std::uint16_t capacity = 2;
     std::vector<std::byte>  buf(property_slab_alloc_size(capacity));
-    auto*                   slab = new (buf.data()) property_slab{};
-    slab->abi_version            = shm_object_abi_version;
-    slab->slot_capacity          = capacity;
-    slab->slot_count             = capacity + 1;
+    std::memset(buf.data(), 0, buf.size());
+    auto* slab          = reinterpret_cast<property_slab*>(buf.data());
+    slab->abi_version   = shm_object_abi_version;
+    slab->slot_capacity = capacity;
+    slab->slot_count    = capacity + 1;
     // 不调用 compute_crc：count>capacity 时 compute 按 slot_count 读会越界访问
     // 已分配 buf 之外的 slot 区域。property_slab_check 先校验 count<=capacity，
     // 因此 crc 字段保持默认 0 不影响 EXPECT_FALSE 断言。
@@ -276,9 +277,10 @@ TEST(shm_object_crc, empty_slabs_are_valid)
 {
     {
         std::vector<std::byte> buf(property_slab_alloc_size(0));
-        auto*                  slab = new (buf.data()) property_slab{};
-        slab->abi_version           = shm_object_abi_version;
-        slab->crc32                 = property_slab_compute_crc(*slab);
+        std::memset(buf.data(), 0, buf.size());
+        auto* slab        = reinterpret_cast<property_slab*>(buf.data());
+        slab->abi_version = shm_object_abi_version;
+        slab->crc32       = property_slab_compute_crc(*slab);
         EXPECT_TRUE(property_slab_check(*slab));
     }
     {
@@ -290,4 +292,4 @@ TEST(shm_object_crc, empty_slabs_are_valid)
     }
 }
 
-}  // namespace
+} // namespace

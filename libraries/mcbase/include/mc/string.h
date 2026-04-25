@@ -45,12 +45,9 @@ namespace mc {
 class quark;
 
 namespace detail {
-// 仅用于 mcbase 内部在 .cpp 中访问可变存储；不在公开头文件中暴露 std::string& 等签名。
 struct string_mutable_impl;
-struct string_storage;
 } // namespace detail
 
-// `mc::string` 持有由 mcbase 管理的稳定存储；与 array/dict 等一致使用 mc::shared_ptr 共享底层缓冲。
 class MC_API string {
 public:
     using size_type                 = std::size_t;
@@ -650,14 +647,9 @@ public:
 private:
     friend struct detail::string_mutable_impl;
 
-    mc::shared_ptr<detail::string_storage> m_storage{};
+    struct impl;
+    std::unique_ptr<impl> m_impl;
 };
-
-// 显式实例化声明：string_storage 在此处为不完整类型，
-// 抑制隐式实例化以避免不完整类型上的模板展开，
-// 同时减少每个包含 string.h 的翻译单元的编译开销。
-// 对应的显式实例化定义在 src/string/string.cpp 中。
-extern template class MC_API mc::memory::shared_ptr<mc::detail::string_storage, mc::detail::string_storage*>;
 
 inline std::string to_std_string(const string& s)
 {

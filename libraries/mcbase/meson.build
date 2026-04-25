@@ -37,7 +37,10 @@ if boost_root != ''
     include_directories: include_directories(boost_root),
   )
 else
-  boost_dep = dependency('boost', method: 'pkg-config', required: true)
+  if not cpp_compiler.has_header('boost/version.hpp', required: true)
+    error('Boost headers not found')
+  endif
+  boost_dep = declare_dependency()
   message('使用系统 Boost')
 endif
 

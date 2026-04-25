@@ -336,14 +336,16 @@ private:
             return;
         }
 
-        if constexpr (!std::is_base_of_v<::mc::memory::shared_base, raw_element_type>) {
+        if constexpr (!::mc::memory::detail::safe_is_base_of<
+                          ::mc::memory::shared_base, raw_element_type>::value) {
             using deleter_traits = mc::deleter_traits<mc::default_deleter<element_type>, element_type>;
 
             if (!ptr->release_ref()) {
                 return;
             }
 
-            if constexpr (std::is_base_of_v<::mc::gc::GCHead, raw_element_type>) {
+            if constexpr (::mc::memory::detail::safe_is_base_of<
+                              ::mc::gc::GCHead, raw_element_type>::value) {
                 ::mc::gc::gc_pre_destroy_untrack(as_gc_head(ptr));
             }
             deleter_traits::destroy(static_cast<element_type*>(ptr));
@@ -365,7 +367,8 @@ private:
             }
         }
 
-        if constexpr (std::is_base_of_v<::mc::gc::GCHead, raw_element_type>) {
+        if constexpr (::mc::memory::detail::safe_is_base_of<
+                          ::mc::gc::GCHead, raw_element_type>::value) {
             ::mc::gc::gc_pre_destroy_untrack(as_gc_head(ptr));
         }
         ::mc::memory::detail::destroy_managed_object(counter);

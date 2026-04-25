@@ -69,13 +69,10 @@ if enable_coverage
 endif
 
 # 依赖项
-boost_dep = dependency('boost', method: 'pkg-config', required: true)
-boost_program_options_dep = dependency(
-  'boost',
-  modules: ['program_options'],
-  method: 'pkg-config',
-  required: true,
-)
+if not cpp_compiler.has_header('boost/version.hpp', required: true)
+  error('Boost headers not found')
+endif
+boost_dep = declare_dependency()
 
 # 设置编译宏
 if meson.is_cross_build()
@@ -202,6 +199,7 @@ mcdbus_subproject = subproject(
 )
 mcdbus_dep = mcdbus_subproject.get_variable('mcdbus_dep')
 mcdbus_lib = mcdbus_subproject.get_variable('mcdbus_lib')
+mcdbus_internal_dep = mcdbus_subproject.get_variable('mcdbus_internal_dep')
 
 mcapp_subproject = subproject(
   'mcapp',

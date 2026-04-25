@@ -21,360 +21,401 @@
 #include <mc/string.h>
 
 #include "securec.h"
+#include "string_storage.h"
 #include <algorithm>
 #include <atomic>
 #include <cctype>
+#include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <functional>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <type_traits>
 #include <vector>
 
 #include <stdarg.h>
 
+#if defined(__GNUC__) && !defined(__clang__) && (__GNUC__ < 11)
+#define MC_STRING_NEED_TO_CHARS_FALLBACK 1
+#else
+#include <charconv>
+#endif
+
+namespace mc {
+struct string::impl {
+    mc::shared_ptr<detail::string_storage> storage;
+};
+} // namespace mc
+
 namespace mc::detail {
 
-// mc::string 内部字节缓冲；不依赖标准库字符串主表示，避免与「仅 mc 类型跨边界」目标冲突。
-struct string_bytes {
-    std::vector<char> m_buffer;
+// ----- string_bytes methods -----
 
-    string_bytes()
-    {
-        ensure_initialized();
-    }
+string_bytes::string_bytes()
+{
+    ensure_initialized();
+}
 
-    explicit string_bytes(mc::string_view v)
-    {
-        assign(v);
-    }
+string_bytes::string_bytes(mc::string_view v)
+{
+    assign(v);
+}
 
-    explicit string_bytes(std::size_t n, char ch)
-    {
-        m_buffer.assign(n + 1, ch);
-        m_buffer[n] = '\0';
-    }
+string_bytes::string_bytes(std::size_t n, char ch)
+{
+    m_buffer.assign(n + 1, ch);
+    m_buffer[n] = '\0';
+}
 
-    void ensure_initialized()
-    {
-        if (m_buffer.empty()) {
-            m_buffer.push_back('\0');
-        }
-    }
-
-    void assign(mc::string_view v)
-    {
-        m_buffer.assign(v.data(), v.data() + static_cast<std::ptrdiff_t>(v.size()));
+void string_bytes::ensure_initialized()
+{
+    if (m_buffer.empty()) {
         m_buffer.push_back('\0');
     }
+}
 
-    bool empty() const noexcept
-    {
-        return size() == 0U;
+void string_bytes::assign(mc::string_view v)
+{
+    m_buffer.assign(v.data(), v.data() + static_cast<std::ptrdiff_t>(v.size()));
+    m_buffer.push_back('\0');
+}
+
+bool string_bytes::empty() const noexcept
+{
+    return size() == 0U;
+}
+
+std::size_t string_bytes::size() const noexcept
+{
+    return m_buffer.empty() ? 0U : (m_buffer.size() - 1U);
+}
+
+std::size_t string_bytes::capacity() const noexcept
+{
+    return m_buffer.capacity() == 0U ? 0U : (m_buffer.capacity() - 1U);
+}
+
+mc::string_view string_bytes::view() const noexcept
+{
+    return mc::string_view(data(), size());
+}
+
+const char* string_bytes::data() const noexcept
+{
+    return m_buffer.empty() ? "" : m_buffer.data();
+}
+
+char* string_bytes::data_mutable() noexcept
+{
+    ensure_initialized();
+    return m_buffer.data();
+}
+
+bool string_bytes::overlaps(mc::string_view value) const noexcept
+{
+    if (value.empty()) {
+        return false;
     }
+    const char* begin_ptr = data();
+    const char* end_ptr   = begin_ptr + static_cast<std::ptrdiff_t>(size());
+    const char* src_begin = value.data();
+    const char* src_end   = src_begin + static_cast<std::ptrdiff_t>(value.size());
+    return src_begin < end_ptr && src_end > begin_ptr;
+}
 
-    std::size_t size() const noexcept
-    {
-        return m_buffer.empty() ? 0U : (m_buffer.size() - 1U);
+void string_bytes::clear() noexcept
+{
+    ensure_initialized();
+    m_buffer.resize(1);
+    m_buffer[0] = '\0';
+}
+
+void string_bytes::reserve(std::size_t n)
+{
+    ensure_initialized();
+    if (capacity() >= n) {
+        return;
     }
+    m_buffer.reserve(n + 1U);
+}
 
-    std::size_t capacity() const noexcept
-    {
-        return m_buffer.capacity() == 0U ? 0U : (m_buffer.capacity() - 1U);
+void string_bytes::shrink_to_fit()
+{
+    ensure_initialized();
+    m_buffer.shrink_to_fit();
+    ensure_initialized();
+    m_buffer[size()] = '\0';
+}
+
+void string_bytes::push_back(char c)
+{
+    ensure_initialized();
+    m_buffer.insert(m_buffer.end() - 1, c);
+}
+
+void string_bytes::pop_back()
+{
+    if (empty()) {
+        return;
     }
+    m_buffer.pop_back();
+    m_buffer.back() = '\0';
+}
 
-    mc::string_view view() const noexcept
-    {
-        return mc::string_view(data(), size());
+void string_bytes::resize(std::size_t n, char ch)
+{
+    ensure_initialized();
+    m_buffer.resize(n + 1U, ch);
+    m_buffer[n] = '\0';
+}
+
+void string_bytes::insert(std::size_t pos, std::size_t count, char ch)
+{
+    m_buffer.insert(m_buffer.begin() + static_cast<std::ptrdiff_t>(pos), count, ch);
+}
+
+char& string_bytes::operator[](std::size_t i) noexcept
+{
+    return m_buffer[i];
+}
+
+const char& string_bytes::operator[](std::size_t i) const noexcept
+{
+    return m_buffer[i];
+}
+
+char& string_bytes::at(std::size_t i)
+{
+    if (i >= size()) {
+        throw std::out_of_range("string_bytes::at");
     }
+    return m_buffer[i];
+}
 
-    const char* data() const noexcept
-    {
-        return m_buffer.empty() ? "" : m_buffer.data();
+char& string_bytes::front()
+{
+    return m_buffer.front();
+}
+
+char& string_bytes::back()
+{
+    return m_buffer[size() - 1U];
+}
+
+string_bytes::iterator string_bytes::begin() noexcept
+{
+    return m_buffer.begin();
+}
+
+string_bytes::iterator string_bytes::end() noexcept
+{
+    return m_buffer.begin() + static_cast<std::ptrdiff_t>(size());
+}
+
+string_bytes::reverse_iterator string_bytes::rbegin() noexcept
+{
+    return reverse_iterator(end());
+}
+
+string_bytes::reverse_iterator string_bytes::rend() noexcept
+{
+    return reverse_iterator(begin());
+}
+
+void string_bytes::append(const char* str)
+{
+    if (str == nullptr) {
+        return;
     }
+    append(str, std::char_traits<char>::length(str));
+}
 
-    char* data_mutable() noexcept
-    {
-        ensure_initialized();
-        return m_buffer.data();
+void string_bytes::append(const char* p, std::size_t n)
+{
+    if (n == 0U || p == nullptr) {
+        return;
     }
+    m_buffer.insert(m_buffer.end() - 1, p, p + static_cast<std::ptrdiff_t>(n));
+}
 
-    bool overlaps(mc::string_view value) const noexcept
-    {
-        if (value.empty()) {
-            return false;
-        }
-        const char* begin_ptr = data();
-        const char* end_ptr   = begin_ptr + static_cast<std::ptrdiff_t>(size());
-        const char* src_begin = value.data();
-        const char* src_end   = src_begin + static_cast<std::ptrdiff_t>(value.size());
-        return src_begin < end_ptr && src_end > begin_ptr;
+void string_bytes::append(std::size_t n, char ch)
+{
+    m_buffer.insert(m_buffer.end() - 1, n, ch);
+}
+
+void string_bytes::erase(std::size_t pos, std::size_t count)
+{
+    if (count == 0U) {
+        return;
     }
+    const std::size_t actual = std::min(count, size() - pos);
+    m_buffer.erase(m_buffer.begin() + static_cast<std::ptrdiff_t>(pos),
+                   m_buffer.begin() + static_cast<std::ptrdiff_t>(pos + actual));
+}
 
-    void clear() noexcept
-    {
-        ensure_initialized();
-        m_buffer.resize(1);
-        m_buffer[0] = '\0';
+void string_bytes::erase(iterator first, iterator last)
+{
+    m_buffer.erase(first, last);
+}
+
+void string_bytes::replace(std::size_t pos, std::size_t count, const char* s, std::size_t n)
+{
+    const std::size_t actual = std::min(count, size() - pos);
+    m_buffer.erase(m_buffer.begin() + static_cast<std::ptrdiff_t>(pos),
+                   m_buffer.begin() + static_cast<std::ptrdiff_t>(pos + actual));
+    m_buffer.insert(m_buffer.begin() + static_cast<std::ptrdiff_t>(pos), s, s + static_cast<std::ptrdiff_t>(n));
+}
+
+std::size_t string_bytes::find(mc::string_view needle, std::size_t pos) const
+{
+    return view().find(needle, pos);
+}
+
+// ----- string_storage methods -----
+
+string_storage::string_storage() = default;
+
+string_storage::string_storage(mc::string_view view) : bytes(view)
+{}
+
+string_storage::string_storage(std::size_t n, char ch) : bytes(n, ch)
+{}
+
+string_storage::string_storage(id_type id) noexcept : m_quark_id{id}
+{}
+
+bool string_storage::is_quark() const noexcept
+{
+    return m_quark_id != 0U;
+}
+
+mc::string_view string_storage::view_const() const noexcept
+{
+    if (is_quark()) {
+        return mc::quark{m_quark_id}.view();
     }
+    return bytes.view();
+}
 
-    void reserve(std::size_t n)
-    {
-        ensure_initialized();
-        if (capacity() >= n) {
-            return;
-        }
-        m_buffer.reserve(n + 1U);
+const char* string_storage::data_const() const noexcept
+{
+    if (is_quark()) {
+        return mc::quark{m_quark_id}.c_str();
     }
+    return bytes.data();
+}
 
-    void shrink_to_fit()
-    {
-        ensure_initialized();
-        m_buffer.shrink_to_fit();
-        ensure_initialized();
-        m_buffer[size()] = '\0';
+std::size_t string_storage::size_const() const noexcept
+{
+    if (is_quark()) {
+        return mc::quark{m_quark_id}.size();
     }
+    return bytes.size();
+}
 
-    void push_back(char c)
-    {
-        ensure_initialized();
-        m_buffer.insert(m_buffer.end() - 1, c);
+bool string_storage::empty_const() const noexcept
+{
+    return size_const() == 0U;
+}
+
+std::size_t string_storage::capacity_const() const noexcept
+{
+    if (is_quark()) {
+        return mc::quark{m_quark_id}.size();
     }
-
-    void pop_back()
-    {
-        if (empty()) {
-            return;
-        }
-        m_buffer.pop_back();
-        m_buffer.back() = '\0';
-    }
-
-    void resize(std::size_t n, char ch)
-    {
-        ensure_initialized();
-        m_buffer.resize(n + 1U, ch);
-        m_buffer[n] = '\0';
-    }
-
-    void insert(std::size_t pos, std::size_t count, char ch)
-    {
-        m_buffer.insert(m_buffer.begin() + static_cast<std::ptrdiff_t>(pos), count, ch);
-    }
-
-    char& operator[](std::size_t i) noexcept
-    {
-        return m_buffer[i];
-    }
-
-    const char& operator[](std::size_t i) const noexcept
-    {
-        return m_buffer[i];
-    }
-
-    char& at(std::size_t i)
-    {
-        if (i >= size()) {
-            throw std::out_of_range("string_bytes::at");
-        }
-        return m_buffer[i];
-    }
-
-    char& front()
-    {
-        return m_buffer.front();
-    }
-
-    char& back()
-    {
-        return m_buffer[size() - 1U];
-    }
-
-    using iterator         = std::vector<char>::iterator;
-    using const_iterator   = std::vector<char>::const_iterator;
-    using reverse_iterator = std::reverse_iterator<iterator>;
-
-    iterator begin() noexcept
-    {
-        return m_buffer.begin();
-    }
-
-    iterator end() noexcept
-    {
-        return m_buffer.begin() + static_cast<std::ptrdiff_t>(size());
-    }
-
-    reverse_iterator rbegin() noexcept
-    {
-        return reverse_iterator(end());
-    }
-
-    reverse_iterator rend() noexcept
-    {
-        return reverse_iterator(begin());
-    }
-
-    void append(const char* str)
-    {
-        if (str == nullptr) {
-            return;
-        }
-        append(str, std::char_traits<char>::length(str));
-    }
-
-    void append(const char* p, std::size_t n)
-    {
-        if (n == 0U || p == nullptr) {
-            return;
-        }
-        m_buffer.insert(m_buffer.end() - 1, p, p + static_cast<std::ptrdiff_t>(n));
-    }
-
-    void append(std::size_t n, char ch)
-    {
-        m_buffer.insert(m_buffer.end() - 1, n, ch);
-    }
-
-    void erase(std::size_t pos, std::size_t count)
-    {
-        if (count == 0U) {
-            return;
-        }
-        const std::size_t actual = std::min(count, size() - pos);
-        m_buffer.erase(m_buffer.begin() + static_cast<std::ptrdiff_t>(pos),
-                       m_buffer.begin() + static_cast<std::ptrdiff_t>(pos + actual));
-    }
-
-    void erase(iterator first, iterator last)
-    {
-        m_buffer.erase(first, last);
-    }
-
-    void replace(std::size_t pos, std::size_t count, const char* s, std::size_t n)
-    {
-        const std::size_t actual = std::min(count, size() - pos);
-        m_buffer.erase(m_buffer.begin() + static_cast<std::ptrdiff_t>(pos),
-                       m_buffer.begin() + static_cast<std::ptrdiff_t>(pos + actual));
-        m_buffer.insert(m_buffer.begin() + static_cast<std::ptrdiff_t>(pos), s, s + static_cast<std::ptrdiff_t>(n));
-    }
-
-    std::size_t find(mc::string_view needle, std::size_t pos) const
-    {
-        return view().find(needle, pos);
-    }
-};
-
-struct string_storage : mc::shared_base {
-    mc::quark::id_type m_quark_id{0U};
-    string_bytes       bytes;
-
-    string_storage() = default;
-
-    explicit string_storage(mc::string_view view) : bytes(view)
-    {}
-
-    explicit string_storage(std::size_t n, char ch) : bytes(n, ch)
-    {}
-
-    explicit string_storage(mc::quark::id_type id) noexcept : m_quark_id{id}
-    {}
-
-    bool is_quark() const noexcept
-    {
-        return m_quark_id != 0U;
-    }
-
-    mc::string_view view_const() const noexcept
-    {
-        if (is_quark()) {
-            return mc::quark{m_quark_id}.view();
-        }
-        return bytes.view();
-    }
-
-    const char* data_const() const noexcept
-    {
-        if (is_quark()) {
-            return mc::quark{m_quark_id}.c_str();
-        }
-        return bytes.data();
-    }
-
-    std::size_t size_const() const noexcept
-    {
-        if (is_quark()) {
-            return mc::quark{m_quark_id}.size();
-        }
-        return bytes.size();
-    }
-
-    bool empty_const() const noexcept
-    {
-        return size_const() == 0U;
-    }
-
-    std::size_t capacity_const() const noexcept
-    {
-        if (is_quark()) {
-            return mc::quark{m_quark_id}.size();
-        }
-        return bytes.capacity();
-    }
-};
+    return bytes.capacity();
+}
 
 struct string_mutable_impl {
     static string_bytes& mutable_storage(string& s, std::size_t min_capacity = 0U);
+
+    static const string_storage*                  peek_storage(const string& s) noexcept;
+    static mc::shared_ptr<string_storage>&        storage_slot(string& s);
 };
 
 } // namespace detail
-
-// 显式实例化定义：string_storage 在此处为完整类型，
-// 与 string.h 中的 extern template 声明配对。
-template class MC_API mc::memory::shared_ptr<mc::detail::string_storage,
-                                      mc::detail::string_storage*>;
 
 namespace mc::detail {
 
 string_bytes& string_mutable_impl::mutable_storage(string& s, std::size_t min_capacity)
 {
-    if (!s.m_storage) {
-        s.m_storage = mc::make_shared<string_storage>();
-    } else if (s.m_storage->is_quark()) {
-        s.m_storage = mc::make_shared<string_storage>(s.m_storage->view_const());
-    } else if (s.m_storage->ref_count() > 1U) {
-        s.m_storage = mc::make_shared<string_storage>(s.m_storage->bytes.view());
+    auto& slot = storage_slot(s);
+    if (!slot) {
+        slot = mc::make_shared<string_storage>();
+    } else if (slot->is_quark()) {
+        slot = mc::make_shared<string_storage>(slot->view_const());
+    } else if (slot->ref_count() > 1U) {
+        slot = mc::make_shared<string_storage>(slot->bytes.view());
     }
 
-    string_bytes& bytes = s.m_storage->bytes;
+    string_bytes& bytes = slot->bytes;
     if (min_capacity > bytes.capacity()) {
         bytes.reserve(min_capacity);
     }
     return bytes;
 }
 
+const string_storage* string_mutable_impl::peek_storage(const string& s) noexcept
+{
+    if (!s.m_impl) {
+        return nullptr;
+    }
+    return s.m_impl->storage.get();
+}
+
+mc::shared_ptr<string_storage>& string_mutable_impl::storage_slot(string& s)
+{
+    if (!s.m_impl) {
+        s.m_impl = std::make_unique<string::impl>();
+    }
+    return s.m_impl->storage;
+}
+
 } // namespace mc::detail
 
 namespace mc {
 
+// 默认构造是 noexcept + 零开销：``unique_ptr<impl>()`` 直接生成 nullptr，
+// 不做任何堆分配。空字符串继续以 ``m_impl == nullptr`` 表示。
 string::string() noexcept = default;
 
-string::string(const string& other) noexcept = default;
+// 析构、移动、移动赋值都需要在本文件定义——此时 ``string::impl`` 是
+// 完整类型，unique_ptr 的 delete / 覆盖旧指针才能编过。
+string::~string() = default;
 
 string::string(string&& other) noexcept = default;
 
-string& string::operator=(const string& other) noexcept = default;
-
 string& string::operator=(string&& other) noexcept = default;
 
-string::~string() = default;
+// 拷贝构造/赋值：deep-copy impl，但 impl 的默认拷贝只是把内部
+// ``shared_ptr<string_storage>`` 引用计数 +1，底层 storage 依然共享——
+// 语义与 pimpl 化前的 ``shared_ptr<storage>`` 复制完全等价。
+//
+// 注意 noexcept：``make_unique<impl>`` 在 OOM 时会抛 ``bad_alloc``；
+// 保留 noexcept 意味着此情况会触发 ``std::terminate``，与 mcbase 其他
+// 热路径的 OOM 处理策略保持一致（性能关键代码不做 OOM 恢复）。
+string::string(const string& other) noexcept
+    : m_impl(other.m_impl ? std::make_unique<impl>(*other.m_impl) : nullptr)
+{}
+
+string& string::operator=(const string& other) noexcept
+{
+    if (this != &other) {
+        m_impl = other.m_impl ? std::make_unique<impl>(*other.m_impl) : nullptr;
+    }
+    return *this;
+}
 
 string::string(mc::string_view view)
 {
     if (view.empty()) {
         return;
     }
-    m_storage = mc::make_shared<detail::string_storage>(view);
+    detail::string_mutable_impl::storage_slot(*this) = mc::make_shared<detail::string_storage>(view);
 }
 
 string::string(const char* first, const char* last)
@@ -393,17 +434,20 @@ string::string(std::size_t count, char ch)
     if (count == 0U) {
         return;
     }
-    m_storage = mc::make_shared<detail::string_storage>(count, ch);
+    detail::string_mutable_impl::storage_slot(*this) =
+        mc::make_shared<detail::string_storage>(count, ch);
 }
 
 std::size_t string::size() const noexcept
 {
-    return m_storage ? m_storage->size_const() : 0U;
+    const auto* storage = detail::string_mutable_impl::peek_storage(*this);
+    return storage ? storage->size_const() : 0U;
 }
 
 std::size_t string::capacity() const noexcept
 {
-    return m_storage ? m_storage->capacity_const() : 0U;
+    const auto* storage = detail::string_mutable_impl::peek_storage(*this);
+    return storage ? storage->capacity_const() : 0U;
 }
 
 bool string::empty() const noexcept
@@ -418,12 +462,14 @@ char* string::data() noexcept
 
 const char* string::data() const noexcept
 {
-    return m_storage ? m_storage->data_const() : "";
+    const auto* storage = detail::string_mutable_impl::peek_storage(*this);
+    return storage ? storage->data_const() : "";
 }
 
 mc::string_view string::view() const noexcept
 {
-    return m_storage ? m_storage->view_const() : mc::string_view();
+    const auto* storage = detail::string_mutable_impl::peek_storage(*this);
+    return storage ? storage->view_const() : mc::string_view();
 }
 
 string string::substr(size_type pos, size_type count) const
@@ -513,8 +559,9 @@ int string::compare(size_type pos, size_type count, const char* str, size_type c
 std::size_t string::hash() const noexcept
 {
     // quark 模式直接复用缓存 hash；heap 模式现算。两条路径同算法（mc::string_hash）
-    if (m_storage && m_storage->is_quark()) {
-        return mc::quark{m_storage->m_quark_id}.hash();
+    const auto* storage = detail::string_mutable_impl::peek_storage(*this);
+    if (storage && storage->is_quark()) {
+        return mc::quark{storage->m_quark_id}.hash();
     }
     const auto v = view();
     return mc::string_hash(v.data(), v.size());
@@ -522,13 +569,16 @@ std::size_t string::hash() const noexcept
 
 void string::swap(string& other) noexcept
 {
-    m_storage.swap(other.m_storage);
+    // swap 整个 pimpl——impl 内部的 shared_ptr 随之互换。这与改造前的
+    // ``m_storage.swap(other.m_storage)`` 在可见语义上等价。
+    m_impl.swap(other.m_impl);
 }
 
 string::string(quark q) noexcept
 {
     if (q.valid()) {
-        m_storage = mc::make_shared<detail::string_storage>(q.id());
+        detail::string_mutable_impl::storage_slot(*this) =
+            mc::make_shared<detail::string_storage>(q.id());
     }
 }
 
@@ -539,13 +589,15 @@ string string::from_quark(quark q) noexcept
 
 bool string::is_quark() const noexcept
 {
-    return m_storage && m_storage->is_quark();
+    const auto* storage = detail::string_mutable_impl::peek_storage(*this);
+    return storage && storage->is_quark();
 }
 
 quark string::to_quark() const noexcept
 {
-    if (is_quark()) {
-        return quark{m_storage->m_quark_id};
+    if (const auto* storage = detail::string_mutable_impl::peek_storage(*this);
+        storage && storage->is_quark()) {
+        return quark{storage->m_quark_id};
     }
     return quark::try_from(view());
 }
@@ -625,14 +677,15 @@ char* string::end() noexcept
 
 void string::clear() noexcept
 {
-    if (!m_storage) {
+    auto& slot = detail::string_mutable_impl::storage_slot(*this);
+    if (!slot) {
         return;
     }
-    if (m_storage->is_quark() || m_storage->ref_count() > 1U) {
-        m_storage = mc::make_shared<detail::string_storage>();
+    if (slot->is_quark() || slot->ref_count() > 1U) {
+        slot = mc::make_shared<detail::string_storage>();
         return;
     }
-    m_storage->bytes.clear();
+    slot->bytes.clear();
 }
 
 void string::push_back(char c)
@@ -752,7 +805,7 @@ void string::reserve(std::size_t new_capacity)
 
 void string::shrink_to_fit()
 {
-    if (!m_storage) {
+    if (detail::string_mutable_impl::peek_storage(*this) == nullptr) {
         return;
     }
     detail::string_mutable_impl::mutable_storage(*this).shrink_to_fit();
@@ -1153,6 +1206,40 @@ mc::string_view prepare_number_string(mc::string_view s, int radix, char* buffer
     }
     buffer[s.size()] = '\0';
     return mc::string_view(buffer, s.size());
+}
+
+to_chars_result to_chars_double(char* first, char* last, double value) noexcept
+{
+    if (first >= last) {
+        return { first, std::errc::value_too_large };
+    }
+
+#ifdef MC_STRING_NEED_TO_CHARS_FALLBACK
+    const auto cap = static_cast<std::size_t>(last - first);
+
+    auto try_prec = [&](int precision) -> int {
+        return std::snprintf(first, cap, "%.*g", precision, value);
+    };
+
+    int written = try_prec(15);
+    if (written > 0 && static_cast<std::size_t>(written) < cap) {
+        char*        endp   = nullptr;
+        const double parsed = std::strtod(first, &endp);
+        if (parsed == value) {
+            return { first + written, std::errc{} };
+        }
+    }
+
+    written = try_prec(17);
+    if (written > 0 && static_cast<std::size_t>(written) < cap) {
+        return { first + written, std::errc{} };
+    }
+
+    return { first, std::errc::value_too_large };
+#else
+    const auto result = std::to_chars(first, last, value);
+    return { result.ptr, result.ec };
+#endif
 }
 
 } // namespace detail

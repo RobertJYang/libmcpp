@@ -260,6 +260,8 @@ struct data_t : public mc::enable_shared_from_this<data_t> {
     void         invalidate_order_cache() const;
     std::size_t  index_bucket_count() const;
     std::size_t  order_cache_size() const;
+
+    void clear_index() noexcept;
 };
 
 } // namespace mc::dict_types

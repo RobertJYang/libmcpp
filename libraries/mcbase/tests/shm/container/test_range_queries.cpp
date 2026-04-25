@@ -55,9 +55,8 @@ protected:
 
         auto* mem = m_alloc.allocate(sizeof(set_control), alignof(set_control));
         ASSERT_NE(mem, nullptr);
-        m_control  = new (mem) set_control();
-        const auto tag = static_cast<std::uint32_t>(static_cast<std::byte*>(mem)
-                                                    - static_cast<std::byte*>(m_buffer));
+        m_control      = new (mem) set_control();
+        const auto tag = static_cast<std::uint32_t>(static_cast<std::byte*>(mem) - static_cast<std::byte*>(m_buffer));
         set<int>::init(*m_control, tag);
     }
 
@@ -70,10 +69,12 @@ protected:
 
     void fill_with(set<int>& s, std::initializer_list<int> xs)
     {
-        for (int v : xs) s.insert(v);
+        for (int v : xs) {
+            s.insert(v);
+        }
     }
 
-    void*         m_buffer  = nullptr;
+    void*         m_buffer = nullptr;
     shm_allocator m_alloc;
     set_control*  m_control = nullptr;
 };
@@ -154,15 +155,19 @@ TEST_F(shm_set_range_fixture, equal_range_on_existing_key_is_single_element)
     ASSERT_TRUE(hi != s.cend());
     EXPECT_EQ(*hi, 5);
 
-    int  count = 0;
-    for (auto it = lo; it != hi; ++it) ++count;
+    int count = 0;
+    for (auto it = lo; it != hi; ++it) {
+        ++count;
+    }
     EXPECT_EQ(count, 1);
 }
 
 TEST_F(shm_set_range_fixture, iterate_range_lower_to_upper)
 {
     set<int> s(*m_control, m_alloc);
-    for (int i = 0; i < 100; ++i) s.insert(i);
+    for (int i = 0; i < 100; ++i) {
+        s.insert(i);
+    }
 
     // [30, 50)
     std::vector<int> collected;
@@ -177,7 +182,7 @@ TEST_F(shm_set_range_fixture, iterate_range_lower_to_upper)
 
 TEST_F(shm_set_range_fixture, random_vs_std_set_consistency)
 {
-    set<int> s(*m_control, m_alloc);
+    set<int>      s(*m_control, m_alloc);
     std::set<int> ref;
     std::mt19937  rng(12345);
 
@@ -189,7 +194,7 @@ TEST_F(shm_set_range_fixture, random_vs_std_set_consistency)
     }
 
     for (int q = 0; q < 100; ++q) {
-        int key = static_cast<int>(rng() % 6000);
+        int  key    = static_cast<int>(rng() % 6000);
         auto ref_lb = ref.lower_bound(key);
         auto shm_lb = s.lower_bound(key);
         if (ref_lb == ref.end()) {
@@ -222,7 +227,7 @@ protected:
         std::random_device rd;
         std::mt19937       rng(rd());
         char               name[128];
-        std::snprintf(name, sizeof(name), "mc_shm_set_range_%d_%u", ::getpid(), rng());
+        std::snprintf(name, sizeof(name), "mc_shm_set_range_%d_%lu", ::getpid(), static_cast<unsigned long>(rng()));
 
         shm_region_options opts;
         opts.segment_name  = mc::string(name);
@@ -236,9 +241,9 @@ protected:
 
         auto* mem = m_alloc.allocate(sizeof(set_control), alignof(set_control));
         ASSERT_NE(mem, nullptr);
-        m_control  = new (mem) set_control();
-        const auto tag = static_cast<std::uint32_t>(
-            static_cast<std::byte*>(mem) - static_cast<std::byte*>(m_region.user_base()));
+        m_control = new (mem) set_control();
+        const auto tag =
+            static_cast<std::uint32_t>(static_cast<std::byte*>(mem) - static_cast<std::byte*>(m_region.user_base()));
         set<string, string_less>::init(*m_control, tag);
     }
 
@@ -262,7 +267,9 @@ protected:
 TEST_F(shm_set_string_range_fixture, prefix_range_via_lower_upper_bound)
 {
     set<string, string_less> s(*m_control, m_alloc);
-    auto ins = [&](std::string_view sv) { s.insert(string::create(m_alloc, sv)); };
+    auto                     ins = [&](std::string_view sv) {
+        s.insert(string::create(m_alloc, sv));
+    };
     ins("/org/a/1");
     ins("/org/a/2");
     ins("/org/a/3");
@@ -271,8 +278,7 @@ TEST_F(shm_set_string_range_fixture, prefix_range_via_lower_upper_bound)
 
     // [lower_bound("/org/a/"), lower_bound("/org/b/"))
     std::vector<std::string> collected;
-    for (auto it = s.lower_bound(std::string_view{"/org/a/"});
-         it != s.lower_bound(std::string_view{"/org/b/"}); ++it) {
+    for (auto it = s.lower_bound(std::string_view{"/org/a/"}); it != s.lower_bound(std::string_view{"/org/b/"}); ++it) {
         collected.push_back(std::string((*it).std_view()));
     }
     ASSERT_EQ(collected.size(), 3U);
@@ -313,9 +319,8 @@ protected:
 
         auto* mem = m_alloc.allocate(sizeof(map_control), alignof(map_control));
         ASSERT_NE(mem, nullptr);
-        m_control  = new (mem) map_control();
-        const auto tag = static_cast<std::uint32_t>(static_cast<std::byte*>(mem)
-                                                    - static_cast<std::byte*>(m_buffer));
+        m_control      = new (mem) map_control();
+        const auto tag = static_cast<std::uint32_t>(static_cast<std::byte*>(mem) - static_cast<std::byte*>(m_buffer));
         map<int, int>::init(*m_control, tag);
     }
 
@@ -326,7 +331,7 @@ protected:
         std::free(m_buffer);
     }
 
-    void*         m_buffer  = nullptr;
+    void*         m_buffer = nullptr;
     shm_allocator m_alloc;
     map_control*  m_control = nullptr;
 };
@@ -346,7 +351,9 @@ TEST_F(shm_map_range_fixture, lower_upper_on_empty_returns_end)
 TEST_F(shm_map_range_fixture, lower_bound_and_upper_bound_behavior)
 {
     map<int, int> m(*m_control, m_alloc);
-    for (int k = 0; k < 10; k += 2) m.try_emplace(k, k * 10);
+    for (int k = 0; k < 10; k += 2) {
+        m.try_emplace(k, k * 10);
+    }
 
     auto lb = m.lower_bound(4);
     ASSERT_TRUE(lb != m.cend());
@@ -382,7 +389,9 @@ TEST_F(shm_map_range_fixture, equal_range_missing_key_is_empty_range)
 TEST_F(shm_map_range_fixture, iterate_sub_range_and_mutate_values)
 {
     map<int, int> m(*m_control, m_alloc);
-    for (int k = 0; k < 50; ++k) m.try_emplace(k, 0);
+    for (int k = 0; k < 50; ++k) {
+        m.try_emplace(k, 0);
+    }
 
     auto lb = m.lower_bound(10);
     auto ub = m.lower_bound(20);
@@ -419,7 +428,7 @@ TEST_F(shm_map_range_fixture, random_vs_std_map_consistency)
     }
 
     for (int q = 0; q < 200; ++q) {
-        int key = static_cast<int>(rng() % 3500);
+        int  key    = static_cast<int>(rng() % 3500);
         auto ref_lb = ref.lower_bound(key);
         auto shm_lb = m.lower_bound(key);
         if (ref_lb == ref.end()) {
@@ -443,7 +452,7 @@ protected:
         std::random_device rd;
         std::mt19937       rng(rd());
         char               name[128];
-        std::snprintf(name, sizeof(name), "mc_shm_map_range_%d_%u", ::getpid(), rng());
+        std::snprintf(name, sizeof(name), "mc_shm_map_range_%d_%lu", ::getpid(), static_cast<unsigned long>(rng()));
 
         shm_region_options opts;
         opts.segment_name  = mc::string(name);
@@ -457,9 +466,9 @@ protected:
 
         auto* mem = m_alloc.allocate(sizeof(map_control), alignof(map_control));
         ASSERT_NE(mem, nullptr);
-        m_control  = new (mem) map_control();
-        const auto tag = static_cast<std::uint32_t>(
-            static_cast<std::byte*>(mem) - static_cast<std::byte*>(m_region.user_base()));
+        m_control = new (mem) map_control();
+        const auto tag =
+            static_cast<std::uint32_t>(static_cast<std::byte*>(mem) - static_cast<std::byte*>(m_region.user_base()));
         map<string, int, string_less>::init(*m_control, tag);
     }
 
@@ -483,7 +492,7 @@ protected:
 TEST_F(shm_map_string_range_fixture, prefix_scan_via_lower_bound_probe)
 {
     map<string, int, string_less> m(*m_control, m_alloc);
-    auto put = [&](std::string_view k, int v) {
+    auto                          put = [&](std::string_view k, int v) {
         m.try_emplace(string::create(m_alloc, k), std::move(v));
     };
     put("/org/a/1", 1);
@@ -492,8 +501,7 @@ TEST_F(shm_map_string_range_fixture, prefix_scan_via_lower_bound_probe)
     put("/org/c/1", 100);
 
     std::vector<std::string> prefix_scan;
-    for (auto it = m.lower_bound(std::string_view{"/org/a/"});
-         it != m.lower_bound(std::string_view{"/org/b/"}); ++it) {
+    for (auto it = m.lower_bound(std::string_view{"/org/a/"}); it != m.lower_bound(std::string_view{"/org/b/"}); ++it) {
         prefix_scan.push_back(std::string((*it).key->std_view()));
     }
     ASSERT_EQ(prefix_scan.size(), 2U);
@@ -516,6 +524,8 @@ TEST_F(shm_map_string_range_fixture, equal_range_on_string_key)
     EXPECT_EQ((*hi).key->std_view(), std::string_view{"gamma"});
 
     int distance = 0;
-    for (auto it = lo; it != hi; ++it) ++distance;
+    for (auto it = lo; it != hi; ++it) {
+        ++distance;
+    }
     EXPECT_EQ(distance, 1);
 }

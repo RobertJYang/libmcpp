@@ -40,8 +40,14 @@ struct user : mc::object_base {
     {
         set_object_id(id);
     }
-    void set_handle(fake_shm_record* sh) noexcept { m_handle = sh; }
-    fake_shm_record* handle() const noexcept { return m_handle; }
+    void set_handle(fake_shm_record* sh) noexcept
+    {
+        m_handle = sh;
+    }
+    fake_shm_record* handle() const noexcept
+    {
+        return m_handle;
+    }
 
     std::string      m_name;
     fake_shm_record* m_handle = nullptr;
@@ -56,14 +62,14 @@ protected:
         std::random_device rd;
         std::mt19937       rng(rd());
         char               nm[128];
-        std::snprintf(nm, sizeof(nm), "mc_shm_engine_%d_%u", ::getpid(), rng());
+        std::snprintf(nm, sizeof(nm), "mc_shm_engine_%d_%lu", ::getpid(), static_cast<unsigned long>(rng()));
 
         mc::shm::runtime_options opts;
-        opts.region_name      = mc::string(nm);
-        opts.region_size      = 4 * 1024 * 1024;
-        opts.root_capacity    = 32;
-        opts.manager_process  = true;
-        m_runtime             = std::make_unique<mc::shm::shm_runtime>(opts);
+        opts.region_name     = mc::string(nm);
+        opts.region_size     = 4 * 1024 * 1024;
+        opts.root_capacity   = 32;
+        opts.manager_process = true;
+        m_runtime            = std::make_unique<mc::shm::shm_runtime>(opts);
         ASSERT_TRUE(m_runtime->is_valid());
 
         m_alloc = mc::db::shm_engine_alloc{*m_runtime, std::string(nm) + "_table"};
@@ -103,11 +109,15 @@ protected:
 
     void install_default_extractor(engine_t& e)
     {
-        e.set_shm_handle_extractor(
-            [](const user& u) -> fake_shm_record* { return u.handle(); });
+        e.set_shm_handle_extractor([](const user& u) -> fake_shm_record* {
+            return u.handle();
+        });
     }
 
-    mc::shm::shm_allocator _shm_arena() const { return m_runtime->user_arena(); }
+    mc::shm::shm_allocator _shm_arena() const
+    {
+        return m_runtime->user_arena();
+    }
 
     std::unique_ptr<mc::shm::shm_runtime> m_runtime;
     mc::db::shm_engine_alloc              m_alloc;

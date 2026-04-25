@@ -45,7 +45,7 @@ protected:
         std::random_device rd;
         std::mt19937       rng(rd());
         char               name[128];
-        std::snprintf(name, sizeof(name), "mc_set_str_%d_%u", ::getpid(), rng());
+        std::snprintf(name, sizeof(name), "mc_set_str_%d_%lu", ::getpid(), static_cast<unsigned long>(rng()));
 
         shm_region_options opts;
         opts.segment_name  = mc::string(name);
@@ -61,8 +61,8 @@ protected:
         ASSERT_NE(mem, nullptr);
         m_control = new (mem) set_control();
 
-        auto* user_base = static_cast<std::byte*>(m_region.user_base());
-        const auto tag  = static_cast<std::uint32_t>(static_cast<std::byte*>(mem) - user_base);
+        auto*      user_base = static_cast<std::byte*>(m_region.user_base());
+        const auto tag       = static_cast<std::uint32_t>(static_cast<std::byte*>(mem) - user_base);
         set<string, string_less>::init(*m_control, tag);
     }
 
@@ -133,19 +133,15 @@ TEST_F(shm_set_string_fixture, insert_duplicate_returns_existing)
 
 TEST_F(shm_set_string_fixture, ordered_by_lexicographic)
 {
-    set<string, string_less> s(*m_control, m_alloc);
+    set<string, string_less>       s(*m_control, m_alloc);
     const std::vector<std::string> input = {
-        "/xyz/openbmc/a/b",
-        "/xyz/openbmc/a",
-        "/xyz/openbmc/c",
-        "/a",
-        "/zzz",
+        "/xyz/openbmc/a/b", "/xyz/openbmc/a", "/xyz/openbmc/c", "/a", "/zzz",
     };
     for (const auto& p : input) {
         s.insert(string::create(m_alloc, p));
     }
     EXPECT_EQ(input.size(), s.size());
-    auto values = collect(s);
+    auto                     values = collect(s);
     std::vector<std::string> sorted = input;
     std::sort(sorted.begin(), sorted.end());
     EXPECT_EQ(sorted, values);
@@ -223,7 +219,9 @@ TEST_F(shm_set_string_fixture, iteration_over_views)
         seen.emplace_back(k.std_view());
     }
     const std::vector<std::string> expected = {
-        "/xyz/obj/0", "/xyz/obj/1", "/xyz/obj/2",
+        "/xyz/obj/0",
+        "/xyz/obj/1",
+        "/xyz/obj/2",
     };
     EXPECT_EQ(expected, seen);
 }
@@ -238,7 +236,7 @@ TEST_F(shm_set_string_fixture, stress_mixed_insert_erase)
         const int op = rng() % 3;
         if (op != 0 || live.empty()) {
             char buf[32];
-            std::snprintf(buf, sizeof(buf), "/obj/%05u", rng() % 1000);
+            std::snprintf(buf, sizeof(buf), "/obj/%05lu", static_cast<unsigned long>(rng() % 1000));
             const std::string key = buf;
             auto [kp, ins]        = s.insert(string::create(m_alloc, key));
             if (ins) {

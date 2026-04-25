@@ -40,7 +40,6 @@ zlib_dep = dependency('zlib', required: true)
 dep_arr = [
   mcbase_dep,
   boost_dep,
-  boost_program_options_dep,
   dbus_dep,
   glib_dep,
   mcdbus_dep,

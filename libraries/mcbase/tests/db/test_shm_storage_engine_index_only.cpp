@@ -38,7 +38,7 @@ protected:
         std::random_device rd;
         std::mt19937       rng(rd());
         char               nm[128];
-        std::snprintf(nm, sizeof(nm), "mc_shm_idx_only_%d_%u", ::getpid(), rng());
+        std::snprintf(nm, sizeof(nm), "mc_shm_idx_only_%d_%lu", ::getpid(), static_cast<unsigned long>(rng()));
 
         mc::shm::runtime_options opts;
         opts.region_name     = mc::string(nm);
@@ -88,8 +88,8 @@ TEST_F(index_only_fixture, default_construct_is_unbound_and_throws_on_use)
 
 TEST_F(index_only_fixture, put_and_find_returns_pointer)
 {
-    engine_t   e{m_alloc, mc::string_view("tbl")};
-    auto*      sh = make_record(42U);
+    engine_t e{m_alloc, mc::string_view("tbl")};
+    auto*    sh          = make_record(42U);
     auto [old, replaced] = e.put(0U, std::string_view("k:1"), sh);
     EXPECT_EQ(nullptr, old);
     EXPECT_FALSE(replaced);

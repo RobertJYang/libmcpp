@@ -16,6 +16,7 @@
 #include <cstddef>
 #include <shared_mutex>
 #include <vector>
+#include <mutex>
 
 namespace mc::shm::detail {
 

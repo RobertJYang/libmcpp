@@ -18,7 +18,7 @@ namespace mc::app {
 namespace {
 
 struct global_service_registration {
-    service_descriptor              descriptor;
+    service_descriptor               descriptor;
     detail::global_service_registrar registrar{nullptr};
 };
 
@@ -33,7 +33,8 @@ public:
     void register_descriptor(service_descriptor descriptor, detail::global_service_registrar registrar)
     {
         std::lock_guard<std::mutex> lock(m_mutex);
-        m_descriptors.insert_or_assign(std::string(descriptor.type_name),
+        auto                        type_name = std::string(descriptor.type_name);
+        m_descriptors.insert_or_assign(std::move(type_name),
                                        global_service_registration{std::move(descriptor), registrar});
     }
 
@@ -42,14 +43,15 @@ public:
         std::lock_guard<std::mutex> lock(m_mutex);
         for (const auto& entry : m_descriptors) {
             if (entry.second.registrar != nullptr) {
-                entry.second.registrar(registry, entry.second.descriptor.type_name, entry.second.descriptor.execution_model,
+                entry.second.registrar(registry, entry.second.descriptor.type_name,
+                                       entry.second.descriptor.execution_model,
                                        entry.second.descriptor.enabled_by_default);
             }
         }
     }
 
 private:
-    mutable std::mutex                                         m_mutex;
+    mutable std::mutex                                           m_mutex;
     std::unordered_map<std::string, global_service_registration> m_descriptors;
 };
 
@@ -58,9 +60,9 @@ private:
 void service_registry::register_descriptor(service_descriptor descriptor, service_creator create,
                                            service_property_validator validate_properties)
 {
-    m_descriptors.insert_or_assign(
-        std::string(descriptor.type_name),
-        service_registration{std::move(descriptor), std::move(create), std::move(validate_properties)});
+    auto type_name = std::string(descriptor.type_name);
+    m_descriptors.insert_or_assign(std::move(type_name), service_registration{std::move(descriptor), std::move(create),
+                                                                              std::move(validate_properties)});
 }
 
 bool service_registry::has_service(mc::string_view type_name) const

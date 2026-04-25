@@ -11,9 +11,9 @@
  */
 
 #include <mc/metric/exporter/prometheus.h>
+#include <mc/string_utils.h>
 
 #include <algorithm>
-#include <charconv>
 #include <cmath>
 #include <cstdio>
 #include <unordered_map>
@@ -112,7 +112,7 @@ void _append_double(std::string& out, double v)
         return;
     }
     char       buf[32];
-    const auto r = std::to_chars(buf, buf + sizeof(buf), v);
+    const auto r = mc::strings::detail::to_chars_double(buf, buf + sizeof(buf), v);
     out.append(buf, r.ptr);
 }
 
@@ -204,7 +204,8 @@ void _render_histogram(std::string& out, const std::string& name, const sample& 
         if (std::isinf(b.upper_bound)) {
             le_str = "+Inf";
         } else {
-            const auto r = std::to_chars(bound_buf, bound_buf + sizeof(bound_buf), b.upper_bound);
+            const auto r = mc::strings::detail::to_chars_double(bound_buf, bound_buf + sizeof(bound_buf),
+                                                                b.upper_bound);
             le_str.assign(bound_buf, r.ptr);
         }
         out.append(name);

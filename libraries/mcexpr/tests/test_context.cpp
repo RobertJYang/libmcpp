@@ -91,8 +91,8 @@ MC_REFLECT(tests::expr::context_test::TestInterfaceForInvoke, ((add, "add")))
 MC_REFLECT(tests::expr::context_test::TestObjectForVariable, ((m_iface, "iface")))
 MC_REFLECT(tests::expr::context_test::TestObjectForFunction, ((m_iface, "iface")))
 MC_REFLECT(tests::expr::context_test::TestObjectForInvoke, ((m_iface, "iface")))
-MC_REFLECT(tests::expr::context_test::TestObjectForRegister, ())
-MC_REFLECT(tests::expr::context_test::TestObjectForGetObject, ())
+MC_REFLECT(tests::expr::context_test::TestObjectForRegister)
+MC_REFLECT(tests::expr::context_test::TestObjectForGetObject)
 
 namespace {
 class expr_context_test : public ::testing::Test {
@@ -613,15 +613,9 @@ TEST_F(expr_context_test, ContextBaseSelfMoveAssignment)
     mc::expr::context_base base1;
     mc::expr::context_base base2;
 
-    // 测试自移动赋值（抑制编译器自移动告警）
-#if defined(__clang__)
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wself-move"
-#endif
-    base1 = std::move(base1);
-#if defined(__clang__)
-#pragma clang diagnostic pop
-#endif
+    // 通过别名触发自移动路径，避免编译器将其视为可疑的同名自移动表达式。
+    auto& base_alias = base1;
+    base1            = std::move(base_alias);
     EXPECT_EQ(base1.get_parent(), nullptr);
 
     // 测试正常移动赋值
@@ -667,15 +661,9 @@ TEST_F(expr_context_test, ContextSelfMoveAssignment)
     ctx1.register_variable("x", 10);
     ctx2.register_variable("y", 20);
 
-    // 测试自移动赋值（抑制编译器自移动告警）
-#if defined(__clang__)
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wself-move"
-#endif
-    ctx1 = std::move(ctx1);
-#if defined(__clang__)
-#pragma clang diagnostic pop
-#endif
+    // 通过别名触发自移动路径，避免编译器将其视为可疑的同名自移动表达式。
+    auto& ctx_alias = ctx1;
+    ctx1            = std::move(ctx_alias);
     EXPECT_EQ(ctx1.get_variable("x"), 10);
 
     // 测试正常移动赋值

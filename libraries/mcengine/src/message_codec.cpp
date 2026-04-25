@@ -26,8 +26,8 @@ MC_REFLECT(mc::engine::method_return_payload, (value)(signature))
 MC_REFLECT(mc::engine::error_payload, (name)(message))
 MC_REFLECT(mc::engine::signal_payload, (signature)(args))
 MC_REFLECT(mc::engine::opaque_payload, (id)(type)(wire_bytes))
-MC_REFLECT(mc::engine::message_header, ())
-MC_REFLECT(mc::engine::message, ())
+MC_REFLECT(mc::engine::message_header)
+MC_REFLECT(mc::engine::message)
 
 namespace mc::engine {
 namespace {

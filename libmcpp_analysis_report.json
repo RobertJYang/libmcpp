@@ -353,7 +353,7 @@
     "external": {
       "boost": {
         "version": "1.66+",
-        "usage": ["asio", "preprocessor", "program_options"]
+        "usage": ["asio", "preprocessor"]
       },
       "gtest": {
         "version": "pkg-config",

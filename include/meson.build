@@ -10,8 +10,5 @@ install_headers(
 )
 
 if build_tests
-  install_subdir(
-    'test_utilities',
-    install_dir: get_option('includedir'),
-  )
+  install_emptydir(join_paths(get_option('includedir'), 'test_utilities'))
 endif

@@ -84,7 +84,7 @@ mq_queue::mq_queue(const mq_queue_options& options) : m_impl(std::make_shared<im
         m_impl->max_payload              = requested_payload;
         for (std::size_t i = 0; i < slot_count; ++i) {
             auto& slot = m_impl->slot_at(i);
-            std::memset(&slot, 0, m_impl->slot_stride);
+            std::memset(static_cast<void*>(&slot), 0, m_impl->slot_stride);
             slot.sequence.store(i, std::memory_order_release);
         }
     } else if (m_impl->header->magic.load(std::memory_order_acquire) != queue_magic ||

@@ -15,6 +15,7 @@ build_tests = get_option('tests')
 enable_coverage = get_option('enable_coverage')
 use_shm = get_option('use_shm')
 with_benches = get_option('with_benches')
+cpp_compiler = meson.get_compiler('cpp')
 
 if use_shm
   add_project_arguments('-DMCENGINE_USE_SHM=1', language: 'cpp')
@@ -38,7 +39,10 @@ incdir = include_directories('include')
 srcdir = include_directories('src')
 mcengine_test_incdir = include_directories('include', 'tests')
 
-boost_dep = dependency('boost', method: 'pkg-config', required: true)
+if not cpp_compiler.has_header('boost/version.hpp', required: true)
+  error('Boost headers not found')
+endif
+boost_dep = declare_dependency()
 
 mcbase_dep = dependency(
   'mcbase',

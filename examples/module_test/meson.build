@@ -11,6 +11,6 @@ executable(
     'module_test_example',
     ['main.cpp'],
     include_directories: example_inc_dirs,
-    dependencies: [boost_dep, boost_program_options_dep, dbus_dep, glib_dep, libmcpp_dep],
+    dependencies: [boost_dep, dbus_dep, glib_dep, libmcpp_dep],
     install: false,
 )

@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
+#include <limits>
 #include <new>
 
 #include <mc/shm/container/journal.h>
@@ -116,6 +117,19 @@ void release_slot_byte_strings(shm_allocator& alloc, property_slot& slot) noexce
         shm_byte_string_destroy(alloc, slot.v_blob.get());
         slot.v_blob = nullptr;
     }
+}
+
+void reset_property_slot(property_slot& slot) noexcept
+{
+    slot.key_hash = 0;
+    slot._pad0    = 0;
+    slot.key      = nullptr;
+    slot.type     = property_type_tag::null;
+    slot._pad1[0] = 0;
+    slot._pad1[1] = 0;
+    slot._pad1[2] = 0;
+    slot._pad2    = 0;
+    slot.v_int64  = 0;
 }
 
 // 重算并写入 property_slab.crc32
@@ -232,11 +246,12 @@ void clear_child_slab_for_handoff(child_slab& slab) noexcept
 std::uint16_t slab_grow_capacity(std::uint16_t current, std::uint16_t needed) noexcept
 {
     constexpr std::uint16_t k_min = 4U;
+    constexpr auto          k_max = std::numeric_limits<std::uint16_t>::max();
     std::uint32_t           cap   = current == 0U ? k_min : current;
     while (cap < needed) {
         const std::uint32_t doubled = cap * 2U;
-        if (doubled > 0xFFFFU) {
-            return needed > 0xFFFFU ? std::uint16_t{0} : needed;
+        if (doubled > k_max) {
+            return needed;
         }
         cap = doubled;
     }
@@ -1391,7 +1406,7 @@ void recover_property_slot_create(shm_allocator&                       alloc,
         shm_byte_string_destroy(alloc, blob_bs);
     }
     // slot_count 没改 → slot 不可见；保守清零 slot 字段（防止 reader 误读 type）
-    std::memset(&slot, 0, sizeof(slot));
+    reset_property_slot(slot);
     property_slab_refresh_crc(*slab);
 }
 

@@ -19,8 +19,7 @@
 
 namespace mc::memory {
 
-// 显式实例化定义：与 state_pool.h 中 extern template 声明配对；MC_API 保证符号从库中导出
-template class MC_API mc::memory::shared_ptr<mc::futures::state_base>;
+template class mc::memory::shared_ptr<mc::futures::state_base>;
 
 } // namespace mc::memory
 

@@ -92,7 +92,6 @@ auto make_pooled_state(Executor executor)
 
 namespace mc::memory {
 
-// 显式实例化声明：与 state_pool.cpp 中定义配对；MC_API 使 Windows 等环境下从 mcbase 动态库导出符号
 extern template class MC_API mc::memory::shared_ptr<mc::futures::state_base>;
 
 } // namespace mc::memory

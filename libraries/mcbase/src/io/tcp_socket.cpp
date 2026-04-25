@@ -37,7 +37,10 @@ std::error_code to_std_error_code(const boost::system::error_code& ec)
     return std::error_code(ec.value(), std::system_category());
 }
 
-std::error_code bad_socket_error() { return std::make_error_code(std::errc::bad_file_descriptor); }
+std::error_code bad_socket_error()
+{
+    return std::make_error_code(std::errc::bad_file_descriptor);
+}
 
 } // namespace
 
@@ -56,7 +59,8 @@ tcp_socket::~tcp_socket()
     }
 }
 
-tcp_socket::tcp_socket(tcp_socket&& other) noexcept : m_executor(std::move(other.m_executor)), m_initialized(other.m_initialized)
+tcp_socket::tcp_socket(tcp_socket&& other) noexcept
+    : m_executor(std::move(other.m_executor)), m_initialized(other.m_initialized)
 {
     if (m_initialized) {
         new (m_storage.data()) native_socket(std::move(other.storage_as<native_socket>()));
@@ -105,16 +109,16 @@ void tcp_socket::async_connect_impl(mc::string_view address, uint16_t port, conn
     }
 
     boost::system::error_code ec;
-    auto                      native_address =
-        boost::asio::ip::make_address(std::string(address.data(), address.size()), ec);
+    auto native_address = boost::asio::ip::make_address(std::string(address.data(), address.size()), ec);
     if (ec) {
         handler(to_std_error_code(ec));
         return;
     }
 
-    storage_as<native_socket>().async_connect(
-        boost::asio::ip::tcp::endpoint(native_address, port),
-        [handler = std::move(handler)](const auto& connect_ec) mutable { handler(to_std_error_code(connect_ec)); });
+    storage_as<native_socket>().async_connect(boost::asio::ip::tcp::endpoint(native_address, port),
+                                              [handler = std::move(handler)](const auto& connect_ec) mutable {
+        handler(to_std_error_code(connect_ec));
+    });
 }
 
 void tcp_socket::async_read_some_impl(void* data, std::size_t length, io_handler_type handler)
@@ -127,8 +131,8 @@ void tcp_socket::async_read_some_impl(void* data, std::size_t length, io_handler
     storage_as<native_socket>().async_read_some(
         boost::asio::buffer(data, length),
         [handler = std::move(handler)](const auto& ec, std::size_t transferred) mutable {
-            handler(to_std_error_code(ec), transferred);
-        });
+        handler(to_std_error_code(ec), transferred);
+    });
 }
 
 void tcp_socket::async_write_some_impl(const void* data, std::size_t length, io_handler_type handler)
@@ -141,8 +145,8 @@ void tcp_socket::async_write_some_impl(const void* data, std::size_t length, io_
     storage_as<native_socket>().async_write_some(
         boost::asio::buffer(data, length),
         [handler = std::move(handler)](const auto& ec, std::size_t transferred) mutable {
-            handler(to_std_error_code(ec), transferred);
-        });
+        handler(to_std_error_code(ec), transferred);
+    });
 }
 
 } // namespace mc::io
