@@ -11,7 +11,7 @@
  */
 
 #include "test_service.h"
-#include <mc/core/application.h>
+#include <mc/app/application.h>
 #include <mc/engine.h>
 #include <mc/log.h>
 #include <test_utilities/test_base.h>
@@ -29,8 +29,8 @@ int main(int argc, char* argv[])
     service.init({});
     service.start();
 
-    mc::core::app().start();
-    mc::core::app().exec();
+    mc::app::application().start();
+    mc::app::application().exec();
 
     ilog("服务连接示例结束");
     return 0;

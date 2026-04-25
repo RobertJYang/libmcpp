@@ -10,13 +10,13 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef MC_ENGINE_TIMER_H
-#define MC_ENGINE_TIMER_H
+#ifndef MC_TIMER_H
+#define MC_TIMER_H
 
 #include <mc/object.h>
 #include <mc/time.h>
 
-namespace mc::core {
+namespace mc {
 
 class timer;
 using timer_ptr = mc::shared_ptr<timer>;
@@ -122,6 +122,12 @@ private:
     std::unique_ptr<timer_impl> m_impl;
 };
 
-} // namespace mc::core
+// 兼容旧版本命名
+namespace core {
+using timer     = mc::timer;
+using timer_ptr = mc::timer_ptr;
+} // namespace core
 
-#endif // MC_ENGINE_TIMER_H
+} // namespace mc
+
+#endif // MC_TIMER_H

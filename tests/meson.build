@@ -1,11 +1,9 @@
 subdir('algorithm')
 subdir('compress')
-subdir('core')
 subdir('crypto')
 subdir('dbus')
 subdir('debounce')
 subdir('error_message')
-subdir('interprocess')
 subdir('log')
 subdir('mdb')
 subdir('lua')
@@ -25,16 +23,14 @@ test_files = [
 
   # 各子目录的测试文件
   test_compress_files,
-  test_core_files,
   test_crypto_files,
   test_dbus_files,
   test_debounce_files,
-  test_interprocess_files,
   test_log_files,
   test_variant_files,
   test_algorithm_files,
   test_mdb_files,
-  test_error_message_files
+  test_error_message_files,
 ]
 
 if enable_conan_compile

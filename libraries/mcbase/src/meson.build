@@ -24,6 +24,7 @@ base_src_files = [
   'exception.cpp',
   'json.cpp',
   'time.cpp',
+  'timer.cpp',
   'singleton.cpp',
   'error.cpp',
   'error_engine.cpp',

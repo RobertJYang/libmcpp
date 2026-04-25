@@ -13,7 +13,7 @@
 #ifndef MC_LIBMCPP_TEST_BASE_H
 #define MC_LIBMCPP_TEST_BASE_H
 
-#include <mc/core/application.h>
+#include <mc/app/application.h>
 #include <mc/dbus/shm/harbor.h>
 #include <mc/singleton.h>
 
@@ -51,13 +51,13 @@ protected:
     {
         TestWithDbusDaemon::SetUpTestSuite();
 
-        mc::core::app().start();
+        mc::app::application().start();
     }
 
     static void TearDownTestSuite()
     {
-        mc::core::app().stop();
-        mc::core::application::reset_for_test();
+        mc::app::application().stop();
+        mc::app::application::reset_for_test();
         TestWithDbusDaemon::TearDownTestSuite();
     };
 };

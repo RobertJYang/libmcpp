@@ -14,7 +14,7 @@
 #define TASK_INTERFACE_H
 
 #include "gen/task_interface.h"
-#include <mc/core/timer.h>
+#include <mc/timer.h>
 
 namespace test {
 

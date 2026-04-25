@@ -9,11 +9,10 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#include <mc/core/application.h>
-#include <mc/core/timer.h>
 #include <mc/runtime/steady_timer.h>
+#include <mc/timer.h>
 
-namespace mc::core {
+namespace mc {
 struct timer::timer_impl {
     using timer_type = mc::runtime::steady_timer;
 
@@ -139,4 +138,5 @@ timer_ptr timer::single_shot(mc::milliseconds msec, object* context, std::functi
     t->start(msec);
     return t;
 }
-} // namespace mc::core
+
+} // namespace mc

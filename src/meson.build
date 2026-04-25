@@ -6,7 +6,6 @@ srcdir = include_directories('.')
 subdir('crypto')
 subdir('mdb')
 subdir('debounce')
-subdir('interprocess')
 subdir('log')
 subdir('validate')
 
@@ -28,7 +27,6 @@ base_src_files = [
   log_src_files,
   validate_src_files,
   crypto_src_files,
-  interprocess_src_files,
 ]
 
 if enable_conan_compile
@@ -39,7 +37,14 @@ endif
 libmcpp_src_files = ['variant_c_api.cpp']
 
 zlib_dep = dependency('zlib', required: true)
-dep_arr = [mcbase_dep, boost_dep, boost_program_options_dep, dbus_dep, glib_dep, mcdbus_dep]
+dep_arr = [
+  mcbase_dep,
+  boost_dep,
+  boost_program_options_dep,
+  dbus_dep,
+  glib_dep,
+  mcdbus_dep,
+]
 base_dep_arr = dep_arr + [zlib_dep]
 mcpp_deps = []
 
@@ -109,9 +114,6 @@ else
   endif
 endif
 
-# 先构建核心库（core），engine/expr/app 由独立子工程提供
-subdir('core')
-
 # 创建静态库
 libmcpp_static_lib = static_library(
   'mcpp',
@@ -120,7 +122,6 @@ libmcpp_static_lib = static_library(
   dependencies: base_dep_arr + [mcengine_dep, mcexpr_dep, mcapp_dep],
   link_whole: [
     libmcpp_base_lib,
-    libmcpp_core_lib,
     mcapp_lib,
     mcengine_lib,
     mcexpr_lib,
