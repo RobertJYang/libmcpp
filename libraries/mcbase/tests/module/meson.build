@@ -21,4 +21,5 @@ mock_dynamic_module = shared_library(
   dependencies: [mcbase_dep],
   install: false,
   name_prefix: '',
+  build_by_default: false,
 )

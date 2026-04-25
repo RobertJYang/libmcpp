@@ -31,6 +31,7 @@ mcapp_test_lib = static_library(
     mcapp_test_utilities_dep,
   ],
   install: false,
+  build_by_default: false,
 )
 
 mcapp_test_exe = executable(
@@ -50,6 +51,7 @@ mcapp_test_exe = executable(
   cpp_args: mcapp_test_cpp_args,
   link_args: mcapp_test_link_args,
   install: false,
+  build_by_default: false,
 )
 
 mcapp_test_env = environment()

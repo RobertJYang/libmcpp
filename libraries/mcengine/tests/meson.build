@@ -31,6 +31,7 @@ mcengine_test_exe = executable(
   cpp_args: mcengine_test_cpp_args,
   link_args: mcengine_test_link_args,
   install: false,
+  build_by_default: false,
 )
 
 mcengine_test_env = environment()

@@ -4,4 +4,5 @@ executable(
   include_directories: [incdir],
   dependencies: [mcbase_dep],
   install: false,
+  build_by_default: false,
 )

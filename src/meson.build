@@ -60,7 +60,6 @@ if enable_conan_compile
   liblogger_dep = dependency('liblogger', method: 'pkg-config', required: true)
   json_dep = dependency('json', method: 'pkg-config', required: true)
   base_dep_arr += [libsomp_dep, liblogger_dep, json_dep]
-  dep_arr += [libsomp_dep]
 endif
 
 if meson_build
@@ -113,33 +112,21 @@ else
   endif
 endif
 
-# 创建静态库
+# 创建 libmcpp 静态库，供内部测试按需显式链接
 libmcpp_static_lib = static_library(
   'mcpp',
   libmcpp_src_files,
   include_directories: base_inc_dirs,
-  dependencies: base_dep_arr + [mcengine_dep, mcexpr_dep, mcapp_dep],
-  link_whole: [
-    libmcpp_base_lib,
-    mcapp_lib,
-    mcengine_lib,
-    mcexpr_lib,
-    mcdbus_lib,
-  ],
+  dependencies: [libmcpp_base_dep, mcengine_dep, mcexpr_dep, mcapp_dep],
+  build_by_default: false,
 )
 
-# 创建动态库，将整个静态库的符号包含进去
-# 必须显式声明 dependencies：libmcpp_base 等单元调用的 securec_* 符号由 libmcbase 提供，
-# link_whole 不会自动把 mcbase_dep 链进本 .so，否则链接阶段会报 memcpy_s 等未定义引用
+# 创建 libmcpp 动态库，只链接自然依赖，不二次包装子库
 libmcpp_shared_lib = shared_library(
   'mcpp',
-  [],
+  libmcpp_src_files,
   include_directories: base_inc_dirs,
-  dependencies: base_dep_arr,
-  link_whole: [
-    libmcpp_static_lib,
-  ],
-  dependencies: base_dep_arr + [mcengine_dep, mcexpr_dep, mcapp_dep],
+  dependencies: [libmcpp_base_dep, mcengine_dep, mcexpr_dep, mcapp_dep],
   install: true,
   install_dir: install_dir,
   build_by_default: true,
@@ -157,15 +144,15 @@ libmcpp_lib = libmcpp_shared_lib
 libmcpp_dep = declare_dependency(
   include_directories: [incdir],
   link_with: libmcpp_shared_lib,
-  dependencies: base_dep_arr + [mcengine_dep, mcexpr_dep, mcapp_dep],
+  dependencies: [libmcpp_base_dep, mcengine_dep, mcexpr_dep, mcapp_dep],
 )
 
 # 为项目内部测试程序
-# 测试程序使用静态库，可以访问所有符号（包括隐藏的）
+# 测试程序使用静态 libmcpp，并显式链接需要访问的内部依赖
 libmcpp_dep_with_link = declare_dependency(
   include_directories: incdir,
-  link_whole: libmcpp_static_lib,
-  dependencies: base_dep_arr + [mcengine_dep, mcexpr_dep, mcapp_dep],
+  link_with: libmcpp_static_lib,
+  dependencies: [libmcpp_base_internal_dep, mcengine_dep, mcexpr_dep, mcapp_dep],
 )
 
 # Lua 模块构建（需要在所有库创建之后）

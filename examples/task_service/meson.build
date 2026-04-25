@@ -15,4 +15,5 @@ executable(
     include_directories: example_inc_dirs,
     dependencies: [libmcpp_dep, boost_dep, test_utilities_dep, dbus_dep],
     install: false,
+    build_by_default: false,
 )

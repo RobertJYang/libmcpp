@@ -69,10 +69,31 @@ if enable_coverage
 endif
 
 # 依赖项
-if not cpp_compiler.has_header('boost/version.hpp', required: true)
-  error('Boost headers not found')
+boost_root = get_option('boost_root')
+if boost_root == ''
+  boost_root = run_command('sh', '-c', 'echo $BOOST_ROOT', check: false).stdout().strip()
 endif
-boost_dep = declare_dependency()
+
+if boost_root != ''
+  boost_include_dir = boost_root
+  if not cpp_compiler.has_header('boost/version.hpp', args: ['-I' + boost_include_dir], required: false)
+    boost_include_dir = boost_root / 'include'
+  endif
+  if not cpp_compiler.has_header('boost/version.hpp', args: ['-I' + boost_include_dir], required: false)
+    error('Boost headers not found in ' + boost_root)
+  endif
+  boost_dep = declare_dependency(compile_args: ['-I' + boost_include_dir])
+  message('使用 Boost: ' + boost_include_dir)
+else
+  boost_dep = dependency('boost', required: false)
+  if not boost_dep.found()
+    if not cpp_compiler.has_header('boost/version.hpp', required: false)
+      error('Boost headers not found')
+    endif
+    boost_dep = declare_dependency()
+  endif
+  message('使用系统 Boost')
+endif
 
 # 设置编译宏
 if meson.is_cross_build()
@@ -132,12 +153,14 @@ mcbase_dep = dependency(
     'tests=' + build_tests.to_string(),
     'tests_utilities=' + tests_utilities.to_string(),
     'securec=' + mcbase_securec_option,
+    'boost_root=' + boost_root,
   ],
   required: true,
 )
 # 获取 subproject 以访问其他变量（如 incdir, lib 等）
 # 注意：我们需要总是创建 subproject，因为我们需要访问其变量（如 mcbase_lib, mcbase_test_lib 等）
 # 即使 dependency 使用了系统依赖，我们仍然需要 subproject 来构建测试等
+<<<<<<< HEAD
 mcbase_subproject = subproject('mcbase', default_options: [
   'default_library=shared',
   'tests=' + build_tests.to_string(),
@@ -145,6 +168,18 @@ mcbase_subproject = subproject('mcbase', default_options: [
   'meson_build=' + meson_build.to_string(),
   'securec=' + mcbase_securec_option,
 ])
+=======
+mcbase_subproject = subproject(
+  'mcbase',
+  default_options: [
+    'default_library=shared',
+    'tests=' + build_tests.to_string(),
+    'meson_build=' + meson_build.to_string(),
+    'securec=' + mcbase_securec_option,
+    'boost_root=' + boost_root,
+  ],
+)
+>>>>>>> 93466ca (refactor：将各个子库真正构建成动态库)
 # 从子项目获取其他需要的变量
 mcbase_incdir = mcbase_subproject.get_variable('incdir')
 mcbase_lib = mcbase_subproject.get_variable('mcbase_lib')
@@ -172,6 +207,7 @@ mcengine_subproject = subproject(
     'default_library=static',
     'tests=' + build_tests.to_string(),
     'enable_coverage=' + enable_coverage.to_string(),
+    'boost_root=' + boost_root,
   ],
 )
 mcengine_dep = mcengine_subproject.get_variable('mcengine_dep')
@@ -183,6 +219,7 @@ mcexpr_subproject = subproject(
     'default_library=static',
     'tests=' + build_tests.to_string(),
     'enable_coverage=' + enable_coverage.to_string(),
+    'boost_root=' + boost_root,
   ],
 )
 mcexpr_dep = mcexpr_subproject.get_variable('mcexpr_dep')

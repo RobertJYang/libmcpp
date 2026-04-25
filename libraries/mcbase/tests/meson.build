@@ -83,6 +83,7 @@ mcbase_test_lib = static_library(
   cpp_args: mcbase_test_cpp_args,
   link_args: mcbase_test_link_args,
   install: false,  # 测试库不需要安装
+  build_by_default: false,
 )
 
 # 导出测试库依赖，供主项目使用
@@ -123,6 +124,7 @@ mcbase_test_exe = executable(
   cpp_args: mcbase_test_cpp_args,
   link_args: mcbase_test_link_args,
   install: false,
+  build_by_default: false,
 )
 
 # 注册 mcbase 测试：先构建 mock 动态库；MC_BUILD_ROOT 与 dynamic-sdk-phase1/主仓一致，供 ModuleManagerTest 解析模块路径

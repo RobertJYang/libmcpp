@@ -22,6 +22,7 @@ if get_option('compatibility_tests')
             cpp_args: ['-std=c++17', '-DUSE_MC_FORMAT'], # 使用 mc::format
             dependencies: [gtest_dep, mcbase_dep],
             install: false,
+            build_by_default: false,
         ),
     )
 
@@ -34,6 +35,7 @@ if get_option('compatibility_tests')
             cpp_args: ['-std=c++20'], # 使用 std::format
             dependencies: [gtest_dep],
             install: false,
+            build_by_default: false,
         ),
     )
 endif

@@ -11,3 +11,10 @@ option(
   value: false,
   description: '是否启用代码覆盖率统计，默认为false',
 )
+
+option(
+  'boost_root',
+  type: 'string',
+  value: '',
+  description: 'Boost include root directory (if not set, uses BOOST_ROOT or system Boost)',
+)

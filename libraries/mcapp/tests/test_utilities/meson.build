@@ -12,7 +12,9 @@ test_utilities_lib = static_library(
     mcbase_dep,
     raw_dbus_dep,
   ],
-  install: false,
+  install: true,
+  install_dir: get_option('libdir'),
+  build_by_default: true,
 )
 
 mcapp_test_utilities_dep = declare_dependency(

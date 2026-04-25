@@ -10,10 +10,11 @@ example_moudle = shared_library(
     'module.cpp',
     include_directories: example_inc_dirs,
     dependencies: dep_arr,
-    install: true,
+    install: false,
     install_dir: get_option('libdir') / 'libmcpp/modules/mc',
     name_prefix: 'lib',
     name_suffix: 'so',
+    build_by_default: false,
 )
 
 # 复制插件到插件目录（用于本地测试）
@@ -22,5 +23,5 @@ custom_target(
     output: 'copy_devices_module',
     command: ['cp', example_moudle.full_path(), devices_dir / 'devices.so'],
     depends: example_moudle,
-    build_by_default: true,
+    build_by_default: false,
 )

@@ -45,6 +45,7 @@ mcexpr_test_exe = executable(
   cpp_args: mcexpr_test_cpp_args,
   link_args: mcexpr_test_link_args,
   install: false,
+  build_by_default: false,
 )
 
 mcexpr_test_env = environment()

@@ -240,24 +240,101 @@ class AppConan(ConanBase):
         include_dirs = ["include"]
         self.cpp_info.includedirs = include_dirs
 
-        # 配置libmcpp的pkg-config
-        self.cpp_info.components["libmcpp"].libs = ["libmcpp", "libmcbase"]
+        external_base_requires = [
+            "libsomp::libsomp",
+            "liblogger::liblogger",
+            "boost::boost",
+            "json::json",
+            "huawei_secure_c::securec",
+        ]
+
+        # 配置可独立消费的组件，libs 使用不带 lib 前缀的库名。
+        self.cpp_info.components["mcbase"].libs = ["mcbase"]
+        self.cpp_info.components["mcbase"].libdirs = [libdir]
+        self.cpp_info.components["mcbase"].includedirs = include_dirs
+        self.cpp_info.components["mcbase"].requires = ["boost::boost", "huawei_secure_c::securec"]
+        self.cpp_info.components["mcbase"].set_property("pkg_config_name", "mcbase")
+        self.cpp_info.components["mcbase"].set_property("pkg_config_custom_content",
+           f"libdir=${{prefix}}/{libdir}\n")
+
+        self.cpp_info.components["mcengine"].libs = ["mcengine"]
+        self.cpp_info.components["mcengine"].libdirs = [libdir]
+        self.cpp_info.components["mcengine"].includedirs = include_dirs
+        self.cpp_info.components["mcengine"].requires = ["mcbase", "boost::boost"]
+        self.cpp_info.components["mcengine"].set_property("pkg_config_name", "mcengine")
+        self.cpp_info.components["mcengine"].set_property("pkg_config_custom_content",
+           f"libdir=${{prefix}}/{libdir}\n")
+
+        self.cpp_info.components["mcexpr"].libs = ["mcexpr"]
+        self.cpp_info.components["mcexpr"].libdirs = [libdir]
+        self.cpp_info.components["mcexpr"].includedirs = include_dirs
+        self.cpp_info.components["mcexpr"].requires = ["mcbase", "mcengine"]
+        self.cpp_info.components["mcexpr"].set_property("pkg_config_name", "mcexpr")
+        self.cpp_info.components["mcexpr"].set_property("pkg_config_custom_content",
+           f"libdir=${{prefix}}/{libdir}\n")
+
+        self.cpp_info.components["mcdbus"].libs = ["mcdbus"]
+        self.cpp_info.components["mcdbus"].libdirs = [libdir]
+        self.cpp_info.components["mcdbus"].includedirs = include_dirs
+        self.cpp_info.components["mcdbus"].requires = ["mcbase", "mcengine", "boost::boost"]
+        self.cpp_info.components["mcdbus"].set_property("pkg_config_name", "mcdbus")
+        self.cpp_info.components["mcdbus"].set_property("pkg_config_custom_content",
+           f"libdir=${{prefix}}/{libdir}\n"
+           "Requires: dbus-1 glib-2.0\n")
+
+        self.cpp_info.components["mcapp"].libs = ["mcapp"]
+        self.cpp_info.components["mcapp"].libdirs = [libdir]
+        self.cpp_info.components["mcapp"].includedirs = include_dirs
+        self.cpp_info.components["mcapp"].requires = ["mcbase", "mcengine", "mcdbus"]
+        self.cpp_info.components["mcapp"].set_property("pkg_config_name", "mcapp")
+        self.cpp_info.components["mcapp"].set_property("pkg_config_custom_content",
+           f"libdir=${{prefix}}/{libdir}\n")
+
+        self.cpp_info.components["mcpp_base"].libs = ["mcpp_base"]
+        self.cpp_info.components["mcpp_base"].libdirs = [libdir]
+        self.cpp_info.components["mcpp_base"].includedirs = include_dirs
+        self.cpp_info.components["mcpp_base"].requires = [
+            "mcbase",
+            "mcengine",
+            "mcexpr",
+            "mcdbus",
+            "mcapp",
+        ] + external_base_requires
+        self.cpp_info.components["mcpp_base"].set_property("pkg_config_name", "mcpp_base")
+        self.cpp_info.components["mcpp_base"].set_property("pkg_config_custom_content",
+           f"libdir=${{prefix}}/{libdir}\n"
+           "Requires: dbus-1 glib-2.0\n")
+
+        # libmcpp 只声明自身库和组件依赖，不二次包装子库。
+        self.cpp_info.components["libmcpp"].libs = ["mcpp"]
         self.cpp_info.components["libmcpp"].libdirs = [libdir]
         self.cpp_info.components["libmcpp"].includedirs = include_dirs
         self.cpp_info.components["libmcpp"].set_property("pkg_config_name", "libmcpp")
-        self.cpp_info.components["libmcpp"].requires = ["libsomp::libsomp", "liblogger::liblogger", "boost::boost", "skynet::skynet", "json::json", "huawei_secure_c::securec"]
+        self.cpp_info.components["libmcpp"].requires = [
+            "mcpp_base",
+            "mcbase",
+            "mcengine",
+            "mcexpr",
+            "mcdbus",
+            "mcapp",
+            "skynet::skynet",
+        ]
         self.cpp_info.components["libmcpp"].set_property("pkg_config_custom_content",
            f"libdir=${{prefix}}/{libdir}\n"
            "Requires: dbus-1 glib-2.0\n")
 
         # 配置test_utilities的pkg-config
-        self.cpp_info.components["test_utilities"].libs = ["mc_test_utilities"]
+        self.cpp_info.components["test_utilities"].libs = []
         if self.options.test:
-            self.cpp_info.components["test_utilities"].libs.append("mcbase_test_utilities")
+            self.cpp_info.components["test_utilities"].libs.extend([
+                "mcbase_test_utilities",
+                "mcengine_test_utilities",
+                "mcapp_test_utilities",
+            ])
         self.cpp_info.components["test_utilities"].libdirs = [libdir]
         self.cpp_info.components["test_utilities"].includedirs = include_dirs
         self.cpp_info.components["test_utilities"].set_property("pkg_config_name", "test_utilities")
-        self.cpp_info.components["test_utilities"].requires = ["libmcpp"]
+        self.cpp_info.components["test_utilities"].requires = ["libmcpp", "mcbase", "mcengine", "mcapp"]
         if self.options.test:
             self.cpp_info.components["test_utilities"].requires.append("gtest::gtest")
         self.cpp_info.components["test_utilities"].set_property("pkg_config_custom_content",

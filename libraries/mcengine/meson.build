@@ -39,10 +39,31 @@ incdir = include_directories('include')
 srcdir = include_directories('src')
 mcengine_test_incdir = include_directories('include', 'tests')
 
-if not cpp_compiler.has_header('boost/version.hpp', required: true)
-  error('Boost headers not found')
+boost_root = get_option('boost_root')
+if boost_root == ''
+  boost_root = run_command('sh', '-c', 'echo $BOOST_ROOT', check: false).stdout().strip()
 endif
-boost_dep = declare_dependency()
+
+if boost_root != ''
+  boost_include_dir = boost_root
+  if not cpp_compiler.has_header('boost/version.hpp', args: ['-I' + boost_include_dir], required: false)
+    boost_include_dir = boost_root / 'include'
+  endif
+  if not cpp_compiler.has_header('boost/version.hpp', args: ['-I' + boost_include_dir], required: false)
+    error('Boost headers not found in ' + boost_root)
+  endif
+  boost_dep = declare_dependency(compile_args: ['-I' + boost_include_dir])
+  message('使用 Boost: ' + boost_include_dir)
+else
+  boost_dep = dependency('boost', required: false)
+  if not boost_dep.found()
+    if not cpp_compiler.has_header('boost/version.hpp', required: false)
+      error('Boost headers not found')
+    endif
+    boost_dep = declare_dependency()
+  endif
+  message('使用系统 Boost')
+endif
 
 mcbase_dep = dependency(
   'mcbase',
@@ -133,6 +154,7 @@ if build_tests
       mcengine_test_utilities_dep,
     ],
     install: false,
+    build_by_default: false,
   )
 
   subdir('tests')

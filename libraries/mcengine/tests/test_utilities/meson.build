@@ -18,7 +18,9 @@ mcengine_test_utilities_lib = static_library(
     mcengine_dep,
     mcbase_test_utilities_dep,
   ],
-  install: false,
+  install: true,
+  install_dir: get_option('libdir'),
+  build_by_default: true,
 )
 
 mcengine_test_utilities_dep = declare_dependency(

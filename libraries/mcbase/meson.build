@@ -32,15 +32,23 @@ if boost_root == ''
 endif
 
 if boost_root != ''
-  message('使用 Boost: ' + boost_root)
-  boost_dep = declare_dependency(
-    include_directories: include_directories(boost_root),
-  )
-else
-  if not cpp_compiler.has_header('boost/version.hpp', required: true)
-    error('Boost headers not found')
+  boost_include_dir = boost_root
+  if not cpp_compiler.has_header('boost/version.hpp', args: ['-I' + boost_include_dir], required: false)
+    boost_include_dir = boost_root / 'include'
   endif
-  boost_dep = declare_dependency()
+  if not cpp_compiler.has_header('boost/version.hpp', args: ['-I' + boost_include_dir], required: false)
+    error('Boost headers not found in ' + boost_root)
+  endif
+  boost_dep = declare_dependency(compile_args: ['-I' + boost_include_dir])
+  message('使用 Boost: ' + boost_include_dir)
+else
+  boost_dep = dependency('boost', required: false)
+  if not boost_dep.found()
+    if not cpp_compiler.has_header('boost/version.hpp', required: false)
+      error('Boost headers not found')
+    endif
+    boost_dep = declare_dependency()
+  endif
   message('使用系统 Boost')
 endif
 

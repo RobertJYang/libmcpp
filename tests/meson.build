@@ -44,8 +44,6 @@ if not enable_conan_compile
   test_inc_dirs += [stubdir_global]
 endif
 
-dbus_dep = dependency('dbus-1', method: 'pkg-config', required: true)
-
 # 创建测试可执行文件
 test_cpp_args = []
 test_link_args = []
@@ -74,7 +72,8 @@ test_exe = executable(
   dependencies: test_deps,
   cpp_args: test_cpp_args,
   link_args: test_link_args,
-  install: true,
+  install: false,
+  build_by_default: false,
 )
 
 # 注册测试

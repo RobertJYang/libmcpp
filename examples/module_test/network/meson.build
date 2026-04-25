@@ -10,10 +10,11 @@ network_module = shared_library(
     'module.cpp',
     include_directories: example_inc_dirs,
     dependencies: dep_arr,
-    install: true,
+    install: false,
     install_dir: get_option('libdir') / 'libmcpp/modules/mc',
     name_prefix: 'lib',
     name_suffix: 'so',
+    build_by_default: false,
 )
 
 # 复制模块到测试目录
@@ -22,5 +23,5 @@ custom_target(
     output: 'copy_network_module',
     command: ['cp', network_module.full_path(), network_dir / 'network.so'],
     depends: network_module,
-    build_by_default: true,
+    build_by_default: false,
 )
