@@ -64,8 +64,7 @@ struct std_test_service : public mc::engine::service {
 
 } // namespace test_std_interface
 
-MC_REFLECT(test_std_interface::sample_interface,
-           ((m_value, "Value"))((m_label, "Label"))((add, "Add"))(value_changed))
+MC_REFLECT(test_std_interface::sample_interface, ((m_value, "Value"))((m_label, "Label"))((add, "Add"))(value_changed))
 MC_REFLECT(test_std_interface::sample_object, ((m_iface, "Iface")))
 MC_REFLECT(test_std_interface::child_interface, ((m_child_value, "ChildValue")))
 MC_REFLECT(test_std_interface::child_object, ((m_iface, "Iface")))
@@ -96,15 +95,15 @@ protected:
         TestWithEngine::TearDown();
     }
 
-    std_test_service                      service;
-    mc::shared_ptr<sample_object>         obj;
-    mc::shared_ptr<child_object>          child;
+    std_test_service              service;
+    mc::shared_ptr<sample_object> obj;
+    mc::shared_ptr<child_object>  child;
 };
 
 TEST_F(std_interface_test, non_standard_interface_not_hit)
 {
-    auto result = mc::engine::standard_interfaces::try_invoke(*obj, "Foo", mc::variants{},
-                                                              "org.test.std.SampleInterface");
+    auto result =
+        mc::engine::standard_interfaces::try_invoke(*obj, "Foo", mc::variants{}, "org.test.std.SampleInterface");
     EXPECT_FALSE(result.has_value());
 }
 
@@ -123,27 +122,36 @@ TEST_F(std_interface_test, peer_ping_and_machine_id)
     EXPECT_NO_THROW(mid_result->value.as<std::string>());
 }
 
+TEST_F(std_interface_test, std_iface_constants_are_quark_backed)
+{
+    // 框架预定义的常量必须是 quark backend
+    EXPECT_TRUE(mc::engine::std_ifaces::properties.is_quark());
+    EXPECT_TRUE(mc::engine::std_ifaces::peer.is_quark());
+    EXPECT_TRUE(mc::engine::std_ifaces::get.is_quark());
+    EXPECT_TRUE(mc::engine::std_ifaces::introspect.is_quark());
+}
+
 TEST_F(std_interface_test, peer_unknown_method_throws)
 {
-    EXPECT_THROW(mc::engine::standard_interfaces::try_invoke(*obj, "NoSuch", mc::variants{},
-                                                             "org.freedesktop.DBus.Peer"),
-                 mc::exception);
+    EXPECT_THROW(
+        mc::engine::standard_interfaces::try_invoke(*obj, "NoSuch", mc::variants{}, "org.freedesktop.DBus.Peer"),
+        mc::exception);
 }
 
 TEST_F(std_interface_test, properties_get_and_set)
 {
     // Get
     mc::variants get_args{mc::string("org.test.std.SampleInterface"), mc::string("Value")};
-    auto         get_hit = mc::engine::standard_interfaces::try_invoke(*obj, "Get", get_args,
-                                                                       "org.freedesktop.DBus.Properties");
+    auto         get_hit =
+        mc::engine::standard_interfaces::try_invoke(*obj, "Get", get_args, "org.freedesktop.DBus.Properties");
     ASSERT_TRUE(get_hit.has_value());
     EXPECT_EQ(get_hit->result_signature, "v");
     EXPECT_EQ(get_hit->value.as<int32_t>(), 42);
 
     // Set
     mc::variants set_args{mc::string("org.test.std.SampleInterface"), mc::string("Value"), mc::variant{int32_t{99}}};
-    auto         set_hit = mc::engine::standard_interfaces::try_invoke(*obj, "Set", set_args,
-                                                                       "org.freedesktop.DBus.Properties");
+    auto         set_hit =
+        mc::engine::standard_interfaces::try_invoke(*obj, "Set", set_args, "org.freedesktop.DBus.Properties");
     ASSERT_TRUE(set_hit.has_value());
     EXPECT_TRUE(set_hit->result_signature.empty());
     EXPECT_EQ(obj->m_iface.m_value, 99);
@@ -152,8 +160,7 @@ TEST_F(std_interface_test, properties_get_and_set)
 TEST_F(std_interface_test, properties_get_all)
 {
     mc::variants args{mc::string("org.test.std.SampleInterface")};
-    auto         hit = mc::engine::standard_interfaces::try_invoke(*obj, "GetAll", args,
-                                                                   "org.freedesktop.DBus.Properties");
+    auto hit = mc::engine::standard_interfaces::try_invoke(*obj, "GetAll", args, "org.freedesktop.DBus.Properties");
     ASSERT_TRUE(hit.has_value());
     EXPECT_EQ(hit->result_signature, "a{sv}");
     auto d = hit->value.as<mc::dict>();
@@ -164,16 +171,14 @@ TEST_F(std_interface_test, properties_get_all)
 TEST_F(std_interface_test, properties_unknown_interface_errors)
 {
     mc::variants args{mc::string("org.no.such.Interface"), mc::string("Value")};
-    EXPECT_THROW(mc::engine::standard_interfaces::try_invoke(*obj, "Get", args,
-                                                             "org.freedesktop.DBus.Properties"),
+    EXPECT_THROW(mc::engine::standard_interfaces::try_invoke(*obj, "Get", args, "org.freedesktop.DBus.Properties"),
                  mc::exception);
 }
 
 TEST_F(std_interface_test, properties_unknown_property_errors)
 {
     mc::variants args{mc::string("org.test.std.SampleInterface"), mc::string("NoSuchProp")};
-    EXPECT_THROW(mc::engine::standard_interfaces::try_invoke(*obj, "Get", args,
-                                                             "org.freedesktop.DBus.Properties"),
+    EXPECT_THROW(mc::engine::standard_interfaces::try_invoke(*obj, "Get", args, "org.freedesktop.DBus.Properties"),
                  mc::exception);
 }
 
@@ -214,8 +219,7 @@ TEST_F(std_interface_test, object_manager_get_managed_objects)
 TEST_F(std_interface_test, try_invoke_skips_non_dbus_prefix)
 {
     // 走 dispatcher 正常分支：对象自有接口的调用不应被 try_invoke 吞掉
-    auto hit = mc::engine::standard_interfaces::try_invoke(*obj, "Add",
-                                                           mc::variants{int32_t{2}, int32_t{3}},
+    auto hit = mc::engine::standard_interfaces::try_invoke(*obj, "Add", mc::variants{int32_t{2}, int32_t{3}},
                                                            "org.test.std.SampleInterface");
     EXPECT_FALSE(hit.has_value());
 }

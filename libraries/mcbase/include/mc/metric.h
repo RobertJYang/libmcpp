@@ -45,35 +45,65 @@
 
 namespace mc::metric::detail {
 
-// 每个调用点一份缓存指针；通过 lambda 类型的不同实现 per-call-site 隔离。
-// 注意：缓存的句柄在 default_registry 的生命周期内有效；若测试场景调用
-// reset_default_registry_for_test 必须保证此后不再触发对应宏的同一实例化。
+// 每次 reset_default_registry_for_test 递增，cached_* 检测到版本变化时重新绑定。
+MC_API std::uint64_t default_registry_version() noexcept;
+MC_API void          bump_default_registry_version() noexcept;
+
+// 每个调用点一份缓存指针 + 绑定时的 registry 版本号。
+// 当 registry 被 reset 后版本号不匹配，自动重新获取。
+
+// 未绑定时的 sentinel 值，保证不等于任何合法版本号（从 0 开始递增）
+constexpr uint64_t k_unbound_version = ~uint64_t(0);
 
 template <typename DescF>
 inline counter& cached_counter(DescF descf) noexcept
 {
-    static counter cached = default_registry().counter_of(descf());
+    static counter  cached;
+    static uint64_t bound_version = k_unbound_version;
+    auto            cur_version   = default_registry_version();
+    if (MC_UNLIKELY(bound_version != cur_version)) {
+        cached        = default_registry().counter_of(descf());
+        bound_version = cur_version;
+    }
     return cached;
 }
 
 template <typename DescF>
 inline counter& cached_up_down_counter(DescF descf) noexcept
 {
-    static counter cached = default_registry().up_down_counter_of(descf());
+    static counter  cached;
+    static uint64_t bound_version = k_unbound_version;
+    auto            cur_version   = default_registry_version();
+    if (MC_UNLIKELY(bound_version != cur_version)) {
+        cached        = default_registry().up_down_counter_of(descf());
+        bound_version = cur_version;
+    }
     return cached;
 }
 
 template <typename DescF>
 inline gauge& cached_gauge(DescF descf) noexcept
 {
-    static gauge cached = default_registry().gauge_of(descf());
+    static gauge    cached;
+    static uint64_t bound_version = k_unbound_version;
+    auto            cur_version   = default_registry_version();
+    if (MC_UNLIKELY(bound_version != cur_version)) {
+        cached        = default_registry().gauge_of(descf());
+        bound_version = cur_version;
+    }
     return cached;
 }
 
 template <typename DescF>
 inline histogram& cached_histogram(DescF descf) noexcept
 {
-    static histogram cached = default_registry().histogram_of(descf());
+    static histogram cached;
+    static uint64_t  bound_version = k_unbound_version;
+    auto             cur_version   = default_registry_version();
+    if (MC_UNLIKELY(bound_version != cur_version)) {
+        cached        = default_registry().histogram_of(descf());
+        bound_version = cur_version;
+    }
     return cached;
 }
 

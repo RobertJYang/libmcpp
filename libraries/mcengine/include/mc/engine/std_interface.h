@@ -44,6 +44,25 @@ constexpr mc::string_view introspectable_interface_name = "org.freedesktop.DBus.
 constexpr mc::string_view peer_interface_name           = "org.freedesktop.DBus.Peer";
 constexpr mc::string_view object_manager_interface_name = "org.freedesktop.DBus.ObjectManager";
 
+namespace std_ifaces {
+
+// 标准接口名
+extern MC_API const mc::string properties;
+extern MC_API const mc::string introspectable;
+extern MC_API const mc::string peer;
+extern MC_API const mc::string object_manager;
+
+// 标准方法名
+extern MC_API const mc::string get;
+extern MC_API const mc::string get_all;
+extern MC_API const mc::string set;
+extern MC_API const mc::string ping;
+extern MC_API const mc::string get_machine_id;
+extern MC_API const mc::string introspect;
+extern MC_API const mc::string get_managed_objects;
+
+} // namespace std_ifaces
+
 /*
 <interface name="org.freedesktop.DBus.Properties">
     <method name="Get">
@@ -142,8 +161,8 @@ struct MC_API object_manager_interface : public mc::engine::interface<object_man
 
     objects_type get_managed_objects();
 
-    mc::signal<void(mc::engine::path, interfaces_type)>            interfaces_added;
-    mc::signal<void(mc::engine::path, std::vector<mc::string>)>    interfaces_removed;
+    mc::signal<void(mc::engine::path, interfaces_type)>         interfaces_added;
+    mc::signal<void(mc::engine::path, std::vector<mc::string>)> interfaces_removed;
 
     static object_manager_interface& get_instance();
 };
@@ -151,15 +170,9 @@ struct MC_API object_manager_interface : public mc::engine::interface<object_man
 class MC_API standard_interfaces {
 public:
     struct invoke_hit {
-        invoke_result  value;
+        invoke_result   value;
         mc::string_view result_signature;
     };
-
-    static constexpr mc::string_view common_prefix       = "org.freedesktop.DBus.";
-    static constexpr mc::string_view properties_name     = "Properties";
-    static constexpr mc::string_view introspectable_name = "Introspectable";
-    static constexpr mc::string_view peer_name           = "Peer";
-    static constexpr mc::string_view object_manager_name = "ObjectManager";
 
     // 尝试命中标准接口：
     //   - 返回 has_value() 表示已命中并执行完成，其值即为方法返回值（即使是
@@ -167,10 +180,8 @@ public:
     //   - 返回 nullopt 表示未命中，dispatcher 应走默认对象反射路径
     //   - 命中但 method 不存在时，直接抛 unknown_method 异常（经 dispatch()
     //     的 try/catch 转成 error_response）
-    static std::optional<invoke_hit> try_invoke(abstract_object&    object,
-                                                mc::string_view     method_name,
-                                                const mc::variants& args,
-                                                mc::string_view     interface_name);
+    static std::optional<invoke_hit> try_invoke(abstract_object& object, mc::string_view method_name,
+                                                const mc::variants& args, mc::string_view interface_name);
 
     // 供 Introspect 等使用：查询某个 interface_name 是否是已知的标准接口。
     static bool is_standard_interface(mc::string_view interface_name) noexcept;

@@ -333,11 +333,11 @@ std::size_t string_storage::capacity_const() const noexcept
 struct string_mutable_impl {
     static string_bytes& mutable_storage(string& s, std::size_t min_capacity = 0U);
 
-    static const string_storage*                  peek_storage(const string& s) noexcept;
-    static mc::shared_ptr<string_storage>&        storage_slot(string& s);
+    static const string_storage*           peek_storage(const string& s) noexcept;
+    static mc::shared_ptr<string_storage>& storage_slot(string& s);
 };
 
-} // namespace detail
+} // namespace mc::detail
 
 namespace mc::detail {
 
@@ -398,8 +398,7 @@ string& string::operator=(string&& other) noexcept = default;
 // 注意 noexcept：``make_unique<impl>`` 在 OOM 时会抛 ``bad_alloc``；
 // 保留 noexcept 意味着此情况会触发 ``std::terminate``，与 mcbase 其他
 // 热路径的 OOM 处理策略保持一致（性能关键代码不做 OOM 恢复）。
-string::string(const string& other) noexcept
-    : m_impl(other.m_impl ? std::make_unique<impl>(*other.m_impl) : nullptr)
+string::string(const string& other) noexcept : m_impl(other.m_impl ? std::make_unique<impl>(*other.m_impl) : nullptr)
 {}
 
 string& string::operator=(const string& other) noexcept
@@ -434,8 +433,7 @@ string::string(std::size_t count, char ch)
     if (count == 0U) {
         return;
     }
-    detail::string_mutable_impl::storage_slot(*this) =
-        mc::make_shared<detail::string_storage>(count, ch);
+    detail::string_mutable_impl::storage_slot(*this) = mc::make_shared<detail::string_storage>(count, ch);
 }
 
 std::size_t string::size() const noexcept
@@ -577,8 +575,7 @@ void string::swap(string& other) noexcept
 string::string(quark q) noexcept
 {
     if (q.valid()) {
-        detail::string_mutable_impl::storage_slot(*this) =
-            mc::make_shared<detail::string_storage>(q.id());
+        detail::string_mutable_impl::storage_slot(*this) = mc::make_shared<detail::string_storage>(q.id());
     }
 }
 
@@ -595,11 +592,26 @@ bool string::is_quark() const noexcept
 
 quark string::to_quark() const noexcept
 {
-    if (const auto* storage = detail::string_mutable_impl::peek_storage(*this);
-        storage && storage->is_quark()) {
+    if (const auto* storage = detail::string_mutable_impl::peek_storage(*this); storage && storage->is_quark()) {
         return quark{storage->m_quark_id};
     }
     return quark::try_from(view());
+}
+
+bool string::try_quarkize() noexcept
+{
+    if (is_quark()) {
+        return true;
+    }
+    if (empty()) {
+        return false;
+    }
+    auto q = quark::try_from(view());
+    if (!q.valid()) {
+        return false;
+    }
+    *this = from_quark(q);
+    return true;
 }
 
 bool operator==(const string& lhs, const string& rhs) noexcept
@@ -1211,7 +1223,7 @@ mc::string_view prepare_number_string(mc::string_view s, int radix, char* buffer
 to_chars_result to_chars_double(char* first, char* last, double value) noexcept
 {
     if (first >= last) {
-        return { first, std::errc::value_too_large };
+        return {first, std::errc::value_too_large};
     }
 
 #ifdef MC_STRING_NEED_TO_CHARS_FALLBACK
@@ -1226,19 +1238,19 @@ to_chars_result to_chars_double(char* first, char* last, double value) noexcept
         char*        endp   = nullptr;
         const double parsed = std::strtod(first, &endp);
         if (parsed == value) {
-            return { first + written, std::errc{} };
+            return {first + written, std::errc{}};
         }
     }
 
     written = try_prec(17);
     if (written > 0 && static_cast<std::size_t>(written) < cap) {
-        return { first + written, std::errc{} };
+        return {first + written, std::errc{}};
     }
 
-    return { first, std::errc::value_too_large };
+    return {first, std::errc::value_too_large};
 #else
     const auto result = std::to_chars(first, last, value);
-    return { result.ptr, result.ec };
+    return {result.ptr, result.ec};
 #endif
 }
 

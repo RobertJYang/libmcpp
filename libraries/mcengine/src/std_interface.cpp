@@ -10,10 +10,27 @@
 #include <mc/engine/metadata.h>
 #include <mc/engine/property.h>
 #include <mc/engine/std_interface.h>
+#include <mc/quark.h>
 #include <mc/reflect/signature.h>
 #include <mc/string.h>
 
 namespace mc::engine {
+
+namespace std_ifaces {
+
+const mc::string properties          = mc::string::from_quark("org.freedesktop.DBus.Properties"_q);
+const mc::string introspectable      = mc::string::from_quark("org.freedesktop.DBus.Introspectable"_q);
+const mc::string peer                = mc::string::from_quark("org.freedesktop.DBus.Peer"_q);
+const mc::string object_manager      = mc::string::from_quark("org.freedesktop.DBus.ObjectManager"_q);
+const mc::string get                 = mc::string::from_quark("Get"_q);
+const mc::string get_all             = mc::string::from_quark("GetAll"_q);
+const mc::string set                 = mc::string::from_quark("Set"_q);
+const mc::string ping                = mc::string::from_quark("Ping"_q);
+const mc::string get_machine_id      = mc::string::from_quark("GetMachineId"_q);
+const mc::string introspect          = mc::string::from_quark("Introspect"_q);
+const mc::string get_managed_objects = mc::string::from_quark("GetManagedObjects"_q);
+
+} // namespace std_ifaces
 
 namespace {
 
@@ -33,6 +50,22 @@ bool object_has_interface(abstract_object& object, mc::string_view interface_nam
         return true;
     }
     return object.has_interface(interface_name);
+}
+
+std::optional<standard_interfaces::invoke_hit> invoke_standard_interface(abstract_object&    object,
+                                                                         abstract_interface& target,
+                                                                         mc::string_view     method_name,
+                                                                         const mc::variants& args)
+{
+    auto* method = target.get_method_info(method_name);
+    if (method == nullptr) {
+        MC_REPLY_ERROR_AND_THROW(errors::unknown_method, ("method", method_name));
+    }
+
+    // 压入调用栈：让 Peer/Properties/Introspectable/ObjectManager 通过
+    // object_call_stack::top_value() 拿到当前对象
+    scoped_object_context ctx(object.get_service(), object);
+    return standard_interfaces::invoke_hit{target.invoke(method_name, args), method->get_result_signature()};
 }
 
 } // namespace
@@ -324,42 +357,25 @@ object_manager_interface::objects_type object_manager_interface::get_managed_obj
 // standard_interfaces::try_invoke
 //===--------------------------------------------------------------------------------===//
 
-std::optional<standard_interfaces::invoke_hit> standard_interfaces::try_invoke(abstract_object& object,
-                                                                               mc::string_view method_name,
+std::optional<standard_interfaces::invoke_hit> standard_interfaces::try_invoke(abstract_object&    object,
+                                                                               mc::string_view     method_name,
                                                                                const mc::variants& args,
-                                                                               mc::string_view interface_name)
+                                                                               mc::string_view     interface_name)
 {
-    // 快速过滤：标准 DBus 接口必然以 "org.freedesktop.DBus." 开头
-    if (!mc::string::starts_with(interface_name, common_prefix)) {
-        return std::nullopt;
-    }
-
-    mc::string_view suffix =
-        mc::string_view(interface_name.data() + common_prefix.size(), interface_name.size() - common_prefix.size());
-
     abstract_interface* target = nullptr;
-    if (suffix == properties_name) {
+    if (interface_name == std_ifaces::properties) {
         target = &properties_interface::get_instance();
-    } else if (suffix == introspectable_name) {
+    } else if (interface_name == std_ifaces::introspectable) {
         target = &introspectable_interface::get_instance();
-    } else if (suffix == peer_name) {
+    } else if (interface_name == std_ifaces::peer) {
         target = &peer_interface::get_instance();
-    } else if (suffix == object_manager_name) {
+    } else if (interface_name == std_ifaces::object_manager) {
         target = &object_manager_interface::get_instance();
     } else {
         return std::nullopt;
     }
 
-    // 命中已知标准接口，但方法不存在时返回 unknown_method 错误
-    auto* method = target->get_method_info(method_name);
-    if (method == nullptr) {
-        MC_REPLY_ERROR_AND_THROW(errors::unknown_method, ("method", method_name));
-    }
-
-    // 压入调用栈：让 Peer/Properties/Introspectable/ObjectManager 通过
-    // object_call_stack::top_value() 拿到当前对象
-    scoped_object_context ctx(object.get_service(), object);
-    return invoke_hit{target->invoke(method_name, args), method->get_result_signature()};
+    return invoke_standard_interface(object, *target, method_name, args);
 }
 
 } // namespace mc::engine

@@ -361,9 +361,7 @@ TEST_F(transaction_test, transaction_merge_detailed)
 
     // 构造资源ID的辅助函数
     auto make_resource_id = [&](const auto& obj_ptr) -> uint64_t {
-        // 使用transaction的静态方法获取表ID
-        static uint32_t table_id = users.get_table_id();
-        return (static_cast<uint64_t>(table_id) << 32) | obj_ptr->get_object_id();
+        return (static_cast<uint64_t>(users.get_table_id()) << 32) | obj_ptr->get_object_id();
     };
 
     // 场景1: 添加后更新（add + update）

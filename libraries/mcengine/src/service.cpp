@@ -14,7 +14,6 @@
 #include <mc/engine/dispatcher.h>
 #include <mc/engine/engine.h>
 #include <mc/engine/event.h>
-#include <mc/engine/service_proto.h>
 #include <mc/engine/internal/shm_binding.h>
 #include <mc/engine/match.h>
 #include <mc/engine/message.h>
@@ -23,6 +22,7 @@
 #include <mc/engine/path_iterator.h>
 #include <mc/engine/property/types.h>
 #include <mc/engine/service.h>
+#include <mc/engine/service_proto.h>
 #include <mc/engine/utils.h>
 #include <mc/exception.h>
 #include <mc/runtime/runtime_context.h>
@@ -35,9 +35,24 @@
 #include "match/shared_table.h"
 #endif
 
+#include <mc/engine/std_interface.h>
+
 namespace mc::engine {
 
 namespace {
+
+#define MC_SIGNAL_KEY(NAME, LITERAL) static const mc::string NAME = mc::string::from_quark(LITERAL##_q)
+
+MC_SIGNAL_KEY(if_object_manager, "org.freedesktop.DBus.ObjectManager");
+MC_SIGNAL_KEY(if_properties, "org.freedesktop.DBus.Properties");
+MC_SIGNAL_KEY(sig_interfaces_added, "InterfacesAdded");
+MC_SIGNAL_KEY(sig_interfaces_removed, "InterfacesRemoved");
+MC_SIGNAL_KEY(sig_properties_changed, "PropertiesChanged");
+MC_SIGNAL_KEY(sig_oa, "oa{sa{sv}}");
+MC_SIGNAL_KEY(sig_oas, "oas");
+MC_SIGNAL_KEY(sig_sas, "sa{sv}as");
+
+#undef MC_SIGNAL_KEY
 
 message _make_interfaces_added(mc::string_view sender, const abstract_object& obj)
 {
@@ -45,11 +60,11 @@ message _make_interfaces_added(mc::string_view sender, const abstract_object& ob
     msg.header.type           = message_type::signal;
     msg.header.sender         = mc::string(sender);
     msg.header.path           = mc::string(obj.get_object_path());
-    msg.header.interface_name = "org.freedesktop.DBus.ObjectManager";
-    msg.header.member_name    = "InterfacesAdded";
+    msg.header.interface_name = if_object_manager;
+    msg.header.member_name    = sig_interfaces_added;
     msg.body                  = make_payload<signal_payload>(
-        "oa{sa{sv}}", mc::variants{mc::variant(mc::string(obj.get_object_path())),
-                                   mc::variant(obj.get_all_properties({}, property_options::memory))});
+        sig_oa, mc::variants{mc::variant(mc::string(obj.get_object_path())),
+                             mc::variant(obj.get_all_properties({}, property_options::memory))});
     return msg;
 }
 
@@ -66,10 +81,10 @@ message _make_interfaces_removed(mc::string_view sender, const abstract_object& 
     msg.header.type           = message_type::signal;
     msg.header.sender         = mc::string(sender);
     msg.header.path           = mc::string(obj.get_object_path());
-    msg.header.interface_name = "org.freedesktop.DBus.ObjectManager";
-    msg.header.member_name    = "InterfacesRemoved";
+    msg.header.interface_name = if_object_manager;
+    msg.header.member_name    = sig_interfaces_removed;
     msg.body                  = make_payload<signal_payload>(
-        "oas", mc::variants{mc::variant(mc::string(obj.get_object_path())), mc::variant(std::move(iface_names))});
+        sig_oas, mc::variants{mc::variant(mc::string(obj.get_object_path())), mc::variant(std::move(iface_names))});
     return msg;
 }
 
@@ -88,10 +103,10 @@ message _make_properties_changed(mc::string_view sender, const abstract_object& 
     msg.header.type           = message_type::signal;
     msg.header.sender         = mc::string(sender);
     msg.header.path           = mc::string(obj.get_object_path());
-    msg.header.interface_name = "org.freedesktop.DBus.Properties";
-    msg.header.member_name    = "PropertiesChanged";
-    msg.body = make_payload<signal_payload>("sa{sv}as",
-                                            mc::variants{mc::variant(mc::string(iface_name)),
+    msg.header.interface_name = if_properties;
+    msg.header.member_name    = sig_properties_changed;
+    msg.body                  = make_payload<signal_payload>(sig_sas,
+                                                             mc::variants{mc::variant(mc::string(iface_name)),
                                                          mc::variant(std::move(changed)), mc::variant(mc::variants{})});
     return msg;
 }
@@ -120,9 +135,9 @@ void _property_changed_global_filter(mc::object& target, mc::event& e)
         return;
     }
 
-    const auto& prop   = property_event->property();
-    const auto& value  = property_event->value();
-    auto        msg    = _make_properties_changed(svc->name(), *obj, prop, value);
+    const auto& prop  = property_event->property();
+    const auto& value = property_event->value();
+    auto        msg   = _make_properties_changed(svc->name(), *obj, prop, value);
     svc->emit(msg);
 }
 
@@ -131,16 +146,16 @@ std::once_flag g_property_filter_once;
 } // namespace
 
 struct service_impl {
-    std::mutex           m_mutex;
-    service*             m_service{nullptr};
-    object_table_ptr     m_object_table;
-    bool                 m_registered{false};
-    bool                 m_started{false};
-    service_proto* m_proto{nullptr};
+    std::mutex       m_mutex;
+    service*         m_service{nullptr};
+    object_table_ptr m_object_table;
+    bool             m_registered{false};
+    bool             m_started{false};
+    service_proto*   m_proto{nullptr};
 
     std::mutex                          m_match_mutex;
     std::unordered_set<match::match_id> m_owned_matches;
-    shm_binding::service_state* m_shm_state{nullptr};
+    shm_binding::service_state*         m_shm_state{nullptr};
 
     service_impl() : m_shm_state(shm_binding::create_service_state())
     {}
@@ -154,7 +169,7 @@ struct service_impl {
     void             register_object(abstract_object& obj);
     void             unregister_object(mc::string_view path);
     abstract_object* find_owner(mc::string_view path) const;
-    void _restore_owner_relations();
+    void             _restore_owner_relations();
 };
 
 void service_impl::ensure_registered()
@@ -164,8 +179,8 @@ void service_impl::ensure_registered()
     }
 
     std::call_once(g_property_filter_once, []() {
-        mc::runtime::get_runtime_context().install_global_filter(
-            property_changed_event_id, _property_changed_global_filter);
+        mc::runtime::get_runtime_context().install_global_filter(property_changed_event_id,
+                                                                 _property_changed_global_filter);
     });
 
     if (!m_object_table) {
@@ -582,9 +597,7 @@ std::size_t service::gc_isolated()
     return shm_binding::gc_isolated(m_impl->m_shm_state, *m_impl->m_object_table);
 }
 
-namespace {
-
-} // namespace
+namespace {} // namespace
 
 void service::set_proto(service_proto* proto)
 {

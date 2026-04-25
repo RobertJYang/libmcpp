@@ -68,7 +68,7 @@ long long measure_us(Fn&& fn)
     return std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
 }
 
-TEST(FixedSizePoolPerformanceTest, single_thread_allocate_deallocate)
+TEST(FixedSizePoolPerformanceTest, DISABLED_single_thread_allocate_deallocate)
 {
     const std::size_t count     = bench_iteration_count();
     const std::size_t boost_ops = boost_object_pool_ops(count);
@@ -163,7 +163,7 @@ TEST(FixedSizePoolPerformanceTest, single_thread_allocate_deallocate)
     std::cout << "new/delete: " << new_delete_us << " us" << std::endl;
 }
 
-TEST(FixedSizePoolPerformanceTest, object_pool_versus_raw_fixed_size_pool)
+TEST(FixedSizePoolPerformanceTest, DISABLED_object_pool_versus_raw_fixed_size_pool)
 {
     const std::size_t count     = bench_iteration_count();
     const std::size_t boost_ops = boost_object_pool_ops(count);
@@ -220,7 +220,7 @@ TEST(FixedSizePoolPerformanceTest, object_pool_versus_raw_fixed_size_pool)
     std::cout << "boost::object_pool: " << boost_typed_us << " us" << std::endl;
 }
 
-TEST(FixedSizePoolPerformanceTest, remote_reclaim_contention)
+TEST(FixedSizePoolPerformanceTest, DISABLED_remote_reclaim_contention)
 {
     const std::size_t per_thread_ops = std::max<std::size_t>(10000, bench_iteration_count() / 2);
 

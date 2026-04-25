@@ -76,6 +76,9 @@ public:
     bool  is_quark() const noexcept;
     quark to_quark() const noexcept;
 
+    /** @brief 尝试将当前字符串转为 quark backend；命中返回 true，未命中保持原状 */
+    bool try_quarkize() noexcept;
+
     std::size_t size() const noexcept;
     std::size_t capacity() const noexcept;
     bool        empty() const noexcept;

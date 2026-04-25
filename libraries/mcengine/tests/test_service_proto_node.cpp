@@ -13,7 +13,10 @@
 #include <gtest/gtest.h>
 
 #include <mc/engine/service_proto.h>
+#include <mc/engine/std_interface.h>
 #include <mc/protocol.h>
+#include <mc/quark.h>
+#include <mc/string.h>
 
 namespace {
 
@@ -68,7 +71,7 @@ protected:
 TEST(service_proto, push_forwards_to_child_without_encode)
 {
     mc::engine::service_proto engine;
-    capture_transport        transport;
+    capture_transport         transport;
     engine.add_child(transport);
 
     mc::proto::proto_request req;
@@ -87,7 +90,7 @@ TEST(service_proto, push_forwards_to_child_without_encode)
 TEST(service_proto, pop_routes_response_back_to_same_transport)
 {
     mc::engine::service_proto engine;
-    capture_transport        transport;
+    capture_transport         transport;
     engine.add_child(transport);
     engine.set_inbound_handler([](mc::engine::message request) {
         EXPECT_EQ(request.header.type, mc::engine::message_type::method_call);
@@ -113,6 +116,46 @@ TEST(service_proto, pop_routes_response_back_to_same_transport)
     const auto outbound = mc::engine::message::from_bytes(transport.last_payload);
     EXPECT_EQ(outbound.header.type, mc::engine::message_type::method_return);
     EXPECT_EQ(outbound.header.reply_serial, 7u);
+}
+
+TEST(message_codec, decoded_known_header_strings_use_quark_storage)
+{
+    // 预先注册测试用 quark
+    const auto path_quark = MC_QUARK("/mc/test/object");
+
+    const auto& interface_str = mc::engine::std_ifaces::properties;
+    const auto& member_str    = mc::engine::std_ifaces::get;
+
+    mc::engine::message msg;
+    msg.header.type           = mc::engine::message_type::method_call;
+    msg.header.path           = "/mc/test/object";
+    msg.header.interface_name = "org.freedesktop.DBus.Properties";
+    msg.header.member_name    = "Get";
+    msg.header.destination    = "org.example.DynamicDestination";
+    msg.header.serial         = 7;
+    msg.body                  = mc::engine::make_payload<mc::engine::method_call_payload>("ss", mc::variants{});
+
+    // 二进制编解码路径：已注册的 quark 字符串会自动转为 quark backend
+    auto decoded = mc::engine::message::from_bytes(msg.to_bytes());
+    EXPECT_TRUE(decoded.header.path.is_quark());
+    EXPECT_TRUE(decoded.header.interface_name.is_quark());
+    EXPECT_TRUE(decoded.header.member_name.is_quark());
+    EXPECT_FALSE(decoded.header.destination.is_quark());
+
+    // quark-backed mc::string 与框架预定义常量直接比较
+    EXPECT_EQ(decoded.header.interface_name, interface_str);
+    EXPECT_EQ(decoded.header.member_name, member_str);
+
+    // dict 编解码路径：同样会走 try_from 规范化
+    mc::dict variant_dict;
+    mc::engine::message::to_variant(msg, variant_dict);
+    mc::engine::message variant_decoded;
+    mc::engine::message::from_variant(variant_dict, variant_decoded);
+    EXPECT_TRUE(variant_decoded.header.interface_name.is_quark());
+    EXPECT_TRUE(variant_decoded.header.member_name.is_quark());
+    EXPECT_EQ(variant_decoded.header.interface_name, interface_str);
+    EXPECT_EQ(variant_decoded.header.member_name, member_str);
+    EXPECT_FALSE(variant_decoded.header.destination.is_quark());
 }
 
 } // namespace

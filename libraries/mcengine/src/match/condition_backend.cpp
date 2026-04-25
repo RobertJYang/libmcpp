@@ -15,6 +15,7 @@
 
 #include <mc/db/query/condition.h>
 #include <mc/json.h>
+#include <mc/quark.h>
 
 #include <algorithm>
 #include <utility>
@@ -27,29 +28,36 @@ using mc::db::query::compare_op;
 using mc::db::query::condition;
 using mc::db::query::logical_op;
 
+static const mc::string k_field_type           = mc::string::from_quark("type"_q);
+static const mc::string k_field_sender         = mc::string::from_quark("sender"_q);
+static const mc::string k_field_destination    = mc::string::from_quark("destination"_q);
+static const mc::string k_field_path           = mc::string::from_quark("path"_q);
+static const mc::string k_field_interface_name = mc::string::from_quark("interface_name"_q);
+static const mc::string k_field_member_name    = mc::string::from_quark("member_name"_q);
+
 bool fetch_header_field(mc::string_view name, const message_header& header, mc::string& out)
 {
-    if (name == "type") {
+    if (name == k_field_type) {
         out = mc::string(message_type_to_name(header.type));
         return true;
     }
-    if (name == "sender") {
+    if (name == k_field_sender) {
         out = header.sender;
         return true;
     }
-    if (name == "destination") {
+    if (name == k_field_destination) {
         out = header.destination;
         return true;
     }
-    if (name == "path") {
+    if (name == k_field_path) {
         out = header.path;
         return true;
     }
-    if (name == "interface_name") {
+    if (name == k_field_interface_name) {
         out = header.interface_name;
         return true;
     }
-    if (name == "member_name") {
+    if (name == k_field_member_name) {
         out = header.member_name;
         return true;
     }

@@ -14,6 +14,7 @@
 
 #include <mc/io/io_buffer.h>
 #include <mc/io/io_stream.h>
+#include <mc/quark.h>
 #include <mc/reflect.h>
 
 #include <limits>
@@ -31,6 +32,34 @@ MC_REFLECT(mc::engine::message)
 
 namespace mc::engine {
 namespace {
+
+// codec dict key 常量：由 quark 构造，dict 查找时自动走 quark id 快速匹配。
+#define MC_CODEC_KEY(NAME, LITERAL) static const mc::string k_##NAME = mc::string::from_quark(LITERAL##_q)
+
+MC_CODEC_KEY(type, "type");
+MC_CODEC_KEY(destination, "destination");
+MC_CODEC_KEY(sender, "sender");
+MC_CODEC_KEY(path, "path");
+MC_CODEC_KEY(interface_name, "interface_name");
+MC_CODEC_KEY(member_name, "member_name");
+MC_CODEC_KEY(error_name, "error_name");
+MC_CODEC_KEY(serial, "serial");
+MC_CODEC_KEY(reply_serial, "reply_serial");
+MC_CODEC_KEY(timeout_ms, "timeout_ms");
+MC_CODEC_KEY(context, "context");
+MC_CODEC_KEY(signature, "signature");
+MC_CODEC_KEY(args, "args");
+MC_CODEC_KEY(value, "value");
+MC_CODEC_KEY(name, "name");
+MC_CODEC_KEY(message, "message");
+MC_CODEC_KEY(payload_id, "payload_id");
+MC_CODEC_KEY(message_type, "message_type");
+MC_CODEC_KEY(body, "body");
+MC_CODEC_KEY(header, "header");
+MC_CODEC_KEY(has_body, "has_body");
+MC_CODEC_KEY(wire_bytes, "wire_bytes");
+
+#undef MC_CODEC_KEY
 
 constexpr uint32_t MESSAGE_MAGIC   = 0x4d43454dU;
 constexpr uint16_t MESSAGE_VERSION = 2;
@@ -80,6 +109,16 @@ uint32_t checked_size(std::size_t size, mc::string_view field_name)
     MC_ASSERT_THROW(size <= static_cast<std::size_t>(std::numeric_limits<uint32_t>::max()), mc::out_of_range_exception,
                     "${field} size exceeds uint32 range", ("field", field_name));
     return static_cast<uint32_t>(size);
+}
+
+void normalize_header_strings(message_header& header)
+{
+    header.destination.try_quarkize();
+    header.sender.try_quarkize();
+    header.path.try_quarkize();
+    header.interface_name.try_quarkize();
+    header.member_name.try_quarkize();
+    header.error_name.try_quarkize();
 }
 
 mc::string to_string(const mc::io::io_stream& stream)
@@ -473,6 +512,7 @@ message_header build_header_from_fields(const std::vector<decoded_header_field>&
     header.timeout =
         mc::milliseconds(header_field_or_default<int64_t>(fields, header_field_ids::timeout_ms, int64_t{0}));
     header.context = header_field_or_default<mc::dict>(fields, header_field_ids::context, {});
+    normalize_header_strings(header);
     return header;
 }
 
@@ -601,27 +641,28 @@ message_header decode_header_dict(const mc::dict& dict, const message_decode_opt
 {
     message_header header;
     header.type =
-        decode_message_type_field(dict, "type", "header.type", payload_ids::invalid, message_type::invalid, options);
-    header.destination = decode_field_as<mc::string>(dict, "destination", "header.destination", payload_ids::invalid,
+        decode_message_type_field(dict, k_type, "header.type", payload_ids::invalid, message_type::invalid, options);
+    header.destination = decode_field_as<mc::string>(dict, k_destination, "header.destination", payload_ids::invalid,
                                                      message_type::invalid, options);
-    header.sender      = decode_field_as<mc::string>(dict, "sender", "header.sender", payload_ids::invalid,
+    header.sender      = decode_field_as<mc::string>(dict, k_sender, "header.sender", payload_ids::invalid,
                                                      message_type::invalid, options);
     header.path =
-        decode_field_as<mc::string>(dict, "path", "header.path", payload_ids::invalid, message_type::invalid, options);
-    header.interface_name = decode_field_as<mc::string>(dict, "interface_name", "header.interface_name",
+        decode_field_as<mc::string>(dict, k_path, "header.path", payload_ids::invalid, message_type::invalid, options);
+    header.interface_name = decode_field_as<mc::string>(dict, k_interface_name, "header.interface_name",
                                                         payload_ids::invalid, message_type::invalid, options);
-    header.member_name    = decode_field_as<mc::string>(dict, "member_name", "header.member_name", payload_ids::invalid,
+    header.member_name    = decode_field_as<mc::string>(dict, k_member_name, "header.member_name", payload_ids::invalid,
                                                         message_type::invalid, options);
-    header.error_name     = decode_field_as<mc::string>(dict, "error_name", "header.error_name", payload_ids::invalid,
+    header.error_name     = decode_field_as<mc::string>(dict, k_error_name, "header.error_name", payload_ids::invalid,
                                                         message_type::invalid, options);
-    header.serial         = decode_field_as<uint64_t>(dict, "serial", "header.serial", payload_ids::invalid,
+    header.serial         = decode_field_as<uint64_t>(dict, k_serial, "header.serial", payload_ids::invalid,
                                                       message_type::invalid, options);
-    header.reply_serial   = decode_field_as<uint64_t>(dict, "reply_serial", "header.reply_serial", payload_ids::invalid,
+    header.reply_serial   = decode_field_as<uint64_t>(dict, k_reply_serial, "header.reply_serial", payload_ids::invalid,
                                                       message_type::invalid, options);
-    header.timeout        = mc::milliseconds(decode_field_as<int64_t>(dict, "timeout_ms", "header.timeout_ms",
+    header.timeout        = mc::milliseconds(decode_field_as<int64_t>(dict, k_timeout_ms, "header.timeout_ms",
                                                                       payload_ids::invalid, message_type::invalid, options));
     header.context =
-        decode_dict_field(dict, "context", "header.context", payload_ids::invalid, message_type::invalid, options);
+        decode_dict_field(dict, k_context, "header.context", payload_ids::invalid, message_type::invalid, options);
+    normalize_header_strings(header);
     return header;
 }
 
@@ -661,29 +702,29 @@ mc::shared_ptr<const abstract_payload> decode_standard_payload(payload_id_type p
                 return nullptr;
             }
             return mc::make_shared<method_call_payload>(
-                decode_field_as<mc::string>(body, "signature", "body.signature", payload_id, message_kind, options),
-                decode_variants_field(body, "args", "body.args", payload_id, message_kind, options));
+                decode_field_as<mc::string>(body, k_signature, "body.signature", payload_id, message_kind, options),
+                decode_variants_field(body, k_args, "body.args", payload_id, message_kind, options));
         case payload_ids::method_return:
             if (message_kind != message_type::method_return) {
                 return nullptr;
             }
             return mc::make_shared<method_return_payload>(
-                decode_variant_field(body, "value", "body.value", payload_id, message_kind, options),
-                decode_field_as<mc::string>(body, "signature", "body.signature", payload_id, message_kind, options));
+                decode_variant_field(body, k_value, "body.value", payload_id, message_kind, options),
+                decode_field_as<mc::string>(body, k_signature, "body.signature", payload_id, message_kind, options));
         case payload_ids::error:
             if (message_kind != message_type::error) {
                 return nullptr;
             }
             return mc::make_shared<error_payload>(
-                decode_field_as<mc::string>(body, "name", "body.name", payload_id, message_kind, options),
-                decode_field_as<mc::string>(body, "message", "body.message", payload_id, message_kind, options));
+                decode_field_as<mc::string>(body, k_name, "body.name", payload_id, message_kind, options),
+                decode_field_as<mc::string>(body, k_message, "body.message", payload_id, message_kind, options));
         case payload_ids::signal:
             if (message_kind != message_type::signal) {
                 return nullptr;
             }
             return mc::make_shared<signal_payload>(
-                decode_field_as<mc::string>(body, "signature", "body.signature", payload_id, message_kind, options),
-                decode_variants_field(body, "args", "body.args", payload_id, message_kind, options));
+                decode_field_as<mc::string>(body, k_signature, "body.signature", payload_id, message_kind, options),
+                decode_variants_field(body, k_args, "body.args", payload_id, message_kind, options));
         default:
             return nullptr;
     }
@@ -749,8 +790,8 @@ mc::shared_ptr<const abstract_payload> decode_unknown_payload(payload_id_type pa
         }
     }
 
-    if (body.find("wire_bytes") != body.end()) {
-        auto wire_blob = body.at("wire_bytes").as<mc::blob>();
+    if (body.find(k_wire_bytes) != body.end()) {
+        auto wire_blob = body.at(k_wire_bytes).as<mc::blob>();
         return make_opaque_payload(payload_id, message_kind, mc::string(wire_blob.data.data(), wire_blob.data.size()));
     }
 
@@ -794,23 +835,23 @@ void signal_payload::to_variant(mc::dict& dict) const
 
 void opaque_payload::to_variant(mc::dict& dict) const
 {
-    dict["wire_bytes"] = mc::blob(wire_bytes.data(), wire_bytes.size());
+    dict[k_wire_bytes] = mc::blob(wire_bytes.data(), wire_bytes.size());
 }
 
 void message_header::to_variant(const message_header& header, mc::dict& dict)
 {
-    dict["type"]           = mc::variant();
-    dict["destination"]    = header.destination;
-    dict["sender"]         = header.sender;
-    dict["path"]           = header.path;
-    dict["interface_name"] = header.interface_name;
-    dict["member_name"]    = header.member_name;
-    dict["error_name"]     = header.error_name;
-    dict["serial"]         = static_cast<uint64_t>(header.serial);
-    dict["reply_serial"]   = static_cast<uint64_t>(header.reply_serial);
-    dict["timeout_ms"]     = static_cast<int64_t>(header.timeout.count());
-    dict["context"]        = header.context;
-    mc::to_variant(header.type, dict["type"]);
+    dict[k_type]           = mc::variant();
+    dict[k_destination]    = header.destination;
+    dict[k_sender]         = header.sender;
+    dict[k_path]           = header.path;
+    dict[k_interface_name] = header.interface_name;
+    dict[k_member_name]    = header.member_name;
+    dict[k_error_name]     = header.error_name;
+    dict[k_serial]         = static_cast<uint64_t>(header.serial);
+    dict[k_reply_serial]   = static_cast<uint64_t>(header.reply_serial);
+    dict[k_timeout_ms]     = static_cast<int64_t>(header.timeout.count());
+    dict[k_context]        = header.context;
+    mc::to_variant(header.type, dict[k_type]);
 }
 
 void message_header::from_variant(const mc::dict& dict, message_header& header)
@@ -821,10 +862,10 @@ void message_header::from_variant(const mc::dict& dict, message_header& header)
 mc::dict encode_payload(const abstract_payload& payload)
 {
     mc::dict record;
-    record["payload_id"]   = static_cast<uint64_t>(payload.payload_id());
-    record["message_type"] = mc::variant();
-    mc::to_variant(payload.message_type_id(), record["message_type"]);
-    record["body"] = payload_body_to_dict(payload);
+    record[k_payload_id]   = static_cast<uint64_t>(payload.payload_id());
+    record[k_message_type] = mc::variant();
+    mc::to_variant(payload.message_type_id(), record[k_message_type]);
+    record[k_body] = payload_body_to_dict(payload);
     return record;
 }
 
@@ -835,11 +876,11 @@ mc::shared_ptr<const abstract_payload> decode_payload(const mc::dict& dict)
 
 mc::shared_ptr<const abstract_payload> decode_payload(const mc::dict& dict, const message_decode_options& options)
 {
-    auto payload_id   = decode_field_as<uint64_t>(dict, "payload_id", "payload.payload_id", payload_ids::invalid,
+    auto payload_id   = decode_field_as<uint64_t>(dict, k_payload_id, "payload.payload_id", payload_ids::invalid,
                                                   message_type::invalid, options);
-    auto message_kind = decode_message_type_field(dict, "message_type", "payload.message_type", payload_ids::invalid,
+    auto message_kind = decode_message_type_field(dict, k_message_type, "payload.message_type", payload_ids::invalid,
                                                   message_type::invalid, options);
-    auto body = decode_dict_field(dict, "body", "payload.body", payload_ids::invalid, message_type::invalid, options);
+    auto body = decode_dict_field(dict, k_body, "payload.body", payload_ids::invalid, message_type::invalid, options);
 
     auto standard = decode_standard_payload(payload_id, message_kind, body, options);
     return standard ? standard : decode_unknown_payload(payload_id, message_kind, body, options);
@@ -942,11 +983,11 @@ mc::dict encode_message(const message& msg)
     message_header::to_variant(msg.header, header);
 
     mc::dict dict{
-        {"header", header},
-        {"has_body", msg.body != nullptr},
+        {k_header, header},
+        {k_has_body, msg.body != nullptr},
     };
     if (msg.body != nullptr) {
-        dict["body"] = encode_payload(*msg.body);
+        dict[k_body] = encode_payload(*msg.body);
     }
     return dict;
 }
@@ -960,14 +1001,14 @@ message decode_message(const mc::dict& dict, const message_decode_options& optio
 {
     message msg;
     msg.header = decode_header_dict(
-        decode_dict_field(dict, "header", "message.header", payload_ids::invalid, message_type::invalid, options),
+        decode_dict_field(dict, k_header, "message.header", payload_ids::invalid, message_type::invalid, options),
         options);
 
-    auto has_body = decode_field_as<bool>(dict, "has_body", "message.has_body", payload_ids::invalid,
+    auto has_body = decode_field_as<bool>(dict, k_has_body, "message.has_body", payload_ids::invalid,
                                           message_type::invalid, options);
     if (has_body) {
         msg.body = decode_payload(
-            decode_dict_field(dict, "body", "message.body", payload_ids::invalid, message_type::invalid, options),
+            decode_dict_field(dict, k_body, "message.body", payload_ids::invalid, message_type::invalid, options),
             options);
     }
     return msg;

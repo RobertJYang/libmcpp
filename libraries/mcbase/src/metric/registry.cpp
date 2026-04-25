@@ -1,17 +1,18 @@
 /*
- * Copyright (c) 2026 Huawei Technologies Co., Ltd.
- * openUBMC is licensed under Mulan PSL v2.
- * You can use this software according to the terms and conditions of the Mulan PSL v2.
- * You may obtain a copy of Mulan PSL v2 at:
- *         http://license.coscl.org.cn/MulanPSL2
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
- * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
- * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
- * See the Mulan PSL v2 for more details.
- */
+* Copyright (c) 2026 Huawei Technologies Co., Ltd.
+* openUBMC is licensed under Mulan PSL v2.
+* You can use this software according to the terms and conditions of the Mulan PSL v2.
+* You may obtain a copy of Mulan PSL v2 at:
+*         http://license.coscl.org.cn/MulanPSL2
+* THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+* EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+* MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+* See the Mulan PSL v2 for more details.
+*/
 
 #include <mc/metric/registry.h>
 
+#include <atomic>
 #include <cstdlib>
 #include <cstring>
 #include <memory>
@@ -25,6 +26,35 @@
 #include "shm_layout.h"
 
 namespace mc::metric {
+
+// ---------------------------------------------------------------------------
+// registry 版本号：cached_* 检测版本变化时自动重新绑定
+// ---------------------------------------------------------------------------
+namespace {
+std::atomic<std::uint64_t>& registry_version() noexcept
+{
+    static std::atomic<std::uint64_t> s_version{0};
+    return s_version;
+}
+} // namespace
+
+namespace detail {
+
+std::uint64_t default_registry_version() noexcept
+{
+    return registry_version().load(std::memory_order_acquire);
+}
+
+void bump_default_registry_version() noexcept
+{
+    registry_version().fetch_add(1, std::memory_order_release);
+}
+
+} // namespace detail
+
+// ---------------------------------------------------------------------------
+// 内部实现
+// ---------------------------------------------------------------------------
 namespace {
 
 // 把 options 标准化：capacity 上调到 2 的幂；arena 至少 4 KiB，hist arena 至少 4 KiB
@@ -233,6 +263,7 @@ void reset_default_registry_for_test() noexcept
 {
     std::lock_guard<std::mutex> guard(default_registry_mutex());
     default_registry_storage().reset();
+    detail::bump_default_registry_version();
 }
 
 } // namespace mc::metric

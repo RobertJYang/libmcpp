@@ -14,6 +14,8 @@
 #define MC_METRIC_REGISTRY_H
 
 #include <cstddef>
+#include <cstdint>
+#include <limits>
 #include <memory>
 
 #include <mc/common.h>
