@@ -20,15 +20,17 @@ if enable_coverage
   mcapp_test_link_args += coverage_link_args
 endif
 
+mcapp_project_test_incdir = include_directories('../../../include')
+
 mcapp_test_lib = static_library(
   'mcapp_test_lib',
   mcapp_test_files,
-  include_directories: [incdir, srcdir, mcapp_test_incdir],
+  include_directories: [incdir, srcdir, mcapp_test_incdir, mcapp_project_test_incdir],
   dependencies: [
     gtest_dep,
     mcapp_dep,
     mcengine_dep,
-    mcbase_test_utilities_dep,
+    mcapp_test_utilities_dep,
   ],
   install: false,
 )
@@ -40,10 +42,10 @@ mcapp_test_exe = executable(
     mcapp_test_lib,
     mcapp_lib,
   ],
-  include_directories: [incdir, srcdir, mcapp_test_incdir],
+  include_directories: [incdir, srcdir, mcapp_test_incdir, mcapp_project_test_incdir],
   dependencies: [
     gtest_dep,
-    mcbase_test_utilities_dep,
+    mcapp_test_utilities_dep,
     mcapp_dep,
     mcengine_dep,
   ],

@@ -15,6 +15,7 @@
 #include <mc/engine/engine.h>
 #include <mc/engine/service_proto.h>
 #include <mc/log/log.h>
+#include <mc/runtime.h>
 #include <mc/shm/default_runtime.h>
 #include <mc/shm/message_queue/mq_channel.h>
 #include <mc/shm/message_queue/mq_proto.h>
@@ -58,7 +59,9 @@ endpoint_service::endpoint_service(mc::string_view endpoint_name, std::shared_pt
     m_endpoint_impl->m_channel.set_protocol(&m_endpoint_impl->m_service_proto);
 
     m_endpoint_impl->m_service_proto.set_inbound_handler([](message msg) -> message {
-        mc::engine::engine::route_inbound(msg);
+        mc::runtime::post([msg = std::move(msg)]() mutable {
+            mc::engine::engine::route_inbound(msg);
+        }, mc::runtime::io_executor);
         return {};
     });
 }

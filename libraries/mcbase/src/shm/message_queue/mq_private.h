@@ -14,6 +14,7 @@
 #define MC_SHM_MESSAGE_QUEUE_MQ_PRIVATE_H
 
 #include <atomic>
+#include <chrono>
 
 #include <mc/shm/message_queue/mq_queue.h>
 #include <mc/shm/shared_mapping_view.h>
@@ -86,14 +87,18 @@ inline std::size_t slot_size(std::size_t max_payload) noexcept
 namespace mc::shm {
 
 struct mq_queue::impl {
-    mq_queue_options      options;
-    detail::mq_notifier   data_notifier;
-    detail::mq_notifier   space_notifier;
-    shared_mapping_view   mapping;
-    detail::queue_header* header{nullptr};
-    char*                 slots_base{nullptr};
-    std::size_t           slot_stride{0};
-    std::size_t           max_payload{0};
+    mq_queue_options                            options;
+    detail::mq_notifier                         data_notifier;
+    detail::mq_notifier                         space_notifier;
+    shared_mapping_view                         mapping;
+    detail::queue_header*                       header{nullptr};
+    char*                                       slots_base{nullptr};
+    std::size_t                                 slot_stride{0};
+    std::size_t                                 max_payload{0};
+    mq_queue::writer_liveness_probe             writer_liveness_probe;
+    std::chrono::steady_clock::duration         orphan_reserve_timeout{std::chrono::milliseconds(100)};
+    std::atomic<std::uint64_t>                  orphan_head_seen_seq{0};
+    std::atomic<std::chrono::steady_clock::rep> orphan_head_seen_at{0};
 
     detail::queue_slot& slot_at(std::uint64_t sequence) const noexcept
     {
@@ -117,6 +122,8 @@ struct mq_queue::impl {
             slot.sequence.store(seq + header->slot_count, std::memory_order_release);
         }
         header->head_seq.store(start_seq + fragment_count, std::memory_order_release);
+        orphan_head_seen_seq.store(0, std::memory_order_release);
+        orphan_head_seen_at.store(0, std::memory_order_release);
         space_notifier.notify();
     }
 };

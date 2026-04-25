@@ -55,6 +55,8 @@ public:
     }
 
     bool initialize(const app_options& options = {});
+    bool initialize_with_plan(service_plan plan);
+
     bool start();
     bool stop();
 
@@ -74,6 +76,8 @@ public:
 
 private:
     bool initialize_internal(const app_options& options);
+    void prepare_initialize();
+    bool initialize_from_current_plan();
     bool load_module(mc::string_view module_name);
     void clear_runtime_state();
     void clear_application_state();

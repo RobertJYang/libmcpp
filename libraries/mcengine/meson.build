@@ -98,6 +98,7 @@ if build_tests
     'tests/test_path_pattern.cpp',
     'tests/test_async_invoke.cpp',
     'tests/test_result.cpp',
+    'tests/test_std_interface.cpp',
   )
 
   # 仅在 use_shm=true 时才编译的用例：内部大段代码依赖 shm_runtime / shared_table /

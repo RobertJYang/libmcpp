@@ -14,19 +14,23 @@
 #define MC_APP_DBUS_PROTO_H
 
 #include <mc/dbus/connection.h>
+#include <mc/dbus/message.h>
 #include <mc/protocol.h>
+#include <mc/signal/connection.h>
 #include <mc/string.h>
 
+#include <atomic>
+#include <condition_variable>
+#include <cstdint>
 #include <memory>
+#include <mutex>
+
+namespace mc::engine {
+struct message;
+} // namespace mc::engine
 
 namespace mc::app {
 
-// dbus_proto —— per-service 的 DBus 协议节点。作为 mc::proto::protocol 子节点
-// 挂载在 app_proto 下；业务层通过 service::set_proto(app_proto) 将整条出站
-// 链路接入。app_proto 根据 message header context 中的来源标记做路由：
-// dbus 来源的消息 push 到 dbus_proto，由 dbus_proto 自行将 mcengine message
-// 翻译为 DBus 报文。dbus_proto 的 on_push 目前提供编译骨架，真正的 DBus 报文
-// 翻译在 C8 测试完善后迭代补齐。
 class MC_API dbus_proto : public mc::proto::protocol {
 public:
     dbus_proto(mc::string service_name, mc::dbus::connection conn);
@@ -40,17 +44,44 @@ public:
     mc::string_view       service_name() const noexcept;
     mc::dbus::connection& connection() noexcept;
 
-    // 出站计数器仅用于单元测试可观测性；真实 DBus 投递在后续迭代补齐。
     std::size_t outbound_count() const noexcept;
+    std::size_t inbound_count() const noexcept;
 
 protected:
     mc::proto::execution_state on_push(mc::proto::proto_request& req) override;
     mc::proto::execution_state on_pop(mc::proto::proto_request& req) override;
 
 private:
-    mc::string           m_service_name;
-    mc::dbus::connection m_connection;
-    std::size_t          m_outbound_count{0};
+    struct inbound_call_context : public mc::proto::proto_context {
+        mc::dbus::message original_call;
+    };
+
+    struct async_state {
+        bool                    stopped{false};
+        std::size_t             active{0};
+        std::mutex              mutex;
+        std::condition_variable cv;
+
+        bool try_enter();
+        void leave();
+        void stop_and_wait();
+    };
+
+    DBusHandlerResult on_filter(mc::dbus::message& wire_msg);
+    void              handle_inbound_call(mc::dbus::message wire_msg);
+    void              deliver_reply(mc::dbus::message reply_msg);
+
+    bool send_method_call_and_wait_reply(mc::engine::message& msg);
+    bool send_method_return(mc::proto::proto_request& req, mc::engine::message& msg);
+    bool send_error_reply(mc::proto::proto_request& req, mc::engine::message& msg);
+    bool send_signal(mc::engine::message& msg);
+
+    mc::string                   m_service_name;
+    mc::dbus::connection         m_connection;
+    mc::connection               m_filter_slot;
+    std::shared_ptr<async_state> m_async_state;
+    std::atomic<std::size_t>     m_outbound_count{0};
+    std::atomic<std::size_t>     m_inbound_count{0};
 };
 
 using dbus_proto_ptr = std::shared_ptr<dbus_proto>;

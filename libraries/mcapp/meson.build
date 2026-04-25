@@ -29,6 +29,7 @@ endif
 incdir = include_directories('include')
 srcdir = include_directories('src')
 mcapp_test_incdir = include_directories('include', 'tests')
+mcapp_test_utilities_dep = declare_dependency()
 
 mcbase_dep = dependency(
   'mcbase',
@@ -59,9 +60,11 @@ mcdbus_dep = dependency(
 if build_tests
   gtest_dep = dependency('gtest', method: 'pkg-config', required: true)
   mcbase_test_utilities_dep = mcbase_subproject.get_variable('test_utilities_dep')
+  raw_dbus_dep = dependency('dbus-1', method: 'pkg-config', required: true)
 else
   gtest_dep = declare_dependency()
   mcbase_test_utilities_dep = declare_dependency()
+  raw_dbus_dep = declare_dependency()
 endif
 
 dep_arr = [mcbase_dep, mcengine_dep, mcdbus_dep]
@@ -71,5 +74,6 @@ subdir('src')
 meson.override_dependency('mcapp', mcapp_dep)
 
 if build_tests
+  subdir('tests/test_utilities')
   subdir('tests')
 endif

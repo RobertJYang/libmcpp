@@ -11,7 +11,7 @@
  */
 
 #include "test_utilities/resource_manager.h"
-#include "mc/log.h"
+#include <mc/log/log.h>
 
 #include <cstring>
 #include <fstream>

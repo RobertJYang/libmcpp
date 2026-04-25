@@ -14,14 +14,19 @@
 #define MC_APP_SERVICE_H
 
 #include <mc/common.h>
+#include <mc/dbus/connection.h>
 #include <mc/dict.h>
 #include <mc/engine/service.h>
 #include <mc/memory.h>
 #include <mc/string.h>
 
+#include <memory>
+
 #include <mc/app/service_context.h>
 
 namespace mc::app {
+
+class app_proto;
 
 enum class service_state { created, configured, starting, running, stopping, stopped, failed };
 
@@ -44,6 +49,9 @@ public:
     bool stop();
     void set_path(mc::string path);
 
+    mc::dbus::connection& connection() noexcept;
+    app_proto*            proto() noexcept;
+
 protected:
     bool         on_init(mc::dict properties) override;
     virtual bool on_configure();
@@ -54,11 +62,16 @@ protected:
     void                   set_state(service_state state) noexcept;
 
 private:
-    mc::string      m_path;
-    service_state   m_state{service_state::created};
-    mc::dict        m_properties;
-    service_context m_context;
-    bool            m_has_context{false};
+    bool bring_up_dbus_transport();
+    void tear_down_dbus_transport();
+
+    mc::string                 m_path;
+    service_state              m_state{service_state::created};
+    mc::dict                   m_properties;
+    service_context            m_context;
+    bool                       m_has_context{false};
+    mc::dbus::connection       m_connection;
+    std::unique_ptr<app_proto> m_proto;
 };
 
 using service_ptr = mc::shared_ptr<service>;

@@ -9,7 +9,7 @@ project(
     'cpp_args=-fPIC -Wall -Wno-unused-parameter -Wno-unused-variable -Wno-sign-compare -Wno-pedantic',
     'default_library=static',
   ],
-  subproject_dir: 'libraries',  # 指定子项目目录为 libraries
+  subproject_dir: 'libraries', # 指定子项目目录为 libraries
 )
 
 # 添加编译器选项
@@ -164,47 +164,62 @@ elif tests_utilities
   mock_dynamic_module = []  # 空列表
 else
   mcbase_test_lib = []
-  mcbase_test_dep = declare_dependency()  # 空依赖
-  mcbase_test_utilities_dep = declare_dependency()  # 空依赖
-  mock_dynamic_module = []  # 空列表
+  mcbase_test_dep = declare_dependency() # 空依赖
+  mcbase_test_utilities_dep = declare_dependency() # 空依赖
+  mock_dynamic_module = [] # 空列表
 endif
 
-mcengine_subproject = subproject('mcengine', default_options: [
-  'default_library=static',
-  'tests=' + build_tests.to_string(),
-  'enable_coverage=' + enable_coverage.to_string(),
-])
+mcengine_subproject = subproject(
+  'mcengine',
+  default_options: [
+    'default_library=static',
+    'tests=' + build_tests.to_string(),
+    'enable_coverage=' + enable_coverage.to_string(),
+  ],
+)
 mcengine_dep = mcengine_subproject.get_variable('mcengine_dep')
 mcengine_lib = mcengine_subproject.get_variable('mcengine_lib')
 
-mcexpr_subproject = subproject('mcexpr', default_options: [
-  'default_library=static',
-  'tests=' + build_tests.to_string(),
-  'enable_coverage=' + enable_coverage.to_string(),
-])
+mcexpr_subproject = subproject(
+  'mcexpr',
+  default_options: [
+    'default_library=static',
+    'tests=' + build_tests.to_string(),
+    'enable_coverage=' + enable_coverage.to_string(),
+  ],
+)
 mcexpr_dep = mcexpr_subproject.get_variable('mcexpr_dep')
 mcexpr_lib = mcexpr_subproject.get_variable('mcexpr_lib')
 
-mcdbus_subproject = subproject('mcdbus', default_options: [
-  'default_library=static',
-  'tests=' + build_tests.to_string(),
-  'enable_coverage=' + enable_coverage.to_string(),
-  'enable_conan_compile=' + enable_conan_compile.to_string(),
-])
+mcdbus_subproject = subproject(
+  'mcdbus',
+  default_options: [
+    'default_library=static',
+    'tests=' + build_tests.to_string(),
+    'enable_coverage=' + enable_coverage.to_string(),
+    'enable_conan_compile=' + enable_conan_compile.to_string(),
+  ],
+)
 mcdbus_dep = mcdbus_subproject.get_variable('mcdbus_dep')
 mcdbus_lib = mcdbus_subproject.get_variable('mcdbus_lib')
 
-mcapp_subproject = subproject('mcapp', default_options: [
-  'tests=' + build_tests.to_string(),
-  'enable_coverage=' + enable_coverage.to_string(),
-])
+mcapp_subproject = subproject(
+  'mcapp',
+  default_options: [
+    'tests=' + build_tests.to_string(),
+    'enable_coverage=' + enable_coverage.to_string(),
+  ],
+)
 mcapp_dep = mcapp_subproject.get_variable('mcapp_dep')
 mcapp_lib = mcapp_subproject.get_variable('mcapp_lib')
+if build_tests
+  test_utilities_dep = mcapp_subproject.get_variable('mcapp_test_utilities_dep')
+else
+  test_utilities_dep = declare_dependency()
+endif
 
 subdir('include')
 subdir('src')
-subdir('modules')
-subdir('tests/test_utilities')
 if build_tests
   if meson_build
     subdir('examples')

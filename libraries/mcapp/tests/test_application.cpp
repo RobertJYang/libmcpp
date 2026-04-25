@@ -11,18 +11,34 @@
  */
 
 #include <gtest/gtest.h>
+#include <mc/app/app_proto.h>
 #include <mc/app/application.h>
 #include <mc/app/service.h>
 #include <mc/array.h>
+#include <mc/dbus/connection.h>
+#include <mc/dbus/message.h>
 #include <mc/engine.h>
+#include <mc/engine/payload.h>
 #include <mc/engine/service.h>
+#include <mc/engine/service_proto.h>
 #include <mc/filesystem.h>
 #include <mc/json.h>
 #include <mc/reflect.h>
+#include <mc/runtime/runtime_context.h>
+#include <mc/shm/default_runtime.h>
+#include <mc/shm/detail/shared_memory_backend.h>
+#include <mc/signal/connection.h>
 #include <test_utilities/base.h>
+#include <test_utilities/test_base.h>
 
-#include <fstream>
+#include <atomic>
+#include <chrono>
+#include <condition_variable>
 #include <memory>
+#include <mutex>
+#include <optional>
+#include <tuple>
+#include <vector>
 
 namespace test_mcapp {
 
@@ -62,23 +78,79 @@ public:
     int                   m_stop_count{0};
 };
 
+class echo_interface : public mc::engine::interface<echo_interface> {
+public:
+    MC_INTERFACE("org.test.application.Echo")
+
+    mc::string m_greeting{"hello"};
+    int32_t    m_counter{0};
+
+    mc::string say(const mc::string& who)
+    {
+        ++m_counter;
+        return m_greeting + ":" + who;
+    }
+
+    mc::signal<void(mc::string)> greeted;
+};
+
+class echo_object : public mc::engine::object<echo_object> {
+public:
+    MC_OBJECT(echo_object, "EchoObject", "/mc/test/application/echo", (echo_interface))
+
+    echo_interface m_iface;
+};
+
+class echo_service : public mc::app::service {
+public:
+    explicit echo_service(std::string name) : mc::app::service(std::move(name))
+    {}
+
+    mc::shared_ptr<echo_object> echo_obj() const noexcept
+    {
+        return m_echo;
+    }
+
+protected:
+    bool on_start() override
+    {
+        m_echo = mc::make_shared<echo_object>();
+        register_object(m_echo);
+        return true;
+    }
+
+    bool on_stop() override
+    {
+        if (m_echo) {
+            unregister_object(m_echo);
+            m_echo.reset();
+        }
+        return true;
+    }
+
+private:
+    mc::shared_ptr<echo_object> m_echo;
+};
+
 } // namespace test_mcapp
 
 MC_REFLECT(test_mcapp::sample_service_config, (greeting))
+MC_REFLECT(test_mcapp::echo_interface, ((m_greeting, "Greeting"))((m_counter, "Counter"))((say, "Say"))(greeted))
+MC_REFLECT(test_mcapp::echo_object, ((m_iface, "Iface")))
 
-class application_test : public mc::test::TestWithRuntime {
+class application_test : public mc::test::TestWithDbusDaemon {
 protected:
+    static constexpr mc::string_view k_default_shm_region{"mc.default"};
+
     void SetUp() override
     {
-        // Сбрасываем глобальный engine + SHM-регион, чтобы между кейсами не оставались
-        // object_id / именованные мьютексы из прошлого прогона процесса (POSIX shm_open
-        // персистентен между запусками — без сброса возникает «索引键冲突» либо
-        // «mutex lock failed» при глобальной деструкции).
+        mc::shm::shutdown_default_runtime();
+        mc::shm::detail::shared_memory_backend::remove(k_default_shm_region);
         mc::engine::engine::reset_for_test();
         mc::app::base_app::reset_for_test();
         m_app = std::make_unique<mc::app::application>();
         m_app->registry().register_service<test_mcapp::sample_service>("sample_service");
-        m_temp_dir = create_test_directory();
+        m_app->registry().register_service<test_mcapp::echo_service>("echo_service");
     }
 
     void TearDown() override
@@ -89,60 +161,64 @@ protected:
         m_app.reset();
         mc::app::base_app::reset_for_test();
         mc::engine::engine::reset_for_test();
+        mc::shm::shutdown_default_runtime();
+        mc::shm::detail::shared_memory_backend::remove(k_default_shm_region);
     }
 
-    mc::filesystem::path write_config(const mc::string& content)
+    mc::app::service_definition make_sample_service_definition(mc::string_view service_name = "mc.test.alpha")
     {
-        auto          path = m_temp_dir.path() / "mcapp_test_config.json";
-        std::ofstream file(path.string());
-        file << content;
-        file.close();
-        return path;
+        mc::app::service_definition definition;
+        definition.name    = mc::string(service_name);
+        definition.type    = "sample_service";
+        definition.enabled = true;
+        return definition;
     }
 
-    mc::filesystem::path write_file(mc::string_view relative_path, const mc::string& content)
+    bool initialize_with_single_service(mc::app::service_definition definition, mc::string_view app_name = "sample-app",
+                                        std::size_t io_threads = 1, std::size_t work_threads = 1)
     {
-        auto path = m_temp_dir.path() / std::string(relative_path);
-        mc::filesystem::create_directories(path.parent_path());
-        std::ofstream file(path.string());
-        file << content;
-        file.close();
-        return path;
+        mc::app::service_plan plan;
+        plan.application.name         = mc::string(app_name);
+        plan.application.io_threads   = io_threads;
+        plan.application.work_threads = work_threads;
+        plan.services.push_back(std::move(definition));
+        return m_app->initialize_with_plan(std::move(plan));
+    }
+
+    mc::shared_ptr<test_mcapp::echo_service> start_echo_service(mc::string_view service_name = "mc.test.application.echo")
+    {
+        mc::app::service_definition definition;
+        definition.name    = mc::string(service_name);
+        definition.type    = "echo_service";
+        definition.enabled = true;
+
+        EXPECT_TRUE(initialize_with_single_service(std::move(definition), "mcapp_dbus_test", 1, 1));
+        EXPECT_TRUE(m_app->start());
+
+        return mc::static_pointer_cast<test_mcapp::echo_service>(m_app->get_service(service_name));
+    }
+
+    static mc::dbus::message make_call(mc::string_view destination, mc::string_view interface, mc::string_view member)
+    {
+        return mc::dbus::message::new_method_call(destination, mc::string_view("/mc/test/application/echo"), interface,
+                                                  member);
+    }
+
+    static mc::dbus::message call_sync(mc::dbus::connection& conn, mc::dbus::message call)
+    {
+        auto future = conn.async_send_with_reply(std::move(call), mc::seconds(5));
+        return std::move(future).get();
     }
 
     std::unique_ptr<mc::app::application> m_app;
-    mc::test::scoped_test_directory       m_temp_dir;
 };
 
-TEST_F(application_test, initialize_builds_service_plan_from_config)
+TEST_F(application_test, initialize_builds_service_plan_from_plan)
 {
-    auto config_path = write_config(R"([
-        {
-            "api_version": "v1",
-            "kind": "Application",
-            "meta": {"name": "sample-app"},
-            "threads": 2,
-            "work_threads": 4
-        },
-        {
-            "api_version": "v1",
-            "kind": "Service",
-            "meta": {"name": "mc.test.alpha"},
-            "type": "sample_service",
-            "enabled": true,
-            "properties": {
-                "greeting": "hello"
-            }
-        }
-    ])");
+    auto definition                   = make_sample_service_definition();
+    definition.properties["greeting"] = mc::variant(mc::string("hello"));
 
-    std::string          config_arg = config_path.string();
-    char                 arg0[]     = "mcapp_test";
-    char                 arg1[]     = "--config";
-    char*                argv[]     = {arg0, arg1, config_arg.data(), nullptr};
-    mc::app::app_options options{3, argv};
-
-    ASSERT_TRUE(m_app->initialize(options));
+    ASSERT_TRUE(initialize_with_single_service(std::move(definition), "sample-app", 2, 4));
 
     const auto& plan = m_app->plan();
     ASSERT_EQ(plan.services.size(), 1U);
@@ -158,141 +234,11 @@ TEST_F(application_test, initialize_builds_service_plan_from_config)
     EXPECT_EQ(typed->m_config.greeting, "hello");
 }
 
-TEST_F(application_test, command_line_overrides_service_properties)
-{
-    auto config_path = write_config(R"([
-        {
-            "api_version": "v1",
-            "kind": "Application",
-            "meta": {"name": "sample-app"}
-        },
-        {
-            "api_version": "v1",
-            "kind": "Service",
-            "meta": {"name": "mc.test.alpha"},
-            "type": "sample_service",
-            "enabled": true,
-            "properties": {
-                "greeting": "hello"
-            }
-        }
-    ])");
-
-    std::string          config_arg   = config_path.string();
-    std::string          override_arg = "--service.mc.test.alpha.greeting=\"world\"";
-    char                 arg0[]       = "mcapp_test";
-    char                 arg1[]       = "--config";
-    char*                argv[]       = {arg0, arg1, config_arg.data(), override_arg.data(), nullptr};
-    mc::app::app_options options{4, argv};
-
-    ASSERT_TRUE(m_app->initialize(options));
-
-    auto service = m_app->get_service("mc.test.alpha");
-    ASSERT_NE(service, nullptr);
-    auto typed = mc::static_pointer_cast<test_mcapp::sample_service>(service);
-    EXPECT_EQ(typed->m_config.greeting, "world");
-}
-
-TEST_F(application_test, initialize_merges_manifest_imports_service_dirs_and_cli_with_precedence)
-{
-    write_file("imported.json", R"([
-        {
-            "api_version": "v1",
-            "kind": "Application",
-            "threads": 1
-        },
-        {
-            "api_version": "v1",
-            "kind": "Service",
-            "meta": {"name": "mc.test.alpha"},
-            "type": "sample_service",
-            "enabled": true,
-            "properties": {
-                "greeting": "from-import"
-            }
-        }
-    ])");
-    write_file("services.d/20-alpha.json", R"({
-        "api_version": "v1",
-        "kind": "Service",
-        "meta": {"name": "mc.test.alpha"},
-        "enabled": true,
-        "properties": {
-            "greeting": "from-service-dir"
-        }
-    })");
-    auto config_path = write_file("manifest.json", R"({
-        "api_version": "v2",
-        "kind": "ApplicationManifest",
-        "meta": {"name": "manifest-app"},
-        "threads": 2,
-        "work_threads": 3,
-        "imports": ["imported.json"],
-        "service_dirs": ["services.d"],
-        "services": [
-            {
-                "api_version": "v1",
-                "kind": "Service",
-                "meta": {"name": "mc.test.alpha"},
-                "type": "sample_service",
-                "enabled": true,
-                "properties": {
-                    "greeting": "from-manifest"
-                }
-            }
-        ]
-    })");
-
-    std::string config_arg   = config_path.string();
-    std::string override_arg = "--service.mc.test.alpha.greeting=\"from-cli\"";
-    char        arg0[]       = "mcapp_test";
-    char        arg1[]       = "--config";
-    char        arg2[]       = "--threads";
-    char*       argv[] = {arg0, arg1, config_arg.data(), arg2, const_cast<char*>("6"), override_arg.data(), nullptr};
-    mc::app::app_options options{6, argv};
-
-    ASSERT_TRUE(m_app->initialize(options));
-
-    const auto& plan = m_app->plan();
-    ASSERT_EQ(plan.services.size(), 1U);
-    EXPECT_EQ(plan.application.name, "manifest-app");
-    EXPECT_EQ(plan.application.io_threads, 6U);
-    EXPECT_EQ(plan.application.work_threads, 3U);
-    EXPECT_EQ(plan.application.modules.size(), 0U);
-
-    auto service = m_app->get_service("mc.test.alpha");
-    ASSERT_NE(service, nullptr);
-    auto typed = mc::static_pointer_cast<test_mcapp::sample_service>(service);
-    EXPECT_EQ(typed->m_config.greeting, "from-cli");
-}
-
 TEST_F(application_test, start_and_stop_manage_service_lifecycle)
 {
-    auto config_path = write_config(R"([
-        {
-            "api_version": "v1",
-            "kind": "Application",
-            "meta": {"name": "sample-app"}
-        },
-        {
-            "api_version": "v1",
-            "kind": "Service",
-            "meta": {"name": "mc.test.alpha"},
-            "type": "sample_service",
-            "enabled": true,
-            "properties": {
-                "greeting": "hello"
-            }
-        }
-    ])");
-
-    std::string          config_arg = config_path.string();
-    char                 arg0[]     = "mcapp_test";
-    char                 arg1[]     = "--config";
-    char*                argv[]     = {arg0, arg1, config_arg.data(), nullptr};
-    mc::app::app_options options{3, argv};
-
-    ASSERT_TRUE(m_app->initialize(options));
+    auto definition                   = make_sample_service_definition();
+    definition.properties["greeting"] = mc::variant(mc::string("hello"));
+    ASSERT_TRUE(initialize_with_single_service(std::move(definition)));
     ASSERT_TRUE(m_app->start());
 
     auto service = m_app->get_service("mc.test.alpha");
@@ -308,28 +254,7 @@ TEST_F(application_test, start_and_stop_manage_service_lifecycle)
 
 TEST_F(application_test, initialize_applies_descriptor_default_properties_before_service_config)
 {
-    auto config_path = write_config(R"([
-        {
-            "api_version": "v1",
-            "kind": "Application",
-            "meta": {"name": "sample-app"}
-        },
-        {
-            "api_version": "v1",
-            "kind": "Service",
-            "meta": {"name": "mc.test.alpha"},
-            "type": "sample_service",
-            "enabled": true
-        }
-    ])");
-
-    std::string          config_arg = config_path.string();
-    char                 arg0[]     = "mcapp_test";
-    char                 arg1[]     = "--config";
-    char*                argv[]     = {arg0, arg1, config_arg.data(), nullptr};
-    mc::app::app_options options{3, argv};
-
-    ASSERT_TRUE(m_app->initialize(options));
+    ASSERT_TRUE(initialize_with_single_service(make_sample_service_definition()));
 
     auto service = m_app->get_service("mc.test.alpha");
     ASSERT_NE(service, nullptr);
@@ -339,46 +264,18 @@ TEST_F(application_test, initialize_applies_descriptor_default_properties_before
 
 TEST_F(application_test, initialize_keeps_module_loading_in_bootstrap_flow)
 {
-    auto config_path = write_config(R"({
-        "api_version": "v1",
-        "kind": "Application",
-        "meta": {"name": "sample-app"},
-        "modules": ["mc.test.nonexistent.module"]
-    })");
+    auto                  definition = make_sample_service_definition();
+    mc::app::service_plan plan;
+    plan.application.name = "sample-app";
+    plan.application.modules.push_back("mc.test.nonexistent.module");
+    plan.services.push_back(std::move(definition));
 
-    std::string          config_arg = config_path.string();
-    char                 arg0[]     = "mcapp_test";
-    char                 arg1[]     = "--config";
-    char*                argv[]     = {arg0, arg1, config_arg.data(), nullptr};
-    mc::app::app_options options{3, argv};
-
-    EXPECT_FALSE(m_app->initialize(options));
+    EXPECT_FALSE(m_app->initialize_with_plan(std::move(plan)));
 }
 
 TEST_F(application_test, initialize_creates_root_service_and_derives_service_path_from_name)
 {
-    auto config_path = write_config(R"([
-        {
-            "api_version": "v1",
-            "kind": "Application",
-            "meta": {"name": "sample-app"}
-        },
-        {
-            "api_version": "v1",
-            "kind": "Service",
-            "meta": {"name": "mc.test.alpha.beta"},
-            "type": "sample_service",
-            "enabled": true
-        }
-    ])");
-
-    std::string          config_arg = config_path.string();
-    char                 arg0[]     = "mcapp_test";
-    char                 arg1[]     = "--config";
-    char*                argv[]     = {arg0, arg1, config_arg.data(), nullptr};
-    mc::app::app_options options{3, argv};
-
-    ASSERT_TRUE(m_app->initialize(options));
+    ASSERT_TRUE(initialize_with_single_service(make_sample_service_definition("mc.test.alpha.beta")));
 
     auto root = m_app->root_service();
     ASSERT_NE(root, nullptr);
@@ -398,112 +295,187 @@ TEST_F(application_test, initialize_creates_root_service_and_derives_service_pat
 
 TEST_F(application_test, initialize_keeps_explicit_service_path)
 {
-    auto config_path = write_config(R"([
-        {
-            "api_version": "v1",
-            "kind": "Application",
-            "meta": {"name": "sample-app"}
-        },
-        {
-            "api_version": "v1",
-            "kind": "Service",
-            "meta": {
-                "name": "mc.test.alpha.beta",
-                "path": "/services/custom"
-            },
-            "type": "sample_service",
-            "enabled": true
-        }
-    ])");
-
-    std::string          config_arg = config_path.string();
-    char                 arg0[]     = "mcapp_test";
-    char                 arg1[]     = "--config";
-    char*                argv[]     = {arg0, arg1, config_arg.data(), nullptr};
-    mc::app::app_options options{3, argv};
-
-    ASSERT_TRUE(m_app->initialize(options));
+    auto definition = make_sample_service_definition("mc.test.alpha.beta");
+    definition.path = "/services/custom";
+    ASSERT_TRUE(initialize_with_single_service(std::move(definition)));
 
     auto service = m_app->get_service("mc.test.alpha.beta");
     ASSERT_NE(service, nullptr);
     EXPECT_EQ(service->path(), "/services/custom");
 }
 
-TEST_F(application_test, initialize_allows_cli_override_for_dotted_service_name_without_breaking_path_rule)
-{
-    write_file("services.d/20-alpha.json", R"({
-        "api_version": "v1",
-        "kind": "Service",
-        "meta": {"name": "mc.test.alpha.beta"},
-        "type": "sample_service",
-        "enabled": true,
-        "properties": {
-            "greeting": "from-service-dir"
-        }
-    })");
-
-    auto config_path = write_file("manifest.json", R"({
-        "api_version": "v1",
-        "kind": "ApplicationManifest",
-        "meta": {"name": "manifest-app"},
-        "service_dirs": ["services.d"],
-        "services": [
-            {
-                "api_version": "v1",
-                "kind": "Service",
-                "meta": {"name": "mc.test.alpha.beta"},
-                "type": "sample_service",
-                "enabled": true,
-                "properties": {
-                    "greeting": "from-manifest"
-                }
-            }
-        ]
-    })");
-
-    std::string config_arg   = config_path.string();
-    std::string override_arg = "--service.mc.test.alpha.beta.greeting=\"from-cli\"";
-    char        arg0[]       = "mcapp_test";
-    char        arg1[]       = "--config";
-    char*       argv[]       = {arg0, arg1, config_arg.data(), override_arg.data(), nullptr};
-    mc::app::app_options options{4, argv};
-
-    ASSERT_TRUE(m_app->initialize(options));
-
-    auto service = m_app->get_service("mc.test.alpha.beta");
-    ASSERT_NE(service, nullptr);
-    EXPECT_EQ(service->path(), "/mc/test/alpha/beta");
-
-    auto typed = mc::static_pointer_cast<test_mcapp::sample_service>(service);
-    EXPECT_EQ(typed->m_config.greeting, "from-cli");
-}
-
 TEST_F(application_test, initialize_rejects_invalid_explicit_service_path)
 {
-    auto config_path = write_config(R"([
-        {
-            "api_version": "v1",
-            "kind": "Application",
-            "meta": {"name": "sample-app"}
-        },
-        {
-            "api_version": "v1",
-            "kind": "Service",
-            "meta": {
-                "name": "mc.test.alpha.beta",
-                "path": "invalid/path"
-            },
-            "type": "sample_service",
-            "enabled": true
-        }
-    ])");
-
-    std::string          config_arg = config_path.string();
-    char                 arg0[]     = "mcapp_test";
-    char                 arg1[]     = "--config";
-    char*                argv[]     = {arg0, arg1, config_arg.data(), nullptr};
-    mc::app::app_options options{3, argv};
-
-    EXPECT_FALSE(m_app->initialize(options));
+    auto definition = make_sample_service_definition("mc.test.alpha.beta");
+    definition.path = "invalid/path";
+    EXPECT_FALSE(initialize_with_single_service(std::move(definition)));
 }
 
+namespace {
+
+mc::dbus::connection open_test_connection(mc::string_view service_name)
+{
+    auto conn = mc::dbus::connection::open_session_bus(mc::runtime::get_io_context());
+    EXPECT_TRUE(conn.start());
+    EXPECT_TRUE(conn.is_connected());
+    if (!service_name.empty()) {
+        EXPECT_TRUE(std::get<0>(conn.request_name(service_name)));
+    }
+    return conn;
+}
+TEST_F(application_test, peer_ping_hits_standard_interface)
+{
+    constexpr mc::string_view service_name = "mc.test.application.echo";
+
+    auto svc = start_echo_service(service_name);
+    ASSERT_NE(svc, nullptr);
+
+    auto peer_conn = open_test_connection("");
+    auto call      = make_call(service_name, mc::string_view("org.freedesktop.DBus.Peer"), mc::string_view("Ping"));
+    auto reply     = call_sync(peer_conn, std::move(call));
+
+    ASSERT_TRUE(reply.is_method_return())
+        << "Peer.Ping 应返回 method_return, got " << static_cast<int>(reply.get_type());
+    EXPECT_TRUE(reply.read_args().empty());
+}
+
+TEST_F(application_test, properties_get_all_returns_registered_properties)
+{
+    constexpr mc::string_view service_name = "mc.test.application.echo";
+
+    auto svc = start_echo_service(service_name);
+    ASSERT_NE(svc, nullptr);
+
+    auto peer_conn = open_test_connection("");
+    auto call = make_call(service_name, mc::string_view("org.freedesktop.DBus.Properties"), mc::string_view("GetAll"));
+    {
+        auto writer = call.writer();
+        writer.write_variant_value(mc::variant(mc::string("org.test.application.Echo")));
+    }
+    auto reply = call_sync(peer_conn, std::move(call));
+
+    ASSERT_TRUE(reply.is_method_return());
+    auto args = reply.read_args();
+    ASSERT_EQ(args.size(), 1U);
+    ASSERT_TRUE(args.front().is_dict());
+    auto dict = args.front().as<mc::dict>();
+    EXPECT_EQ(dict["Greeting"], mc::variant(mc::string("hello")));
+    EXPECT_EQ(dict["Counter"], mc::variant(int32_t{0}));
+}
+
+TEST_F(application_test, properties_get_and_set_round_trip)
+{
+    constexpr mc::string_view service_name = "mc.test.application.echo";
+
+    auto svc = start_echo_service(service_name);
+    ASSERT_NE(svc, nullptr);
+
+    auto peer_conn = open_test_connection("");
+
+    // Set Greeting = "world" (ssv)
+    auto set_call = make_call(service_name, mc::string_view("org.freedesktop.DBus.Properties"), mc::string_view("Set"));
+    {
+        auto writer = set_call.writer();
+        writer.write_variant_value(mc::variant(mc::string("org.test.application.Echo")));
+        writer.write_variant_value(mc::variant(mc::string("Greeting")));
+        writer.write_variant(mc::variant(mc::string("world")), 0);
+    }
+    auto set_reply = call_sync(peer_conn, std::move(set_call));
+    ASSERT_TRUE(set_reply.is_method_return()) << "Set 失败: type=" << static_cast<int>(set_reply.get_type());
+
+    // Get Greeting (ss -> v)
+    auto get_call = make_call(service_name, mc::string_view("org.freedesktop.DBus.Properties"), mc::string_view("Get"));
+    {
+        auto writer = get_call.writer();
+        writer.write_variant_value(mc::variant(mc::string("org.test.application.Echo")));
+        writer.write_variant_value(mc::variant(mc::string("Greeting")));
+    }
+    auto get_reply = call_sync(peer_conn, std::move(get_call));
+    ASSERT_TRUE(get_reply.is_method_return());
+    auto get_args = get_reply.read_args();
+    ASSERT_EQ(get_args.size(), 1U);
+    EXPECT_EQ(get_args.front(), mc::variant(mc::string("world")));
+
+    EXPECT_EQ(svc->echo_obj()->m_iface.m_greeting, "world");
+}
+
+TEST_F(application_test, introspect_returns_xml_with_registered_and_standard_interfaces)
+{
+    constexpr mc::string_view service_name = "mc.test.application.echo";
+
+    auto svc = start_echo_service(service_name);
+    ASSERT_NE(svc, nullptr);
+
+    auto peer_conn = open_test_connection("");
+    auto call =
+        make_call(service_name, mc::string_view("org.freedesktop.DBus.Introspectable"), mc::string_view("Introspect"));
+    auto reply = call_sync(peer_conn, std::move(call));
+    ASSERT_TRUE(reply.is_method_return());
+
+    auto args = reply.read_args();
+    ASSERT_EQ(args.size(), 1U);
+    ASSERT_TRUE(args.front().is_string());
+    auto xml = args.front().as<mc::string>();
+    EXPECT_NE(xml.find("<interface name=\"org.test.application.Echo\">"), mc::string::npos) << xml;
+    EXPECT_NE(xml.find("<method name=\"Say\">"), mc::string::npos);
+    EXPECT_NE(xml.find("<property name=\"Greeting\""), mc::string::npos);
+    EXPECT_NE(xml.find("<interface name=\"org.freedesktop.DBus.Properties\">"), mc::string::npos);
+    EXPECT_NE(xml.find("<interface name=\"org.freedesktop.DBus.Introspectable\">"), mc::string::npos);
+    EXPECT_NE(xml.find("<interface name=\"org.freedesktop.DBus.Peer\">"), mc::string::npos);
+    EXPECT_NE(xml.find("<interface name=\"org.freedesktop.DBus.ObjectManager\">"), mc::string::npos);
+}
+
+TEST_F(application_test, own_method_dispatched_via_reflection)
+{
+    constexpr mc::string_view service_name = "mc.test.application.echo";
+
+    auto svc = start_echo_service(service_name);
+    ASSERT_NE(svc, nullptr);
+
+    auto peer_conn = open_test_connection("");
+
+    auto call = make_call(service_name, mc::string_view("org.test.application.Echo"), mc::string_view("Say"));
+    {
+        auto writer = call.writer();
+        writer.write_variant_value(mc::variant(mc::string("friend")));
+    }
+    auto reply = call_sync(peer_conn, std::move(call));
+    ASSERT_TRUE(reply.is_method_return()) << "Say 失败: type=" << static_cast<int>(reply.get_type());
+
+    auto args = reply.read_args();
+    ASSERT_EQ(args.size(), 1U);
+    EXPECT_EQ(args.front(), mc::variant(mc::string("hello:friend")));
+    EXPECT_EQ(svc->echo_obj()->m_iface.m_counter, 1);
+}
+
+TEST_F(application_test, service_can_call_outbound_dbus_via_connection)
+{
+    constexpr mc::string_view service_name = "mc.test.application.echo";
+
+    auto svc = start_echo_service(service_name);
+    ASSERT_NE(svc, nullptr);
+    ASSERT_TRUE(svc->connection().is_connected()) << "基类应当已经连上 session bus";
+
+    auto call = mc::dbus::message::new_method_call(
+        mc::string_view("org.freedesktop.DBus"), mc::string_view("/org/freedesktop/DBus"),
+        mc::string_view("org.freedesktop.DBus"), mc::string_view("ListNames"));
+
+    auto future = svc->connection().async_send_with_reply(std::move(call), mc::seconds(5));
+    auto reply  = std::move(future).get();
+
+    ASSERT_TRUE(reply.is_method_return());
+    auto args = reply.read_args();
+    ASSERT_EQ(args.size(), 1U);
+    ASSERT_TRUE(args.front().is_array());
+    const auto names      = args.front().get_array();
+    bool       found_self = false;
+    for (const auto& entry : names) {
+        if (entry.is_string() && entry.get_string() == service_name) {
+            found_self = true;
+            break;
+        }
+    }
+    EXPECT_TRUE(found_self) << "service 的 request_name 应体现在 daemon 的 ListNames 里: " << service_name;
+}
+
+} // namespace

@@ -10,10 +10,10 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include "securec.h"
 #include <mc/dbus/error.h>
 #include <mc/dbus/message.h>
 #include <mc/dbus/validator.h>
-#include "securec.h"
 
 namespace mc::dbus {
 void ensure_container_max_length(const char* type_name, std::size_t size)
@@ -414,13 +414,20 @@ message_type message::get_type() const
     return message_type::invalid;
 }
 
+namespace {
+inline std::string_view safe_view(const char* raw) noexcept
+{
+    return raw != nullptr ? std::string_view(raw) : std::string_view{};
+}
+} // namespace
+
 std::string_view message::get_path() const
 {
     if (m_dbus_message == nullptr) {
         return {};
     }
 
-    return dbus_message_get_path(m_dbus_message);
+    return safe_view(dbus_message_get_path(m_dbus_message));
 }
 
 std::string_view message::get_interface() const
@@ -429,7 +436,7 @@ std::string_view message::get_interface() const
         return {};
     }
 
-    return dbus_message_get_interface(m_dbus_message);
+    return safe_view(dbus_message_get_interface(m_dbus_message));
 }
 
 std::string_view message::get_member() const
@@ -438,7 +445,7 @@ std::string_view message::get_member() const
         return {};
     }
 
-    return dbus_message_get_member(m_dbus_message);
+    return safe_view(dbus_message_get_member(m_dbus_message));
 }
 
 std::string_view message::get_error_name() const
@@ -447,7 +454,7 @@ std::string_view message::get_error_name() const
         return {};
     }
 
-    return dbus_message_get_error_name(m_dbus_message);
+    return safe_view(dbus_message_get_error_name(m_dbus_message));
 }
 
 std::string message::get_error_message() const
@@ -468,7 +475,7 @@ std::string_view message::get_destination() const
         return {};
     }
 
-    return dbus_message_get_destination(m_dbus_message);
+    return safe_view(dbus_message_get_destination(m_dbus_message));
 }
 
 std::string_view message::get_sender() const
@@ -477,7 +484,7 @@ std::string_view message::get_sender() const
         return {};
     }
 
-    return dbus_message_get_sender(m_dbus_message);
+    return safe_view(dbus_message_get_sender(m_dbus_message));
 }
 
 std::string_view message::get_signature() const
@@ -486,7 +493,7 @@ std::string_view message::get_signature() const
         return {};
     }
 
-    return dbus_message_get_signature(m_dbus_message);
+    return safe_view(dbus_message_get_signature(m_dbus_message));
 }
 
 uint32_t message::get_serial() const

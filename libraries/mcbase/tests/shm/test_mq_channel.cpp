@@ -281,3 +281,32 @@ TEST_F(mq_channel_test, send_large_message_auto_resumes_when_space_is_released)
 
     channel.stop();
 }
+
+TEST_F(mq_channel_test, send_owned_keeps_request_alive_until_auto_resume)
+{
+    const std::string            payload(400, 'O');
+    const auto                   small_endpoint = register_endpoint("service.channel.owned", 1);
+    mq_channel_application_proto root;
+    mc::shm::mq_proto            mq;
+    mc::shm::mq_transport_proto  transport;
+    root.add_child(mq);
+    mq.add_child(transport);
+    mc::shm::mq_channel channel;
+    channel.set_protocol(&root);
+
+    auto* app_layer = channel.get_protocol<mq_channel_application_proto>();
+    ASSERT_NE(app_layer, nullptr);
+    std::promise<mc::string> received_promise;
+    auto                     received = received_promise.get_future();
+    app_layer->single_delivery        = &received_promise;
+    channel.start(m_runtime, small_endpoint, small_endpoint.instance_id);
+
+    auto outbound = std::make_unique<mc::proto::proto_request>();
+    append_payload(outbound->buffer(), payload);
+    channel.send_owned(std::move(outbound));
+
+    ASSERT_EQ(received.wait_for(2s), std::future_status::ready);
+    EXPECT_EQ(received.get(), payload);
+
+    channel.stop();
+}

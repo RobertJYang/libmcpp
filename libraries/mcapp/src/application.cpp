@@ -635,24 +635,15 @@ bool application::initialize(const app_options& options)
     return initialize_internal(options);
 }
 
-bool application::initialize_internal(const app_options& options)
+void application::prepare_initialize()
 {
     stop();
     clear_application_state();
     m_registry.import_global_services();
+}
 
-    detail::bootstrap_options bootstrap_options;
-    if (options.argc > 0 && options.argv != nullptr &&
-        !detail::parse_bootstrap_options(options.argc, options.argv, bootstrap_options)) {
-        return false;
-    }
-
-    if (!detail::load_plan_from_config_file(bootstrap_options, m_plan)) {
-        clear_application_state();
-        return false;
-    }
-
-    detail::apply_bootstrap_options(m_plan, bootstrap_options);
+bool application::initialize_from_current_plan()
+{
     for (auto& definition : m_plan.services) {
         detail::normalize_service_definition_path(definition);
         if (!detail::validate_service_definition_path(definition)) {
@@ -695,6 +686,32 @@ bool application::initialize_internal(const app_options& options)
 
     m_initialized = true;
     return true;
+}
+
+bool application::initialize_with_plan(service_plan plan)
+{
+    prepare_initialize();
+    m_plan = std::move(plan);
+    return initialize_from_current_plan();
+}
+
+bool application::initialize_internal(const app_options& options)
+{
+    prepare_initialize();
+
+    detail::bootstrap_options bootstrap_options;
+    if (options.argc > 0 && options.argv != nullptr &&
+        !detail::parse_bootstrap_options(options.argc, options.argv, bootstrap_options)) {
+        return false;
+    }
+
+    if (!detail::load_plan_from_config_file(bootstrap_options, m_plan)) {
+        clear_application_state();
+        return false;
+    }
+
+    detail::apply_bootstrap_options(m_plan, bootstrap_options);
+    return initialize_from_current_plan();
 }
 
 bool application::load_module(mc::string_view module_name)

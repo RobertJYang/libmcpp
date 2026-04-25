@@ -23,7 +23,9 @@
 #include <mc/runtime/thread_pool.h>
 #include <mc/shm/detail/shared_memory_backend.h>
 #include <mc/shm/mq.h>
+#include <mc/shm/shared_mapping_view.h>
 #include <shm/message_queue/mq_notifier.h>
+#include <shm/message_queue/mq_private.h>
 #include <shm/message_queue/mq_watcher.h>
 #include <test_utilities/base.h>
 
@@ -33,6 +35,20 @@ std::string make_unique_name(std::string_view prefix)
 {
     const auto now_ns = std::chrono::steady_clock::now().time_since_epoch().count();
     return std::string(prefix) + "_" + std::to_string(getpid()) + "_" + std::to_string(now_ns);
+}
+
+std::size_t queue_mapping_size(const mc::shm::mq_queue_options& options)
+{
+    const auto payload_size = options.max_payload_size == 0 ? 256U : options.max_payload_size;
+    return sizeof(mc::shm::detail::queue_header) + options.slot_count * mc::shm::detail::slot_size(payload_size);
+}
+
+mc::shm::detail::queue_slot& slot_at(mc::shm::detail::queue_header& header, void* base, std::size_t stride,
+                                     std::uint64_t sequence)
+{
+    auto*      slots_base = static_cast<char*>(base) + sizeof(mc::shm::detail::queue_header);
+    const auto index      = static_cast<std::size_t>(sequence % header.slot_count);
+    return *reinterpret_cast<mc::shm::detail::queue_slot*>(slots_base + index * stride);
 }
 
 class mq_queue_test : public mc::test::TestWithRuntime {
@@ -292,6 +308,62 @@ TEST_F(mq_queue_test, send_message_wait_succeeds_after_reader_frees_space)
     auto second = queue.try_receive_message();
     ASSERT_TRUE(second.has_value());
     EXPECT_EQ(second->payload, "second");
+}
+
+TEST_F(mq_queue_test, dead_writer_partial_slot_is_released_from_head)
+{
+    auto options       = make_options();
+    options.slot_count = 2;
+
+    mc::shm::mq_queue queue(options);
+    ASSERT_TRUE(queue.is_valid());
+
+    mc::shm::shared_mapping_view mapping(options.shared_memory_name, queue_mapping_size(options),
+                                         mc::shm::detail::open_mode::create_or_open);
+    ASSERT_TRUE(mapping.is_valid());
+    auto* header = static_cast<mc::shm::detail::queue_header*>(mapping.data());
+    auto& stale  = slot_at(*header, mapping.data(), mc::shm::detail::slot_size(256), 0);
+
+    stale.writer_id          = 42;
+    stale.writer_instance_id = 7;
+    stale.state.store(1, std::memory_order_release);
+    header->tail_reserve_seq.store(1, std::memory_order_release);
+
+    queue.set_writer_liveness_probe([](std::uint32_t writer_id, std::uint64_t writer_instance_id) {
+        return !(writer_id == 42 && writer_instance_id == 7);
+    });
+
+    ASSERT_TRUE(queue.send_message(9, 1, "fresh"));
+    auto received = queue.try_receive_message();
+
+    ASSERT_TRUE(received.has_value());
+    EXPECT_EQ(received->writer_id, 9U);
+    EXPECT_EQ(received->writer_instance_id, 1U);
+    EXPECT_EQ(received->payload, "fresh");
+}
+
+TEST_F(mq_queue_test, orphan_reserved_slot_is_released_after_timeout)
+{
+    auto options       = make_options();
+    options.slot_count = 2;
+
+    mc::shm::mq_queue queue(options);
+    ASSERT_TRUE(queue.is_valid());
+
+    mc::shm::shared_mapping_view mapping(options.shared_memory_name, queue_mapping_size(options),
+                                         mc::shm::detail::open_mode::create_or_open);
+    ASSERT_TRUE(mapping.is_valid());
+    auto* header = static_cast<mc::shm::detail::queue_header*>(mapping.data());
+    header->tail_reserve_seq.store(1, std::memory_order_release);
+
+    ASSERT_TRUE(queue.send_message(9, 1, "fresh"));
+    EXPECT_FALSE(queue.try_receive_message().has_value());
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(120));
+    auto received = queue.try_receive_message();
+
+    ASSERT_TRUE(received.has_value());
+    EXPECT_EQ(received->payload, "fresh");
 }
 
 } // namespace

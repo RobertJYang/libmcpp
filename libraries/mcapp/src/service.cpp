@@ -12,23 +12,33 @@
 
 #include <mc/app/service.h>
 
+#include <mc/app/app_proto.h>
 #include <mc/dbus/validator.h>
 #include <mc/exception.h>
+#include <mc/log/log.h>
 
 namespace mc::app {
 
 service::service(mc::string name) : mc::engine::service(name)
 {
     if (!mc::dbus::validator::is_valid_bus_name(name)) {
-        MC_THROW(
-            mc::exception,
-            "invalid app service name '" + name
-                + "': must be a valid DBus bus name "
-                  "(dot-separated segments of [A-Za-z_][A-Za-z0-9_]*, at least 2 segments)");
+        MC_THROW(mc::exception, "invalid app service name '" + name +
+                                    "': must be a valid DBus bus name "
+                                    "(dot-separated segments of [A-Za-z_][A-Za-z0-9_]*, at least 2 segments)");
     }
 }
 
 service::~service() = default;
+
+mc::dbus::connection& service::connection() noexcept
+{
+    return m_connection;
+}
+
+app_proto* service::proto() noexcept
+{
+    return m_proto.get();
+}
 
 const mc::string& service::path() const noexcept
 {
@@ -59,7 +69,15 @@ bool service::start()
     }
 
     m_state = service_state::starting;
+
+    if (!bring_up_dbus_transport()) {
+        tear_down_dbus_transport();
+        m_state = service_state::failed;
+        return false;
+    }
+
     if (!mc::engine::service::start()) {
+        tear_down_dbus_transport();
         m_state = service_state::failed;
         return false;
     }
@@ -71,7 +89,12 @@ bool service::start()
 bool service::stop()
 {
     m_state = service_state::stopping;
-    if (!mc::engine::service::stop()) {
+
+    bool engine_ok = mc::engine::service::stop();
+
+    tear_down_dbus_transport();
+
+    if (!engine_ok) {
         m_state = service_state::failed;
         return false;
     }
@@ -79,6 +102,52 @@ bool service::stop()
     cleanup();
     m_state = service_state::stopped;
     return true;
+}
+
+bool service::bring_up_dbus_transport()
+{
+    if (!m_has_context) {
+        return true;
+    }
+
+    try {
+        m_connection = mc::dbus::connection::open_session_bus(m_context.runtime().io());
+    } catch (const std::exception& ex) {
+        wlog("mcapp service ${name} session DBus 不可用: ${error}，降级为无 DBus 通路模式",
+             ("name", mc::string(name()))("error", mc::string(ex.what())));
+        m_connection = mc::dbus::connection{};
+        return true;
+    }
+
+    if (!m_connection.start() || !m_connection.is_connected()) {
+        wlog("mcapp service ${name} 无法启动 DBus connection，降级为无 DBus 通路模式", ("name", mc::string(name())));
+        m_connection = mc::dbus::connection{};
+        return true;
+    }
+
+    auto [success, _] = m_connection.request_name(name());
+    if (!success) {
+        wlog("mcapp service ${name} request_name 失败，降级为无 DBus 通路模式", ("name", mc::string(name())));
+        m_connection.disconnect();
+        m_connection = mc::dbus::connection{};
+        return true;
+    }
+
+    m_proto = std::make_unique<app_proto>(mc::string(name()), m_connection, nullptr);
+    set_proto(m_proto.get());
+    return true;
+}
+
+void service::tear_down_dbus_transport()
+{
+    if (m_proto) {
+        set_proto(nullptr);
+        m_proto.reset();
+    }
+    if (m_connection.is_connected()) {
+        m_connection.disconnect();
+    }
+    m_connection = mc::dbus::connection{};
 }
 
 void service::set_path(mc::string path)

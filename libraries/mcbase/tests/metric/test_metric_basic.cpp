@@ -22,13 +22,13 @@
 namespace {
 
 using mc::metric::descriptor;
+using mc::metric::label_set;
+using mc::metric::registry;
+using mc::metric::registry_options;
 using mc::metric::detail::make_counter_descriptor;
 using mc::metric::detail::make_gauge_descriptor;
 using mc::metric::detail::make_histogram_descriptor;
 using mc::metric::detail::make_up_down_counter_descriptor;
-using mc::metric::label_set;
-using mc::metric::registry;
-using mc::metric::registry_options;
 
 class registry_basic_test : public ::testing::Test {
 protected:
@@ -48,8 +48,7 @@ protected:
 
 TEST_F(registry_basic_test, counter_basic_add_and_collect)
 {
-    const auto desc = make_counter_descriptor("mc.test.counter_a", "1", "test counter a",
-                                              label_set{});
+    const auto desc = make_counter_descriptor("mc.test.counter_a", "1", "test counter a", label_set{});
     auto       c    = m_registry->counter_of(desc);
     ASSERT_TRUE(c.is_valid());
     c.add();
@@ -69,8 +68,8 @@ TEST_F(registry_basic_test, counter_basic_add_and_collect)
 TEST_F(registry_basic_test, counter_idempotent_lookup_returns_same_slot)
 {
     const auto d = make_counter_descriptor("mc.test.same", "", "", label_set{});
-    auto a = m_registry->counter_of(d);
-    auto b = m_registry->counter_of(d);
+    auto       a = m_registry->counter_of(d);
+    auto       b = m_registry->counter_of(d);
     ASSERT_TRUE(a.is_valid());
     ASSERT_TRUE(b.is_valid());
     a.add(3);
@@ -82,12 +81,9 @@ TEST_F(registry_basic_test, counter_idempotent_lookup_returns_same_slot)
 
 TEST_F(registry_basic_test, labels_make_distinct_slots_but_label_order_does_not)
 {
-    const auto d1 = make_counter_descriptor("mc.test.lbl", "", "",
-                                            label_set{{"interface", "X"}, {"method", "do"}});
-    const auto d2 = make_counter_descriptor("mc.test.lbl", "", "",
-                                            label_set{{"method", "do"}, {"interface", "X"}});
-    const auto d3 = make_counter_descriptor("mc.test.lbl", "", "",
-                                            label_set{{"interface", "Y"}, {"method", "do"}});
+    const auto d1 = make_counter_descriptor("mc.test.lbl", "", "", label_set{{"interface", "X"}, {"method", "do"}});
+    const auto d2 = make_counter_descriptor("mc.test.lbl", "", "", label_set{{"method", "do"}, {"interface", "X"}});
+    const auto d3 = make_counter_descriptor("mc.test.lbl", "", "", label_set{{"interface", "Y"}, {"method", "do"}});
 
     auto c1 = m_registry->counter_of(d1);
     auto c2 = m_registry->counter_of(d2);
@@ -96,7 +92,7 @@ TEST_F(registry_basic_test, labels_make_distinct_slots_but_label_order_does_not)
     c2.add(2);
     c3.add(10);
 
-    EXPECT_EQ(c1.value(), 3);   // d1 == d2
+    EXPECT_EQ(c1.value(), 3); // d1 == d2
     EXPECT_EQ(c2.value(), 3);
     EXPECT_EQ(c3.value(), 10);
     EXPECT_EQ(m_registry->registered_count(), 2u);
@@ -132,8 +128,7 @@ TEST_F(registry_basic_test, gauge_double_roundtrip)
 TEST_F(registry_basic_test, histogram_observe_distributes_into_buckets)
 {
     static const double bounds[] = {0.01, 0.1, 1.0, 10.0};
-    const auto          d        = make_histogram_descriptor("mc.test.lat_s", "s", "",
-                                                             label_set{}, bounds, 4);
+    const auto          d        = make_histogram_descriptor("mc.test.lat_s", "s", "", label_set{}, bounds, 4);
     auto                h        = m_registry->histogram_of(d);
     ASSERT_TRUE(h.is_valid());
     h.observe(0.005);
@@ -164,24 +159,26 @@ TEST_F(registry_basic_test, histogram_observe_distributes_into_buckets)
 TEST_F(registry_basic_test, capacity_overflow_returns_invalid_handles)
 {
     registry_options small_opts;
-    small_opts.capacity         = 4;       // 仅 4 槽
+    small_opts.capacity         = 4; // 仅 4 槽
     small_opts.arena_bytes      = 16 * 1024;
     small_opts.hist_arena_bytes = 4096;
-    auto small = registry::open_heap(small_opts);
+    auto small                  = registry::open_heap(small_opts);
     ASSERT_TRUE(small);
 
-    int valid = 0;
+    int valid   = 0;
     int invalid = 0;
     for (int i = 0; i < 64; ++i) {
         std::string name = "mc.test.overflow." + std::to_string(i);
-        auto        d    = make_counter_descriptor(mc::string_view(name.data(), name.size()), "",
-                                                   "", label_set{});
+        auto        d    = make_counter_descriptor(mc::string_view(name.data(), name.size()), "", "", label_set{});
         auto        c    = small->counter_of(d);
-        if (c.is_valid()) ++valid;
-        else ++invalid;
+        if (c.is_valid()) {
+            ++valid;
+        } else {
+            ++invalid;
+        }
     }
-    EXPECT_LE(valid, 4);     // 不会超过容量
-    EXPECT_GT(invalid, 0);   // 至少出现过 overflow
+    EXPECT_LE(valid, 4);   // 不会超过容量
+    EXPECT_GT(invalid, 0); // 至少出现过 overflow
     EXPECT_GT(small->overflow_count(), 0u);
 }
 
@@ -191,23 +188,19 @@ TEST_F(registry_basic_test, descriptor_arena_overflow_does_not_crash)
     opts.capacity         = 256;
     opts.arena_bytes      = 4096; // 极小 arena
     opts.hist_arena_bytes = 4096;
-    auto             r = registry::open_heap(opts);
+    auto r                = registry::open_heap(opts);
     ASSERT_TRUE(r);
 
     // 一直创建带不同长 label 的 metric，arena 会很快撑爆
-    int created_with_desc = 0;
     for (int i = 0; i < 256; ++i) {
         std::string name = "mc.test.arena.metric_with_long_name_" + std::to_string(i);
         std::string lbl  = "long_label_value_" + std::to_string(i);
-        auto        d    = make_counter_descriptor(mc::string_view(name.data(), name.size()), "",
-                                                   "",
-                                                   label_set{{"key", mc::string_view(lbl.data(),
-                                                                                     lbl.size())}});
+        auto        d    = make_counter_descriptor(mc::string_view(name.data(), name.size()), "", "",
+                                                   label_set{{"key", mc::string_view(lbl.data(), lbl.size())}});
         auto        c    = r->counter_of(d);
         if (c.is_valid()) {
             c.add(1);
         }
-        if (i < 8) ++created_with_desc;
     }
     auto snap = r->collect();
     EXPECT_GT(snap.size(), 0u);

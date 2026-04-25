@@ -41,15 +41,15 @@ mc::proto::execution_state app_proto::on_push(mc::proto::proto_request& req)
 
     const auto& msg = ctx->msg;
 
-    // 从 message context 中读取来源标记决定路由
+    // 按 context 中的来源标记路由
     auto source_it = msg.header.context.find(message_source_key);
     if (source_it != msg.header.context.end()) {
         const auto source = source_it->value.as<mc::string>();
         if (source == "mq") {
             if (m_mq_channel != nullptr) {
-                mc::proto::proto_request mq_req;
-                encode_message(mq_req, msg);
-                (void)m_mq_channel->send(mq_req);
+                auto mq_req = std::make_unique<mc::proto::proto_request>();
+                encode_message(*mq_req, msg);
+                m_mq_channel->send_owned(std::move(mq_req));
             }
             return complete(req);
         }
@@ -58,16 +58,16 @@ mc::proto::execution_state app_proto::on_push(mc::proto::proto_request& req)
         }
     }
 
-    // 无来源标记或来源未知：默认 fanout 到 dbus；若配置了 mq_channel 也发 MQ
+    // 无来源时默认走 dbus；配置了 mq_channel 时再发 MQ
     auto state = push_to(req, m_dbus);
     if (state == mc::proto::execution_state::failed) {
         return state;
     }
 
     if (m_mq_channel != nullptr) {
-        mc::proto::proto_request mq_req;
-        encode_message(mq_req, msg);
-        (void)m_mq_channel->send(mq_req);
+        auto mq_req = std::make_unique<mc::proto::proto_request>();
+        encode_message(*mq_req, msg);
+        m_mq_channel->send_owned(std::move(mq_req));
     }
 
     return complete(req);
@@ -75,7 +75,7 @@ mc::proto::execution_state app_proto::on_push(mc::proto::proto_request& req)
 
 mc::proto::execution_state app_proto::on_pop(mc::proto::proto_request& req)
 {
-    return pop_next(req);
+    return mc::engine::service_proto::on_pop(req);
 }
 
 } // namespace mc::app

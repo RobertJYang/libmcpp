@@ -15,6 +15,7 @@
 #include <mc/engine/errors/std_errors.h>
 #include <mc/engine/object.h>
 #include <mc/engine/service.h>
+#include <mc/engine/std_interface.h>
 #include <mc/error.h>
 #include <mc/error_engine.h>
 
@@ -95,6 +96,15 @@ message dispatch_method_call(const service& svc, const message& request, const m
     }
 
     abstract_object& obj = const_cast<abstract_object&>(*it);
+
+    // 标准 DBus 接口优先，未命中再按对象反射处理。
+    if (auto std_hit = standard_interfaces::try_invoke(obj, request.header.member_name, payload.args,
+                                                       request.header.interface_name);
+        std_hit.has_value()) {
+        auto body = make_payload<method_return_payload>(std::move(std_hit->value), std_hit->result_signature);
+        return make_response(request, message_type::method_return, std::move(body));
+    }
+
     if (!obj.has_interface(request.header.interface_name)) {
         return make_engine_error_response(request, errors::unknown_interface,
                                           {{"interface", request.header.interface_name}});

@@ -27,7 +27,7 @@
 #include <unistd.h>
 
 #include <dbus/dbus.h>
-#include <mc/log.h>
+#include <mc/log/log.h>
 
 namespace mc::test {
 

@@ -10,8 +10,11 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include <algorithm>
 #include <atomic>
 #include <future>
+#include <mutex>
+#include <vector>
 
 #include <mc/runtime.h>
 #include <mc/shm/message_queue/mq_channel.h>
@@ -20,15 +23,33 @@ namespace mc::shm {
 
 class mq_channel::impl {
 public:
-    mc::proto::protocol*                      protocol{nullptr};
-    mq_queue                                  queue;
-    mc::runtime::any_executor                 receive_lane;
-    std::atomic<bool>                         started{false};
-    std::atomic<std::uint64_t>                receive_epoch{0};
-    std::atomic<mq_transport_proto*>          transport_proto_layer{nullptr};
-    std::unique_ptr<mc::proto::proto_request> inbound_request;
+    mc::proto::protocol*                                   protocol{nullptr};
+    mq_queue                                               queue;
+    mc::runtime::any_executor                              receive_lane;
+    mc::runtime::any_executor                              send_lane;
+    std::atomic<bool>                                      started{false};
+    std::atomic<std::uint64_t>                             receive_epoch{0};
+    std::atomic<mq_transport_proto*>                       transport_proto_layer{nullptr};
+    std::unique_ptr<mc::proto::proto_request>              inbound_request;
+    std::mutex                                             owned_send_mutex;
+    std::vector<std::unique_ptr<mc::proto::proto_request>> owned_send_requests;
 
-    mq_proto*           mq_proto_layer{nullptr};
+    mq_proto* mq_proto_layer{nullptr};
+
+    static void drain_executor(const std::shared_ptr<impl>& self, const mc::runtime::any_executor& executor)
+    {
+        if (!executor.valid()) {
+            return;
+        }
+
+        std::promise<void> drained;
+        auto               done = drained.get_future();
+        executor.post([self, promise = std::move(drained)]() mutable {
+            MC_UNUSED(self);
+            promise.set_value();
+        });
+        done.wait();
+    }
 
     void schedule_pump(const std::shared_ptr<impl>& self, std::uint64_t epoch)
     {
@@ -47,17 +68,18 @@ public:
 
     void drain_lane(const std::shared_ptr<impl>& self)
     {
-        if (!receive_lane.valid()) {
-            return;
-        }
+        drain_executor(self, receive_lane);
+    }
 
-        std::promise<void> drained;
-        auto               done = drained.get_future();
-        receive_lane.post([self, promise = std::move(drained)]() mutable {
-            MC_UNUSED(self);
-            promise.set_value();
-        });
-        done.wait();
+    void cleanup_owned_sends()
+    {
+        std::lock_guard lock(owned_send_mutex);
+        owned_send_requests.erase(std::remove_if(owned_send_requests.begin(), owned_send_requests.end(),
+                                                 [](const auto& req) {
+            return req == nullptr || req->state() == mc::proto::execution_state::completed ||
+                   req->state() == mc::proto::execution_state::failed;
+        }),
+                                  owned_send_requests.end());
     }
 
     void pump()
@@ -123,6 +145,42 @@ mc::proto::execution_state mq_channel::send(mc::proto::proto_request& req)
     return proto->push(req);
 }
 
+void mq_channel::send_owned(std::unique_ptr<mc::proto::proto_request> req)
+{
+    if (req == nullptr || m_impl == nullptr) {
+        return;
+    }
+
+    auto* raw = req.get();
+    {
+        std::lock_guard lock(m_impl->owned_send_mutex);
+        m_impl->owned_send_requests.erase(std::remove_if(m_impl->owned_send_requests.begin(),
+                                                         m_impl->owned_send_requests.end(),
+                                                         [](const auto& current) {
+            return current == nullptr || current->state() == mc::proto::execution_state::completed ||
+                   current->state() == mc::proto::execution_state::failed;
+        }),
+                                          m_impl->owned_send_requests.end());
+        m_impl->owned_send_requests.push_back(std::move(req));
+    }
+
+    if (!m_impl->send_lane.valid()) {
+        return;
+    }
+
+    auto self = m_impl;
+    m_impl->send_lane.post([self, raw]() {
+        if (!self || !self->started.load(std::memory_order_acquire) || raw == nullptr || self->protocol == nullptr) {
+            return;
+        }
+
+        const auto state = self->protocol->push(*raw);
+        if (state != mc::proto::execution_state::suspended) {
+            self->cleanup_owned_sends();
+        }
+    });
+}
+
 void mq_channel::set_protocol(mc::proto::protocol* proto)
 {
     m_impl->protocol = proto;
@@ -142,6 +200,7 @@ void mq_channel::start(std::shared_ptr<shm_runtime> runtime, const endpoint& ep,
     }
 
     m_impl->receive_lane = mc::runtime::make_io_strand();
+    m_impl->send_lane    = mc::runtime::make_io_strand();
     const auto epoch     = m_impl->receive_epoch.fetch_add(1, std::memory_order_acq_rel) + 1;
     m_impl->started.store(true, std::memory_order_release);
 
@@ -152,6 +211,10 @@ void mq_channel::start(std::shared_ptr<shm_runtime> runtime, const endpoint& ep,
     }
 
     m_impl->queue = runtime->open_queue(ep);
+    m_impl->queue.set_writer_liveness_probe([runtime](std::uint32_t endpoint_id, std::uint64_t instance_id) {
+        return runtime != nullptr &&
+               runtime->writer_instance_is_current(static_cast<std::uint16_t>(endpoint_id), instance_id);
+    });
     auto* transport = m_impl->transport_proto_layer.load(std::memory_order_acquire);
     if (transport != nullptr) {
         transport->configure(m_impl->queue, ep.endpoint_id, instance_id);
@@ -188,6 +251,7 @@ void mq_channel::stop()
 
     m_impl->started.store(false, std::memory_order_release);
     m_impl->receive_epoch.fetch_add(1, std::memory_order_acq_rel);
+    impl::drain_executor(m_impl, m_impl->send_lane);
 
     auto* transport = m_impl->transport_proto_layer.exchange(nullptr, std::memory_order_acq_rel);
     if (transport != nullptr) {
@@ -199,6 +263,10 @@ void mq_channel::stop()
 
     m_impl->inbound_request.reset();
     m_impl->mq_proto_layer = nullptr;
+    {
+        std::lock_guard lock(m_impl->owned_send_mutex);
+        m_impl->owned_send_requests.clear();
+    }
 }
 
 } // namespace mc::shm

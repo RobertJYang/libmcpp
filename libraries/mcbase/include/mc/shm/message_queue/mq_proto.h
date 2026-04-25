@@ -17,6 +17,7 @@
 #include <mc/protocol.h>
 #include <mc/small_function.h>
 
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -46,7 +47,7 @@ private:
     bool                                      _is_configured() const noexcept;
     std::uint32_t                             m_instance_id{0};
     std::uint16_t                             m_endpoint_id{0};
-    std::uint32_t                             m_next_msg_id{1};
+    std::atomic<std::uint32_t>                m_next_msg_id{1};
     std::size_t                               m_max_fragment_payload{default_max_fragment_payload};
     std::shared_ptr<mq_proto_inbound_runtime> m_inbound_runtime;
     source_liveness_probe                     m_source_liveness_probe;

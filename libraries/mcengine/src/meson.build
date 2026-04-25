@@ -39,7 +39,8 @@ engine_src_files = files(
   'property/processor.cpp',
   'property/relation.cpp',
   'property/ref_object.cpp',
-  'property/instantiation.cpp'
+  'property/instantiation.cpp',
+  'std_interface.cpp'
 )
 
 if use_shm

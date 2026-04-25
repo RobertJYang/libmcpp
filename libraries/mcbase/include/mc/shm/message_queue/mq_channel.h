@@ -35,6 +35,7 @@ public:
     void start(std::shared_ptr<shm_runtime> runtime, const endpoint& ep, uint32_t instance_id);
     void stop();
     mc::proto::execution_state send(mc::proto::proto_request& req);
+    void                       send_owned(std::unique_ptr<mc::proto::proto_request> req);
 
     template <typename Protocol>
     Protocol* get_protocol() const noexcept

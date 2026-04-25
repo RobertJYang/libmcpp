@@ -290,8 +290,8 @@ mc::proto::execution_state mq_proto::on_push(mc::proto::proto_request& req)
     auto& ctx = ensure_context<send_context>(req);
     if (ctx.fragments.empty()) {
         const auto payload = payload_from_buffer(req.buffer());
-        auto       built =
-            build_fragments(payload, m_next_msg_id++, pack_src(m_instance_id, m_endpoint_id), m_max_fragment_payload);
+        auto       built = build_fragments(payload, m_next_msg_id.fetch_add(1, std::memory_order_relaxed),
+                                           pack_src(m_instance_id, m_endpoint_id), m_max_fragment_payload);
         if (!built.ok) {
             return fail(req, "mq_proto", built.error);
         }

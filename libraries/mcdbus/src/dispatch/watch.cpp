@@ -112,7 +112,6 @@ bool watch::handle_watch_ready(connection_ptr& conn, uint32_t flags)
     dbus_watch_handle(m_watch, flags);
 
     conn->m_executor.get_executor().post([conn]() {
-        std::lock_guard lock(conn->m_mutex);
         conn->dispatch();
     });
 

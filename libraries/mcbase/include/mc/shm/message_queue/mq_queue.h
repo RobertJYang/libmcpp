@@ -19,6 +19,7 @@
 
 #include <mc/common.h>
 #include <mc/shm/message_queue/mq_types.h>
+#include <mc/small_function.h>
 
 namespace mc::shm {
 
@@ -30,6 +31,8 @@ class mq_transport_proto;
 
 class MC_API mq_queue {
 public:
+    using writer_liveness_probe = mc::small_function<bool(std::uint32_t, std::uint64_t), 64>;
+
     mq_queue() noexcept;
     explicit mq_queue(const mq_queue_options& options);
     ~mq_queue();
@@ -50,6 +53,7 @@ public:
     bool send_message_wait(std::uint32_t writer_id, std::uint64_t writer_instance_id, mc::string_view payload,
                            std::chrono::steady_clock::duration timeout, std::uint8_t priority = 0);
     std::optional<mq_queue_message> try_receive_message();
+    void                            set_writer_liveness_probe(writer_liveness_probe probe);
 
 private:
     friend class detail::mq_watcher;
