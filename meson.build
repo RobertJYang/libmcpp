@@ -160,26 +160,17 @@ mcbase_dep = dependency(
 # 获取 subproject 以访问其他变量（如 incdir, lib 等）
 # 注意：我们需要总是创建 subproject，因为我们需要访问其变量（如 mcbase_lib, mcbase_test_lib 等）
 # 即使 dependency 使用了系统依赖，我们仍然需要 subproject 来构建测试等
-<<<<<<< HEAD
-mcbase_subproject = subproject('mcbase', default_options: [
-  'default_library=shared',
-  'tests=' + build_tests.to_string(),
-  'tests_utilities=' + tests_utilities.to_string(),
-  'meson_build=' + meson_build.to_string(),
-  'securec=' + mcbase_securec_option,
-])
-=======
 mcbase_subproject = subproject(
   'mcbase',
   default_options: [
     'default_library=shared',
     'tests=' + build_tests.to_string(),
+    'tests_utilities=' + tests_utilities.to_string(),
     'meson_build=' + meson_build.to_string(),
     'securec=' + mcbase_securec_option,
     'boost_root=' + boost_root,
   ],
 )
->>>>>>> 93466ca (refactor：将各个子库真正构建成动态库)
 # 从子项目获取其他需要的变量
 mcbase_incdir = mcbase_subproject.get_variable('incdir')
 mcbase_lib = mcbase_subproject.get_variable('mcbase_lib')

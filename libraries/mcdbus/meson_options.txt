@@ -1,3 +1,17 @@
 option('tests', type: 'boolean', value: false, description: 'Build mcdbus tests')
 option('enable_coverage', type: 'boolean', value: false, description: 'Enable mcdbus coverage')
 option('enable_conan_compile', type: 'boolean', value: false, description: 'Align with libmcpp ENABLE_CONAN_COMPILE')
+
+# 旧 dbus/shm 兼容机制（harbor + shm_tree）
+# - true ：编译 src/shm/*.cpp，bus_mode_impl/signal/dynamic_object 中走 harbor/shm_tree 路径
+#          公共头（match.h / dynamic_object.h）改为接入 skynet 提供的真实 ::shm 头
+# - false：仅编译纯 dbus 路径，bus_mode_impl 等 fallback 到 dbus connection 原生实现
+#          公共头改为接入 mc/dbus/shm/mock_shm.h（仅占 ABI 位置）
+# 强校验：use_old_shm=true 时 skynet（pkg-config）必须可用，否则 meson 配置阶段 error。
+# 与顶层 use_shm 互斥（顶层 meson.build 做互斥校验）。
+option(
+  'use_old_shm',
+  type: 'boolean',
+  value: false,
+  description: '编译旧 dbus/shm 兼容代码（harbor + shm_tree），需 skynet 可用',
+)

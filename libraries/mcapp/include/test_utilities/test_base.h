@@ -14,7 +14,9 @@
 #define MC_LIBMCPP_TEST_BASE_H
 
 #include <mc/app/application.h>
+#if defined(MCDBUS_USE_OLD_SHM) && MCDBUS_USE_OLD_SHM
 #include <mc/dbus/shm/harbor.h>
+#endif
 #include <mc/singleton.h>
 
 #include <test_utilities/base.h>
@@ -33,14 +35,18 @@ protected:
 
     static void SetUpTestSuite()
     {
+#if defined(MCDBUS_USE_OLD_SHM) && MCDBUS_USE_OLD_SHM
         mc::dbus::harbor::reset_for_test();
+#endif
         TestWithEngine::SetUpTestSuite();
         ASSERT_TRUE(get_dbus_daemon().start()) << "启动 DBus 守护进程失败";
     }
 
     static void TearDownTestSuite()
     {
+#if defined(MCDBUS_USE_OLD_SHM) && MCDBUS_USE_OLD_SHM
         mc::dbus::harbor::reset_for_test();
+#endif
         TestWithEngine::TearDownTestSuite();
     };
 };

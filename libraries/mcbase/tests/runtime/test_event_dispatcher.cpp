@@ -422,16 +422,27 @@ TEST_F(EventDispatcherTest, PostEventHonorsPriorityWithinSameReceiver)
 {
     auto& ctx = mc::runtime::get_runtime_context();
 
+    // 运行时 work 线程池可能有 N>1 个 worker；只阻塞一个 worker，剩余 worker 会
+    // 在我们 post_event 期间见缝插针把已入队的"low"取走先跑，破坏优先级排序窗口。
+    // 这里按 shard_count() 把所有 worker 同时阻塞，确保三个事件全部入优先级队列后
+    // 才放行。
     auto               work_executor = ctx.get_work_executor();
-    std::promise<void> global_worker_started;
-    auto               global_worker_started_future = global_worker_started.get_future();
-    std::promise<void> release_global_worker;
-    auto               release_global_worker_future = release_global_worker.get_future().share();
-    work_executor.post([&global_worker_started, release_global_worker_future]() mutable {
-        global_worker_started.set_value();
-        release_global_worker_future.wait();
-    });
-    ASSERT_EQ(global_worker_started_future.wait_for(std::chrono::seconds(1)), std::future_status::ready);
+    const std::size_t  worker_count  = ctx.work().shard_count();
+    std::atomic<std::size_t> workers_running{0};
+    std::promise<void>       release_global_workers;
+    auto release_global_workers_future = release_global_workers.get_future().share();
+    for (std::size_t i = 0; i < worker_count; ++i) {
+        work_executor.post([&workers_running, release_global_workers_future]() mutable {
+            workers_running.fetch_add(1, std::memory_order_acq_rel);
+            release_global_workers_future.wait();
+        });
+    }
+    // 等所有 worker 都进入阻塞状态。1 秒兜底，避免线程池被诡异占用时无限等。
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(1);
+    while (workers_running.load(std::memory_order_acquire) < worker_count) {
+        ASSERT_LT(std::chrono::steady_clock::now(), deadline) << "等待 work workers 全部进入阻塞超时";
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
 
     auto target = mc::make_shared<lane_recording_object>();
     target->set_name("target");
@@ -448,7 +459,7 @@ TEST_F(EventDispatcherTest, PostEventHonorsPriorityWithinSameReceiver)
     ctx.post_event(*target, make_named_event("high"), 10);
     ctx.post_event(*target, make_named_event("normal"), 0);
 
-    release_global_worker.set_value();
+    release_global_workers.set_value();
 
     ASSERT_EQ(done_future.wait_for(std::chrono::seconds(1)), std::future_status::ready);
     EXPECT_EQ(target->trace, (std::vector<std::string>{"high", "normal", "low"}));

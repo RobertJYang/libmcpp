@@ -11,8 +11,11 @@
  */
 
 #include <mc/dbus/dynamic_object.h>
-#include <mc/dbus/shm/shm_tree.h>
 #include <mc/exception.h>
+
+#if defined(MCDBUS_USE_OLD_SHM) && MCDBUS_USE_OLD_SHM
+#include <mc/dbus/shm/shm_tree.h>
+#endif
 
 namespace mc::dbus {
 
@@ -46,11 +49,13 @@ bool dynamic_interface::set_property(std::string property_name, const mc::varian
     if (prop.readonly) {
         MC_THROW(mc::exception, "property is read-only");
     }
-    prop.value     = value;
+    prop.value = value;
+#if defined(MCDBUS_USE_OLD_SHM) && MCDBUS_USE_OLD_SHM
     auto inner_ptr = prop.shm_prop.lock();
     if (inner_ptr) {
         shm_tree::set_property_inner(inner_ptr, value);
     }
+#endif
     return true;
 }
 
@@ -93,11 +98,15 @@ void dynamic_interface::update_shm_prop(std::string_view property_name, const mc
     if (it == m_properties.end()) {
         return;
     }
+#if defined(MCDBUS_USE_OLD_SHM) && MCDBUS_USE_OLD_SHM
     auto inner_ptr = it->second.shm_prop.lock();
     if (!inner_ptr) {
         return;
     }
     shm_tree::set_property_inner(inner_ptr, value);
+#else
+    (void)value;
+#endif
 }
 
 std::map<std::string, dynamic_property>& dynamic_interface::get_properties()

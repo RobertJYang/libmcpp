@@ -15,7 +15,6 @@
 #include <mc/algorithm/lru_cache.h>
 #include <mc/dbus/match.h>
 #include <mc/dbus/sd_bus.h>
-#include <mc/dbus/shm/harbor.h>
 #include <mc/exception.h>
 #include <mc/json.h>
 #include <mc/log.h>
@@ -635,11 +634,12 @@ signal_subscription create_new_subscription(mc::dbus::sd_bus* bus, const std::st
         sub.properties_changed_match_id = create_properties_changed_subscription(bus, path, interface);
     } catch (const std::exception& e) {
         elog("create_new_subscription: create_properties_changed_subscription FAILED: ${error}", ("error", e.what()));
-        // 需要清理已创建的 interfaces_removed 订阅
+        // 需要清理已创建的 interfaces_removed 订阅；统一通过 bus->remove_match 抽象，
+        // 与本函数前面段落（line ~322）以及 sd_bus::remove_match 内部按 use_old_shm
+        // 自动选 harbor 还是 dbus connection 的语义保持一致。
         try {
-            if (sub.interfaces_removed_match_id > 0) {
-                auto& harbor = mc::dbus::harbor::get_instance();
-                harbor.remove_match(sub.interfaces_removed_match_id);
+            if (sub.interfaces_removed_match_id > 0 && bus != nullptr) {
+                bus->remove_match(sub.interfaces_removed_match_id);
             }
         } catch (const std::exception& cleanup_err) {
             elog("create_new_subscription: cleanup failed: ${error}", ("error", cleanup_err.what()));

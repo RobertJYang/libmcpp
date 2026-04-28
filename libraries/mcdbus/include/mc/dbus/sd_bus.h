@@ -17,9 +17,12 @@
 #include <mc/dbus/connection.h>
 #include <mc/dbus/dynamic_object.h>
 #include <mc/dbus/match.h>
-#include <mc/dbus/shm/shm_tree.h>
 #include <mc/runtime.h>
 #include <memory>
+
+#if defined(MCDBUS_USE_OLD_SHM) && MCDBUS_USE_OLD_SHM
+#include <mc/dbus/shm/shm_tree.h>
+#endif
 
 namespace mc::dbus {
 

@@ -17,14 +17,23 @@
 #include <mc/dbus/connection.h>
 #include <mc/dbus/match.h>
 #include <mc/dbus/message.h>
-#include <mc/dbus/shm/shm_tree.h>
 #include <mc/variant.h>
 #include <memory>
 #include <optional>
 #include <string>
 #include <tuple>
 
+#if defined(MCDBUS_USE_OLD_SHM) && MCDBUS_USE_OLD_SHM
+#include <mc/dbus/shm/shm_tree.h>
+#endif
+
 namespace mc::dbus {
+
+#if !defined(MCDBUS_USE_OLD_SHM) || !MCDBUS_USE_OLD_SHM
+// use_old_shm=false 时不再编译 shm_tree 实现；
+// 仍前向声明该类型以保持 get_shm_tree() 签名稳定（运行时永远返回 nullptr）。
+class shm_tree;
+#endif
 
 /**
  * @brief 总线模式实现基类
@@ -307,7 +316,9 @@ public:
                            variants&& args) override;
 
 private:
+#if defined(MCDBUS_USE_OLD_SHM) && MCDBUS_USE_OLD_SHM
     shm_tree* m_shm_tree{nullptr};
+#endif
 };
 
 } // namespace mc::dbus

@@ -15,12 +15,22 @@ class AppConan(ConanBase):
         "gcov": [True, False],
         "test": [True, False],
         "enable_luajit": [True, False],
+        # 进程间通信架构开关，与顶层 meson 选项一一对应，禁止同时为 True：
+        #   use_shm=True  + use_old_shm=False ：新 SHM 架构
+        #   use_shm=False + use_old_shm=True  ：旧 dbus/shm 兼容（依赖 skynet，conan 默认）
+        #   use_shm=False + use_old_shm=False ：mcengine local heap + mcdbus 纯 dbus
+        "use_shm": [True, False],
+        "use_old_shm": [True, False],
     }
     default_options = {
         "asan": False,
         "gcov": False,
         "test": False,
         "enable_luajit": False,
+        # conan 构建（DT / 交叉编译生产）默认走旧架构，保持与存量部署兼容；
+        # 想在 conan 环境下试新架构：-o use_shm=True -o use_old_shm=False。
+        "use_shm": False,
+        "use_old_shm": True,
     }
 
 # 基于meson构建的基类，适用于libmcpp项目
@@ -51,6 +61,15 @@ class AppConan(ConanBase):
         else:
             tc.project_options["tests"] = False
         tc.project_options["meson_build"] = False
+        # 顶层 meson 会做互斥校验（use_shm 与 use_old_shm 不能同时 True），
+        # 这里再前置一次让 conan 用户更早看到错误，且错误信息更贴 conan 选项。
+        if bool(self.options.use_shm) and bool(self.options.use_old_shm):
+            raise Exception(
+                "use_shm 与 use_old_shm 互斥，不能同时为 True。"
+                "请二选一：-o use_shm=True -o use_old_shm=False 或 -o use_shm=False -o use_old_shm=True。"
+            )
+        tc.project_options["use_shm"] = bool(self.options.use_shm)
+        tc.project_options["use_old_shm"] = bool(self.options.use_old_shm)
 
         ms = VirtualBuildEnv(self)
         if self.settings.arch in ["armv8"]:
@@ -273,10 +292,18 @@ class AppConan(ConanBase):
         self.cpp_info.components["mcexpr"].set_property("pkg_config_custom_content",
            f"libdir=${{prefix}}/{libdir}\n")
 
+        # mcdbus / mcapp 在 use_old_shm=True 时需要 skynet 提供的真实
+        # ::shm::* 头（dbus/shm_tree/...）；use_old_shm=False 下走 mock_shm.h，无需 skynet。
+        mcdbus_requires = ["mcbase", "mcengine", "boost::boost"]
+        mcapp_requires = ["mcbase", "mcengine", "mcdbus"]
+        if self.options.use_old_shm:
+            mcdbus_requires.append("skynet::skynet")
+            mcapp_requires.append("skynet::skynet")
+
         self.cpp_info.components["mcdbus"].libs = ["mcdbus"]
         self.cpp_info.components["mcdbus"].libdirs = [libdir]
         self.cpp_info.components["mcdbus"].includedirs = include_dirs
-        self.cpp_info.components["mcdbus"].requires = ["mcbase", "mcengine", "boost::boost"]
+        self.cpp_info.components["mcdbus"].requires = mcdbus_requires
         self.cpp_info.components["mcdbus"].set_property("pkg_config_name", "mcdbus")
         self.cpp_info.components["mcdbus"].set_property("pkg_config_custom_content",
            f"libdir=${{prefix}}/{libdir}\n"
@@ -285,7 +312,7 @@ class AppConan(ConanBase):
         self.cpp_info.components["mcapp"].libs = ["mcapp"]
         self.cpp_info.components["mcapp"].libdirs = [libdir]
         self.cpp_info.components["mcapp"].includedirs = include_dirs
-        self.cpp_info.components["mcapp"].requires = ["mcbase", "mcengine", "mcdbus"]
+        self.cpp_info.components["mcapp"].requires = mcapp_requires
         self.cpp_info.components["mcapp"].set_property("pkg_config_name", "mcapp")
         self.cpp_info.components["mcapp"].set_property("pkg_config_custom_content",
            f"libdir=${{prefix}}/{libdir}\n")
@@ -310,15 +337,18 @@ class AppConan(ConanBase):
         self.cpp_info.components["libmcpp"].libdirs = [libdir]
         self.cpp_info.components["libmcpp"].includedirs = include_dirs
         self.cpp_info.components["libmcpp"].set_property("pkg_config_name", "libmcpp")
-        self.cpp_info.components["libmcpp"].requires = [
+        libmcpp_requires = [
             "mcpp_base",
             "mcbase",
             "mcengine",
             "mcexpr",
             "mcdbus",
             "mcapp",
-            "skynet::skynet",
         ]
+        # 仅在启用旧 dbus/shm 兼容机制时，libmcpp 才链 skynet 提供的真实 ::shm 实现。
+        if self.options.use_old_shm:
+            libmcpp_requires.append("skynet::skynet")
+        self.cpp_info.components["libmcpp"].requires = libmcpp_requires
         self.cpp_info.components["libmcpp"].set_property("pkg_config_custom_content",
            f"libdir=${{prefix}}/{libdir}\n"
            "Requires: dbus-1 glib-2.0\n")

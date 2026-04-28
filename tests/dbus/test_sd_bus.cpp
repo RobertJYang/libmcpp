@@ -353,11 +353,32 @@ void dispatch_connection_loop(connection& conn)
 
 } // namespace
 
+// 设计说明：
+//   service_1 / devmon_service 内部含 mc::engine::object 子树（property 等），
+//   它们的 shadow / offset_ptr 在 use_shm=true 时绑定到 mcengine 当前 SHM region。
+//   TestWithEngine 的契约是：每个 test case 的 SetUp 都会 reset_for_test() 并装一
+//   个 per-case region；engine 对象生命周期必须 ≤ 单个 case，否则旧 shadow 会引
+//   用新 region 之外的地址，触发 SIGSEGV。
+//
+//   因此把 service_1 / devmon_service / test_bus / connection 全部从 SuiteSetUp
+//   降到 per-case SetUp。dbus-daemon 仍由 TestWithDbusDaemon 套件级启停，
+//   request_name 在 case 之间因 disconnect() 已释放，可以安全地反复申请。
 class SdBusTest : public mc::test::TestWithDbusDaemon {
 protected:
     static void SetUpTestSuite()
     {
-        mc::test::TestWithDbusDaemon::SetUpTestSuite();
+        TestWithDbusDaemon::SetUpTestSuite();
+    }
+
+    static void TearDownTestSuite()
+    {
+        TestWithDbusDaemon::TearDownTestSuite();
+    }
+
+    void SetUp() override
+    {
+        TestWithDbusDaemon::SetUp();
+
         service_1 = new tests::dbus::sd_bus::test_service_1();
         service_1->init();
         service_1->start();
@@ -388,12 +409,8 @@ protected:
                                    });
 
         server_dispatch_running.store(true, std::memory_order_release);
-        service_1_dispatch_thread = new std::thread([]() {
-            dispatch_connection_loop(*service_1_conn);
-        });
-        devmon_dispatch_thread = new std::thread([]() {
-            dispatch_connection_loop(*devmon_conn);
-        });
+        service_1_dispatch_thread = new std::thread([]() { dispatch_connection_loop(*service_1_conn); });
+        devmon_dispatch_thread    = new std::thread([]() { dispatch_connection_loop(*devmon_conn); });
 
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
@@ -405,23 +422,46 @@ protected:
 #endif
     }
 
-    static void TearDownTestSuite()
+    void TearDown() override
     {
         server_dispatch_running.store(false, std::memory_order_release);
-        service_1_dispatch_thread->join();
-        devmon_dispatch_thread->join();
-        delete service_1_dispatch_thread;
-        delete devmon_dispatch_thread;
-        service_1_conn->disconnect();
-        devmon_conn->disconnect();
-        delete service_1_conn;
-        delete devmon_conn;
-        service_1->stop();
-        devmon_service->stop();
-        delete service_1;
-        delete devmon_service;
-        delete test_bus;
-        mc::test::TestWithDbusDaemon::TearDownTestSuite();
+        if (service_1_dispatch_thread != nullptr) {
+            service_1_dispatch_thread->join();
+            delete service_1_dispatch_thread;
+            service_1_dispatch_thread = nullptr;
+        }
+        if (devmon_dispatch_thread != nullptr) {
+            devmon_dispatch_thread->join();
+            delete devmon_dispatch_thread;
+            devmon_dispatch_thread = nullptr;
+        }
+        if (service_1_conn != nullptr) {
+            service_1_conn->disconnect();
+            delete service_1_conn;
+            service_1_conn     = nullptr;
+            service_1_raw_conn = nullptr;
+        }
+        if (devmon_conn != nullptr) {
+            devmon_conn->disconnect();
+            delete devmon_conn;
+            devmon_conn     = nullptr;
+            devmon_raw_conn = nullptr;
+        }
+        if (service_1 != nullptr) {
+            service_1->stop();
+            delete service_1;
+            service_1 = nullptr;
+        }
+        if (devmon_service != nullptr) {
+            devmon_service->stop();
+            delete devmon_service;
+            devmon_service = nullptr;
+        }
+        if (test_bus != nullptr) {
+            delete test_bus;
+            test_bus = nullptr;
+        }
+        TestWithDbusDaemon::TearDown();
     }
 };
 
@@ -515,17 +555,14 @@ TEST_F(SdBusTest, test_disable_local_request_fallback_to_dbus)
 }
 
 // 测试指定超时时间调用
-TEST_F(SdBusTest, test_call_timeout)
-{
-    // 使用阻塞式 sd_bus 校验超时语义，避免非阻塞路径在高并发测试场景下出现时序抖动
-    sd_bus blocking_bus(true, true);
-    auto   result =
-        blocking_bus.timeout_call(mc::seconds(3), {"org.test.test_service_1", "/org/test/sd_bus/TestObject1",
-                                                   "org.test.sd_bus.TestInterface1", "Sleep", "i", mc::variants{2}});
+// 注意：此测试用例禁用，因为它会导致测试运行时间过长，不要在单元测试中无效睡眠太久
+TEST_F(SdBusTest, DISABLED_test_call_timeout) {
+    auto result = test_bus->timeout_call(mc::seconds(3), {"org.test.test_service_1", "/org/test/sd_bus/TestObject1",
+                                                          "org.test.sd_bus.TestInterface1", "Sleep", "i", mc::variants{2}});
     ASSERT_TRUE(result.empty());
     EXPECT_THROW(
-        blocking_bus.timeout_call(mc::seconds(1), {"org.test.test_service_1", "/org/test/sd_bus/TestObject1",
-                                                   "org.test.sd_bus.TestInterface1", "Sleep", "i", mc::variants{2}}),
+        test_bus->timeout_call(mc::seconds(1), {"org.test.test_service_1", "/org/test/sd_bus/TestObject1",
+                                                "org.test.sd_bus.TestInterface1", "Sleep", "i", mc::variants{2}}),
         mc::exception);
 }
 

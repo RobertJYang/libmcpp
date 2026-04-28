@@ -1,2 +1,17 @@
 option('tests', type: 'boolean', value: false, description: 'Build mcapp tests')
 option('enable_coverage', type: 'boolean', value: false, description: 'Enable mcapp coverage')
+
+# 旧 dbus/shm 兼容机制（harbor + shm_tree）
+# - true ：mcapp::service 启动时自动给 service_object_table 挂上 legacy_shm_binding，
+#          把对象注册/反注册同步到旧 shm_tree，并启动 harbor。
+# - false：mcapp 不引入任何旧 shm 兼容代码，零侵入。
+# mcapp 子工程会以同一个 use_old_shm 透传给 mcdbus 子工程，保持 lockstep。
+# C++ 侧统一使用 mcdbus 的 MCDBUS_USE_OLD_SHM 宏（由 mcdbus_dep 透传），
+# mcapp 不再单独注入 MCAPP_USE_OLD_SHM，避免出现"两个真相"。
+# 与顶层 use_shm 互斥（顶层 meson.build 做互斥校验，mcdbus 子工程额外强校验 skynet）。
+option(
+  'use_old_shm',
+  type: 'boolean',
+  value: false,
+  description: 'mcapp 启用旧 dbus/shm 兼容粘合层（透传给 mcdbus:use_old_shm 保持一致）',
+)

@@ -10,13 +10,17 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include <atomic>
 #include <chrono>
 #include <mc/dbus/bus_mode_impl.h>
 #include <mc/dbus/message.h>
 #include <mc/dbus/sd_bus.h>
-#include <mc/dbus/shm/harbor.h>
 #include <mc/dbus/signal.h>
 #include <mc/log/log.h>
+
+#if defined(MCDBUS_USE_OLD_SHM) && MCDBUS_USE_OLD_SHM
+#include <mc/dbus/shm/harbor.h>
+#endif
 
 namespace mc::dbus {
 
@@ -222,10 +226,12 @@ blocking_bus_impl::async_shm_timeout_call(int timeout_ms, const std::string& ser
 
 nonblocking_bus_impl::~nonblocking_bus_impl()
 {
+#if defined(MCDBUS_USE_OLD_SHM) && MCDBUS_USE_OLD_SHM
     if (m_shm_tree != nullptr) {
         delete m_shm_tree;
         m_shm_tree = nullptr;
     }
+#endif
 }
 
 bool nonblocking_bus_impl::start()
@@ -254,30 +260,48 @@ void nonblocking_bus_impl::request_name(const std::string& service_name, uint32_
     m_connection.request_name(service_name, flags);
     m_service_name = service_name;
 
-    // 非阻塞模式需要初始化 harbor 和 shm_tree
+#if defined(MCDBUS_USE_OLD_SHM) && MCDBUS_USE_OLD_SHM
+    // 旧 shm 兼容模式：初始化 harbor 与 shm_tree，启用进程间共享内存加速
     auto& harbor = mc::dbus::harbor::get_instance();
     harbor.set_harbor_name_if_empty("harbor." + service_name);
     harbor.register_unique_name(m_unique_name, service_name);
-    // shm_tree构造函数内部会调用create_shm_tree
+    // shm_tree 构造函数内部会调用 create_shm_tree
     m_shm_tree = new shm_tree(harbor.get_harbor_name(), service_name, m_unique_name);
     harbor.start();
+#endif
 }
 
 uint64_t nonblocking_bus_impl::add_match(match_rule& rule, match_cb_t&& cb)
 {
+#if defined(MCDBUS_USE_OLD_SHM) && MCDBUS_USE_OLD_SHM
     if (m_shm_tree == nullptr) {
         elog("add_match failed: shm_tree not initialized, call request_name first");
         return 0;
     }
     return m_shm_tree->add_match(rule, std::forward<match_cb_t>(cb));
+#else
+    // 无 shm_tree 兼容时，退化为通过 dbus connection 原生 add_match 注册规则；
+    // id 由 connection 内部分配。
+    static std::atomic<uint64_t> s_match_id_seed{1};
+    auto                         id = s_match_id_seed.fetch_add(1, std::memory_order_relaxed);
+    m_connection.add_match(rule, std::forward<match_cb_t>(cb), id);
+    return id;
+#endif
 }
 
 void nonblocking_bus_impl::remove_match(uint64_t id)
 {
+#if defined(MCDBUS_USE_OLD_SHM) && MCDBUS_USE_OLD_SHM
     if (m_shm_tree == nullptr) {
         return;
     }
     m_shm_tree->remove_match(id);
+#else
+    if (id == 0U) {
+        return;
+    }
+    m_connection.remove_match(id);
+#endif
 }
 
 bool nonblocking_bus_impl::run_once(int timeout_ms)
@@ -300,7 +324,11 @@ void nonblocking_bus_impl::notify_signal(message& msg)
 
 shm_tree* nonblocking_bus_impl::get_shm_tree()
 {
+#if defined(MCDBUS_USE_OLD_SHM) && MCDBUS_USE_OLD_SHM
     return m_shm_tree;
+#else
+    return nullptr;
+#endif
 }
 
 variants nonblocking_bus_impl::call(const std::string& service, const std::string& path, const std::string& interface,

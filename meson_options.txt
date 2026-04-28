@@ -53,3 +53,31 @@ option(
        value: '',
        description: 'Boost include root directory (if not set, uses BOOST_ROOT or system Boost)',
 )
+
+# 进程间通信架构开关：use_shm（新 SHM 架构） vs use_old_shm（旧 dbus/shm 兼容，harbor + shm_tree）
+#
+# 取值矩阵：
+#   use_shm=true  + use_old_shm=false ：新架构（默认 meson 配置）
+#   use_shm=false + use_old_shm=true  ：旧架构（默认 conan 配置；要求 skynet 可用）
+#   use_shm=false + use_old_shm=false ：mcengine 走 local heap，mcdbus 走纯 dbus connection（最小配置）
+#   use_shm=true  + use_old_shm=true  ：互斥，meson 配置阶段 error
+#
+# 默认值差异：
+#   - meson 直接构建（macOS / 纯 Linux meson）：use_shm=true,  use_old_shm=false（开箱即用，无需 skynet）
+#   - conan 构建（DT / 交叉编译生产环境）    ：use_shm=false, use_old_shm=true（在 conanfile.py 中显式覆盖）
+#
+# 顶层把这两个值透传给三个子工程（mcengine:use_shm / mcdbus:use_old_shm / mcapp:use_old_shm），
+# 并在 meson.build 中做互斥校验 + 子工程实际值一致性校验。
+option(
+       'use_shm',
+       type: 'boolean',
+       value: true,
+       description: '启用新 SHM 架构（mcengine 默认 storage_engine=shm）。meson 默认 true；conan 默认 false。与 use_old_shm 互斥。',
+)
+
+option(
+       'use_old_shm',
+       type: 'boolean',
+       value: false,
+       description: '启用旧 dbus/shm 兼容机制（harbor + shm_tree）。meson 默认 false；conan 默认 True。true 时要求 skynet 可用，且与 use_shm 互斥。',
+)

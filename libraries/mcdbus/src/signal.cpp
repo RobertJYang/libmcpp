@@ -10,16 +10,22 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <mc/dbus/shm/harbor.h>
 #include <mc/dbus/signal.h>
 #include <mc/engine/metadata.h>
 #include <mc/engine/property.h>
 
 #include <chrono>
 
+#if defined(MCDBUS_USE_OLD_SHM) && MCDBUS_USE_OLD_SHM
+#include <mc/dbus/shm/harbor.h>
+#endif
+
 namespace mc::dbus {
 
-constexpr uint64_t          SD_BUS_VTABLE_PROPERTY_EMITS_INVALIDATION = 1 << 6;
+constexpr uint64_t SD_BUS_VTABLE_PROPERTY_EMITS_INVALIDATION = 1 << 6;
+
+#if defined(MCDBUS_USE_OLD_SHM) && MCDBUS_USE_OLD_SHM
+
 static DBus::Match::Context s_ctx;
 
 void send_signal(connection& conn, message& signal)
@@ -64,6 +70,25 @@ void send_signal(connection& conn, message& signal)
     dlog("dbus send message cost '${time}' microseconds",
          ("time", std::chrono::duration_cast<std::chrono::microseconds>(duration)));
 }
+
+#else // MCDBUS_USE_OLD_SHM = 0
+
+// 纯 dbus 路径：不再通过 harbor msg_queue 投递，直接走 connection 广播信号。
+// 跨进程 dbus 守护会按订阅自动路由到匹配该 rule 的接收方。
+void send_signal(connection& conn, message& signal)
+{
+    auto start = std::chrono::steady_clock::now();
+    if (signal.get_serial() == 0) {
+        signal.set_serial(conn.get_next_serial());
+    }
+    conn.send(std::move(signal));
+    auto end      = std::chrono::steady_clock::now();
+    auto duration = end - start;
+    dlog("dbus send message cost '${time}' microseconds",
+         ("time", std::chrono::duration_cast<std::chrono::microseconds>(duration)));
+}
+
+#endif
 
 void emit_properties_changed(connection& conn, engine::abstract_object& obj, const engine::property_base& prop,
                              const variant& value)

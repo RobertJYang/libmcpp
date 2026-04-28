@@ -13,10 +13,13 @@
 #include <mc/dbus/bus_mode_impl.h>
 #include <mc/dbus/message.h>
 #include <mc/dbus/sd_bus.h>
-#include <mc/dbus/shm/harbor.h>
-#include <mc/dbus/shm/shm_tree.h>
 #include <mc/log/log.h>
 #include <mc/runtime.h>
+
+#if defined(MCDBUS_USE_OLD_SHM) && MCDBUS_USE_OLD_SHM
+#include <mc/dbus/shm/harbor.h>
+#include <mc/dbus/shm/shm_tree.h>
+#endif
 
 namespace mc::dbus {
 constexpr mc::milliseconds DEFAULT_DBUS_CALL_TIMEOUT = mc::minutes(10);
@@ -98,10 +101,15 @@ variants sd_bus::dbus_call(mc::milliseconds timeout, const method_call_params& p
 
 std::optional<variants> sd_bus::shm_timeout_call(mc::milliseconds timeout, const method_call_params& params)
 {
+#if defined(MCDBUS_USE_OLD_SHM) && MCDBUS_USE_OLD_SHM
     auto result = shm_tree::timeout_call_with_sender(timeout, m_unique_name, params);
     if (result != std::nullopt) {
         return result.value();
     }
+#else
+    (void)timeout;
+    (void)params;
+#endif
     return std::nullopt;
 }
 
@@ -110,10 +118,12 @@ variants sd_bus::timeout_call_impl(mc::milliseconds timeout, const method_call_p
     if (m_is_blocking || m_service_name.empty() || !m_enable_local_request) {
         return dbus_call(timeout, params);
     }
+#if defined(MCDBUS_USE_OLD_SHM) && MCDBUS_USE_OLD_SHM
     auto result = shm_timeout_call(timeout, params);
     if (result != std::nullopt) {
         return result.value();
     }
+#endif
     return dbus_call(timeout, params);
 }
 
@@ -273,16 +283,16 @@ void sd_bus::register_object(mc::shared_ptr<dynamic_object> object)
         return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
     });
     m_objects.emplace(path, object);
-#if defined(ENABLE_CONAN_COMPILE)
-    auto* shm_tree = m_bus->get_shm_tree();
-    if (!shm_tree) {
+#if defined(ENABLE_CONAN_COMPILE) && defined(MCDBUS_USE_OLD_SHM) && MCDBUS_USE_OLD_SHM
+    auto* shm_tree_ptr = m_bus->get_shm_tree();
+    if (!shm_tree_ptr) {
         return;
     }
-    ::shm::object_tree* tree = shm_tree->get_tree();
+    ::shm::object_tree* tree = shm_tree_ptr->get_tree();
     if (!tree) {
         return;
     }
-    auto&        ins     = ::shm::shared_memory::get_instance();
+    auto&          ins     = ::shm::shared_memory::get_instance();
     ::shm::object& shm_obj = tree->register_object(ins, path);
     for (auto& [name, interface] : object->get_interfaces()) {
         ::shm::interface& shm_intf = shm_obj.register_interface(ins, false, name);

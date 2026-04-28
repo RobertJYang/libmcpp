@@ -16,10 +16,13 @@
 #include <dbus/dbus.h>
 #include <mc/dbus/message.h>
 
-#define BUILD_TYPE_DT (0x0a)
-
-#if (defined(BUILD_TYPE) && defined(BUILD_TYPE_DT) && BUILD_TYPE != BUILD_TYPE_DT) ||                                  \
-    (defined(ENABLE_CONAN_COMPILE) && ENABLE_CONAN_COMPILE == 1)
+// match.h 中的 shm_lock 等类型 ABI 始终引用 ::shm::shared_memory 等，无论是否启用旧
+// shm 兼容都需要 ::shm 命名空间类型可见。来源由 MCDBUS_USE_OLD_SHM 决定：
+//   - 1：use_old_shm=true → 接入 skynet 提供的真实 ::shm 头
+//        （mcdbus/meson.build 已强校验 skynet 必须可用）
+//   - 0：use_old_shm=false → header-only mock_shm.h 仅提供 ABI 占位
+// 通过同一个 MCDBUS_USE_OLD_SHM 同时控制头来源、ABI 字段、运行路径，单一真相。
+#if defined(MCDBUS_USE_OLD_SHM) && MCDBUS_USE_OLD_SHM
 #include "shmlock/shmlock_manager.h"
 #include <dbus/match/matchs.h>
 #include <dbus/shm_tree/object.h>
@@ -27,7 +30,6 @@
 #include <dbus/shm_tree/shared_memory_base.h>
 #include <dbus/shm_tree/tree.h>
 #else
-// DT环境下如果禁用共享内存，使用打桩的定义
 #include <mc/dbus/shm/mock_shm.h>
 #endif
 

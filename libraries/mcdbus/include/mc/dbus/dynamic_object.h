@@ -15,7 +15,6 @@
 
 #include <map>
 #include <mc/dict.h>
-#include <mc/dbus/shm/mock_shm.h>
 #include <mc/engine/object.h>
 #include <mc/memory.h>
 #include <mc/object.h>
@@ -26,6 +25,17 @@
 #include <string>
 #include <string_view>
 #include <tuple>
+
+// dynamic_property::shm_prop 字段 ABI 始终携带 ::shm::weak_ptr<::shm::property>，
+// 因此该类型在任何配置下都需要可见，但仅在 MCDBUS_USE_OLD_SHM=1 时才会真正读写。
+// 头文件来源由 MCDBUS_USE_OLD_SHM 决定：
+//   - 1：接入 skynet 提供的真实 dbus/shm_tree/property.h
+//   - 0：使用 mc/dbus/shm/mock_shm.h（header-only 桩，仅占 ABI 位置）
+#if defined(MCDBUS_USE_OLD_SHM) && MCDBUS_USE_OLD_SHM
+#include <dbus/shm_tree/property.h>
+#else
+#include <mc/dbus/shm/mock_shm.h>
+#endif
 
 namespace mc::dbus {
 

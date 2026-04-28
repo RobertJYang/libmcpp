@@ -20,6 +20,10 @@
 #include <mc/log/log.h>
 #include <mc/shm/message_queue/mq_channel.h>
 
+#if defined(MCDBUS_USE_OLD_SHM) && MCDBUS_USE_OLD_SHM
+#include "legacy_shm_binding.h"
+#endif
+
 namespace mc::app {
 
 service::service(mc::string name) : mc::engine::service(name)
@@ -149,11 +153,28 @@ bool service::bring_up_dbus_transport()
 #endif
     m_proto = std::make_unique<app_proto>(mc::string(name()), m_connection, mq_channel);
     set_proto(m_proto.get());
+
+#if defined(MCDBUS_USE_OLD_SHM) && MCDBUS_USE_OLD_SHM
+    // 旧 dbus/shm 兼容粘合层只在 dbus 真正连上后启用；
+    // 失败时降级为纯 dbus，不影响 service 启动。
+    m_legacy_shm = std::make_unique<legacy_shm::binding>(*this, m_connection);
+    if (!m_legacy_shm->install()) {
+        m_legacy_shm.reset();
+    }
+#endif
+
     return true;
 }
 
 void service::tear_down_dbus_transport()
 {
+#if defined(MCDBUS_USE_OLD_SHM) && MCDBUS_USE_OLD_SHM
+    if (m_legacy_shm) {
+        m_legacy_shm->uninstall();
+        m_legacy_shm.reset();
+    }
+#endif
+
     if (m_proto) {
         set_proto(nullptr);
         m_proto.reset();
