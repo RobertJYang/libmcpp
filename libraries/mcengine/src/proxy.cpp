@@ -20,10 +20,12 @@
 #include <mc/engine/std_interface.h>
 #include <mc/exception.h>
 
+#if MCENGINE_USE_SHM
 #include "shm_object_ops.h"
 #include "shm_property_sync.h"
 #include "shm_service.h"
 #include "shm_service_ops.h"
+#endif
 
 namespace mc::engine {
 namespace {
@@ -32,6 +34,8 @@ namespace {
 {
     MC_THROW(mc::method_call_exception, "${message}", ("message", message));
 }
+
+#if MCENGINE_USE_SHM
 
 mc::variant slot_to_variant(const property_slot& slot)
 {
@@ -206,6 +210,8 @@ private:
     }
 };
 
+#endif // MCENGINE_USE_SHM
+
 // 通过 service 发送消息并等待回复
 mc::variant call_via_service(const service* svc, const message& request, const proxy_policy& policy)
 {
@@ -270,7 +276,11 @@ message build_method_call(const object_ref& ref, mc::string_view interface_name,
 
 mc::shared_ptr<proxy_shm_resolver> make_default_proxy_shm_resolver()
 {
+#if MCENGINE_USE_SHM
     return mc::make_shared<default_proxy_shm_resolver>();
+#else
+    return {};
+#endif
 }
 
 // ---------------------------------------------------------------------------
@@ -298,23 +308,22 @@ const proxy_policy& object_proxy::policy() const noexcept
 
 mc::variant object_proxy::get_property(mc::string_view interface_name, mc::string_view property_name) const
 {
+#if MCENGINE_USE_SHM
     if (m_resolver) {
         auto resolved = m_resolver->resolve(m_ref);
         auto result   = try_read_shm_property(resolved, m_ref, m_policy, interface_name, property_name);
 
-        // SHM 中的 nocache flag 是权威的：忽略 proxy_route 策略，必须走消息
         if (result.status == shm_read_status::nocache) {
             return call_message(std_ifaces::properties, std_ifaces::get,
                                 mc::variants{mc::string(interface_name), mc::string(property_name)}, "ss");
         }
 
-        // 命中缓存且 auto_ 策略：直接返回
         if (result.status == shm_read_status::hit && m_policy.route == proxy_route::auto_) {
             return result.value;
         }
     }
+#endif
 
-    // 缓存未命中或 no_cache 模式：通过消息读取
     return call_message(std_ifaces::properties, std_ifaces::get,
                         mc::variants{mc::string(interface_name), mc::string(property_name)}, "ss");
 }
@@ -322,9 +331,11 @@ mc::variant object_proxy::get_property(mc::string_view interface_name, mc::strin
 mc::dict object_proxy::get_all_properties(mc::string_view interface_name, proxy_get_all_mode mode) const
 {
     if (mode == proxy_get_all_mode::fast_available_only) {
+#if MCENGINE_USE_SHM
         if (m_resolver) {
             return read_shm_properties(m_resolver->resolve(m_ref), m_ref, m_policy, interface_name);
         }
+#endif
         return {};
     }
 
@@ -410,11 +421,11 @@ mc::variant interface_proxy_context::get_property(mc::string_view property_name)
 {
     ensure_bound();
 
+#if MCENGINE_USE_SHM
     if (m_resolver) {
         auto resolved = m_resolver->resolve(m_ref);
         auto result   = try_read_shm_property(resolved, m_ref, m_policy, m_iface_name, property_name);
 
-        // SHM 中的 nocache flag 是权威的：忽略 proxy_route 策略，必须走消息
         if (result.status == shm_read_status::nocache) {
             auto request = build_method_call(m_ref, std_ifaces::properties, std_ifaces::get,
                                              mc::variants{mc::string(m_iface_name), mc::string(property_name)}, "ss",
@@ -422,13 +433,12 @@ mc::variant interface_proxy_context::get_property(mc::string_view property_name)
             return call_via_service(m_svc, request, m_policy);
         }
 
-        // 命中缓存且 auto_ 策略：直接返回
         if (result.status == shm_read_status::hit && m_policy.route == proxy_route::auto_) {
             return result.value;
         }
     }
+#endif
 
-    // 缓存未命中或 no_cache 模式：通过消息读取
     auto request = build_method_call(m_ref, std_ifaces::properties, std_ifaces::get,
                                      mc::variants{mc::string(m_iface_name), mc::string(property_name)}, "ss", m_policy);
     return call_via_service(m_svc, request, m_policy);
@@ -449,9 +459,11 @@ mc::dict interface_proxy_context::get_all_properties(proxy_get_all_mode mode) co
     ensure_bound();
 
     if (mode == proxy_get_all_mode::fast_available_only) {
+#if MCENGINE_USE_SHM
         if (m_resolver) {
             return read_shm_properties(m_resolver->resolve(m_ref), m_ref, m_policy, m_iface_name);
         }
+#endif
         return {};
     }
 
@@ -494,12 +506,14 @@ object_proxy_seed make_seed_from_object(abstract_object& obj, mc::string path, p
     }
     seed.ref.object_id = obj.get_object_id();
 
+#if MCENGINE_USE_SHM
     if (auto* shm = obj.get_shm_handle(); shm != nullptr) {
         if (auto* shm_svc = shm_object_service(*shm);
             shm_svc != nullptr && shm_svc->abi_version == shm_service_abi_version && shm_service_check(*shm_svc)) {
             seed.ref.service_epoch = shm_svc->epoch;
         }
     }
+#endif
     return seed;
 }
 

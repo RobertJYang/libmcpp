@@ -25,8 +25,10 @@
 #include <mc/json.h>
 #include <mc/reflect.h>
 #include <mc/runtime/runtime_context.h>
+#if MCENGINE_USE_SHM
 #include <mc/shm/default_runtime.h>
 #include <mc/shm/detail/shared_memory_backend.h>
+#endif
 #include <mc/signal/connection.h>
 #include <test_utilities/base.h>
 #include <test_utilities/test_base.h>
@@ -140,12 +142,12 @@ MC_REFLECT(test_mcapp::echo_object, ((m_iface, "Iface")))
 
 class application_test : public mc::test::TestWithDbusDaemon {
 protected:
-    static constexpr mc::string_view k_default_shm_region{"mc.default"};
-
     void SetUp() override
     {
+#if MCENGINE_USE_SHM
         mc::shm::shutdown_default_runtime();
         mc::shm::detail::shared_memory_backend::remove(k_default_shm_region);
+#endif
         mc::engine::engine::reset_for_test();
         mc::app::base_app::reset_for_test();
         m_app = std::make_unique<mc::app::application>();
@@ -161,9 +163,15 @@ protected:
         m_app.reset();
         mc::app::base_app::reset_for_test();
         mc::engine::engine::reset_for_test();
+#if MCENGINE_USE_SHM
         mc::shm::shutdown_default_runtime();
         mc::shm::detail::shared_memory_backend::remove(k_default_shm_region);
+#endif
     }
+
+#if MCENGINE_USE_SHM
+    static constexpr mc::string_view k_default_shm_region{"mc.default"};
+#endif
 
     mc::app::service_definition make_sample_service_definition(mc::string_view service_name = "mc.test.alpha")
     {

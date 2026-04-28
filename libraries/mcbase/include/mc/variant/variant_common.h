@@ -331,27 +331,36 @@ using variant = variant_base;
 MC_API mc::string to_string(const variant_base& v);
 
 namespace detail {
-// 检测是否存在 to_variant 函数
+// 检测是否存在 to_variant 函数（GCC 9 兼容：struct 内部使用函数重载 SFINAE，
+// 避免 inline constexpr bool 在嵌套模板中的 constant-expression 求值问题）
 template <typename T>
-auto has_to_variant_function(int)
-    -> decltype(to_variant(std::declval<T>(), std::declval<mc::variant&>()), std::true_type{});
+struct has_to_variant_function_impl {
+private:
+    template <typename U>
+    static auto test(int) -> decltype(to_variant(std::declval<U>(), std::declval<mc::variant&>()), std::true_type{});
+    template <typename>
+    static std::false_type test(...);
+public:
+    static constexpr bool value = decltype(test<T>(0))::value;
+};
 
 template <typename T>
-std::false_type has_to_variant_function(...);
-
-template <typename T>
-inline constexpr bool has_to_variant_function_v = decltype(has_to_variant_function<T>(0))::value;
+inline constexpr bool has_to_variant_function_v = has_to_variant_function_impl<T>::value;
 
 // 检测是否存在 from_variant 函数
 template <typename T>
-auto has_from_variant_function(int)
-    -> decltype(from_variant(std::declval<const mc::variant&>(), std::declval<T&>()), std::true_type{});
+struct has_from_variant_function_impl {
+private:
+    template <typename U>
+    static auto test(int) -> decltype(from_variant(std::declval<const mc::variant&>(), std::declval<U&>()), std::true_type{});
+    template <typename>
+    static std::false_type test(...);
+public:
+    static constexpr bool value = decltype(test<T>(0))::value;
+};
 
 template <typename T>
-std::false_type has_from_variant_function(...);
-
-template <typename T>
-inline constexpr bool has_from_variant_function_v = decltype(has_from_variant_function<T>(0))::value;
+inline constexpr bool has_from_variant_function_v = has_from_variant_function_impl<T>::value;
 
 // 检测类型是否可与 variant 双向互操作（to_variant + from_variant）
 template <typename T>
@@ -371,7 +380,7 @@ struct is_variant_constructible {
     template <typename U>
     struct check_variant_compat<U, false> {
         static constexpr bool value =
-            detail::has_to_variant_function_v<U> && detail::has_from_variant_function_v<U>;
+            detail::has_to_variant_function_impl<U>::value && detail::has_from_variant_function_impl<U>::value;
     };
 
     static constexpr bool value = check_variant_compat<T, is_constructible>::value;
@@ -394,7 +403,7 @@ struct is_variant_convertible {
 
     template <typename U>
     struct check_from_variant<U, false> {
-        static constexpr bool value = detail::has_from_variant_function_v<U>;
+        static constexpr bool value = detail::has_from_variant_function_impl<U>::value;
     };
 
     static constexpr bool value = check_from_variant<T, is_fundamental>::value;

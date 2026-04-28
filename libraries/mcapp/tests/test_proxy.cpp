@@ -826,25 +826,9 @@ TEST_F(proxy_test, cross_process_get_proxy_with_service_hint)
 
 // ============================================================================
 // SHM 直读：跨进程 cacheable 属性经默认 SHM resolver 直接从共享内存读取，
-// 不走 DBus 消息路径。
-//
-// 验证策略：
-//   - 父进程注册 calc_object 后写入 cacheable 属性（Counter / Label）。
-//   - 子进程 fork 后通过 reset_after_fork 保留共享 SHM region，重新建立
-//     干净的 engine + service_registry，全局表 attach 父进程同一 SHM map
-//     并 recover 出本地 abstract_object。
-//   - 子进程构造 object_proxy 并显式调用 get_all_properties(...,
-//     fast_available_only) —— 这一路径**不发任何消息**，只走 SHM resolver；
-//     若 SHM 不可见或 service_matches 对 reconstructed 对象失败，dict 必空。
-//   - 同时验证 typed proxy 在 auto_ 策略下读 Counter/Label，端到端 SHM 命中。
-//
-// 该用例同时覆盖跨进程 SHM fast path 的关键不变量：
-//   1. engine_impl dtor 不再清空 SHM 全局表（避免 fork 子进程 wipe 父进程数据）；
-//   2. create_global_object_table 创建后 recover()（attach 已存在 map 时重建 heap 对象）；
-//   3. engine::reset_after_fork() 不再 unlink SHM region（fork 后父子共享）；
-//   4. default_proxy_shm_resolver::service_matches 支持 reconstructed 对象（无 service*）；
-//   5. service::get_proxy(path, service_hint) fallback 注入 SHM resolver、保留 policy.route。
+// 不走 DBus 消息路径。仅在 MCENGINE_USE_SHM=1 时有效。
 // ============================================================================
+#if MCENGINE_USE_SHM
 TEST_F(proxy_test, cross_process_shm_direct_read_cacheable_via_fast_path)
 {
     m_server->obj()->iface.Counter = int32_t{42};
@@ -900,6 +884,7 @@ TEST_F(proxy_test, cross_process_shm_direct_read_cacheable_via_fast_path)
         });
     });
 }
+#endif // MCENGINE_USE_SHM
 
 // ============================================================================
 // 跨进程 path-only get_proxy<T>(path) 无 service_hint 时返回 nullptr

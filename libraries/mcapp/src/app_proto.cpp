@@ -12,9 +12,11 @@
 
 #include <mc/app/app_proto.h>
 
-#include <mc/engine/endpoint_service.h>
 #include <mc/engine/engine.h>
 #include <mc/engine/payload.h>
+#if MCENGINE_USE_SHM
+#include <mc/engine/endpoint_service.h>
+#endif
 
 #include <optional>
 
@@ -36,6 +38,7 @@ mc::engine::message make_route_error(const mc::engine::message& request, mc::str
     return response;
 }
 
+#if MCENGINE_USE_SHM
 std::optional<std::pair<std::uint16_t, std::uint32_t>> mq_target_from_context(const mc::engine::message& request)
 {
     auto endpoint_it = request.header.context.find(k_mq_target_endpoint_id_key);
@@ -46,11 +49,16 @@ std::optional<std::pair<std::uint16_t, std::uint32_t>> mq_target_from_context(co
     return std::pair{static_cast<std::uint16_t>(endpoint_it->value.as<std::uint64_t>()),
                      static_cast<std::uint32_t>(instance_it->value.as<std::uint64_t>())};
 }
+#endif
 
 } // namespace
 
 app_proto::app_proto(mc::string service_name, mc::dbus::connection conn, mc::shm::mq_channel* mq_channel)
-    : m_service_name(std::move(service_name)), m_dbus(m_service_name, std::move(conn)), m_mq_channel(mq_channel)
+    : m_service_name(std::move(service_name)), m_dbus(m_service_name, std::move(conn))
+#if MCENGINE_USE_SHM
+      ,
+      m_mq_channel(mq_channel)
+#endif
 {
     add_child(m_dbus);
 }
@@ -73,12 +81,16 @@ mc::future<mc::engine::message> app_proto::async_send_with_reply(mc::engine::mes
     if (source_it != request.header.context.end()) {
         const auto source = source_it->value.as<mc::string>();
         if (source == "mq") {
+#if MCENGINE_USE_SHM
             auto* endpoint = mc::engine::engine::get_endpoint_service();
             auto  target   = mq_target_from_context(request);
             if (m_mq_channel == nullptr || endpoint == nullptr || !target.has_value()) {
                 return mc::resolve(make_route_error(request, "mc.engine.not_supported", "mq channel is not available"));
             }
             return endpoint->send_with_reply_to_endpoint(target->first, target->second, std::move(request), timeout);
+#else
+            return mc::resolve(make_route_error(request, "mc.engine.not_supported", "mq channel is not available"));
+#endif
         }
         if (source == "dbus") {
             return m_dbus.async_send_with_reply(std::move(request), timeout);
@@ -102,11 +114,13 @@ mc::proto::execution_state app_proto::on_push(mc::proto::proto_request& req)
     if (source_it != msg.header.context.end()) {
         const auto source = source_it->value.as<mc::string>();
         if (source == "mq") {
+#if MCENGINE_USE_SHM
             if (m_mq_channel != nullptr) {
                 auto mq_req = std::make_unique<mc::proto::proto_request>();
                 encode_message(*mq_req, msg);
                 m_mq_channel->send_owned(std::move(mq_req));
             }
+#endif
             return complete(req);
         }
         if (source == "dbus") {
@@ -125,11 +139,13 @@ mc::proto::execution_state app_proto::on_push(mc::proto::proto_request& req)
         return state;
     }
 
+#if MCENGINE_USE_SHM
     if (m_mq_channel != nullptr) {
         auto mq_req = std::make_unique<mc::proto::proto_request>();
         encode_message(*mq_req, msg);
         m_mq_channel->send_owned(std::move(mq_req));
     }
+#endif
 
     return complete(req);
 }

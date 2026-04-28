@@ -76,12 +76,17 @@ dbus_dep = dependency('dbus-1', required: true)
 glib_dep = dependency('glib-2.0', required: true)
 boost_dep = dependency('boost', required: false, modules: ['system'])
 
+libsomp_dep = dependency('libsomp', required: false)
+
 dep_arr = [mcbase_dep, mcengine_dep, dbus_dep, glib_dep]
 if boost_dep.found()
   dep_arr += boost_dep
 endif
 if use_old_shm
   dep_arr += skynet_dep
+  if libsomp_dep.found()
+    dep_arr += libsomp_dep
+  endif
 endif
 
 subdir('include')

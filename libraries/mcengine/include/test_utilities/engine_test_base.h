@@ -17,6 +17,8 @@
 
 #include <test_utilities/base.h>
 
+#include <functional>
+
 #if MCENGINE_USE_SHM
 #include <mc/common.h>
 #include <mc/engine/message.h>
@@ -30,7 +32,6 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <functional>
 #include <memory>
 #include <optional>
 #endif
@@ -58,6 +59,8 @@ protected:
         mc::engine::engine::reset_for_test();
     }
 
+    void fork_child(const std::function<int()>& body) const;
+
 #if MCENGINE_USE_SHM
     void SetUp() override;
     void TearDown() override;
@@ -68,8 +71,6 @@ protected:
                                                                       mc::string_view       name);
 
     std::unique_ptr<mc::shm::shm_runtime> open_child_shm_runtime() const;
-
-    void fork_child(const std::function<int()>& body) const;
 
     struct MC_API mq_rx_pipeline {
         mq_rx_pipeline();

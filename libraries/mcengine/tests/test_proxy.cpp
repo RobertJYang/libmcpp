@@ -90,6 +90,7 @@ protected:
     }
 };
 
+#if MCENGINE_USE_SHM
 class fixed_shm_resolver : public mc::engine::proxy_shm_resolver {
 public:
     explicit fixed_shm_resolver(mc::engine::shm_object* object) : m_object(object)
@@ -103,6 +104,7 @@ public:
 private:
     mc::engine::shm_object* m_object{nullptr};
 };
+#endif // MCENGINE_USE_SHM
 
 // 客户端 proxy 类型
 class test_iface_proxy : public mc::engine::interface_proxy<test_iface_proxy> {
@@ -294,6 +296,7 @@ TEST_F(proxy_test, dynamic_proxy_as_binds_typed_wrapper)
     EXPECT_EQ(typed->iface.Add(6, 7), 13);
 }
 
+#if MCENGINE_USE_SHM
 TEST_F(proxy_test, fast_available_only_returns_shm_subset_and_skips_nocache)
 {
     obj->iface.IntValue = int32_t{43};
@@ -308,6 +311,7 @@ TEST_F(proxy_test, fast_available_only_returns_shm_subset_and_skips_nocache)
     EXPECT_EQ(fast.find("VecValue"), fast.end());
     EXPECT_EQ(fast.find("DictValue"), fast.end());
 }
+#endif // MCENGINE_USE_SHM
 
 TEST_F(proxy_test, stale_service_epoch_falls_back_to_message_get)
 {
@@ -323,6 +327,7 @@ TEST_F(proxy_test, stale_service_epoch_falls_back_to_message_get)
     EXPECT_EQ(proxy.get_property("org.test.Proxy", "IntValue"), int32_t{42});
 }
 
+#if MCENGINE_USE_SHM
 TEST_F(proxy_test, no_cache_route_uses_message_even_when_shm_has_stale_value)
 {
     obj_override->iface.IntValue = int32_t{11};
@@ -342,6 +347,7 @@ TEST_F(proxy_test, no_cache_route_uses_message_even_when_shm_has_stale_value)
     mc::engine::object_proxy no_cache_proxy(&svc, ref, no_cache_policy, resolver);
     EXPECT_EQ(no_cache_proxy.get_property("org.test.Proxy", "IntValue"), int32_t{42});
 }
+#endif // MCENGINE_USE_SHM
 
 TEST_F(proxy_test, proxy_timeout_surfaces_as_exception)
 {

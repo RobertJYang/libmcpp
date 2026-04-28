@@ -27,7 +27,7 @@
 
 namespace mc::shm {
 
-class mq_channel {
+class MC_API mq_channel {
 public:
     mq_channel();
     ~mq_channel();

@@ -229,8 +229,18 @@ TEST_F(std_interface_test, object_manager_get_managed_objects)
                                                     mc::variants{}, "org.freedesktop.DBus.ObjectManager");
     ASSERT_TRUE(hit.has_value());
     EXPECT_EQ(hit->result_signature, "a{oa{sa{sv}}}");
-    auto map = hit->value.as<mc::engine::object_manager_interface::objects_type>();
-    auto it  = map.find(mc::engine::path("/org/test/std/SampleObject/child"));
+    auto raw_dict = hit->value.as<mc::dict>();
+    mc::engine::object_manager_interface::objects_type map;
+    for (auto entry_it = raw_dict.begin(); entry_it != raw_dict.end(); ++entry_it) {
+        mc::engine::path obj_path(entry_it->key.as_string());
+        mc::engine::object_manager_interface::interfaces_type ifaces;
+        auto ifaces_dict = entry_it->value.as<mc::dict>();
+        for (auto iface_it2 = ifaces_dict.begin(); iface_it2 != ifaces_dict.end(); ++iface_it2) {
+            ifaces[iface_it2->key.as<mc::string>()] = iface_it2->value.as<mc::dict>();
+        }
+        map[obj_path] = std::move(ifaces);
+    }
+    auto it = map.find(mc::engine::path("/org/test/std/SampleObject/child"));
     ASSERT_NE(it, map.end());
     auto& interfaces = it->second;
     auto  iface_it   = interfaces.find("org.test.std.ChildInterface");

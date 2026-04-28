@@ -13,6 +13,7 @@
 #ifndef MC_SHM_MESSAGE_QUEUE_PRIVATE_MQ_NOTIFIER_H
 #define MC_SHM_MESSAGE_QUEUE_PRIVATE_MQ_NOTIFIER_H
 
+#include <mc/common.h>
 #include <chrono>
 #include <memory>
 
@@ -21,7 +22,7 @@
 
 namespace mc::shm::detail {
 
-class mq_notifier {
+class MC_API mq_notifier {
 public:
     mq_notifier() noexcept;
     explicit mq_notifier(mc::string_view name);

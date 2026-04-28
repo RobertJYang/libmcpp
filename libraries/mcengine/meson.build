@@ -87,9 +87,6 @@ else
   mcbase_test_utilities_dep = declare_dependency()
 endif
 
-# 非 SHM 配置下 mcengine_test_utilities 库不构建（见 tests/test_utilities/
-# meson.build），这里给一个占位空 dep，保证 mcengine_test_lib 的 deps 语法
-# 在两种配置下都合法。
 mcengine_test_utilities_dep = declare_dependency()
 
 dep_arr = [mcbase_dep]
@@ -106,11 +103,6 @@ if build_tests
     'tests/test_interface.cpp',
     'tests/test_interface_inherit.cpp',
     'tests/test_object.cpp',
-    'tests/test_shm_object_journal.cpp',
-    'tests/test_shm_object_layout.cpp',
-    'tests/test_shm_object_ops.cpp',
-    'tests/test_shm_service_layout.cpp',
-    'tests/test_shm_service_ops.cpp',
     'tests/test_utils.cpp',
     'tests/test_engine.cpp',
     'tests/test_match.cpp',
@@ -127,21 +119,23 @@ if build_tests
     'tests/test_std_interface.cpp',
   )
 
-  # 仅在 use_shm=true 时才编译的用例：内部大段代码依赖 shm_runtime / shared_table /
-  # SHM-only 公共机制。关 SHM 时这些文件整体不进编译单元，避免原来靠
-  # #if MCENGINE_USE_SHM + GTEST_SKIP 的"空壳"样板。
+  # 仅在 use_shm=true 时才编译的用例：内部代码直接依赖 shm_object / shm_service
+  # POD 布局、shm_runtime、shared_table 等 SHM 机制。关 SHM 时整体不进编译单元。
+  subdir('tests/test_utilities')
+
   if use_shm
     mcengine_test_sources += files(
+      'tests/test_shm_object_journal.cpp',
+      'tests/test_shm_object_layout.cpp',
+      'tests/test_shm_object_ops.cpp',
+      'tests/test_shm_service_layout.cpp',
+      'tests/test_shm_service_ops.cpp',
       'tests/test_shared_table.cpp',
       'tests/test_endpoint_service.cpp',
       'tests/test_shm_engine_business.cpp',
       'tests/test_shm_engine_lifecycle.cpp',
       'tests/test_shm_service_takeover.cpp',
     )
-
-    # mcengine 侧 SHM 专属的测试辅助库（TestWithEngineShmRegion 等）。只在开
-    # SHM 时编译，避免关 SHM 时引入 shm_runtime 等头的编译噪声。
-    subdir('tests/test_utilities')
   endif
 
   mcengine_test_lib = static_library(

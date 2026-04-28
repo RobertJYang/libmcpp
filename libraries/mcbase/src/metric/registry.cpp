@@ -10,6 +10,7 @@
 * See the Mulan PSL v2 for more details.
 */
 
+#include <mc/metric.h>
 #include <mc/metric/registry.h>
 
 #include <atomic>

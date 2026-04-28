@@ -32,7 +32,7 @@
 //   - 1：接入 skynet 提供的真实 dbus/shm_tree/property.h
 //   - 0：使用 mc/dbus/shm/mock_shm.h（header-only 桩，仅占 ABI 位置）
 #if defined(MCDBUS_USE_OLD_SHM) && MCDBUS_USE_OLD_SHM
-#include <dbus/shm_tree/property.h>
+#include <dbus/shm_tree/object.h>
 #else
 #include <mc/dbus/shm/mock_shm.h>
 #endif

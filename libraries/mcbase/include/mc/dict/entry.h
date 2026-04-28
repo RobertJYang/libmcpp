@@ -241,7 +241,7 @@ struct const_reverse_iterator : public entry_list::const_reverse_iterator {
 #endif
 
 // 完整的 data_t 定义
-struct data_t : public mc::enable_shared_from_this<data_t> {
+struct MC_API data_t : public mc::enable_shared_from_this<data_t> {
     // 有序链表
     entry_list entries;
     // Robin Hood 索引

@@ -12,6 +12,49 @@
 
 #include <test_utilities/engine_test_base.h>
 
+#include <cerrno>
+#include <cstring>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+
+namespace mc {
+namespace test {
+
+namespace {
+constexpr int kChildExceptionExitCode = 110;
+} // namespace
+
+void TestWithEngine::fork_child(const std::function<int()>& body) const
+{
+    pid_t pid = ::fork();
+    ASSERT_NE(pid, -1) << "fork failed: " << std::strerror(errno);
+
+    if (pid == 0) {
+        int rc = 0;
+        try {
+            rc = body();
+        } catch (...) {
+            rc = kChildExceptionExitCode;
+        }
+        // _exit 跳过整条析构链，模拟"进程崩溃来不及清理"，同时避免
+        // gtest fixture 析构在子进程里二次跑。
+        _exit(rc);
+    }
+
+    int   status = 0;
+    pid_t waited = -1;
+    do {
+        waited = ::waitpid(pid, &status, 0);
+    } while (waited == -1 && errno == EINTR);
+    ASSERT_EQ(waited, pid) << "waitpid failed: " << std::strerror(errno);
+    ASSERT_TRUE(WIFEXITED(status)) << "child did not exit cleanly, raw status=" << status;
+    ASSERT_EQ(WEXITSTATUS(status), 0) << "child reported failure code " << WEXITSTATUS(status);
+}
+
+} // namespace test
+} // namespace mc
+
 #if MCENGINE_USE_SHM
 
 #include <mc/engine/engine.h>
@@ -23,26 +66,16 @@
 #include "../../../mcbase/src/shm/message_queue/mq_notifier.h"
 #include "../../src/shm_runtime_provider.h"
 
-#include <cerrno>
 #include <chrono>
-#include <cstring>
 #include <sstream>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <unistd.h>
 
 namespace mc {
 namespace test {
 
 namespace {
 
-// 内部约定的子进程异常退出码：body 抛出 C++ 异常时用这个码，避免和用户自己
-// 约定的 1..109 冲突。
-constexpr int kChildExceptionExitCode = 110;
-
 mc::string make_unique_region_name()
 {
-    // pid + steady_clock 纳秒：同一 host 并发跑多个测试进程也不会撞名。
     std::ostringstream oss;
     oss << "mcengine.test." << static_cast<long>(::getpid()) << "."
         << std::chrono::steady_clock::now().time_since_epoch().count();
@@ -53,12 +86,8 @@ mc::string make_unique_region_name()
 
 void TestWithEngine::SetUp()
 {
-    // 链式执行 TestWithRuntime → TestBase 的 SetUp。
     TestWithRuntime::SetUp();
 
-    // 进入本 case 前先把上一个 case 残留的 engine 单例（service_registry /
-    // match_table / 全局 object_table）彻底清掉。单例可能持有上一个 case 已
-    // unmap 的 SHM region 引用，必须在创建新 region 前先 reset。
     mc::engine::engine::reset_for_test();
 
     m_region_name = make_unique_region_name();
@@ -76,9 +105,6 @@ void TestWithEngine::SetUp()
 
 void TestWithEngine::TearDown()
 {
-    // 销毁 engine 单例必须先于 m_runtime.reset()：单例 lazy 创建的对象表 /
-    // match_table / service_registry 都通过 provider 引用 m_runtime；reset
-    // 顺序反了，单例析构会访问已 unmap 的 SHM 段错误。
     mc::engine::engine::reset_for_test();
     mc::engine::shm_runtime_provider::reset_for_test();
 
@@ -104,9 +130,6 @@ void TestWithEngine::TearDown()
 
 std::shared_ptr<mc::shm::shm_runtime> TestWithEngine::runtime_alias() const
 {
-    // 空 deleter：所有权留在 fixture 的 m_runtime（unique_ptr）里，这个
-    // shared_ptr 只是给 mq_channel::start 这种签名借用观察者用。TearDown
-    // 前，所有从 alias 派生的 shared_ptr 必须释放（通常 channel.stop 触发）。
     return std::shared_ptr<mc::shm::shm_runtime>(m_runtime.get(),
                                                  [](mc::shm::shm_runtime*) {});
 }
@@ -137,39 +160,10 @@ std::unique_ptr<mc::shm::shm_runtime> TestWithEngine::open_child_shm_runtime() c
     return rt;
 }
 
-void TestWithEngine::fork_child(const std::function<int()>& body) const
-{
-    pid_t pid = ::fork();
-    ASSERT_NE(pid, -1) << "fork failed: " << std::strerror(errno);
-
-    if (pid == 0) {
-        int rc = 0;
-        try {
-            rc = body();
-        } catch (...) {
-            rc = kChildExceptionExitCode;
-        }
-        // _exit 跳过整条析构链，模拟"进程崩溃来不及清理"，同时避免
-        // gtest fixture 析构在子进程里二次跑。
-        _exit(rc);
-    }
-
-    int   status = 0;
-    pid_t waited = -1;
-    do {
-        waited = ::waitpid(pid, &status, 0);
-    } while (waited == -1 && errno == EINTR);
-    ASSERT_EQ(waited, pid) << "waitpid failed: " << std::strerror(errno);
-    ASSERT_TRUE(WIFEXITED(status)) << "child did not exit cleanly, raw status=" << status;
-    ASSERT_EQ(WEXITSTATUS(status), 0) << "child reported failure code " << WEXITSTATUS(status);
-}
-
 // === mq_rx_pipeline ===
 
 TestWithEngine::mq_rx_pipeline::mq_rx_pipeline()
 {
-    // 按 engine wire 协议栈自顶向下挂子节点：service_proto → mq_proto →
-    // mq_transport_proto。channel 独立配合 proto 做 consume loop。
     proto.add_child(mq);
     mq.add_child(transport);
     channel.set_protocol(&proto);
@@ -177,8 +171,6 @@ TestWithEngine::mq_rx_pipeline::mq_rx_pipeline()
 
 TestWithEngine::mq_rx_pipeline::~mq_rx_pipeline()
 {
-    // 即便上层测试忘了 stop，这里兜底，避免 consumer thread 回调到已销毁的
-    // proto 树造成 use-after-free。
     stop();
 }
 
@@ -216,7 +208,6 @@ void TestWithEngine::send_via_mq(mc::shm::shm_runtime& runtime, const mc::shm::e
     mc::proto::proto_request req;
     auto&                    ctx = req.ensure_context<mc::engine::service_proto::message_context>(&proto_root);
     ctx.msg                      = msg;
-    // service_proto::on_push 不再统一 encode，由调用方负责构造 wire bytes
     auto payload = mc::engine::encode_message_bytes(msg);
     req.buffer().append_payload(payload.data(), payload.size());
     ASSERT_EQ(proto_root.push(req), mc::proto::execution_state::completed);

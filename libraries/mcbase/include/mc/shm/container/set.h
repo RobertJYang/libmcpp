@@ -32,7 +32,6 @@
 // mc::shm::container::set<Key, Compare>
 //
 // 崩溃安全的跨进程有序集合（skip list 实现）。
-// 设计详见 docs/plans/2026-04-17-shm-crash-safe-containers-design.md §6.3。
 //
 // 支持两类 Key：
 //   1) trivially_copyable + trivially_destructible 的 POD（int / struct 等）

@@ -110,7 +110,7 @@ enum member_info_type {
 //------------------------------------------------------------------------------
 
 // 成员信息基类
-struct member_info_base {
+struct MC_API member_info_base {
     mc::string_view name;
     // 与 name 对应的 quark
     mc::quark name_quark{};
@@ -185,7 +185,7 @@ struct member_info_base {
 // 属性元数据结构
 //------------------------------------------------------------------------------
 
-struct property_type_info : public member_info_base {
+struct MC_API property_type_info : public member_info_base {
     constexpr property_type_info(mc::string_view n) : member_info_base(n)
     {}
 
@@ -285,7 +285,7 @@ struct property_member_ops {
 
 } // namespace detail
 
-struct property_info : public property_type_info {
+struct MC_API property_info : public property_type_info {
     using get_value_func_t = mc::variant (*)(const void*);
     using set_value_func_t = void (*)(void*, const mc::variant&);
     using string_func_t    = mc::string_view (*)();
@@ -477,7 +477,7 @@ struct computed_property_info : public property_type_info {
 // 方法元数据结构
 //------------------------------------------------------------------------------
 
-struct method_type_info : public member_info_base {
+struct MC_API method_type_info : public member_info_base {
     constexpr method_type_info(mc::string_view n) : member_info_base(n)
     {}
 
@@ -519,7 +519,7 @@ struct method_type_info : public member_info_base {
 template <typename C>
 using method_info_base = method_type_info;
 
-struct method_info : public method_type_info {
+struct MC_API method_info : public method_type_info {
     using invoke_func_t                  = mc::variant (*)(const method_info&, void*, const mc::variants&);
     using async_invoke_func_t            = async_result (*)(const method_info&, void*, const mc::variants&);
     using invoke_static_func_t           = mc::variant (*)(const method_info&, const mc::variants&);
@@ -1037,7 +1037,7 @@ constexpr auto make_erased_static_method_info(mc::string_view name)
 //------------------------------------------------------------------------------
 // 基类元数据结构
 //------------------------------------------------------------------------------
-struct base_class_type_info : public member_info_base {
+struct MC_API base_class_type_info : public member_info_base {
     constexpr base_class_type_info(mc::string_view n) : member_info_base(n)
     {}
 

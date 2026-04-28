@@ -13,6 +13,7 @@
 #ifndef MC_SHM_SRC_ALLOCATOR_TLSF_H
 #define MC_SHM_SRC_ALLOCATOR_TLSF_H
 
+#include <mc/common.h>
 #include "internal.h"
 
 namespace mc::shm::detail {
@@ -24,15 +25,15 @@ namespace mc::shm::detail {
 // 初始化 TLSF 控制块与首个 free block
 // arena_base: arena 起点；arena 中已完成 arena_header 的原地构造
 // 返回 true 表示成功
-bool tlsf_init(void* arena_base, arena_header* arena) noexcept;
+MC_API bool tlsf_init(void* arena_base, arena_header* arena) noexcept;
 
 // 分配 size 字节，对齐 alignment；返回 block payload 的 offset（相对 arena base）
 // 失败时返回 0
-std::uint64_t tlsf_allocate(void* arena_base, arena_header* arena,
+MC_API std::uint64_t tlsf_allocate(void* arena_base, arena_header* arena,
                             std::size_t size, std::size_t alignment) noexcept;
 
 // 按 payload offset 释放
-void tlsf_deallocate(void* arena_base, arena_header* arena, std::uint64_t payload_offset) noexcept;
+MC_API void tlsf_deallocate(void* arena_base, arena_header* arena, std::uint64_t payload_offset) noexcept;
 
 // 根据 journal 执行 recover
 void tlsf_recover(void* arena_base, arena_header* arena) noexcept;
@@ -46,10 +47,10 @@ integrity_status tlsf_check_integrity(const void* arena_base, const arena_header
 std::size_t tlsf_required_block_size(std::size_t size, std::size_t alignment) noexcept;
 
 // block 起点 offset → payload offset
-std::uint64_t tlsf_payload_offset(std::uint64_t block_offset) noexcept;
+MC_API std::uint64_t tlsf_payload_offset(std::uint64_t block_offset) noexcept;
 
 // payload offset → block 起点 offset
-std::uint64_t tlsf_block_offset_from_payload(std::uint64_t payload_offset) noexcept;
+MC_API std::uint64_t tlsf_block_offset_from_payload(std::uint64_t payload_offset) noexcept;
 
 } // namespace mc::shm::detail
 

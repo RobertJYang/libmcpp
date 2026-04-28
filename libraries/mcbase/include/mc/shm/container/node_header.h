@@ -15,10 +15,11 @@
 
 #include <atomic>
 #include <cstdint>
+#include <mc/common.h>
 
 // 共享内存 crash-safe 容器的节点头部
 //
-// 设计要点（详见 docs/plans/2026-04-17-shm-crash-safe-containers-design.md §4.1）：
+// 设计要点：
 //  - 每个节点以 16B header 开头，保护节点的归属、类型、状态
 //  - magic 标识容器类型（list / set / map 等），fsck 时用于甄别节点
 //  - owner_offset 反向指向容器控制块，用于归属校验与 dangling 检测
@@ -43,19 +44,23 @@ constexpr std::uint64_t map_node_magic  = 0x4D434D50'4E4F4431ULL; // "MCMPNOD1"
 // 任意节点若被 recover 判定 header checksum 失配 / 不变量违反，
 // 则单向进入 degraded；一旦 degraded 不再回到其它状态（避免损坏扩散）
 enum class node_state : std::uint8_t {
-    free      = 0,
-    linked    = 1,
-    pending   = 2,
-    degraded  = 3,
+    free     = 0,
+    linked   = 1,
+    pending  = 2,
+    degraded = 3,
 };
 
 inline const char* node_state_name(node_state s) noexcept
 {
     switch (s) {
-        case node_state::free:     return "free";
-        case node_state::linked:   return "linked";
-        case node_state::pending:  return "pending";
-        case node_state::degraded: return "degraded";
+        case node_state::free:
+            return "free";
+        case node_state::linked:
+            return "linked";
+        case node_state::pending:
+            return "pending";
+        case node_state::degraded:
+            return "degraded";
     }
     return "unknown";
 }
@@ -82,29 +87,29 @@ static_assert(alignof(node_header) == 16, "node_header 必须 16 字节对齐");
 //
 // crc16-ccitt (poly 0x1021, init 0xFFFF)；算力便宜、对静态字段足够强
 // 覆盖 magic + owner_offset 共 12 字节
-std::uint16_t crc16_ccitt(const void* data, std::size_t len) noexcept;
+MC_API std::uint16_t crc16_ccitt(const void* data, std::size_t len) noexcept;
 
 // 计算 header 应该的 checksum（基于 magic + owner_offset 两个静态字段）
-std::uint16_t node_header_checksum(const node_header& h) noexcept;
+MC_API std::uint16_t node_header_checksum(const node_header& h) noexcept;
 
 // 初始化一个全新节点的 header，state = free
 // 写入顺序：静态字段 → checksum → state（release store，保证此前字段可见）
-void node_header_init(node_header& h, std::uint64_t magic, std::uint32_t owner_offset) noexcept;
+MC_API void node_header_init(node_header& h, std::uint64_t magic, std::uint32_t owner_offset) noexcept;
 
 // 状态转换（单原子 release store），不改变 checksum
 // 调用者保证 new_state 是合法 transition（见 node_state 注释）
-void node_header_transition(node_header& h, node_state new_state) noexcept;
+MC_API void node_header_transition(node_header& h, node_state new_state) noexcept;
 
 // 读 state（acquire load）
-node_state node_header_load_state(const node_header& h) noexcept;
+MC_API node_state node_header_load_state(const node_header& h) noexcept;
 
 // 校验 header 完整性：magic 合法 + checksum 匹配 + state 值在合法范围
 // 返回 false 意味着 header 被破坏或节点未正确初始化；recover 路径应 isolate
-bool node_header_check(const node_header& h) noexcept;
+MC_API bool node_header_check(const node_header& h) noexcept;
 
 // 单向把节点标记为 degraded
 // 仅限 recover 持容器锁时使用；degraded 状态一旦标记不再回到其他状态
-void node_header_mark_degraded(node_header& h) noexcept;
+MC_API void node_header_mark_degraded(node_header& h) noexcept;
 
 } // namespace mc::shm::container
 

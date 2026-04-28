@@ -63,3 +63,6 @@ ninja_test/
 
 # Conan files
 conanbase.py
+
+.mclang
+__pycache__

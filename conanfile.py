@@ -33,10 +33,11 @@ class AppConan(ConanBase):
         "use_old_shm": True,
     }
 
-# 基于meson构建的基类，适用于libmcpp项目
+    # 基于meson构建的基类，适用于libmcpp项目
     def layout(self):
-        self.folders.source = '.'
+        self.folders.source = "."
         self.folders.build = "builddir"
+        self.folders.generators = "builddir/conan_toolchain"
 
     def requirements(self):
         super().requirements()
@@ -49,12 +50,15 @@ class AppConan(ConanBase):
         # 启用 fallback 机制，允许 Meson 使用子项目作为依赖的备选方案
         # 注意：Conan 的 MesonToolchain 默认会设置 wrap_mode=nofallback，这会禁用 fallback
         # 设置 wrap_mode=nodownload 允许使用本地子项目作为 fallback，但不会下载新的 wrap 文件
-        if "wrap_mode" in tc.project_options and tc.project_options["wrap_mode"] == "nofallback":
+        if (
+            "wrap_mode" in tc.project_options
+            and tc.project_options["wrap_mode"] == "nofallback"
+        ):
             tc.project_options["wrap_mode"] = "nodownload"
         if self.settings.arch == "armv8" or self.settings.arch == "x86_64":
-            tc.project_options["libdir"] = 'usr/lib64'
+            tc.project_options["libdir"] = "usr/lib64"
         else:
-            tc.project_options["libdir"] = 'usr/lib'
+            tc.project_options["libdir"] = "usr/lib"
         tc.project_options["enable_conan_compile"] = True
         if self.options.test:
             tc.project_options["tests"] = True
@@ -73,7 +77,9 @@ class AppConan(ConanBase):
 
         ms = VirtualBuildEnv(self)
         if self.settings.arch in ["armv8"]:
-            tc.properties["pkg_config_libdir"] = ms.vars().get("PKG_CONFIG_PATH").split(":")
+            tc.properties["pkg_config_libdir"] = (
+                ms.vars().get("PKG_CONFIG_PATH").split(":")
+            )
 
         if self.options.test:
             # 为 Debug 类型添加 -Os 优化参数
@@ -87,11 +93,15 @@ class AppConan(ConanBase):
         tc.extra_cxxflags.append("-fno-strict-aliasing")
         # -Wno-deprecated-copy 选项只在 GCC 9+ 或 Clang 中支持
         compiler = str(self.settings.compiler)
-        compiler_version = str(self.settings.compiler.version) if self.settings.compiler.version else None
+        compiler_version = (
+            str(self.settings.compiler.version)
+            if self.settings.compiler.version
+            else None
+        )
         if compiler == "gcc" and compiler_version:
             # GCC 9.0+ 支持该选项
             try:
-                major_version = int(compiler_version.split('.')[0])
+                major_version = int(compiler_version.split(".")[0])
                 if major_version >= 9:
                     tc.extra_cxxflags.append("-Wno-deprecated-copy")
             except (ValueError, AttributeError):
@@ -112,18 +122,63 @@ class AppConan(ConanBase):
 
         if os.path.isfile("permissions.ini"):
             copy(self, "permissions.ini")
-        copy(self, "*", src=os.path.join(self.source_folder, "mds"), dst=os.path.join(self.package_folder, "include/mds"))
+        copy(
+            self,
+            "*",
+            src=os.path.join(self.source_folder, "mds"),
+            dst=os.path.join(self.package_folder, "include/mds"),
+        )
         if os.path.isdir("include"):
-            copy(self, "*", src=os.path.join(self.source_folder, "include"), dst=os.path.join(self.package_folder, "include"))
+            copy(
+                self,
+                "*",
+                src=os.path.join(self.source_folder, "include"),
+                dst=os.path.join(self.package_folder, "include"),
+            )
         if os.path.isdir("mds"):
-            copy(self, "*", src=os.path.join(self.source_folder, "mds"), dst=os.path.join(self.package_folder, "usr/share/doc/openubmc/libmcpp/mds"))
+            copy(
+                self,
+                "*",
+                src=os.path.join(self.source_folder, "mds"),
+                dst=os.path.join(
+                    self.package_folder, "usr/share/doc/openubmc/libmcpp/mds"
+                ),
+            )
         if os.path.isdir("docs"):
-            copy(self, "*", src=os.path.join(self.source_folder, "docs"), dst=os.path.join(self.package_folder, "usr/share/doc/openubmc/libmcpp/docs"))
-        copy(self, "*.md", src=self.source_folder, dst=os.path.join(self.package_folder, "usr/share/doc/openubmc/libmcpp/docs"))
-        copy(self, "*.MD", src=self.source_folder, dst=os.path.join(self.package_folder, "usr/share/doc/openubmc/libmcpp/docs"))
-        mcbase_include = os.path.join(self.source_folder, "libraries", "mcbase", "include")
+            copy(
+                self,
+                "*",
+                src=os.path.join(self.source_folder, "docs"),
+                dst=os.path.join(
+                    self.package_folder, "usr/share/doc/openubmc/libmcpp/docs"
+                ),
+            )
+        copy(
+            self,
+            "*.md",
+            src=self.source_folder,
+            dst=os.path.join(
+                self.package_folder, "usr/share/doc/openubmc/libmcpp/docs"
+            ),
+        )
+        copy(
+            self,
+            "*.MD",
+            src=self.source_folder,
+            dst=os.path.join(
+                self.package_folder, "usr/share/doc/openubmc/libmcpp/docs"
+            ),
+        )
+        mcbase_include = os.path.join(
+            self.source_folder, "libraries", "mcbase", "include"
+        )
         if os.path.isdir(mcbase_include):
-            copy(self, "*", src=mcbase_include, dst=os.path.join(self.package_folder, "include"))
+            copy(
+                self,
+                "*",
+                src=mcbase_include,
+                dst=os.path.join(self.package_folder, "include"),
+            )
         mcengine_test_include = os.path.join(
             self.source_folder,
             "libraries",
@@ -184,17 +239,26 @@ class AppConan(ConanBase):
                     try:
                         if os.path.isfile(file_path) and not os.path.islink(file_path):
                             # 检查文件类型
-                            result = subprocess.run(["file", file_path],
-                                                  capture_output=True, text=True, timeout=10)
+                            result = subprocess.run(
+                                ["file", file_path],
+                                capture_output=True,
+                                text=True,
+                                timeout=10,
+                            )
                             if result.returncode == 0:
                                 file_type = result.stdout.lower()
-                                if ("executable" in file_type or "current ar archive" in file_type or
-                                    "shared object" in file_type or
-                                    "dynamically linked" in file_type):
+                                if (
+                                    "executable" in file_type
+                                    or "current ar archive" in file_type
+                                    or "shared object" in file_type
+                                    or "dynamically linked" in file_type
+                                ):
                                     # 执行strip操作
                                     # 对于静态库，不要使用-s参数，因为会移除符号索引
                                     if "current ar archive" in file_type:
-                                        self.run(f"{strip_tool} --strip-unneeded {file_path}")
+                                        self.run(
+                                            f"{strip_tool} --strip-unneeded {file_path}"
+                                        )
                                     else:
                                         self.run(f"{strip_tool} -s {file_path}")
                     except Exception as e:
@@ -225,19 +289,29 @@ class AppConan(ConanBase):
                     try:
                         if os.path.isfile(file_path) and not os.path.islink(file_path):
                             # 使用file命令检查文件类型
-                            result = subprocess.run(["file", file_path],
-                                                  capture_output=True, text=True, timeout=10)
+                            result = subprocess.run(
+                                ["file", file_path],
+                                capture_output=True,
+                                text=True,
+                                timeout=10,
+                            )
                             if result.returncode == 0:
                                 file_type = result.stdout.lower()
                                 # 检查是否为ar archive格式的静态库
                                 if "current ar archive" in file_type:
                                     # 使用ranlib创建符号索引
-                                    ranlib_result = subprocess.run(["ranlib", file_path],
-                                                                  capture_output=True, text=True, timeout=30)
+                                    ranlib_result = subprocess.run(
+                                        ["ranlib", file_path],
+                                        capture_output=True,
+                                        text=True,
+                                        timeout=30,
+                                    )
                                     if ranlib_result.returncode == 0:
                                         print(f"Successfully ran ranlib on {file_path}")
                                     else:
-                                        print(f"Warning: Failed to run ranlib on {file_path}: {ranlib_result.stderr.strip()}")
+                                        print(
+                                            f"Warning: Failed to run ranlib on {file_path}: {ranlib_result.stderr.strip()}"
+                                        )
                     except subprocess.TimeoutExpired:
                         print(f"Warning: Timeout checking file type for {file_path}")
                     except Exception as e:
@@ -247,14 +321,20 @@ class AppConan(ConanBase):
     def package_info(self):
         if self.settings.arch == "armv8" or self.settings.arch == "x86_64":
             self.cpp_info.libdirs = ["usr/lib64"]
-            self.env_info.LD_LIBRARY_PATH.append(os.path.join(self.package_folder, "usr/lib64"))
+            self.env_info.LD_LIBRARY_PATH.append(
+                os.path.join(self.package_folder, "usr/lib64")
+            )
             libdir = "usr/lib64"
         else:
             self.cpp_info.libdirs = ["usr/lib"]
-            self.env_info.LD_LIBRARY_PATH.append(os.path.join(self.package_folder, "usr/lib"))
+            self.env_info.LD_LIBRARY_PATH.append(
+                os.path.join(self.package_folder, "usr/lib")
+            )
             libdir = "usr/lib"
 
-        self.env_info.PATH.append(os.path.join(self.package_folder, "opt/bmc/apps/libmcpp"))
+        self.env_info.PATH.append(
+            os.path.join(self.package_folder, "opt/bmc/apps/libmcpp")
+        )
 
         include_dirs = ["include"]
         self.cpp_info.includedirs = include_dirs
@@ -271,26 +351,32 @@ class AppConan(ConanBase):
         self.cpp_info.components["mcbase"].libs = ["mcbase"]
         self.cpp_info.components["mcbase"].libdirs = [libdir]
         self.cpp_info.components["mcbase"].includedirs = include_dirs
-        self.cpp_info.components["mcbase"].requires = ["boost::boost", "huawei_secure_c::securec"]
+        self.cpp_info.components["mcbase"].requires = [
+            "boost::boost",
+            "huawei_secure_c::securec",
+        ]
         self.cpp_info.components["mcbase"].set_property("pkg_config_name", "mcbase")
-        self.cpp_info.components["mcbase"].set_property("pkg_config_custom_content",
-           f"libdir=${{prefix}}/{libdir}\n")
+        self.cpp_info.components["mcbase"].set_property(
+            "pkg_config_custom_content", f"libdir=${{prefix}}/{libdir}\n"
+        )
 
         self.cpp_info.components["mcengine"].libs = ["mcengine"]
         self.cpp_info.components["mcengine"].libdirs = [libdir]
         self.cpp_info.components["mcengine"].includedirs = include_dirs
         self.cpp_info.components["mcengine"].requires = ["mcbase", "boost::boost"]
         self.cpp_info.components["mcengine"].set_property("pkg_config_name", "mcengine")
-        self.cpp_info.components["mcengine"].set_property("pkg_config_custom_content",
-           f"libdir=${{prefix}}/{libdir}\n")
+        self.cpp_info.components["mcengine"].set_property(
+            "pkg_config_custom_content", f"libdir=${{prefix}}/{libdir}\n"
+        )
 
         self.cpp_info.components["mcexpr"].libs = ["mcexpr"]
         self.cpp_info.components["mcexpr"].libdirs = [libdir]
         self.cpp_info.components["mcexpr"].includedirs = include_dirs
         self.cpp_info.components["mcexpr"].requires = ["mcbase", "mcengine"]
         self.cpp_info.components["mcexpr"].set_property("pkg_config_name", "mcexpr")
-        self.cpp_info.components["mcexpr"].set_property("pkg_config_custom_content",
-           f"libdir=${{prefix}}/{libdir}\n")
+        self.cpp_info.components["mcexpr"].set_property(
+            "pkg_config_custom_content", f"libdir=${{prefix}}/{libdir}\n"
+        )
 
         # mcdbus / mcapp 在 use_old_shm=True 时需要 skynet 提供的真实
         # ::shm::* 头（dbus/shm_tree/...）；use_old_shm=False 下走 mock_shm.h，无需 skynet。
@@ -305,17 +391,19 @@ class AppConan(ConanBase):
         self.cpp_info.components["mcdbus"].includedirs = include_dirs
         self.cpp_info.components["mcdbus"].requires = mcdbus_requires
         self.cpp_info.components["mcdbus"].set_property("pkg_config_name", "mcdbus")
-        self.cpp_info.components["mcdbus"].set_property("pkg_config_custom_content",
-           f"libdir=${{prefix}}/{libdir}\n"
-           "Requires: dbus-1 glib-2.0\n")
+        self.cpp_info.components["mcdbus"].set_property(
+            "pkg_config_custom_content",
+            f"libdir=${{prefix}}/{libdir}\n" "Requires: dbus-1 glib-2.0\n",
+        )
 
         self.cpp_info.components["mcapp"].libs = ["mcapp"]
         self.cpp_info.components["mcapp"].libdirs = [libdir]
         self.cpp_info.components["mcapp"].includedirs = include_dirs
         self.cpp_info.components["mcapp"].requires = mcapp_requires
         self.cpp_info.components["mcapp"].set_property("pkg_config_name", "mcapp")
-        self.cpp_info.components["mcapp"].set_property("pkg_config_custom_content",
-           f"libdir=${{prefix}}/{libdir}\n")
+        self.cpp_info.components["mcapp"].set_property(
+            "pkg_config_custom_content", f"libdir=${{prefix}}/{libdir}\n"
+        )
 
         self.cpp_info.components["mcpp_base"].libs = ["mcpp_base"]
         self.cpp_info.components["mcpp_base"].libdirs = [libdir]
@@ -327,10 +415,13 @@ class AppConan(ConanBase):
             "mcdbus",
             "mcapp",
         ] + external_base_requires
-        self.cpp_info.components["mcpp_base"].set_property("pkg_config_name", "mcpp_base")
-        self.cpp_info.components["mcpp_base"].set_property("pkg_config_custom_content",
-           f"libdir=${{prefix}}/{libdir}\n"
-           "Requires: dbus-1 glib-2.0\n")
+        self.cpp_info.components["mcpp_base"].set_property(
+            "pkg_config_name", "mcpp_base"
+        )
+        self.cpp_info.components["mcpp_base"].set_property(
+            "pkg_config_custom_content",
+            f"libdir=${{prefix}}/{libdir}\n" "Requires: dbus-1 glib-2.0\n",
+        )
 
         # libmcpp 只声明自身库和组件依赖，不二次包装子库。
         self.cpp_info.components["libmcpp"].libs = ["mcpp"]
@@ -349,30 +440,44 @@ class AppConan(ConanBase):
         if self.options.use_old_shm:
             libmcpp_requires.append("skynet::skynet")
         self.cpp_info.components["libmcpp"].requires = libmcpp_requires
-        self.cpp_info.components["libmcpp"].set_property("pkg_config_custom_content",
-           f"libdir=${{prefix}}/{libdir}\n"
-           "Requires: dbus-1 glib-2.0\n")
+        self.cpp_info.components["libmcpp"].set_property(
+            "pkg_config_custom_content",
+            f"libdir=${{prefix}}/{libdir}\n" "Requires: dbus-1 glib-2.0\n",
+        )
 
         # 配置test_utilities的pkg-config
         self.cpp_info.components["test_utilities"].libs = []
         if self.options.test:
-            self.cpp_info.components["test_utilities"].libs.extend([
-                "mcbase_test_utilities",
-                "mcengine_test_utilities",
-                "mcapp_test_utilities",
-            ])
+            self.cpp_info.components["test_utilities"].libs.extend(
+                [
+                    "mcbase_test_utilities",
+                    "mcengine_test_utilities",
+                    "mcapp_test_utilities",
+                ]
+            )
         self.cpp_info.components["test_utilities"].libdirs = [libdir]
         self.cpp_info.components["test_utilities"].includedirs = include_dirs
-        self.cpp_info.components["test_utilities"].set_property("pkg_config_name", "test_utilities")
-        self.cpp_info.components["test_utilities"].requires = ["libmcpp", "mcbase", "mcengine", "mcapp"]
+        self.cpp_info.components["test_utilities"].set_property(
+            "pkg_config_name", "test_utilities"
+        )
+        self.cpp_info.components["test_utilities"].requires = [
+            "libmcpp",
+            "mcbase",
+            "mcengine",
+            "mcapp",
+        ]
         if self.options.test:
             self.cpp_info.components["test_utilities"].requires.append("gtest::gtest")
-        self.cpp_info.components["test_utilities"].set_property("pkg_config_custom_content",
-           f"libdir=${{prefix}}/{libdir}\n"
-           "Requires: libmcpp dbus-1\n")
+        self.cpp_info.components["test_utilities"].set_property(
+            "pkg_config_custom_content",
+            f"libdir=${{prefix}}/{libdir}\n" "Requires: libmcpp dbus-1\n",
+        )
 
         if self.options.test:
             # 与 Meson 侧测试目标对齐：先声明组件再挂依赖，避免未定义组件就 append
             self.cpp_info.components["libmcpp_test"].libs = []
             self.cpp_info.components["libmcpp_test"].includedirs = include_dirs
-            self.cpp_info.components["libmcpp_test"].requires = ["test_utilities", "gtest::gtest"]
+            self.cpp_info.components["libmcpp_test"].requires = [
+                "test_utilities",
+                "gtest::gtest",
+            ]
