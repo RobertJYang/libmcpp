@@ -40,6 +40,7 @@ mcexpr_test_exe = executable(
     gtest_dep,
     boost_dep,
     mcbase_test_utilities_dep,
+    mcengine_test_utilities_dep,
     mcexpr_dep,
   ],
   cpp_args: mcexpr_test_cpp_args,

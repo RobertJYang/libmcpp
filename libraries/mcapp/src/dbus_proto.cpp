@@ -12,16 +12,41 @@
 
 #include <mc/app/dbus_proto.h>
 
+#include <mc/dbus/error.h>
 #include <mc/engine/message.h>
 #include <mc/engine/payload.h>
 #include <mc/engine/service_proto.h>
 #include <mc/log/log.h>
 #include <mc/runtime.h>
 
+#include <string_view>
 #include <utility>
 
 namespace mc::app {
 namespace {
+
+inline const mc::string mc_err_internal_error   = mc::string::from_quark("mc.engine.internal_error"_q);
+inline const mc::string mc_err_invalid_args     = mc::string::from_quark("mc.engine.invalid_args"_q);
+inline const mc::string mc_err_not_supported    = mc::string::from_quark("mc.engine.not_supported"_q);
+inline const mc::string mc_err_property_ro      = mc::string::from_quark("mc.engine.property_read_only"_q);
+inline const mc::string mc_err_unknown_iface    = mc::string::from_quark("mc.engine.unknown_interface"_q);
+inline const mc::string mc_err_unknown_method   = mc::string::from_quark("mc.engine.unknown_method"_q);
+inline const mc::string mc_err_unknown_object   = mc::string::from_quark("mc.engine.unknown_object"_q);
+inline const mc::string mc_err_unknown_property = mc::string::from_quark("mc.engine.unknown_property"_q);
+
+mc::string_view map_engine_error_to_dbus(const mc::string& engine_name) noexcept
+{
+    if (engine_name == mc_err_internal_error)   return dbus::error_names::failed;
+    if (engine_name == mc_err_invalid_args)     return dbus::error_names::invalid_args;
+    if (engine_name == mc_err_not_supported)    return dbus::error_names::not_supported;
+    if (engine_name == mc_err_property_ro)      return dbus::error_names::property_read_only;
+    if (engine_name == mc_err_unknown_iface)    return dbus::error_names::unknown_interface;
+    if (engine_name == mc_err_unknown_method)   return dbus::error_names::unknown_method;
+    if (engine_name == mc_err_unknown_object)   return dbus::error_names::unknown_object;
+    if (engine_name == mc_err_unknown_property) return dbus::error_names::unknown_property;
+    // 非 mc.engine.* 前缀的错误名直接透传
+    return engine_name.view();
+}
 
 mc::engine::message_type wire_type_to_engine(mc::dbus::message_type type) noexcept
 {
@@ -195,6 +220,35 @@ std::size_t dbus_proto::inbound_count() const noexcept
     return m_inbound_count.load(std::memory_order_relaxed);
 }
 
+mc::future<mc::engine::message> dbus_proto::async_send_with_reply(mc::engine::message msg, mc::milliseconds timeout)
+{
+    if (msg.header.destination.empty() || msg.header.path.empty() || msg.header.interface_name.empty() ||
+        msg.header.member_name.empty()) {
+        mc::engine::message error;
+        error.header.type         = mc::engine::message_type::error;
+        error.header.reply_serial = msg.header.serial;
+        error.header.error_name   = "mc.engine.invalid_args";
+        error.body = mc::engine::make_payload<mc::engine::error_payload>("mc.engine.invalid_args",
+                                                                         "dbus proto method_call 缺少目标字段");
+        return mc::resolve(std::move(error));
+    }
+
+    auto wire = mc::dbus::message::new_method_call(msg.header.destination, msg.header.path, msg.header.interface_name,
+                                                   msg.header.member_name);
+    if (msg.header.serial != 0) {
+        wire.set_serial(msg.header.serial);
+    }
+    if (const auto* call_payload = msg.try_as<mc::engine::method_call_payload>()) {
+        write_wire_args(wire, call_payload->args);
+    }
+
+    auto future = m_connection.async_send_with_reply(std::move(wire), timeout);
+    m_outbound_count.fetch_add(1, std::memory_order_relaxed);
+    return std::move(future).then([](mc::dbus::message reply) {
+        return build_reply_message(reply);
+    });
+}
+
 DBusHandlerResult dbus_proto::on_filter(mc::dbus::message& wire_msg)
 {
     // 入站只接 method_call；method_return 走 pending，signal 走 m_match。
@@ -344,8 +398,9 @@ bool dbus_proto::send_error_reply(mc::proto::proto_request& req, mc::engine::mes
         return false;
     }
 
-    mc::string_view name = msg.header.error_name;
-    mc::string_view text;
+    mc::string name = msg.header.error_name;
+    name.try_quarkize();
+    mc::string text;
     if (const auto* err_payload = msg.try_as<mc::engine::error_payload>()) {
         if (name.empty()) {
             name = err_payload->name;
@@ -353,9 +408,10 @@ bool dbus_proto::send_error_reply(mc::proto::proto_request& req, mc::engine::mes
         text = err_payload->message;
     }
     if (name.empty()) {
-        name = mc::dbus::error_names::failed;
+        name = mc::string(mc::dbus::error_names::failed);
     }
-    auto wire = mc::dbus::message::new_error(call_ctx->original_call, name, text);
+    auto dbus_name = map_engine_error_to_dbus(name);
+    auto wire = mc::dbus::message::new_error(call_ctx->original_call, dbus_name, text);
     if (!m_connection.send(std::move(wire))) {
         return false;
     }

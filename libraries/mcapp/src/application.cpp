@@ -13,6 +13,7 @@
 #include <mc/app/application.h>
 
 #include <mc/engine/engine.h>
+#include <mc/engine/engine_options.h>
 #include <mc/engine/path.h>
 #include <mc/exception.h>
 #include <mc/filesystem.h>
@@ -21,10 +22,6 @@
 #include <mc/log/log_manager.h>
 #include <mc/runtime/runtime_context.h>
 
-#if defined(MCENGINE_USE_SHM) && MCENGINE_USE_SHM
-#include <mc/engine/endpoint_service.h>
-#endif
-
 #include <algorithm>
 #include <fstream>
 #include <optional>
@@ -32,6 +29,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <unistd.h>
 
 namespace mc::app {
 namespace detail {
@@ -53,7 +51,7 @@ struct bootstrap_options {
 
 class application_root_service : public service {
 public:
-    application_root_service() : service("mcapp.root")
+    application_root_service() : service(mc::string("mcapp.root.p") + mc::to_string(static_cast<std::int64_t>(::getpid())))
     {
         set_path("/");
     }
@@ -953,22 +951,11 @@ bool application::bootstrap_engine_endpoint()
         return true;
     }
 
-    m_endpoint_service = std::make_unique<mc::engine::endpoint_service>(app_name);
-    if (!m_endpoint_service->init()) {
-        elog("mcapp: endpoint_service.init 失败 name=${name}", ("name", app_name));
-        m_endpoint_service.reset();
+    mc::engine::engine_options options;
+    options.endpoint_name = app_name;
+    if (!mc::engine::engine::init(options)) {
+        elog("mcapp: engine::init 失败 name=${name}", ("name", app_name));
         return false;
-    }
-    if (!m_endpoint_service->start()) {
-        elog("mcapp: endpoint_service.start 失败 name=${name}", ("name", app_name));
-        m_endpoint_service.reset();
-        return false;
-    }
-
-    if (auto table = m_endpoint_service->create_match_table(); table) {
-        mc::engine::engine::set_match_table(std::move(table));
-    } else {
-        elog("mcapp: endpoint_service.create_match_table 返回空，保留默认 match_table");
     }
     return true;
 #else
@@ -979,12 +966,7 @@ bool application::bootstrap_engine_endpoint()
 void application::teardown_engine_endpoint()
 {
 #if defined(MCENGINE_USE_SHM) && MCENGINE_USE_SHM
-    if (!m_endpoint_service) {
-        return;
-    }
-    mc::engine::engine::set_match_table(nullptr);
-    m_endpoint_service->stop();
-    m_endpoint_service.reset();
+    mc::engine::engine::shutdown();
 #endif
 }
 

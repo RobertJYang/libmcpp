@@ -32,6 +32,8 @@
 #include <unordered_set>
 
 #if defined(MCENGINE_USE_SHM) && MCENGINE_USE_SHM
+#include <mc/engine/endpoint_service.h>
+
 #include "match/shared_table.h"
 #endif
 
@@ -56,10 +58,14 @@ MC_SIGNAL_KEY(sig_sas, "sa{sv}as");
 
 message _make_interfaces_added(mc::string_view sender, const abstract_object& obj)
 {
+    mc::string parent_path = mc::string("/");
+    if (auto* parent_ptr = dynamic_cast<abstract_object*>(obj.get_parent().get())) {
+        parent_path = mc::string(parent_ptr->get_object_path());
+    }
     message msg;
     msg.header.type           = message_type::signal;
     msg.header.sender         = mc::string(sender);
-    msg.header.path           = mc::string(obj.get_object_path());
+    msg.header.path           = std::move(parent_path);
     msg.header.interface_name = if_object_manager;
     msg.header.member_name    = sig_interfaces_added;
     msg.body                  = make_payload<signal_payload>(
@@ -77,10 +83,16 @@ message _make_interfaces_removed(mc::string_view sender, const abstract_object& 
         }
     });
 
+    // DBus 规范要求 InterfacesAdded/Removed 信号从实现 ObjectManager 的
+    // 父对象 path 发送，而非子对象自身的 path。
+    mc::string parent_path = mc::string("/");
+    if (auto* parent_ptr = dynamic_cast<abstract_object*>(obj.get_parent().get())) {
+        parent_path = mc::string(parent_ptr->get_object_path());
+    }
     message msg;
     msg.header.type           = message_type::signal;
     msg.header.sender         = mc::string(sender);
-    msg.header.path           = mc::string(obj.get_object_path());
+    msg.header.path           = std::move(parent_path);
     msg.header.interface_name = if_object_manager;
     msg.header.member_name    = sig_interfaces_removed;
     msg.body                  = make_payload<signal_payload>(
@@ -96,8 +108,14 @@ message _make_properties_changed(mc::string_view sender, const abstract_object& 
     auto iface_name = iface->get_interface_name();
     auto prop_name  = prop.get_name();
 
-    mc::dict changed;
-    changed[mc::string(prop_name)] = value;
+    mc::dict     changed;
+    mc::variants invalidated;
+    if (const auto* info = iface->get_property_info(prop_name);
+        info != nullptr && info->has_flags(MC_REFLECT_FLAG_INVALIDATED)) {
+        invalidated.push_back(mc::variant(mc::string(prop_name)));
+    } else {
+        changed[mc::string(prop_name)] = value;
+    }
 
     message msg;
     msg.header.type           = message_type::signal;
@@ -105,9 +123,9 @@ message _make_properties_changed(mc::string_view sender, const abstract_object& 
     msg.header.path           = mc::string(obj.get_object_path());
     msg.header.interface_name = if_properties;
     msg.header.member_name    = sig_properties_changed;
-    msg.body                  = make_payload<signal_payload>(sig_sas,
-                                                             mc::variants{mc::variant(mc::string(iface_name)),
-                                                         mc::variant(std::move(changed)), mc::variant(mc::variants{})});
+    msg.body                  = make_payload<signal_payload>(sig_sas, mc::variants{mc::variant(mc::string(iface_name)),
+                                                                  mc::variant(std::move(changed)),
+                                                                  mc::variant(std::move(invalidated))});
     return msg;
 }
 
@@ -140,8 +158,6 @@ void _property_changed_global_filter(mc::object& target, mc::event& e)
     auto        msg   = _make_properties_changed(svc->name(), *obj, prop, value);
     svc->emit(msg);
 }
-
-std::once_flag g_property_filter_once;
 
 } // namespace
 
@@ -178,10 +194,8 @@ void service_impl::ensure_registered()
         return;
     }
 
-    std::call_once(g_property_filter_once, []() {
-        mc::runtime::get_runtime_context().install_global_filter(property_changed_event_id,
-                                                                 _property_changed_global_filter);
-    });
+    mc::runtime::get_runtime_context().install_global_filter(property_changed_event_id,
+                                                             _property_changed_global_filter);
 
     if (!m_object_table) {
         m_object_table = shm_binding::create_service_object_table(m_service->name());
@@ -535,8 +549,15 @@ void service::emit(const message& msg) const
             engine::route_inbound(_attach_match_ids(m, pairs));
             continue;
         }
-        if (proto != nullptr) {
-            _push_to_proto_tree(*proto, _attach_match_ids(m, pairs));
+        auto merged = _attach_match_ids(m, pairs);
+        bool sent   = false;
+#if defined(MCENGINE_USE_SHM) && MCENGINE_USE_SHM
+        if (auto* endpoint = engine::get_endpoint_service()) {
+            sent = endpoint->send_to_endpoint(key.endpoint_id, key.instance_id, merged);
+        }
+#endif
+        if (!sent && proto != nullptr) {
+            _push_to_proto_tree(*proto, merged);
         }
     }
 }
@@ -734,6 +755,81 @@ mc::string service::resolve_object_path(mc::string_view path_pattern, const abst
     tmp += "/";
     tmp += path;
     return tmp;
+}
+
+message service::send_with_reply(message request, mc::milliseconds timeout) const
+{
+    return async_send_with_reply(std::move(request), timeout).get();
+}
+
+mc::future<message> service::async_send_with_reply(message request, mc::milliseconds timeout) const
+{
+    // 同进程：查全局 object_table 找目标对象
+    if (request.header.type == message_type::method_call && !request.header.destination.empty()) {
+        auto* target_svc = engine::find_service(request.header.destination);
+        if (target_svc != nullptr) {
+            return mc::resolve(mc::engine::dispatch(*target_svc, request));
+        }
+    }
+
+    // 跨进程：通过 protocol 栈
+    auto* proto = get_proto();
+    if (proto == nullptr) {
+        MC_THROW(mc::method_call_exception, "无法发送消息: 无 protocol 且目标服务不在本进程 (${destination})",
+                 ("destination", request.header.destination));
+    }
+
+    if (request.header.sender.empty()) {
+        request.header.sender = m_name;
+    }
+    return proto->async_send_with_reply(std::move(request), timeout);
+}
+
+void service::send(message request) const
+{
+    auto* proto = get_proto();
+    if (proto == nullptr) {
+        return;
+    }
+
+    if (request.header.sender.empty()) {
+        request.header.sender = m_name;
+    }
+    proto->send(std::move(request));
+}
+
+mc::variant service::call(mc::string_view path, mc::string_view service_name, mc::string_view interface_name,
+                          mc::string_view method_name, const mc::variants& args, mc::string_view signature,
+                          mc::milliseconds timeout) const
+{
+    message request;
+    request.header.type           = message_type::method_call;
+    request.header.destination    = mc::string(service_name);
+    request.header.sender         = m_name;
+    request.header.path           = mc::string(path);
+    request.header.interface_name = mc::string(interface_name);
+    request.header.member_name    = mc::string(method_name);
+    request.body                  = make_payload<method_call_payload>(signature, args);
+
+    auto response = send_with_reply(std::move(request), timeout);
+
+    if (response.header.type == message_type::error) {
+        if (auto* payload = response.try_as<error_payload>(); payload != nullptr) {
+            MC_THROW(mc::method_call_exception, "远端调用失败: ${name}: ${message}",
+                     ("name", payload->name)("message", payload->message));
+        }
+        MC_THROW(mc::method_call_exception, "远端调用失败: ${name}", ("name", response.header.error_name));
+    }
+
+    if (response.header.type != message_type::method_return) {
+        MC_THROW(mc::method_call_exception, "远端调用没有返回 method_return");
+    }
+
+    auto* payload = response.try_as<method_return_payload>();
+    if (payload == nullptr) {
+        MC_THROW(mc::method_call_exception, "远端 method_return 缺少 payload");
+    }
+    return payload->value;
 }
 
 } // namespace mc::engine

@@ -40,7 +40,7 @@
 #include <mc/engine/match.h>
 #include <mc/engine/message.h>
 #include <mc/engine/service.h>
-#include <test_utilities/engine_shm_test_base.h>
+#include <test_utilities/engine_test_base.h>
 
 #include "match/shared_table.h"
 #include <mc/shm/region.h>
@@ -68,25 +68,38 @@ mc::engine::message _make_signal(const mc::string& sender,
     return msg;
 }
 
+mc::engine::message _make_properties_changed_signal(const mc::string& sender, const mc::string& iface_name,
+                                                    const mc::dict& changed)
+{
+    auto msg                  = _make_signal(sender, "org.freedesktop.DBus.Properties", "PropertiesChanged");
+    msg.body                  = mc::engine::make_payload<mc::engine::signal_payload>(
+        "sa{sv}as", mc::variants{mc::variant(iface_name), mc::variant(changed), mc::variant(mc::variants{})});
+    return msg;
+}
+
+mc::engine::message _make_mq_method_call(mc::string destination)
+{
+    mc::engine::message msg;
+    msg.header.type           = mc::engine::message_type::method_call;
+    msg.header.destination    = std::move(destination);
+    msg.header.sender         = "mq.client";
+    msg.header.path           = "/mq/test/object";
+    msg.header.interface_name = "mq.test.Interface";
+    msg.header.member_name    = "Ping";
+    msg.body                  = mc::engine::make_payload<mc::engine::method_call_payload>("", mc::variants{});
+    return msg;
+}
+
 // 绑定 fixture 的 shm_runtime 作为 engine options 的 override，这样 engine::init
 // 不会碰全局 default_runtime 单例，隔离到当前测试。
 //
 // engine::reset_for_test 一并 shutdown endpoint_service 与 reset match_table：
 // 必须在 m_runtime 析构前完成，否则 match_table 持有的 shared_table 引用到
 // 已销毁 runtime，导致静态 dtor 路径崩溃。
-class endpoint_service_test : public mc::test::TestWithEngineShmRegion {
-protected:
-    void SetUp() override
-    {
-        mc::test::TestWithEngineShmRegion::SetUp();
-        mc::engine::engine::reset_for_test();
-    }
-
-    void TearDown() override
-    {
-        mc::engine::engine::reset_for_test();
-        mc::test::TestWithEngineShmRegion::TearDown();
-    }
+class endpoint_service_test : public mc::test::TestWithEngine {
+    // 基类 TestWithEngine::SetUp/TearDown 已负责 engine::reset_for_test +
+    // install_runtime；子类不再重复 reset，否则会把 base 装好的 runtime alias
+    // 撤掉，本 case SHM 路径失效。
 };
 
 }  // namespace
@@ -124,6 +137,64 @@ TEST_F(endpoint_service_test, init_is_idempotent)
     auto* svc2 = mc::engine::engine::get_endpoint_service();
     ASSERT_EQ(svc1, svc2);
     EXPECT_EQ(svc2->endpoint_id(), first_eid);
+}
+
+TEST_F(endpoint_service_test, mq_send_with_reply_completes_from_transport_pending)
+{
+    mc::engine::endpoint_service client("mcengine.test.mq.client", runtime_alias());
+    mc::engine::endpoint_service server("mcengine.test.mq.server", runtime_alias());
+    ASSERT_TRUE(client.init());
+    ASSERT_TRUE(server.init());
+    ASSERT_TRUE(client.start());
+    ASSERT_TRUE(server.start());
+
+    auto request = _make_mq_method_call("missing.mq.target");
+    auto future = client.send_with_reply_to_endpoint(server.endpoint_id(), server.instance_id(), std::move(request),
+                                                     mc::milliseconds(1000));
+
+    ASSERT_EQ(future.wait_for(std::chrono::seconds(2)), mc::future_status::ready);
+    auto reply = future.get();
+    EXPECT_EQ(reply.header.type, mc::engine::message_type::error);
+    EXPECT_EQ(reply.header.error_name, mc::string("mc.engine.unknown_object"));
+    EXPECT_EQ(reply.header.reply_serial, 1U);
+
+    server.stop();
+    client.stop();
+}
+
+TEST_F(endpoint_service_test, mq_send_with_reply_times_out_and_discards_late_reply)
+{
+    mc::engine::endpoint_service client("mcengine.test.mq.timeout.client", runtime_alias());
+    ASSERT_TRUE(client.init());
+    ASSERT_TRUE(client.start());
+
+    auto receiver = register_running_endpoint(*m_runtime, "mcengine.test.mq.timeout.receiver");
+    ASSERT_TRUE(receiver.has_value());
+
+    auto request = _make_mq_method_call("missing.mq.target");
+    auto future = client.send_with_reply_to_endpoint(receiver->endpoint_id, receiver->instance_id, std::move(request),
+                                                     mc::milliseconds(5));
+
+    ASSERT_EQ(future.wait_for(std::chrono::seconds(2)), mc::future_status::ready);
+    auto timeout_reply = future.get();
+    EXPECT_EQ(timeout_reply.header.type, mc::engine::message_type::error);
+    EXPECT_EQ(timeout_reply.header.error_name, mc::string("mc.engine.timeout"));
+    EXPECT_EQ(timeout_reply.header.reply_serial, 1U);
+
+    mc::engine::message late_reply;
+    late_reply.header.type         = mc::engine::message_type::method_return;
+    late_reply.header.reply_serial = 1U;
+    ASSERT_TRUE(client.send_to_endpoint(client.endpoint_id(), client.instance_id(), late_reply));
+
+    auto second = _make_mq_method_call("missing.mq.target");
+    auto second_future = client.send_with_reply_to_endpoint(receiver->endpoint_id, receiver->instance_id,
+                                                            std::move(second), mc::milliseconds(5));
+    ASSERT_EQ(second_future.wait_for(std::chrono::seconds(2)), mc::future_status::ready);
+    auto second_timeout = second_future.get();
+    EXPECT_EQ(second_timeout.header.error_name, mc::string("mc.engine.timeout"));
+    EXPECT_EQ(second_timeout.header.reply_serial, 2U);
+
+    client.stop();
 }
 
 // 合并派发：同进程两个 service 订阅同一 signal，publish 一次 → 两个 callback 都命中。
@@ -180,8 +251,7 @@ TEST_F(endpoint_service_test, publish_merges_local_dispatch_across_services)
 
     EXPECT_EQ(hits_a.load(), 1);
     EXPECT_EQ(hits_b.load(), 1);
-    // 两边都看到 2 对 (service_name, match_id)：证明合并的是同一条 wire，不是拆成
-    // 两条再各自投递——这是合并语义的关键保证。
+    // 同一条 wire 携带两个命中 id。
     EXPECT_EQ(pair_count_seen_a.load(), 2);
     EXPECT_EQ(pair_count_seen_b.load(), 2);
 
@@ -192,9 +262,7 @@ TEST_F(endpoint_service_test, publish_merges_local_dispatch_across_services)
     match::filter_backend_registry::reset_for_test();
 }
 
-// 同 service 多个 match 命中同一 signal：本地 merged 分支会给这个 service 合并
-// 一次 dispatch，两个 id 都被依次触发（Fast path A，service::dispatch_event 内部
-// 遍历所有 pair）。
+// 同一 service 的多个 match 命中应合并为一次本地 dispatch。
 TEST_F(endpoint_service_test, publish_merges_multi_match_same_service)
 {
     mc::engine::engine_options options;
@@ -234,131 +302,7 @@ TEST_F(endpoint_service_test, publish_merges_multi_match_same_service)
     match::filter_backend_registry::reset_for_test();
 }
 
-// 跨进程 merged publish 端到端：publisher 合并多 (service, match_id) 对到同一 receiver endpoint，
-// receiver 侧按 service 分组分发，每条 callback 命中一次。
-#if 0 // 早期尝试"子订阅 + 父发布"模型，死在 fork 不继承 io executor 线程上：
-      // 子 mq_channel 的 pump 起不来，消息永远卡队列。现行模型见下方
-      // cross_process_publish_merges_real_fork。
-TEST_F(endpoint_service_test, cross_process_publish_merges_to_single_mq_message)
-{
-    mc::engine::engine_options parent_opts;
-    parent_opts.endpoint_name        = "mcengine.test.cross.parent";
-    parent_opts.shm_runtime_override = runtime_alias();
-    ASSERT_TRUE(mc::engine::engine::init(parent_opts));
-
-    match::filter_backend_registry::reset_for_test();
-    match::register_condition_filter_backend();
-
-    fork_child([this]() -> int {
-        // fork 后 engine 的静态态（endpoint_service / match_table / service
-        // registry）是父进程快照的 copy-on-write 拷贝，必须先清掉，否则
-        // engine::init 会走"已 started"幂等分支。
-        mc::engine::engine::reset_for_test();
-
-        auto child_rt = open_child_shm_runtime();
-        if (!child_rt) {
-            return 10;
-        }
-        std::shared_ptr<mc::shm::shm_runtime> child_rt_shared(child_rt.release());
-
-        mc::engine::engine_options child_opts;
-        child_opts.endpoint_name        = "mcengine.test.cross.child";
-        child_opts.shm_runtime_override = child_rt_shared;
-        if (!mc::engine::engine::init(child_opts)) {
-            return 11;
-        }
-
-        // filter backend 在父进程注册过，fork 之后子进程继承父 backend 注册表；
-        // 这里不需要重新 register。
-        merged_test_service svc_a("cross.svc.a");
-        merged_test_service svc_b("cross.svc.b");
-        if (!svc_a.init() || !svc_b.init() || !svc_a.start() || !svc_b.start()) {
-            return 12;
-        }
-
-        std::atomic<int> hits_a{0};
-        std::atomic<int> hits_b{0};
-        std::atomic<int> pair_a{0};
-        std::atomic<int> pair_b{0};
-        std::atomic<int> total_hits{0};
-
-        match::match_rule rule;
-        rule.type           = "signal";
-        rule.interface_name = "merge.cross";
-        rule.member_name    = "Ping";
-
-        auto id_a = svc_a.add_match(rule, match::filter_spec{},
-                                    [&](const mc::engine::message& msg) {
-                                        ++hits_a;
-                                        pair_a = static_cast<int>(
-                                            match::get_target_match_ids(msg.header).size());
-                                        ++total_hits;
-                                    });
-        auto id_b = svc_b.add_match(rule, match::filter_spec{},
-                                    [&](const mc::engine::message& msg) {
-                                        ++hits_b;
-                                        pair_b = static_cast<int>(
-                                            match::get_target_match_ids(msg.header).size());
-                                        ++total_hits;
-                                    });
-        if (id_a == 0U || id_b == 0U) {
-            return 13;
-        }
-
-        // mq_channel 的消费线程已在 engine::init 里拉起；我们只需轮询 total_hits。
-        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
-        while (std::chrono::steady_clock::now() < deadline && total_hits.load() < 2) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(20));
-        }
-
-        int ret = 0;
-        if (hits_a.load() != 1 || hits_b.load() != 1) {
-            ret = 14;
-        } else if (pair_a.load() != 2 || pair_b.load() != 2) {
-            ret = 15;
-        }
-
-        svc_a.remove_match(id_a);
-        svc_b.remove_match(id_b);
-        svc_a.stop();
-        svc_b.stop();
-        mc::engine::engine::shutdown();
-        return ret;
-    });
-
-}
-#endif
-
-// 真正的跨进程合并 publish：
-//
-// 角色分配（**别反过来**）：
-//   - 父进程 = 订阅方：engine::init 自动拉起 endpoint_service，两个 service 各
-//     订阅同一个 signal。父的 mcbase io executor 在 mq_channel 的异步 pump 链
-//     上跑，push 完成时回调 pump 消费消息 → 走到 service dispatch。
-//   - 子进程 = 发布方：手工 attach 同一 SHM region，注册独立 endpoint 作为 sender，
-//     直接读共享 trie 的 find_targets 命中父的 2 条订阅，把 (service_a, id_a) /
-//     (service_b, id_b) 打成 header.context 合并 wire，open_queue 父 endpoint
-//     对应的 mq 后一次性 push，等价于 engine::publish 对单一远端 endpoint 组的
-//     merged send 路径（绕过子进程里 engine 单例副作用）。
-//
-// 为什么子进程必须是发布方：fork 不继承父的 mcbase io executor 线程，若让子做
-// subscriber，mq_channel 的异步 pump 拉不起来，消息进了队列也不消费。发布侧
-// push 是同步的，不依赖 io executor，所以可以跑在子进程。
-//
-// 为什么子进程 **不能** 让 shared_table 析构：
-//   1) fork 继承来的 engine_bootstrap 指向父的 endpoint_service，其内部持有
-//      父的 shared_table 实例（通过 match_table_holder）；
-//   2) shared_table::~shared_table 会在 ipc_unique_lock_guard 下跑
-//      _drop_owned_entries() —— 父 shared_table 的 m_owned_entry_offsets 里正是
-//      id_a / id_b 的 SHM 条目；
-//   3) 一旦析构在子进程跑起来，SHM trie 里的订阅会被 **真正删掉**，父进程再也
-//      收不到任何命中 —— 这是早期 diagnostic 观察到 "child find_targets=0" 的
-//      根因。
-// 结论：子进程走 _exit(0)，不走 return + 正常栈展开。自己 new 的 runtime /
-//      shared_table 都故意不回收，kernel 随 exit 统一收。
-//
-// 强断言：父的每个 service callback 收到的 header.context 里 mc.match.ids.*
-// 长度必须是 2（合并 wire 带了 2 对），否则说明发布侧拆成两条消息。
+// 跨进程 publish 应按 endpoint 合并匹配项并通过 MQ 投递。
 TEST_F(endpoint_service_test, cross_process_publish_merges_real_fork)
 {
     mc::engine::engine_options parent_opts;
@@ -388,15 +332,15 @@ TEST_F(endpoint_service_test, cross_process_publish_merges_real_fork)
 
     auto id_a = svc_a.add_match(rule, match::filter_spec{},
                                 [&](const mc::engine::message& msg) {
-                                    ++hits_a;
                                     pair_a = static_cast<int>(
                                         match::get_target_match_ids(msg.header).size());
+                                    ++hits_a;
                                 });
     auto id_b = svc_b.add_match(rule, match::filter_spec{},
                                 [&](const mc::engine::message& msg) {
-                                    ++hits_b;
                                     pair_b = static_cast<int>(
                                         match::get_target_match_ids(msg.header).size());
+                                    ++hits_b;
                                 });
     ASSERT_NE(id_a, 0U);
     ASSERT_NE(id_b, 0U);
@@ -405,60 +349,41 @@ TEST_F(endpoint_service_test, cross_process_publish_merges_real_fork)
     ASSERT_GE(pid, 0) << "fork 失败";
 
     if (pid == 0) {
-        // 堆上 new，**故意不回收**：见 TEST 注释第 3 段。任何析构都会把父的
-        // 订阅条目从 SHM trie 上删掉，测试随之失败。
-        auto* child_rt = new mc::shm::shm_runtime([&]() {
+        mc::engine::engine::reset_after_fork();
+
+        // 子进程使用 _exit，避免析构继承的 SHM 状态。
+        auto* child_rt_raw = new mc::shm::shm_runtime([&]() {
             mc::shm::runtime_options opts;
             opts.region_name   = m_region_name;
             opts.region_size   = m_region_size;
             opts.root_capacity = m_root_capacity;
             return opts;
         }());
-        if (!child_rt->is_valid()) {
+        if (!child_rt_raw->is_valid()) {
             _exit(10);
         }
+        std::shared_ptr<mc::shm::shm_runtime> child_rt(child_rt_raw, [](mc::shm::shm_runtime*) {});
 
-        auto publisher_ep = register_running_endpoint(*child_rt, "mcengine.test.cross2.child");
-        if (!publisher_ep.has_value()) {
+        mc::engine::engine_options child_opts;
+        child_opts.endpoint_name        = "mcengine.test.cross2.child";
+        child_opts.shm_runtime_override = child_rt;
+        if (!mc::engine::engine::init(child_opts)) {
             _exit(11);
         }
 
-        auto* child_table = new match::shared_table(
-            *child_rt, publisher_ep->endpoint_id, publisher_ep->instance_id);
+        match::register_condition_filter_backend();
 
         auto signal = _make_signal("cross.publisher", "merge.cross2", "Ping");
-        auto targets = child_table->find_targets(signal);
+        auto table = mc::engine::engine::get_match_table();
+        if (!table) {
+            _exit(12);
+        }
+        auto targets = table->find_targets(signal);
         if (targets.size() < 2U) {
-            _exit(14);
-        }
-
-        std::vector<std::pair<mc::string, match::match_id>> pairs;
-        pairs.reserve(targets.size());
-        std::uint16_t target_endpoint = 0;
-        std::uint32_t target_instance = 0;
-        for (const auto& t : targets) {
-            pairs.emplace_back(t.service_name, t.id);
-            if (target_endpoint == 0) {
-                target_endpoint = t.endpoint_id;
-                target_instance = t.instance_id;
-            } else if (t.endpoint_id != target_endpoint) {
-                _exit(12);
-            }
-        }
-
-        auto target_info = child_rt->get_endpoint(target_endpoint);
-        if (!target_info.has_value()) {
             _exit(13);
         }
-        auto target_ep        = to_endpoint(*target_info);
-        target_ep.instance_id = target_instance;
+        mc::engine::engine::publish(signal);
 
-        mc::engine::message merged = signal;
-        match::set_target_match_ids(merged.header, pairs);
-        send_via_mq(*child_rt, *publisher_ep, target_ep, merged);
-
-        // **严格** _exit，禁止 return / C++ 栈展开（会跑父继承 shared_table 的
-        // dtor 从 SHM trie 里摘条目）。
         _exit(0);
     }
 
@@ -467,12 +392,10 @@ TEST_F(endpoint_service_test, cross_process_publish_merges_real_fork)
     ASSERT_EQ(waited, pid);
     ASSERT_TRUE(WIFEXITED(status)) << "子进程异常退出 raw_status=" << status;
     ASSERT_EQ(WEXITSTATUS(status), 0)
-        << "子进程错误码 10=shm_runtime 无效; 11=register_endpoint 失败; "
-           "12=targets endpoint 不一致; 13=get_endpoint 失败; "
-           "14=find_targets 未看到父订阅";
+        << "子进程错误码 10=shm_runtime 无效; 11=engine::init 失败; "
+           "12=get_match_table 失败; 13=find_targets 未看到父订阅";
 
-    // 子 push 已 return 后才 _exit。但父这边的 mq_channel 消费走 io executor 异步
-    // 链，callback 需要短暂等待。
+    // 父进程异步消费 MQ，需要短暂等待 callback。
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
     while (std::chrono::steady_clock::now() < deadline
            && (hits_a.load() == 0 || hits_b.load() == 0)) {
@@ -488,6 +411,108 @@ TEST_F(endpoint_service_test, cross_process_publish_merges_real_fork)
     svc_b.remove_match(id_b);
     svc_a.stop();
     svc_b.stop();
+    match::filter_backend_registry::reset_for_test();
+}
+
+TEST_F(endpoint_service_test, properties_changed_cross_process_publish_over_mq)
+{
+    mc::engine::engine_options parent_opts;
+    parent_opts.endpoint_name        = "mcengine.test.props.parent";
+    parent_opts.shm_runtime_override = runtime_alias();
+    ASSERT_TRUE(mc::engine::engine::init(parent_opts));
+
+    match::filter_backend_registry::reset_for_test();
+    match::register_condition_filter_backend();
+
+    merged_test_service svc("props.svc.receiver");
+    ASSERT_TRUE(svc.init());
+    ASSERT_TRUE(svc.start());
+
+    std::atomic<int> hits{0};
+    std::atomic<int> pair_count{0};
+    std::atomic<int> body_ok{0};
+
+    match::match_rule rule;
+    rule.type           = "signal";
+    rule.interface_name = "org.freedesktop.DBus.Properties";
+    rule.member_name    = "PropertiesChanged";
+
+    auto id = svc.add_match(rule, match::filter_spec{}, [&](const mc::engine::message& msg) {
+        pair_count = static_cast<int>(match::get_target_match_ids(msg.header).size());
+        if (const auto* payload = msg.try_as<mc::engine::signal_payload>()) {
+            if (payload->signature == "sa{sv}as" && payload->args.size() == 3 &&
+                payload->args[0] == mc::variant(mc::string("org.test.Properties")) && payload->args[1].is_dict() &&
+                payload->args[2].is_array()) {
+                auto changed = payload->args[1].as<mc::dict>();
+                if (changed.find("Counter") != changed.end() && changed["Counter"] == int32_t{42}) {
+                    body_ok = 1;
+                }
+            }
+        }
+        ++hits;
+    });
+    ASSERT_NE(id, 0U);
+
+    const pid_t pid = ::fork();
+    ASSERT_GE(pid, 0) << "fork 失败";
+
+    if (pid == 0) {
+        mc::engine::engine::reset_after_fork();
+
+        auto* child_rt_raw = new mc::shm::shm_runtime([&]() {
+            mc::shm::runtime_options opts;
+            opts.region_name   = m_region_name;
+            opts.region_size   = m_region_size;
+            opts.root_capacity = m_root_capacity;
+            return opts;
+        }());
+        if (!child_rt_raw->is_valid()) {
+            _exit(10);
+        }
+        std::shared_ptr<mc::shm::shm_runtime> child_rt(child_rt_raw, [](mc::shm::shm_runtime*) {});
+
+        mc::engine::engine_options child_opts;
+        child_opts.endpoint_name        = "mcengine.test.props.child";
+        child_opts.shm_runtime_override = child_rt;
+        if (!mc::engine::engine::init(child_opts)) {
+            _exit(11);
+        }
+
+        match::register_condition_filter_backend();
+
+        auto signal = _make_properties_changed_signal(
+            "props.publisher", "org.test.Properties", mc::dict{{"Counter", mc::variant(int32_t{42})}});
+        auto table = mc::engine::engine::get_match_table();
+        if (!table) {
+            _exit(12);
+        }
+        auto targets = table->find_targets(signal);
+        if (targets.size() != 1U) {
+            _exit(13);
+        }
+        mc::engine::engine::publish(signal);
+        _exit(0);
+    }
+
+    int   status = 0;
+    pid_t waited = ::waitpid(pid, &status, 0);
+    ASSERT_EQ(waited, pid);
+    ASSERT_TRUE(WIFEXITED(status)) << "子进程异常退出 raw_status=" << status;
+    ASSERT_EQ(WEXITSTATUS(status), 0)
+        << "子进程错误码 10=shm_runtime 无效; 11=engine::init 失败; "
+           "12=get_match_table 失败; 13=find_targets 数量不符合预期";
+
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+    while (std::chrono::steady_clock::now() < deadline && hits.load() == 0) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    }
+
+    EXPECT_EQ(hits.load(), 1);
+    EXPECT_EQ(pair_count.load(), 1);
+    EXPECT_EQ(body_ok.load(), 1);
+
+    svc.remove_match(id);
+    svc.stop();
     match::filter_backend_registry::reset_for_test();
 }
 

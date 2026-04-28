@@ -446,6 +446,9 @@ bool object_impl::set_property(mc::string_view property_name, const mc::variant&
     if (info.item == nullptr) {
         return false;
     }
+    if (!info.item->is_writable()) {
+        return false;
+    }
     if (info.item->has_flags(MC_REFLECT_FLAG_PROPERTY_TPL)) {
         property_base* prop = detail::to_property_base(this, info);
         if (handle_override(prop, property_name, value, interface_name)) {

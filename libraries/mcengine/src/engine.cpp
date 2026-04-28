@@ -11,6 +11,7 @@
  */
 
 #include <mc/engine/engine.h>
+#include <mc/engine/engine_options.h>
 #include <mc/engine/internal/shm_binding.h>
 #include <mc/engine/match.h>
 #include <mc/engine/object.h>
@@ -28,6 +29,7 @@
 #include "match/local_table.h"
 
 #if defined(MCENGINE_USE_SHM) && MCENGINE_USE_SHM
+#include <mc/engine/endpoint_service.h>
 #include <mc/shm/shm_runtime.h>
 
 #include "match/shared_table.h"
@@ -61,7 +63,7 @@ engine::engine_impl::engine_impl() : m_object_table(shm_binding::create_global_o
 
 engine::engine_impl::~engine_impl()
 {
-    m_object_table->clear();
+    // SHM 对象表可能被其他进程共享，析构时不能 clear。
 }
 
 void engine::engine_impl::add_object(abstract_object& object)
@@ -162,7 +164,92 @@ struct match_table_holder {
         std::lock_guard lock(mutex);
         table.reset();
     }
+
+    void abandon_after_fork()
+    {
+        std::lock_guard lock(mutex);
+        // 子进程不能析构继承来的 shared_table。
+        auto* leaked = new match::table_ptr();
+        leaked->swap(table);
+    }
 };
+
+#if defined(MCENGINE_USE_SHM) && MCENGINE_USE_SHM
+struct engine_bootstrap {
+    std::mutex                        mutex;
+    std::unique_ptr<endpoint_service> endpoint;
+    bool                              started{false};
+
+    static engine_bootstrap& instance()
+    {
+        static engine_bootstrap b;
+        return b;
+    }
+
+    bool init(const engine_options& options)
+    {
+        std::lock_guard lock(mutex);
+        if (started) {
+            return true;
+        }
+
+        std::shared_ptr<mc::shm::shm_runtime> runtime = options.shm_runtime_override;
+        if (runtime) {
+            shm_runtime_provider::install_runtime(runtime);
+        } else {
+            try {
+                runtime = std::shared_ptr<mc::shm::shm_runtime>(&shm_runtime_provider::instance(),
+                                                                [](mc::shm::shm_runtime*) {});
+            } catch (const std::exception& ex) {
+                elog("engine::init: shm_runtime 初始化失败: ${what}", ("what", ex.what()));
+                return false;
+            }
+        }
+
+        auto ep = std::make_unique<endpoint_service>(options.endpoint_name, runtime);
+        if (!ep->init({}) || !ep->start()) {
+            ep->stop();
+            return false;
+        }
+
+        auto table = ep->create_match_table();
+        if (table) {
+            match_table_holder::instance().replace(std::move(table));
+        }
+
+        endpoint = std::move(ep);
+        started  = true;
+        return true;
+    }
+
+    endpoint_service* get() noexcept
+    {
+        std::lock_guard lock(mutex);
+        return endpoint.get();
+    }
+
+    void reset()
+    {
+        std::unique_ptr<endpoint_service> old_endpoint;
+        {
+            std::lock_guard lock(mutex);
+            old_endpoint = std::move(endpoint);
+            started      = false;
+        }
+        if (old_endpoint) {
+            old_endpoint->stop();
+        }
+    }
+
+    void reset_after_fork()
+    {
+        std::lock_guard lock(mutex);
+        // 子进程不能析构继承来的 endpoint_service。
+        (void)endpoint.release();
+        started = false;
+    }
+};
+#endif
 
 struct service_registry {
     std::mutex                                mutex;
@@ -209,10 +296,66 @@ struct service_registry {
     }
 };
 
+struct local_endpoint_id {
+    std::uint16_t endpoint_id{0};
+    std::uint32_t instance_id{0};
+};
+
+local_endpoint_id _resolve_local_endpoint(const match::table_ptr& table)
+{
+#if defined(MCENGINE_USE_SHM) && MCENGINE_USE_SHM
+    if (auto* shared = dynamic_cast<match::shared_table*>(table.get())) {
+        return {shared->local_endpoint_id(), shared->local_instance_id()};
+    }
+#else
+    (void)table;
+#endif
+    return {};
+}
+
+struct endpoint_key {
+    std::uint16_t endpoint_id{0};
+    std::uint32_t instance_id{0};
+
+    bool operator==(const endpoint_key& other) const noexcept
+    {
+        return endpoint_id == other.endpoint_id && instance_id == other.instance_id;
+    }
+};
+
+struct endpoint_key_hash {
+    std::size_t operator()(const endpoint_key& key) const noexcept
+    {
+        return (static_cast<std::size_t>(key.endpoint_id) << 32U) ^ static_cast<std::size_t>(key.instance_id);
+    }
+};
+
+using target_pairs = std::vector<std::pair<mc::string, match::match_id>>;
+
+std::unordered_map<endpoint_key, target_pairs, endpoint_key_hash>
+_group_targets_by_endpoint(const std::vector<match::target>& targets)
+{
+    std::unordered_map<endpoint_key, target_pairs, endpoint_key_hash> groups;
+    for (const auto& t : targets) {
+        groups[endpoint_key{t.endpoint_id, t.instance_id}].emplace_back(t.service_name, t.id);
+    }
+    return groups;
+}
+
+message _attach_match_ids(const message& msg, const target_pairs& pairs)
+{
+    message cloned = msg;
+    match::set_target_match_ids(cloned.header, pairs);
+    return cloned;
+}
+
 } // namespace
 
 void engine::reset_for_test()
 {
+#if defined(MCENGINE_USE_SHM) && MCENGINE_USE_SHM
+    engine_bootstrap::instance().reset();
+#endif
     service_registry::instance().reset();
     mc::singleton<engine>::reset_for_test();
     // match 状态与 SHM 状态需要一并复位，否则上一个 case 的订阅会顺着单例
@@ -226,13 +369,41 @@ void engine::reset_for_test()
 
 void engine::reset_after_fork()
 {
-    // fork 后子进程：忘掉继承的 service_registry / match_table，但不动
-    // SHM endpoint 状态（那是 mcapp 的 endpoint_service 负责，engine 不感知）。
+#if defined(MCENGINE_USE_SHM) && MCENGINE_USE_SHM
+    engine_bootstrap::instance().reset_after_fork();
+#endif
+    // fork 后子进程必须重建进程内 registry 和 callback 状态。
     service_registry::instance().reset();
     mc::singleton<engine>::reset_for_test();
-    match_table_holder::instance().reset();
+    match_table_holder::instance().abandon_after_fork();
     match::filter_backend_registry::reset_for_test();
-    shm_binding::reset_runtime_for_test();
+}
+
+bool engine::init(const engine_options& options)
+{
+#if defined(MCENGINE_USE_SHM) && MCENGINE_USE_SHM
+    return engine_bootstrap::instance().init(options);
+#else
+    (void)options;
+    return true;
+#endif
+}
+
+void engine::shutdown()
+{
+#if defined(MCENGINE_USE_SHM) && MCENGINE_USE_SHM
+    engine_bootstrap::instance().reset();
+#endif
+    match_table_holder::instance().reset();
+}
+
+endpoint_service* engine::get_endpoint_service() noexcept
+{
+#if defined(MCENGINE_USE_SHM) && MCENGINE_USE_SHM
+    return engine_bootstrap::instance().get();
+#else
+    return nullptr;
+#endif
 }
 
 match::table_ptr engine::get_match_table()
@@ -372,6 +543,37 @@ void engine::route_inbound(const message& msg)
     }
     for (auto* svc : services) {
         _dispatch_to_service(svc, msg);
+    }
+}
+
+void engine::publish(const message& msg)
+{
+    auto table = get_match_table();
+    if (!table) {
+        return;
+    }
+
+    auto targets = table->find_targets(msg);
+    if (targets.empty()) {
+        return;
+    }
+
+    auto groups   = _group_targets_by_endpoint(targets);
+    auto local_ep = _resolve_local_endpoint(table);
+
+    for (const auto& [key, pairs] : groups) {
+        bool is_local = (key.endpoint_id == 0U) ||
+                        (key.endpoint_id == local_ep.endpoint_id && key.instance_id == local_ep.instance_id);
+        auto merged = _attach_match_ids(msg, pairs);
+        if (is_local) {
+            route_inbound(merged);
+            continue;
+        }
+#if defined(MCENGINE_USE_SHM) && MCENGINE_USE_SHM
+        if (auto* sender = get_endpoint_service()) {
+            (void)sender->send_to_endpoint(key.endpoint_id, key.instance_id, merged);
+        }
+#endif
     }
 }
 

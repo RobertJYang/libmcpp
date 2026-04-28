@@ -56,6 +56,9 @@ public:
     void join();
     bool is_stopped() const noexcept;
 
+    // fork 后子进程重建 runtime 线程池。
+    void reset_after_fork();
+
     thread_pool& io() noexcept;
     thread_pool& work() noexcept;
 
@@ -70,7 +73,7 @@ public:
     void remove_posted_events(mc::object* target = nullptr, mc::event_type_id type = mc::invalid_event_type);
 
     global_event_filter install_global_filter(mc::event_type_id type, global_event_filter filter);
-    void remove_global_filter(mc::event_type_id type);
+    void                remove_global_filter(mc::event_type_id type);
 
     static any_executor create_strand();
     any_executor        create_io_strand();

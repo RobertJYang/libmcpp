@@ -259,7 +259,7 @@ TEST_F(shadow_journal_fixture, recover_undo_property_slab_replace_when_field_not
     ASSERT_NE(old_slab, nullptr);
     const std::uint16_t old_cap = old_slab->slot_capacity;
 
-    // 手工分配新 slab 模拟 W2 中途
+    // 手工分配新 slab 模拟 slab 替换 journal 中途
     const std::uint16_t new_cap  = static_cast<std::uint16_t>(old_cap * 2U);
     auto*               new_slab = mc::engine::property_slab_create(m_alloc, new_cap);
     ASSERT_NE(new_slab, nullptr);

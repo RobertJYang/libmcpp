@@ -18,6 +18,8 @@
 #include <mc/quark.h>
 #include <mc/string.h>
 
+#include <chrono>
+
 namespace {
 
 mc::string buffer_payload_view(const mc::proto::proto_request& req)
@@ -116,6 +118,45 @@ TEST(service_proto, pop_routes_response_back_to_same_transport)
     const auto outbound = mc::engine::message::from_bytes(transport.last_payload);
     EXPECT_EQ(outbound.header.type, mc::engine::message_type::method_return);
     EXPECT_EQ(outbound.header.reply_serial, 7u);
+}
+
+TEST(service_proto, send_with_reply_is_transport_facade_without_pending)
+{
+    mc::engine::service_proto engine;
+    capture_transport         transport;
+    engine.add_child(transport);
+
+    auto request = make_method_call_message();
+    request.header.serial = 42;
+
+    const auto begin = std::chrono::steady_clock::now();
+    auto       reply = engine.send_with_reply(std::move(request), mc::milliseconds(5));
+    const auto elapsed = std::chrono::steady_clock::now() - begin;
+
+    EXPECT_EQ(reply.header.type, mc::engine::message_type::error);
+    EXPECT_EQ(reply.header.error_name, mc::string("mc.engine.not_supported"));
+    EXPECT_EQ(reply.header.reply_serial, 42U);
+    EXPECT_LT(elapsed, std::chrono::seconds(1));
+    EXPECT_EQ(transport.push_hits, 1);
+}
+
+TEST(service_proto, async_send_with_reply_returns_mc_future)
+{
+    mc::engine::service_proto engine;
+    capture_transport         transport;
+    engine.add_child(transport);
+
+    auto request = make_method_call_message();
+    request.header.serial = 43;
+
+    auto future = engine.async_send_with_reply(std::move(request), mc::milliseconds(5));
+    ASSERT_EQ(future.wait_for(std::chrono::seconds(1)), mc::future_status::ready);
+
+    auto reply = future.get();
+    EXPECT_EQ(reply.header.type, mc::engine::message_type::error);
+    EXPECT_EQ(reply.header.error_name, mc::string("mc.engine.not_supported"));
+    EXPECT_EQ(reply.header.reply_serial, 43U);
+    EXPECT_EQ(transport.push_hits, 1);
 }
 
 TEST(message_codec, decoded_known_header_strings_use_quark_storage)

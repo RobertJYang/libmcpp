@@ -14,14 +14,16 @@
 
 #include <mc/engine/engine.h>
 #include <mc/engine/engine_codec.h>
-#include <mc/engine/service_proto.h>
+#include <mc/engine/engine_options.h>
 #include <mc/engine/errors/std_errors.h>
 #include <mc/engine/interface.h>
 #include <mc/engine/macro.h>
 #include <mc/engine/message.h>
 #include <mc/engine/message_codec.h>
 #include <mc/engine/object.h>
+#include <mc/engine/proxy.h>
 #include <mc/engine/service.h>
+#include <mc/engine/service_proto.h>
 
 namespace mc::engine {
 

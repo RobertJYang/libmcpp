@@ -17,7 +17,9 @@
 #include <mc/engine/engine_codec.h>
 #include <mc/engine/message.h>
 #include <mc/engine/message_codec.h>
+#include <mc/future.h>
 #include <mc/protocol.h>
+#include <mc/time.h>
 
 #include <functional>
 
@@ -41,6 +43,13 @@ public:
     const message_decode_options& decode_options() const noexcept;
 
     const engine_codec& codec() const noexcept;
+
+    message send_with_reply(message request, mc::milliseconds timeout = mc::milliseconds(5000));
+
+    virtual mc::future<message> async_send_with_reply(message          request,
+                                                      mc::milliseconds timeout = mc::milliseconds(5000));
+
+    void send(message request);
 
 protected:
     mc::proto::execution_state on_push(mc::proto::proto_request& req) override;

@@ -114,6 +114,10 @@ struct MC_API introspectable_interface : public mc::engine::interface<introspect
 
     mc::string introspect();
 
+    // 中间节点 introspect：path 上未注册对象，但其下挂有已注册子对象时，
+    // 按 DBus 规范返回仅含下一段节点名的最小 node XML；否则返回空串。
+    mc::string introspect_intermediate_node(const service& svc, mc::string_view path);
+
     static introspectable_interface& get_instance();
 };
 
@@ -174,16 +178,10 @@ public:
         mc::string_view result_signature;
     };
 
-    // 尝试命中标准接口：
-    //   - 返回 has_value() 表示已命中并执行完成，其值即为方法返回值（即使是
-    //     void 方法也返回空 variant，用于让 dispatcher 构造 method_return）
-    //   - 返回 nullopt 表示未命中，dispatcher 应走默认对象反射路径
-    //   - 命中但 method 不存在时，直接抛 unknown_method 异常（经 dispatch()
-    //     的 try/catch 转成 error_response）
-    static std::optional<invoke_hit> try_invoke(abstract_object& object, mc::string_view method_name,
-                                                const mc::variants& args, mc::string_view interface_name);
+    static std::optional<invoke_hit> try_invoke(const service& svc, abstract_object* object, mc::string_view path,
+                                                mc::string_view method_name, const mc::variants& args,
+                                                mc::string_view interface_name);
 
-    // 供 Introspect 等使用：查询某个 interface_name 是否是已知的标准接口。
     static bool is_standard_interface(mc::string_view interface_name) noexcept;
 };
 

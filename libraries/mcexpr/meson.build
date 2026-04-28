@@ -61,10 +61,14 @@ mcengine_dep = dependency(
   fallback: ['mcengine', 'mcengine_dep'],
   default_options: [
     'default_library=static',
-    'tests=false',
+    'tests=' + build_tests.to_string(),
   ],
   required: true,
 )
+mcengine_subproject = subproject('mcengine', default_options: [
+  'default_library=static',
+  'tests=' + build_tests.to_string(),
+])
 mcbase_dep = dependency(
   'mcbase',
   fallback: ['mcbase', 'mcbase_dep'],
@@ -82,9 +86,11 @@ mcbase_subproject = subproject('mcbase', default_options: [
 if build_tests
   gtest_dep = dependency('gtest', method: 'pkg-config', required: true)
   mcbase_test_utilities_dep = mcbase_subproject.get_variable('test_utilities_dep')
+  mcengine_test_utilities_dep = mcengine_subproject.get_variable('mcengine_test_utilities_dep')
 else
   gtest_dep = declare_dependency()
   mcbase_test_utilities_dep = declare_dependency()
+  mcengine_test_utilities_dep = declare_dependency()
 endif
 
 dep_arr = [mcbase_dep]
@@ -120,6 +126,7 @@ if build_tests
       boost_dep,
       mcexpr_dep,
       mcbase_test_utilities_dep,
+      mcengine_test_utilities_dep,
     ],
     install: false,
     build_by_default: false,

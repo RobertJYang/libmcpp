@@ -12,7 +12,42 @@
 
 #include <mc/app/app_proto.h>
 
+#include <mc/engine/endpoint_service.h>
+#include <mc/engine/engine.h>
+#include <mc/engine/payload.h>
+
+#include <optional>
+
 namespace mc::app {
+namespace {
+
+inline constexpr mc::string_view k_mq_target_endpoint_id_key = "mc.mq.target.endpoint_id";
+inline constexpr mc::string_view k_mq_target_instance_id_key = "mc.mq.target.instance_id";
+
+mc::engine::message make_route_error(const mc::engine::message& request, mc::string_view name, mc::string_view text)
+{
+    mc::engine::message response;
+    response.header.type         = mc::engine::message_type::error;
+    response.header.destination  = request.header.sender;
+    response.header.sender       = request.header.destination;
+    response.header.reply_serial = request.header.serial;
+    response.header.error_name   = mc::string(name);
+    response.body                = mc::engine::make_payload<mc::engine::error_payload>(name, text);
+    return response;
+}
+
+std::optional<std::pair<std::uint16_t, std::uint32_t>> mq_target_from_context(const mc::engine::message& request)
+{
+    auto endpoint_it = request.header.context.find(k_mq_target_endpoint_id_key);
+    auto instance_it = request.header.context.find(k_mq_target_instance_id_key);
+    if (endpoint_it == request.header.context.end() || instance_it == request.header.context.end()) {
+        return std::nullopt;
+    }
+    return std::pair{static_cast<std::uint16_t>(endpoint_it->value.as<std::uint64_t>()),
+                     static_cast<std::uint32_t>(instance_it->value.as<std::uint64_t>())};
+}
+
+} // namespace
 
 app_proto::app_proto(mc::string service_name, mc::dbus::connection conn, mc::shm::mq_channel* mq_channel)
     : m_service_name(std::move(service_name)), m_dbus(m_service_name, std::move(conn)), m_mq_channel(mq_channel)
@@ -30,6 +65,27 @@ mc::string_view app_proto::service_name() const noexcept
 dbus_proto& app_proto::dbus() noexcept
 {
     return m_dbus;
+}
+
+mc::future<mc::engine::message> app_proto::async_send_with_reply(mc::engine::message request, mc::milliseconds timeout)
+{
+    auto source_it = request.header.context.find(message_source_key);
+    if (source_it != request.header.context.end()) {
+        const auto source = source_it->value.as<mc::string>();
+        if (source == "mq") {
+            auto* endpoint = mc::engine::engine::get_endpoint_service();
+            auto  target   = mq_target_from_context(request);
+            if (m_mq_channel == nullptr || endpoint == nullptr || !target.has_value()) {
+                return mc::resolve(make_route_error(request, "mc.engine.not_supported", "mq channel is not available"));
+            }
+            return endpoint->send_with_reply_to_endpoint(target->first, target->second, std::move(request), timeout);
+        }
+        if (source == "dbus") {
+            return m_dbus.async_send_with_reply(std::move(request), timeout);
+        }
+    }
+
+    return m_dbus.async_send_with_reply(std::move(request), timeout);
 }
 
 mc::proto::execution_state app_proto::on_push(mc::proto::proto_request& req)
@@ -58,7 +114,12 @@ mc::proto::execution_state app_proto::on_push(mc::proto::proto_request& req)
         }
     }
 
-    // 无来源时默认走 dbus；配置了 mq_channel 时再发 MQ
+    // request/reply 只走单一 transport。
+    if (msg.header.type == mc::engine::message_type::method_call) {
+        return push_to(req, m_dbus);
+    }
+
+    // fire-and-forget 消息可同时投递到 DBus 和 MQ。
     auto state = push_to(req, m_dbus);
     if (state == mc::proto::execution_state::failed) {
         return state;

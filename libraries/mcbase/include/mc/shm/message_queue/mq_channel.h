@@ -17,6 +17,7 @@
 #include <memory>
 #include <vector>
 
+#include <mc/future.h>
 #include <mc/protocol.h>
 #include <mc/shm/message_queue/mq_proto.h>
 #include <mc/shm/message_queue/mq_transport_proto.h>
@@ -36,6 +37,10 @@ public:
     void stop();
     mc::proto::execution_state send(mc::proto::proto_request& req);
     void                       send_owned(std::unique_ptr<mc::proto::proto_request> req);
+    mc::future<mc::string>     register_pending_reply(std::uint64_t key, mc::milliseconds timeout,
+                                                       mc::string timeout_payload);
+    bool                       complete_pending_reply(std::uint64_t key, mc::string payload);
+    void                       cancel_pending_reply(std::uint64_t key, mc::string payload);
 
     template <typename Protocol>
     Protocol* get_protocol() const noexcept

@@ -114,18 +114,8 @@ void _force_takeover_for_fork_child(mc::string_view service_name)
 }
 
 class shm_service_takeover_test : public mc::test::TestWithEngine {
-protected:
-    void SetUp() override
-    {
-        TestWithEngine::SetUp();
-        mc::engine::engine::reset_for_test();
-    }
-
-    void TearDown() override
-    {
-        mc::engine::engine::reset_for_test();
-        TestWithEngine::TearDown();
-    }
+    // 基类 TestWithEngine 已管理 engine::reset_for_test + install_runtime；
+    // 子类不再重复，避免 reset 把 base 装好的 runtime alias 撤掉。
 };
 
 // 同进程两次 attach：epoch++、pid 覆盖、视图一致。

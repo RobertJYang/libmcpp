@@ -55,9 +55,9 @@ TEST(shm_object_layout, sizeof_shm_object_is_192)
     EXPECT_EQ(alignof(shm_object), 64U);
 }
 
-TEST(shm_object_layout, abi_version_is_v3)
+TEST(shm_object_layout, abi_version_is_v4)
 {
-    EXPECT_EQ(shm_object_abi_version, 3U);
+    EXPECT_EQ(shm_object_abi_version, 4U);
 }
 
 TEST(shm_object_layout, sizeof_property_slot_is_32)

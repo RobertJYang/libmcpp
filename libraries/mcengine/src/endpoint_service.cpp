@@ -12,8 +12,12 @@
 
 #include <mc/engine/endpoint_service.h>
 
+#include <mc/engine/dispatcher.h>
 #include <mc/engine/engine.h>
+#include <mc/engine/engine_codec.h>
+#include <mc/engine/payload.h>
 #include <mc/engine/service_proto.h>
+#include <mc/future.h>
 #include <mc/log/log.h>
 #include <mc/runtime.h>
 #include <mc/shm/default_runtime.h>
@@ -24,9 +28,40 @@
 
 #include "match/shared_table.h"
 
+#include <atomic>
+#include <optional>
 #include <unistd.h>
 
 namespace mc::engine {
+namespace {
+
+inline constexpr mc::string_view k_mq_reply_endpoint_id = "mc.mq.reply.endpoint_id";
+inline constexpr mc::string_view k_mq_reply_instance_id = "mc.mq.reply.instance_id";
+
+message make_mq_error(const message& request, mc::string_view name, mc::string_view text)
+{
+    message response;
+    response.header.type         = message_type::error;
+    response.header.destination  = request.header.sender;
+    response.header.sender       = request.header.destination;
+    response.header.reply_serial = request.header.serial;
+    response.header.error_name   = mc::string(name);
+    response.body                = make_payload<error_payload>(name, text);
+    return response;
+}
+
+std::optional<std::pair<std::uint16_t, std::uint32_t>> reply_endpoint_from_context(const message& msg)
+{
+    auto endpoint_it = msg.header.context.find(k_mq_reply_endpoint_id);
+    auto instance_it = msg.header.context.find(k_mq_reply_instance_id);
+    if (endpoint_it == msg.header.context.end() || instance_it == msg.header.context.end()) {
+        return std::nullopt;
+    }
+    return std::pair{static_cast<std::uint16_t>(endpoint_it->value.as<std::uint64_t>()),
+                     static_cast<std::uint32_t>(instance_it->value.as<std::uint64_t>())};
+}
+
+} // namespace
 
 struct endpoint_service::endpoint_service_impl {
     explicit endpoint_service_impl(mc::string_view name, std::shared_ptr<mc::shm::shm_runtime> rt)
@@ -47,6 +82,8 @@ struct endpoint_service::endpoint_service_impl {
 
     bool m_channel_started{false};
     bool m_endpoint_registered{false};
+
+    std::atomic<std::uint64_t>                             m_next_serial{1};
 };
 
 endpoint_service::endpoint_service(mc::string_view endpoint_name, std::shared_ptr<mc::shm::shm_runtime> runtime,
@@ -58,9 +95,9 @@ endpoint_service::endpoint_service(mc::string_view endpoint_name, std::shared_pt
     m_endpoint_impl->m_mq_proto.add_child(m_endpoint_impl->m_transport);
     m_endpoint_impl->m_channel.set_protocol(&m_endpoint_impl->m_service_proto);
 
-    m_endpoint_impl->m_service_proto.set_inbound_handler([](message msg) -> message {
-        mc::runtime::post([msg = std::move(msg)]() mutable {
-            mc::engine::engine::route_inbound(msg);
+    m_endpoint_impl->m_service_proto.set_inbound_handler([this](message msg) -> message {
+        mc::runtime::post([this, msg = std::move(msg)]() mutable {
+            handle_inbound_message(std::move(msg));
         }, mc::runtime::io_executor);
         return {};
     });
@@ -111,6 +148,111 @@ mc::shm::mq_channel* endpoint_service::get_mq_channel() const noexcept
     return &m_endpoint_impl->m_channel;
 }
 
+bool endpoint_service::send_to_endpoint(std::uint16_t endpoint_id, std::uint32_t instance_id, const message& msg)
+{
+    if (!m_endpoint_impl || !m_endpoint_impl->m_runtime) {
+        return false;
+    }
+
+    try {
+        auto receiver_info = m_endpoint_impl->m_runtime->get_endpoint(endpoint_id);
+        if (!receiver_info.has_value()) {
+            return false;
+        }
+
+        mc::shm::endpoint receiver;
+        receiver.endpoint_id   = receiver_info->endpoint_id;
+        receiver.instance_id   = instance_id;
+        receiver.state         = receiver_info->state;
+        receiver.slot_count    = receiver_info->slot_count;
+        receiver.endpoint_name = receiver_info->endpoint_name;
+        receiver.queue_name    = receiver_info->queue_name;
+        receiver.notifier_name = receiver_info->notifier_name;
+
+        auto queue = m_endpoint_impl->m_runtime->open_queue(receiver);
+
+        service_proto                 proto_root;
+        mc::shm::mq_proto             mq_layer;
+        mc::shm::mq_transport_proto   transport_layer;
+        mc::proto::proto_request      req;
+        proto_root.add_child(mq_layer);
+        mq_layer.add_child(transport_layer);
+        mq_layer.configure(m_endpoint_impl->m_endpoint.instance_id, m_endpoint_impl->m_endpoint.endpoint_id);
+        transport_layer.configure(queue, m_endpoint_impl->m_endpoint.endpoint_id,
+                                  m_endpoint_impl->m_endpoint.instance_id);
+
+        auto& ctx = req.ensure_context<service_proto::message_context>(&proto_root);
+        ctx.msg   = msg;
+        auto payload = encode_message_bytes(msg);
+        req.buffer().append_payload(payload.data(), payload.size());
+        return proto_root.push(req) == mc::proto::execution_state::completed;
+    } catch (const std::exception& ex) {
+        elog("endpoint_service.send_to failed: ${what}", ("what", ex.what()));
+        return false;
+    }
+}
+
+mc::future<message> endpoint_service::send_with_reply_to_endpoint(std::uint16_t endpoint_id, std::uint32_t instance_id,
+                                                                  message msg, mc::milliseconds timeout)
+{
+    if (!m_endpoint_impl || !m_endpoint_impl->m_runtime || !m_endpoint_impl->m_channel_started) {
+        return mc::resolve(make_mq_error(msg, "mc.engine.not_supported", "mq endpoint is not available"));
+    }
+
+    if (msg.header.serial == 0) {
+        msg.header.serial = m_endpoint_impl->m_next_serial.fetch_add(1, std::memory_order_relaxed);
+    }
+    msg.header.context[k_mq_reply_endpoint_id] = static_cast<std::uint64_t>(m_endpoint_impl->m_endpoint.endpoint_id);
+    msg.header.context[k_mq_reply_instance_id] = static_cast<std::uint64_t>(m_endpoint_impl->m_endpoint.instance_id);
+
+    auto timeout_msg = make_mq_error(msg, "mc.engine.timeout", "mq request timed out");
+    auto future = m_endpoint_impl->m_channel
+                      .register_pending_reply(msg.header.serial, timeout, encode_message_bytes(timeout_msg))
+                      .then([](mc::string payload) {
+        return message::from_bytes(payload);
+    });
+
+    if (!send_to_endpoint(endpoint_id, instance_id, msg)) {
+        auto error = make_mq_error(msg, "mc.engine.transport_failed", "mq send failed");
+        m_endpoint_impl->m_channel.cancel_pending_reply(msg.header.serial, encode_message_bytes(error));
+    }
+
+    return future;
+}
+
+bool endpoint_service::complete_pending_reply(const message& msg)
+{
+    if (msg.header.reply_serial == 0 || !m_endpoint_impl) {
+        return false;
+    }
+
+    return m_endpoint_impl->m_channel.complete_pending_reply(msg.header.reply_serial, encode_message_bytes(msg));
+}
+
+void endpoint_service::handle_inbound_message(message msg)
+{
+    if (msg.header.type == message_type::method_return || msg.header.type == message_type::error) {
+        if (complete_pending_reply(msg)) {
+            return;
+        }
+    }
+
+    if (msg.header.type == message_type::method_call) {
+        if (auto reply_endpoint = reply_endpoint_from_context(msg); reply_endpoint.has_value()) {
+            message response;
+            if (auto* target = engine::find_service(msg.header.destination); target != nullptr) {
+                response = mc::engine::dispatch(*target, msg);
+            } else {
+                response = make_mq_error(msg, "mc.engine.unknown_object", "mq target service is not local");
+            }
+            (void)send_to_endpoint(reply_endpoint->first, reply_endpoint->second, response);
+            return;
+        }
+    }
+
+    mc::engine::engine::route_inbound(msg);
+}
+
 match::table_ptr endpoint_service::create_match_table() const
 {
     if (!m_endpoint_impl || !m_endpoint_impl->m_endpoint_registered || !m_endpoint_impl->m_runtime) {
@@ -139,6 +281,26 @@ mc::string_view endpoint_service::effective_endpoint_name() const noexcept
         return {};
     }
     return m_endpoint_impl->m_effective_name;
+}
+
+void endpoint_service::push_outbound(const message& msg)
+{
+    if (!m_endpoint_impl || !m_endpoint_impl->m_channel_started) {
+        return;
+    }
+
+    try {
+        mc::proto::proto_request req;
+        auto&                    ctx = req.ensure_context<service_proto::message_context>(
+            &m_endpoint_impl->m_service_proto);
+        ctx.msg = msg;
+
+        auto payload = encode_message_bytes(msg);
+        req.buffer().append_payload(payload.data(), payload.size());
+        (void)m_endpoint_impl->m_service_proto.push(req);
+    } catch (const std::exception& ex) {
+        elog("endpoint_service.push_outbound failed: ${what}", ("what", ex.what()));
+    }
 }
 
 bool endpoint_service::on_start()

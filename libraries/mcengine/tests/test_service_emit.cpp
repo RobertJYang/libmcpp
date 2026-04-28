@@ -16,6 +16,9 @@
 
 #include <gtest/gtest.h>
 #include <mc/engine/engine.h>
+#include <mc/engine/object.h>
+#include <mc/engine/payload.h>
+#include <mc/engine/property.h>
 #include <mc/engine/service_proto.h>
 #include <mc/engine/match.h>
 #include <mc/engine/message.h>
@@ -30,6 +33,20 @@ namespace test_service_emit {
 struct sample_service : public mc::engine::service {
     explicit sample_service(mc::string name) : mc::engine::service(std::move(name))
     {}
+};
+
+class props_interface : public mc::engine::interface<props_interface> {
+public:
+    MC_INTERFACE("org.test.emit.Props")
+
+    mc::engine::property<int32_t> Counter;
+};
+
+class props_object : public mc::engine::object<props_object> {
+public:
+    MC_OBJECT(props_object, "EmitPropsObject", "/mc/test/emit/props", (props_interface))
+
+    props_interface iface;
 };
 
 class service_emit_test : public mc::test::TestWithEngine {};
@@ -160,6 +177,61 @@ TEST_F(service_emit_test, emit_fanout_to_multiple_receivers)
     sender.stop();
     receiver_a.stop();
     receiver_b.stop();
+}
+
+} // namespace test_service_emit
+
+MC_REFLECT(test_service_emit::props_interface, ((Counter, "Counter")))
+MC_REFLECT(test_service_emit::props_object, ((iface, "Iface")))
+
+namespace test_service_emit {
+
+TEST_F(service_emit_test, invalidated_property_changed_uses_invalidated_properties_body)
+{
+    sample_service sender("mc.test.emit.invalidated.sender");
+    sample_service receiver("mc.test.emit.invalidated.receiver");
+    sender.init();
+    receiver.init();
+    sender.start();
+    receiver.start();
+
+    auto obj = props_object::create();
+    obj->set_object_name("emit_invalidated_props");
+    obj->iface.set_property_invalidated("Counter");
+    sender.register_object(obj);
+
+    mc::engine::match_rule rule;
+    rule.type           = "signal";
+    rule.interface_name = "org.freedesktop.DBus.Properties";
+    rule.member_name    = "PropertiesChanged";
+
+    std::atomic<int> hits{0};
+    std::atomic<int> body_ok{0};
+    auto             id = receiver.add_match(rule, mc::engine::filter_spec{}, [&](const mc::engine::message& msg) {
+        if (const auto* payload = msg.try_as<mc::engine::signal_payload>()) {
+            if (payload->signature == "sa{sv}as" && payload->args.size() == 3 &&
+                payload->args[0] == mc::variant(mc::string("org.test.emit.Props")) && payload->args[1].is_dict() &&
+                payload->args[2].is_array()) {
+                const auto changed     = payload->args[1].as<mc::dict>();
+                const auto invalidated = payload->args[2].as<mc::variants>();
+                if (changed.empty() && invalidated.size() == 1U &&
+                    invalidated[0] == mc::variant(mc::string("Counter"))) {
+                    body_ok = 1;
+                }
+            }
+        }
+        ++hits;
+    });
+    ASSERT_NE(id, 0u);
+
+    obj->iface.Counter = int32_t{77};
+
+    EXPECT_GE(hits.load(), 1);
+    EXPECT_EQ(body_ok.load(), 1);
+
+    receiver.remove_match(id);
+    sender.stop();
+    receiver.stop();
 }
 
 } // namespace test_service_emit

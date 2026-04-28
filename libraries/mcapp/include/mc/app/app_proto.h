@@ -40,6 +40,9 @@ public:
 
     dbus_proto& dbus() noexcept;
 
+    mc::future<mc::engine::message> async_send_with_reply(
+        mc::engine::message request, mc::milliseconds timeout = mc::milliseconds(5000)) override;
+
 protected:
     mc::proto::execution_state on_push(mc::proto::proto_request& req) override;
     mc::proto::execution_state on_pop(mc::proto::proto_request& req) override;

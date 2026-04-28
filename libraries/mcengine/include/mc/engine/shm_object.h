@@ -30,7 +30,7 @@ using shm_byte_string      = mc::shm::byte_string;
 using shm_byte_string_less = mc::shm::byte_string_less;
 
 // 不兼容布局变化必须 bump
-inline constexpr std::uint16_t shm_object_abi_version = 3;
+inline constexpr std::uint16_t shm_object_abi_version = 4;
 
 struct shm_service;
 
@@ -44,13 +44,17 @@ enum class property_type_tag : std::uint8_t {
 
 MC_API const char* property_type_tag_name(property_type_tag t) noexcept;
 
+namespace property_slot_flags {
+inline constexpr std::uint32_t nocache = 1U << 0; // 属性不可缓存，proxy 必须走消息
+} // namespace property_slot_flags
+
 struct property_slot {
-    std::uint32_t                                   key_hash;
-    std::uint32_t                                   _pad0;
+    std::uint32_t            key_hash;
+    std::uint32_t            _pad0;
     shm_ptr<shm_byte_string> key;
     property_type_tag        type;
     std::uint8_t             _pad1[3];
-    std::uint32_t            _pad2;
+    std::uint32_t            flags; // 属性级 flags（nocache 等）
     union {
         std::int64_t             v_int64;
         double                   v_double;
@@ -80,12 +84,12 @@ constexpr std::size_t property_slab_alloc_size(std::uint16_t capacity) noexcept
 }
 
 struct child_slab {
-    std::uint16_t           abi_version;
-    std::uint16_t           slot_capacity;
-    std::uint16_t           slot_count;
-    std::uint16_t           flags;
-    std::uint32_t           crc32;
-    std::uint32_t           _pad;
+    std::uint16_t              abi_version;
+    std::uint16_t              slot_capacity;
+    std::uint16_t              slot_count;
+    std::uint16_t              flags;
+    std::uint32_t              crc32;
+    std::uint32_t              _pad;
     shm_ptr<struct shm_object> slots[];
 };
 
@@ -94,8 +98,7 @@ static_assert(alignof(child_slab) == 8U, "child_slab 必须 8B 对齐");
 
 constexpr std::size_t child_slab_alloc_size(std::uint16_t capacity) noexcept
 {
-    return sizeof(child_slab) +
-           static_cast<std::size_t>(capacity) * sizeof(shm_ptr<struct shm_object>);
+    return sizeof(child_slab) + static_cast<std::size_t>(capacity) * sizeof(shm_ptr<struct shm_object>);
 }
 
 // shm_object 字段布局（offset / size，总 192B）：

@@ -45,11 +45,11 @@ mcbase_subproject = subproject('mcbase', default_options: [
   'tests=' + build_tests.to_string(),
 ])
 
-mcengine_dep = dependency(
-  'mcengine',
-  fallback: ['mcengine', 'mcengine_dep'],
-  required: true,
-)
+mcengine_subproject = subproject('mcengine', default_options: [
+  'default_library=static',
+  'tests=' + build_tests.to_string(),
+])
+mcengine_dep = mcengine_subproject.get_variable('mcengine_dep')
 
 mcdbus_dep = dependency(
   'mcdbus',
@@ -60,10 +60,12 @@ mcdbus_dep = dependency(
 if build_tests
   gtest_dep = dependency('gtest', method: 'pkg-config', required: true)
   mcbase_test_utilities_dep = mcbase_subproject.get_variable('test_utilities_dep')
+  mcengine_test_utilities_dep = mcengine_subproject.get_variable('mcengine_test_utilities_dep')
   raw_dbus_dep = dependency('dbus-1', method: 'pkg-config', required: true)
 else
   gtest_dep = declare_dependency()
   mcbase_test_utilities_dep = declare_dependency()
+  mcengine_test_utilities_dep = declare_dependency()
   raw_dbus_dep = declare_dependency()
 endif
 

@@ -69,10 +69,28 @@ struct lifecycle_service : public mc::engine::service {
     {}
 };
 
+// nocache 用例使用独立 metadata。
+class nocache_iface : public mc::engine::interface<nocache_iface> {
+public:
+    MC_INTERFACE("org.test.nocache_iface")
+
+    property<int32_t>     m_counter;
+    property<std::string> m_label;
+};
+
+class nocache_object : public mc::engine::object<nocache_object> {
+public:
+    MC_OBJECT(nocache_object, "ShmNocacheObject", "/org/test/shm_nocache", (nocache_iface))
+
+    nocache_iface m_iface;
+};
+
 } // namespace shm_engine_lifecycle_test
 
 MC_REFLECT(shm_engine_lifecycle_test::lifecycle_iface, (m_counter, "counter")(m_label, "label")(m_score, "score"))
 MC_REFLECT(shm_engine_lifecycle_test::lifecycle_object, (m_iface, "iface"))
+MC_REFLECT(shm_engine_lifecycle_test::nocache_iface, (m_counter, "counter")(m_label, "label"))
+MC_REFLECT(shm_engine_lifecycle_test::nocache_object, (m_iface, "iface"))
 
 namespace shm_engine_lifecycle_test {
 
@@ -81,9 +99,6 @@ protected:
     void SetUp() override
     {
         TestWithEngine::SetUp();
-        // 每用例都 reset：unlink SHM region + 销毁 engine 单例，确保
-        // recover/isolate/CRC 类用例之间不会通过 SHM 残留互相污染。
-        mc::engine::engine::reset_for_test();
         m_service = std::make_unique<lifecycle_service>();
         m_service->init();
         ASSERT_TRUE(m_service->start());
@@ -95,7 +110,6 @@ protected:
             m_service->stop();
             m_service.reset();
         }
-        mc::engine::engine::reset_for_test();
         TestWithEngine::TearDown();
     }
 
@@ -446,6 +460,59 @@ TEST_F(shm_engine_lifecycle_test, gc_isolated_purges_orphans_from_indices_and_ar
 
     // 二次调用应是 no-op（已无 isolated 对象）。
     EXPECT_EQ(m_service->gc_isolated(), 0U);
+}
+
+// nocache 属性在 SHM slot 中被标记：slot.flags 含 nocache 位，type 为 null，
+// recover 时 shm_load_properties_into 跳过此类 marker。
+TEST_F(shm_engine_lifecycle_test, nocache_property_slot_has_nocache_flag)
+{
+    auto obj = nocache_object::create();
+    obj->set_object_path("/org/test/lifecycle/nocache");
+    obj->set_object_name("nocache_obj");
+    obj->set_position("8001");
+    m_service->register_object(obj);
+
+    // 初始值写入 SHM
+    obj->m_iface.m_counter.set_value(42);
+    obj->m_iface.m_label.set_value("cached");
+
+    // 标记 label 为 nocache，重新赋值触发 marker 写入。
+    obj->m_iface.set_property_nocache("label");
+    obj->m_iface.m_label.set_value("nocache_value");
+
+    auto* shadow = obj->get_shm_handle();
+    ASSERT_NE(shadow, nullptr);
+    auto* slab = shadow->properties.get();
+    ASSERT_NE(slab, nullptr);
+
+    auto counter_key = mc::engine::shm_property_compose_key("org.test.nocache_iface", "counter");
+    auto label_key   = mc::engine::shm_property_compose_key("org.test.nocache_iface", "label");
+
+    bool found_counter = false;
+    bool found_label   = false;
+    for (std::uint16_t i = 0; i < slab->slot_count; ++i) {
+        auto* key_bs = slab->slots[i].key.get();
+        if (key_bs == nullptr) {
+            continue;
+        }
+        std::string_view key_sv = key_bs->as_string_view();
+
+        if (key_sv == counter_key) {
+            // counter 是普通属性：无 nocache flag，type 为 int64，值可读
+            EXPECT_EQ(slab->slots[i].flags, 0u);
+            EXPECT_EQ(slab->slots[i].type, mc::engine::property_type_tag::int64);
+            EXPECT_EQ(slab->slots[i].v_int64, 42);
+            found_counter = true;
+        }
+        if (key_sv == label_key) {
+            // label 被标记 nocache：slot 有 nocache flag，type 为 null
+            EXPECT_TRUE(slab->slots[i].flags & mc::engine::property_slot_flags::nocache);
+            EXPECT_EQ(slab->slots[i].type, mc::engine::property_type_tag::null);
+            found_label = true;
+        }
+    }
+    EXPECT_TRUE(found_counter) << "counter 应有值 slot";
+    EXPECT_TRUE(found_label) << "label 应有 nocache marker slot";
 }
 
 } // namespace shm_engine_lifecycle_test

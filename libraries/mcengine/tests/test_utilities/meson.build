@@ -1,11 +1,11 @@
-# mcengine 的测试辅助库：仅在 SHM 开启时编译，因为目前唯一下沉下来的
-# 公共机制（TestWithEngineShmRegion + send_engine_message_via_mq）都是 SHM
-# 专属的。关 SHM 时整个 static_library 不进编译，不输出符号。
+# mcengine 的测试辅助库：仅在 SHM 开启时编译，因为 TestWithEngine 的 SHM
+# 实现（SetUp/TearDown/fork_child 等）依赖 shm_runtime。关 SHM 时整个
+# static_library 不进编译，不输出符号。
 
 mcengine_test_utilities_inc = include_directories('.')
 
 mcengine_test_utilities_sources = [
-  'engine_shm_test_base.cpp',
+  'engine_test_base.cpp',
 ]
 
 mcengine_test_utilities_lib = static_library(

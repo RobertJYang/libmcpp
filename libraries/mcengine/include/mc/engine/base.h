@@ -15,14 +15,14 @@
 
 #include <mc/db/table.h>
 #if defined(MCENGINE_USE_SHM) && MCENGINE_USE_SHM
-#    include <mc/db/shm_storage_engine.h>
-#    include <mc/engine/shm_object.h>
+#include <mc/db/shm_storage_engine.h>
+#include <mc/engine/shm_object.h>
 #endif
+#include <mc/array.h>
 #include <mc/engine/call_stack.h>
 #include <mc/engine/context.h>
 #include <mc/engine/macro.h>
 #include <mc/engine/metadata.h>
-#include <mc/array.h>
 #include <mc/engine/signal_info.h>
 #include <mc/engine/utils.h>
 #include <mc/memory.h>
@@ -64,10 +64,15 @@ using object_identifier_t = std::tuple<uint8_t, mc::string, mc::string, mc::stri
 
 #define MC_REFLECT_FLAG_PROPERTY_TPL 0x01 // 接口的属性是 property<T> 类型的反射标记
 #define MC_REFLECT_FLAG_INTERFACE    0x02 // 对象的属性是一个 interface 类型的反射标记
+#define MC_REFLECT_FLAG_NOCACHE      0x04 // 属性不缓存到快速存储
+#ifndef MC_REFLECT_FLAG_READONLY
+#define MC_REFLECT_FLAG_READONLY 0x08 // 属性只读；Properties.Set 应拒绝写入
+#endif
+#define MC_REFLECT_FLAG_INVALIDATED 0x10 // PropertiesChanged 仅携带属性名
 
 // 属性同步来源信息
 struct property_sync_info : public mc::shared_base {
-    mc::string                                                                 source;
+    mc::string                                                            source;
     mc::array<std::tuple<mc::string, mc::string, mc::string, mc::string>> properties;
 };
 
@@ -77,8 +82,8 @@ class MC_API property_base {
 public:
     virtual mc::string_view get_name() const      = 0;
     virtual mc::string_view get_signature() const = 0;
-    virtual uint32_t         get_access() const    = 0;
-    virtual uint64_t         get_flags() const     = 0;
+    virtual uint32_t        get_access() const    = 0;
+    virtual uint64_t        get_flags() const     = 0;
 
     virtual abstract_interface* get_interface() const                        = 0;
     virtual void                set_interface(abstract_interface* interface) = 0;
@@ -106,8 +111,8 @@ public:
 
     class managed_objects {
     public:
-        using value_type = std::pair<const mc::string, abstract_object*>;
-        using iterator = std::map<mc::string, abstract_object*>::iterator;
+        using value_type     = std::pair<const mc::string, abstract_object*>;
+        using iterator       = std::map<mc::string, abstract_object*>::iterator;
         using const_iterator = std::map<mc::string, abstract_object*>::const_iterator;
 
         bool empty() const noexcept
@@ -192,13 +197,13 @@ public:
     virtual void                   set_owner(abstract_object* owner) = 0;
     virtual const managed_objects& get_managed_objects() const       = 0;
 
-    virtual mc::string_view    get_object_name() const                                      = 0;
-    virtual void               set_object_name(mc::string_view name)                        = 0;
-    virtual mc::string_view    get_object_path() const                                      = 0;
-    virtual void               set_object_path(mc::string_view path)                        = 0;
-    virtual mc::string_view    get_position() const                                         = 0;
-    virtual void               set_position(mc::string_view position)                       = 0;
-    virtual mc::string_view    get_class_name() const                                       = 0;
+    virtual mc::string_view     get_object_name() const                                      = 0;
+    virtual void                set_object_name(mc::string_view name)                        = 0;
+    virtual mc::string_view     get_object_path() const                                      = 0;
+    virtual void                set_object_path(mc::string_view path)                        = 0;
+    virtual mc::string_view     get_position() const                                         = 0;
+    virtual void                set_position(mc::string_view position)                       = 0;
+    virtual mc::string_view     get_class_name() const                                       = 0;
     virtual object_identifier_t get_object_identifier() const                                = 0;
     virtual void                set_object_identifier(const object_identifier_t& identifier) = 0;
 
@@ -208,7 +213,7 @@ public:
     virtual mc::variant get_property(mc::string_view property_name, mc::string_view interface_name = {},
                                      int options = 0) const                                                    = 0;
     virtual bool        has_property(mc::string_view property_name, mc::string_view interface_name = {}) const = 0;
-    virtual mc::dict    get_all_properties(mc::string_view interface_name = {}, int options = 0) const        = 0;
+    virtual mc::dict    get_all_properties(mc::string_view interface_name = {}, int options = 0) const         = 0;
     virtual bool        set_property(mc::string_view property_name, const mc::variant& value,
                                      mc::string_view interface_name = {})                                      = 0;
 
@@ -224,13 +229,13 @@ public:
     virtual mc::connection_type connect(mc::string_view signal_name, slot_type slot,
                                         mc::string_view interface_name = {}) = 0;
     virtual mc::variant         emit(mc::string_view signal_name, const mc::variants& args,
-                                     mc::string_view interface_name = {})   = 0;
+                                     mc::string_view interface_name = {})    = 0;
 
-    virtual bool          has_method(mc::string_view method_name, mc::string_view interface_name = {}) const = 0;
-    virtual invoke_result invoke(mc::string_view method_name, const mc::variants& args = {},
-                                 mc::string_view interface_name = {})                                        = 0;
+    virtual bool                has_method(mc::string_view method_name, mc::string_view interface_name = {}) const = 0;
+    virtual invoke_result       invoke(mc::string_view method_name, const mc::variants& args = {},
+                                       mc::string_view interface_name = {})                                        = 0;
     virtual result<mc::variant> async_invoke(mc::string_view method_name, const mc::variants& args = {},
-                                             mc::string_view interface_name = {})                            = 0;
+                                             mc::string_view interface_name = {})                                  = 0;
 
     virtual void                     notify_property_changed(const mc::variant& value, const property_base& prop) = 0;
     virtual property_changed_signal& property_changed()                                                           = 0;
@@ -293,21 +298,37 @@ public:
     virtual result<mc::variant> async_invoke(mc::string_view method_name, const mc::variants& args = {}) = 0;
 
     // 信号相关接口
-    virtual mc::variant              emit(mc::string_view signal_name, const mc::variants& args)                = 0;
-    virtual mc::connection_type      connect(mc::string_view signal_name, slot_type slot)                       = 0;
+    virtual mc::variant              emit(mc::string_view signal_name, const mc::variants& args)                  = 0;
+    virtual mc::connection_type      connect(mc::string_view signal_name, slot_type slot)                         = 0;
     virtual void                     notify_property_changed(const mc::variant& value, const property_base& prop) = 0;
     virtual property_changed_signal& property_changed()                                                           = 0;
 
     // 类型反射相关接口
-    virtual const metadata_list&      get_metadata() const                                    = 0;
-    virtual const signal_type_info*   get_signal_info(mc::string_view signal_name) const      = 0;
-    virtual const method_type_info*   get_method_info(mc::string_view method_name) const      = 0;
-    virtual const property_type_info* get_property_info(mc::string_view property_name) const  = 0;
-    virtual const property_type_info* get_property_info(const void* prop_addr) const          = 0;
+    virtual const metadata_list&      get_metadata() const                                   = 0;
+    virtual const signal_type_info*   get_signal_info(mc::string_view signal_name) const     = 0;
+    virtual const method_type_info*   get_method_info(mc::string_view method_name) const     = 0;
+    virtual const property_type_info* get_property_info(mc::string_view property_name) const = 0;
+    virtual const property_type_info* get_property_info(const void* prop_addr) const         = 0;
 
     bool has_property(mc::string_view property_name) const
     {
         return get_property_info(property_name) != nullptr;
+    }
+
+    // 标记属性不缓存，proxy 必须通过消息接口读写
+    void set_property_nocache(mc::string_view property_name)
+    {
+        auto* info = get_property_info(property_name);
+        if (info != nullptr) {
+            const_cast<property_type_info*>(info)->set_flags(MC_REFLECT_FLAG_NOCACHE);
+        }
+    }
+    void set_property_invalidated(mc::string_view property_name)
+    {
+        auto* info = get_property_info(property_name);
+        if (info != nullptr) {
+            const_cast<property_type_info*>(info)->set_flags(MC_REFLECT_FLAG_INVALIDATED);
+        }
     }
     bool has_method(mc::string_view method_name) const
     {
@@ -346,28 +367,23 @@ using object_name_index = mc::db::ordered_unique<&abstract_object::get_object_na
 #if defined(MCENGINE_USE_SHM) && MCENGINE_USE_SHM
 template <typename IndexDef>
 using engine_default = mc::db::shm_storage_engine<abstract_object, mc::engine::shm_object,
-                                                  mc::db::detail::indices_count_v<IndexDef>,
-                                                  mc::db::shm_engine_alloc>;
+                                                  mc::db::detail::indices_count_v<IndexDef>, mc::db::shm_engine_alloc>;
 using engine_alloc_t = mc::db::shm_engine_alloc;
 #else
 template <typename IndexDef>
-using engine_default = mc::db::local_storage_engine<abstract_object, mc::db::detail::indices_count_v<IndexDef>,
-                                                    std::allocator<char>>;
+using engine_default =
+    mc::db::local_storage_engine<abstract_object, mc::db::detail::indices_count_v<IndexDef>, std::allocator<char>>;
 using engine_alloc_t = std::allocator<char>;
 #endif
 
-using service_object_indices =
-    mdb::indexed_by<path_unique_index, class_name_index, object_name_index>;
-using object_indices =
-    mdb::indexed_by<path_non_unique_index, class_name_index, object_name_index>;
+using service_object_indices = mdb::indexed_by<path_unique_index, class_name_index, object_name_index>;
+using object_indices         = mdb::indexed_by<path_non_unique_index, class_name_index, object_name_index>;
 
 // 每个服务自己的对象表
 using service_object_table_impl =
-    mdb::table<abstract_object, service_object_indices, engine_alloc_t,
-               engine_default<service_object_indices>>;
+    mdb::table<abstract_object, service_object_indices, engine_alloc_t, engine_default<service_object_indices>>;
 
-using object_table_impl = mdb::table<abstract_object, object_indices, engine_alloc_t,
-                                     engine_default<object_indices>>;
+using object_table_impl = mdb::table<abstract_object, object_indices, engine_alloc_t, engine_default<object_indices>>;
 
 // 服务对象表（每个服务一个）
 class service_object_table : public service_object_table_impl {
@@ -380,8 +396,7 @@ public:
 // 全局对象表，与服务对象表的差别是 path 是非唯一索引
 class object_table : public object_table_impl {
 public:
-    object_table(const engine_alloc_t& alloc = engine_alloc_t())
-        : object_table_impl("object_table", 0U, alloc)
+    object_table(const engine_alloc_t& alloc = engine_alloc_t()) : object_table_impl("object_table", 0U, alloc)
     {}
 };
 

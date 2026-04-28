@@ -15,6 +15,7 @@
 
 #include <mc/dbus/connection.h>
 #include <mc/dbus/message.h>
+#include <mc/future.h>
 #include <mc/protocol.h>
 #include <mc/signal/connection.h>
 #include <mc/string.h>
@@ -46,6 +47,8 @@ public:
 
     std::size_t outbound_count() const noexcept;
     std::size_t inbound_count() const noexcept;
+
+    mc::future<mc::engine::message> async_send_with_reply(mc::engine::message msg, mc::milliseconds timeout);
 
 protected:
     mc::proto::execution_state on_push(mc::proto::proto_request& req) override;

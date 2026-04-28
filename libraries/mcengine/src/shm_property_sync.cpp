@@ -34,8 +34,7 @@ namespace {
 // 把 mc::variant 写到 shadow.properties[key]。
 // 覆盖：bool / int* / uint* / double / string / blob(bytes)。
 // 复合类型（array / dict / extension）暂不持久化，silent skip。
-bool _write_one(shm_allocator& alloc, shm_object& shadow, std::string_view key,
-                const mc::variant& v) noexcept
+bool _write_one(shm_allocator& alloc, shm_object& shadow, std::string_view key, const mc::variant& v) noexcept
 {
     try {
         if (v.is_bool()) {
@@ -46,22 +45,19 @@ bool _write_one(shm_allocator& alloc, shm_object& shadow, std::string_view key,
         }
         if (v.is_uint8() || v.is_uint16() || v.is_uint32() || v.is_uint64()) {
             // u64 → i64 可能越界；越界值仍以位模式持久化，读端按 i64 解析
-            return shm_object_set_property_int64(alloc, shadow, key,
-                                                 static_cast<int64_t>(v.as<uint64_t>()));
+            return shm_object_set_property_int64(alloc, shadow, key, static_cast<int64_t>(v.as<uint64_t>()));
         }
         if (v.is_double()) {
             return shm_object_set_property_double(alloc, shadow, key, v.as<double>());
         }
         if (v.is_string()) {
             auto s = v.as<mc::string>();
-            return shm_object_set_property_blob(alloc, shadow, key,
-                                                std::string_view(s.data(), s.size()),
+            return shm_object_set_property_blob(alloc, shadow, key, std::string_view(s.data(), s.size()),
                                                 property_type_tag::string);
         }
         if (v.is_blob()) {
             auto b = v.as<mc::blob>();
-            return shm_object_set_property_blob(alloc, shadow, key,
-                                                std::string_view(b.data.data(), b.data.size()),
+            return shm_object_set_property_blob(alloc, shadow, key, std::string_view(b.data.data(), b.data.size()),
                                                 property_type_tag::bytes);
         }
         // array / dict / extension：暂不持久化
@@ -71,24 +67,22 @@ bool _write_one(shm_allocator& alloc, shm_object& shadow, std::string_view key,
     }
 }
 
-}  // namespace
+} // namespace
 
-void shm_sync_property(abstract_object& obj, const mc::variant& value,
-                       const property_base& prop) noexcept
+void shm_sync_property(abstract_object& obj, const mc::variant& value, const property_base& prop) noexcept
 {
     auto* shadow = obj.get_shm_handle();
     if (shadow == nullptr) {
         return;
     }
     if (!shm_runtime_provider::has_instance()) {
-        // 理论不可能：有 shm_handle 就一定走过 shm_runtime_provider::instance()
         return;
     }
 
     auto& rt    = shm_runtime_provider::instance();
     auto  arena = rt.user_arena();
 
-    auto key_view = prop.get_name();
+    auto             key_view = prop.get_name();
     std::string_view name(key_view.data(), key_view.size());
 
     std::string_view iface{};
@@ -98,6 +92,16 @@ void shm_sync_property(abstract_object& obj, const mc::variant& value,
     }
 
     auto composite = shm_property_compose_key(iface, name);
+
+    if (auto* itf = prop.get_interface(); itf != nullptr) {
+        if (auto* info = itf->get_property_info(prop.get_name()); info != nullptr) {
+            if (info->has_flags(MC_REFLECT_FLAG_NOCACHE)) {
+                (void)shm_object_set_property_nocache_marker(arena, *shadow, composite);
+                return;
+            }
+        }
+    }
+
     (void)_write_one(arena, *shadow, composite, value);
 }
 
@@ -152,10 +156,7 @@ void shm_load_properties_into(abstract_object& obj, const shm_object& sh) noexce
                     continue;
             }
 
-            // 携带 interface 信息时严格绑定到对应接口，避免不同接口同名 property
-            // 之间相互覆盖；旧数据（无分隔符）iface 为空，按全局 property name 查找。
-            (void)obj.set_property(name_sv, v,
-                                   mc::string_view(iface_sv.data(), iface_sv.size()));
+            (void)obj.set_property(name_sv, v, mc::string_view(iface_sv.data(), iface_sv.size()));
         } catch (...) {
             // 单 slot 解析失败不阻断其他 slot 的回填
             continue;
@@ -163,10 +164,9 @@ void shm_load_properties_into(abstract_object& obj, const shm_object& sh) noexce
     }
 }
 
-#else   // MCENGINE_USE_SHM = OFF
+#else // MCENGINE_USE_SHM = OFF
 
-void shm_sync_property(abstract_object& /*obj*/, const mc::variant& /*value*/,
-                       const property_base& /*prop*/) noexcept
+void shm_sync_property(abstract_object& /*obj*/, const mc::variant& /*value*/, const property_base& /*prop*/) noexcept
 {
     // OFF 模式：m_shm_handle 字段虽然存在但永远是 nullptr，无需任何动作。
 }
@@ -176,6 +176,6 @@ void shm_load_properties_into(abstract_object& /*obj*/, const shm_object& /*sh*/
     // OFF 模式：reconstruct 路径不存在，无需回填。
 }
 
-#endif  // MCENGINE_USE_SHM
+#endif // MCENGINE_USE_SHM
 
-}  // namespace mc::engine
+} // namespace mc::engine

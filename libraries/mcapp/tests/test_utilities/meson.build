@@ -24,6 +24,7 @@ mcapp_test_utilities_dep = declare_dependency(
     mcbase_dep,
     mcbase_test_utilities_dep,
     mcengine_dep,
+    mcengine_test_utilities_dep,
     raw_dbus_dep,
   ],
 )

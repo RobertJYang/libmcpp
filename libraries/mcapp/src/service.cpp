@@ -14,8 +14,11 @@
 
 #include <mc/app/app_proto.h>
 #include <mc/dbus/validator.h>
+#include <mc/engine/endpoint_service.h>
+#include <mc/engine/engine.h>
 #include <mc/exception.h>
 #include <mc/log/log.h>
+#include <mc/shm/message_queue/mq_channel.h>
 
 namespace mc::app {
 
@@ -38,6 +41,11 @@ mc::dbus::connection& service::connection() noexcept
 app_proto* service::proto() noexcept
 {
     return m_proto.get();
+}
+
+bool service::has_dbus() const noexcept
+{
+    return m_connection.is_connected();
 }
 
 const mc::string& service::path() const noexcept
@@ -133,7 +141,13 @@ bool service::bring_up_dbus_transport()
         return true;
     }
 
-    m_proto = std::make_unique<app_proto>(mc::string(name()), m_connection, nullptr);
+    mc::shm::mq_channel* mq_channel = nullptr;
+#if defined(MCENGINE_USE_SHM) && MCENGINE_USE_SHM
+    if (auto* endpoint = mc::engine::engine::get_endpoint_service()) {
+        mq_channel = endpoint->get_mq_channel();
+    }
+#endif
+    m_proto = std::make_unique<app_proto>(mc::string(name()), m_connection, mq_channel);
     set_proto(m_proto.get());
     return true;
 }

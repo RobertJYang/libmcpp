@@ -33,23 +33,22 @@ namespace {
 // ----------------------------------------------------------------------------
 
 namespace sub_op {
-inline constexpr std::uint64_t byte_string_replace   = 100U;  // class_name/name/path/position
-inline constexpr std::uint64_t offset_ptr_replace    = 110U;  // parent/service
-inline constexpr std::uint64_t property_value_simple = 200U;  // 已存 slot 的 int64/double 覆盖
-inline constexpr std::uint64_t property_value_blob   = 201U;  // 已存 slot 的 string/bytes 覆盖
-inline constexpr std::uint64_t property_slot_create  = 202U;  // 新增 slot（写 key+type+value）
-inline constexpr std::uint64_t property_slot_remove  = 203U;  // 删 slot（swap-and-pop）
-inline constexpr std::uint64_t property_slab_replace = 210U;  // 扩容：切换 shadow.properties
-inline constexpr std::uint64_t child_slot_add        = 300U;  // 单 slot push
-inline constexpr std::uint64_t child_slot_remove     = 301U;  // swap-and-pop
-inline constexpr std::uint64_t child_slab_replace    = 310U;  // 扩容：切换 shadow.children
-}  // namespace sub_op
+inline constexpr std::uint64_t byte_string_replace   = 100U; // class_name/name/path/position
+inline constexpr std::uint64_t offset_ptr_replace    = 110U; // parent/service
+inline constexpr std::uint64_t property_value_simple = 200U; // 已存 slot 的 int64/double 覆盖
+inline constexpr std::uint64_t property_value_blob   = 201U; // 已存 slot 的 string/bytes 覆盖
+inline constexpr std::uint64_t property_slot_create  = 202U; // 新增 slot（写 key+type+value）
+inline constexpr std::uint64_t property_slot_remove  = 203U; // 删 slot（swap-and-pop）
+inline constexpr std::uint64_t property_slab_replace = 210U; // 扩容：切换 shadow.properties
+inline constexpr std::uint64_t child_slot_add        = 300U; // 单 slot push
+inline constexpr std::uint64_t child_slot_remove     = 301U; // swap-and-pop
+inline constexpr std::uint64_t child_slab_replace    = 310U; // 扩容：切换 shadow.children
+} // namespace sub_op
 
 // 计算 b 相对 base 的字节 offset（base 不可为 nullptr）
 inline std::uint64_t rel_offset(const void* base, const void* b) noexcept
 {
-    return static_cast<std::uint64_t>(static_cast<const std::byte*>(b)
-                                      - static_cast<const std::byte*>(base));
+    return static_cast<std::uint64_t>(static_cast<const std::byte*>(b) - static_cast<const std::byte*>(base));
 }
 
 // 把 offset_ptr 内部 m_offset 字节复制成 uint64（保持位模式）
@@ -91,16 +90,13 @@ std::uint32_t fnv1a_32(std::string_view sv) noexcept
     return h;
 }
 
-// 将 byte_string offset_ptr 解引用为 string_view（支持 null）
 std::string_view bs_view(shm_ptr<shm_byte_string> p) noexcept
 {
     auto* bs = p.get();
     return bs == nullptr ? std::string_view{} : bs->as_string_view();
 }
 
-// property_slot 与 key 比较：先 key_hash 过滤，再字节对比
-bool slot_key_equals(const property_slot& slot, std::uint32_t key_hash,
-                     std::string_view key) noexcept
+bool slot_key_equals(const property_slot& slot, std::uint32_t key_hash, std::string_view key) noexcept
 {
     if (slot.key_hash != key_hash) {
         return false;
@@ -108,7 +104,6 @@ bool slot_key_equals(const property_slot& slot, std::uint32_t key_hash,
     return bs_view(slot.key) == key;
 }
 
-// 释放 property_slot 内持有的 byte_string（key + 可能的 v_blob），不动 slot 本身字节
 void release_slot_byte_strings(shm_allocator& alloc, property_slot& slot) noexcept
 {
     shm_byte_string_destroy(alloc, slot.key.get());
@@ -128,7 +123,7 @@ void reset_property_slot(property_slot& slot) noexcept
     slot._pad1[0] = 0;
     slot._pad1[1] = 0;
     slot._pad1[2] = 0;
-    slot._pad2    = 0;
+    slot.flags    = 0;
     slot.v_int64  = 0;
 }
 
@@ -144,9 +139,7 @@ void child_slab_refresh_crc(child_slab& slab) noexcept
     slab.crc32 = child_slab_compute_crc(slab);
 }
 
-// 给 property_slot 写入 int64 类型的值（清理旧 blob）
-void slot_assign_int64(shm_allocator& alloc, property_slot& slot,
-                       std::int64_t value) noexcept
+void slot_assign_int64(shm_allocator& alloc, property_slot& slot, std::int64_t value) noexcept
 {
     if (slot.type == property_type_tag::string || slot.type == property_type_tag::bytes) {
         shm_byte_string_destroy(alloc, slot.v_blob.get());
@@ -166,8 +159,7 @@ void slot_assign_double(shm_allocator& alloc, property_slot& slot, double value)
     slot.v_double = value;
 }
 
-bool slot_assign_blob(shm_allocator& alloc, property_slot& slot, std::string_view blob,
-                      property_type_tag tag) noexcept
+bool slot_assign_blob(shm_allocator& alloc, property_slot& slot, std::string_view blob, property_type_tag tag) noexcept
 {
     auto* new_blob = shm_byte_string_create(alloc, blob);
     if (new_blob == nullptr && !blob.empty()) {
@@ -190,7 +182,7 @@ void transfer_property_slots(property_slab& src, property_slab& dst) noexcept
         const property_slot& s = src.slots[i];
         property_slot&       d = dst.slots[i];
         d.key_hash             = s.key_hash;
-        d.key                  = s.key.get();  // offset_ptr 重新基于 d 自身地址计算
+        d.key                  = s.key.get(); // offset_ptr 重新基于 d 自身地址计算
         d.type                 = s.type;
         switch (s.type) {
             case property_type_tag::int64:
@@ -237,7 +229,7 @@ void clear_child_slab_for_handoff(child_slab& slab) noexcept
     slab.slot_count = 0;
 }
 
-}  // namespace
+} // namespace
 
 // ============================================================================
 // 容量增长
@@ -262,8 +254,7 @@ std::uint16_t slab_grow_capacity(std::uint16_t current, std::uint16_t needed) no
 // byte_string 帮助
 // ============================================================================
 
-shm_byte_string* shm_byte_string_create(shm_allocator& alloc,
-                                             std::string_view        sv) noexcept
+shm_byte_string* shm_byte_string_create(shm_allocator& alloc, std::string_view sv) noexcept
 {
     void* mem = alloc.allocate(sizeof(shm_byte_string), alignof(shm_byte_string));
     if (mem == nullptr) {
@@ -283,7 +274,7 @@ void shm_byte_string_destroy(shm_allocator& alloc, shm_byte_string* bs) noexcept
     if (bs == nullptr) {
         return;
     }
-    bs->~byte_string();  // 释放 payload buffer
+    bs->~byte_string(); // 释放 payload buffer
     alloc.deallocate(bs);
 }
 
@@ -363,8 +354,8 @@ bool ensure_property_slab_capacity(shm_allocator& alloc, property_slab*& slab_in
 // 通过 ensure_property_slab_capacity 接管。
 //
 // out_idx 写入最终的 slot 索引；out_is_new 标记是否新增。
-bool acquire_property_slot(shm_allocator& alloc, property_slab*& slab_inout,
-                           std::string_view key, int& out_idx, bool& out_is_new) noexcept
+bool acquire_property_slot(shm_allocator& alloc, property_slab*& slab_inout, std::string_view key, int& out_idx,
+                           bool& out_is_new) noexcept
 {
     if (slab_inout != nullptr) {
         const int existing = property_slab_find(*slab_inout, key);
@@ -375,15 +366,14 @@ bool acquire_property_slot(shm_allocator& alloc, property_slab*& slab_inout,
         }
     }
     const std::uint16_t cur_count = slab_inout == nullptr ? 0U : slab_inout->slot_count;
-    if (!ensure_property_slab_capacity(alloc, slab_inout,
-                                       static_cast<std::uint16_t>(cur_count + 1))) {
+    if (!ensure_property_slab_capacity(alloc, slab_inout, static_cast<std::uint16_t>(cur_count + 1))) {
         return false;
     }
     auto* key_bs = shm_byte_string_create(alloc, key);
     if (key_bs == nullptr && !key.empty()) {
         return false;
     }
-    const std::uint16_t idx = slab_inout->slot_count;
+    const std::uint16_t idx  = slab_inout->slot_count;
     auto&               slot = slab_inout->slots[idx];
     slot.key_hash            = fnv1a_32(key);
     slot.key                 = key_bs;
@@ -395,13 +385,13 @@ bool acquire_property_slot(shm_allocator& alloc, property_slab*& slab_inout,
     return true;
 }
 
-}  // namespace
+} // namespace
 
-bool property_slab_set_int64(shm_allocator& alloc, property_slab*& slab_inout,
-                             std::string_view key, std::int64_t value) noexcept
+bool property_slab_set_int64(shm_allocator& alloc, property_slab*& slab_inout, std::string_view key,
+                             std::int64_t value) noexcept
 {
-    int  idx     = -1;
-    bool is_new  = false;
+    int  idx    = -1;
+    bool is_new = false;
     if (!acquire_property_slot(alloc, slab_inout, key, idx, is_new)) {
         return false;
     }
@@ -410,11 +400,11 @@ bool property_slab_set_int64(shm_allocator& alloc, property_slab*& slab_inout,
     return true;
 }
 
-bool property_slab_set_double(shm_allocator& alloc, property_slab*& slab_inout,
-                              std::string_view key, double value) noexcept
+bool property_slab_set_double(shm_allocator& alloc, property_slab*& slab_inout, std::string_view key,
+                              double value) noexcept
 {
-    int  idx     = -1;
-    bool is_new  = false;
+    int  idx    = -1;
+    bool is_new = false;
     if (!acquire_property_slot(alloc, slab_inout, key, idx, is_new)) {
         return false;
     }
@@ -423,15 +413,14 @@ bool property_slab_set_double(shm_allocator& alloc, property_slab*& slab_inout,
     return true;
 }
 
-bool property_slab_set_blob(shm_allocator& alloc, property_slab*& slab_inout,
-                            std::string_view key, std::string_view blob,
-                            property_type_tag tag) noexcept
+bool property_slab_set_blob(shm_allocator& alloc, property_slab*& slab_inout, std::string_view key,
+                            std::string_view blob, property_type_tag tag) noexcept
 {
     if (tag != property_type_tag::string && tag != property_type_tag::bytes) {
         return false;
     }
-    int  idx     = -1;
-    bool is_new  = false;
+    int  idx    = -1;
+    bool is_new = false;
     if (!acquire_property_slot(alloc, slab_inout, key, idx, is_new)) {
         return false;
     }
@@ -448,8 +437,7 @@ bool property_slab_set_blob(shm_allocator& alloc, property_slab*& slab_inout,
     return true;
 }
 
-bool property_slab_remove(shm_allocator& alloc, property_slab& slab,
-                          std::string_view key) noexcept
+bool property_slab_remove(shm_allocator& alloc, property_slab& slab, std::string_view key) noexcept
 {
     const int idx = property_slab_find(slab, key);
     if (idx < 0) {
@@ -526,11 +514,10 @@ int child_slab_find(const child_slab& slab, shm_object* child) noexcept
     return -1;
 }
 
-bool child_slab_add(shm_allocator& alloc, child_slab*& slab_inout,
-                    shm_object* child) noexcept
+bool child_slab_add(shm_allocator& alloc, child_slab*& slab_inout, shm_object* child) noexcept
 {
     if (slab_inout != nullptr && child_slab_find(*slab_inout, child) >= 0) {
-        return true;  // 幂等
+        return true; // 幂等
     }
     const std::uint16_t cur_count = slab_inout == nullptr ? 0U : slab_inout->slot_count;
     const std::uint16_t needed    = static_cast<std::uint16_t>(cur_count + 1);
@@ -552,7 +539,7 @@ bool child_slab_add(shm_allocator& alloc, child_slab*& slab_inout,
         slab_inout = new_slab;
     }
     slab_inout->slots[slab_inout->slot_count] = child;
-    slab_inout->slot_count = static_cast<std::uint16_t>(slab_inout->slot_count + 1);
+    slab_inout->slot_count                    = static_cast<std::uint16_t>(slab_inout->slot_count + 1);
     child_slab_refresh_crc(*slab_inout);
     return true;
 }
@@ -588,7 +575,7 @@ namespace {
 // （offset_ptr 是 self-relative，必须以 field 自身地址为基底）
 std::uint64_t predict_offset_ptr_bits(const void* field, const void* target) noexcept
 {
-    using op_traits = shm_ptr<int>;  // 只用其 null_offset，与 T 无关
+    using op_traits = shm_ptr<int>; // 只用其 null_offset，与 T 无关
     if (target == nullptr) {
         return static_cast<std::uint64_t>(op_traits::null_offset);
     }
@@ -596,33 +583,19 @@ std::uint64_t predict_offset_ptr_bits(const void* field, const void* target) noe
     return static_cast<std::uint64_t>(static_cast<std::int64_t>(diff));
 }
 
-// W3 通用 byte_string setter：alloc 新 → journal_begin → 写字段 → CRC →
-// journal_end → destroy 旧。
-//
-// crash 窗口分析：
-//   - alloc 后 begin 前崩 → 新 byte_string leak（一次 alloc 单元；可接受为
-//     "最后一次未完成操作"代价）
-//   - begin 后 end 前崩 → recover 比对字段当前 m_offset == saved_b 决定
-//     redo（refresh CRC）或 undo（写回旧值 + destroy 新 byte_string）
-//   - end 后 destroy 前崩 → op=none → 旧 byte_string leak（同上）
-bool journaled_byte_string_replace(
-    shm_allocator&                          alloc,
-    shm_object&                                      shadow,
-    shm_ptr<shm_byte_string>& field,
-    std::string_view                                 value) noexcept
+bool journaled_byte_string_replace(shm_allocator& alloc, shm_object& shadow, shm_ptr<shm_byte_string>& field,
+                                   std::string_view value) noexcept
 {
     auto* new_bs = shm_byte_string_create(alloc, value);
     if (new_bs == nullptr && !value.empty()) {
         return false;
     }
-    auto* old_bs = field.get();
+    auto*               old_bs  = field.get();
     const std::uint64_t saved_a = read_offset_ptr_bits(&field);
     const std::uint64_t saved_b = predict_offset_ptr_bits(&field, new_bs);
 
-    mc::shm::container::journal_begin(
-        shadow.journal, mc::shm::container::container_op::update,
-        rel_offset(&shadow, &field), sub_op::byte_string_replace,
-        saved_a, saved_b, 0, 0);
+    mc::shm::container::journal_begin(shadow.journal, mc::shm::container::container_op::update,
+                                      rel_offset(&shadow, &field), sub_op::byte_string_replace, saved_a, saved_b, 0, 0);
 
     field = new_bs;
     shm_object_refresh_crc(shadow);
@@ -632,29 +605,28 @@ bool journaled_byte_string_replace(
     return true;
 }
 
-}  // namespace
+} // namespace
 
-shm_object* shm_object_create(shm_allocator& alloc, std::uint64_t object_id,
-                                    std::string_view class_name, std::string_view name,
-                                    std::string_view path, std::string_view position) noexcept
+shm_object* shm_object_create(shm_allocator& alloc, std::uint64_t object_id, std::string_view class_name,
+                              std::string_view name, std::string_view path, std::string_view position) noexcept
 {
     void* mem = alloc.allocate(sizeof(shm_object), alignof(shm_object));
     if (mem == nullptr) {
         return nullptr;
     }
     std::memset(mem, 0, sizeof(shm_object));
-    auto* shadow         = static_cast<shm_object*>(mem);
-    shadow->abi_version  = shm_object_abi_version;
-    shadow->flags        = shm_object_flags::alive;
-    shadow->object_id    = object_id;
-    shadow->class_name   = nullptr;
-    shadow->name         = nullptr;
-    shadow->path         = nullptr;
-    shadow->position     = nullptr;
-    shadow->service      = nullptr;
-    shadow->parent       = nullptr;
-    shadow->properties   = nullptr;
-    shadow->children     = nullptr;
+    auto* shadow        = static_cast<shm_object*>(mem);
+    shadow->abi_version = shm_object_abi_version;
+    shadow->flags       = shm_object_flags::alive;
+    shadow->object_id   = object_id;
+    shadow->class_name  = nullptr;
+    shadow->name        = nullptr;
+    shadow->path        = nullptr;
+    shadow->position    = nullptr;
+    shadow->service     = nullptr;
+    shadow->parent      = nullptr;
+    shadow->properties  = nullptr;
+    shadow->children    = nullptr;
     mc::shm::container::journal_init(shadow->journal);
 
     auto rollback = [&]() noexcept {
@@ -665,8 +637,7 @@ shm_object* shm_object_create(shm_allocator& alloc, std::uint64_t object_id,
         alloc.deallocate(shadow);
     };
 
-    auto try_set = [&](shm_ptr<shm_byte_string>& field,
-                       std::string_view                                 sv) noexcept -> bool {
+    auto try_set = [&](shm_ptr<shm_byte_string>& field, std::string_view sv) noexcept -> bool {
         auto* bs = shm_byte_string_create(alloc, sv);
         if (bs == nullptr && !sv.empty()) {
             return false;
@@ -675,8 +646,8 @@ shm_object* shm_object_create(shm_allocator& alloc, std::uint64_t object_id,
         return true;
     };
 
-    if (!try_set(shadow->class_name, class_name) || !try_set(shadow->name, name)
-        || !try_set(shadow->path, path) || !try_set(shadow->position, position)) {
+    if (!try_set(shadow->class_name, class_name) || !try_set(shadow->name, name) || !try_set(shadow->path, path) ||
+        !try_set(shadow->position, position)) {
         rollback();
         return nullptr;
     }
@@ -698,53 +669,45 @@ void shm_object_destroy(shm_allocator& alloc, shm_object* shadow) noexcept
     alloc.deallocate(shadow);
 }
 
-bool shm_object_set_class_name(shm_allocator& alloc, shm_object& shadow,
-                                  std::string_view value) noexcept
+bool shm_object_set_class_name(shm_allocator& alloc, shm_object& shadow, std::string_view value) noexcept
 {
     return journaled_byte_string_replace(alloc, shadow, shadow.class_name, value);
 }
 
-bool shm_object_set_name(shm_allocator& alloc, shm_object& shadow,
-                            std::string_view value) noexcept
+bool shm_object_set_name(shm_allocator& alloc, shm_object& shadow, std::string_view value) noexcept
 {
     return journaled_byte_string_replace(alloc, shadow, shadow.name, value);
 }
 
-bool shm_object_set_path(shm_allocator& alloc, shm_object& shadow,
-                            std::string_view value) noexcept
+bool shm_object_set_path(shm_allocator& alloc, shm_object& shadow, std::string_view value) noexcept
 {
     return journaled_byte_string_replace(alloc, shadow, shadow.path, value);
 }
 
-bool shm_object_set_position(shm_allocator& alloc, shm_object& shadow,
-                                std::string_view value) noexcept
+bool shm_object_set_position(shm_allocator& alloc, shm_object& shadow, std::string_view value) noexcept
 {
     return journaled_byte_string_replace(alloc, shadow, shadow.position, value);
 }
 
 namespace {
 
-// W3 offset_ptr setter（parent / service）：不涉及 byte_string ownership，
+// offset_ptr setter（parent / service）：不涉及 byte_string ownership，
 // recover 单纯按 saved_a/saved_b 决定 redo/undo 即可
 template <typename T>
-void journaled_offset_ptr_replace(shm_object&                       shadow,
-                                  shm_ptr<T>&     field,
-                                  T*                                target) noexcept
+void journaled_offset_ptr_replace(shm_object& shadow, shm_ptr<T>& field, T* target) noexcept
 {
     const std::uint64_t saved_a = read_offset_ptr_bits(&field);
     const std::uint64_t saved_b = predict_offset_ptr_bits(&field, target);
 
-    mc::shm::container::journal_begin(
-        shadow.journal, mc::shm::container::container_op::update,
-        rel_offset(&shadow, &field), sub_op::offset_ptr_replace,
-        saved_a, saved_b, 0, 0);
+    mc::shm::container::journal_begin(shadow.journal, mc::shm::container::container_op::update,
+                                      rel_offset(&shadow, &field), sub_op::offset_ptr_replace, saved_a, saved_b, 0, 0);
 
     field = target;
     shm_object_refresh_crc(shadow);
     mc::shm::container::journal_end(shadow.journal);
 }
 
-}  // namespace
+} // namespace
 
 void shm_object_set_parent(shm_object& shadow, shm_object* parent) noexcept
 {
@@ -755,11 +718,6 @@ void shm_object_set_service(shm_object& shadow, shm_service* service) noexcept
 {
     journaled_offset_ptr_replace(shadow, shadow.service, service);
 }
-
-// ----------------------------------------------------------------------------
-// W1 / W2 property 写入路径（journal 包裹）
-// ----------------------------------------------------------------------------
-
 namespace {
 
 // 把"按 type 取 slot 的 v 字段位模式"做成 helper
@@ -775,22 +733,19 @@ void write_slot_value_bits(property_slot& slot, std::uint64_t bits) noexcept
     std::memcpy(&slot.v_int64, &bits, sizeof(bits));
 }
 
-// W2 把 shadow.properties / shadow.children 切到新 slab，按 journal 三步协议；
+// 把 shadow.properties / shadow.children 切到新 slab，按 journal 三步协议；
 // 调用方负责 alloc + transfer 完成后传入 new_slab，本函数负责 journal + CRC。
 // 提交后调用方应做 clear_for_handoff(*old_slab) + destroy(old_slab)，
 // 因为旧 slab 当前仍持有 byte_string ownership 双引用。
 template <typename SlabT>
-void journaled_slab_replace(shm_object&                          shadow,
-                            shm_ptr<SlabT>&    field,
-                            SlabT*                               new_slab,
-                            std::uint64_t                        sub_op_id) noexcept
+void journaled_slab_replace(shm_object& shadow, shm_ptr<SlabT>& field, SlabT* new_slab,
+                            std::uint64_t sub_op_id) noexcept
 {
     const std::uint64_t saved_a = read_offset_ptr_bits(&field);
     const std::uint64_t saved_b = predict_offset_ptr_bits(&field, new_slab);
 
-    mc::shm::container::journal_begin(
-        shadow.journal, mc::shm::container::container_op::update,
-        rel_offset(&shadow, &field), sub_op_id, saved_a, saved_b, 0, 0);
+    mc::shm::container::journal_begin(shadow.journal, mc::shm::container::container_op::update,
+                                      rel_offset(&shadow, &field), sub_op_id, saved_a, saved_b, 0, 0);
 
     field = new_slab;
     shm_object_refresh_crc(shadow);
@@ -798,13 +753,12 @@ void journaled_slab_replace(shm_object&                          shadow,
 }
 
 // 把 (old_type, new_type, slot_index, key_hash) 打包进 extra (uint64)
-std::uint64_t pack_property_extra(property_type_tag old_type, property_type_tag new_type,
-                                  std::uint16_t slot_index, std::uint32_t key_hash) noexcept
+std::uint64_t pack_property_extra(property_type_tag old_type, property_type_tag new_type, std::uint16_t slot_index,
+                                  std::uint32_t key_hash) noexcept
 {
-    return static_cast<std::uint64_t>(static_cast<std::uint8_t>(old_type))
-         | (static_cast<std::uint64_t>(static_cast<std::uint8_t>(new_type)) << 8)
-         | (static_cast<std::uint64_t>(slot_index) << 16)
-         | (static_cast<std::uint64_t>(key_hash) << 32);
+    return static_cast<std::uint64_t>(static_cast<std::uint8_t>(old_type)) |
+           (static_cast<std::uint64_t>(static_cast<std::uint8_t>(new_type)) << 8) |
+           (static_cast<std::uint64_t>(slot_index) << 16) | (static_cast<std::uint64_t>(key_hash) << 32);
 }
 
 struct property_extra_view {
@@ -824,40 +778,23 @@ property_extra_view unpack_property_extra(std::uint64_t e) noexcept
     return v;
 }
 
-// W1 覆盖现有 slot（任意 type）：
-//   - simple→simple 或 simple↔blob 都走这里，调用方先准备好新 v 8B 与新 blob byte_string
-//   - sub_op 决定是否包含 byte_string ownership 转移
-//
-// 调用前置条件：slab 中 idx 槽已存在；新值 (new_type + new_value_bits) 已就绪。
-//   - 若 new_type 是 string/bytes，new_value_bits = predict_offset_ptr_bits(
-//     &slot.v_blob, new_blob_bs)，且 new_blob_bs 已 alloc。
-//   - 若 new_type 是 int64/double，new_value_bits = bit_cast<int64> 或 bit_cast<double>。
-//
-// 调用后：journal 已 commit；旧 byte_string（若旧 type 为 blob）由本函数 destroy。
-void journaled_replace_property_value(shm_allocator& alloc, shm_object& shadow,
-                                      property_slab& slab, std::uint16_t idx,
-                                      property_type_tag new_type,
-                                      std::uint64_t     new_value_bits) noexcept
+void journaled_replace_property_value(shm_allocator& alloc, shm_object& shadow, property_slab& slab, std::uint16_t idx,
+                                      property_type_tag new_type, std::uint64_t new_value_bits) noexcept
 {
-    auto&               slot      = slab.slots[idx];
-    const std::uint64_t saved_a   = read_slot_value_bits(slot);
+    auto&                   slot     = slab.slots[idx];
+    const std::uint64_t     saved_a  = read_slot_value_bits(slot);
     const property_type_tag old_type = slot.type;
-    auto* const         old_blob  = (old_type == property_type_tag::string
-                                  || old_type == property_type_tag::bytes)
-                                       ? slot.v_blob.get()
-                                       : nullptr;
+    auto* const             old_blob =
+        (old_type == property_type_tag::string || old_type == property_type_tag::bytes) ? slot.v_blob.get() : nullptr;
 
-    const std::uint64_t sub = (new_type == property_type_tag::string
-                               || new_type == property_type_tag::bytes
-                               || old_type == property_type_tag::string
-                               || old_type == property_type_tag::bytes)
+    const std::uint64_t sub = (new_type == property_type_tag::string || new_type == property_type_tag::bytes ||
+                               old_type == property_type_tag::string || old_type == property_type_tag::bytes)
                                   ? sub_op::property_value_blob
                                   : sub_op::property_value_simple;
 
-    mc::shm::container::journal_begin(
-        shadow.journal, mc::shm::container::container_op::update,
-        rel_offset(&shadow, &slot), sub, saved_a, new_value_bits,
-        pack_property_extra(old_type, new_type, idx, slot.key_hash), 0);
+    mc::shm::container::journal_begin(shadow.journal, mc::shm::container::container_op::update,
+                                      rel_offset(&shadow, &slot), sub, saved_a, new_value_bits,
+                                      pack_property_extra(old_type, new_type, idx, slot.key_hash), 0);
 
     write_slot_value_bits(slot, new_value_bits);
     slot.type = new_type;
@@ -869,38 +806,22 @@ void journaled_replace_property_value(shm_allocator& alloc, shm_object& shadow,
     }
 }
 
-// W1 新建 slot：写 (key, key_hash, type, v) + slot_count++ + slab CRC。
-// 调用前置条件：cur_count < cur_capacity；key_bs 与 (blob 情况下 new_blob_bs) 已 alloc。
-//
-// journal 编码：
-//   target = rel_offset(shadow, slab)
-//   anchor = sub_op::property_slot_create
-//   saved_a = predict_offset_ptr_bits(&slot.key, key_bs)   （新 key m_offset）
-//   saved_b = new_value_bits                                （新 v 8B）
-//   extra   = pack_property_extra(null, new_type, idx, key_hash)
-//   misc    = 0
-//
-// recover：
-//   - 若 slab.slot_count > idx 且 slab.slots[idx] 状态与 saved 一致 → commit 已生效 →
-//     refresh CRC + end
-//   - 否则 → undo: destroy key_bs + (new_blob_bs if blob) + 不增 slot_count + refresh CRC + end
-void journaled_create_property_slot(shm_allocator& alloc, shm_object& shadow,
-                                    property_slab& slab, std::uint16_t idx,
-                                    std::uint32_t key_hash, shm_byte_string* key_bs,
-                                    property_type_tag new_type,
+void journaled_create_property_slot(shm_allocator& alloc, shm_object& shadow, property_slab& slab, std::uint16_t idx,
+                                    std::uint32_t key_hash, shm_byte_string* key_bs, property_type_tag new_type,
                                     std::uint64_t new_value_bits) noexcept
 {
     auto&               slot      = slab.slots[idx];
     const std::uint64_t saved_key = predict_offset_ptr_bits(&slot.key, key_bs);
 
-    mc::shm::container::journal_begin(
-        shadow.journal, mc::shm::container::container_op::update,
-        rel_offset(&shadow, &slab), sub_op::property_slot_create, saved_key, new_value_bits,
-        pack_property_extra(property_type_tag::null, new_type, idx, key_hash), 0);
+    mc::shm::container::journal_begin(shadow.journal, mc::shm::container::container_op::update,
+                                      rel_offset(&shadow, &slab), sub_op::property_slot_create, saved_key,
+                                      new_value_bits,
+                                      pack_property_extra(property_type_tag::null, new_type, idx, key_hash), 0);
 
     slot.key_hash = key_hash;
     slot.key      = key_bs;
     slot.type     = new_type;
+    slot.flags    = 0;
     write_slot_value_bits(slot, new_value_bits);
     slab.slot_count = static_cast<std::uint16_t>(idx + 1);
     property_slab_refresh_crc(slab);
@@ -908,10 +829,10 @@ void journaled_create_property_slot(shm_allocator& alloc, shm_object& shadow,
     (void)alloc;
 }
 
-// 高层"找/扩容"封装；如需扩容则走 W2 journal；返回成功后 slab 指向最终容器
+// 高层"找/扩容"封装；如需扩容则走 slab 替换 journal；返回成功后 slab 指向最终容器
 // （可能是 new_slab）。
-bool ensure_slot_capacity_for_high_level(shm_allocator& alloc, shm_object& shadow,
-                                         property_slab*& slab_inout, std::uint16_t needed) noexcept
+bool ensure_slot_capacity_for_high_level(shm_allocator& alloc, shm_object& shadow, property_slab*& slab_inout,
+                                         std::uint16_t needed) noexcept
 {
     if (slab_inout != nullptr && needed <= slab_inout->slot_capacity) {
         return true;
@@ -939,8 +860,8 @@ bool ensure_slot_capacity_for_high_level(shm_allocator& alloc, shm_object& shado
     return true;
 }
 
-bool ensure_child_capacity_for_high_level(shm_allocator& alloc, shm_object& shadow,
-                                          child_slab*& slab_inout, std::uint16_t needed) noexcept
+bool ensure_child_capacity_for_high_level(shm_allocator& alloc, shm_object& shadow, child_slab*& slab_inout,
+                                          std::uint16_t needed) noexcept
 {
     if (slab_inout != nullptr && needed <= slab_inout->slot_capacity) {
         return true;
@@ -983,81 +904,73 @@ std::uint64_t bits_from_double(double v) noexcept
     return b;
 }
 
-}  // namespace
+} // namespace
 
-bool shm_object_set_property_int64(shm_allocator& alloc, shm_object& shadow,
-                                      std::string_view key, std::int64_t value) noexcept
+bool shm_object_set_property_int64(shm_allocator& alloc, shm_object& shadow, std::string_view key,
+                                   std::int64_t value) noexcept
 {
-    auto* slab = shadow.properties.get();
-    const int idx = (slab == nullptr) ? -1 : property_slab_find(*slab, key);
+    auto*     slab = shadow.properties.get();
+    const int idx  = (slab == nullptr) ? -1 : property_slab_find(*slab, key);
     if (idx >= 0) {
-        journaled_replace_property_value(alloc, shadow, *slab,
-                                         static_cast<std::uint16_t>(idx),
+        journaled_replace_property_value(alloc, shadow, *slab, static_cast<std::uint16_t>(idx),
                                          property_type_tag::int64, bits_from_int64(value));
         return true;
     }
     const std::uint16_t cur_count = (slab == nullptr) ? 0U : slab->slot_count;
-    if (!ensure_slot_capacity_for_high_level(alloc, shadow, slab,
-                                             static_cast<std::uint16_t>(cur_count + 1))) {
+    if (!ensure_slot_capacity_for_high_level(alloc, shadow, slab, static_cast<std::uint16_t>(cur_count + 1))) {
         return false;
     }
     auto* key_bs = shm_byte_string_create(alloc, key);
     if (key_bs == nullptr && !key.empty()) {
         return false;
     }
-    journaled_create_property_slot(alloc, shadow, *slab, cur_count, fnv1a_32(key), key_bs,
-                                   property_type_tag::int64, bits_from_int64(value));
+    journaled_create_property_slot(alloc, shadow, *slab, cur_count, fnv1a_32(key), key_bs, property_type_tag::int64,
+                                   bits_from_int64(value));
     return true;
 }
 
-bool shm_object_set_property_double(shm_allocator& alloc, shm_object& shadow,
-                                       std::string_view key, double value) noexcept
+bool shm_object_set_property_double(shm_allocator& alloc, shm_object& shadow, std::string_view key,
+                                    double value) noexcept
 {
-    auto* slab = shadow.properties.get();
-    const int idx = (slab == nullptr) ? -1 : property_slab_find(*slab, key);
+    auto*     slab = shadow.properties.get();
+    const int idx  = (slab == nullptr) ? -1 : property_slab_find(*slab, key);
     if (idx >= 0) {
-        journaled_replace_property_value(alloc, shadow, *slab,
-                                         static_cast<std::uint16_t>(idx),
+        journaled_replace_property_value(alloc, shadow, *slab, static_cast<std::uint16_t>(idx),
                                          property_type_tag::double_, bits_from_double(value));
         return true;
     }
     const std::uint16_t cur_count = (slab == nullptr) ? 0U : slab->slot_count;
-    if (!ensure_slot_capacity_for_high_level(alloc, shadow, slab,
-                                             static_cast<std::uint16_t>(cur_count + 1))) {
+    if (!ensure_slot_capacity_for_high_level(alloc, shadow, slab, static_cast<std::uint16_t>(cur_count + 1))) {
         return false;
     }
     auto* key_bs = shm_byte_string_create(alloc, key);
     if (key_bs == nullptr && !key.empty()) {
         return false;
     }
-    journaled_create_property_slot(alloc, shadow, *slab, cur_count, fnv1a_32(key), key_bs,
-                                   property_type_tag::double_, bits_from_double(value));
+    journaled_create_property_slot(alloc, shadow, *slab, cur_count, fnv1a_32(key), key_bs, property_type_tag::double_,
+                                   bits_from_double(value));
     return true;
 }
 
-bool shm_object_set_property_blob(shm_allocator& alloc, shm_object& shadow,
-                                     std::string_view key, std::string_view blob,
-                                     property_type_tag tag) noexcept
+bool shm_object_set_property_blob(shm_allocator& alloc, shm_object& shadow, std::string_view key, std::string_view blob,
+                                  property_type_tag tag) noexcept
 {
     if (tag != property_type_tag::string && tag != property_type_tag::bytes) {
         return false;
     }
-    auto* slab = shadow.properties.get();
-    const int idx = (slab == nullptr) ? -1 : property_slab_find(*slab, key);
+    auto*     slab = shadow.properties.get();
+    const int idx  = (slab == nullptr) ? -1 : property_slab_find(*slab, key);
     if (idx >= 0) {
         auto* new_blob = shm_byte_string_create(alloc, blob);
         if (new_blob == nullptr && !blob.empty()) {
             return false;
         }
-        const std::uint64_t new_bits =
-            predict_offset_ptr_bits(&slab->slots[idx].v_blob, new_blob);
-        journaled_replace_property_value(alloc, shadow, *slab,
-                                         static_cast<std::uint16_t>(idx), tag, new_bits);
+        const std::uint64_t new_bits = predict_offset_ptr_bits(&slab->slots[idx].v_blob, new_blob);
+        journaled_replace_property_value(alloc, shadow, *slab, static_cast<std::uint16_t>(idx), tag, new_bits);
         return true;
     }
     const std::uint16_t cur_count = (slab == nullptr) ? 0U : slab->slot_count;
-    if (!ensure_slot_capacity_for_high_level(alloc, shadow, slab,
-                                             static_cast<std::uint16_t>(cur_count + 1))) {
+    if (!ensure_slot_capacity_for_high_level(alloc, shadow, slab, static_cast<std::uint16_t>(cur_count + 1))) {
         return false;
     }
     auto* key_bs = shm_byte_string_create(alloc, key);
@@ -1069,18 +982,56 @@ bool shm_object_set_property_blob(shm_allocator& alloc, shm_object& shadow,
         shm_byte_string_destroy(alloc, key_bs);
         return false;
     }
-    const std::uint64_t new_bits =
-        predict_offset_ptr_bits(&slab->slots[cur_count].v_blob, blob_bs);
-    journaled_create_property_slot(alloc, shadow, *slab, cur_count, fnv1a_32(key), key_bs, tag,
-                                   new_bits);
+    const std::uint64_t new_bits = predict_offset_ptr_bits(&slab->slots[cur_count].v_blob, blob_bs);
+    journaled_create_property_slot(alloc, shadow, *slab, cur_count, fnv1a_32(key), key_bs, tag, new_bits);
     return true;
 }
 
-bool shm_object_remove_property(shm_allocator& alloc, shm_object& shadow,
-                                   std::string_view key) noexcept
+bool shm_object_set_property_nocache_marker(shm_allocator& alloc, shm_object& shadow, std::string_view key) noexcept
 {
-    // T8 范围内不为 remove 加 journal：删属性是非典型路径，crash 中途 → slab CRC
-    // 校验失败 → recover 阶段把对象隔离，符合"crash 不污染存活对象"语义。
+    auto* slab = shadow.properties.get();
+    if (slab != nullptr) {
+        const int idx = property_slab_find(*slab, key);
+        if (idx >= 0) {
+            auto& slot = slab->slots[idx];
+            if (slot.flags & property_slot_flags::nocache) {
+                return true;
+            }
+            // 值 slot 转为 nocache marker 前需释放 blob 资源。
+            if (slot.type == property_type_tag::string || slot.type == property_type_tag::bytes) {
+                if (auto* blob = slot.v_blob.get(); blob != nullptr) {
+                    shm_byte_string_destroy(alloc, blob);
+                    slot.v_blob = nullptr;
+                }
+            }
+            slot.type    = property_type_tag::null;
+            slot.flags   = property_slot_flags::nocache;
+            slot.v_int64 = 0;
+            property_slab_refresh_crc(*slab);
+            return true;
+        }
+    }
+    const std::uint16_t cur_count = (slab == nullptr) ? 0U : slab->slot_count;
+    if (!ensure_slot_capacity_for_high_level(alloc, shadow, slab, static_cast<std::uint16_t>(cur_count + 1))) {
+        return false;
+    }
+    auto* key_bs = shm_byte_string_create(alloc, key);
+    if (key_bs == nullptr && !key.empty()) {
+        return false;
+    }
+    auto& slot       = slab->slots[cur_count];
+    slot.key_hash    = fnv1a_32(key);
+    slot.key         = key_bs;
+    slot.type        = property_type_tag::null;
+    slot.flags       = property_slot_flags::nocache;
+    slot.v_int64     = 0;
+    slab->slot_count = static_cast<std::uint16_t>(cur_count + 1);
+    property_slab_refresh_crc(*slab);
+    return true;
+}
+
+bool shm_object_remove_property(shm_allocator& alloc, shm_object& shadow, std::string_view key) noexcept
+{
     auto* slab = shadow.properties.get();
     if (slab == nullptr) {
         return false;
@@ -1088,16 +1039,14 @@ bool shm_object_remove_property(shm_allocator& alloc, shm_object& shadow,
     return property_slab_remove(alloc, *slab, key);
 }
 
-bool shm_object_add_child(shm_allocator& alloc, shm_object& shadow,
-                             shm_object* child) noexcept
+bool shm_object_add_child(shm_allocator& alloc, shm_object& shadow, shm_object* child) noexcept
 {
     auto* slab = shadow.children.get();
     if (slab != nullptr && child_slab_find(*slab, child) >= 0) {
         return true;
     }
     const std::uint16_t cur_count = (slab == nullptr) ? 0U : slab->slot_count;
-    if (!ensure_child_capacity_for_high_level(alloc, shadow, slab,
-                                              static_cast<std::uint16_t>(cur_count + 1))) {
+    if (!ensure_child_capacity_for_high_level(alloc, shadow, slab, static_cast<std::uint16_t>(cur_count + 1))) {
         return false;
     }
     // child slot push：journal 编码 sub_op::child_slot_add
@@ -1105,16 +1054,14 @@ bool shm_object_add_child(shm_allocator& alloc, shm_object& shadow,
     //   saved_a = predict_offset_ptr_bits(&slab->slots[cur_count], child)
     //   saved_b = static_cast<uint64_t>(cur_count)  -- recover 用作 slot_index
     //   extra   = 0; misc = 0
-    const std::uint64_t saved_key =
-        predict_offset_ptr_bits(&slab->slots[cur_count], child);
+    const std::uint64_t saved_key = predict_offset_ptr_bits(&slab->slots[cur_count], child);
 
-    mc::shm::container::journal_begin(
-        shadow.journal, mc::shm::container::container_op::update,
-        rel_offset(&shadow, slab), sub_op::child_slot_add, saved_key,
-        static_cast<std::uint64_t>(cur_count), 0, 0);
+    mc::shm::container::journal_begin(shadow.journal, mc::shm::container::container_op::update,
+                                      rel_offset(&shadow, slab), sub_op::child_slot_add, saved_key,
+                                      static_cast<std::uint64_t>(cur_count), 0, 0);
 
     slab->slots[cur_count] = child;
-    slab->slot_count = static_cast<std::uint16_t>(cur_count + 1);
+    slab->slot_count       = static_cast<std::uint16_t>(cur_count + 1);
     child_slab_refresh_crc(*slab);
     mc::shm::container::journal_end(shadow.journal);
     return true;
@@ -1165,10 +1112,9 @@ const property_slot* find_slot(const shm_object& shadow, std::string_view key) n
     return idx < 0 ? nullptr : &slab->slots[idx];
 }
 
-}  // namespace
+} // namespace
 
-bool shm_object_get_property_int64(const shm_object& shadow, std::string_view key,
-                                      std::int64_t& out) noexcept
+bool shm_object_get_property_int64(const shm_object& shadow, std::string_view key, std::int64_t& out) noexcept
 {
     const auto* slot = find_slot(shadow, key);
     if (slot == nullptr || slot->type != property_type_tag::int64) {
@@ -1178,8 +1124,7 @@ bool shm_object_get_property_int64(const shm_object& shadow, std::string_view ke
     return true;
 }
 
-bool shm_object_get_property_double(const shm_object& shadow, std::string_view key,
-                                       double& out) noexcept
+bool shm_object_get_property_double(const shm_object& shadow, std::string_view key, double& out) noexcept
 {
     const auto* slot = find_slot(shadow, key);
     if (slot == nullptr || slot->type != property_type_tag::double_) {
@@ -1189,8 +1134,8 @@ bool shm_object_get_property_double(const shm_object& shadow, std::string_view k
     return true;
 }
 
-bool shm_object_get_property_blob(const shm_object& shadow, std::string_view key,
-                                     std::string_view& out, property_type_tag& tag) noexcept
+bool shm_object_get_property_blob(const shm_object& shadow, std::string_view key, std::string_view& out,
+                                  property_type_tag& tag) noexcept
 {
     const auto* slot = find_slot(shadow, key);
     if (slot == nullptr) {
@@ -1247,10 +1192,7 @@ shm_byte_string* decode_byte_string(void* field, std::uint64_t bits) noexcept
     return offset_ptr_decode<shm_byte_string>(field, diff);
 }
 
-// W3 byte_string 字段 recover：redo 仅 refresh CRC；undo 写回旧 m_offset 位
-// 模式 + destroy 新 byte_string + refresh CRC
-void recover_byte_string_replace(shm_allocator&                       alloc,
-                                 shm_object&                                   shadow,
+void recover_byte_string_replace(shm_allocator& alloc, shm_object& shadow,
                                  const mc::shm::container::container_journal_view& v) noexcept
 {
     void* const         field = shadow_at(shadow, v.target_node_offset);
@@ -1267,9 +1209,7 @@ void recover_byte_string_replace(shm_allocator&                       alloc,
     }
 }
 
-// W3 offset_ptr (parent/service) recover：纯字段切换，无 ownership
-void recover_offset_ptr_replace(shm_object&                                   shadow,
-                                const mc::shm::container::container_journal_view& v) noexcept
+void recover_offset_ptr_replace(shm_object& shadow, const mc::shm::container::container_journal_view& v) noexcept
 {
     void* const         field = shadow_at(shadow, v.target_node_offset);
     const std::uint64_t cur   = read_offset_ptr_bits(field);
@@ -1279,18 +1219,15 @@ void recover_offset_ptr_replace(shm_object&                                   sh
     shm_object_refresh_crc(shadow);
 }
 
-// W2 slab 切换 recover：
+// slab 替换 recover：
 //   - 若 shadow.<slab field>.m_offset == saved_b → commit 生效。旧 slab 未来得及
 //     destroy，但旧 slab 仍持有对相同 byte_string 的双引用 → 安全 destroy 旧
 //     （clear_for_handoff 防止 free byte_string）
 //   - 若 == saved_a → undo: free 新 slab（同样 clear_for_handoff，旧 slab 仍持有 ownership）
 template <typename SlabT, typename ClearFn, typename DestroyFn>
-void recover_slab_replace(shm_allocator&                       alloc,
-                          shm_object&                                   shadow,
-                          shm_ptr<SlabT>&             field,
-                          const mc::shm::container::container_journal_view& v,
-                          ClearFn                                       clear_fn,
-                          DestroyFn                                     destroy_fn) noexcept
+void recover_slab_replace(shm_allocator& alloc, shm_object& shadow, shm_ptr<SlabT>& field,
+                          const mc::shm::container::container_journal_view& v, ClearFn clear_fn,
+                          DestroyFn destroy_fn) noexcept
 {
     void* const         field_addr = &field;
     const std::uint64_t cur        = read_offset_ptr_bits(field_addr);
@@ -1333,9 +1270,8 @@ property_slab* property_slab_for_slot(shm_object& shadow, property_slot& slot) n
     return nullptr;
 }
 
-// W1 property_value (covers simple + blob) recover
-void recover_property_value(shm_allocator&                       alloc,
-                            shm_object&                                   shadow,
+// property_value (covers simple + blob) recover
+void recover_property_value(shm_allocator& alloc, shm_object& shadow,
                             const mc::shm::container::container_journal_view& v) noexcept
 {
     auto* const slot_ptr = static_cast<property_slot*>(shadow_at(shadow, v.target_node_offset));
@@ -1348,8 +1284,8 @@ void recover_property_value(shm_allocator&                       alloc,
         return;
     }
 
-    auto* const slab = property_slab_for_slot(shadow, slot);
-    const std::uint64_t cur = read_slot_value_bits(slot);
+    auto* const         slab       = property_slab_for_slot(shadow, slot);
+    const std::uint64_t cur        = read_slot_value_bits(slot);
     const bool          is_blob_op = (v.anchor_offset == sub_op::property_value_blob);
     if (cur == v.saved_link_b && slot.type == ev.new_type) {
         // commit 生效；如果是 blob 且 旧 type==blob，旧 byte_string 可能未来得及
@@ -1363,8 +1299,7 @@ void recover_property_value(shm_allocator&                       alloc,
         }
     } else {
         // undo
-        if (is_blob_op && (ev.new_type == property_type_tag::string
-                           || ev.new_type == property_type_tag::bytes)) {
+        if (is_blob_op && (ev.new_type == property_type_tag::string || ev.new_type == property_type_tag::bytes)) {
             // 新 byte_string 已分配但未引用（或者引用了但要 undo）→ destroy
             std::int64_t new_diff = 0;
             std::memcpy(&new_diff, &v.saved_link_b, sizeof(new_diff));
@@ -1379,16 +1314,15 @@ void recover_property_value(shm_allocator&                       alloc,
     }
 }
 
-// W1 property_slot_create recover：判断 slot_count 是否已增到 idx+1 + slot.key_hash 是否一致
-void recover_property_slot_create(shm_allocator&                       alloc,
-                                  shm_object&                                   shadow,
+// property_slot_create recover：判断 slot_count 是否已增到 idx+1 + slot.key_hash 是否一致
+void recover_property_slot_create(shm_allocator& alloc, shm_object& shadow,
                                   const mc::shm::container::container_journal_view& v) noexcept
 {
-    auto* const slab = static_cast<property_slab*>(shadow_at(shadow, v.target_node_offset));
-    const auto  ev   = unpack_property_extra(v.extra);
-    const std::uint16_t idx = ev.slot_index;
+    auto* const         slab = static_cast<property_slab*>(shadow_at(shadow, v.target_node_offset));
+    const auto          ev   = unpack_property_extra(v.extra);
+    const std::uint16_t idx  = ev.slot_index;
 
-    auto& slot = slab->slots[idx];
+    auto&      slot      = slab->slots[idx];
     const bool committed = (slab->slot_count > idx) && (slot.key_hash == ev.key_hash);
     if (committed) {
         property_slab_refresh_crc(*slab);
@@ -1410,9 +1344,8 @@ void recover_property_slot_create(shm_allocator&                       alloc,
     property_slab_refresh_crc(*slab);
 }
 
-// W2 child_slot_add recover：判断 slab.slot_count 是否已增到 idx+1
-void recover_child_slot_add(shm_object& shadow,
-                            const mc::shm::container::container_journal_view& v) noexcept
+// child_slot_add recover：判断 slab.slot_count 是否已增到 idx+1
+void recover_child_slot_add(shm_object& shadow, const mc::shm::container::container_journal_view& v) noexcept
 {
     auto* const         slab = static_cast<child_slab*>(shadow_at(shadow, v.target_node_offset));
     const std::uint16_t idx  = static_cast<std::uint16_t>(v.saved_link_b);
@@ -1426,7 +1359,7 @@ void recover_child_slot_add(shm_object& shadow,
     }
 }
 
-}  // namespace
+} // namespace
 
 void shm_object_journal_recover(shm_allocator& alloc, shm_object& shadow) noexcept
 {
@@ -1450,18 +1383,18 @@ void shm_object_journal_recover(shm_allocator& alloc, shm_object& shadow) noexce
             recover_property_slot_create(alloc, shadow, v);
             break;
         case sub_op::property_slab_replace:
-            recover_slab_replace(alloc, shadow, shadow.properties, v,
-                                 [](property_slab& s) noexcept { clear_property_slab_for_handoff(s); },
-                                 [](shm_allocator& a, property_slab* s) noexcept {
-                                     property_slab_destroy(a, s);
-                                 });
+            recover_slab_replace(alloc, shadow, shadow.properties, v, [](property_slab& s) noexcept {
+                clear_property_slab_for_handoff(s);
+            }, [](shm_allocator& a, property_slab* s) noexcept {
+                property_slab_destroy(a, s);
+            });
             break;
         case sub_op::child_slab_replace:
-            recover_slab_replace(alloc, shadow, shadow.children, v,
-                                 [](child_slab& s) noexcept { clear_child_slab_for_handoff(s); },
-                                 [](shm_allocator& a, child_slab* s) noexcept {
-                                     child_slab_destroy(a, s);
-                                 });
+            recover_slab_replace(alloc, shadow, shadow.children, v, [](child_slab& s) noexcept {
+                clear_child_slab_for_handoff(s);
+            }, [](shm_allocator& a, child_slab* s) noexcept {
+                child_slab_destroy(a, s);
+            });
             break;
         case sub_op::child_slot_add:
             recover_child_slot_add(shadow, v);
@@ -1473,4 +1406,4 @@ void shm_object_journal_recover(shm_allocator& alloc, shm_object& shadow) noexce
     mc::shm::container::journal_end(shadow.journal);
 }
 
-}  // namespace mc::engine
+} // namespace mc::engine

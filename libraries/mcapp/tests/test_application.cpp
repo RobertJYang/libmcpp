@@ -478,4 +478,200 @@ TEST_F(application_test, service_can_call_outbound_dbus_via_connection)
     EXPECT_TRUE(found_self) << "service 的 request_name 应体现在 daemon 的 ListNames 里: " << service_name;
 }
 
+// ---- DBus error mapping ----
+
+TEST_F(application_test, error_name_on_unknown_object_is_dbus_mapped)
+{
+    constexpr mc::string_view service_name = "mc.test.application.echo";
+
+    auto svc = start_echo_service(service_name);
+    ASSERT_NE(svc, nullptr);
+
+    auto peer_conn = open_test_connection("");
+
+    // 调用一个不存在的 object path，应触发 unknown_object 错误
+    auto call = mc::dbus::message::new_method_call(
+        service_name, mc::string_view("/mc/test/no/such/object"),
+        mc::string_view("org.freedesktop.DBus.Properties"), mc::string_view("Get"));
+    {
+        auto writer = call.writer();
+        writer.write_variant_value(mc::variant(mc::string("org.test.application.Echo")));
+        writer.write_variant_value(mc::variant(mc::string("Greeting")));
+    }
+    auto reply = call_sync(peer_conn, std::move(call));
+
+    ASSERT_TRUE(reply.is_error()) << "expected error, got type=" << static_cast<int>(reply.get_type());
+    auto err_name = reply.get_error_name();
+    EXPECT_EQ(err_name, std::string_view("org.freedesktop.DBus.Error.UnknownObject"))
+        << "engine 错误名 mc.engine.* 应映射为 org.freedesktop.DBus.Error.*";
+}
+
+TEST_F(application_test, error_name_on_unknown_method_is_dbus_mapped)
+{
+    constexpr mc::string_view service_name = "mc.test.application.echo";
+
+    auto svc = start_echo_service(service_name);
+    ASSERT_NE(svc, nullptr);
+
+    auto peer_conn = open_test_connection("");
+
+    // 调用已有 object 但不存在的方法，应触发 unknown_method 错误
+    auto call = mc::dbus::message::new_method_call(
+        service_name, mc::string_view("/mc/test/application/echo"),
+        mc::string_view("org.test.application.Echo"), mc::string_view("NonExistentMethod"));
+    auto reply = call_sync(peer_conn, std::move(call));
+
+    ASSERT_TRUE(reply.is_error()) << "expected error, got type=" << static_cast<int>(reply.get_type());
+    auto err_name = reply.get_error_name();
+    EXPECT_EQ(err_name, std::string_view("org.freedesktop.DBus.Error.UnknownMethod"))
+        << "engine 错误名 mc.engine.* 应映射为 org.freedesktop.DBus.Error.*";
+}
+
+TEST_F(application_test, error_name_on_unknown_interface_is_dbus_mapped)
+{
+    constexpr mc::string_view service_name = "mc.test.application.echo";
+
+    auto svc = start_echo_service(service_name);
+    ASSERT_NE(svc, nullptr);
+
+    auto peer_conn = open_test_connection("");
+
+    // 调用已有 object 但不存在的 interface，应触发 unknown_interface 错误
+    auto call = mc::dbus::message::new_method_call(
+        service_name, mc::string_view("/mc/test/application/echo"),
+        mc::string_view("org.no.such.Interface"), mc::string_view("Ping"));
+    auto reply = call_sync(peer_conn, std::move(call));
+
+    ASSERT_TRUE(reply.is_error()) << "expected error, got type=" << static_cast<int>(reply.get_type());
+    auto err_name = reply.get_error_name();
+    EXPECT_EQ(err_name, std::string_view("org.freedesktop.DBus.Error.UnknownInterface"))
+        << "engine 错误名 mc.engine.* 应映射为 org.freedesktop.DBus.Error.*";
+}
+
+TEST_F(application_test, properties_get_all_unknown_interface_returns_error)
+{
+    constexpr mc::string_view service_name = "mc.test.application.echo";
+
+    auto svc = start_echo_service(service_name);
+    ASSERT_NE(svc, nullptr);
+
+    auto peer_conn = open_test_connection("");
+    auto call = make_call(service_name, mc::string_view("org.freedesktop.DBus.Properties"), mc::string_view("GetAll"));
+    {
+        auto writer = call.writer();
+        writer.write_variant_value(mc::variant(mc::string("org.no.such.Interface")));
+    }
+    auto reply = call_sync(peer_conn, std::move(call));
+
+    // 未知 interface 应返回 UnknownInterface 错误，而非静默返回空 dict
+    ASSERT_TRUE(reply.is_error()) << "GetAll on unknown interface should return error, got type="
+                                  << static_cast<int>(reply.get_type());
+    EXPECT_EQ(reply.get_error_name(), std::string_view("org.freedesktop.DBus.Error.UnknownInterface"));
+}
+
+TEST_F(application_test, introspect_intermediate_path_lists_child_segments)
+{
+    constexpr mc::string_view service_name = "mc.test.application.echo";
+
+    auto svc = start_echo_service(service_name);
+    ASSERT_NE(svc, nullptr);
+
+    auto peer_conn = open_test_connection("");
+
+    // /mc/test/application 上无注册对象，但其下方挂有 /mc/test/application/echo，
+    // 按 DBus 规范应返回最小节点 XML，列出下一段子节点名 echo。
+    auto call = mc::dbus::message::new_method_call(service_name, mc::string_view("/mc/test/application"),
+                                                   mc::string_view("org.freedesktop.DBus.Introspectable"),
+                                                   mc::string_view("Introspect"));
+    auto reply = call_sync(peer_conn, std::move(call));
+
+    ASSERT_TRUE(reply.is_method_return()) << "Introspect on intermediate path should return XML, got type="
+                                          << static_cast<int>(reply.get_type());
+    auto args = reply.read_args();
+    ASSERT_EQ(args.size(), 1U);
+    ASSERT_TRUE(args.front().is_string());
+    auto xml = args.front().as<mc::string>();
+    EXPECT_NE(xml.find("<node name=\"echo\"/>"), mc::string::npos)
+        << "中间路径 Introspect 应包含 <node name=\"echo\"/>: " << xml;
+    EXPECT_EQ(xml.find("<interface"), mc::string::npos) << "中间路径 Introspect 不应列出接口: " << xml;
+}
+
+TEST_F(application_test, introspect_unknown_path_without_descendants_returns_unknown_object)
+{
+    constexpr mc::string_view service_name = "mc.test.application.echo";
+
+    auto svc = start_echo_service(service_name);
+    ASSERT_NE(svc, nullptr);
+
+    auto peer_conn = open_test_connection("");
+
+    // 该 path 既未注册对象，下方也无任何已注册子对象，应返回 UnknownObject 错误。
+    auto call = mc::dbus::message::new_method_call(
+        service_name, mc::string_view("/mc/test/application/echo/nonexistent_child"),
+        mc::string_view("org.freedesktop.DBus.Introspectable"), mc::string_view("Introspect"));
+    auto reply = call_sync(peer_conn, std::move(call));
+
+    ASSERT_TRUE(reply.is_error()) << "Introspect on path with neither object nor descendants should error";
+    EXPECT_EQ(reply.get_error_name(), std::string_view("org.freedesktop.DBus.Error.UnknownObject"));
+}
+
+// ---- 业务信号 match_rule 订阅示例 ----
+
+static mc::engine::message make_signal_msg(mc::string_view path, mc::string_view interface_name,
+                                           mc::string_view member_name, const mc::variants& args,
+                                           mc::string_view signature)
+{
+    mc::engine::message msg;
+    msg.header.type           = mc::engine::message_type::signal;
+    msg.header.path           = mc::string(path);
+    msg.header.interface_name = mc::string(interface_name);
+    msg.header.member_name    = mc::string(member_name);
+    msg.body                  = mc::engine::make_payload<mc::engine::signal_payload>(signature, mc::variants(args));
+    return msg;
+}
+
+TEST_F(application_test, business_signal_match_rule_subscribe_and_receive)
+{
+    constexpr mc::string_view service_name = "mc.test.application.echo";
+
+    auto svc = start_echo_service(service_name);
+    ASSERT_NE(svc, nullptr);
+
+    // 构建 match_rule：匹配 org.test.application.Echo 的 Greeted 信号
+    mc::engine::match::match_rule rule;
+    rule.type           = "signal";
+    rule.interface_name = mc::string(mc::string_view("org.test.application.Echo"));
+    rule.member_name    = mc::string(mc::string_view("Greeted"));
+
+    // 通过 add_match 订阅
+    std::mutex                         mutex;
+    std::condition_variable            cv;
+    std::optional<mc::engine::message> captured;
+    auto id = svc->add_match(rule, mc::engine::filter_spec{}, [&](const mc::engine::message& msg) {
+        std::lock_guard lock(mutex);
+        captured = msg;
+        cv.notify_all();
+    });
+    ASSERT_NE(id, 0u);
+
+    // 发送 Greeted 信号
+    auto sig = make_signal_msg("/mc/test/application/echo", "org.test.application.Echo", "Greeted",
+                               mc::variants{mc::variant(mc::string("world"))}, "s");
+    svc->emit(sig);
+
+    // 等待 callback 触发
+    {
+        std::unique_lock lock(mutex);
+        ASSERT_TRUE(cv.wait_for(lock, std::chrono::seconds(2), [&]() {
+            return captured.has_value();
+        }));
+    }
+    ASSERT_TRUE(captured.has_value());
+    EXPECT_EQ(captured->header.type, mc::engine::message_type::signal);
+    EXPECT_EQ(captured->header.interface_name, "org.test.application.Echo");
+    EXPECT_EQ(captured->header.member_name, "Greeted");
+
+    svc->remove_match(id);
+}
+
 } // namespace

@@ -93,6 +93,9 @@ MC_API bool shm_object_set_property_double(shm_allocator& alloc, shm_object& sha
 MC_API bool shm_object_set_property_blob(shm_allocator& alloc, shm_object& shadow,
                                          std::string_view key, std::string_view blob,
                                          property_type_tag tag) noexcept;
+// 写入 nocache marker slot（type=null, flags=nocache），表示该属性存在但不可缓存
+MC_API bool shm_object_set_property_nocache_marker(shm_allocator& alloc, shm_object& shadow,
+                                                    std::string_view key) noexcept;
 MC_API bool shm_object_remove_property(shm_allocator& alloc, shm_object& shadow,
                                        std::string_view key) noexcept;
 

@@ -16,9 +16,13 @@
 #include <mc/dict.h>
 #include <mc/engine/match.h>
 #include <mc/engine/message.h>
+#include <mc/engine/proxy.h>
+#include <mc/future.h>
 #include <mc/object.h>
 #include <mc/string.h>
 #include <mc/string_view.h>
+#include <mc/time.h>
+#include <mc/variant.h>
 
 #include <map>
 #include <memory>
@@ -89,7 +93,55 @@ public:
     void     remove_match(match_id id) const;
     void     dispatch_event(const message& msg) const;
 
+    message             send_with_reply(message request, mc::milliseconds timeout = mc::milliseconds(5000)) const;
+    mc::future<message> async_send_with_reply(message request, mc::milliseconds timeout = mc::milliseconds(5000)) const;
+
+    void send(message request) const;
+
+    mc::variant call(mc::string_view path, mc::string_view service_name, mc::string_view interface_name,
+                     mc::string_view method_name, const mc::variants& args = {}, mc::string_view signature = {},
+                     mc::milliseconds timeout = mc::milliseconds(5000)) const;
+
     static mc::string resolve_object_path(mc::string_view path_pattern, const abstract_object& obj);
+
+    template <typename ProxyT>
+    std::unique_ptr<ProxyT> get_proxy(mc::string_view path, proxy_policy policy = {}) const
+    {
+        auto seed = mc::engine::make_proxy_seed(path, policy);
+        if (seed.is_valid()) {
+            auto proxy = std::make_unique<ProxyT>();
+            proxy->bind_proxy(seed);
+            return proxy;
+        }
+        return nullptr;
+    }
+
+    template <typename ProxyT>
+    std::unique_ptr<ProxyT> get_proxy(mc::string_view path, mc::string_view service_hint,
+                                      proxy_policy policy = {}) const
+    {
+        auto seed = mc::engine::make_proxy_seed(path, service_hint, policy);
+        if (seed.is_valid()) {
+            auto proxy = std::make_unique<ProxyT>();
+            proxy->bind_proxy(seed);
+            return proxy;
+        }
+
+        if (!service_hint.empty()) {
+            mc::engine::object_proxy_seed remote_seed;
+            remote_seed.ref.path    = mc::string(path);
+            remote_seed.ref.service = mc::string(service_hint);
+            remote_seed.svc         = this;
+            remote_seed.resolver    = mc::engine::make_default_proxy_shm_resolver();
+            remote_seed.policy      = policy;
+
+            auto proxy = std::make_unique<ProxyT>();
+            proxy->bind_proxy(remote_seed);
+            return proxy;
+        }
+
+        return nullptr;
+    }
 
 protected:
     virtual bool on_init(dict args);

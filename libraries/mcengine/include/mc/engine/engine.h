@@ -30,6 +30,8 @@ using table_ptr = mc::db::table_ptr;
 class object_table;
 
 class abstract_object;
+class endpoint_service;
+struct engine_options;
 class service;
 
 class MC_API engine {
@@ -38,6 +40,8 @@ public:
 
     static engine& get_instance();
     static void    reset_for_test();
+    static bool    init(const engine_options& options);
+    static void    shutdown();
 
     // fork 后复位：忘掉继承的 service registry / match table，由上层重新装填。
     // 不触发 SHM endpoint 状态变更，避免污染父进程。
@@ -76,6 +80,9 @@ public:
     static match::filter_backend_ptr find_filter_backend(std::uint32_t backend_type);
 
     static void route_inbound(const message& msg);
+    static void publish(const message& msg);
+
+    static endpoint_service* get_endpoint_service() noexcept;
 
     static void     register_service(service* svc);
     static void     unregister_service(service* svc);

@@ -87,6 +87,7 @@ public:
 
     void ensure_start();
     void start_impl();
+    void reset_after_fork();
 
     thread_pool& io() noexcept
     {
@@ -256,6 +257,20 @@ void runtime_context::impl::join()
     dlog("runtime_context stopped completely");
 }
 
+void runtime_context::impl::reset_after_fork()
+{
+    // fork 后子进程不能 join 父进程线程池。
+    auto* old_io   = m_io_pool.release();
+    auto* old_work = m_work_pool.release();
+    (void)old_io;
+    (void)old_work;
+
+    auto& data = m_data.unsafe_get_data();
+    data.state = state_t::uninitialized;
+
+    dlog("runtime_context reset after fork: released inherited thread pools");
+}
+
 bool runtime_context::impl::is_stopped() const noexcept
 {
     auto& state = m_data.unsafe_get_data().state;
@@ -291,6 +306,11 @@ void runtime_context::stop()
 void runtime_context::join()
 {
     m_impl->join();
+}
+
+void runtime_context::reset_after_fork()
+{
+    m_impl->reset_after_fork();
 }
 
 bool runtime_context::is_stopped() const noexcept

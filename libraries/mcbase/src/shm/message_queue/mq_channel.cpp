@@ -14,8 +14,10 @@
 #include <atomic>
 #include <future>
 #include <mutex>
+#include <unordered_map>
 #include <vector>
 
+#include <mc/future.h>
 #include <mc/runtime.h>
 #include <mc/shm/message_queue/mq_channel.h>
 
@@ -33,6 +35,8 @@ public:
     std::unique_ptr<mc::proto::proto_request>              inbound_request;
     std::mutex                                             owned_send_mutex;
     std::vector<std::unique_ptr<mc::proto::proto_request>> owned_send_requests;
+    std::mutex                                             pending_reply_mutex;
+    std::unordered_map<std::uint64_t, mc::promise<mc::string>> pending_replies;
 
     mq_proto* mq_proto_layer{nullptr};
 
@@ -181,6 +185,58 @@ void mq_channel::send_owned(std::unique_ptr<mc::proto::proto_request> req)
     });
 }
 
+mc::future<mc::string> mq_channel::register_pending_reply(std::uint64_t key, mc::milliseconds timeout,
+                                                          mc::string timeout_payload)
+{
+    auto promise = mc::make_promise<mc::string>(mc::runtime::get_io_executor());
+    auto future  = promise.get_future();
+    {
+        std::lock_guard lock(m_impl->pending_reply_mutex);
+        m_impl->pending_replies.emplace(key, std::move(promise));
+    }
+
+    auto self = m_impl;
+    mc::delay(timeout, mc::runtime::get_io_executor()).then([self, key, timeout_payload = std::move(timeout_payload)]() mutable {
+        if (!self) {
+            return;
+        }
+        mc::promise<mc::string> pending;
+        {
+            std::lock_guard lock(self->pending_reply_mutex);
+            auto            it = self->pending_replies.find(key);
+            if (it == self->pending_replies.end()) {
+                return;
+            }
+            pending = std::move(it->second);
+            self->pending_replies.erase(it);
+        }
+        pending.set_value(std::move(timeout_payload));
+    });
+
+    return future;
+}
+
+bool mq_channel::complete_pending_reply(std::uint64_t key, mc::string payload)
+{
+    mc::promise<mc::string> pending;
+    {
+        std::lock_guard lock(m_impl->pending_reply_mutex);
+        auto            it = m_impl->pending_replies.find(key);
+        if (it == m_impl->pending_replies.end()) {
+            return false;
+        }
+        pending = std::move(it->second);
+        m_impl->pending_replies.erase(it);
+    }
+    pending.set_value(std::move(payload));
+    return true;
+}
+
+void mq_channel::cancel_pending_reply(std::uint64_t key, mc::string payload)
+{
+    (void)complete_pending_reply(key, std::move(payload));
+}
+
 void mq_channel::set_protocol(mc::proto::protocol* proto)
 {
     m_impl->protocol = proto;
@@ -252,6 +308,10 @@ void mq_channel::stop()
     m_impl->started.store(false, std::memory_order_release);
     m_impl->receive_epoch.fetch_add(1, std::memory_order_acq_rel);
     impl::drain_executor(m_impl, m_impl->send_lane);
+    {
+        std::lock_guard lock(m_impl->pending_reply_mutex);
+        m_impl->pending_replies.clear();
+    }
 
     auto* transport = m_impl->transport_proto_layer.exchange(nullptr, std::memory_order_acq_rel);
     if (transport != nullptr) {

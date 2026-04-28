@@ -37,6 +37,10 @@
 
 namespace mc::reflect {
 
+#ifndef MC_REFLECT_FLAG_READONLY
+#define MC_REFLECT_FLAG_READONLY 0x08 // 属性只读
+#endif
+
 // 标签类型 - 用于区分不同类型的成员
 struct property_tag {};
 struct method_tag {};
@@ -109,10 +113,10 @@ enum member_info_type {
 struct member_info_base {
     mc::string_view name;
     // 与 name 对应的 quark
-    mc::quark       name_quark{};
-    uint32_t        flags;           // 扩展 flags，用于存储自定义其他信息
-    uint32_t        base_offset = 0; // 如果该反射信息表示的是其他类的基类，则该值为基类相对于子类基址的偏移量，否则为 0
-    uint64_t        data;            // 扩展数据，用于存储自定义其他信息
+    mc::quark name_quark{};
+    uint32_t  flags;           // 扩展 flags，用于存储自定义其他信息
+    uint32_t  base_offset = 0; // 如果该反射信息表示的是其他类的基类，则该值为基类相对于子类基址的偏移量，否则为 0
+    uint64_t  data;            // 扩展数据，用于存储自定义其他信息
 
     constexpr member_info_base(mc::string_view n) : name(n), name_quark(), flags(0), base_offset(0), data(0)
     {}
@@ -188,6 +192,11 @@ struct property_type_info : public member_info_base {
     virtual mc::string_view get_signature() const                                       = 0;
     virtual mc::variant     get_value_erased(const void* obj) const                     = 0;
     virtual void            set_value_erased(void* obj, const mc::variant& value) const = 0;
+
+    bool is_writable() const noexcept
+    {
+        return !has_flags(MC_REFLECT_FLAG_READONLY);
+    }
 
     // 使用反射信息基类直接调用对象属性，用于动态反射类型擦除后使用
     mc::variant get_value(const void* obj) const;
@@ -378,7 +387,11 @@ struct computed_property_info : public property_type_info {
 
     constexpr computed_property_info(mc::string_view n, get_function_type getter, set_function_type setter = nullptr)
         : property_type_info(n), m_getter(getter), m_setter(setter)
-    {}
+    {
+        if constexpr (std::is_same_v<set_function_type, void*>) {
+            this->set_flags(MC_REFLECT_FLAG_READONLY);
+        }
+    }
 
     // 获取属性值
     mc::variant get_value(const C& obj) const
@@ -440,10 +453,9 @@ struct computed_property_info : public property_type_info {
 
     member_info_base* clone() const override
     {
-        auto* p        = new computed_property_info<C, Getter, Setter>(this->name, m_getter, m_setter);
-        p->name_quark  = this->name_quark.valid()
-                             ? this->name_quark
-                             : mc::quark{mc::detail::intern_trusted_literal(this->name)};
+        auto* p = new computed_property_info<C, Getter, Setter>(this->name, m_getter, m_setter);
+        p->name_quark =
+            this->name_quark.valid() ? this->name_quark : mc::quark{mc::detail::intern_trusted_literal(this->name)};
         p->flags       = this->flags;
         p->base_offset = this->base_offset;
         p->data        = this->data;
@@ -942,11 +954,11 @@ struct method_registration_info {
     using tag_type                     = method_tag;
 
     mc::string_view              name;
-    uint32_t                     flags                  = 0;
-    uint32_t                     base_offset            = 0;
-    uint64_t                     data                   = 0;
-    create_runtime_method_func_t m_create_method        = nullptr;
-    const void*                  m_function_data        = nullptr;
+    uint32_t                     flags           = 0;
+    uint32_t                     base_offset     = 0;
+    uint64_t                     data            = 0;
+    create_runtime_method_func_t m_create_method = nullptr;
+    const void*                  m_function_data = nullptr;
 
     constexpr method_registration_info(mc::string_view n, create_runtime_method_func_t create_method,
                                        const void* function_data)
@@ -1123,10 +1135,9 @@ struct base_class_info : public base_class_info_base<C> {
 
     member_info_base* clone() const override
     {
-        auto* p        = new base_class_info<C, BaseT>(this->name);
-        p->name_quark  = this->name_quark.valid()
-                             ? this->name_quark
-                             : mc::quark{mc::detail::intern_trusted_literal(this->name)};
+        auto* p = new base_class_info<C, BaseT>(this->name);
+        p->name_quark =
+            this->name_quark.valid() ? this->name_quark : mc::quark{mc::detail::intern_trusted_literal(this->name)};
         p->flags       = this->flags;
         p->base_offset = this->base_offset;
         p->data        = this->data;

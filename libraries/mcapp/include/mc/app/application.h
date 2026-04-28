@@ -24,10 +24,6 @@
 #include <unordered_map>
 #include <vector>
 
-namespace mc::engine {
-class endpoint_service;
-} // namespace mc::engine
-
 namespace mc::app {
 
 class MC_API application : public base_app {
@@ -99,7 +95,6 @@ private:
     bool                                         m_runtime_started{false};
     int                                          m_exit_code{0};
 
-    std::unique_ptr<mc::engine::endpoint_service> m_endpoint_service;
 };
 
 } // namespace mc::app

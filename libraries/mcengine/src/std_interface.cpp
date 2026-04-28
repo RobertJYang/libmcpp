@@ -6,13 +6,19 @@
  *         http://license.coscl.org.cn/MulanPSL2
  */
 
+#include <mc/engine/context.h>
 #include <mc/engine/errors/std_errors.h>
 #include <mc/engine/metadata.h>
 #include <mc/engine/property.h>
+#include <mc/engine/service.h>
 #include <mc/engine/std_interface.h>
+#include <mc/filesystem.h>
+#include <mc/im/key_buffer.h>
 #include <mc/quark.h>
 #include <mc/reflect/signature.h>
 #include <mc/string.h>
+
+#include <set>
 
 namespace mc::engine {
 
@@ -62,9 +68,15 @@ std::optional<standard_interfaces::invoke_hit> invoke_standard_interface(abstrac
         MC_REPLY_ERROR_AND_THROW(errors::unknown_method, ("method", method_name));
     }
 
-    // 压入调用栈：让 Peer/Properties/Introspectable/ObjectManager 通过
-    // object_call_stack::top_value() 拿到当前对象
-    scoped_object_context ctx(object.get_service(), object);
+    scoped_object_context obj_ctx(object.get_service(), object);
+
+    // 标准接口错误需要当前调用上下文。
+    context               call_ctx(*object.get_service(), object);
+    detail::variants_call call_info{args, target.get_interface_name(), method_name};
+    call_info.path = object.get_object_path();
+    call_ctx.set_call_info(call_info);
+    context_stack::context ctx_guard(object.get_service(), call_ctx);
+
     return standard_interfaces::invoke_hit{target.invoke(method_name, args), method->get_result_signature()};
 }
 
@@ -107,6 +119,9 @@ mc::dict properties_interface::get_all(mc::string_view interface_name)
     if (object == nullptr) {
         return {};
     }
+    if (!object_has_interface(*object, interface_name)) {
+        MC_REPLY_ERROR_AND_THROW(errors::unknown_interface, ("interface", interface_name));
+    }
     return object->get_all_properties(interface_name, mc::engine::property_options::from_mdb);
 }
 
@@ -121,6 +136,10 @@ void properties_interface::set(mc::string_view interface_name, mc::string_view p
     }
     if (!object->has_property(property_name, interface_name)) {
         MC_REPLY_ERROR_AND_THROW(errors::unknown_property, ("property", property_name));
+    }
+    auto info = object->get_metadata().get_property_info(property_name, interface_name);
+    if (info.item != nullptr && !info.item->is_writable()) {
+        MC_REPLY_ERROR_AND_THROW(errors::property_read_only, ("property", property_name));
     }
     object->set_property(property_name, value, interface_name);
 }
@@ -152,7 +171,9 @@ struct introspect_visitor : metadata_visitor {
         xml_data.append(info->name);
         xml_data += "\" type=\"";
         xml_data.append(info->get_signature());
-        xml_data += "\" access=\"readwrite\" />";
+        xml_data += "\" access=\"";
+        xml_data += info->is_writable() ? "readwrite" : "read";
+        xml_data += "\" />";
     }
 
     void handle(const method_type_info* info) override
@@ -214,8 +235,10 @@ struct introspect_visitor : metadata_visitor {
                 rel =
                     mc::string_view(child_path.data() + self_path.size() + 1, child_path.size() - self_path.size() - 1);
             }
+            auto            slash_pos     = rel.find('/');
+            mc::string_view first_segment = (slash_pos != mc::string_view::npos) ? rel.substr(0, slash_pos) : rel;
             xml_data += "<node name=\"";
-            xml_data.append(rel);
+            xml_data.append(first_segment);
             xml_data += "\"></node>";
         }
     }
@@ -243,6 +266,8 @@ introspectable_interface& introspectable_interface::get_instance()
 mc::string introspectable_interface::introspect()
 {
     auto* object = object_call_stack::top_value();
+    // 无对象上下文时由 try_invoke(svc, nullptr, ...) 经 introspect_intermediate_node 处理中间路径，
+    // 此处不向客户端暴露「部分内容」。
     if (object == nullptr) {
         return {};
     }
@@ -263,6 +288,56 @@ mc::string introspectable_interface::introspect()
     return v.xml_data;
 }
 
+namespace {
+
+// 收集对象表中所有以 path/ 为前缀的对象、其相对 path 的下一段 segment 集合（去重）。
+// 实现：在 by_path 唯一索引（radix）上从 lower_bound(path/) 开始顺序遍历，
+// 直到首个不再匹配 path/ 前缀的项；O(log n + k) 量级，k 为命中数。
+std::set<mc::string> collect_child_segments(service_object_table& table, mc::string_view path)
+{
+    std::set<mc::string> segments;
+    mc::string           prefix = mc::string(path);
+    prefix += '/';
+    table.with_index<by_path>([&](auto& idx) {
+        for (auto it = idx.lower_bound(prefix); !it.is_end(); ++it) {
+            mc::string_view k = it.key();
+            if (!mc::im::has_prefix(k, mc::string_view(prefix))) {
+                break;
+            }
+            mc::string_view rest      = k.substr(prefix.size());
+            auto            slash_pos = rest.find('/');
+            mc::string_view seg       = (slash_pos == mc::string_view::npos) ? rest : rest.substr(0, slash_pos);
+            if (!seg.empty()) {
+                segments.emplace(seg);
+            }
+        }
+    });
+    return segments;
+}
+
+} // namespace
+
+mc::string introspectable_interface::introspect_intermediate_node(const service& svc, mc::string_view path)
+{
+    auto& table    = const_cast<service&>(svc).get_object_table();
+    auto  segments = collect_child_segments(table, path);
+    if (segments.empty()) {
+        return {};
+    }
+
+    mc::string xml;
+    xml += "<!DOCTYPE node PUBLIC \"-//freedesktop//DTD D-BUS Object Introspection 1.0//EN\" "
+           "\"http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd\">\n";
+    xml += "<node>\n";
+    for (const auto& seg : segments) {
+        xml += "  <node name=\"";
+        xml.append(seg);
+        xml += "\"/>\n";
+    }
+    xml += "</node>\n";
+    return xml;
+}
+
 //===--------------------------------------------------------------------------------===//
 // org.freedesktop.DBus.Peer
 //===--------------------------------------------------------------------------------===//
@@ -278,9 +353,21 @@ void peer_interface::ping()
 
 mc::string peer_interface::get_machine_id()
 {
-    // 标准 dbus-daemon 会返回 /etc/machine-id，mcapp 这里先返回空字符串（业务侧
-    // 对该方法无依赖）。TODO: 如需要可读取 /etc/machine-id 或 boot-id 并缓存。
-    return {};
+    // 读取 /etc/machine-id（标准 systemd/dbus 约定），结果缓存。
+    static mc::string s_machine_id;
+    static bool       s_initialized = false;
+    if (!s_initialized) {
+        s_initialized = true;
+        if (auto content = mc::filesystem::read_file("/etc/machine-id")) {
+            // 去除尾部换行符
+            auto sv = content->view();
+            while (!sv.empty() && (sv.back() == '\n' || sv.back() == '\r')) {
+                sv = sv.substr(0, sv.size() - 1);
+            }
+            s_machine_id = mc::string(sv);
+        }
+    }
+    return s_machine_id;
 }
 
 //===--------------------------------------------------------------------------------===//
@@ -357,11 +444,23 @@ object_manager_interface::objects_type object_manager_interface::get_managed_obj
 // standard_interfaces::try_invoke
 //===--------------------------------------------------------------------------------===//
 
-std::optional<standard_interfaces::invoke_hit> standard_interfaces::try_invoke(abstract_object&    object,
-                                                                               mc::string_view     method_name,
-                                                                               const mc::variants& args,
-                                                                               mc::string_view     interface_name)
+std::optional<standard_interfaces::invoke_hit>
+standard_interfaces::try_invoke(const service& svc, abstract_object* object, mc::string_view path,
+                                mc::string_view method_name, const mc::variants& args, mc::string_view interface_name)
 {
+    // 无对象上下文：仅 Introspectable.Introspect 的中间节点语义有意义，
+    // 其余标准接口一律返回 nullopt（dispatcher 据此回 unknown_object）。
+    if (object == nullptr) {
+        if (interface_name != introspectable_interface_name || method_name != std_ifaces::introspect) {
+            return std::nullopt;
+        }
+        auto xml = introspectable_interface::get_instance().introspect_intermediate_node(svc, path);
+        if (xml.empty()) {
+            return std::nullopt;
+        }
+        return invoke_hit{mc::variant(std::move(xml)), "s"};
+    }
+
     abstract_interface* target = nullptr;
     if (interface_name == std_ifaces::properties) {
         target = &properties_interface::get_instance();
@@ -374,17 +473,15 @@ std::optional<standard_interfaces::invoke_hit> standard_interfaces::try_invoke(a
     } else {
         return std::nullopt;
     }
+    (void)path;
 
-    return invoke_standard_interface(object, *target, method_name, args);
+    return invoke_standard_interface(*object, *target, method_name, args);
 }
 
 } // namespace mc::engine
 
 MC_REFLECT(mc::engine::properties_interface, ((get, "Get"))((get_all, "GetAll"))((set, "Set"))(properties_changed))
-
 MC_REFLECT(mc::engine::introspectable_interface, ((introspect, "Introspect")))
-
 MC_REFLECT(mc::engine::peer_interface, ((ping, "Ping"))((get_machine_id, "GetMachineId")))
-
 MC_REFLECT(mc::engine::object_manager_interface,
            ((get_managed_objects, "GetManagedObjects"))(interfaces_added)(interfaces_removed))

@@ -408,6 +408,9 @@ std::shared_ptr<object_table> create_global_object_table()
     engine_alloc_t alloc(rt, "object_table");
     auto           tbl = std::make_shared<object_table>(alloc);
     _install_global_engine_hooks(*tbl);
+    // 已存在的 SHM map（其他进程已注册过对象）需要 recover：把 SHM PODs
+    // 重建为本进程 heap 端 abstract_object 实例。空 map 时 recover 是 no-op。
+    tbl->engine().recover();
     return tbl;
 }
 

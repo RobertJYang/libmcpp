@@ -38,7 +38,7 @@
 #include <mc/engine/match.h>
 #include <mc/engine/message.h>
 #include <mc/engine/service.h>
-#include <test_utilities/engine_shm_test_base.h>
+#include <test_utilities/engine_test_base.h>
 
 #include "match/shared_table.h"
 #include "shm_runtime_provider.h"
@@ -63,16 +63,11 @@ mc::engine::message _make_signal(const mc::string& iface, const mc::string& memb
     return msg;
 }
 
-// 用公共 fixture 提供 SHM region + shm_runtime 的基座；本测试在其上叠加：
-//   - filter_backend_registry 重置 + 注册 condition backend；
-//   - _make_table() 快速建 shared_table 实例。
-class shared_table_test : public mc::test::TestWithEngineShmRegion {
+class shared_table_test : public mc::test::TestWithEngine {
 protected:
     void SetUp() override
     {
-        mc::runtime::reset_runtime_context();
-        mc::engine::engine::reset_for_test();
-        mc::test::TestWithEngineShmRegion::SetUp();
+        mc::test::TestWithEngine::SetUp();
         match::filter_backend_registry::reset_for_test();
         match::register_condition_filter_backend();
     }
@@ -80,9 +75,7 @@ protected:
     void TearDown() override
     {
         match::filter_backend_registry::reset_for_test();
-        mc::engine::engine::reset_for_test();
-        mc::test::TestWithEngineShmRegion::TearDown();
-        mc::runtime::reset_runtime_context();
+        mc::test::TestWithEngine::TearDown();
     }
 
     std::unique_ptr<match::shared_table> _make_table(std::uint16_t endpoint_id = 7, std::uint32_t instance_id = 42)

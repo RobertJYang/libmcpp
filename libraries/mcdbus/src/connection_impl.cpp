@@ -77,25 +77,7 @@ bool connection_impl::send(message&& msg)
 
 message connection_impl::send_with_reply_and_block(message&& msg, mc::milliseconds timeout)
 {
-    if (!m_connection) {
-        MC_THROW(mc::system_exception, "DBus connection not established");
-    }
-
-    std::lock_guard lock(m_mutex);
-
-    mc::dbus::error err;
-    DBusMessage*    reply = dbus_connection_send_with_reply_and_block(m_connection, msg.get_dbus_message(),
-                                                                      static_cast<int>(timeout.count()), &err);
-
-    if (err.is_set()) {
-        MC_THROW(mc::system_exception, "DBus send message failed: ${error}", ("error", err.message));
-    }
-
-    if (!reply) {
-        MC_THROW(mc::system_exception, "DBus send message failed: No reply received");
-    }
-
-    return message(reply, false);
+    return async_send_with_reply(std::forward<message>(msg), timeout).get();
 }
 
 connection::future<message> connection_impl::async_send_with_reply(message&& msg, mc::milliseconds timeout)

@@ -119,6 +119,7 @@ if build_tests
     'tests/test_path.cpp',
     'tests/test_service_utils.cpp',
     'tests/test_service_emit.cpp',
+    'tests/test_proxy.cpp',
     'tests/test_path_iterator.cpp',
     'tests/test_path_pattern.cpp',
     'tests/test_async_invoke.cpp',
@@ -132,6 +133,7 @@ if build_tests
   if use_shm
     mcengine_test_sources += files(
       'tests/test_shared_table.cpp',
+      'tests/test_endpoint_service.cpp',
       'tests/test_shm_engine_business.cpp',
       'tests/test_shm_engine_lifecycle.cpp',
       'tests/test_shm_service_takeover.cpp',

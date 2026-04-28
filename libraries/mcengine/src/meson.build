@@ -33,6 +33,7 @@ engine_src_files = files(
   'path_template.cpp',
   'path_iterator.cpp',
   'property.cpp',
+  'proxy.cpp',
   'service.cpp',
   'utils.cpp',
   'property/helper.cpp',

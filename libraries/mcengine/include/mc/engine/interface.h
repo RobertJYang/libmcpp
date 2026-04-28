@@ -24,6 +24,29 @@
 
 namespace mc::engine {
 namespace detail {
+
+// 可直接缓存到快速存储的属性类型。
+template <typename T, typename = void>
+struct is_cacheable : std::false_type {};
+
+template <typename T>
+struct is_cacheable<T, std::enable_if_t<std::is_arithmetic_v<T>>> : std::true_type {};
+
+template <>
+struct is_cacheable<bool> : std::true_type {};
+
+template <>
+struct is_cacheable<mc::string> : std::true_type {};
+
+template <>
+struct is_cacheable<std::string> : std::true_type {};
+
+template <>
+struct is_cacheable<mc::blob> : std::true_type {};
+
+template <typename T>
+inline constexpr bool is_cacheable_v = is_cacheable<T>::value;
+
 template <typename Members>
 constexpr void set_property_type_flag(Members& members)
 {
@@ -32,7 +55,11 @@ constexpr void set_property_type_flag(Members& members)
         if constexpr (mc::reflect::has_tag_v<mc::reflect::property_tag, member_info_type>) {
             using member_type = typename member_info_type::member_type;
             if constexpr (mc::traits::is_specialization_of_v<member_type, property>) {
-                member.set_flags(MC_REFLECT_FLAG_PROPERTY_TPL); // 标记对象的属性是 property<T> 类型的反射元数据
+                member.set_flags(MC_REFLECT_FLAG_PROPERTY_TPL);
+                using value_type = typename member_type::value_type;
+                if constexpr (!is_cacheable_v<value_type>) {
+                    member.set_flags(MC_REFLECT_FLAG_NOCACHE);
+                }
             }
         }
     });

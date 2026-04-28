@@ -16,6 +16,7 @@
 #include <mc/common.h>
 #include <mc/engine/match/table.h>
 #include <mc/engine/service.h>
+#include <mc/future.h>
 #include <mc/string.h>
 #include <mc/string_view.h>
 
@@ -93,6 +94,8 @@ class mq_channel;
 
 namespace mc::engine {
 
+struct message;
+
 // endpoint 名字冲突策略。
 enum class endpoint_name_conflict_policy {
     // 活进程冲突：直接拒启，on_start 返回 false。
@@ -120,8 +123,14 @@ public:
 
     std::shared_ptr<mc::shm::shm_runtime> get_runtime() const noexcept;
     mc::shm::mq_channel*                  get_mq_channel() const noexcept;
+    bool                                  send_to_endpoint(std::uint16_t endpoint_id, std::uint32_t instance_id,
+                                                           const message& msg);
+    mc::future<message>                   send_with_reply_to_endpoint(std::uint16_t endpoint_id,
+                                                                      std::uint32_t instance_id, message msg,
+                                                                      mc::milliseconds timeout);
 
     match::table_ptr create_match_table() const;
+    void             push_outbound(const message& msg);
     void             set_name_conflict_policy(endpoint_name_conflict_policy policy) noexcept;
     mc::string_view  effective_endpoint_name() const noexcept;
 
@@ -131,6 +140,8 @@ protected:
 
 private:
     struct endpoint_service_impl;
+    void handle_inbound_message(message msg);
+    bool complete_pending_reply(const message& msg);
     std::unique_ptr<endpoint_service_impl> m_endpoint_impl;
 };
 

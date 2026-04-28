@@ -46,6 +46,11 @@ constexpr void set_object_member_flags(Members& members)
             } else if constexpr (mc::traits::is_specialization_of_v<member_type, property>) {
                 // 标记对象的属性是 property<T> 类型的反射元数据
                 member.set_flags(MC_REFLECT_FLAG_PROPERTY_TPL);
+                // 不可缓存类型自动标记 NOCACHE
+                using value_type = typename member_type::value_type;
+                if constexpr (!detail::is_cacheable_v<value_type>) {
+                    member.set_flags(MC_REFLECT_FLAG_NOCACHE);
+                }
             }
         }
     });

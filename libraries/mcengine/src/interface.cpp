@@ -78,6 +78,9 @@ bool interface_impl::set_property(mc::string_view property_name, const mc::varia
         if (property_info == nullptr) {
             return false;
         }
+        if (!property_info->is_writable()) {
+            return false;
+        }
 
         if (property_info->has_flags(MC_REFLECT_FLAG_PROPERTY_TPL)) {
             detail::to_property_base(this, property_info)->set_value(value);

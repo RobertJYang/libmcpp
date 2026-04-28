@@ -89,32 +89,31 @@ message make_reported_error_response(const message& request, const mc::error_ptr
 
 message dispatch_method_call(const service& svc, const message& request, const method_call_payload& payload)
 {
-    auto& table = svc.get_object_table();
-    auto  it    = table.find<by_path>(request.header.path);
-    if (it.is_end()) {
-        return make_engine_error_response(request, errors::unknown_object, {{"path", request.header.path}});
-    }
+    auto&            table = svc.get_object_table();
+    auto             it    = table.find<by_path>(request.header.path);
+    abstract_object* obj   = it.is_end() ? nullptr : const_cast<abstract_object*>(&*it);
 
-    abstract_object& obj = const_cast<abstract_object&>(*it);
-
-    // 标准 DBus 接口优先，未命中再按对象反射处理。
-    if (auto std_hit = standard_interfaces::try_invoke(obj, request.header.member_name, payload.args,
-                                                       request.header.interface_name);
+    if (auto std_hit = standard_interfaces::try_invoke(svc, obj, request.header.path, request.header.member_name,
+                                                       payload.args, request.header.interface_name);
         std_hit.has_value()) {
         auto body = make_payload<method_return_payload>(std::move(std_hit->value), std_hit->result_signature);
         return make_response(request, message_type::method_return, std::move(body));
     }
 
-    if (!obj.has_interface(request.header.interface_name)) {
+    if (obj == nullptr) {
+        return make_engine_error_response(request, errors::unknown_object, {{"path", request.header.path}});
+    }
+
+    if (!obj->has_interface(request.header.interface_name)) {
         return make_engine_error_response(request, errors::unknown_interface,
                                           {{"interface", request.header.interface_name}});
     }
-    if (!obj.has_method(request.header.member_name, request.header.interface_name)) {
+    if (!obj->has_method(request.header.member_name, request.header.interface_name)) {
         return make_engine_error_response(request, errors::unknown_method, {{"method", request.header.member_name}});
     }
 
-    auto info  = obj.get_metadata().get_method_info(request.header.member_name, request.header.interface_name);
-    auto value = obj.invoke(request.header.member_name, payload.args, request.header.interface_name);
+    auto info  = obj->get_metadata().get_method_info(request.header.member_name, request.header.interface_name);
+    auto value = obj->invoke(request.header.member_name, payload.args, request.header.interface_name);
     auto body  = make_payload<method_return_payload>(
         std::move(value), info.item == nullptr ? mc::string_view{} : info.item->get_result_signature());
     return make_response(request, message_type::method_return, std::move(body));

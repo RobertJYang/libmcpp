@@ -52,6 +52,8 @@ public:
     mc::dbus::connection& connection() noexcept;
     app_proto*            proto() noexcept;
 
+    bool has_dbus() const noexcept;
+
 protected:
     bool         on_init(mc::dict properties) override;
     virtual bool on_configure();

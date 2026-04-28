@@ -10,9 +10,13 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <test_utilities/engine_shm_test_base.h>
+#include <test_utilities/engine_test_base.h>
 
+#if MCENGINE_USE_SHM
+
+#include <mc/engine/engine.h>
 #include <mc/protocol.h>
+#include <mc/runtime.h>
 #include <mc/shm/detail/shared_memory_backend.h>
 #include <mc/shm/message_queue/mq_queue.h>
 
@@ -47,12 +51,15 @@ mc::string make_unique_region_name()
 
 } // namespace
 
-void TestWithEngineShmRegion::SetUp()
+void TestWithEngine::SetUp()
 {
-    // 先链式执行 TestWithEngine → TestWithRuntime → TestBase 的 SetUp：
-    // 调整日志等级 / 确认 mc::runtime 就绪。mcbase runtime 是 quark / logger /
-    // gc 等的承载者，SHM 路径会间接依赖到。
-    TestWithEngine::SetUp();
+    // 链式执行 TestWithRuntime → TestBase 的 SetUp。
+    TestWithRuntime::SetUp();
+
+    // 进入本 case 前先把上一个 case 残留的 engine 单例（service_registry /
+    // match_table / 全局 object_table）彻底清掉。单例可能持有上一个 case 已
+    // unmap 的 SHM region 引用，必须在创建新 region 前先 reset。
+    mc::engine::engine::reset_for_test();
 
     m_region_name = make_unique_region_name();
     mc::shm::detail::shared_memory_backend::remove(m_region_name);
@@ -63,39 +70,49 @@ void TestWithEngineShmRegion::SetUp()
     opts.root_capacity = m_root_capacity;
     m_runtime          = std::make_unique<mc::shm::shm_runtime>(opts);
     ASSERT_TRUE(m_runtime->is_valid()) << "mc::shm::shm_runtime 初始化失败";
+
     mc::engine::shm_runtime_provider::install_runtime(runtime_alias());
 }
 
-void TestWithEngineShmRegion::TearDown()
+void TestWithEngine::TearDown()
 {
+    // 销毁 engine 单例必须先于 m_runtime.reset()：单例 lazy 创建的对象表 /
+    // match_table / service_registry 都通过 provider 引用 m_runtime；reset
+    // 顺序反了，单例析构会访问已 unmap 的 SHM 段错误。
+    mc::engine::engine::reset_for_test();
     mc::engine::shm_runtime_provider::reset_for_test();
+
     if (m_runtime) {
-        for (std::uint16_t endpoint_id = 1; endpoint_id <= mc::shm::shm_runtime::max_endpoints; ++endpoint_id) {
+        for (std::uint16_t endpoint_id = 1; endpoint_id <= mc::shm::shm_runtime::max_endpoints;
+             ++endpoint_id) {
             auto info = m_runtime->get_endpoint(endpoint_id);
             if (!info.has_value()) {
                 continue;
             }
             mc::shm::detail::mq_notifier::remove(info->notifier_name);
-            mc::shm::detail::mq_notifier::remove(mc::shm::detail::mq_notifier::make_space_name(info->queue_name));
+            mc::shm::detail::mq_notifier::remove(
+                mc::shm::detail::mq_notifier::make_space_name(info->queue_name));
             mc::shm::detail::shared_memory_backend::remove(info->queue_name);
         }
     }
     m_runtime.reset();
     mc::shm::detail::shared_memory_backend::remove(m_region_name);
-    TestWithEngine::TearDown();
+    m_region_name = mc::string();
+
+    TestWithRuntime::TearDown();
 }
 
-std::shared_ptr<mc::shm::shm_runtime> TestWithEngineShmRegion::runtime_alias() const
+std::shared_ptr<mc::shm::shm_runtime> TestWithEngine::runtime_alias() const
 {
-    // 空 deleter：所有权留在 fixture 的 unique_ptr 里，这个 shared_ptr 只是
-    // 给 mq_channel::start 这种签名借用观察者用。fixture TearDown 前，所有
-    // 从 alias 派生的 shared_ptr 必须释放（通常由 channel.stop 触发）。
-    return std::shared_ptr<mc::shm::shm_runtime>(m_runtime.get(), [](mc::shm::shm_runtime*) {
-    });
+    // 空 deleter：所有权留在 fixture 的 m_runtime（unique_ptr）里，这个
+    // shared_ptr 只是给 mq_channel::start 这种签名借用观察者用。TearDown
+    // 前，所有从 alias 派生的 shared_ptr 必须释放（通常 channel.stop 触发）。
+    return std::shared_ptr<mc::shm::shm_runtime>(m_runtime.get(),
+                                                 [](mc::shm::shm_runtime*) {});
 }
 
-std::optional<mc::shm::endpoint> TestWithEngineShmRegion::register_running_endpoint(mc::shm::shm_runtime& runtime,
-                                                                                    mc::string_view       name)
+std::optional<mc::shm::endpoint> TestWithEngine::register_running_endpoint(mc::shm::shm_runtime& runtime,
+                                                                           mc::string_view       name)
 {
     auto ep = runtime.register_endpoint(name);
     if (!ep.has_value()) {
@@ -107,7 +124,7 @@ std::optional<mc::shm::endpoint> TestWithEngineShmRegion::register_running_endpo
     return ep;
 }
 
-std::unique_ptr<mc::shm::shm_runtime> TestWithEngineShmRegion::open_child_shm_runtime() const
+std::unique_ptr<mc::shm::shm_runtime> TestWithEngine::open_child_shm_runtime() const
 {
     mc::shm::runtime_options opts;
     opts.region_name   = m_region_name;
@@ -120,7 +137,7 @@ std::unique_ptr<mc::shm::shm_runtime> TestWithEngineShmRegion::open_child_shm_ru
     return rt;
 }
 
-void TestWithEngineShmRegion::fork_child(const std::function<int()>& body) const
+void TestWithEngine::fork_child(const std::function<int()>& body) const
 {
     pid_t pid = ::fork();
     ASSERT_NE(pid, -1) << "fork failed: " << std::strerror(errno);
@@ -149,7 +166,7 @@ void TestWithEngineShmRegion::fork_child(const std::function<int()>& body) const
 
 // === mq_rx_pipeline ===
 
-TestWithEngineShmRegion::mq_rx_pipeline::mq_rx_pipeline()
+TestWithEngine::mq_rx_pipeline::mq_rx_pipeline()
 {
     // 按 engine wire 协议栈自顶向下挂子节点：service_proto → mq_proto →
     // mq_transport_proto。channel 独立配合 proto 做 consume loop。
@@ -158,21 +175,21 @@ TestWithEngineShmRegion::mq_rx_pipeline::mq_rx_pipeline()
     channel.set_protocol(&proto);
 }
 
-TestWithEngineShmRegion::mq_rx_pipeline::~mq_rx_pipeline()
+TestWithEngine::mq_rx_pipeline::~mq_rx_pipeline()
 {
     // 即便上层测试忘了 stop，这里兜底，避免 consumer thread 回调到已销毁的
     // proto 树造成 use-after-free。
     stop();
 }
 
-void TestWithEngineShmRegion::mq_rx_pipeline::start(std::shared_ptr<mc::shm::shm_runtime> runtime,
-                                                    const mc::shm::endpoint& ep, std::uint32_t instance_id)
+void TestWithEngine::mq_rx_pipeline::start(std::shared_ptr<mc::shm::shm_runtime> runtime,
+                                           const mc::shm::endpoint& ep, std::uint32_t instance_id)
 {
     channel.start(std::move(runtime), ep, instance_id);
     m_started = true;
 }
 
-void TestWithEngineShmRegion::mq_rx_pipeline::stop()
+void TestWithEngine::mq_rx_pipeline::stop()
 {
     if (!m_started) {
         return;
@@ -183,8 +200,8 @@ void TestWithEngineShmRegion::mq_rx_pipeline::stop()
 
 // === send_via_mq / to_endpoint ===
 
-void TestWithEngineShmRegion::send_via_mq(mc::shm::shm_runtime& runtime, const mc::shm::endpoint& writer,
-                                          const mc::shm::endpoint& receiver, const mc::engine::message& msg)
+void TestWithEngine::send_via_mq(mc::shm::shm_runtime& runtime, const mc::shm::endpoint& writer,
+                                 const mc::shm::endpoint& receiver, const mc::engine::message& msg)
 {
     auto queue = runtime.open_queue(receiver);
 
@@ -205,7 +222,7 @@ void TestWithEngineShmRegion::send_via_mq(mc::shm::shm_runtime& runtime, const m
     ASSERT_EQ(proto_root.push(req), mc::proto::execution_state::completed);
 }
 
-mc::shm::endpoint TestWithEngineShmRegion::to_endpoint(const mc::shm::endpoint_info& info)
+mc::shm::endpoint TestWithEngine::to_endpoint(const mc::shm::endpoint_info& info)
 {
     mc::shm::endpoint ep;
     ep.endpoint_id   = info.endpoint_id;
@@ -220,3 +237,5 @@ mc::shm::endpoint TestWithEngineShmRegion::to_endpoint(const mc::shm::endpoint_i
 
 } // namespace test
 } // namespace mc
+
+#endif // MCENGINE_USE_SHM

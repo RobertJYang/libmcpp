@@ -114,20 +114,7 @@ mc::shared_ptr<biz_object> _make_obj(mc::string_view path, mc::string_view name,
     return o;
 }
 
-class shm_engine_business_test : public mc::test::TestWithEngine {
-protected:
-    void SetUp() override
-    {
-        TestWithEngine::SetUp();
-        mc::engine::engine::reset_for_test();
-    }
-
-    void TearDown() override
-    {
-        mc::engine::engine::reset_for_test();
-        TestWithEngine::TearDown();
-    }
-};
+class shm_engine_business_test : public mc::test::TestWithEngine {};
 
 // register 后 shm_object.service 指向当前进程的 shm_service POD。
 // 通过全局 object_table 反查时应指向同一个 POD。
