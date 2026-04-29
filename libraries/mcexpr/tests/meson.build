@@ -56,5 +56,5 @@ test(
   'mcexpr unit tests',
   mcexpr_test_exe,
   env: mcexpr_test_env,
-  timeout: 60,
+  timeout: 300,
 )

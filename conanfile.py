@@ -28,11 +28,16 @@ class AppConan(ConanBase):
         "gcov": False,
         "test": False,
         "test_utilities": True,
-        "enable_luajit": False,
+        "enable_luajit": True,
         # conan 构建（DT / 交叉编译生产）默认走旧架构，保持与存量部署兼容；
         # 想在 conan 环境下试新架构：-o use_shm=True -o use_old_shm=False。
         "use_shm": False,
         "use_old_shm": True,
+        # 远端预编译包使用以下 options 构建，保持一致以匹配二进制包 ID
+        "liblogger/*:enable_luajit": True,
+        "liblogger/*:test": True,
+        "libsomp/*:enable_luajit": True,
+        "libsomp/*:test": True,
     }
 
     # 基于meson构建的基类，适用于libmcpp项目
@@ -125,9 +130,10 @@ class AppConan(ConanBase):
     def build(self):
         meson = Meson(self)
         meson.configure()
-        meson.build()
         if self.options.test:
             self.test()
+        else:
+            meson.build()
 
     def test(self):
         """运行 Meson 测试"""

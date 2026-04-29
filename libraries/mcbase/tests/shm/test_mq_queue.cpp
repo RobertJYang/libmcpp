@@ -202,11 +202,17 @@ TEST_F(mq_queue_test, watcher_drains_backlog_after_start)
     pool.stop();
     pool.join();
 
-    ASSERT_EQ(deliveries.size(), 4U);
-    EXPECT_EQ(deliveries[0], "m1");
-    EXPECT_EQ(deliveries[1], "m2");
-    EXPECT_EQ(deliveries[2], "m3");
-    EXPECT_EQ(deliveries[3], "m4");
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        ASSERT_EQ(deliveries.size(), 4U)
+            << "Expected 4 deliveries, got " << deliveries.size();
+        if (deliveries.size() == 4U) {
+            EXPECT_EQ(deliveries[0], "m1");
+            EXPECT_EQ(deliveries[1], "m2");
+            EXPECT_EQ(deliveries[2], "m3");
+            EXPECT_EQ(deliveries[3], "m4");
+        }
+    }
 }
 
 TEST_F(mq_queue_test, multi_writer_single_reader_receives_all_messages)

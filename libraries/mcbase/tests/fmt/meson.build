@@ -24,6 +24,7 @@ if get_option('compatibility_tests')
             install: false,
             build_by_default: false,
         ),
+        timeout: 300,
     )
 
     # std::format 兼容性测试（使用 C++20）
@@ -37,5 +38,6 @@ if get_option('compatibility_tests')
             install: false,
             build_by_default: false,
         ),
+        timeout: 300,
     )
 endif

@@ -19,6 +19,7 @@
 #include <unistd.h>
 
 #include <mc/shm/allocator.h>
+#include <mc/shm/detail/shared_memory_backend.h>
 #include <mc/shm/region.h>
 #include <mc/shm/string.h>
 #include <mc/shm/string_view.h>
@@ -51,6 +52,13 @@ protected:
         ASSERT_TRUE(m_region.is_valid());
         m_alloc = m_region.user_arena();
         ASSERT_TRUE(m_alloc.is_valid());
+    }
+
+    void TearDown() override
+    {
+        if (m_region.is_valid()) {
+            mc::shm::detail::shared_memory_backend::remove(m_region.name());
+        }
     }
 
     shm_region    m_region;

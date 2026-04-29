@@ -190,7 +190,14 @@ private:
     std::mutex trace_mutex;
 };
 
-class EventDispatcherTest : public mc::test::TestWithRuntime {};
+class EventDispatcherTest : public mc::test::TestWithRuntime {
+protected:
+    void SetUp() override
+    {
+        TestWithRuntime::SetUp();
+        reset_runtime();
+    }
+};
 
 } // namespace
 

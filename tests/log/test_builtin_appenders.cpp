@@ -72,16 +72,25 @@ TEST(builtin_appender_registration_test, bootstrap_default_logging_makes_file_ap
     mc::test::test_directory_options options;
     options.preferred_prefix = "blog_";
     auto test_dir            = mc::test::make_test_directory(options);
+    ASSERT_FALSE(test_dir.empty()) << "Test directory must be created";
 
     auto log_path = test_dir.child_path("bootstrap_default_file.log");
     logging::set_stub_log_path(std::string(log_path.string()));
 
     bootstrap_default_logging();
 
+    // liblogger 环境下 internal_log_handler 由 liblogger 提供，不读 stub 路径。
+    // 设置 filename 让 file_appender 打开文件，通过 fallback_out 写入。
+    auto fa = std::dynamic_pointer_cast<file_appender>(default_logger.find_appender("default_file"));
+    ASSERT_NE(fa, nullptr);
+    fa->set_filename(log_path.string());
+
     mc::log::message msg(mc::log::level::info, "bootstrap default file appender works",
                          mc::log::context("builtin_appenders_test.cpp", "bootstrap_test", 42));
     default_logger.log(msg);
+    fa->flush();
 
-    ASSERT_TRUE(mc::filesystem::exists(log_path));
+    ASSERT_TRUE(mc::filesystem::exists(log_path))
+        << "Log file should exist at: " << log_path.string();
     EXPECT_NE(read_file_content(log_path).find("bootstrap default file appender works"), std::string::npos);
 }

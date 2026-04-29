@@ -24,6 +24,7 @@
 #include <mc/shm/allocator.h>
 #include <mc/shm/container/map.h>
 #include <mc/shm/container/set.h>
+#include <mc/shm/detail/shared_memory_backend.h>
 #include <mc/shm/region.h>
 #include <mc/shm/string.h>
 
@@ -255,6 +256,9 @@ protected:
         }
         m_control->~set_control();
         m_alloc.deallocate(m_control);
+        if (m_region.is_valid()) {
+            mc::shm::detail::shared_memory_backend::remove(m_region.name());
+        }
     }
 
     shm_region    m_region;
@@ -480,6 +484,9 @@ protected:
         }
         m_control->~map_control();
         m_alloc.deallocate(m_control);
+        if (m_region.is_valid()) {
+            mc::shm::detail::shared_memory_backend::remove(m_region.name());
+        }
     }
 
     shm_region    m_region;

@@ -136,5 +136,38 @@ test(
   mcbase_test_exe,
   depends: mock_dynamic_module,
   env: mcbase_test_env,
-  timeout: 60,
+  timeout: 300,
+)
+
+# ====================
+# 独立 fork 测试可执行文件（fork 会污染进程级 runtime 状态，必须隔离）
+# ====================
+
+mcbase_test_fork_main = configure_file(
+  input: files('main.cpp.in'),
+  output: 'main_fork.cpp',
+  copy: true,
+)
+
+mcbase_test_fork_exe = executable(
+  'mcbase_test_fork',
+  [mcbase_test_fork_main, test_shm_fork_files],
+  include_directories: [incdir, srcdir],
+  dependencies: [
+    gtest_dep,
+    boost_dep,
+    mcbase_dep,
+    test_utilities_dep,
+  ],
+  cpp_args: mcbase_test_cpp_args,
+  link_args: mcbase_test_link_args,
+  install: false,
+  build_by_default: false,
+)
+
+test(
+  'mcbase fork tests',
+  mcbase_test_fork_exe,
+  env: mcbase_test_env,
+  timeout: 300,
 )

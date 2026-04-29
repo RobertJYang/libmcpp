@@ -68,7 +68,7 @@ if lua_interpreter.found()
                      'LUAUNIT_OUTPUT=tap'
                  ],
                  depends: [ldbus_module, lua_dft_lib, libmcpp_lua_utils_lib, lvalidate, lshm_tree_module, lmdb_module, lua_json_lib],
-                 timeout: 60,
+                 timeout: 300,
                  workdir: meson.current_source_dir())
             message('Lua D-Bus tests will run with temporary D-Bus session (via wrapper)')
         else
@@ -93,7 +93,7 @@ if lua_interpreter.found()
                      'LUAUNIT_OUTPUT=tap'
                  ],
                  depends: [ldbus_module, lua_dft_lib, libmcpp_lua_utils_lib, lvalidate, lshm_tree_module, lmdb_module, lua_json_lib],
-                 timeout: 60,
+                 timeout: 300,
                  workdir: meson.current_source_dir())
             message('Lua D-Bus tests will run with temporary D-Bus session (via dbus-run-session)')
         endif

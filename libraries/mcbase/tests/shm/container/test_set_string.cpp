@@ -22,6 +22,7 @@
 
 #include <mc/shm/allocator.h>
 #include <mc/shm/container/set.h>
+#include <mc/shm/detail/shared_memory_backend.h>
 #include <mc/shm/region.h>
 #include <mc/shm/string.h>
 
@@ -68,15 +69,15 @@ protected:
 
     void TearDown() override
     {
-        // set<string>::clear 不显式调用——由 TearDown 销毁 region 时一起回收
-        // 但要保证 m_control 本身先析构（持锁状态不能跨 region 销毁）
         if (m_control != nullptr) {
-            // 走一次 clear 释放所有 string 的二级 buffer（更干净）
             set<string, string_less> s(*m_control, m_alloc);
             s.clear();
             m_control->~set_control();
             m_alloc.deallocate(m_control);
             m_control = nullptr;
+        }
+        if (m_region.is_valid()) {
+            mc::shm::detail::shared_memory_backend::remove(m_region.name());
         }
     }
 
