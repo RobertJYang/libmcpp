@@ -219,6 +219,7 @@ protected:
         }                                                                                                              \
     } while (0)
 
+#if defined(MCENGINE_USE_SHM) && MCENGINE_USE_SHM
 // ========== call_shm_get_property 测试 ==========
 TEST_F(ShmTreeQueryTest, call_shm_get_property_success)
 {
@@ -469,6 +470,7 @@ TEST_F(ShmTreeQueryTest, get_mdb_interface_owners_success)
     auto result = mc::dbus::shm_tree::get_mdb_interface_owners("org.openubmc.query_test_interface_a");
     ASSERT_FALSE(result.empty());
 }
+#endif
 
 TEST_F(ShmTreeQueryTest, get_mdb_interface_owners_not_found)
 {

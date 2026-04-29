@@ -182,7 +182,11 @@ object_ptr object_impl::get_parent() const
 
 void object_impl::set_parent(object* parent)
 {
-    m_data.wlock()->parent = parent->weak_from_this();
+    if (parent) {
+        m_data.wlock()->parent = parent->weak_from_this();
+    } else {
+        m_data.wlock()->parent.reset();
+    }
 }
 
 child_list object_impl::get_children() const

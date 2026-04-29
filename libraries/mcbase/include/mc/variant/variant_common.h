@@ -363,7 +363,7 @@ template <typename T>
 inline constexpr bool has_from_variant_function_v = has_from_variant_function_impl<T>::value;
 
 // 检测类型是否可与 variant 双向互操作（to_variant + from_variant）
-template <typename T>
+template <typename T, typename = void>
 struct is_variant_constructible {
     // 第一步：检查是否为可直接构造的基本类型
     static constexpr bool is_constructible =
@@ -387,7 +387,7 @@ struct is_variant_constructible {
 };
 
 // 检测类型是否可从 variant 转换
-template <typename T>
+template <typename T, typename = void>
 struct is_variant_convertible {
     // 基础类型可以直接从 variant 转换
     static constexpr bool is_fundamental =

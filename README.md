@@ -72,6 +72,37 @@ ninja target_name
 ninja -t clean
 ```
 
+### 使用 mcli 构建
+
+[mcli](https://github.com/openubmc/mcli) 是 MC++ 项目推荐的构建工具，集成了 Conan 包管理和 Meson 构建系统。
+
+```bash
+# 安装 mcli
+pip install mcli
+
+# 添加本地 GCC target（首次使用）
+mcli target add linux-x86_64
+
+# 或添加 GCC 9 target（需要预先安装 gcc-9）
+mcli target add x86_64-gcc9-linux-gnu --manifest /tmp/gcc9-manifest.toml
+
+# 构建（使用默认 target）
+mcli build
+
+# 构建（指定 target 和构建类型）
+mcli build --target x86_64-gcc9-linux-gnu -bt debug
+
+# 构建时传递 Conan 选项（匹配远端预编译包）
+mcli build --target x86_64-gcc9-linux-gnu -bt debug \
+    -o "liblogger/*:test=True" \
+    -o "libsomp/*:test=True"
+
+# 运行测试（当前项目依赖的 liblogger/libsomp 需要 test=True 变体）
+mcli test --target x86_64-gcc9-linux-gnu \
+    -o "liblogger/*:test=True" \
+    -o "libsomp/*:test=True"
+```
+
 ### 从源码构建
 
 ```bash

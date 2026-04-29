@@ -27,6 +27,7 @@
 #include <mc/object_base.h>
 
 #include <utility>
+#include <unistd.h>
 
 namespace mc::app::legacy_shm {
 
@@ -109,6 +110,10 @@ bool binding::install()
 {
     if (m_installed) {
         return true;
+    }
+    if (::access("/dev/shm/init_shm.lock", F_OK) != 0) {
+        dlog("legacy_shm install 跳过：旧 SHM 初始化锁不存在，降级为纯 DBus 通路");
+        return false;
     }
 
     auto svc_name = m_service.name();

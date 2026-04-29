@@ -55,8 +55,8 @@ protected:
 
     static void TearDownTestSuite()
     {
-        TestWithRuntime::TearDownTestSuite();
         mc::engine::engine::reset_for_test();
+        TestWithRuntime::TearDownTestSuite();
     }
 
     void fork_child(const std::function<int()>& body) const;

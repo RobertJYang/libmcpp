@@ -511,6 +511,7 @@ TEST_F(proxy_test, cross_process_typed_proxy_read_write)
     EXPECT_EQ(static_cast<mc::string>(m_server->obj()->iface.Label), "from-child");
 }
 
+#if MCENGINE_USE_SHM
 TEST_F(proxy_test, cross_process_app_property_change_emits_properties_changed_over_mq)
 {
     std::atomic<int> hits{0};
@@ -686,6 +687,7 @@ TEST_F(proxy_test, cross_process_app_invalidated_property_emits_invalidated_prop
 
     m_server->remove_match(id);
 }
+#endif // MCENGINE_USE_SHM
 
 // ============================================================================
 // 跨进程：子进程通过 dynamic API 读写 + DBus Get/GetAll

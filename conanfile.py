@@ -115,6 +115,34 @@ class AppConan(ConanBase):
         meson = Meson(self)
         meson.configure()
         meson.build()
+        if self.options.test:
+            self.test()
+
+    def test(self):
+        """运行 Meson 测试"""
+        import subprocess
+
+        filter_arg = os.environ.get("MCLI_TEST_FILTER")
+        verbose = os.environ.get("MCLI_TEST_VERBOSE")
+
+        cmd = ["meson", "test", "-v"]
+
+        if filter_arg:
+            cmd.extend(["--suite", filter_arg])
+
+        test_args_str = os.environ.get("MCLI_TEST_ARGS")
+        if test_args_str:
+            import shlex
+            cmd.extend(shlex.split(test_args_str))
+
+        self.output.info(f"运行 Meson 测试: {' '.join(cmd)}")
+        result = subprocess.run(
+            cmd,
+            capture_output=False,
+            text=True,
+        )
+        if result.returncode != 0:
+            raise Exception("Meson 测试失败")
 
     def package(self):
         meson = Meson(self)

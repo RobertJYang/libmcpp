@@ -35,7 +35,7 @@
 
 namespace mc::quark_detail {
 
-class MC_API process_quark_provider final : public quark_provider {
+class process_quark_provider final : public quark_provider {
 public:
     using set_type = mc::intrusive::unordered_set<quark_record, mc::intrusive::hash<view_hasher>,
                                                   mc::intrusive::equal<view_equal>>;

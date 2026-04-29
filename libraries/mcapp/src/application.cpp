@@ -854,6 +854,10 @@ bool application::stop_services()
 
 bool application::stop()
 {
+    if (!m_running && !m_runtime_started) {
+        return true;
+    }
+
     bool success = stop_services();
 
     teardown_engine_endpoint();

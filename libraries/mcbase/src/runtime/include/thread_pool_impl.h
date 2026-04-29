@@ -113,7 +113,7 @@ private:
 
 using thread_pool_wakeup_handle = std::shared_ptr<void>;
 
-struct MC_API thread_pool_impl : boost::asio::execution_context {
+struct thread_pool_impl : boost::asio::execution_context {
     using io_context          = boost::asio::io_context;
     using executor_work_guard = boost::asio::executor_work_guard<io_context::executor_type>;
 

@@ -19,6 +19,7 @@
 
 #include <cstdint>
 #include <iterator>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -379,6 +380,7 @@ public:
         using reference         = key_value_pair;
 
         iterator(Json* json, Json* child);
+        iterator(Json* json, std::shared_ptr<std::vector<std::string>> keys, size_t index);
 
         key_value_pair operator*() const;
         iterator&      operator++();
@@ -392,6 +394,8 @@ public:
     private:
         Json* m_json;
         Json* m_child;
+        std::shared_ptr<std::vector<std::string>> m_keys;
+        size_t m_index;
     };
 
     iterator begin() const;

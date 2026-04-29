@@ -693,7 +693,7 @@ struct method_signature_ops {
         return args_type{mc::detail::convert_arg<mc::traits::remove_cvref_t<Args>>(name.data(), args[I])...};
     }
 
-    static args_type convert_args(mc::string_view name, const mc::variants& args)
+    static args_type convert_args([[maybe_unused]] mc::string_view name, const mc::variants& args)
     {
         constexpr size_t arg_count = sizeof...(Args);
         if constexpr (std::is_same_v<args_type, std::tuple<mc::variants>>) {

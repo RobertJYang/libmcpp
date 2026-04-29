@@ -20,6 +20,8 @@
 #include <mc/engine.h>
 #include <mc/variant.h>
 
+#include <atomic>
+
 namespace mc::dbus {
 constexpr int MSG_QUEUE_PUSH_TIMEOUT = 100;
 
@@ -231,7 +233,7 @@ private:
     std::string                                  m_harbor_name;
     std::string                                  m_unique_name;
     connection                                   m_connection;
-    bool                                         m_is_running;
+    std::atomic<bool>                           m_is_running;
     message_queue*                               m_mq;
     std::mutex                                   m_mutex;
     method_handler_map_t                         m_method_handlers;

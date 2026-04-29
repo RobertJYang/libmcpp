@@ -17,6 +17,8 @@
 #include <cstdint>
 #include <mc/common.h>
 
+#include <mc/common.h>
+
 // 共享内存 crash-safe 容器的事务 journal
 //
 // 每个容器实例自带一个 64B journal；write-side 在修改链接前 journal_begin

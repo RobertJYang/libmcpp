@@ -17,6 +17,7 @@
 #include <memory>
 #include <vector>
 
+#include <mc/common.h>
 #include <mc/future.h>
 #include <mc/protocol.h>
 #include <mc/shm/message_queue/mq_proto.h>

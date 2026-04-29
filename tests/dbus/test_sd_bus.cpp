@@ -416,7 +416,7 @@ protected:
 
         test_bus = new sd_bus(true, false);
         test_bus->request_name("org.openubmc.test_bus");
-#if defined(ENABLE_CONAN_COMPILE) && ENABLE_CONAN_COMPILE == 1
+#if defined(ENABLE_CONAN_COMPILE) && ENABLE_CONAN_COMPILE == 1 && defined(MCENGINE_USE_SHM) && MCENGINE_USE_SHM
 #else
         test_bus->set_enable_local_request(false);
 #endif
@@ -675,7 +675,7 @@ TEST_F(SdBusTest, test_unprotected_call)
                  mc::exception);
 }
 
-#if defined(ENABLE_CONAN_COMPILE) && ENABLE_CONAN_COMPILE == 1
+#if defined(ENABLE_CONAN_COMPILE) && ENABLE_CONAN_COMPILE == 1 && defined(MCENGINE_USE_SHM) && MCENGINE_USE_SHM
 // 测试共享内存调用
 TEST_F(SdBusTest, test_shm_call)
 {

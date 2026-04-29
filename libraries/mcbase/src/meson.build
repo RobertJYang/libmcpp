@@ -94,6 +94,17 @@ mcbase_lib = library(
   soversion: '1',
 )
 
+# 白盒测试需要链接静态库，避免 -fvisibility=hidden 导致内部符号不可见
+mcbase_static_lib = static_library(
+  'mcbase_static',
+  base_src_files,
+  include_directories: [incdir, srcdir],
+  dependencies: dep_arr,
+  cpp_args: mcbase_sanitizer_cpp_args + quark_cpp_args,
+  install: false,
+  build_by_default: false,
+)
+
 mcbase_dep = declare_dependency(
   include_directories: incdir,
   link_with: mcbase_lib,

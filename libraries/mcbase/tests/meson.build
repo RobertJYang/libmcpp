@@ -119,8 +119,8 @@ mcbase_test_exe = executable(
   dependencies: [
     gtest_dep,
     boost_dep,
-    test_utilities_dep,
   ],
+  link_with: mcbase_static_lib,
   cpp_args: mcbase_test_cpp_args,
   link_args: mcbase_test_link_args,
   install: false,

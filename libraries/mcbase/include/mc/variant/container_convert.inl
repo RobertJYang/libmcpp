@@ -88,6 +88,146 @@ using enable_if_all_variant_constructible_t = std::enable_if_t<all_container_var
 
 template <typename... T>
 using enable_if_all_variant_convertible_t = std::enable_if_t<all_container_variant_convertible_v<T...>, void>;
+
+namespace detail {
+
+template <typename T, typename Allocator>
+struct is_variant_constructible<std::vector<T, Allocator>, std::enable_if_t<!is_variant_v<T>>>
+    : std::bool_constant<all_container_variant_constructible_v<T>> {};
+
+template <typename T, typename Allocator>
+struct is_variant_convertible<std::vector<T, Allocator>, std::enable_if_t<!is_variant_v<T>>>
+    : std::bool_constant<all_container_variant_convertible_v<T>> {};
+
+template <typename T, typename Allocator>
+struct is_variant_constructible<std::list<T, Allocator>, void>
+    : std::bool_constant<all_container_variant_constructible_v<T>> {};
+
+template <typename T, typename Allocator>
+struct is_variant_convertible<std::list<T, Allocator>, void>
+    : std::bool_constant<all_container_variant_convertible_v<T>> {};
+
+template <typename T, typename Allocator>
+struct is_variant_constructible<std::deque<T, Allocator>, void>
+    : std::bool_constant<all_container_variant_constructible_v<T>> {};
+
+template <typename T, typename Allocator>
+struct is_variant_convertible<std::deque<T, Allocator>, void>
+    : std::bool_constant<all_container_variant_convertible_v<T>> {};
+
+template <typename T, typename Compare, typename Allocator>
+struct is_variant_constructible<std::set<T, Compare, Allocator>, void>
+    : std::bool_constant<all_container_variant_constructible_v<T>> {};
+
+template <typename T, typename Compare, typename Allocator>
+struct is_variant_convertible<std::set<T, Compare, Allocator>, void>
+    : std::bool_constant<all_container_variant_convertible_v<T>> {};
+
+template <typename T, typename Compare, typename Allocator>
+struct is_variant_constructible<std::multiset<T, Compare, Allocator>, void>
+    : std::bool_constant<all_container_variant_constructible_v<T>> {};
+
+template <typename T, typename Compare, typename Allocator>
+struct is_variant_convertible<std::multiset<T, Compare, Allocator>, void>
+    : std::bool_constant<all_container_variant_convertible_v<T>> {};
+
+template <typename T, typename Hash, typename KeyEqual, typename Allocator>
+struct is_variant_constructible<std::unordered_set<T, Hash, KeyEqual, Allocator>, void>
+    : std::bool_constant<all_container_variant_constructible_v<T>> {};
+
+template <typename T, typename Hash, typename KeyEqual, typename Allocator>
+struct is_variant_convertible<std::unordered_set<T, Hash, KeyEqual, Allocator>, void>
+    : std::bool_constant<all_container_variant_convertible_v<T>> {};
+
+template <typename K, typename T, typename Compare, typename Allocator>
+struct is_variant_constructible<std::map<K, T, Compare, Allocator>, void>
+    : std::bool_constant<all_container_variant_constructible_v<K, T>> {};
+
+template <typename K, typename T, typename Compare, typename Allocator>
+struct is_variant_convertible<std::map<K, T, Compare, Allocator>, void>
+    : std::bool_constant<all_container_variant_convertible_v<K, T>> {};
+
+template <typename K, typename T, typename Compare, typename Allocator>
+struct is_variant_constructible<std::multimap<K, T, Compare, Allocator>, void>
+    : std::bool_constant<all_container_variant_constructible_v<K, T>> {};
+
+template <typename K, typename T, typename Compare, typename Allocator>
+struct is_variant_convertible<std::multimap<K, T, Compare, Allocator>, void>
+    : std::bool_constant<all_container_variant_convertible_v<K, T>> {};
+
+template <typename K, typename T, typename Hash, typename KeyEqual, typename Allocator>
+struct is_variant_constructible<std::unordered_map<K, T, Hash, KeyEqual, Allocator>, void>
+    : std::bool_constant<all_container_variant_constructible_v<K, T>> {};
+
+template <typename K, typename T, typename Hash, typename KeyEqual, typename Allocator>
+struct is_variant_convertible<std::unordered_map<K, T, Hash, KeyEqual, Allocator>, void>
+    : std::bool_constant<all_container_variant_convertible_v<K, T>> {};
+
+template <typename T, std::size_t S>
+struct is_variant_constructible<std::array<T, S>, void>
+    : std::bool_constant<all_container_variant_constructible_v<T>> {};
+
+template <typename T, std::size_t S>
+struct is_variant_convertible<std::array<T, S>, void>
+    : std::bool_constant<all_container_variant_convertible_v<T>> {};
+
+template <typename T, typename Allocator>
+struct is_variant_constructible<mc::array<T, Allocator>, void>
+    : std::bool_constant<all_container_variant_constructible_v<T>> {};
+
+template <typename T, typename Allocator>
+struct is_variant_convertible<mc::array<T, Allocator>, void>
+    : std::bool_constant<all_container_variant_convertible_v<T>> {};
+
+template <typename K, typename T>
+struct is_variant_constructible<std::pair<K, T>, void>
+    : std::bool_constant<all_container_variant_constructible_v<K, T>> {};
+
+template <typename K, typename T>
+struct is_variant_convertible<std::pair<K, T>, void>
+    : std::bool_constant<all_container_variant_convertible_v<K, T>> {};
+
+template <typename... T>
+struct is_variant_constructible<std::tuple<T...>, void>
+    : std::bool_constant<all_container_variant_constructible_v<T...>> {};
+
+template <typename... T>
+struct is_variant_convertible<std::tuple<T...>, void>
+    : std::bool_constant<all_container_variant_convertible_v<T...>> {};
+
+template <typename T>
+struct is_variant_constructible<std::shared_ptr<T>, void>
+    : std::bool_constant<all_container_variant_constructible_v<T>> {};
+
+template <typename T>
+struct is_variant_convertible<std::shared_ptr<T>, void>
+    : std::bool_constant<all_container_variant_convertible_v<T>> {};
+
+template <typename T, typename Deleter>
+struct is_variant_constructible<std::unique_ptr<T, Deleter>, void>
+    : std::bool_constant<all_container_variant_constructible_v<T>> {};
+
+template <typename T, typename Deleter>
+struct is_variant_convertible<std::unique_ptr<T, Deleter>, void>
+    : std::bool_constant<all_container_variant_convertible_v<T>> {};
+
+template <typename T>
+struct is_variant_constructible<std::optional<T>, void>
+    : std::bool_constant<all_container_variant_constructible_v<T>> {};
+
+template <typename T>
+struct is_variant_convertible<std::optional<T>, void>
+    : std::bool_constant<all_container_variant_convertible_v<T>> {};
+
+template <typename... T>
+struct is_variant_constructible<std::variant<T...>, void>
+    : std::bool_constant<all_container_variant_constructible_v<T...>> {};
+
+template <typename... T>
+struct is_variant_convertible<std::variant<T...>, void>
+    : std::bool_constant<all_container_variant_convertible_v<T...>> {};
+
+} // namespace detail
 } // namespace mc
 
 namespace mc {

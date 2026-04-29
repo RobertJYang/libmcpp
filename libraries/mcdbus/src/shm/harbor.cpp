@@ -564,15 +564,25 @@ void harbor::remove_shm_msg(std::string_view source_name, uint32_t serial)
 
 void harbor::unregister_service(std::string service_name)
 {
-    std::lock_guard lock(m_unique_name_map_mutex);
-    auto            it = m_unique_name_map.find(std::string(service_name));
-    if (it != m_unique_name_map.end()) {
-        m_shm_pending_msgs.clear(it->second);
-        m_unique_name_map.erase(it);
+    std::string unique_name;
+    [[maybe_unused]] bool no_registered_services = false;
+    {
+        std::lock_guard lock(m_unique_name_map_mutex);
+        auto            it = m_unique_name_map.find(std::string(service_name));
+        if (it != m_unique_name_map.end()) {
+            unique_name = it->second;
+            m_shm_pending_msgs.clear(unique_name);
+            m_unique_name_map.erase(it);
+        }
+        no_registered_services = m_unique_name_map.empty();
+    }
+    if (!unique_name.empty()) {
+        std::lock_guard handler_lock(m_method_handlers_mutex);
+        m_method_handlers.erase(unique_name);
     }
 #if defined(BUILD_TYPE) && defined(BUILD_TYPE_DT) && BUILD_TYPE == BUILD_TYPE_DT
     // DT环境下，服务全都注销后停止harbor
-    if (m_unique_name_map.empty()) {
+    if (no_registered_services) {
         stop();
     }
 #endif

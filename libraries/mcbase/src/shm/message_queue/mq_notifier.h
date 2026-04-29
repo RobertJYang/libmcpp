@@ -22,7 +22,7 @@
 
 namespace mc::shm::detail {
 
-class MC_API mq_notifier {
+class mq_notifier {
 public:
     mq_notifier() noexcept;
     explicit mq_notifier(mc::string_view name);

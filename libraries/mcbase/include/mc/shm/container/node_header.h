@@ -17,6 +17,8 @@
 #include <cstdint>
 #include <mc/common.h>
 
+#include <mc/common.h>
+
 // 共享内存 crash-safe 容器的节点头部
 //
 // 设计要点：
