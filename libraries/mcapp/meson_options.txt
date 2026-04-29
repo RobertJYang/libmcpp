@@ -1,4 +1,5 @@
 option('tests', type: 'boolean', value: false, description: 'Build mcapp tests')
+option('tests_utilities', type: 'boolean', value: true, description: 'Build mcapp test utilities')
 option('enable_coverage', type: 'boolean', value: false, description: 'Enable mcapp coverage')
 
 # 旧 dbus/shm 兼容机制（harbor + shm_tree）

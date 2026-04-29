@@ -13,5 +13,5 @@ executable(
     include_directories: example_inc_dirs,
     dependencies: [boost_dep, dbus_dep, glib_dep, libmcpp_dep],
     install: false,
-    build_by_default: false,
+    build_by_default: true,
 )

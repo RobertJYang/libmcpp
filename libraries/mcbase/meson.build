@@ -64,6 +64,7 @@ build_tests = get_option('tests')
 tests_utilities = get_option('tests_utilities')
 enable_coverage = get_option('enable_coverage')
 sanitizer_option = get_option('sanitizer')
+test_utilities_dep = declare_dependency()
 
 mcbase_sanitizer_cpp_args = []
 mcbase_sanitizer_link_args = []

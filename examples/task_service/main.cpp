@@ -12,11 +12,23 @@
 
 #include "test_service.h"
 #include <mc/app/application.h>
-#include <mc/engine.h>
 #include <mc/log.h>
 #include <test_utilities/test_base.h>
 
-#include <thread>
+#include <csignal>
+
+namespace {
+
+mc::app::application* g_app = nullptr;
+
+void handle_stop_signal(int)
+{
+    if (g_app != nullptr) {
+        g_app->quit();
+    }
+}
+
+} // namespace
 
 int main(int argc, char* argv[])
 {
@@ -25,13 +37,34 @@ int main(int argc, char* argv[])
 
     ilog("服务连接示例启动");
 
-    test::test_service service("org.openubmc.test_service");
-    service.init({});
-    service.start();
+    mc::app::application app;
+    g_app = &app;
+    std::signal(SIGINT, handle_stop_signal);
+    std::signal(SIGTERM, handle_stop_signal);
 
-    mc::app::application().start();
-    mc::app::application().exec();
+    app.register_service<test::test_service>("test.task_service");
 
+    mc::app::service_plan plan;
+    plan.application.io_threads   = 2;
+    plan.application.work_threads = 1;
+    mc::app::service_definition service;
+    service.name = "org.openubmc.test_service";
+    service.path = "/org/openubmc/test_service";
+    service.type = "test.task_service";
+    plan.services.push_back(std::move(service));
+
+    if (!app.initialize_with_plan(std::move(plan))) {
+        elog("服务连接示例初始化失败");
+        return 1;
+    }
+    if (!app.start()) {
+        elog("服务连接示例启动失败");
+        return 1;
+    }
+
+    ilog("服务连接示例运行中，按 Ctrl+C 退出");
+    auto exit_code = app.exec();
+    g_app          = nullptr;
     ilog("服务连接示例结束");
-    return 0;
+    return exit_code;
 }

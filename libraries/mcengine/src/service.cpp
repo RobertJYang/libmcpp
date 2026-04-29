@@ -567,7 +567,7 @@ void service::register_object(abstract_object& obj)
     m_impl->ensure_registered();
 
     if (!obj.has_valid_id()) {
-        obj.set_object_id(m_impl->m_object_table->generate_id());
+        obj.set_object_id(m_impl->m_object_table->generate_available_id());
     }
 
     auto path = obj.get_object_path();

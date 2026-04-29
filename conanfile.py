@@ -14,6 +14,7 @@ class AppConan(ConanBase):
         "asan": [True, False],
         "gcov": [True, False],
         "test": [True, False],
+        "test_utilities": [True, False],
         "enable_luajit": [True, False],
         # 进程间通信架构开关，与顶层 meson 选项一一对应，禁止同时为 True：
         #   use_shm=True  + use_old_shm=False ：新 SHM 架构
@@ -26,6 +27,7 @@ class AppConan(ConanBase):
         "asan": False,
         "gcov": False,
         "test": False,
+        "test_utilities": True,
         "enable_luajit": False,
         # conan 构建（DT / 交叉编译生产）默认走旧架构，保持与存量部署兼容；
         # 想在 conan 环境下试新架构：-o use_shm=True -o use_old_shm=False。
@@ -41,7 +43,7 @@ class AppConan(ConanBase):
 
     def requirements(self):
         super().requirements()
-        if self.options.test:
+        if self.options.test or self.options.test_utilities:
             self.requires("gtest/[>=1.14.0]@openubmc/stable")
 
     def generate(self):
@@ -64,6 +66,7 @@ class AppConan(ConanBase):
             tc.project_options["tests"] = True
         else:
             tc.project_options["tests"] = False
+        tc.project_options["tests_utilities"] = bool(self.options.test_utilities)
         tc.project_options["meson_build"] = False
         # 顶层 meson 会做互斥校验（use_shm 与 use_old_shm 不能同时 True），
         # 这里再前置一次让 conan 用户更早看到错误，且错误信息更贴 conan 选项。
@@ -475,7 +478,7 @@ class AppConan(ConanBase):
 
         # 配置test_utilities的pkg-config
         self.cpp_info.components["test_utilities"].libs = []
-        if self.options.test:
+        if self.options.test or self.options.test_utilities:
             self.cpp_info.components["test_utilities"].libs.extend(
                 [
                     "mcbase_test_utilities",
@@ -494,7 +497,7 @@ class AppConan(ConanBase):
             "mcengine",
             "mcapp",
         ]
-        if self.options.test:
+        if self.options.test or self.options.test_utilities:
             self.cpp_info.components["test_utilities"].requires.append("gtest::gtest")
         self.cpp_info.components["test_utilities"].set_property(
             "pkg_config_custom_content",

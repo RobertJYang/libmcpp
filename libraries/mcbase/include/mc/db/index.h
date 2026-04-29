@@ -57,8 +57,7 @@ namespace mc::db {
  * @tparam Engine       存储引擎类型
  */
 template <typename ObjectType, typename KeyExtractor, bool IsUnique = true, typename Tag = void,
-          typename Allocator = std::allocator<char>,
-          typename Engine    = local_storage_engine<ObjectType, 1U, Allocator>>
+          typename Allocator = std::allocator<char>, typename Engine = local_storage_engine<ObjectType, 1U, Allocator>>
 class index : public index_base<ObjectType, Allocator, Engine> {
     static_assert(std::is_base_of_v<mc::object_base, ObjectType>, "ObjectType必须继承自mc::object_base");
 
@@ -129,11 +128,24 @@ public:
         return find_by_key_internal(m_key);
     }
 
+    bool contains_key(const object_type& obj)
+    {
+        make_object_key(m_key, obj);
+        return m_engine->contains(m_index_id, m_key.key());
+    }
+
     template <typename... KeyType>
     iterator_type find(const KeyType&... keys)
     {
         make_keys(m_key, keys...);
         return find_by_key_internal(m_key);
+    }
+
+    template <typename... KeyType>
+    bool contains_key(const KeyType&... keys)
+    {
+        make_keys(m_key, keys...);
+        return m_engine->contains(m_index_id, m_key.key());
     }
 
     template <typename... KeyType>

@@ -14,36 +14,21 @@
 
 namespace test {
 
-test_service::test_service(std::string_view name) : mc::engine::service(name)
+test_service::test_service(mc::string name) : mc::app::service(std::move(name))
 {}
 
 test_service::~test_service()
 {}
 
-bool test_service::init(mc::dict args)
+bool test_service::on_start()
 {
-    return mc::engine::service::init(args);
-}
-
-bool test_service::start()
-{
-    if (!mc::engine::service::start()) {
-        return false;
-    }
-
     setup_tasks_root();
     return true;
 }
 
-bool test_service::stop()
+bool test_service::on_stop()
 {
-    if (!mc::engine::service::stop()) {
-        return false;
-    }
-
-    // for (auto& task : m_tasks) {
-    //     // task->stop();
-    // }
+    m_tasks.reset();
     return true;
 }
 

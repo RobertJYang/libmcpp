@@ -123,16 +123,16 @@ struct user_indices_builder<ObjectType, IndexTuple, Alloc, Engine, std::index_se
     static auto build()
     {
         return std::make_tuple(
-            object_id_index_type(typename object_id_index_type::table_mode_t{},
-                                 detail::object_id_key<ObjectType>{}, 0, nullptr),
+            object_id_index_type(typename object_id_index_type::table_mode_t{}, detail::object_id_key<ObjectType>{}, 0,
+                                 nullptr),
             index<ObjectType, typename std::tuple_element_t<Is, IndexTuple>::key_extractor_type,
                   std::tuple_element_t<Is, IndexTuple>::is_unique,
                   typename std::tuple_element_t<Is, IndexTuple>::tag_type, Alloc, Engine>(
                 typename index<ObjectType, typename std::tuple_element_t<Is, IndexTuple>::key_extractor_type,
                                std::tuple_element_t<Is, IndexTuple>::is_unique,
                                typename std::tuple_element_t<Is, IndexTuple>::tag_type, Alloc, Engine>::table_mode_t{},
-                typename std::tuple_element_t<Is, IndexTuple>::key_extractor_type{},
-                static_cast<uint8_t>(Is + 1), nullptr)...);
+                typename std::tuple_element_t<Is, IndexTuple>::key_extractor_type{}, static_cast<uint8_t>(Is + 1),
+                nullptr)...);
     }
 };
 
@@ -259,9 +259,8 @@ public:
     using indices_tuple_type = std::conditional_t<
         std::is_same_v<IndexDef, no_indices>,
         std::tuple<index<ObjectType, detail::object_id_key<ObjectType>, true, void, alloc_type, Engine>>,
-        decltype(detail::user_indices_builder<
-                 ObjectType, indices_def, alloc_type, Engine,
-                 std::make_index_sequence<std::tuple_size_v<indices_def>>>::build())>;
+        decltype(detail::user_indices_builder<ObjectType, indices_def, alloc_type, Engine,
+                                              std::make_index_sequence<std::tuple_size_v<indices_def>>>::build())>;
 
     using indices_array_type =
         std::array<index_base<object_type, alloc_type, Engine>*, std::tuple_size_v<indices_tuple_type>>;
@@ -300,8 +299,20 @@ public:
      *   - 诊断 / 测试观察引擎内部状态。
      * 注意：返回的引用生命周期与 table 一致，调用方不应另行持有。
      */
-    Engine&       engine() noexcept { return *m_engine; }
-    const Engine& engine() const noexcept { return *m_engine; }
+    Engine& engine() noexcept
+    {
+        return *m_engine;
+    }
+    const Engine& engine() const noexcept
+    {
+        return *m_engine;
+    }
+
+    object_id_type generate_available_id()
+    {
+        std::lock_guard lock(m_mutex);
+        return generate_available_id_internal();
+    }
 
     /**
      * 向表中添加一条记录
@@ -325,7 +336,7 @@ public:
 
         // 如果对象没有有效ID，则分配新ID
         if (!obj_ptr->has_valid_id()) {
-            obj_ptr->set_object_id(generate_id());
+            obj_ptr->set_object_id(generate_available_id_internal());
         }
 
         // 是否需要事务管理
@@ -881,6 +892,17 @@ private:
         }
     }
 
+    object_id_type generate_available_id_internal()
+    {
+        auto& id_idx = std::get<0>(m_indices);
+        for (;;) {
+            auto id = generate_id();
+            if (!id_idx.contains_key(id)) {
+                return id;
+            }
+        }
+    }
+
     // 从 dict 更新对象
     void update_object(object_type& obj, const dict& values)
     {
@@ -926,15 +948,13 @@ private:
      */
     indices_tuple_type make_indices()
     {
-        using object_id_idx_t =
-            index<object_type, detail::object_id_key<object_type>, true, void, alloc_type, Engine>;
+        using object_id_idx_t = index<object_type, detail::object_id_key<object_type>, true, void, alloc_type, Engine>;
         if constexpr (std::is_same_v<IndexDef, no_indices>) {
             return std::make_tuple(object_id_idx_t(typename object_id_idx_t::table_mode_t{},
                                                    detail::object_id_key<object_type>{}, 0, nullptr));
         } else {
-            return detail::user_indices_builder<
-                object_type, indices_def, alloc_type, Engine,
-                std::make_index_sequence<std::tuple_size_v<indices_def>>>::build();
+            return detail::user_indices_builder<object_type, indices_def, alloc_type, Engine,
+                                                std::make_index_sequence<std::tuple_size_v<indices_def>>>::build();
         }
     }
 

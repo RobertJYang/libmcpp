@@ -121,7 +121,7 @@ MC_REFLECT(test_interface_inherit::ExtendedInterface,
            ((extended_method, "ExtendedMethod"))((common_method, "CommonMethod")))    // 覆盖中间接口的方法
 
 MC_REFLECT(test_interface_inherit::TestObject, ((m_iface, "iface"))((m_common_prop, "CommonProp")) // 覆盖接口的属性
-           ((common_method, "CommonMethod"))((m_common_signal, "CommonSignal"))) // 覆盖接口的方法
+           ((common_method, "CommonMethod"))((m_common_signal, "CommonSignal")))                   // 覆盖接口的方法
 
 using namespace test_interface_inherit;
 
@@ -328,6 +328,46 @@ TEST_F(interface_inherit_test, test_method_override)
     EXPECT_EQ(obj.m_iface.base_method(42), "base:42");             // 基础接口方法
     EXPECT_EQ(obj.m_iface.middle_method("21"), 42.0);              // 中间接口方法
     EXPECT_TRUE(obj.m_iface.extended_method(10.0));                // 扩展接口方法
+}
+
+TEST_F(interface_inherit_test, test_interface_metadata_visit_no_duplicate_inherited_members)
+{
+    struct count_visitor : mc::engine::metadata_visitor {
+        std::map<std::string_view, std::size_t> properties;
+        std::map<std::string_view, std::size_t> methods;
+        std::map<std::string_view, std::size_t> signals;
+
+        void handle(const mc::engine::property_type_info* info) override
+        {
+            properties[info->name]++;
+        }
+
+        void handle(const mc::engine::method_type_info* info) override
+        {
+            methods[info->name]++;
+        }
+
+        void handle(const mc::engine::signal_type_info* info) override
+        {
+            signals[info->name]++;
+        }
+    };
+
+    count_visitor visitor;
+    obj.get_metadata().visit(visitor);
+
+    EXPECT_EQ(visitor.properties["BaseValue"], 1U);
+    EXPECT_EQ(visitor.properties["MiddleValue"], 1U);
+    EXPECT_EQ(visitor.properties["ExtendedValue"], 1U);
+    EXPECT_EQ(visitor.properties["CommonProp"], 1U);
+    EXPECT_EQ(visitor.methods["BaseMethod"], 1U);
+    EXPECT_EQ(visitor.methods["MiddleMethod"], 1U);
+    EXPECT_EQ(visitor.methods["ExtendedMethod"], 1U);
+    EXPECT_EQ(visitor.methods["CommonMethod"], 1U);
+    EXPECT_EQ(visitor.signals["BaseSignal"], 1U);
+    EXPECT_EQ(visitor.signals["MiddleSignal"], 1U);
+    EXPECT_EQ(visitor.signals["ExtendedSignal"], 1U);
+    EXPECT_EQ(visitor.signals["CommonSignal"], 1U);
 }
 
 // 测试通过 abstract_interface 调用方法

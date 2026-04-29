@@ -71,7 +71,7 @@ void engine::engine_impl::add_object(abstract_object& object)
     std::lock_guard lock(m_mutex);
 
     auto object_id = object.get_object_id();
-    if (object_id > 0 && !m_object_table->find_by_object_id(object_id).is_end()) {
+    if (object_id > 0 && m_object_table->get<0>().contains_key(object_id)) {
         return;
     }
 
@@ -198,8 +198,9 @@ struct engine_bootstrap {
             shm_runtime_provider::install_runtime(runtime);
         } else {
             try {
-                runtime = std::shared_ptr<mc::shm::shm_runtime>(&shm_runtime_provider::instance(),
-                                                                [](mc::shm::shm_runtime*) {});
+                runtime =
+                    std::shared_ptr<mc::shm::shm_runtime>(&shm_runtime_provider::instance(), [](mc::shm::shm_runtime*) {
+                });
             } catch (const std::exception& ex) {
                 elog("engine::init: shm_runtime 初始化失败: ${what}", ("what", ex.what()));
                 return false;

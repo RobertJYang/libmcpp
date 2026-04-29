@@ -6,6 +6,13 @@ option(
 )
 
 option(
+  'tests_utilities',
+  type: 'boolean',
+  value: true,
+  description: '是否构建测试辅助库，默认为true',
+)
+
+option(
   'enable_coverage',
   type: 'boolean',
   value: false,

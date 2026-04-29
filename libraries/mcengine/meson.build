@@ -12,6 +12,8 @@ project(
 )
 
 build_tests = get_option('tests')
+tests_utilities = get_option('tests_utilities')
+build_test_utilities = build_tests or tests_utilities
 enable_coverage = get_option('enable_coverage')
 use_shm = get_option('use_shm')
 with_benches = get_option('with_benches')
@@ -71,15 +73,17 @@ mcbase_dep = dependency(
   default_options: [
     'default_library=shared',
     'tests=' + build_tests.to_string(),
+    'tests_utilities=' + build_test_utilities.to_string(),
   ],
   required: true,
 )
 mcbase_subproject = subproject('mcbase', default_options: [
   'default_library=shared',
   'tests=' + build_tests.to_string(),
+  'tests_utilities=' + build_test_utilities.to_string(),
 ])
 
-if build_tests
+if build_test_utilities
   gtest_dep = dependency('gtest', method: 'pkg-config', required: true)
   mcbase_test_utilities_dep = mcbase_subproject.get_variable('test_utilities_dep')
 else
@@ -94,6 +98,10 @@ dep_arr = [mcbase_dep]
 subdir('include')
 subdir('src')
 meson.override_dependency('mcengine', mcengine_dep)
+
+if build_test_utilities
+  subdir('tests/test_utilities')
+endif
 
 if build_tests
   # 与 SHM 无关、任何 use_shm 配置都会编译的用例。
@@ -121,8 +129,6 @@ if build_tests
 
   # 仅在 use_shm=true 时才编译的用例：内部代码直接依赖 shm_object / shm_service
   # POD 布局、shm_runtime、shared_table 等 SHM 机制。关 SHM 时整体不进编译单元。
-  subdir('tests/test_utilities')
-
   if use_shm
     mcengine_test_sources += files(
       'tests/test_shm_object_journal.cpp',

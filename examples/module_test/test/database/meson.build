@@ -14,7 +14,7 @@ test_database_module = shared_library(
     install_dir: get_option('libdir') / 'libmcpp/modules/mc/test',
     name_prefix: 'lib',
     name_suffix: 'so',
-    build_by_default: false,
+    build_by_default: true,
 )
 
 # 复制模块到测试目录
@@ -27,5 +27,5 @@ custom_target(
         test_database_dir / 'database.so',
     ],
     depends: test_database_module,
-    build_by_default: false,
+    build_by_default: true,
 )

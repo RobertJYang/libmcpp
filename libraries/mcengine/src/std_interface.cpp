@@ -296,8 +296,7 @@ namespace {
 std::set<mc::string> collect_child_segments(service_object_table& table, mc::string_view path)
 {
     std::set<mc::string> segments;
-    mc::string           prefix = mc::string(path);
-    prefix += '/';
+    mc::string           prefix = path == "/" ? mc::string("/") : mc::string(path) + "/";
     table.with_index<by_path>([&](auto& idx) {
         for (auto it = idx.lower_bound(prefix); !it.is_end(); ++it) {
             mc::string_view k = it.key();

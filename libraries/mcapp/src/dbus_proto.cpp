@@ -36,14 +36,30 @@ inline const mc::string mc_err_unknown_property = mc::string::from_quark("mc.eng
 
 mc::string_view map_engine_error_to_dbus(const mc::string& engine_name) noexcept
 {
-    if (engine_name == mc_err_internal_error)   return dbus::error_names::failed;
-    if (engine_name == mc_err_invalid_args)     return dbus::error_names::invalid_args;
-    if (engine_name == mc_err_not_supported)    return dbus::error_names::not_supported;
-    if (engine_name == mc_err_property_ro)      return dbus::error_names::property_read_only;
-    if (engine_name == mc_err_unknown_iface)    return dbus::error_names::unknown_interface;
-    if (engine_name == mc_err_unknown_method)   return dbus::error_names::unknown_method;
-    if (engine_name == mc_err_unknown_object)   return dbus::error_names::unknown_object;
-    if (engine_name == mc_err_unknown_property) return dbus::error_names::unknown_property;
+    if (engine_name == mc_err_internal_error) {
+        return dbus::error_names::failed;
+    }
+    if (engine_name == mc_err_invalid_args) {
+        return dbus::error_names::invalid_args;
+    }
+    if (engine_name == mc_err_not_supported) {
+        return dbus::error_names::not_supported;
+    }
+    if (engine_name == mc_err_property_ro) {
+        return dbus::error_names::property_read_only;
+    }
+    if (engine_name == mc_err_unknown_iface) {
+        return dbus::error_names::unknown_interface;
+    }
+    if (engine_name == mc_err_unknown_method) {
+        return dbus::error_names::unknown_method;
+    }
+    if (engine_name == mc_err_unknown_object) {
+        return dbus::error_names::unknown_object;
+    }
+    if (engine_name == mc_err_unknown_property) {
+        return dbus::error_names::unknown_property;
+    }
     // 非 mc.engine.* 前缀的错误名直接透传
     return engine_name.view();
 }
@@ -228,8 +244,8 @@ mc::future<mc::engine::message> dbus_proto::async_send_with_reply(mc::engine::me
         error.header.type         = mc::engine::message_type::error;
         error.header.reply_serial = msg.header.serial;
         error.header.error_name   = "mc.engine.invalid_args";
-        error.body = mc::engine::make_payload<mc::engine::error_payload>("mc.engine.invalid_args",
-                                                                         "dbus proto method_call 缺少目标字段");
+        error.body                = mc::engine::make_payload<mc::engine::error_payload>("mc.engine.invalid_args",
+                                                                                        "dbus proto method_call 缺少目标字段");
         return mc::resolve(std::move(error));
     }
 
@@ -411,7 +427,7 @@ bool dbus_proto::send_error_reply(mc::proto::proto_request& req, mc::engine::mes
         name = mc::string(mc::dbus::error_names::failed);
     }
     auto dbus_name = map_engine_error_to_dbus(name);
-    auto wire = mc::dbus::message::new_error(call_ctx->original_call, dbus_name, text);
+    auto wire      = mc::dbus::message::new_error(call_ctx->original_call, dbus_name, text);
     if (!m_connection.send(std::move(wire))) {
         return false;
     }

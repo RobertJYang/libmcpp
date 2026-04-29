@@ -47,8 +47,8 @@ struct metadata_visitor {
 template <typename T>
 class pointer_list {
 public:
-    using value_type = T;
-    using iterator = typename std::vector<value_type>::iterator;
+    using value_type     = T;
+    using iterator       = typename std::vector<value_type>::iterator;
     using const_iterator = typename std::vector<value_type>::const_iterator;
 
     pointer_list() = default;
@@ -109,8 +109,11 @@ private:
     std::vector<value_type> m_items;
 };
 
-using struct_metadata_list = pointer_list<const mc::reflect::struct_metadata*>;
+using struct_metadata_list     = pointer_list<const mc::reflect::struct_metadata*>;
 using interface_type_info_list = pointer_list<const interface_type_info*>;
+using property_type_info_list  = pointer_list<const property_type_info*>;
+using method_type_info_list    = pointer_list<const method_type_info*>;
+using signal_type_info_list    = pointer_list<const signal_type_info*>;
 
 class MC_API metadata_list {
 public:
@@ -142,8 +145,13 @@ public:
     const struct_metadata_list& get_struct_metadata() const;
 
 private:
-    struct_metadata_list array; // interface 和其基类的 metadata
-    mc::string_view      class_name;
+    void build_member_views();
+
+    struct_metadata_list    array; // interface 和其基类的 metadata
+    property_type_info_list m_properties;
+    method_type_info_list   m_methods;
+    signal_type_info_list   m_signals;
+    mc::string_view         class_name;
 };
 
 struct interface_metadata {
@@ -210,15 +218,13 @@ public:
     const interface_type_info*               get_interface_info(mc::string_view name) const;
     const interface_item<property_type_info> get_property_info(mc::string_view name,
                                                                mc::string_view interface_name) const;
-    const interface_item<method_type_info>   get_method_info(mc::string_view name,
-                                                             mc::string_view interface_name) const;
-    const interface_item<signal_type_info>   get_signal_info(mc::string_view name,
-                                                             mc::string_view interface_name) const;
+    const interface_item<method_type_info> get_method_info(mc::string_view name, mc::string_view interface_name) const;
+    const interface_item<signal_type_info> get_signal_info(mc::string_view name, mc::string_view interface_name) const;
 
     interface_type_info_list get_interfaces() const;
-    const property_list&                    get_propertis() const;
-    const method_list&                      get_methods() const;
-    const signal_list&                      get_signals() const;
+    const property_list&     get_propertis() const;
+    const method_list&       get_methods() const;
+    const signal_list&       get_signals() const;
 
     using visit_properties_type = mc::small_function<void(interface_item<property_type_info>), 64>;
     using visit_methods_type    = mc::small_function<void(interface_item<method_type_info>), 64>;

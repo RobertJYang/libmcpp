@@ -12,6 +12,8 @@ project(
 )
 
 build_tests = get_option('tests')
+tests_utilities = get_option('tests_utilities')
+build_test_utilities = build_tests or tests_utilities
 enable_coverage = get_option('enable_coverage')
 use_old_shm = get_option('use_old_shm')
 
@@ -43,17 +45,20 @@ mcbase_dep = dependency(
   default_options: [
     'default_library=shared',
     'tests=' + build_tests.to_string(),
+    'tests_utilities=' + build_test_utilities.to_string(),
   ],
   required: true,
 )
 mcbase_subproject = subproject('mcbase', default_options: [
   'default_library=shared',
   'tests=' + build_tests.to_string(),
+  'tests_utilities=' + build_test_utilities.to_string(),
 ])
 
 mcengine_subproject = subproject('mcengine', default_options: [
   'default_library=static',
   'tests=' + build_tests.to_string(),
+  'tests_utilities=' + build_test_utilities.to_string(),
 ])
 mcengine_dep = mcengine_subproject.get_variable('mcengine_dep')
 mcengine_use_shm = mcengine_subproject.get_variable('use_shm')
@@ -78,11 +83,15 @@ mcdbus_dep = mcdbus_subproject.get_variable('mcdbus_dep')
 
 if build_tests
   gtest_dep = dependency('gtest', method: 'pkg-config', required: true)
+else
+  gtest_dep = declare_dependency()
+endif
+
+if build_test_utilities
   mcbase_test_utilities_dep = mcbase_subproject.get_variable('test_utilities_dep')
   mcengine_test_utilities_dep = mcengine_subproject.get_variable('mcengine_test_utilities_dep')
   raw_dbus_dep = dependency('dbus-1', method: 'pkg-config', required: true)
 else
-  gtest_dep = declare_dependency()
   mcbase_test_utilities_dep = declare_dependency()
   mcengine_test_utilities_dep = declare_dependency()
   raw_dbus_dep = declare_dependency()
@@ -94,7 +103,10 @@ subdir('include')
 subdir('src')
 meson.override_dependency('mcapp', mcapp_dep)
 
-if build_tests
+if build_test_utilities
   subdir('tests/test_utilities')
+endif
+
+if build_tests
   subdir('tests')
 endif

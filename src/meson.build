@@ -84,12 +84,10 @@ libmcpp_base_lib = library(
 libmcpp_base_dep = declare_dependency(
   include_directories: base_inc_dirs,
   link_with: libmcpp_base_lib,
-  dependencies: base_dep_arr + [mcengine_dep, mcexpr_dep, mcapp_dep],
 )
 libmcpp_base_internal_dep = declare_dependency(
   include_directories: base_inc_dirs,
   link_with: libmcpp_base_lib,
-  dependencies: base_dep_arr + [mcengine_dep, mcexpr_dep, mcapp_dep],
 )
 mcpp_deps += [libmcpp_base_dep]
 

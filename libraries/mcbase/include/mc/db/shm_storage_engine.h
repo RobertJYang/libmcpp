@@ -84,25 +84,31 @@ struct shm_engine_alloc {
 
     shm_engine_alloc() noexcept = default;
 
-    shm_engine_alloc(mc::shm::shm_runtime& rt, std::string_view base) noexcept
-        : runtime(&rt), name(base)
-    {
-    }
+    shm_engine_alloc(mc::shm::shm_runtime& rt, std::string_view base) noexcept : runtime(&rt), name(base)
+    {}
 
     template <typename U>
     shm_engine_alloc(const std::allocator<U>&) noexcept
+    {}
+
+    value_type* allocate(std::size_t n)
     {
+        return static_cast<value_type*>(::operator new(n));
     }
 
-    value_type* allocate(std::size_t n) { return static_cast<value_type*>(::operator new(n)); }
-
-    void deallocate(value_type* p, std::size_t) noexcept { ::operator delete(p); }
+    void deallocate(value_type* p, std::size_t) noexcept
+    {
+        ::operator delete(p);
+    }
 
     bool operator==(const shm_engine_alloc& o) const noexcept
     {
         return runtime == o.runtime && name == o.name;
     }
-    bool operator!=(const shm_engine_alloc& o) const noexcept { return !(*this == o); }
+    bool operator!=(const shm_engine_alloc& o) const noexcept
+    {
+        return !(*this == o);
+    }
 
     mc::shm::shm_runtime* runtime = nullptr;
     std::string           name;
@@ -116,9 +122,8 @@ inline shm_engine_alloc derive_per_index_alloc(const shm_engine_alloc& alloc, st
         return alloc;
     }
     shm_engine_alloc out;
-    out.runtime = alloc.runtime;
-    std::string base =
-        !alloc.name.empty() ? alloc.name : std::string(table_name.data(), table_name.size());
+    out.runtime      = alloc.runtime;
+    std::string base = !alloc.name.empty() ? alloc.name : std::string(table_name.data(), table_name.size());
     if (base.empty()) {
         base = "shm_engine";
     }
@@ -130,23 +135,21 @@ inline shm_engine_alloc derive_per_index_alloc(const shm_engine_alloc& alloc, st
 // shm_storage_engine 主体
 // ============================================================================
 
-template <typename Object, typename ShmRecord, std::size_t IndexCount,
-          typename Allocator = shm_engine_alloc>
+template <typename Object, typename ShmRecord, std::size_t IndexCount, typename Allocator = shm_engine_alloc>
 class shm_storage_engine {
     static_assert(IndexCount >= 1U, "shm_storage_engine 至少需要 1 个 index（object_id）");
     static_assert(std::is_base_of_v<mc::object_base, Object>,
                   "shm_storage_engine<Object>: Object 必须继承 mc::object_base");
 
 public:
-    using object_type        = Object;
-    using object_ptr_type    = mc::shared_ptr<object_type>;
-    using leaf_type          = std::optional<object_ptr_type>;
-    using allocator_type     = Allocator;
-    using id_type            = mc::object_id_type;
-    using shm_record_type    = ShmRecord;
-    using shm_record_ptr     = mc::intrusive::offset_ptr<ShmRecord>;
-    using map_type =
-        mc::shm::container::map<mc::shm::byte_string, shm_record_ptr, mc::shm::byte_string_less>;
+    using object_type     = Object;
+    using object_ptr_type = mc::shared_ptr<object_type>;
+    using leaf_type       = std::optional<object_ptr_type>;
+    using allocator_type  = Allocator;
+    using id_type         = mc::object_id_type;
+    using shm_record_type = ShmRecord;
+    using shm_record_ptr  = mc::intrusive::offset_ptr<ShmRecord>;
+    using map_type        = mc::shm::container::map<mc::shm::byte_string, shm_record_ptr, mc::shm::byte_string_less>;
     using shm_handle_extractor_fn = std::function<ShmRecord*(const Object&)>;
     using reconstruct_fn          = std::function<object_ptr_type(ShmRecord*)>;
     using recover_hook_fn         = std::function<void(ShmRecord*)>;
@@ -154,7 +157,7 @@ public:
     // 让上层把 ShmRecord 自身在 SHM allocator 中的占用回收。
     // 未注入时跳过 destroy（行为保持原状：只解除 map 引用，ShmRecord 留在 arena 里），
     // 这是为了不破坏纯测试里直接拼装 ShmRecord 但不用 mcengine 注入释放器的场景。
-    using destroy_hook_fn         = std::function<void(ShmRecord*)>;
+    using destroy_hook_fn = std::function<void(ShmRecord*)>;
 
     class raw_iterator;
 
@@ -181,14 +184,23 @@ public:
         m_handle_extractor = std::move(fn);
     }
     // 注入点：recover 时从 ShmRecord 重建 shared_ptr<Object>
-    void set_reconstruct(reconstruct_fn fn) noexcept { m_reconstruct = std::move(fn); }
+    void set_reconstruct(reconstruct_fn fn) noexcept
+    {
+        m_reconstruct = std::move(fn);
+    }
     // 注入点：recover 遍历 idx0 时，在 reconstruct 之前对每个 ShmRecord 调用一次；
     // 用于让上层做 crash-safe journal redo/undo（例如 shm_object_journal_recover）。
     // 未注入时跳过该步骤。
-    void set_recover_hook(recover_hook_fn fn) noexcept { m_recover_hook = std::move(fn); }
+    void set_recover_hook(recover_hook_fn fn) noexcept
+    {
+        m_recover_hook = std::move(fn);
+    }
     // 注入点：remove(idx0)/clear() 时对每个被 drop 的 ShmRecord 调用一次。
     // 用于让上层在解除 map 引用的同时回收 ShmRecord 自身的 SHM 占用，避免泄漏。
-    void set_destroy_hook(destroy_hook_fn fn) noexcept { m_destroy_hook = std::move(fn); }
+    void set_destroy_hook(destroy_hook_fn fn) noexcept
+    {
+        m_destroy_hook = std::move(fn);
+    }
 
     // ----- per-index 写 -----
     std::pair<leaf_type, bool> insert(std::size_t idx, mc::string_view key, object_ptr_type v)
@@ -329,13 +341,30 @@ public:
         return raw_iterator(this, idx, _at(idx).upper_bound(key));
     }
 
-    raw_iterator begin(std::size_t idx) const { return raw_iterator(this, idx, _at(idx).cbegin()); }
+    raw_iterator begin(std::size_t idx) const
+    {
+        return raw_iterator(this, idx, _at(idx).cbegin());
+    }
 
-    raw_iterator end(std::size_t /*idx*/) const { return raw_iterator{}; }
+    raw_iterator end(std::size_t /*idx*/) const
+    {
+        return raw_iterator{};
+    }
 
-    bool empty(std::size_t idx) const { return _at(idx).empty(); }
+    bool contains(std::size_t idx, mc::string_view key) const
+    {
+        return static_cast<bool>(_at(idx).find(key));
+    }
 
-    std::size_t size(std::size_t idx) const { return _at(idx).size(); }
+    bool empty(std::size_t idx) const
+    {
+        return _at(idx).empty();
+    }
+
+    std::size_t size(std::size_t idx) const
+    {
+        return _at(idx).size();
+    }
 
     // ----- engine-wide -----
     //
@@ -381,13 +410,24 @@ public:
     }
 
     // shm::map 自身已是 journal 安全的原子事务，引擎层事务 API 全部 no-op
-    void commit() noexcept {}
-    void rollback() noexcept {}
-    int  save_point() noexcept { return 0; }
-    int  current_save_point() const noexcept { return -1; }
-    void rollback_to(int /*save_point_id*/) noexcept {}
-    void lock_db() noexcept {}
-    void unlock_db() noexcept {}
+    void commit() noexcept
+    {}
+    void rollback() noexcept
+    {}
+    int save_point() noexcept
+    {
+        return 0;
+    }
+    int current_save_point() const noexcept
+    {
+        return -1;
+    }
+    void rollback_to(int /*save_point_id*/) noexcept
+    {}
+    void lock_db() noexcept
+    {}
+    void unlock_db() noexcept
+    {}
 
     // recover：遍历主索引（idx 0），通过 reconstruct_fn 把 ShmRecord 物化为 shared_ptr<Object>
     // 没注入 reconstruct_fn 时退化为清空 heap pool（调用方需对空 leaf 做兼容）
@@ -421,10 +461,22 @@ public:
     }
 
     // ----- 诊断 -----
-    map_type&             index_map(std::size_t idx) { return _at(idx); }
-    const map_type&       index_map(std::size_t idx) const { return _at(idx); }
-    const allocator_type& get_allocator() const noexcept { return m_alloc; }
-    mc::string_view       table_name() const noexcept { return m_table_name; }
+    map_type& index_map(std::size_t idx)
+    {
+        return _at(idx);
+    }
+    const map_type& index_map(std::size_t idx) const
+    {
+        return _at(idx);
+    }
+    const allocator_type& get_allocator() const noexcept
+    {
+        return m_alloc;
+    }
+    mc::string_view table_name() const noexcept
+    {
+        return m_table_name;
+    }
 
     // 按 ShmRecord* 注入 heap pool（手动重建场景，例如 mcengine recover 钩子）
     void heap_pool_emplace(ShmRecord* sh, object_ptr_type obj)
@@ -451,12 +503,11 @@ private:
     {
         for (std::size_t i = 0; i < IndexCount; ++i) {
             shm_engine_alloc per = derive_per_index_alloc(m_alloc, i, m_table_name);
-            auto             opt =
-                per.runtime->get_or_create_map<mc::shm::byte_string, shm_record_ptr,
-                                               mc::shm::byte_string_less>(per.name);
+            auto opt = per.runtime->get_or_create_map<mc::shm::byte_string, shm_record_ptr, mc::shm::byte_string_less>(
+                per.name);
             if (!opt) {
-                MC_THROW(mc::invalid_arg_exception,
-                         "shm_storage_engine: get_or_create_map 失败 name=${n}", ("n", per.name));
+                MC_THROW(mc::invalid_arg_exception, "shm_storage_engine: get_or_create_map 失败 name=${n}",
+                         ("n", per.name));
             }
             m_maps[i] = std::make_unique<map_type>(std::move(*opt));
         }
@@ -465,14 +516,11 @@ private:
     map_type& _at(std::size_t idx) const
     {
         if (idx >= IndexCount) {
-            MC_THROW(mc::invalid_arg_exception,
-                     "shm_storage_engine: index_id 越界 idx=${idx}, IndexCount=${n}", ("idx", idx)(
-                                                                                          "n",
-                                                                                          IndexCount));
+            MC_THROW(mc::invalid_arg_exception, "shm_storage_engine: index_id 越界 idx=${idx}, IndexCount=${n}",
+                     ("idx", idx)("n", IndexCount));
         }
         if (!m_maps[idx]) {
-            MC_THROW(mc::invalid_arg_exception,
-                     "shm_storage_engine: 未绑定 shm_runtime（默认构造 allocator）");
+            MC_THROW(mc::invalid_arg_exception, "shm_storage_engine: 未绑定 shm_runtime（默认构造 allocator）");
         }
         return *m_maps[idx];
     }
@@ -535,10 +583,19 @@ public:
         return t;
     }
 
-    bool operator==(const raw_iterator& o) const noexcept { return m_it == o.m_it; }
-    bool operator!=(const raw_iterator& o) const noexcept { return !(*this == o); }
+    bool operator==(const raw_iterator& o) const noexcept
+    {
+        return m_it == o.m_it;
+    }
+    bool operator!=(const raw_iterator& o) const noexcept
+    {
+        return !(*this == o);
+    }
 
-    bool is_end() const noexcept { return m_it == shm_cit{}; }
+    bool is_end() const noexcept
+    {
+        return m_it == shm_cit{};
+    }
 
     std::string_view key() const noexcept
     {
@@ -549,18 +606,28 @@ public:
         return mp.key != nullptr ? mp.key->as_string_view() : std::string_view{};
     }
 
-    proxy operator*() const noexcept { return _make_proxy(); }
+    proxy operator*() const noexcept
+    {
+        return _make_proxy();
+    }
 
     class arrow_holder {
     public:
-        explicit arrow_holder(proxy p) : m_proxy(p) {}
-        proxy* operator->() noexcept { return &m_proxy; }
+        explicit arrow_holder(proxy p) : m_proxy(p)
+        {}
+        proxy* operator->() noexcept
+        {
+            return &m_proxy;
+        }
 
     private:
         proxy m_proxy;
     };
 
-    arrow_holder operator->() const noexcept { return arrow_holder(_make_proxy()); }
+    arrow_holder operator->() const noexcept
+    {
+        return arrow_holder(_make_proxy());
+    }
 
     // to_next_prefix：用 byte-wise binary increment + lower_bound 跳到下一个非前缀
     void to_next_prefix(std::string_view prefix) noexcept
@@ -598,10 +665,9 @@ private:
         if (sh == nullptr) {
             return {mp.key->as_string_view(), _empty_ref()};
         }
-        std::lock_guard lk(m_engine->m_pool_mutex);
-        auto            pit = m_engine->m_pool.find(sh);
-        const object_ptr_type& ref =
-            pit != m_engine->m_pool.end() ? pit->second : _empty_ref();
+        std::lock_guard        lk(m_engine->m_pool_mutex);
+        auto                   pit = m_engine->m_pool.find(sh);
+        const object_ptr_type& ref = pit != m_engine->m_pool.end() ? pit->second : _empty_ref();
         return {mp.key->as_string_view(), ref};
     }
 

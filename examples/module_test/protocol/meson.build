@@ -14,7 +14,7 @@ protocol_module = shared_library(
     install_dir: get_option('libdir') / 'libmcpp/modules/mc/protocol',
     name_prefix: 'lib',
     name_suffix: 'so',
-    build_by_default: false,
+    build_by_default: true,
 )
 
 # 复制模块到测试目录
@@ -23,5 +23,5 @@ custom_target(
     output: 'copy_protocol_module',
     command: ['cp', protocol_module.full_path(), protocol_dir / 'init.so'],
     depends: protocol_module,
-    build_by_default: false,
+    build_by_default: true,
 )

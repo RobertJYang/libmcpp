@@ -131,6 +131,12 @@ public:
         return _txn_at(idx).root().end();
     }
 
+    bool contains(std::size_t idx, mc::string_view key) const
+    {
+        const auto& tree = _txn_at(idx).root();
+        return tree.find(key) != tree.end();
+    }
+
     bool empty(std::size_t idx) const
     {
         return _txn_at(idx).root().empty();
@@ -203,15 +209,20 @@ public:
     {}
 
     // ----- 诊断 -----
-    txn_type&       txn(std::size_t idx) { return _txn_at(idx); }
-    const txn_type& txn(std::size_t idx) const { return _txn_at(idx); }
+    txn_type& txn(std::size_t idx)
+    {
+        return _txn_at(idx);
+    }
+    const txn_type& txn(std::size_t idx) const
+    {
+        return _txn_at(idx);
+    }
 
 private:
     txn_type& _txn_at(std::size_t idx) const
     {
         if (idx >= IndexCount) {
-            MC_THROW(mc::invalid_arg_exception,
-                     "local_storage_engine: index_id 越界 idx=${idx}, IndexCount=${n}",
+            MC_THROW(mc::invalid_arg_exception, "local_storage_engine: index_id 越界 idx=${idx}, IndexCount=${n}",
                      ("idx", idx)("n", IndexCount));
         }
         return *m_txns[idx];

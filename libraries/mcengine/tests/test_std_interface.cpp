@@ -229,12 +229,12 @@ TEST_F(std_interface_test, object_manager_get_managed_objects)
                                                     mc::variants{}, "org.freedesktop.DBus.ObjectManager");
     ASSERT_TRUE(hit.has_value());
     EXPECT_EQ(hit->result_signature, "a{oa{sa{sv}}}");
-    auto raw_dict = hit->value.as<mc::dict>();
+    auto                                               raw_dict = hit->value.as<mc::dict>();
     mc::engine::object_manager_interface::objects_type map;
     for (auto entry_it = raw_dict.begin(); entry_it != raw_dict.end(); ++entry_it) {
-        mc::engine::path obj_path(entry_it->key.as_string());
+        mc::engine::path                                      obj_path(entry_it->key.as_string());
         mc::engine::object_manager_interface::interfaces_type ifaces;
-        auto ifaces_dict = entry_it->value.as<mc::dict>();
+        auto                                                  ifaces_dict = entry_it->value.as<mc::dict>();
         for (auto iface_it2 = ifaces_dict.begin(); iface_it2 != ifaces_dict.end(); ++iface_it2) {
             ifaces[iface_it2->key.as<mc::string>()] = iface_it2->value.as<mc::dict>();
         }
@@ -271,6 +271,17 @@ TEST_F(std_interface_test, try_invoke_no_object_introspect_intermediate_returns_
     EXPECT_EQ(xml.find("<node name=\"child\"/>"), mc::string::npos)
         << "中间节点 Introspect 只能列出直接子段，不应暴露 grandchild 段名: " << xml;
     EXPECT_EQ(xml.find("<interface"), mc::string::npos) << "中间节点不应列出接口: " << xml;
+}
+
+TEST_F(std_interface_test, try_invoke_no_object_introspect_root_returns_first_segment)
+{
+    auto hit = mc::engine::standard_interfaces::try_invoke(service, nullptr, mc::string_view("/"), "Introspect",
+                                                           mc::variants{}, "org.freedesktop.DBus.Introspectable");
+    ASSERT_TRUE(hit.has_value());
+    auto xml = hit->value.as<mc::string>();
+    EXPECT_NE(xml.find("<node name=\"org\"/>"), mc::string::npos) << xml;
+    EXPECT_EQ(xml.find("<node name=\"test\"/>"), mc::string::npos)
+        << "根路径 Introspect 只能列出第一段，不应暴露第二段: " << xml;
 }
 
 TEST_F(std_interface_test, try_invoke_no_object_introspect_lists_multiple_unique_child_segments)

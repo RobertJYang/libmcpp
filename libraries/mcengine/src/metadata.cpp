@@ -12,6 +12,7 @@
 
 #include <cstring>
 #include <new>
+#include <unordered_set>
 
 #include <mc/engine/base.h>
 #include <mc/engine/metadata.h>
@@ -27,40 +28,60 @@ metadata_list::metadata_list(mc::string_view name, const struct_metadata** obj_m
     for (size_t i = 0; i < count; ++i) {
         array.push_back(obj_metadata[i]);
     }
+    build_member_views();
 }
 
 metadata_list::~metadata_list()
 {}
 
-void metadata_list::visit_properties(const visit_properties_type& v) const
+void metadata_list::build_member_views()
 {
+    std::unordered_set<std::string_view> properties;
+    std::unordered_set<std::string_view> methods;
+    std::unordered_set<std::string_view> signals;
+
     for (auto* metadata : array) {
         metadata->visit_properties([&](const property_type_info* property) {
-            v(property);
+            if (properties.emplace(property->name).second) {
+                m_properties.push_back(property);
+            }
             return visit_status::VS_CONTINUE;
         });
+
+        metadata->visit_methods([&](const method_type_info* method) {
+            if (methods.emplace(method->name).second) {
+                m_methods.push_back(method);
+            }
+            return visit_status::VS_CONTINUE;
+        });
+
+        metadata->visit_customs([&](const member_info_base* member) {
+            if (member->type() == MC_REFLECT_SIGNAL_TYPE && signals.emplace(member->name).second) {
+                m_signals.push_back(static_cast<const signal_type_info*>(member));
+            }
+            return visit_status::VS_CONTINUE;
+        });
+    }
+}
+
+void metadata_list::visit_properties(const visit_properties_type& v) const
+{
+    for (auto* property : m_properties) {
+        v(property);
     }
 }
 
 void metadata_list::visit_methods(const visit_methods_type& v) const
 {
-    for (auto* metadata : array) {
-        metadata->visit_methods([&](const method_type_info* method) {
-            v(method);
-            return visit_status::VS_CONTINUE;
-        });
+    for (auto* method : m_methods) {
+        v(method);
     }
 }
 
 void metadata_list::visit_signals(const visit_signals_type& v) const
 {
-    for (auto* metadata : array) {
-        metadata->visit_customs([&](const member_info_base* member) {
-            if (member->type() == MC_REFLECT_SIGNAL_TYPE) {
-                v(static_cast<const signal_type_info*>(member));
-            }
-            return visit_status::VS_CONTINUE;
-        });
+    for (auto* signal : m_signals) {
+        v(signal);
     }
 }
 
@@ -79,10 +100,9 @@ void metadata_list::visit(metadata_visitor& v) const
 
 const signal_type_info* metadata_list::get_signal_info(mc::string_view signal_name) const
 {
-    for (auto* metadata : array) {
-        const auto* signal_info = metadata->get_custom_info(signal_name, MC_REFLECT_SIGNAL_TYPE);
-        if (signal_info != nullptr) {
-            return static_cast<const signal_type_info*>(signal_info);
+    for (auto* signal_info : m_signals) {
+        if (signal_info->name == signal_name) {
+            return signal_info;
         }
     }
 
@@ -91,9 +111,8 @@ const signal_type_info* metadata_list::get_signal_info(mc::string_view signal_na
 
 const method_type_info* metadata_list::get_method_info(mc::string_view method_name) const
 {
-    for (auto* metadata : array) {
-        const auto* method_info = metadata->get_method_info(method_name);
-        if (method_info != nullptr) {
+    for (auto* method_info : m_methods) {
+        if (method_info->name == method_name) {
             return method_info;
         }
     }
@@ -108,9 +127,8 @@ mc::string_view metadata_list::get_class_name() const
 
 const property_type_info* metadata_list::get_property_info(mc::string_view property_name) const
 {
-    for (auto* metadata : array) {
-        const auto* property_info = metadata->get_property_info(property_name);
-        if (property_info != nullptr) {
+    for (auto* property_info : m_properties) {
+        if (property_info->name == property_name) {
             return property_info;
         }
     }
@@ -120,9 +138,8 @@ const property_type_info* metadata_list::get_property_info(mc::string_view prope
 
 const property_type_info* metadata_list::get_property_info(std::uintptr_t offset) const
 {
-    for (auto* metadata : array) {
-        const auto* property_info = metadata->get_property_info(offset);
-        if (property_info != nullptr) {
+    for (auto* property_info : m_properties) {
+        if (property_info->offset() == offset) {
             return property_info;
         }
     }
@@ -199,9 +216,9 @@ struct object_metadata::impl {
         }
     }
 
-    metadata_list m_object_metadata;
+    metadata_list      m_object_metadata;
     interface_map_type m_interface; // 对象所有接口的元信息，key 为接口在对象中的属性名和接口类名
-    members_map_type m_members;     // 成员名到反射信息的映射
+    members_map_type   m_members;   // 成员名到反射信息的映射
 
     // 保持顺序方便遍历
     property_list m_ordered_properties;

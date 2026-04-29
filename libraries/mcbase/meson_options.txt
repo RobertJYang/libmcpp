@@ -8,8 +8,8 @@ option(
 option(
     'tests_utilities',
     type: 'boolean',
-    value: false,
-    description: '是否构建测试辅助库，默认为false',
+    value: true,
+    description: '是否构建测试辅助库，默认为true',
 )
 
 option(

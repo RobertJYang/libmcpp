@@ -20,10 +20,17 @@ option(
 )
 
 option(
-       'tests_utilities',
+       'examples',
        type: 'boolean',
        value: false,
-       description: '是否构建测试辅助库，默认为false',
+       description: '是否构建 examples，默认为false',
+)
+
+option(
+       'tests_utilities',
+       type: 'boolean',
+       value: true,
+       description: '是否构建测试辅助库，默认为true',
 )
 
 option(
