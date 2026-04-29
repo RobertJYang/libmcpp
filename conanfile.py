@@ -78,6 +78,14 @@ class AppConan(ConanBase):
         tc.project_options["use_shm"] = bool(self.options.use_shm)
         tc.project_options["use_old_shm"] = bool(self.options.use_old_shm)
 
+        # 交叉编译时，将 Conan boost 包路径传给 meson boost_root option，
+        # 防止 meson Boost handler 搜索到系统路径下的 x86_64 boost。
+        boost_info = self.dependencies.get("boost")
+        if boost_info:
+            boost_root = boost_info.package_folder
+            if boost_root:
+                tc.project_options["boost_root"] = boost_root
+
         ms = VirtualBuildEnv(self)
         if self.settings.arch in ["armv8"]:
             tc.properties["pkg_config_libdir"] = (

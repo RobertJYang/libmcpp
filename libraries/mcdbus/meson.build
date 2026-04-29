@@ -74,7 +74,7 @@ mcengine_dep = dependency(
 
 dbus_dep = dependency('dbus-1', required: true)
 glib_dep = dependency('glib-2.0', required: true)
-boost_dep = dependency('boost', required: false, modules: ['system'])
+boost_dep = dependency('boost', required: false)
 
 libsomp_dep = dependency('libsomp', required: false)
 
