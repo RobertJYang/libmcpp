@@ -18,6 +18,7 @@
 #include <mc/variant.h>
 #include <test_utilities/base.h>
 
+#include <atomic>
 #include <cstdio>
 #include <fcntl.h>
 #include <memory>
@@ -105,8 +106,8 @@ protected:
 
     std::shared_ptr<console_appender> m_appender;
     bool                              m_capture_active{false};
-    mc::string                       m_captured_stdout;
-    mc::string                       m_captured_stderr;
+    mc::string                        m_captured_stdout;
+    mc::string                        m_captured_stderr;
 };
 
 // 测试默认构造函数
@@ -155,13 +156,15 @@ TEST_F(console_appender_test, FactoryCreate)
 // 测试创建并命名
 TEST_F(console_appender_test, FactoryCreateNamed)
 {
-    mc::dict config;
-    auto     appender = appender_factory::instance().create("test_console", "console", config);
+    static std::atomic_uint64_t next_id{0};
+    mc::dict                    config;
+    const auto                  name     = mc::string("test_console_") + mc::to_string(next_id.fetch_add(1));
+    auto                        appender = appender_factory::instance().create(name, "console", config);
     ASSERT_NE(appender, nullptr);
-    EXPECT_EQ(appender->get_name(), "test_console");
+    EXPECT_EQ(appender->get_name(), name);
 
     // 测试获取已创建的appender
-    auto same_appender = appender_factory::instance().get_appender("test_console");
+    auto same_appender = appender_factory::instance().get_appender(name);
     ASSERT_NE(same_appender, nullptr);
     EXPECT_EQ(same_appender, appender);
 }
@@ -214,7 +217,7 @@ TEST_F(console_appender_test, InitWithInvalidArgs)
     // 使用无效的 variant 类型触发异常
     mc::variant invalid_args = 42; // 非对象类型，会触发异常
     bool        result       = m_appender->init(invalid_args);
-    mc::string captured_log = consume_stderr();
+    mc::string  captured_log = consume_stderr();
     EXPECT_FALSE(result);
     EXPECT_NE(captured_log.find("console_appender 初始化失败"), mc::string::npos);
 }

@@ -79,5 +79,6 @@ test(
   'mcapp unit tests',
   mcapp_test_exe,
   env: mcapp_test_env,
+  is_parallel: false,
   timeout: 300,
 )

@@ -41,5 +41,6 @@ test(
   'mcengine unit tests',
   mcengine_test_exe,
   env: mcengine_test_env,
+  is_parallel: false,
   timeout: 300,
 )

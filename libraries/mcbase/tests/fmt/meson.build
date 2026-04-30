@@ -24,6 +24,7 @@ if get_option('compatibility_tests')
             install: false,
             build_by_default: false,
         ),
+        is_parallel: false,
         timeout: 300,
     )
 
@@ -38,6 +39,7 @@ if get_option('compatibility_tests')
             install: false,
             build_by_default: false,
         ),
+        is_parallel: false,
         timeout: 300,
     )
 endif

@@ -45,19 +45,27 @@ execution_state protocol::pop(proto_request& req)
 
 execution_state protocol::resume(proto_request& req)
 {
-    if (req.state() != execution_state::suspended || req.resume_protocol() == nullptr) {
+    auto*      resume_protocol  = req.resume_protocol();
+    const auto resume_direction = req.resume_direction();
+    if (req.state() != execution_state::suspended || resume_protocol == nullptr) {
         return fail(req, "invalid_resume", "请求未处于 suspend 状态");
     }
 
     req.set_state(execution_state::running);
-    if (req.resume_direction() == flow_direction::push) {
-        return req.resume_protocol()->on_push(req);
+    if (!req.enter_route(*resume_protocol)) {
+        return fail(req, "invalid_resume", "请求 resume 路由已失效");
     }
-    return req.resume_protocol()->on_pop(req);
+    if (resume_direction == flow_direction::push) {
+        return resume_protocol->on_push(req);
+    }
+    return resume_protocol->on_pop(req);
 }
 
 execution_state protocol::push_next(proto_request& req)
 {
+    if (!req.enter_route(*this)) {
+        return fail(req, "invalid_route", "当前协议不在请求路由中");
+    }
     if (auto* traced = req.next_traced_child(); traced != nullptr) {
         if (_contains(m_children, *traced)) {
             return push_to(req, *traced);
@@ -83,6 +91,9 @@ execution_state protocol::push_to(proto_request& req, protocol& child)
 
 execution_state protocol::pop_next(proto_request& req)
 {
+    if (!req.enter_route(*this)) {
+        return fail(req, "invalid_route", "当前协议不在请求路由中");
+    }
     if (auto* traced = req.prev_traced_parent(); traced != nullptr) {
         if (_contains(m_parents, *traced)) {
             return pop_to(req, *traced);
@@ -108,6 +119,9 @@ execution_state protocol::pop_to(proto_request& req, protocol& parent)
 
 execution_state protocol::pull_next(proto_request& req)
 {
+    if (!req.enter_route(*this)) {
+        return fail(req, "invalid_route", "当前协议不在请求路由中");
+    }
     if (auto* traced = req.next_traced_child(); traced != nullptr) {
         if (_contains(m_children, *traced)) {
             return pull_from(req, *traced);
@@ -136,6 +150,11 @@ execution_state protocol::complete(proto_request& req)
     req.set_state(execution_state::completed);
     req.set_resume(nullptr, req.direction());
     return execution_state::completed;
+}
+
+void protocol::mark_running(proto_request& req)
+{
+    req.set_state(execution_state::running);
 }
 
 execution_state protocol::suspend(proto_request& req)

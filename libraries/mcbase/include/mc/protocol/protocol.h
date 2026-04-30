@@ -53,6 +53,8 @@ protected:
 
     execution_state complete(proto_request& req);
 
+    void mark_running(proto_request& req);
+
     execution_state suspend(proto_request& req);
 
     execution_state fail(proto_request& req, mc::string_view name, mc::string_view message);

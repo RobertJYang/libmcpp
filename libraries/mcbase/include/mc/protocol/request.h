@@ -110,25 +110,28 @@ public:
 
     protocol_list_view route_trace() const noexcept;
 
+    const protocol* resume_target() const noexcept;
+
 private:
     friend class protocol;
     using context_matcher = bool (*)(const proto_context&) noexcept;
 
-    void begin(protocol& entry, flow_direction direction);
+    void           begin(protocol& entry, flow_direction direction);
     proto_context& _append_context(std::unique_ptr<proto_context> ctx, protocol* owner);
 
     void set_state(execution_state state) noexcept;
     void set_resume(protocol* proto, flow_direction direction) noexcept;
 
-    protocol*      resume_protocol() const noexcept;
-    flow_direction resume_direction() const noexcept;
-    protocol*      current_protocol() const noexcept;
-    protocol*      next_traced_child() const noexcept;
-    protocol*      prev_traced_parent() const noexcept;
-    void           enter_push(protocol& target);
-    void           enter_pop(protocol& target);
-    void           enter_pull(protocol& target);
-    proto_context* _find_context_if(const protocol* owner, context_matcher matcher) noexcept;
+    protocol*            resume_protocol() const noexcept;
+    flow_direction       resume_direction() const noexcept;
+    protocol*            current_protocol() const noexcept;
+    protocol*            next_traced_child() const noexcept;
+    protocol*            prev_traced_parent() const noexcept;
+    bool                 enter_route(protocol& target) noexcept;
+    void                 enter_push(protocol& target);
+    void                 enter_pop(protocol& target);
+    void                 enter_pull(protocol& target);
+    proto_context*       _find_context_if(const protocol* owner, context_matcher matcher) noexcept;
     const proto_context* _find_context_if(const protocol* owner, context_matcher matcher) const noexcept;
 
     template <typename Context>

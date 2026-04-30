@@ -64,6 +64,18 @@ std::unique_ptr<mc::event> make_named_event(std::string name, mc::event_type_id 
     return std::make_unique<named_test_event>(std::move(name), type);
 }
 
+bool wait_until(const std::function<bool()>& predicate, std::chrono::milliseconds timeout = std::chrono::seconds(1))
+{
+    const auto deadline = std::chrono::steady_clock::now() + timeout;
+    while (std::chrono::steady_clock::now() < deadline) {
+        if (predicate()) {
+            return true;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    return predicate();
+}
+
 class event_recording_object : public mc::object {
 public:
     using mc::object::object;
@@ -322,13 +334,15 @@ TEST_F(EventDispatcherTest, PostEventRunsAsynchronouslyAndBubblesToParent)
 
 TEST_F(EventDispatcherTest, PostEventDropsWhenTargetDestroyedBeforeDelivery)
 {
-    auto work_executor = mc::runtime::get_runtime_context().get_work_executor();
+    mc::runtime::thread_pool target_pool(1, "mcbase_drop_lane");
+    target_pool.start();
+    auto target_executor = mc::runtime::any_executor(target_pool.get_executor());
 
     std::promise<void> worker_started;
     auto               worker_started_future = worker_started.get_future();
     std::promise<void> release_worker;
     auto               release_worker_future = release_worker.get_future().share();
-    work_executor.post([&]() {
+    target_executor.post([&]() {
         worker_started.set_value();
         release_worker_future.wait();
     });
@@ -338,6 +352,7 @@ TEST_F(EventDispatcherTest, PostEventDropsWhenTargetDestroyedBeforeDelivery)
     parent->set_name("parent");
     auto child = mc::make_shared<event_recording_object>(parent.get());
     child->set_name("child");
+    child->set_executor(target_executor);
 
     child->post_event(std::make_unique<test_event>());
     child->set_parent(nullptr);
@@ -345,7 +360,7 @@ TEST_F(EventDispatcherTest, PostEventDropsWhenTargetDestroyedBeforeDelivery)
 
     std::promise<void> drain_done;
     auto               drain_done_future = drain_done.get_future();
-    work_executor.post([&]() {
+    target_executor.post([&]() {
         drain_done.set_value();
     });
 
@@ -433,11 +448,11 @@ TEST_F(EventDispatcherTest, PostEventHonorsPriorityWithinSameReceiver)
     // 在我们 post_event 期间见缝插针把已入队的"low"取走先跑，破坏优先级排序窗口。
     // 这里按 shard_count() 把所有 worker 同时阻塞，确保三个事件全部入优先级队列后
     // 才放行。
-    auto               work_executor = ctx.get_work_executor();
-    const std::size_t  worker_count  = ctx.work().shard_count();
+    auto                     work_executor = ctx.get_work_executor();
+    const std::size_t        worker_count  = ctx.work().shard_count();
     std::atomic<std::size_t> workers_running{0};
     std::promise<void>       release_global_workers;
-    auto release_global_workers_future = release_global_workers.get_future().share();
+    auto                     release_global_workers_future = release_global_workers.get_future().share();
     for (std::size_t i = 0; i < worker_count; ++i) {
         work_executor.post([&workers_running, release_global_workers_future]() mutable {
             workers_running.fetch_add(1, std::memory_order_acq_rel);
@@ -526,31 +541,40 @@ TEST_F(EventDispatcherTest, RuntimeContextSendPostedEventsFlushesMatchingPending
 {
     auto& ctx = mc::runtime::get_runtime_context();
 
-    auto               work_executor = ctx.get_work_executor();
-    std::promise<void> global_worker_started;
-    auto               global_worker_started_future = global_worker_started.get_future();
-    std::promise<void> release_global_worker;
-    auto               release_global_worker_future = release_global_worker.get_future().share();
-    work_executor.post([&global_worker_started, release_global_worker_future]() mutable {
-        global_worker_started.set_value();
-        release_global_worker_future.wait();
+    mc::runtime::thread_pool target_pool(1, "mcbase_send_posted_events_flush");
+    target_pool.start();
+
+    std::promise<void> blocker_started;
+    auto               blocker_started_future = blocker_started.get_future();
+    std::promise<void> release_blocker;
+    auto               release_blocker_future = release_blocker.get_future().share();
+    target_pool.get_executor().post([&blocker_started, release_blocker_future]() mutable {
+        blocker_started.set_value();
+        release_blocker_future.wait();
     });
-    ASSERT_EQ(global_worker_started_future.wait_for(std::chrono::seconds(1)), std::future_status::ready);
+    ASSERT_EQ(blocker_started_future.wait_for(std::chrono::seconds(1)), std::future_status::ready);
 
     auto target = mc::make_shared<lane_recording_object>();
     target->set_name("target");
+    target->set_executor(mc::runtime::any_executor(target_pool.get_executor()));
 
     ctx.post_event(*target, make_named_event("queued-before-a"), 0);
     ctx.post_event(*target, make_named_event("queued-before-b"), 0);
 
-    ctx.send_posted_events(target.get());
+    auto flush_future = std::async(std::launch::async, [&]() {
+        ctx.send_posted_events(target.get());
+    });
+    EXPECT_EQ(flush_future.wait_for(std::chrono::milliseconds(200)), std::future_status::timeout);
+
+    release_blocker.set_value();
+    ASSERT_EQ(flush_future.wait_for(std::chrono::seconds(1)), std::future_status::ready);
     EXPECT_EQ(target->trace, (std::vector<std::string>{"queued-before-a", "queued-before-b"}));
 
     ctx.post_event(*target, make_named_event("queued-after"), 0);
-    EXPECT_EQ(target->trace, (std::vector<std::string>{"queued-before-a", "queued-before-b"}));
 
-    release_global_worker.set_value();
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    wait_until([&target]() {
+        return target->trace.size() == 3;
+    });
     EXPECT_EQ(target->trace, (std::vector<std::string>{"queued-before-a", "queued-before-b", "queued-after"}));
 }
 

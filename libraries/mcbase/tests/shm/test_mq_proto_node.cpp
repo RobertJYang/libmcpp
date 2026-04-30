@@ -270,6 +270,11 @@ TEST_F(mq_proto_test, push_resumes_fragment_by_fragment_when_queue_is_full)
     ASSERT_TRUE(second_message.has_value());
     EXPECT_EQ(fragment_body(second_message->payload), "efgh");
 
+    ASSERT_TRUE(wait_until([&req]() {
+        return req.state() == mc::proto::execution_state::completed;
+    }));
+
+    deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
     std::optional<mc::shm::mq_queue_message> third_message;
     while (std::chrono::steady_clock::now() < deadline && !third_message.has_value()) {
         third_message = queue.try_receive_message();
@@ -279,7 +284,6 @@ TEST_F(mq_proto_test, push_resumes_fragment_by_fragment_when_queue_is_full)
     }
     ASSERT_TRUE(third_message.has_value());
     EXPECT_EQ(fragment_body(third_message->payload), "ijkl");
-    EXPECT_EQ(req.state(), mc::proto::execution_state::completed);
 }
 
 TEST_F(mq_proto_test, direct_push_auto_resumes_without_manual_resume)

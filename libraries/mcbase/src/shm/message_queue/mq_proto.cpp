@@ -290,8 +290,8 @@ mc::proto::execution_state mq_proto::on_push(mc::proto::proto_request& req)
     auto& ctx = ensure_context<send_context>(req);
     if (ctx.fragments.empty()) {
         const auto payload = payload_from_buffer(req.buffer());
-        auto       built = build_fragments(payload, m_next_msg_id.fetch_add(1, std::memory_order_relaxed),
-                                           pack_src(m_instance_id, m_endpoint_id), m_max_fragment_payload);
+        auto       built   = build_fragments(payload, m_next_msg_id.fetch_add(1, std::memory_order_relaxed),
+                                             pack_src(m_instance_id, m_endpoint_id), m_max_fragment_payload);
         if (!built.ok) {
             return fail(req, "mq_proto", built.error);
         }
@@ -305,14 +305,19 @@ mc::proto::execution_state mq_proto::on_push(mc::proto::proto_request& req)
         const auto state = push_next(req);
         if (state == mc::proto::execution_state::completed) {
             ++ctx.next_fragment_index;
+            mark_running(req);
             continue;
         }
         if (state == mc::proto::execution_state::suspended) {
             // 发送侧 transport 可能在当前栈帧返回前被 space watcher 立刻恢复。
             // 若恢复路径已经把请求推进到 completed/failed，再次 suspend 会把最终状态
             // 覆盖回 suspended，导致调用方永远看不到完成态。
-            if (req.state() != mc::proto::execution_state::suspended) {
+            if (req.state() == mc::proto::execution_state::completed ||
+                req.state() == mc::proto::execution_state::failed) {
                 return req.state();
+            }
+            if (req.state() == mc::proto::execution_state::running) {
+                return state;
             }
             return suspend(req);
         }

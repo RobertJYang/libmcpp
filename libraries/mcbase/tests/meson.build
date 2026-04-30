@@ -136,6 +136,7 @@ test(
   mcbase_test_exe,
   depends: mock_dynamic_module,
   env: mcbase_test_env,
+  is_parallel: false,
   timeout: 300,
 )
 
@@ -169,5 +170,6 @@ test(
   'mcbase fork tests',
   mcbase_test_fork_exe,
   env: mcbase_test_env,
+  is_parallel: false,
   timeout: 300,
 )

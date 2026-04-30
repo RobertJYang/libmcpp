@@ -97,9 +97,6 @@ class AppConan(ConanBase):
                 ms.vars().get("PKG_CONFIG_PATH").split(":")
             )
 
-        if self.options.test:
-            # 为 Debug 类型添加 -Os 优化参数
-            tc.extra_cxxflags.append("-Os")
         tc.extra_ldflags.append("-lstdc++fs")
         tc.extra_cxxflags.append("-Wno-unused-variable")
         tc.extra_cxxflags.append("-Wno-unused-parameter")

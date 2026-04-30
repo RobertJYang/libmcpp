@@ -82,6 +82,13 @@ public:
     {
         return get_runtime().io();
     }
+
+protected:
+    void SetUp() override
+    {
+        TestWithRuntime::SetUp();
+        reset_runtime();
+    }
 };
 
 static_assert(std::is_same_v<decltype(std::declval<mc::runtime::runtime_context&>().get_io_executor()),

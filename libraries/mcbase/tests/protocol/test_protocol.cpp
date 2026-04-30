@@ -131,6 +131,42 @@ protected:
     }
 };
 
+class parent_suspend_after_child_protocol : public mc::proto::protocol {
+protected:
+    mc::proto::execution_state on_push(mc::proto::proto_request& req) override
+    {
+        const auto state = push_next(req);
+        if (state == mc::proto::execution_state::suspended) {
+            return suspend(req);
+        }
+        return state;
+    }
+
+    mc::proto::execution_state on_pop(mc::proto::proto_request& req) override
+    {
+        (void)req;
+        return fail(req, "unexpected_pop", "parent_suspend_after_child_protocol does not handle pop");
+    }
+};
+
+class repeated_push_parent_protocol : public mc::proto::protocol {
+protected:
+    mc::proto::execution_state on_push(mc::proto::proto_request& req) override
+    {
+        const auto first = push_next(req);
+        if (first != mc::proto::execution_state::completed) {
+            return first;
+        }
+        return push_next(req);
+    }
+
+    mc::proto::execution_state on_pop(mc::proto::proto_request& req) override
+    {
+        (void)req;
+        return fail(req, "unexpected_pop", "repeated_push_parent_protocol does not handle pop");
+    }
+};
+
 class terminal_protocol : public mc::proto::protocol {
 protected:
     mc::proto::execution_state on_push(mc::proto::proto_request& req) override
@@ -276,6 +312,37 @@ TEST(protocol, suspend_then_resume_reenters_current_node)
     ASSERT_NE(ctx, nullptr);
     EXPECT_EQ(ctx->hits, 1);
     EXPECT_EQ(req.buffer().flags, 0x40u);
+}
+
+TEST(protocol, resume_parent_after_child_suspend_keeps_route_position)
+{
+    parent_suspend_after_child_protocol parent;
+    suspend_protocol                    child;
+    parent.add_child(child);
+
+    mc::proto::proto_request req;
+
+    const auto first = parent.push(req);
+    EXPECT_EQ(first, mc::proto::execution_state::suspended);
+    EXPECT_EQ(child.m_hits, 1);
+    EXPECT_EQ(req.route_trace().size(), 2U);
+
+    const auto second = parent.resume(req);
+    EXPECT_EQ(second, mc::proto::execution_state::completed);
+    EXPECT_EQ(child.m_hits, 2);
+    EXPECT_EQ(req.route_trace().size(), 2U);
+}
+
+TEST(protocol, repeated_push_next_in_same_parent_frame_reuses_child_route)
+{
+    repeated_push_parent_protocol parent;
+    terminal_protocol             child;
+    parent.add_child(child);
+
+    mc::proto::proto_request req;
+
+    EXPECT_EQ(parent.push(req), mc::proto::execution_state::completed);
+    EXPECT_EQ(req.route_trace().size(), 2U);
 }
 
 TEST(protocol, push_next_fails_when_branch_is_ambiguous)

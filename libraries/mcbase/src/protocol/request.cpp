@@ -59,6 +59,11 @@ protocol_list_view proto_request::route_trace() const noexcept
     return {m_route_trace.data(), m_route_trace.size()};
 }
 
+const protocol* proto_request::resume_target() const noexcept
+{
+    return m_resume_protocol;
+}
+
 void proto_request::begin(protocol& entry, flow_direction direction)
 {
     m_state            = execution_state::running;
@@ -122,6 +127,27 @@ protocol* proto_request::prev_traced_parent() const noexcept
         return nullptr;
     }
     return m_route_trace[m_route_index - 1];
+}
+
+bool proto_request::enter_route(protocol& target) noexcept
+{
+    if (m_route_trace.empty()) {
+        return false;
+    }
+
+    auto index = std::min(m_route_index, m_route_trace.size() - 1U);
+    while (true) {
+        if (m_route_trace[index] == &target) {
+            m_route_index = index;
+            m_current     = &target;
+            return true;
+        }
+        if (index == 0) {
+            break;
+        }
+        --index;
+    }
+    return false;
 }
 
 void proto_request::enter_push(protocol& target)
