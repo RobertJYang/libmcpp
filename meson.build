@@ -128,6 +128,17 @@ endif
 # 尝试使用 pkg-config 查找依赖
 dbus_dep = dependency('dbus-1', method: 'pkg-config', required: true)
 glib_dep = dependency('glib-2.0', method: 'pkg-config', required: true)
+sys_private_deps = []
+if meson.is_cross_build()
+  pcre2_dep = dependency('libpcre2-8', method: 'pkg-config', required: false)
+  systemd_dep = dependency('libsystemd', method: 'pkg-config', required: false)
+  if pcre2_dep.found()
+    sys_private_deps += pcre2_dep
+  endif
+  if systemd_dep.found()
+    sys_private_deps += systemd_dep
+  endif
+endif
 if enable_conan_compile
   openssl_dep = dependency('openssl', required: true)
 else

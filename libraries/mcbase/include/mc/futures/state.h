@@ -432,8 +432,8 @@ public:
         }
     }
 
-    static auto get_value(const state_base& state)
-        -> std::conditional_t<std::is_same_v<T, void>, void, const value_type&>
+    static auto
+    get_value(const state_base& state) -> std::conditional_t<std::is_same_v<T, void>, void, const value_type&>
     {
         return detail::state_payload_access<T>::get_value(state);
     }
@@ -489,7 +489,7 @@ struct shared_release_ops_for<mc::futures::state_base> {
         static_cast<mc::futures::state_base*>(base)->destory();
     }
 
-    static void deallocate(shared_base* base) noexcept;
+    static MC_API void deallocate(shared_base* base) noexcept;
 
     inline static const shared_release_ops value{&destroy, &deallocate};
 };

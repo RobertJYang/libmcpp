@@ -13,7 +13,7 @@ executable(
     'task_service',
     sources: src_files,
     include_directories: example_inc_dirs,
-    dependencies: [libmcpp_dep, boost_dep, test_utilities_dep, dbus_dep],
+    dependencies: [libmcpp_dep, boost_dep, test_utilities_dep, dbus_dep, glib_dep, sys_private_deps],
     install: false,
     build_by_default: true,
 )

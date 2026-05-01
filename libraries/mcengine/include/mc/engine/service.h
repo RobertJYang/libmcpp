@@ -102,6 +102,14 @@ public:
                      mc::string_view method_name, const mc::variants& args = {}, mc::string_view signature = {},
                      mc::milliseconds timeout = mc::milliseconds(5000)) const;
 
+    // 兼容旧版接口，参数顺序为 (timeout, service_name, path, interface, method, signature, args)
+    mc::variant timeout_call(mc::milliseconds timeout, mc::string_view service_name, mc::string_view path,
+            mc::string_view interface_name, mc::string_view method_name, mc::string_view signature,
+            const mc::variants& args = {}) const
+    {
+        return call(path, service_name, interface_name, method_name, args, signature, timeout);
+    }
+
     static mc::string resolve_object_path(mc::string_view path_pattern, const abstract_object& obj);
 
     template <typename ProxyT>

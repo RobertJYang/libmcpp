@@ -33,7 +33,6 @@ MC_MODULE_REFLECT(mc_devices, mc::devices::sensor,
                   ((initialize, "initialize")) // 初始化
                   ((read, "read"))             // 读取
                   ((get_value, "getValue"))    // 获取值
-                  ((get_status, "getStatus"))  // 获取状态
                   ((self_test, "selfTest")))   // 自检
 
 MC_EXPORT_MODULE(mc_devices)

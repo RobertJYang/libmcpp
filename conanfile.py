@@ -15,6 +15,7 @@ class AppConan(ConanBase):
         "gcov": [True, False],
         "test": [True, False],
         "test_utilities": [True, False],
+        "examples": [True, False],
         "enable_luajit": [True, False],
         # 进程间通信架构开关，与顶层 meson 选项一一对应，禁止同时为 True：
         #   use_shm=True  + use_old_shm=False ：新 SHM 架构
@@ -28,27 +29,23 @@ class AppConan(ConanBase):
         "gcov": False,
         "test": False,
         "test_utilities": True,
+        "examples": False,
         "enable_luajit": True,
         # conan 构建（DT / 交叉编译生产）默认走旧架构，保持与存量部署兼容；
         # 想在 conan 环境下试新架构：-o use_shm=True -o use_old_shm=False。
         "use_shm": False,
         "use_old_shm": True,
-        # 远端预编译包使用以下 options 构建，保持一致以匹配二进制包 ID
         "liblogger/*:enable_luajit": True,
-        "liblogger/*:test": True,
         "libsomp/*:enable_luajit": True,
-        "libsomp/*:test": True,
     }
 
     # 基于meson构建的基类，适用于libmcpp项目
     def layout(self):
-        self.folders.source = "."
-        self.folders.build = "builddir"
-        self.folders.generators = "builddir/conan_toolchain"
+        super().layout()
 
     def requirements(self):
         super().requirements()
-        if self.options.test or self.options.test_utilities:
+        if self.options.test or self.options.test_utilities or self.options.examples:
             self.requires("gtest/[>=1.14.0]@openubmc/stable")
 
     def generate(self):
@@ -72,6 +69,7 @@ class AppConan(ConanBase):
         else:
             tc.project_options["tests"] = False
         tc.project_options["tests_utilities"] = bool(self.options.test_utilities)
+        tc.project_options["examples"] = bool(self.options.examples)
         tc.project_options["meson_build"] = False
         # 顶层 meson 会做互斥校验（use_shm 与 use_old_shm 不能同时 True），
         # 这里再前置一次让 conan 用户更早看到错误，且错误信息更贴 conan 选项。
@@ -362,20 +360,20 @@ class AppConan(ConanBase):
 
     def package_info(self):
         if self.settings.arch == "armv8" or self.settings.arch == "x86_64":
-            self.cpp_info.libdirs = ["usr/lib64"]
-            self.env_info.LD_LIBRARY_PATH.append(
-                os.path.join(self.package_folder, "usr/lib64")
-            )
             libdir = "usr/lib64"
         else:
-            self.cpp_info.libdirs = ["usr/lib"]
-            self.env_info.LD_LIBRARY_PATH.append(
-                os.path.join(self.package_folder, "usr/lib")
-            )
             libdir = "usr/lib"
 
-        self.env_info.PATH.append(
-            os.path.join(self.package_folder, "opt/bmc/apps/libmcpp")
+        self.cpp_info.libdirs = [libdir]
+
+        # conan 2.x：用 runenv_info 替代已 deprecated 的 env_info；
+        # 语义等价于原 env_info.LD_LIBRARY_PATH/PATH.append，但走的是 conan 2 原生
+        # 的 VirtualRunEnv 注入路径，避免 "WARN: deprecated 'env_info' used in ..."
+        self.runenv_info.append_path(
+            "LD_LIBRARY_PATH", os.path.join(self.package_folder, libdir)
+        )
+        self.runenv_info.append_path(
+            "PATH", os.path.join(self.package_folder, "opt/bmc/apps/libmcpp")
         )
 
         include_dirs = ["include"]
@@ -457,6 +455,7 @@ class AppConan(ConanBase):
             "mcdbus",
             "mcapp",
         ] + external_base_requires
+        self.cpp_info.components["mcpp_base"].system_libs = ["z", "ssl", "crypto"]
         self.cpp_info.components["mcpp_base"].set_property(
             "pkg_config_name", "mcpp_base"
         )
