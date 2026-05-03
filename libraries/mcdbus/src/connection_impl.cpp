@@ -332,35 +332,34 @@ dbus_bool_t connection_impl::watch_add(DBusWatch* watch, void* data)
     }
 
     auto w = mc::make_shared<mc::dbus::watch>(conn->m_executor.get_executor(), watch);
-    dbus_watch_set_data(watch, w.get(), [](void* data) {
-        auto w = mc::dbus::watch::from_raw(data);
-        w->stop();
+    dbus_watch_set_data(watch, new mc::shared_ptr<mc::dbus::watch>(w), [](void* data) {
+        auto* holder = static_cast<mc::shared_ptr<mc::dbus::watch>*>(data);
+        if (*holder) {
+            (*holder)->stop();
+        }
+        delete holder;
     });
     w->start(conn->weak_from_this());
-    w.detach();
     return TRUE;
 }
 
 void connection_impl::watch_remove(DBusWatch* watch, void*)
 {
-    auto* watch_data = dbus_watch_get_data(watch);
-    if (watch_data) {
-        static_cast<mc::dbus::watch*>(watch_data)->stop();
-    }
+    dbus_watch_set_data(watch, nullptr, nullptr);
 }
 
 void connection_impl::watch_toggled(DBusWatch* watch, void* data)
 {
-    auto* watch_data = dbus_watch_get_data(watch);
-    if (!watch_data) {
+    auto* holder = static_cast<mc::shared_ptr<mc::dbus::watch>*>(dbus_watch_get_data(watch));
+    if (!holder || !*holder) {
         return;
     }
 
     if (dbus_watch_get_enabled(watch)) {
         connection_impl* conn = static_cast<connection_impl*>(data);
-        static_cast<mc::dbus::watch*>(watch_data)->start(conn->weak_from_this());
+        (*holder)->start(conn->weak_from_this());
     } else {
-        static_cast<mc::dbus::watch*>(watch_data)->stop();
+        (*holder)->stop();
     }
 }
 
@@ -372,36 +371,35 @@ dbus_bool_t connection_impl::timeout_add(DBusTimeout* timeout, void* data)
     }
 
     auto t = mc::make_shared<mc::dbus::timeout>(conn->m_executor.get_executor(), timeout);
-    dbus_timeout_set_data(timeout, t.get(), [](void* data) {
-        auto t = mc::dbus::timeout::from_raw(data);
-        t->stop();
+    dbus_timeout_set_data(timeout, new mc::shared_ptr<mc::dbus::timeout>(t), [](void* data) {
+        auto* holder = static_cast<mc::shared_ptr<mc::dbus::timeout>*>(data);
+        if (*holder) {
+            (*holder)->stop();
+        }
+        delete holder;
     });
 
     t->start(conn->weak_from_this());
-    t.detach();
     return TRUE;
 }
 
 void connection_impl::timeout_remove(DBusTimeout* timeout, void*)
 {
-    auto* timeout_data = dbus_timeout_get_data(timeout);
-    if (timeout_data) {
-        static_cast<mc::dbus::timeout*>(timeout_data)->stop();
-    }
+    dbus_timeout_set_data(timeout, nullptr, nullptr);
 }
 
 void connection_impl::timeout_toggled(DBusTimeout* timeout, void* data)
 {
-    auto* timeout_data = dbus_timeout_get_data(timeout);
-    if (!timeout_data) {
+    auto* holder = static_cast<mc::shared_ptr<mc::dbus::timeout>*>(dbus_timeout_get_data(timeout));
+    if (!holder || !*holder) {
         return;
     }
 
     if (dbus_timeout_get_enabled(timeout)) {
         connection_impl* conn = static_cast<connection_impl*>(data);
-        static_cast<mc::dbus::timeout*>(timeout_data)->start(conn->weak_from_this());
+        (*holder)->start(conn->weak_from_this());
     } else {
-        static_cast<mc::dbus::timeout*>(timeout_data)->stop();
+        (*holder)->stop();
     }
 }
 

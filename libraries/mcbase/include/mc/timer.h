@@ -122,12 +122,6 @@ private:
     std::unique_ptr<timer_impl> m_impl;
 };
 
-// 兼容旧版本命名
-namespace core {
-using timer     = mc::timer;
-using timer_ptr = mc::timer_ptr;
-} // namespace core
-
 } // namespace mc
 
 #endif // MC_TIMER_H

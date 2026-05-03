@@ -165,6 +165,15 @@ void harbor::reset_for_test() {
     mc::singleton<harbor>::reset_for_test();
 }
 
+void harbor::stop_if_created()
+{
+    auto* instance = mc::singleton<harbor>::try_get();
+    if (instance == nullptr) {
+        return;
+    }
+    instance->stop();
+}
+
 void harbor::init_message_queue() {
     auto& ins             = ::shm::shared_memory::get_instance();
     auto& harbor_tree_map = ins.get_object_tree_map(m_harbor_name);

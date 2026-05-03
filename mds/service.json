@@ -7,7 +7,9 @@
     "description": "",
     "default_options": {
         "liblogger/*:test": {"Debug": true, "Release": false},
-        "libsomp/*:test":   {"Debug": true, "Release": false}
+        "libsomp/*:test":   {"Debug": true, "Release": false},
+        "liblogger/*:enable_luajit": {"Debug": true, "Release": true},
+        "libsomp/*:enable_luajit":   {"Debug": true, "Release": true}
     },
     "dependencies": {
         "test": [

@@ -310,7 +310,7 @@ mc::string_view object_impl::get_object_name() const
 /**
  * **并发安全性：**
  * - 使用基类的线程安全接口进行名称设置
- * - 名称唯一性检查现在由基类 core::object::set_name() 统一处理
+ * - 名称唯一性检查现在由基类 object::set_name() 统一处理
  */
 void object_impl::set_object_name(mc::string_view name)
 {

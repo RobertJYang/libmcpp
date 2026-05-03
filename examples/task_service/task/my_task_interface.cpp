@@ -87,7 +87,7 @@ void my_task_interface::start_timer()
 
 void my_task_interface::create_timer()
 {
-    m_timer = new mc::core::timer(this);
+    m_timer = new mc::timer(this);
     this->connect(m_timer->timeout, [this]() {
         if (*m_state != task_state::RUNNING) {
             return;

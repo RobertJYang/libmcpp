@@ -21,6 +21,9 @@
 #include <mc/log/log.h>
 #include <mc/log/log_manager.h>
 #include <mc/runtime/runtime_context.h>
+#if defined(MCDBUS_USE_OLD_SHM) && MCDBUS_USE_OLD_SHM
+#include <mc/dbus/shm/harbor.h>
+#endif
 
 #include <algorithm>
 #include <fstream>
@@ -861,6 +864,10 @@ bool application::stop()
     bool success = stop_services();
 
     teardown_engine_endpoint();
+
+#if defined(MCDBUS_USE_OLD_SHM) && MCDBUS_USE_OLD_SHM
+    mc::dbus::harbor::stop_if_created();
+#endif
 
     if (m_runtime_started) {
         mc::runtime::get_runtime_context().stop();

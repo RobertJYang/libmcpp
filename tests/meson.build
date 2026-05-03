@@ -20,6 +20,7 @@ test_files = [
   # 根目录测试文件
   'test_validate.cpp',
   'test_validator.cpp',
+  'test_timer.cpp',
 
   # 各子目录的测试文件
   test_compress_files,
@@ -48,7 +49,6 @@ endif
 test_cpp_args = []
 test_link_args = []
 test_deps = [
-  mcbase_test_dep,
   gtest_dep,
   test_utilities_dep,
   lua_dep,
@@ -80,7 +80,6 @@ test_exe = executable(
 test(
   'libmcpp unit tests',
   test_exe,
-  depends: mock_dynamic_module,
   is_parallel: false,
   timeout: 300,
 )

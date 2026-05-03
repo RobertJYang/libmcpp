@@ -25,6 +25,7 @@
 #include <mc/engine/service_proto.h>
 #include <mc/engine/utils.h>
 #include <mc/exception.h>
+#include <mc/log/log.h>
 #include <mc/runtime/runtime_context.h>
 
 #include <mutex>
@@ -136,6 +137,12 @@ using object_table_ptr = std::shared_ptr<service_object_table>;
 namespace {
 
 // property_changed → PropertiesChanged signal 的全局事件过滤器。
+//
+// 容错原则：DBus PropertiesChanged 信号是 property 赋值的副作用，
+// 任何信号构造/发送失败都不能反过来打断 property 赋值本身。
+// 典型场景：对象先 set_service 后才 set_parent；在两步之间发生属性赋值时，
+// _make_properties_changed 中调用 obj.get_object_path() 会因 parent 缺失抛异常，
+// 这里必须吞掉，仅记录日志。
 void _property_changed_global_filter(mc::object& target, mc::event& e)
 {
     auto* property_event = dynamic_cast<property_changed_event*>(&e);
@@ -153,10 +160,16 @@ void _property_changed_global_filter(mc::object& target, mc::event& e)
         return;
     }
 
-    const auto& prop  = property_event->property();
-    const auto& value = property_event->value();
-    auto        msg   = _make_properties_changed(svc->name(), *obj, prop, value);
-    svc->emit(msg);
+    try {
+        const auto& prop  = property_event->property();
+        const auto& value = property_event->value();
+        auto        msg   = _make_properties_changed(svc->name(), *obj, prop, value);
+        svc->emit(msg);
+    } catch (const std::exception& ex) {
+        dlog("PropertiesChanged 信号发送失败，跳过: ${error}", ("error", ex.what()));
+    } catch (...) {
+        dlog("PropertiesChanged 信号发送失败，跳过: 未知异常");
+    }
 }
 
 } // namespace

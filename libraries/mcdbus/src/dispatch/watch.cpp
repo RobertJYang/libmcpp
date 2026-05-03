@@ -45,6 +45,9 @@ void watch::start(connection_weak_ptr conn)
 
 void watch::stop()
 {
+    if (m_watch == nullptr) {
+        return;
+    }
     m_watch = nullptr;
     m_socket.close();
 }

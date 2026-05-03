@@ -184,8 +184,8 @@ mcbase_dep = dependency(
   required: true,
 )
 # 获取 subproject 以访问其他变量（如 incdir, lib 等）
-# 注意：我们需要总是创建 subproject，因为我们需要访问其变量（如 mcbase_lib, mcbase_test_lib 等）
-# 即使 dependency 使用了系统依赖，我们仍然需要 subproject 来构建测试等
+# 注意：我们需要总是创建 subproject，因为我们需要访问其变量（如 mcbase_lib 等）
+# 即使 dependency 使用了系统依赖，我们仍然需要 subproject 来构建测试辅助库等
 mcbase_subproject = subproject(
   'mcbase',
   default_options: [
@@ -200,17 +200,6 @@ mcbase_subproject = subproject(
 # 从子项目获取其他需要的变量
 mcbase_incdir = mcbase_subproject.get_variable('incdir')
 mcbase_lib = mcbase_subproject.get_variable('mcbase_lib')
-if build_tests
-  mcbase_test_lib = mcbase_subproject.get_variable('mcbase_test_lib')
-  mcbase_test_dep = mcbase_subproject.get_variable('mcbase_test_dep')
-  mcbase_test_utilities_dep = mcbase_subproject.get_variable('test_utilities_dep')
-  mock_dynamic_module = mcbase_subproject.get_variable('mock_dynamic_module')
-else
-  mcbase_test_lib = []
-  mcbase_test_dep = declare_dependency() # 空依赖
-  mcbase_test_utilities_dep = declare_dependency() # 空依赖
-  mock_dynamic_module = [] # 空列表
-endif
 
 mcengine_subproject = subproject(
   'mcengine',
@@ -272,6 +261,11 @@ mcapp_lib = mcapp_subproject.get_variable('mcapp_lib')
 mcengine_use_shm_actual = mcengine_subproject.get_variable('use_shm')
 mcdbus_use_old_shm_actual = mcdbus_subproject.get_variable('use_old_shm')
 mcapp_use_old_shm_actual = mcapp_subproject.get_variable('use_old_shm')
+mcbase_tests_actual = mcbase_subproject.get_variable('build_tests')
+mcengine_tests_actual = mcengine_subproject.get_variable('build_tests')
+mcexpr_tests_actual = mcexpr_subproject.get_variable('build_tests')
+mcdbus_tests_actual = mcdbus_subproject.get_variable('build_tests')
+mcapp_tests_actual = mcapp_subproject.get_variable('build_tests')
 if mcengine_use_shm_actual != use_shm or mcdbus_use_old_shm_actual != use_old_shm or mcapp_use_old_shm_actual != use_old_shm
   error(
     '顶层 use_shm / use_old_shm 与子工程实际值不一致：',
@@ -287,8 +281,41 @@ if mcengine_use_shm_actual != use_shm or mcdbus_use_old_shm_actual != use_old_sh
     + ' -Dmcapp:use_old_shm=' + use_old_shm.to_string(),
   )
 endif
+if build_tests and (
+  not mcbase_tests_actual or
+  not mcengine_tests_actual or
+  not mcexpr_tests_actual or
+  not mcdbus_tests_actual or
+  not mcapp_tests_actual
+)
+  error(
+    '顶层 tests=true，但至少一个子工程 tests 仍为 false，meson test 将不会运行完整子模块测试：',
+    'mcbase:tests=' + mcbase_tests_actual.to_string(),
+    'mcengine:tests=' + mcengine_tests_actual.to_string(),
+    'mcexpr:tests=' + mcexpr_tests_actual.to_string(),
+    'mcdbus:tests=' + mcdbus_tests_actual.to_string(),
+    'mcapp:tests=' + mcapp_tests_actual.to_string(),
+    '原因：subproject default_options 不会在 reconfigure 时重新下发。',
+    '解决：要么 rm -rf builddir 重新 setup；要么显式同时设置全部子选项，例如：',
+    '  meson configure builddir -Dtests=true'
+    + ' -Dmcbase:tests=true'
+    + ' -Dmcengine:tests=true'
+    + ' -Dmcexpr:tests=true'
+    + ' -Dmcdbus:tests=true'
+    + ' -Dmcapp:tests=true',
+  )
+endif
 if build_test_utilities
-  test_utilities_dep = mcapp_subproject.get_variable('mcapp_test_utilities_dep')
+  mcbase_test_utilities_dep = mcbase_subproject.get_variable('test_utilities_dep')
+  mcengine_test_utilities_dep = mcengine_subproject.get_variable('mcengine_test_utilities_dep')
+  mcapp_test_utilities_dep = mcapp_subproject.get_variable('mcapp_test_utilities_dep')
+  test_utilities_dep = declare_dependency(
+    dependencies: [
+      mcbase_test_utilities_dep,
+      mcengine_test_utilities_dep,
+      mcapp_test_utilities_dep,
+    ],
+  )
 else
   test_utilities_dep = declare_dependency()
 endif

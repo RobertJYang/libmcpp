@@ -64,6 +64,9 @@ void timeout::start(connection_weak_ptr conn)
 
 void timeout::stop()
 {
+    if (m_timeout == nullptr) {
+        return;
+    }
     m_timeout = nullptr;
     m_timer.cancel();
 }

@@ -1,8 +1,12 @@
+import json
 import os
+import sys
+import time
 from conanbase import ConanBase
 from conan.tools.meson import Meson, MesonToolchain
 from conan.tools.env import VirtualBuildEnv
-from conan.tools.files import copy
+from conan.tools.files import copy, update_conandata
+from conan.tools.scm import Git
 
 required_conan_version = ">=2.13.0"
 
@@ -10,6 +14,43 @@ required_conan_version = ">=2.13.0"
 class AppConan(ConanBase):
     language = "c++"
     generators = "CMakeDeps", "VirtualBuildEnv", "PkgConfigDeps"
+    exports_sources = ()
+    _source_excludes = (
+        ".git",
+        ".git/*",
+        ".gitignore",
+        ".gitmodules",
+        ".vscode",
+        ".vscode/*",
+        ".idea",
+        ".idea/*",
+        "__pycache__",
+        "__pycache__/*",
+        "*/__pycache__/*",
+        "*.pyc",
+        "*.pyo",
+        "build",
+        "build/*",
+        "builddir*",
+        "builddir*/*",
+        ".build",
+        ".build/*",
+        "temp",
+        "temp/*",
+        ".cache",
+        ".cache/*",
+        ".mclang",
+        ".mclang/*",
+        ".mcli",
+        ".mcli/*",
+        "*.log",
+        "bingo-*.txt",
+        "coverage.info",
+        "coverage_filtered.info",
+        ".ccache_wrapper",
+        ".pkg-config",
+        ".DS_Store",
+    )
     options = {
         "asan": [True, False],
         "gcov": [True, False],
@@ -35,18 +76,133 @@ class AppConan(ConanBase):
         # 想在 conan 环境下试新架构：-o use_shm=True -o use_old_shm=False。
         "use_shm": False,
         "use_old_shm": True,
-        "liblogger/*:enable_luajit": True,
-        "libsomp/*:enable_luajit": True,
     }
 
     # 基于meson构建的基类，适用于libmcpp项目
     def layout(self):
         super().layout()
 
+    def package_id(self):
+        super_package_id = getattr(super(), "package_id", None)
+        if super_package_id:
+            super_package_id()
+
+        # `test` only controls whether this recipe builds/runs its own test
+        # executables. It must not create a distinct binary package for
+        # downstream test builds that only need the normal libmcpp artifacts.
+        self.info.options.rm_safe("test")
+        self.info.options.rm_safe("examples")
+
+        # Runtime dependencies have their own test/jit binary variants. Keep
+        # libmcpp tied to dependency versions, not to their package IDs/options.
+        self.info.requires.semver_mode()
+
     def requirements(self):
         super().requirements()
         if self.options.test or self.options.test_utilities or self.options.examples:
             self.requires("gtest/[>=1.14.0]@openubmc/stable")
+
+    def export(self):
+        super_export = getattr(super(), "export", None)
+        if super_export:
+            super_export()
+        else:
+            copy(self, "conanbase.py", self.recipe_folder, self.export_folder)
+
+        git = Git(self, self.recipe_folder)
+        try:
+            message = git.run("log --no-merges -n 1")
+            commit = git.get_commit()
+        except Exception:
+            self._export_local_source(message="")
+            return
+
+        if git.is_dirty():
+            self._export_local_source(message=message)
+            return
+
+        remote_url = self._find_remote_url(git, commit)
+        if not remote_url:
+            self._export_local_source(message=message)
+            return
+
+        update_conandata(
+            self,
+            {"sources": {self.version: {"branch": commit, "url": remote_url, "message": message}}},
+        )
+
+    def _find_remote_url(self, git, commit):
+        try:
+            remotes = git.run("remote")
+        except Exception:
+            return None
+
+        for remote in remotes.splitlines():
+            try:
+                if git.run(f"ls-remote {remote} {commit}").strip():
+                    return git.get_remote_url(remote)
+            except Exception:
+                continue
+        return None
+
+    def _export_local_source(self, message):
+        update_conandata(
+            self,
+            {
+                "sources": {
+                    self.version: {
+                        "branch": None,
+                        "url": None,
+                        "pwd": os.getcwd(),
+                        "timestamp": int(time.time()),
+                        "message": message,
+                    }
+                }
+            },
+        )
+
+    def source(self):
+        sources = self.conan_data["sources"][self.version]
+        url = sources.get("url")
+        branch = sources.get("branch")
+        if url and branch:
+            Git(self).fetch_commit(url=url, commit=branch.split("/")[-1])
+            return
+
+        source_path = sources["pwd"]
+        copy(self, "*", src=source_path, dst=".", excludes=list(self._source_excludes))
+
+    def _active_project_name(self):
+        for index, arg in enumerate(sys.argv):
+            if arg == "--name" and index + 1 < len(sys.argv):
+                return sys.argv[index + 1].lower()
+            if arg.startswith("--name="):
+                return arg.split("=", 1)[1].lower()
+
+        workspace = os.environ.get("PWD", "")
+        return self._project_name_from_service(workspace)
+
+    def _project_name_from_service(self, workspace):
+        if not workspace:
+            return None
+
+        service_json = os.path.join(workspace, "mds", "service.json")
+        if not os.path.isfile(service_json):
+            return None
+
+        try:
+            with open(service_json, encoding="utf-8") as file:
+                return json.load(file).get("name", "").lower()
+        except (OSError, json.JSONDecodeError):
+            return None
+
+    def _build_own_tests(self):
+        recipe_project_name = (
+            (str(self.name).lower() if self.name else None)
+            or self._project_name_from_service(self.recipe_folder)
+            or self._project_name_from_service(self.source_folder)
+        )
+        return bool(self.options.test) and self._active_project_name() == recipe_project_name
 
     def generate(self):
         os.environ["PKG_CONFIG"] = "/usr/bin/pkg-config"
@@ -64,11 +220,17 @@ class AppConan(ConanBase):
         else:
             tc.project_options["libdir"] = "usr/lib"
         tc.project_options["enable_conan_compile"] = True
-        if self.options.test:
-            tc.project_options["tests"] = True
-        else:
-            tc.project_options["tests"] = False
-        tc.project_options["tests_utilities"] = bool(self.options.test_utilities)
+        build_tests = self._build_own_tests()
+        build_test_utilities = build_tests or bool(self.options.test_utilities)
+        tc.project_options["tests"] = build_tests
+        tc.project_options["tests_utilities"] = build_test_utilities
+        # Meson subproject default_options only apply when a subproject is first
+        # configured. Pass explicit subproject options so incremental mcli test
+        # runs do not silently leave library tests disabled.
+        for subproject_name in ("mcbase", "mcengine", "mcexpr", "mcdbus", "mcapp"):
+            tc.subproject_options.setdefault(subproject_name, []).append({"tests": build_tests})
+        for subproject_name in ("mcbase", "mcengine", "mcapp"):
+            tc.subproject_options.setdefault(subproject_name, []).append({"tests_utilities": build_test_utilities})
         tc.project_options["examples"] = bool(self.options.examples)
         tc.project_options["meson_build"] = False
         # 顶层 meson 会做互斥校验（use_shm 与 use_old_shm 不能同时 True），
@@ -124,8 +286,14 @@ class AppConan(ConanBase):
 
     def build(self):
         meson = Meson(self)
-        meson.configure()
-        if self.options.test:
+        if os.path.exists(os.path.join(self.build_folder, "meson-private", "coredata.dat")):
+            self.run(
+                "meson setup --clearcache --reconfigure "
+                f'"{self.build_folder}" "{self.source_folder}"'
+            )
+        else:
+            meson.configure()
+        if self._build_own_tests():
             self.test()
         else:
             meson.build()
@@ -486,9 +654,12 @@ class AppConan(ConanBase):
             f"libdir=${{prefix}}/{libdir}\n" "Requires: dbus-1 glib-2.0\n",
         )
 
-        # 配置test_utilities的pkg-config
+        # 聚合测试辅助组件：上层测试只依赖 libmcpp::test_utilities 即可，
+        # 不需要手动展开 mcbase/mcengine/mcapp 各层 test utilities。
         self.cpp_info.components["test_utilities"].libs = []
-        if self.options.test or self.options.test_utilities:
+        build_own_tests = self._build_own_tests()
+        build_test_utilities = build_own_tests or bool(self.options.test_utilities)
+        if build_test_utilities:
             self.cpp_info.components["test_utilities"].libs.extend(
                 [
                     "mcbase_test_utilities",
@@ -507,14 +678,14 @@ class AppConan(ConanBase):
             "mcengine",
             "mcapp",
         ]
-        if self.options.test or self.options.test_utilities:
+        if build_test_utilities:
             self.cpp_info.components["test_utilities"].requires.append("gtest::gtest")
         self.cpp_info.components["test_utilities"].set_property(
             "pkg_config_custom_content",
             f"libdir=${{prefix}}/{libdir}\n" "Requires: libmcpp dbus-1\n",
         )
 
-        if self.options.test:
+        if build_own_tests:
             # 与 Meson 侧测试目标对齐：先声明组件再挂依赖，避免未定义组件就 append
             self.cpp_info.components["libmcpp_test"].libs = []
             self.cpp_info.components["libmcpp_test"].includedirs = include_dirs

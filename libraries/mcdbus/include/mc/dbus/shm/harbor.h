@@ -107,6 +107,11 @@ public:
     static void reset_for_test();
 
     /**
+     * @brief 如果 harbor 单例已创建，则停止它
+     */
+    static void stop_if_created();
+
+    /**
      * @brief 获取目标消息队列
      * @param destination [in] 目标名称
      * @return 返回消息队列指针
