@@ -24,6 +24,7 @@
 #include <mc/db/table.h>
 #include <mc/db/transaction.h>
 #include <mc/shm/allocator.h>
+#include <mc/shm/detail/shared_memory_backend.h>
 #include <mc/shm/shm_runtime.h>
 
 namespace test_table_shm_engine {
@@ -87,9 +88,10 @@ protected:
         std::mt19937       rng(rd());
         char               nm[128];
         std::snprintf(nm, sizeof(nm), "mc_table_shm_%d_%lu", ::getpid(), static_cast<unsigned long>(rng()));
+        m_region_name = mc::string(nm);
 
         mc::shm::runtime_options opts;
-        opts.region_name     = mc::string(nm);
+        opts.region_name     = m_region_name;
         opts.region_size     = 4 * 1024 * 1024;
         opts.root_capacity   = 32;
         opts.manager_process = true;
@@ -112,6 +114,9 @@ protected:
         }
         m_records.clear();
         m_runtime.reset();
+        if (!m_region_name.empty()) {
+            mc::shm::detail::shared_memory_backend::remove(mc::string_view(m_region_name));
+        }
     }
 
     // 在 SHM 中分配 fake_shm_record 并填入 object_id，绑定到 user。
@@ -154,6 +159,7 @@ protected:
     mdb::shm_engine_alloc                 m_alloc;
     std::vector<fake_shm_record*>         m_records;
     std::uint64_t                         m_next_fake_id = 100000U;
+    mc::string                            m_region_name;
 };
 
 TEST_F(table_shm_engine_fixture, add_and_lookup_via_indices)

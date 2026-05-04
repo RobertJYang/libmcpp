@@ -17,9 +17,11 @@
 #include <array>
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <mutex>
 #include <thread>
 #include <vector>
 
@@ -421,11 +423,13 @@ TEST(FixedSizePoolTest, ConcurrentTrimMaintainsProgressWithActiveRemoteCaches)
     constexpr int batch_slot_count  = 8;
     constexpr int trim_repeat_count = 256;
 
-    std::atomic<int>           ready_workers{0};
-    std::atomic<bool>          stop_workers{false};
-    std::atomic<bool>          worker_failed{false};
-    std::atomic<std::uint64_t> completed_batches{0};
-    std::vector<std::thread>   workers;
+    std::atomic<int>         ready_workers{0};
+    std::atomic<bool>        stop_workers{false};
+    std::atomic<bool>        worker_failed{false};
+    std::mutex               progress_mutex;
+    std::condition_variable  progress_cv;
+    std::uint64_t            completed_batches = 0;
+    std::vector<std::thread> workers;
     workers.reserve(worker_count);
 
     for (int worker_index = 0; worker_index < worker_count; ++worker_index) {
@@ -449,7 +453,11 @@ TEST(FixedSizePoolTest, ConcurrentTrimMaintainsProgressWithActiveRemoteCaches)
                     pool.deallocate(*it);
                 }
 
-                completed_batches.fetch_add(1, std::memory_order_release);
+                {
+                    std::lock_guard<std::mutex> lock(progress_mutex);
+                    ++completed_batches;
+                }
+                progress_cv.notify_one();
             }
         });
     }
@@ -457,15 +465,29 @@ TEST(FixedSizePoolTest, ConcurrentTrimMaintainsProgressWithActiveRemoteCaches)
     while (ready_workers.load(std::memory_order_acquire) != worker_count) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
-    while (completed_batches.load(std::memory_order_acquire) < worker_count * 4U) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    {
+        std::unique_lock<std::mutex> lock(progress_mutex);
+        progress_cv.wait(lock, [&]() {
+            return completed_batches >= worker_count * 4U;
+        });
     }
 
-    const auto progress_before_trim = completed_batches.load(std::memory_order_acquire);
+    std::uint64_t progress_before_trim = 0;
+    {
+        std::lock_guard<std::mutex> lock(progress_mutex);
+        progress_before_trim = completed_batches;
+    }
     for (int i = 0; i < trim_repeat_count; ++i) {
         pool.trim(0);
     }
-    const auto progress_after_trim = completed_batches.load(std::memory_order_acquire);
+    std::uint64_t progress_after_trim = 0;
+    {
+        std::unique_lock<std::mutex> lock(progress_mutex);
+        progress_cv.wait_for(lock, std::chrono::seconds(1), [&]() {
+            return completed_batches > progress_before_trim || worker_failed.load(std::memory_order_acquire);
+        });
+        progress_after_trim = completed_batches;
+    }
 
     stop_workers.store(true, std::memory_order_release);
     for (auto& worker : workers) {

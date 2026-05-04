@@ -20,6 +20,7 @@
 
 #include <mc/db/shm_storage_engine_index_only.h>
 #include <mc/shm/allocator.h>
+#include <mc/shm/detail/shared_memory_backend.h>
 #include <mc/shm/shm_runtime.h>
 #include <test_utilities/base.h>
 
@@ -39,9 +40,10 @@ protected:
         std::mt19937       rng(rd());
         char               nm[128];
         std::snprintf(nm, sizeof(nm), "mc_shm_idx_only_%d_%lu", ::getpid(), static_cast<unsigned long>(rng()));
+        m_region_name = mc::string(nm);
 
         mc::shm::runtime_options opts;
-        opts.region_name     = mc::string(nm);
+        opts.region_name     = m_region_name;
         opts.region_size     = 4 * 1024 * 1024;
         opts.root_capacity   = 32;
         opts.manager_process = true;
@@ -63,6 +65,9 @@ protected:
         }
         m_records.clear();
         m_runtime.reset();
+        if (!m_region_name.empty()) {
+            mc::shm::detail::shared_memory_backend::remove(mc::string_view(m_region_name));
+        }
     }
 
     fake_shm_record* make_record(std::uint64_t id)
@@ -78,6 +83,7 @@ protected:
     std::unique_ptr<mc::shm::shm_runtime> m_runtime;
     mc::db::shm_engine_alloc              m_alloc;
     std::vector<fake_shm_record*>         m_records;
+    mc::string                            m_region_name;
 };
 
 TEST_F(index_only_fixture, default_construct_is_unbound_and_throws_on_use)

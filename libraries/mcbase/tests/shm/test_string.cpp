@@ -349,40 +349,61 @@ TEST_F(shm_string_bare_arena_fixture, raii_on_unregistered_leaks_silently)
 // 多 region：registry 正确区分不同 region 的指针
 // =========================================================================
 
-TEST(shm_string_multi_region, destroy_routes_to_correct_region)
+class shm_string_multi_region_fixture : public ::testing::Test {
+protected:
+    void SetUp() override
+    {
+        std::random_device rd;
+        std::mt19937       rng(rd());
+        char               na[128];
+        char               nb[128];
+        std::snprintf(na, sizeof(na), "mc_string_multi_a_%d_%lu", ::getpid(), static_cast<unsigned long>(rng()));
+        std::snprintf(nb, sizeof(nb), "mc_string_multi_b_%d_%lu", ::getpid(), static_cast<unsigned long>(rng()));
+        m_name_a = mc::string(na);
+        m_name_b = mc::string(nb);
+
+        shm_region_options opt_a;
+        opt_a.segment_name = m_name_a;
+        opt_a.total_size   = 2 * 1024 * 1024;
+        m_region_a = shm_region(opt_a);
+        ASSERT_TRUE(m_region_a.is_valid());
+
+        shm_region_options opt_b;
+        opt_b.segment_name = m_name_b;
+        opt_b.total_size   = 2 * 1024 * 1024;
+        m_region_b = shm_region(opt_b);
+        ASSERT_TRUE(m_region_b.is_valid());
+
+        m_alloc_a = m_region_a.user_arena();
+        m_alloc_b = m_region_b.user_arena();
+    }
+
+    void TearDown() override
+    {
+        mc::shm::detail::shared_memory_backend::remove(mc::string_view(m_name_a));
+        mc::shm::detail::shared_memory_backend::remove(mc::string_view(m_name_b));
+    }
+
+    mc::string     m_name_a;
+    mc::string     m_name_b;
+    shm_region     m_region_a;
+    shm_region     m_region_b;
+    shm_allocator  m_alloc_a;
+    shm_allocator  m_alloc_b;
+};
+
+TEST_F(shm_string_multi_region_fixture, destroy_routes_to_correct_region)
 {
-    std::random_device rd;
-    std::mt19937       rng(rd());
-    char               name_a[128];
-    char               name_b[128];
-    std::snprintf(name_a, sizeof(name_a), "mc_string_multi_a_%d_%lu", ::getpid(), static_cast<unsigned long>(rng()));
-    std::snprintf(name_b, sizeof(name_b), "mc_string_multi_b_%d_%lu", ::getpid(), static_cast<unsigned long>(rng()));
+    const auto base_a = m_alloc_a.allocated_size();
+    const auto base_b = m_alloc_b.allocated_size();
 
-    shm_region_options opt_a;
-    opt_a.segment_name = mc::string(name_a);
-    opt_a.total_size   = 2 * 1024 * 1024;
-    shm_region region_a(opt_a);
-    ASSERT_TRUE(region_a.is_valid());
-
-    shm_region_options opt_b;
-    opt_b.segment_name = mc::string(name_b);
-    opt_b.total_size   = 2 * 1024 * 1024;
-    shm_region region_b(opt_b);
-    ASSERT_TRUE(region_b.is_valid());
-
-    auto alloc_a = region_a.user_arena();
-    auto alloc_b = region_b.user_arena();
-
-    const auto base_a = alloc_a.allocated_size();
-    const auto base_b = alloc_b.allocated_size();
-
-    string sa = string::create(alloc_a, "in-A");
-    string sb = string::create(alloc_b, "in-B");
-    EXPECT_GT(alloc_a.allocated_size(), base_a);
-    EXPECT_GT(alloc_b.allocated_size(), base_b);
+    string sa = string::create(m_alloc_a, "in-A");
+    string sb = string::create(m_alloc_b, "in-B");
+    EXPECT_GT(m_alloc_a.allocated_size(), base_a);
+    EXPECT_GT(m_alloc_b.allocated_size(), base_b);
 
     sa.destroy(); // 应路由到 region_a
     sb.destroy(); // 应路由到 region_b
-    EXPECT_EQ(base_a, alloc_a.allocated_size());
-    EXPECT_EQ(base_b, alloc_b.allocated_size());
+    EXPECT_EQ(base_a, m_alloc_a.allocated_size());
+    EXPECT_EQ(base_b, m_alloc_b.allocated_size());
 }

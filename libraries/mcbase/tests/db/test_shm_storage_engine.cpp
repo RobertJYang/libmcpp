@@ -22,6 +22,7 @@
 #include <mc/db/shm_storage_engine.h>
 #include <mc/object_base.h>
 #include <mc/shm/allocator.h>
+#include <mc/shm/detail/shared_memory_backend.h>
 #include <mc/shm/shm_runtime.h>
 #include <test_utilities/base.h>
 
@@ -63,9 +64,10 @@ protected:
         std::mt19937       rng(rd());
         char               nm[128];
         std::snprintf(nm, sizeof(nm), "mc_shm_engine_%d_%lu", ::getpid(), static_cast<unsigned long>(rng()));
+        m_region_name = mc::string(nm);
 
         mc::shm::runtime_options opts;
-        opts.region_name     = mc::string(nm);
+        opts.region_name     = m_region_name;
         opts.region_size     = 4 * 1024 * 1024;
         opts.root_capacity   = 32;
         opts.manager_process = true;
@@ -85,6 +87,9 @@ protected:
         }
         m_records.clear();
         m_runtime.reset();
+        if (!m_region_name.empty()) {
+            mc::shm::detail::shared_memory_backend::remove(mc::string_view(m_region_name));
+        }
     }
 
     // 在 SHM 中分配一个 fake_shm_record，记录 object_id；测试结束统一回收。
@@ -122,6 +127,7 @@ protected:
     std::unique_ptr<mc::shm::shm_runtime> m_runtime;
     mc::db::shm_engine_alloc              m_alloc;
     std::vector<fake_shm_record*>         m_records;
+    mc::string                            m_region_name;
 };
 
 TEST_F(shm_engine_fixture, derive_per_index_alloc_appends_idx_suffix)
