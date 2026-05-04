@@ -217,9 +217,9 @@ struct chrono_format_handler {
         static_cast<Derived*>(this)->on_am_pm();
     }
 
-    constexpr void on_timezone_offset(numeric_system ns)
+    constexpr void on_timezone_offset(numeric_system ns, bool iso8601_colon_offset = false)
     {
-        static_cast<Derived*>(this)->on_timezone_offset(ns);
+        static_cast<Derived*>(this)->on_timezone_offset(ns, iso8601_colon_offset);
     }
 
     constexpr void on_timezone_name(numeric_system ns)
@@ -333,7 +333,7 @@ struct chrono_format_checker : chrono_format_handler<chrono_format_checker<IsCom
 
     constexpr void on_am_pm()
     {}
-    constexpr void on_timezone_offset(numeric_system)
+    constexpr void on_timezone_offset(numeric_system, bool)
     {
         if (is_duration_formatter) {
             MC_COMPILE_TIME_ERROR("Duration 不支持时区偏移格式说明符 (%z)");
@@ -398,7 +398,6 @@ constexpr mc::string_view parse_chrono_format(mc::string_view fmt, Handler&& han
         pad_type       pad      = pad_type::zero;
         numeric_system ns       = numeric_system::standard;
         char           modifier = 0;
-        (void)modifier; // 防止未使用警告
 
         // 处理填充修饰符
         if (*it == '-') {
@@ -512,9 +511,11 @@ constexpr mc::string_view parse_chrono_format(mc::string_view fmt, Handler&& han
             case 'p':
                 handler.on_am_pm();
                 break;
-            case 'z':
-                handler.on_timezone_offset(ns);
+            case 'z': {
+                const bool iso8601_colon_offset = (modifier == 'E' || modifier == 'O');
+                handler.on_timezone_offset(ns, iso8601_colon_offset);
                 break;
+            }
             case 'Z':
                 handler.on_timezone_name(ns);
                 break;
@@ -549,8 +550,8 @@ private:
         {}
 
         mc::string_view format_str;
-        int              precision     = -1;
-        bool             has_precision = false;
+        int             precision     = -1;
+        bool            has_precision = false;
     };
 
 public:

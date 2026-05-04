@@ -47,7 +47,7 @@ public:
     void on_duration_value();
     void on_duration_unit();
     void on_am_pm();
-    void on_timezone_offset(numeric_system);
+    void on_timezone_offset(numeric_system, bool iso8601_colon_offset);
     void on_timezone_name(numeric_system);
 
     // 错误处理方法
@@ -56,8 +56,8 @@ public:
 
 protected:
     mc::string& m_output;
-    int          m_precision;
-    bool         m_has_precision;
+    int         m_precision;
+    bool        m_has_precision;
 
     virtual int         get_days()              = 0;
     virtual int         get_hours()             = 0;
@@ -91,7 +91,7 @@ public:
     void on_duration_value();
     void on_duration_unit();
     void on_am_pm();
-    void on_timezone_offset(numeric_system);
+    void on_timezone_offset(numeric_system, bool iso8601_colon_offset);
     void on_timezone_name(numeric_system);
 
     // 错误处理方法
@@ -100,9 +100,9 @@ public:
 
 protected:
     mc::string& m_output;
-    std::tm      m_tm{};  // 显式零初始化
-    bool         m_tm_valid = false;
-    std::time_t  m_time_t   = 0;
+    std::tm     m_tm{}; // 显式零初始化
+    bool        m_tm_valid = false;
+    std::time_t m_time_t   = 0;
 
     virtual void     ensure_tm()               = 0;
     virtual uint32_t get_subseconds_ns() const = 0;
@@ -269,13 +269,9 @@ void formatter<std::chrono::time_point<Clock, Duration>>::format(const std::chro
 
     auto& custom = spec.get_custom_spec<custom_spec>();
     if (custom.format_str.empty()) {
-        // 默认格式：YYYY-MM-DD HH:MM:SS (UTC)
-        auto    sys_tp = std::chrono::time_point_cast<std::chrono::system_clock::duration>(tp);
-        auto    time_t = std::chrono::system_clock::to_time_t(sys_tp);
-        std::tm tm     = *std::gmtime(&time_t);
-        char    buffer[32] = {};
-        size_t  length     = std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &tm);
-        out.append(buffer, length);
+        // 对齐 C++20 sys_time 的 operator<<：等价于 format("%F %T")（UTC / gmtime，含 %T 子秒规则）
+        detail::time_point_format_handler handler(tp, out);
+        detail::parse_chrono_format(mc::string_view("%F %T"), handler);
     } else {
         detail::time_point_format_handler handler(tp, out);
         detail::parse_chrono_format(custom.format_str, handler);

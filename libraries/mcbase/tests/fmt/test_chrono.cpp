@@ -33,6 +33,31 @@ int parse_timezone_minutes(mc::string_view tz)
     return tz[0] == '+' ? (hours * 60 + minutes) : -(hours * 60 + minutes);
 }
 
+struct tz_scoped {
+    mc::string m_saved;
+    bool       m_had_tz = false;
+
+    explicit tz_scoped(const char* tz)
+    {
+        if (const char* cur = getenv("TZ")) {
+            m_saved  = cur;
+            m_had_tz = true;
+        }
+        setenv("TZ", tz, 1);
+        tzset();
+    }
+
+    ~tz_scoped()
+    {
+        if (m_had_tz) {
+            setenv("TZ", m_saved.c_str(), 1);
+        } else {
+            unsetenv("TZ");
+        }
+        tzset();
+    }
+};
+
 } // namespace
 
 // Duration 基本格式化测试
@@ -129,12 +154,13 @@ TEST(chrono_format_test, time_point_basic)
 {
     using namespace std::chrono;
 
-    // 使用固定时间点进行测试 (2024-07-02 12:30:45 UTC)
+    // 使用固定时间点进行测试 (2024-07-02 11:40:45 UTC)
     system_clock::time_point tp = system_clock::from_time_t(1719920445);
 
-    // 默认格式（注意：这依赖于系统的本地时区）
+    // 默认格式对齐 C++20 sys_time 的流输出（等价于 "%F %T"，UTC / gmtime）
     mc::string result = sformat("{}", tp);
-    EXPECT_EQ(result.size(), 19); // YYYY-MM-DD HH:MM:SS 格式
+    EXPECT_EQ(result, sformat("{:%F %T}", tp));
+    EXPECT_EQ(result.size(), 19); // YYYY-MM-DD HH:MM:SS
     EXPECT_EQ(result[4], '-');
     EXPECT_EQ(result[7], '-');
     EXPECT_EQ(result[10], ' ');
@@ -171,7 +197,7 @@ TEST(chrono_format_test, time_point_time_format)
 
     system_clock::time_point tp = system_clock::from_time_t(1719920445);
 
-    // 基本时间格式（结果依赖于系统时区，这里只检查格式）
+    // 基本时间格式（UTC / gmtime）
     mc::string iso_time = sformat("{:%T}", tp);
     EXPECT_EQ(iso_time.size(), 8); // HH:MM:SS
     EXPECT_EQ(iso_time[2], ':');
@@ -201,6 +227,8 @@ TEST(chrono_format_test, time_point_subsecond)
     // 测试完整时间格式
     mc::string full_time = sformat("{:%T}", tp_with_subsec);
     EXPECT_TRUE(full_time.find('.') != mc::string::npos);
+
+    EXPECT_EQ(sformat("{}", tp_with_subsec), sformat("{:%F %T}", tp_with_subsec));
 
     // 测试不同精度的子秒
     auto       tp_millisec = base_time + milliseconds(123);
@@ -297,153 +325,56 @@ TEST(chrono_format_test, container_formatting)
     EXPECT_EQ(sformat("{}", time_points), "[2024-07-02 11:40:45,2024-07-02 11:40:46]");
 }
 
-// 时区格式化测试
+// 时区格式化测试（对齐 C++20 sys_time：%z 为相对 UTC 的 0min，即 +0000）
 TEST(chrono_format_test, timezone_formatting)
 {
     using namespace std::chrono;
 
-    // 使用固定时间点进行测试 (2024-07-02 12:30:45 UTC)
-    system_clock::time_point tp = system_clock::from_time_t(1719920445);
+    // 使用固定时间点进行测试 (2024-07-02 11:40:45 UTC，与 container_formatting 一致)
+    constexpr std::time_t    utc_secs = 1719920445;
+    system_clock::time_point tp       = system_clock::from_time_t(utc_secs);
 
-    // 测试时区偏移格式
     mc::string timezone_result = sformat("{:%z}", tp);
+    EXPECT_EQ(timezone_result, "+0000");
+    EXPECT_EQ(sformat("{:%Ez}", tp), "+00:00");
+    EXPECT_EQ(sformat("{:%Oz}", tp), "+00:00");
+    EXPECT_EQ(timezone_result.size(), 5);
+    EXPECT_EQ(parse_timezone_minutes(timezone_result.view()), 0);
 
-    // 验证时区格式：应该是 +/-HHMM 格式
-    EXPECT_EQ(timezone_result.size(), 5); // 例如 "+0800" 或 "-0500"
-    EXPECT_TRUE(timezone_result[0] == '+' || timezone_result[0] == '-');
-    EXPECT_TRUE(std::isdigit(timezone_result[1]));
-    EXPECT_TRUE(std::isdigit(timezone_result[2]));
-    EXPECT_TRUE(std::isdigit(timezone_result[3]));
-    EXPECT_TRUE(std::isdigit(timezone_result[4]));
-
-    // 精确验证时区偏移值
-    // 计算期望的时区偏移
-    std::time_t utc_time = 1719920445;
-    std::tm     local_tm = *std::localtime(&utc_time);
-    std::tm     utc_tm   = *std::gmtime(&utc_time);
-
-    // 使用与格式化函数相同的逻辑计算期望偏移量
-    int expected_offset_minutes = 0;
-
-    // 通过比较 UTC 和本地时间来计算偏移量
-    int hour_diff = local_tm.tm_hour - utc_tm.tm_hour;
-    int min_diff  = local_tm.tm_min - utc_tm.tm_min;
-
-    // 处理跨日的情况
-    if (hour_diff > 12) {
-        hour_diff -= 24;
-    } else if (hour_diff < -12) {
-        hour_diff += 24;
-    }
-
-    expected_offset_minutes = hour_diff * 60 + min_diff;
-
-    // 解析格式化结果中的时区偏移，统一走 mc::strings::to_number。
-    const mc::string_view tz                    = timezone_result.view();
-    int                   actual_offset_minutes = parse_timezone_minutes(tz);
-
-    // 验证时区偏移值是否正确
-    EXPECT_EQ(actual_offset_minutes, expected_offset_minutes)
-        << "时区偏移不匹配: 期望 " << expected_offset_minutes << " 分钟, 实际 " << actual_offset_minutes
-        << " 分钟 (格式化结果: " << timezone_result << ")";
-
-    // 测试完整的时间格式化包含时区
     mc::string full_result = sformat("{:%Y-%m-%d %H:%M:%S %z}", tp);
+    EXPECT_EQ(full_result, "2024-07-02 11:40:45 +0000");
+    EXPECT_EQ(full_result.substr(20, 5), timezone_result);
 
-    // 验证格式：YYYY-MM-DD HH:MM:SS +/-HHMM
-    EXPECT_EQ(full_result.size(), 25);                             // 19 + 1 + 5
-    EXPECT_EQ(full_result[19], ' ');                               // 时间和时区之间的空格
-    EXPECT_TRUE(full_result[20] == '+' || full_result[20] == '-'); // 时区符号
-
-    // 验证完整结果中的时区部分与单独时区结果一致
-    mc::string full_timezone = full_result.substr(20, 5);
-    EXPECT_EQ(full_timezone, timezone_result);
-
-    // 测试当前时间的时区格式化
-    auto       now          = system_clock::now();
-    mc::string now_timezone = sformat("{:%z}", now);
-    EXPECT_EQ(now_timezone.size(), 5);
-    EXPECT_TRUE(now_timezone[0] == '+' || now_timezone[0] == '-');
-
-    // 验证当前时间的时区偏移也是正确的
-    std::time_t now_utc      = std::chrono::system_clock::to_time_t(now);
-    std::tm     now_local_tm = *std::localtime(&now_utc);
-    std::tm     now_utc_tm   = *std::gmtime(&now_utc);
-
-    // 使用与格式化函数相同的逻辑计算期望偏移量
-    int now_expected_offset_minutes = 0;
-
-    // 通过比较 UTC 和本地时间来计算偏移量
-    int now_hour_diff = now_local_tm.tm_hour - now_utc_tm.tm_hour;
-    int now_min_diff  = now_local_tm.tm_min - now_utc_tm.tm_min;
-
-    // 处理跨日的情况
-    if (now_hour_diff > 12) {
-        now_hour_diff -= 24;
-    } else if (now_hour_diff < -12) {
-        now_hour_diff += 24;
+    {
+        tz_scoped  shanghai("Asia/Shanghai");
+        auto       now          = system_clock::now();
+        mc::string now_timezone = sformat("{:%z}", now);
+        EXPECT_EQ(now_timezone, "+0000");
+        EXPECT_EQ(parse_timezone_minutes(now_timezone.view()), 0);
     }
-
-    now_expected_offset_minutes = now_hour_diff * 60 + now_min_diff;
-
-    const mc::string_view now_tz                    = now_timezone.view();
-    int                   now_actual_offset_minutes = parse_timezone_minutes(now_tz);
-
-    EXPECT_EQ(now_actual_offset_minutes, now_expected_offset_minutes)
-        << "当前时间时区偏移不匹配: 期望 " << now_expected_offset_minutes << " 分钟, 实际 " << now_actual_offset_minutes
-        << " 分钟 (格式化结果: " << now_timezone << ")";
 }
 
-// 测试时区名称格式化
+// %Z 对齐 C++20 formatter<sys_time>：固定为 "UTC"
 TEST(chrono_format_test, timezone_name_formatting)
 {
     using namespace std::chrono;
 
-    // 使用固定时间点进行测试 (2024-07-02 12:30:45 UTC)
-    system_clock::time_point tp = system_clock::from_time_t(1719920445);
+    constexpr std::time_t    utc_secs = 1719920445;
+    system_clock::time_point tp       = system_clock::from_time_t(utc_secs);
 
-    // 测试时区名称格式
     mc::string timezone_name_result = sformat("{:%Z}", tp);
 
-    // 验证时区名称格式：应该是时区缩写（如 CST、PST 等）
-    EXPECT_FALSE(timezone_name_result.empty());
-    EXPECT_GT(timezone_name_result.size(), 0);
-    EXPECT_LT(timezone_name_result.size(), 10); // 时区名称通常很短
-
-    // 验证时区名称不是偏移量格式（不应该包含 + 或 - 开头）
+    EXPECT_EQ(timezone_name_result, "UTC");
     EXPECT_FALSE(timezone_name_result[0] == '+' || timezone_name_result[0] == '-');
 
-    // 测试完整的时间格式化包含时区名称
     mc::string full_result_with_name = sformat("{:%Y-%m-%d %H:%M:%S %Z}", tp);
+    EXPECT_EQ(full_result_with_name, "2024-07-02 11:40:45 UTC");
 
-    // 验证格式：YYYY-MM-DD HH:MM:SS TZNAME
-    EXPECT_GT(full_result_with_name.size(), 20); // 至少包含日期时间和时区名称
-    EXPECT_EQ(full_result_with_name[19], ' ');   // 时间和时区之间的空格
-
-    // 验证完整结果中的时区名称部分与单独时区名称结果一致
-    mc::string full_timezone_name = full_result_with_name.substr(20);
-    EXPECT_EQ(full_timezone_name, timezone_name_result);
-
-    // 测试 %z 和 %Z 的不同行为
     mc::string offset_result = sformat("{:%z}", tp);
     mc::string name_result   = sformat("{:%Z}", tp);
-
-    // 验证它们确实不同
     EXPECT_NE(offset_result, name_result) << "%z 和 %Z 应该输出不同的结果";
-
-    // 验证 %z 是偏移量格式（+HHMM 或 -HHMM）
-    EXPECT_EQ(offset_result.size(), 5);
-    EXPECT_TRUE(offset_result[0] == '+' || offset_result[0] == '-');
-    EXPECT_TRUE(std::isdigit(offset_result[1]));
-    EXPECT_TRUE(std::isdigit(offset_result[2]));
-    EXPECT_TRUE(std::isdigit(offset_result[3]));
-    EXPECT_TRUE(std::isdigit(offset_result[4]));
-
-    // 验证 %Z 是时区名称格式（字母缩写）
-    EXPECT_FALSE(name_result[0] == '+' || name_result[0] == '-');
-    for (char c : name_result) {
-        EXPECT_TRUE(std::isalpha(c) || std::isspace(c)) << "时区名称应该只包含字母和空格，但包含: " << c;
-    }
+    EXPECT_EQ(offset_result, "+0000");
+    EXPECT_EQ(name_result, "UTC");
 }
 
 // Duration 中使用年份/时区格式会被校验拒绝，应在运行期抛出异常
@@ -475,41 +406,30 @@ TEST(chrono_format_test, Duration12HourFormat)
     EXPECT_EQ(morning_result, "09:15:30 AM");
 }
 
-// 测试 time_point 的时区 tokens
+// 测试 time_point 的时区 tokens（对齐 C++20 sys_time，与进程 TZ 无关）
 TEST(chrono_format_test, TimePointTimezoneTokens)
 {
     using namespace std::chrono;
 
-    // 设置时区为 UTC
-    setenv("TZ", "UTC", 1);
-    tzset();
+    tz_scoped shanghai("Asia/Shanghai");
 
-    // 创建一个固定的 time_point（1970-01-01 00:00:00 UTC）
-    auto tp = system_clock::time_point{} + seconds(0);
-
-    // 测试时区偏移量：%z 在不同实现中可能返回 "+0000" 或 "+00:00"
+    auto       tp            = system_clock::time_point{} + seconds(0);
     mc::string offset_result = sformat("{:%z}", tp);
-    EXPECT_TRUE(offset_result == "+0000" || offset_result == "+00:00")
-        << "Unexpected timezone offset: " << offset_result;
+    mc::string name_result   = sformat("{:%Z}", tp);
 
-    // 测试时区名称：%Z 在不同系统中可能返回 "UTC" 或 "GMT"
-    mc::string name_result = sformat("{:%Z}", tp);
-    EXPECT_TRUE(name_result == "UTC" || name_result == "GMT")
-        << "Unexpected timezone name: " << name_result;
+    EXPECT_EQ(offset_result, "+0000");
+    EXPECT_EQ(name_result, "UTC");
 
-    // 测试组合格式
     mc::string combined = sformat("{:%z %Z}", tp);
-    EXPECT_FALSE(combined.empty());
+    EXPECT_EQ(combined, "+0000 UTC");
 }
 
-// 测试 time_point 的 12 小时制格式
+// 测试 time_point 的 12 小时制格式（钟面为 UTC，与 TZ 无关）
 TEST(chrono_format_test, TimePoint12HourFormat)
 {
     using namespace std::chrono;
 
-    // 设置时区为 UTC
-    setenv("TZ", "UTC", 1);
-    tzset();
+    tz_scoped ny("America/New_York");
 
     // 创建一个下午的 time_point（1970-01-01 14:30:45 UTC）
     auto tp = system_clock::time_point{} + hours(14) + minutes(30) + seconds(45);
