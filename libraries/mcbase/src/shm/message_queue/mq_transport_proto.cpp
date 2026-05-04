@@ -486,16 +486,16 @@ void mq_transport_proto::set_receive_completion_handler(mc::small_function<void(
 
 void mq_transport_proto::shutdown() noexcept
 {
-    m_queue              = nullptr;
-    m_writer_id          = 0;
-    m_writer_instance_id = 0;
-
     if (m_send_runtime != nullptr) {
         m_send_runtime->shutdown();
     }
     if (m_receive_runtime != nullptr) {
         m_receive_runtime->shutdown();
     }
+
+    m_queue              = nullptr;
+    m_writer_id          = 0;
+    m_writer_instance_id = 0;
 }
 
 mc::proto::execution_state mq_transport_proto::on_push(mc::proto::proto_request& req)

@@ -197,6 +197,50 @@ TEST_F(endpoint_service_test, mq_send_with_reply_times_out_and_discards_late_rep
     client.stop();
 }
 
+TEST_F(endpoint_service_test, mq_send_with_reply_matches_multiple_pending_replies_by_serial)
+{
+    mc::engine::endpoint_service client("mcengine.test.mq.multi_pending.client", runtime_alias());
+    ASSERT_TRUE(client.init());
+    ASSERT_TRUE(client.start());
+
+    auto receiver = register_running_endpoint(*m_runtime, "mcengine.test.mq.multi_pending.receiver");
+    ASSERT_TRUE(receiver.has_value());
+
+    auto first = _make_mq_method_call("missing.mq.target");
+    auto first_future = client.send_with_reply_to_endpoint(receiver->endpoint_id, receiver->instance_id,
+                                                           std::move(first), mc::milliseconds(1000));
+
+    auto second = _make_mq_method_call("missing.mq.target");
+    auto second_future = client.send_with_reply_to_endpoint(receiver->endpoint_id, receiver->instance_id,
+                                                            std::move(second), mc::milliseconds(1000));
+
+    mc::engine::message second_reply;
+    second_reply.header.type         = mc::engine::message_type::method_return;
+    second_reply.header.reply_serial = 2U;
+    second_reply.body = mc::engine::make_payload<mc::engine::method_return_payload>(mc::variant("second"), "s");
+    ASSERT_TRUE(client.send_to_endpoint(client.endpoint_id(), client.instance_id(), second_reply));
+
+    mc::engine::message first_reply;
+    first_reply.header.type         = mc::engine::message_type::method_return;
+    first_reply.header.reply_serial = 1U;
+    first_reply.body = mc::engine::make_payload<mc::engine::method_return_payload>(mc::variant("first"), "s");
+    ASSERT_TRUE(client.send_to_endpoint(client.endpoint_id(), client.instance_id(), first_reply));
+
+    ASSERT_EQ(second_future.wait_for(std::chrono::seconds(2)), mc::future_status::ready);
+    auto second_result = second_future.get();
+    EXPECT_EQ(second_result.header.reply_serial, 2U);
+    ASSERT_NE(second_result.try_as<mc::engine::method_return_payload>(), nullptr);
+    EXPECT_EQ(second_result.as<mc::engine::method_return_payload>().value, mc::variant("second"));
+
+    ASSERT_EQ(first_future.wait_for(std::chrono::seconds(2)), mc::future_status::ready);
+    auto first_result = first_future.get();
+    EXPECT_EQ(first_result.header.reply_serial, 1U);
+    ASSERT_NE(first_result.try_as<mc::engine::method_return_payload>(), nullptr);
+    EXPECT_EQ(first_result.as<mc::engine::method_return_payload>().value, mc::variant("first"));
+
+    client.stop();
+}
+
 // 合并派发：同进程两个 service 订阅同一 signal，publish 一次 → 两个 callback 都命中。
 // 因为命中目标都指向本进程 endpoint，合并点在 engine::publish 的本地分支
 // （_dispatch_local_merged → route_inbound → 按 service 分组各 dispatch 一次）。
