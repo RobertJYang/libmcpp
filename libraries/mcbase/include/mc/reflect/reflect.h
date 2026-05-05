@@ -426,6 +426,7 @@ struct MC_API reflector<T, std::enable_if_t<mc::reflect::is_reflectable<T>() && 
     static const struct_metadata& get_metadata();
     static reflection<T>&         get_reflection();
     static void                   get_signature(mc::string& sig);
+    static void                   get_signature(std::string& sig);
 };
 
 template <typename T>
@@ -450,6 +451,27 @@ struct MC_API reflector<T, std::enable_if_t<mc::reflect::is_reflectable<T>() && 
 #define MC_REFLECT_CREATE_MEMBER_INFO(TYPE, MEMBER, ...)                                                               \
     (mc::reflect::detail::create_member_info<TYPE, &TYPE::MEMBER>(__VA_ARGS__))
 
+#define MC_REFLECT_PP_ARG_16(_0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, N, ...) N
+
+#define MC_REFLECT_PP_HAS_COMMA(...) MC_REFLECT_PP_ARG_16(__VA_ARGS__, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0)
+
+#define MC_REFLECT_PP_CAT5(a, b, c, d, e) MC_REFLECT_PP_CAT5_I(a, b, c, d, e)
+
+#define MC_REFLECT_PP_CAT5_I(a, b, c, d, e) a##b##c##d##e
+
+#define MC_REFLECT_PP_TRIGGER_PARENTHESIS_(...) ,
+
+#define MC_REFLECT_PP_IS_EMPTY(...)                                                                                    \
+    MC_REFLECT_PP_IS_EMPTY_I(MC_REFLECT_PP_HAS_COMMA(__VA_ARGS__),                                                     \
+                             MC_REFLECT_PP_HAS_COMMA(MC_REFLECT_PP_TRIGGER_PARENTHESIS_ __VA_ARGS__),                  \
+                             MC_REFLECT_PP_HAS_COMMA(__VA_ARGS__()),                                                   \
+                             MC_REFLECT_PP_HAS_COMMA(MC_REFLECT_PP_TRIGGER_PARENTHESIS_ __VA_ARGS__()))
+
+#define MC_REFLECT_PP_IS_EMPTY_I(_0, _1, _2, _3)                                                                       \
+    MC_REFLECT_PP_HAS_COMMA(MC_REFLECT_PP_CAT5(MC_REFLECT_PP_IS_EMPTY_CASE_, _0, _1, _2, _3))
+
+#define MC_REFLECT_PP_IS_EMPTY_CASE_0001 ,
+
 #define MC_REFLECT_EXPAND_PARAM_II(TYPE, MEMBER, ...)                                                                  \
     MC_PP_IF(MC_PP_GREATER(MC_PP_VARIADIC_SIZE(dummy, ##__VA_ARGS__), 2), MEMBER(TYPE, __VA_ARGS__),                   \
              MC_PP_IF(MC_PP_GREATER(MC_PP_VARIADIC_SIZE(dummy, ##__VA_ARGS__), 1),                                     \
@@ -458,13 +480,19 @@ struct MC_API reflector<T, std::enable_if_t<mc::reflect::is_reflectable<T>() && 
                                                     mc::reflect::detail::reflect_name_from_literal(#MEMBER))))
 
 #define MC_REFLECT_EXPAND_PARAM_I(TYPE, ...)                                                                           \
-    MC_PP_IIF(MC_PP_IS_EMPTY(__VA_ARGS__), std::tuple<>{}, MC_REFLECT_EXPAND_PARAM_II(TYPE, __VA_ARGS__))
+    MC_PP_IIF(MC_REFLECT_PP_IS_EMPTY(__VA_ARGS__), std::tuple<>{}, MC_REFLECT_EXPAND_PARAM_II(TYPE, __VA_ARGS__))
 
 #define MC_REFLECT_EXPAND_PARAM(r, TYPE, MEMBER) MC_REFLECT_EXPAND_PARAM_I(TYPE, MC_REMOVE_PARENS(MEMBER))
 
 // 循环展开所有参数
 #define MC_REFLECT_EXPAND_PARAMS(r, TYPE, param)                                                                       \
     MC_PP_SEQ_ENUM(MC_PP_SEQ_TRANSFORM(MC_REFLECT_EXPAND_PARAM, TYPE, MC_REFLECT_PARAM_TO_SEQ(param))),
+
+#define MC_REFLECT_IS_SECOND_EMPTY_I(TYPE, PARAM, ...) MC_REFLECT_PP_IS_EMPTY(MC_PP_REMOVE_PARENS(PARAM))
+
+#define MC_REFLECT_IS_EMPTY_TUPLE_FORM(...)                                                                            \
+    MC_PP_AND(MC_PP_EQUAL(MC_PP_VARIADIC_SIZE(__VA_ARGS__), 2),                                                        \
+              MC_REFLECT_IS_SECOND_EMPTY_I(__VA_ARGS__, MC_REFLECT_NOT_EMPTY))
 
 #define MC_REFLECT_METADATA_MEMBERS(TYPE, ...)                                                                         \
     MC_PP_IIF(MC_PP_IS_EMPTY(__VA_ARGS__), mc::reflect::detail::initial_members<TYPE>(std::tuple<>{}),                 \
@@ -567,6 +595,13 @@ struct MC_API reflector<T, std::enable_if_t<mc::reflect::is_reflectable<T>() && 
     {                                                                                                                  \
         get_metadata().append_signature(sig);                                                                          \
     }                                                                                                                  \
+    template <>                                                                                                        \
+    [[maybe_unused]] void reflector<TYPE>::get_signature(std::string& sig)                                             \
+    {                                                                                                                  \
+        mc::string mc_sig;                                                                                             \
+        get_signature(mc_sig);                                                                                         \
+        sig.assign(mc_sig.begin(), mc_sig.end());                                                                      \
+    }                                                                                                                  \
     }
 
 #define MC_REFLECT_IMPL_EMPTY(TYPE)                                                                                    \
@@ -647,10 +682,22 @@ struct MC_API reflector<T, std::enable_if_t<mc::reflect::is_reflectable<T>() && 
     {                                                                                                                  \
         get_metadata().append_signature(sig);                                                                          \
     }                                                                                                                  \
+    template <>                                                                                                        \
+    [[maybe_unused]] void reflector<TYPE>::get_signature(std::string& sig)                                             \
+    {                                                                                                                  \
+        mc::string mc_sig;                                                                                             \
+        get_signature(mc_sig);                                                                                         \
+        sig.assign(mc_sig.begin(), mc_sig.end());                                                                      \
+    }                                                                                                                  \
     }
 
-#define MC_REFLECT(...)                                                                                                \
+#define MC_REFLECT_EMPTY_TUPLE(TYPE, ...) MC_REFLECT_IMPL_EMPTY(TYPE)
+
+#define MC_REFLECT_SELECT(...)                                                                                         \
     MC_PP_IIF(MC_PP_GREATER(MC_PP_VARIADIC_SIZE(__VA_ARGS__), 1), MC_REFLECT_IMPL, MC_REFLECT_IMPL_EMPTY)(__VA_ARGS__)
+
+#define MC_REFLECT(...)                                                                                                \
+    MC_PP_IIF(MC_REFLECT_IS_EMPTY_TUPLE_FORM(__VA_ARGS__), MC_REFLECT_EMPTY_TUPLE, MC_REFLECT_SELECT)(__VA_ARGS__)
 
 #define MC_REFLECT_BASE_CLASS_1(TYPE, r, BASE) (mc::reflect::detail::create_base_class_info<TYPE, BASE>())
 

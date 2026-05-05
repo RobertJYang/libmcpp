@@ -39,8 +39,8 @@ public:
     MC_REFLECTABLE("test_person");
 
     mc::string m_name;
-    int         m_age;
-    bool        m_is_male;
+    int        m_age;
+    bool       m_is_male;
 
     test_person() : m_name(""), m_age(0), m_is_male(false)
     {}
@@ -68,6 +68,11 @@ public:
         return id;
     }
 };
+
+class empty_reflect_type {
+public:
+    MC_REFLECTABLE("empty_reflect_type");
+};
 } // namespace test_reflect
 
 MC_REFLECTABLE("test_reflect.test_color", test_reflect::test_color);
@@ -77,6 +82,7 @@ MC_REFLECT_ENUM(test_reflect::test_color, (BLUE)(RED)(GREEN))
 MC_REFLECT(test_reflect::test_person,
            (m_name)(m_age)(m_is_male)(MC_COMPUTED_PROPERTY("id", get_id, set_id))(MC_COMPUTED_PROPERTY("readonly_id",
                                                                                                        get_id)))
+MC_REFLECT(test_reflect::empty_reflect_type, ())
 
 template <typename C>
 struct property_info_base_test {
@@ -93,9 +99,9 @@ struct property_info_test : public property_info_base_test<C> {
     using member_type = M;
     using base_type   = BaseT;
 
-    M BaseT::* member_ptr;
+    M BaseT::*member_ptr;
 
-    constexpr property_info_test(mc::string_view n, M BaseT::* ptr) : property_info_base_test<C>(n), member_ptr(ptr)
+    constexpr property_info_test(mc::string_view n, M BaseT::*ptr) : property_info_base_test<C>(n), member_ptr(ptr)
     {}
 
     virtual std::type_index typeinfo() const override
@@ -119,7 +125,7 @@ public:
         values.push_back(getter(m_obj));
     }
 
-    mutable std::vector<mc::string> names;
+    mutable std::vector<mc::string>  names;
     mutable std::vector<mc::variant> values;
 
 private:
@@ -358,7 +364,7 @@ TEST(ReflectTest, Serialization)
 
     // 模拟序列化：将字典转换为字符串表示
     mc::string serialized = "{";
-    bool        first      = true;
+    bool       first      = true;
     for (const auto& key : d.keys()) {
         if (!first) {
             serialized += ", ";
@@ -508,6 +514,14 @@ TEST(ReflectTest, ToVariantCreatesDict)
     EXPECT_EQ(d["m_name"], "test");
     EXPECT_EQ(d["m_age"], 42);
     EXPECT_EQ(d["m_is_male"], true);
+}
+
+TEST(ReflectTest, EmptyTupleReflectAndStdStringSignatureCompatibility)
+{
+    std::string signature;
+    mc::reflect::reflector<empty_reflect_type>::get_signature(signature);
+    EXPECT_TRUE(signature.empty());
+    EXPECT_EQ(mc::reflect::reflector<empty_reflect_type>::get_name(), "empty_reflect_type");
 }
 
 // 测试 to_variant 直接转换为 dict

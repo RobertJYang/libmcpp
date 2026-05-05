@@ -356,6 +356,29 @@ TEST_F(table_test, advanced_query)
         }
     }
 
+    // 兼容旧 query_object 接口
+    {
+        std::vector<mc::string>      names;
+        mdb::table_query<user_table> executor(users);
+        executor.query_object(mdb::query_builder(mc::dict{{"score", mc::dict{{"$gte", 85.0}}}}),
+                              [&names](const user& u) {
+            names.push_back(u.name());
+            return true;
+        });
+
+        EXPECT_EQ(names.size(), 4);
+    }
+
+    {
+        std::vector<mc::string> names;
+        users.query_object(mdb::query_builder(mc::dict{{"score", mc::dict{{"$gte", 85.0}}}}), [&names](const user& u) {
+            names.push_back(u.name());
+            return true;
+        });
+
+        EXPECT_EQ(names.size(), 4);
+    }
+
     // 查询单个记录
     {
         auto result = query_one_user(users, mc::dict{{"name", "王五"}});

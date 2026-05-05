@@ -140,6 +140,11 @@ public:
         return results;
     }
 
+    std::vector<object_ptr_type> query_object(const query_builder& builder, size_t limit = 0)
+    {
+        return query(builder, limit);
+    }
+
     /**
      * 查询记录
      * @param builder 查询构建器
@@ -150,6 +155,12 @@ public:
     bool query(const query_builder& builder, Handler&& handler)
     {
         return query_impl(builder, std::forward<Handler>(handler));
+    }
+
+    template <typename Handler, typename = std::enable_if_t<std::is_invocable_r_v<bool, Handler, object_type&>>>
+    bool query_object(const query_builder& builder, Handler&& handler)
+    {
+        return query(builder, std::forward<Handler>(handler));
     }
 
 private:
