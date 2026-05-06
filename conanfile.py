@@ -55,8 +55,8 @@ class AppConan(ConanBase):
         "asan": [True, False],
         "gcov": [True, False],
         "test": [True, False],
-        "test_utilities": [True, False, "auto"],
-        "examples": [True, False, "auto"],
+        "test_utilities": [True, False],
+        "examples": [True, False],
         "enable_luajit": [True, False],
         # 进程间通信架构开关，与顶层 meson 选项一一对应，禁止同时为 True：
         #   use_shm=True  + use_old_shm=False ：新 SHM 架构
@@ -69,8 +69,8 @@ class AppConan(ConanBase):
         "asan": False,
         "gcov": False,
         "test": False,
-        "test_utilities": "auto",
-        "examples": "auto",
+        "test_utilities": False,
+        "examples": False,
         "enable_luajit": True,
         # conan 构建（DT / 交叉编译生产）默认走旧架构，保持与存量部署兼容；
         # 想在 conan 环境下试新架构：-o use_shm=True -o use_old_shm=False。
@@ -83,12 +83,15 @@ class AppConan(ConanBase):
         super().layout()
 
     def package_id(self):
-        # `test` and `examples` control local build targets. Normalize
-        # `test_utilities` so auto/explicit values with the same package content
-        # reuse one binary ID.
-        build_test_utilities = self._option_value_enabled(
-            self.info.options.get_safe("test_utilities", "auto")
-        ) or self._option_value_enabled(self.info.options.get_safe("examples", "auto"))
+        # test/examples 是本地构建开关，但也会启用打包的 test utilities。
+        # package_id 按最终包内容归一化，避免等价配置生成不同二进制 ID。
+        build_test_utilities = (
+            self._option_value_enabled(self.info.options.get_safe("test", False))
+            or self._option_value_enabled(
+                self.info.options.get_safe("test_utilities", False)
+            )
+            or self._option_value_enabled(self.info.options.get_safe("examples", False))
+        )
         self.info.options.rm_safe("test")
         self.info.options.rm_safe("examples")
         self.info.options.test_utilities = build_test_utilities
@@ -97,24 +100,11 @@ class AppConan(ConanBase):
         # libmcpp tied to dependency versions, not to their package IDs/options.
         self.info.requires.semver_mode()
 
-    def _package_channel(self):
-        ref = getattr(self, "ref", None)
-        channel = getattr(ref, "channel", None) if ref else None
-        if channel:
-            return str(channel).lower()
-        channel = getattr(self, "channel", None)
-        return str(channel).lower() if channel else ""
-
-    def _is_dev_package(self):
-        return self._package_channel() == "dev"
-
     def _option_value_enabled(self, value):
-        if str(value).lower() == "auto":
-            return self._is_dev_package()
         return str(value).lower() in ("true", "1", "yes", "on")
 
     def _option_enabled(self, option_name):
-        value = self.options.get_safe(option_name, "auto")
+        value = self.options.get_safe(option_name, False)
         return self._option_value_enabled(value)
 
     def _build_test_utilities(self):
@@ -688,7 +678,7 @@ class AppConan(ConanBase):
         # 不需要手动展开 mcbase/mcengine/mcapp 各层 test utilities。
         self.cpp_info.components["test_utilities"].libs = []
         build_own_tests = self._build_own_tests()
-        build_test_utilities = build_own_tests or bool(self.options.test_utilities)
+        build_test_utilities = self._build_test_utilities()
         if build_test_utilities:
             self.cpp_info.components["test_utilities"].libs.extend(
                 [
