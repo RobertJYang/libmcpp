@@ -19,8 +19,16 @@
 #include <mc/log/log.h>
 #include <mc/runtime.h>
 
+#if defined(MCDBUS_USE_OLD_SHM) && MCDBUS_USE_OLD_SHM
+#include <mc/dbus/shm/shm_tree.h>
+#endif
+
 #include <string_view>
 #include <utility>
+
+#if defined(MCDBUS_USE_OLD_SHM) && MCDBUS_USE_OLD_SHM
+#include <optional>
+#endif
 
 namespace mc::app {
 namespace {
@@ -119,6 +127,71 @@ bool write_wire_args(mc::dbus::message& msg, const mc::variants& args, mc::strin
     return sig_it.at_end();
 }
 
+mc::engine::message make_error_response(const mc::engine::message& request, mc::string_view name, mc::string_view text)
+{
+    mc::engine::message error;
+    error.header.type         = mc::engine::message_type::error;
+    error.header.destination  = request.header.sender;
+    error.header.sender       = request.header.destination;
+    error.header.reply_serial = request.header.serial;
+    error.header.error_name   = mc::string(name);
+    error.body                = mc::engine::make_payload<mc::engine::error_payload>(name, text);
+    return error;
+}
+
+mc::string_view validate_method_call_request(const mc::engine::message& msg) noexcept
+{
+    if (msg.header.destination.empty() || msg.header.path.empty() || msg.header.interface_name.empty() ||
+        msg.header.member_name.empty()) {
+        return "dbus proto method_call 缺少目标字段";
+    }
+    if (const auto* call_payload = msg.try_as<mc::engine::method_call_payload>();
+        call_payload != nullptr && count_signature_fields(call_payload->signature) != call_payload->args.size()) {
+        return "dbus proto method_call 参数签名与参数数量不匹配";
+    }
+    return {};
+}
+
+bool build_wire_method_call(const mc::engine::message& msg, mc::dbus::message& wire)
+{
+    wire = mc::dbus::message::new_method_call(msg.header.destination, msg.header.path, msg.header.interface_name,
+                                              msg.header.member_name);
+    if (msg.header.serial != 0) {
+        wire.set_serial(msg.header.serial);
+    }
+    if (const auto* call_payload = msg.try_as<mc::engine::method_call_payload>()) {
+        return write_wire_args(wire, call_payload->args, call_payload->signature);
+    }
+    return true;
+}
+
+#if defined(MCDBUS_USE_OLD_SHM) && MCDBUS_USE_OLD_SHM
+mc::variant collapse_return_args(mc::variants args)
+{
+    if (args.empty()) {
+        return mc::variant{};
+    }
+    if (args.size() == 1U) {
+        return std::move(args.front());
+    }
+    return mc::variant(std::move(args));
+}
+
+mc::engine::message make_method_return_response(const mc::engine::message& request, mc::variants args,
+                                                mc::string_view signature)
+{
+    mc::engine::message reply;
+    reply.header.type         = mc::engine::message_type::method_return;
+    reply.header.destination  = request.header.sender;
+    reply.header.sender       = request.header.destination;
+    reply.header.reply_serial = request.header.serial;
+    reply.body =
+        mc::engine::make_payload<mc::engine::method_return_payload>(collapse_return_args(std::move(args)), signature);
+    return reply;
+}
+
+#endif
+
 mc::engine::message build_inbound_method_call(mc::dbus::message& wire_msg)
 {
     mc::engine::message msg;
@@ -136,6 +209,45 @@ mc::engine::message build_inbound_method_call(mc::dbus::message& wire_msg)
     msg.body  = mc::engine::make_payload<mc::engine::method_call_payload>(sig, std::move(args));
     return msg;
 }
+
+#if defined(MCDBUS_USE_OLD_SHM) && MCDBUS_USE_OLD_SHM
+std::optional<mc::engine::message> try_old_shm_method_call(mc::string_view            source_service_name,
+                                                           mc::string_view            source_unique_name,
+                                                           const mc::engine::message& request, mc::milliseconds timeout)
+{
+    if (source_service_name.empty() || source_unique_name.empty() || request.header.destination.empty()) {
+        return std::nullopt;
+    }
+
+    // 只有本服务自己的 harbor 队列在线时才尝试 old shm；否则回复无法回到本进程。
+    if (mc::dbus::harbor::get_destination_msg_queue(source_service_name) == nullptr) {
+        return std::nullopt;
+    }
+
+    mc::variants    empty_args;
+    mc::string_view signature;
+    const auto*     args         = &empty_args;
+    const auto*     call_payload = request.try_as<mc::engine::method_call_payload>();
+    if (call_payload != nullptr) {
+        signature = call_payload->signature;
+        args      = &call_payload->args;
+    }
+
+    mc::dbus::method_call_params params{request.header.destination, request.header.path, request.header.interface_name,
+                                        request.header.member_name, signature,           *args};
+    try {
+        auto reply_args = mc::dbus::shm_tree::timeout_call_with_sender(timeout, source_unique_name, params);
+        if (!reply_args.has_value()) {
+            return std::nullopt;
+        }
+        return make_method_return_response(request, std::move(reply_args.value()), mc::string_view{});
+    } catch (const mc::exception& ex) {
+        return make_error_response(request, ex.name(), ex.what());
+    } catch (const std::exception& ex) {
+        return make_error_response(request, mc::dbus::error_names::failed, ex.what());
+    }
+}
+#endif
 
 mc::engine::message build_reply_message(mc::dbus::message& reply_msg)
 {
@@ -250,32 +362,22 @@ std::size_t dbus_proto::inbound_count() const noexcept
 
 mc::future<mc::engine::message> dbus_proto::async_send_with_reply(mc::engine::message msg, mc::milliseconds timeout)
 {
-    if (msg.header.destination.empty() || msg.header.path.empty() || msg.header.interface_name.empty() ||
-        msg.header.member_name.empty()) {
-        mc::engine::message error;
-        error.header.type         = mc::engine::message_type::error;
-        error.header.reply_serial = msg.header.serial;
-        error.header.error_name   = "mc.engine.invalid_args";
-        error.body                = mc::engine::make_payload<mc::engine::error_payload>("mc.engine.invalid_args",
-                                                                                        "dbus proto method_call 缺少目标字段");
-        return mc::resolve(std::move(error));
+    if (auto error_text = validate_method_call_request(msg); !error_text.empty()) {
+        return mc::resolve(make_error_response(msg, "mc.engine.invalid_args", error_text));
     }
 
-    auto wire = mc::dbus::message::new_method_call(msg.header.destination, msg.header.path, msg.header.interface_name,
-                                                   msg.header.member_name);
-    if (msg.header.serial != 0) {
-        wire.set_serial(msg.header.serial);
+#if defined(MCDBUS_USE_OLD_SHM) && MCDBUS_USE_OLD_SHM
+    if (auto old_shm_reply = try_old_shm_method_call(m_service_name, m_connection.get_unique_name(), msg, timeout);
+        old_shm_reply.has_value()) {
+        m_outbound_count.fetch_add(1, std::memory_order_relaxed);
+        return mc::resolve(std::move(old_shm_reply.value()));
     }
-    if (const auto* call_payload = msg.try_as<mc::engine::method_call_payload>()) {
-        if (!write_wire_args(wire, call_payload->args, call_payload->signature)) {
-            mc::engine::message error;
-            error.header.type         = mc::engine::message_type::error;
-            error.header.reply_serial = msg.header.serial;
-            error.header.error_name   = "mc.engine.invalid_args";
-            error.body                = mc::engine::make_payload<mc::engine::error_payload>(
-                "mc.engine.invalid_args", "dbus proto method_call 参数签名与参数数量不匹配");
-            return mc::resolve(std::move(error));
-        }
+#endif
+
+    mc::dbus::message wire;
+    if (!build_wire_method_call(msg, wire)) {
+        return mc::resolve(
+            make_error_response(msg, "mc.engine.invalid_args", "dbus proto method_call 参数签名与参数数量不匹配"));
     }
 
     auto future = m_connection.async_send_with_reply(std::move(wire), timeout);
@@ -334,9 +436,8 @@ void dbus_proto::handle_inbound_call(mc::dbus::message wire_msg)
     }
 }
 
-void dbus_proto::deliver_reply(mc::dbus::message reply_msg)
+void dbus_proto::deliver_reply(mc::engine::message msg)
 {
-    mc::engine::message msg = build_reply_message(reply_msg);
     if (msg.header.type == mc::engine::message_type::invalid) {
         return;
     }
@@ -354,30 +455,6 @@ void dbus_proto::deliver_reply(mc::dbus::message reply_msg)
     } catch (const std::exception& ex) {
         elog("dbus_proto outbound reply pop threw: ${err}", ("err", ex.what()));
     }
-}
-
-bool dbus_proto::send_method_call_and_wait_reply(mc::engine::message& msg)
-{
-    if (msg.header.destination.empty() || msg.header.path.empty() || msg.header.interface_name.empty() ||
-        msg.header.member_name.empty()) {
-        return false;
-    }
-
-    auto wire = mc::dbus::message::new_method_call(msg.header.destination, msg.header.path, msg.header.interface_name,
-                                                   msg.header.member_name);
-    if (const auto* call_payload = msg.try_as<mc::engine::method_call_payload>()) {
-        if (!write_wire_args(wire, call_payload->args, call_payload->signature)) {
-            return false;
-        }
-    }
-
-    auto timeout = msg.header.timeout.count() > 0 ? msg.header.timeout : mc::dbus::DBUS_TIMEOUT_DEFAULT;
-    auto future  = m_connection.async_send_with_reply(std::move(wire), timeout);
-    std::move(future).then([this](mc::dbus::message reply) {
-        deliver_reply(std::move(reply));
-    });
-    m_outbound_count.fetch_add(1, std::memory_order_relaxed);
-    return true;
 }
 
 bool dbus_proto::send_method_return(mc::proto::proto_request& req, mc::engine::message& msg)
@@ -491,9 +568,11 @@ mc::proto::execution_state dbus_proto::on_push(mc::proto::proto_request& req)
     auto& msg = ctx->msg;
     switch (msg.header.type) {
         case mc::engine::message_type::method_call:
-            if (!send_method_call_and_wait_reply(msg)) {
-                return fail(req, "dbus_proto_method_call_failed", "dbus proto 发起 method_call 失败");
-            }
+            async_send_with_reply(msg,
+                                  msg.header.timeout.count() > 0 ? msg.header.timeout : mc::dbus::DBUS_TIMEOUT_DEFAULT)
+                .then([this](mc::engine::message reply) {
+                deliver_reply(std::move(reply));
+            });
             return complete(req);
         case mc::engine::message_type::method_return:
             if (!send_method_return(req, msg)) {

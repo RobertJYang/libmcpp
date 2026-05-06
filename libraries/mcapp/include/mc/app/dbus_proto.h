@@ -72,9 +72,8 @@ private:
 
     DBusHandlerResult on_filter(mc::dbus::message& wire_msg);
     void              handle_inbound_call(mc::dbus::message wire_msg);
-    void              deliver_reply(mc::dbus::message reply_msg);
+    void              deliver_reply(mc::engine::message reply_msg);
 
-    bool send_method_call_and_wait_reply(mc::engine::message& msg);
     bool send_method_return(mc::proto::proto_request& req, mc::engine::message& msg);
     bool send_error_reply(mc::proto::proto_request& req, mc::engine::message& msg);
     bool send_signal(mc::engine::message& msg);
