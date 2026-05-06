@@ -55,8 +55,8 @@ class AppConan(ConanBase):
         "asan": [True, False],
         "gcov": [True, False],
         "test": [True, False],
-        "test_utilities": [True, False],
-        "examples": [True, False],
+        "test_utilities": [True, False, "auto"],
+        "examples": [True, False, "auto"],
         "enable_luajit": [True, False],
         # 进程间通信架构开关，与顶层 meson 选项一一对应，禁止同时为 True：
         #   use_shm=True  + use_old_shm=False ：新 SHM 架构
@@ -69,8 +69,8 @@ class AppConan(ConanBase):
         "asan": False,
         "gcov": False,
         "test": False,
-        "test_utilities": False,
-        "examples": False,
+        "test_utilities": "auto",
+        "examples": "auto",
         "enable_luajit": True,
         # conan 构建（DT / 交叉编译生产）默认走旧架构，保持与存量部署兼容；
         # 想在 conan 环境下试新架构：-o use_shm=True -o use_old_shm=False。
@@ -83,23 +83,53 @@ class AppConan(ConanBase):
         super().layout()
 
     def package_id(self):
-        super_package_id = getattr(super(), "package_id", None)
-        if super_package_id:
-            super_package_id()
-
-        # `test` only controls whether this recipe builds/runs its own test
-        # executables. It must not create a distinct binary package for
-        # downstream test builds that only need the normal libmcpp artifacts.
+        # `test` and `examples` control local build targets. Normalize
+        # `test_utilities` so auto/explicit values with the same package content
+        # reuse one binary ID.
+        build_test_utilities = self._option_value_enabled(
+            self.info.options.get_safe("test_utilities", "auto")
+        ) or self._option_value_enabled(self.info.options.get_safe("examples", "auto"))
         self.info.options.rm_safe("test")
         self.info.options.rm_safe("examples")
+        self.info.options.test_utilities = build_test_utilities
 
         # Runtime dependencies have their own test/jit binary variants. Keep
         # libmcpp tied to dependency versions, not to their package IDs/options.
         self.info.requires.semver_mode()
 
+    def _package_channel(self):
+        ref = getattr(self, "ref", None)
+        channel = getattr(ref, "channel", None) if ref else None
+        if channel:
+            return str(channel).lower()
+        channel = getattr(self, "channel", None)
+        return str(channel).lower() if channel else ""
+
+    def _is_dev_package(self):
+        return self._package_channel() == "dev"
+
+    def _option_value_enabled(self, value):
+        if str(value).lower() == "auto":
+            return self._is_dev_package()
+        return str(value).lower() in ("true", "1", "yes", "on")
+
+    def _option_enabled(self, option_name):
+        value = self.options.get_safe(option_name, "auto")
+        return self._option_value_enabled(value)
+
+    def _build_test_utilities(self):
+        return (
+            self._build_own_tests()
+            or self._option_enabled("test_utilities")
+            or self._build_examples()
+        )
+
+    def _build_examples(self):
+        return self._option_enabled("examples")
+
     def requirements(self):
         super().requirements()
-        if self.options.test or self.options.test_utilities or self.options.examples:
+        if self._build_test_utilities():
             self.requires("gtest/[>=1.14.0]@openubmc/stable")
 
     def export(self):
@@ -221,7 +251,7 @@ class AppConan(ConanBase):
             tc.project_options["libdir"] = "usr/lib"
         tc.project_options["enable_conan_compile"] = True
         build_tests = self._build_own_tests()
-        build_test_utilities = build_tests or bool(self.options.test_utilities)
+        build_test_utilities = self._build_test_utilities()
         tc.project_options["tests"] = build_tests
         tc.project_options["tests_utilities"] = build_test_utilities
         # Meson subproject default_options only apply when a subproject is first
@@ -231,7 +261,7 @@ class AppConan(ConanBase):
             tc.subproject_options.setdefault(subproject_name, []).append({"tests": build_tests})
         for subproject_name in ("mcbase", "mcengine", "mcapp"):
             tc.subproject_options.setdefault(subproject_name, []).append({"tests_utilities": build_test_utilities})
-        tc.project_options["examples"] = bool(self.options.examples)
+        tc.project_options["examples"] = self._build_examples()
         tc.project_options["meson_build"] = False
         # 顶层 meson 会做互斥校验（use_shm 与 use_old_shm 不能同时 True），
         # 这里再前置一次让 conan 用户更早看到错误，且错误信息更贴 conan 选项。
@@ -394,7 +424,7 @@ class AppConan(ConanBase):
             "include",
             "test_utilities",
         )
-        if os.path.isdir(mcengine_test_include):
+        if self._build_test_utilities() and os.path.isdir(mcengine_test_include):
             copy(
                 self,
                 "engine_test_base.h",
