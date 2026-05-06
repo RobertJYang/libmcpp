@@ -54,6 +54,8 @@ test_deps = [
   lua_dep,
   mcdbus_internal_dep,
   libmcpp_dep_with_link,
+  zlib_dep,
+  openssl_dep,
 ]
 if enable_coverage
   test_cpp_args += coverage_args

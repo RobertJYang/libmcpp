@@ -19,7 +19,6 @@ mcengine_test_exe = executable(
   mcengine_test_support_files,
   link_whole: [
     mcengine_test_lib,
-    mcengine_lib,
   ],
   include_directories: [incdir, srcdir, mcengine_test_incdir],
   dependencies: [

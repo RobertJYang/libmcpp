@@ -85,9 +85,18 @@ libmcpp_base_dep = declare_dependency(
   include_directories: base_inc_dirs,
   link_with: libmcpp_base_lib,
 )
+
+# 内部测试需要访问未导出的符号，使用静态 base 库避免受符号可见性影响。
+libmcpp_base_static_lib = static_library(
+  'mcpp_base_static',
+  base_src_files,
+  include_directories: base_inc_dirs,
+  dependencies: base_dep_arr + [mcengine_dep, mcexpr_dep, mcapp_dep],
+  build_by_default: false,
+)
 libmcpp_base_internal_dep = declare_dependency(
   include_directories: base_inc_dirs,
-  link_with: libmcpp_base_lib,
+  link_with: libmcpp_base_static_lib,
 )
 mcpp_deps += [libmcpp_base_dep]
 
@@ -115,7 +124,7 @@ libmcpp_static_lib = static_library(
   'mcpp',
   libmcpp_src_files,
   include_directories: base_inc_dirs,
-  dependencies: [libmcpp_base_dep, mcengine_dep, mcexpr_dep, mcapp_dep],
+  dependencies: [libmcpp_base_internal_dep, mcengine_dep, mcexpr_dep, mcapp_dep],
   build_by_default: false,
 )
 

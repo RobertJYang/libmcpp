@@ -40,7 +40,6 @@ mcapp_test_exe = executable(
   mcapp_test_main,
   link_whole: [
     mcapp_test_lib,
-    mcapp_lib,
   ],
   include_directories: [incdir, srcdir, mcapp_test_incdir],
   dependencies: [

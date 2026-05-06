@@ -33,7 +33,6 @@ mcexpr_test_exe = executable(
   mcexpr_test_main,
   link_whole: [
     mcexpr_test_lib,
-    mcexpr_lib,
   ],
   include_directories: [incdir, srcdir, mcexpr_test_incdir],
   dependencies: [
