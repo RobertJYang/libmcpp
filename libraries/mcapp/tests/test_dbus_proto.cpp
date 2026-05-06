@@ -215,6 +215,61 @@ TEST_F(dbus_proto_test, outbound_method_call_delivers_reply_upstream)
     EXPECT_TRUE(found_self) << "ListNames 应返回当前 client bus name: " << client_name;
 }
 
+TEST_F(dbus_proto_test, outbound_method_call_writes_args_with_payload_signature)
+{
+    const auto          client_name = make_unique_service_name("mc.test.dbus_proto.client.sig");
+    const auto          server_name = make_unique_service_name("mc.test.dbus_proto.server.sig");
+    auto                client_conn = open_test_connection(client_name);
+    auto                server_conn = open_test_connection(server_name);
+    mc::app::dbus_proto proto(client_name, client_conn);
+
+    std::mutex                  mutex;
+    std::condition_variable     cv;
+    std::optional<mc::string>   captured_signature;
+    std::optional<mc::variants> captured_args;
+
+    mc::connection slot = server_conn.filter_message().connect([&](mc::dbus::message& wire_msg) -> DBusHandlerResult {
+        if (!wire_msg.is_method_call() || wire_msg.get_destination() != std::string_view(server_name)) {
+            return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+        }
+
+        {
+            std::lock_guard lock(mutex);
+            captured_signature = mc::string(wire_msg.get_signature());
+            captured_args      = wire_msg.read_args();
+        }
+        cv.notify_all();
+
+        auto reply = mc::dbus::message::new_method_return(wire_msg);
+        server_conn.send(std::move(reply));
+        server_conn.flush();
+        return DBUS_HANDLER_RESULT_HANDLED;
+    });
+    ASSERT_TRUE(slot.connected());
+
+    mc::dict            props{{"Name", mc::variant(mc::string("sensor"))}, {"State", mc::variant(mc::string("ok"))}};
+    mc::engine::message call_msg;
+    call_msg.header.type           = mc::engine::message_type::method_call;
+    call_msg.header.destination    = server_name;
+    call_msg.header.path           = "/mc/test/dbus_proto/sig";
+    call_msg.header.interface_name = "org.test.dbus_proto.Signature";
+    call_msg.header.member_name    = "SetProperties";
+    call_msg.body =
+        mc::engine::make_payload<mc::engine::method_call_payload>("a{sv}", mc::variants{mc::variant(props)});
+
+    auto reply = proto.async_send_with_reply(std::move(call_msg), mc::seconds(5)).get();
+    ASSERT_EQ(reply.header.type, mc::engine::message_type::method_return);
+
+    std::unique_lock lock(mutex);
+    ASSERT_TRUE(cv.wait_for(lock, std::chrono::seconds(5), [&]() {
+        return captured_signature.has_value();
+    }));
+    EXPECT_EQ(*captured_signature, "a{sv}");
+    ASSERT_TRUE(captured_args.has_value());
+    ASSERT_EQ(captured_args->size(), 1U);
+    EXPECT_EQ(captured_args->front(), mc::variant(props));
+}
+
 TEST_F(dbus_proto_test, outbound_method_call_preserves_multiple_reply_values_upstream)
 {
     const auto client_name = make_unique_service_name("mc.test.dbus_proto.client.multi");

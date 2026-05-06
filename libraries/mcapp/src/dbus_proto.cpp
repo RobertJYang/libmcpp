@@ -99,12 +99,24 @@ std::size_t count_signature_fields(mc::string_view signature) noexcept
     return count;
 }
 
-void write_wire_args(mc::dbus::message& msg, const mc::variants& args)
+bool write_wire_args(mc::dbus::message& msg, const mc::variants& args, mc::string_view signature)
 {
-    auto writer = msg.writer();
-    for (const auto& arg : args) {
-        writer.write_variant_value(arg);
+    if (count_signature_fields(signature) != args.size()) {
+        elog("dbus_proto write wire args failed: signature=${sig} args=${args}",
+             ("sig", signature)("args", args.size()));
+        return false;
     }
+
+    auto writer = msg.writer();
+    auto sig_it = mc::dbus::signature_iterator(signature);
+    for (const auto& arg : args) {
+        if (sig_it.at_end()) {
+            return false;
+        }
+        writer.write_variant(sig_it, arg, 0);
+        sig_it.next();
+    }
+    return sig_it.at_end();
 }
 
 mc::engine::message build_inbound_method_call(mc::dbus::message& wire_msg)
@@ -255,7 +267,15 @@ mc::future<mc::engine::message> dbus_proto::async_send_with_reply(mc::engine::me
         wire.set_serial(msg.header.serial);
     }
     if (const auto* call_payload = msg.try_as<mc::engine::method_call_payload>()) {
-        write_wire_args(wire, call_payload->args);
+        if (!write_wire_args(wire, call_payload->args, call_payload->signature)) {
+            mc::engine::message error;
+            error.header.type         = mc::engine::message_type::error;
+            error.header.reply_serial = msg.header.serial;
+            error.header.error_name   = "mc.engine.invalid_args";
+            error.body                = mc::engine::make_payload<mc::engine::error_payload>(
+                "mc.engine.invalid_args", "dbus proto method_call 参数签名与参数数量不匹配");
+            return mc::resolve(std::move(error));
+        }
     }
 
     auto future = m_connection.async_send_with_reply(std::move(wire), timeout);
@@ -346,7 +366,9 @@ bool dbus_proto::send_method_call_and_wait_reply(mc::engine::message& msg)
     auto wire = mc::dbus::message::new_method_call(msg.header.destination, msg.header.path, msg.header.interface_name,
                                                    msg.header.member_name);
     if (const auto* call_payload = msg.try_as<mc::engine::method_call_payload>()) {
-        write_wire_args(wire, call_payload->args);
+        if (!write_wire_args(wire, call_payload->args, call_payload->signature)) {
+            return false;
+        }
     }
 
     auto timeout = msg.header.timeout.count() > 0 ? msg.header.timeout : mc::dbus::DBUS_TIMEOUT_DEFAULT;
@@ -443,7 +465,9 @@ bool dbus_proto::send_signal(mc::engine::message& msg)
     }
     auto wire = mc::dbus::message::new_signal(msg.header.path, msg.header.interface_name, msg.header.member_name);
     if (const auto* sig_payload = msg.try_as<mc::engine::signal_payload>()) {
-        write_wire_args(wire, sig_payload->args);
+        if (!write_wire_args(wire, sig_payload->args, sig_payload->signature)) {
+            return false;
+        }
     }
     if (!m_connection.send(std::move(wire))) {
         return false;
