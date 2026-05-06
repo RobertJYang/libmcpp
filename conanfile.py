@@ -69,7 +69,7 @@ class AppConan(ConanBase):
         "asan": False,
         "gcov": False,
         "test": False,
-        "test_utilities": True,
+        "test_utilities": False,
         "examples": False,
         "enable_luajit": True,
         # conan 构建（DT / 交叉编译生产）默认走旧架构，保持与存量部署兼容；
