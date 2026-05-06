@@ -15,7 +15,9 @@
 #include <mc/engine/engine.h>
 #include <mc/engine/engine_options.h>
 #include <mc/engine/path.h>
+#include <mc/engine/property/processors.h>
 #include <mc/exception.h>
+#include <mc/expr/engine.h>
 #include <mc/filesystem.h>
 #include <mc/json.h>
 #include <mc/log/log.h>
@@ -968,10 +970,10 @@ bool application::bootstrap_engine_endpoint()
         elog("mcapp: engine::init 失败 name=${name}", ("name", app_name));
         return false;
     }
-    return true;
-#else
-    return true;
 #endif
+    mc::engine::register_property_processors();
+    mc::expr::register_path_template_backend();
+    return true;
 }
 
 void application::teardown_engine_endpoint()

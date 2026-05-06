@@ -81,6 +81,12 @@ mcdbus_subproject = subproject('mcdbus', default_options: [
 ])
 mcdbus_dep = mcdbus_subproject.get_variable('mcdbus_dep')
 
+mcexpr_dep = dependency(
+  'mcexpr',
+  fallback: ['mcexpr', 'mcexpr_dep'],
+  required: true,
+)
+
 if build_tests
   gtest_dep = dependency('gtest', method: 'pkg-config', required: true)
 else
@@ -97,7 +103,7 @@ else
   raw_dbus_dep = declare_dependency()
 endif
 
-dep_arr = [mcbase_dep, mcengine_dep, mcdbus_dep]
+dep_arr = [mcbase_dep, mcengine_dep, mcdbus_dep, mcexpr_dep]
 
 subdir('include')
 subdir('src')

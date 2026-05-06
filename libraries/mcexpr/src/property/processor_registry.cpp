@@ -25,7 +25,7 @@ bool g_processors_registered = false;
 /**
  * @brief 注册所有属性处理器
  *
- * 这个函数在系统启动时被调用，注册所有可用的属性处理器
+ * 需要在应用启动时显式调用，注册所有可用的属性处理器
  */
 MC_API void register_property_processors()
 {
@@ -43,21 +43,5 @@ MC_API void register_property_processors()
 
     g_processors_registered = true;
 }
-
-/**
- * @brief 自动注册类
- *
- * 利用全局对象构造函数自动注册处理器
- */
-class auto_register_processors {
-public:
-    auto_register_processors()
-    {
-        register_property_processors();
-    }
-};
-
-// 静态实例，确保在程序启动时自动注册处理器
-static auto_register_processors g_auto_register;
 
 } // namespace mc::engine
