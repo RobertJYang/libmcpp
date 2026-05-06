@@ -7,7 +7,7 @@ project(
     'cpp_std=c++17',
     'libdir=lib',
     'cpp_args=-fPIC -Wall -Wno-unused-parameter -Wno-unused-variable -Wno-sign-compare -Wno-pedantic',
-    'default_library=static',
+    'default_library=shared',
   ],
   subproject_dir: 'libraries', # 指定子项目目录为 libraries
 )
@@ -204,7 +204,7 @@ mcbase_lib = mcbase_subproject.get_variable('mcbase_lib')
 mcengine_subproject = subproject(
   'mcengine',
   default_options: [
-    'default_library=static',
+    'default_library=shared',
     'tests=' + build_tests.to_string(),
     'tests_utilities=' + build_test_utilities.to_string(),
     'enable_coverage=' + enable_coverage.to_string(),
@@ -218,7 +218,7 @@ mcengine_lib = mcengine_subproject.get_variable('mcengine_lib')
 mcexpr_subproject = subproject(
   'mcexpr',
   default_options: [
-    'default_library=static',
+    'default_library=shared',
     'tests=' + build_tests.to_string(),
     'enable_coverage=' + enable_coverage.to_string(),
     'boost_root=' + boost_root,
@@ -230,7 +230,7 @@ mcexpr_lib = mcexpr_subproject.get_variable('mcexpr_lib')
 mcdbus_subproject = subproject(
   'mcdbus',
   default_options: [
-    'default_library=static',
+    'default_library=shared',
     'tests=' + build_tests.to_string(),
     'enable_coverage=' + enable_coverage.to_string(),
     'enable_conan_compile=' + enable_conan_compile.to_string(),

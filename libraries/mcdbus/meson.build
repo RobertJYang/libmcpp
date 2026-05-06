@@ -7,7 +7,7 @@ project(
     'cpp_std=c++17',
     'libdir=lib',
     'cpp_args=-fPIC -Wall -Wno-unused-parameter -Wno-unused-variable -Wno-sign-compare -Wno-pedantic',
-    'default_library=static',
+    'default_library=shared',
   ],
 )
 

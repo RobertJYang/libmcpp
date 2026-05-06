@@ -7,7 +7,7 @@ project(
     'cpp_std=c++17',
     'libdir=lib',
     'cpp_args=-fPIC -Wall -Wno-unused-parameter -Wno-unused-variable -Wno-sign-compare -Wno-pedantic',
-    'default_library=static',
+    'default_library=shared',
   ],
 )
 
@@ -56,7 +56,7 @@ mcbase_subproject = subproject('mcbase', default_options: [
 ])
 
 mcengine_subproject = subproject('mcengine', default_options: [
-  'default_library=static',
+  'default_library=shared',
   'tests=' + build_tests.to_string(),
   'tests_utilities=' + build_test_utilities.to_string(),
 ])
@@ -75,7 +75,7 @@ if mcengine_use_shm and use_old_shm
 endif
 
 mcdbus_subproject = subproject('mcdbus', default_options: [
-  'default_library=static',
+  'default_library=shared',
   'tests=' + build_tests.to_string(),
   'use_old_shm=' + use_old_shm.to_string(),
 ])
