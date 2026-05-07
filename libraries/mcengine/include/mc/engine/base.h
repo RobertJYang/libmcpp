@@ -204,6 +204,10 @@ public:
     virtual mc::string_view     get_position() const                                         = 0;
     virtual void                set_position(mc::string_view position)                       = 0;
     virtual mc::string_view     get_class_name() const                                       = 0;
+    virtual bool                is_initializing() const
+    {
+        return false;
+    }
     virtual object_identifier_t get_object_identifier() const                                = 0;
     virtual void                set_object_identifier(const object_identifier_t& identifier) = 0;
 

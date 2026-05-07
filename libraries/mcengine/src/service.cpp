@@ -160,6 +160,9 @@ void _property_changed_global_filter(mc::object& target, mc::event& e)
         return;
     }
 
+    if (obj->is_initializing()) {
+        return;
+    }
     try {
         const auto& prop  = property_event->property();
         const auto& value = property_event->value();

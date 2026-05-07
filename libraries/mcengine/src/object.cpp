@@ -118,6 +118,23 @@ ResultType invoke_impl(object_impl* self, mc::string_view method_name, const mc:
 
 } // namespace detail
 
+namespace {
+class object_initializing_guard {
+public:
+    explicit object_initializing_guard(object_impl& obj) : m_obj(obj)
+    {
+        m_obj._enter_initializing();
+    }
+    ~object_initializing_guard()
+    {
+        m_obj._leave_initializing();
+    }
+
+private:
+    object_impl& m_obj;
+};
+} // namespace
+
 object_impl::object_impl(core_object* parent) : abstract_object(parent)
 {}
 
@@ -132,6 +149,7 @@ object_impl::~object_impl()
 bool object_impl::init(const mc::dict& args)
 {
     try {
+        object_initializing_guard guard(*this);
         from_variant(args, *this);
         return true;
     } catch (const std::exception& e) {
@@ -317,6 +335,11 @@ void object_impl::set_object_name(mc::string_view name)
     // 基类 set_name 不允许 register 后重复设置；走到这里时 m_shm_handle 必然为 null，
     // 后续 _ensure_shm_handle 会把当时的 name 一次性写入 SHM。
     this->set_name(name);
+}
+
+bool object_impl::is_initializing() const
+{
+    return m_initializing_depth > 0;
 }
 
 object_identifier_t object_impl::get_object_identifier() const
@@ -532,6 +555,7 @@ abstract_interface* object_impl::get_interface(mc::string_view interface_name) c
 
 void object_impl::from_variant(const mc::dict& d, object_impl& obj)
 {
+    object_initializing_guard guard(obj);
     const auto& metadata = obj.get_metadata();
     metadata.visit_properties([&](interface_item<property_type_info> info) {
         if (!d.contains(info.item->name)) {
@@ -565,6 +589,18 @@ void object_impl::from_variant(const mc::dict& d, object_impl& obj)
             return;
         }
     });
+}
+
+void object_impl::_enter_initializing() noexcept
+{
+    ++m_initializing_depth;
+}
+
+void object_impl::_leave_initializing() noexcept
+{
+    if (m_initializing_depth > 0) {
+        --m_initializing_depth;
+    }
 }
 
 void object_impl::to_variant(const object_impl& obj, mc::dict& dict, int options)
