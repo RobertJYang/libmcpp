@@ -29,13 +29,34 @@
 #include <mc/object_base.h>
 
 #include <cstdint>
+#include <chrono>
 #include <optional>
+#include <thread>
 #include <unistd.h>
 #include <utility>
 
 namespace mc::app::legacy_shm {
 
 namespace {
+
+constexpr const char* LEGACY_SHM_LOCK_PATH         = "/dev/shm/init_shm.lock";
+constexpr auto        LEGACY_SHM_WAIT_RETRY_MS     = std::chrono::milliseconds(200);
+constexpr auto        LEGACY_SHM_WAIT_LOG_INTERVAL = std::chrono::seconds(5);
+
+void _wait_for_legacy_shm_lock()
+{
+    auto last_log = std::chrono::steady_clock::time_point{};
+    while (::access(LEGACY_SHM_LOCK_PATH, F_OK) != 0) {
+        auto now = std::chrono::steady_clock::now();
+        if (last_log.time_since_epoch().count() == 0
+            || now - last_log >= LEGACY_SHM_WAIT_LOG_INTERVAL) {
+            ilog("legacy_shm install 等待 SHM 初始化锁: ${path}",
+                 ("path", LEGACY_SHM_LOCK_PATH));
+            last_log = now;
+        }
+        std::this_thread::sleep_for(LEGACY_SHM_WAIT_RETRY_MS);
+    }
+}
 
 // 把 harbor 投递进来的 (path, interface, method, args) 调用转换为 mcengine
 // method_call message，走 mc::engine::dispatch 派发到目标对象，再从
@@ -186,10 +207,8 @@ bool binding::install()
     if (m_installed) {
         return true;
     }
-    if (::access("/dev/shm/init_shm.lock", F_OK) != 0) {
-        dlog("legacy_shm install 跳过：旧 SHM 初始化锁不存在，降级为纯 DBus 通路");
-        return false;
-    }
+
+    _wait_for_legacy_shm_lock();
 
     auto svc_name = m_service.name();
     auto uniq     = m_connection.get_unique_name();
@@ -245,6 +264,11 @@ bool binding::install()
         on_match_removed_signal(id);
     }));
 
+    dlog("legacy_shm install completed: service=${service}, unique=${unique}, add_slots=${add_slots}, "
+         "remove_slots=${remove_slots}, add_conn=${add_conn}, remove_conn=${remove_conn}",
+         ("service", m_service_name)("unique", m_unique_name)("add_slots", m_service.on_match_added.slot_count())(
+             "remove_slots", m_service.on_match_removed.slot_count())("add_conn", m_match_added_conn.connected())(
+             "remove_conn", m_match_removed_conn.connected()));
     m_installed = true;
     return true;
 }
@@ -270,7 +294,7 @@ void binding::uninstall()
             if (m_shm_tree) {
                 m_shm_tree->remove_match(item.second);
             }
-            m_connection.remove_rule(item.second);
+            m_connection.remove_match(item.second);
         } catch (const std::exception& ex) {
             elog("legacy_shm remove shm match failed: ${error}", ("error", ex.what()));
         }
@@ -301,6 +325,7 @@ void binding::on_object_removed_signal(mc::object_base& obj)
 void binding::on_match_added_signal(mc::engine::match_id id, const mc::engine::match_rule& rule)
 {
     if (!m_shm_tree) {
+        wlog("legacy_shm skip match add: shm_tree not ready, id=${id}", ("id", id));
         return;
     }
 
@@ -316,10 +341,10 @@ void binding::on_match_added_signal(mc::engine::match_id id, const mc::engine::m
 
         auto legacy_id = m_shm_tree->add_match(dbus_rule.value(), mc::dbus::match_cb_t(callback));
 
-        // 对齐旧 service_impl::add_match：shm_tree/harbor 和本地 connection
-        // 都注册一份规则，connection 侧使用 clone 避免底层 slot 相互覆盖。
+        // 在旧 shm_tree/harbor 注册一份，同时在当前 service connection 上也执行
+        // add_match（不仅是 add_rule），确保当前进程能够直接从 DBus 收到信号。
         auto cloned_rule = dbus_rule->clone();
-        m_connection.add_rule(cloned_rule, std::move(callback), legacy_id);
+        m_connection.add_match(cloned_rule, std::move(callback), legacy_id);
 
         std::lock_guard lock(m_match_mutex);
         m_shm_match_ids[id] = legacy_id;
@@ -366,7 +391,7 @@ void binding::unregister_match_from_shm(mc::engine::match_id id)
         if (m_shm_tree) {
             m_shm_tree->remove_match(legacy_id);
         }
-        m_connection.remove_rule(legacy_id);
+        m_connection.remove_match(legacy_id);
     } catch (const std::exception& ex) {
         elog("legacy_shm remove shm match failed: ${error}", ("error", ex.what()));
     }
@@ -378,6 +403,7 @@ void binding::dispatch_signal_to_match(mc::engine::match_id id, mc::dbus::messag
         auto msg   = _make_engine_signal(wire_msg);
         auto table = mc::engine::engine::get_match_table();
         if (!table) {
+            wlog("legacy_shm dispatch skipped: match_table not ready");
             return;
         }
 

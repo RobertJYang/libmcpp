@@ -58,9 +58,18 @@ scoped_connection::~scoped_connection()
     disconnect();
 }
 
-scoped_connection::scoped_connection(scoped_connection&& other) noexcept = default;
+scoped_connection::scoped_connection(scoped_connection&& other) noexcept
+    : m_connection(other.release())
+{}
 
-scoped_connection& scoped_connection::operator=(scoped_connection&& other) noexcept = default;
+scoped_connection& scoped_connection::operator=(scoped_connection&& other) noexcept
+{
+    if (this != &other) {
+        disconnect();
+        m_connection = other.release();
+    }
+    return *this;
+}
 
 connection scoped_connection::release() noexcept
 {
