@@ -256,7 +256,7 @@ TEST_F(shm_byte_string_fixture, byte_string_less_heterogeneous)
     EXPECT_TRUE(cmp(std::string_view{"aa"}, b));
 }
 
-TEST_F(shm_byte_string_fixture, buffer_intact_detects_corruption)
+TEST_F(shm_byte_string_fixture, buffer_intact_detects)
 {
     auto b = byte_string::create(m_alloc, "check");
     ASSERT_TRUE(b.buffer_intact());

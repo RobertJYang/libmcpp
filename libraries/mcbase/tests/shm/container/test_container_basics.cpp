@@ -107,7 +107,7 @@ TEST(shm_container_basics, node_header_detects_owner_flip)
     EXPECT_FALSE(node_header_check(h));
 }
 
-TEST(shm_container_basics, node_header_detects_checksum_corruption)
+TEST(shm_container_basics, node_header_detects_checksum)
 {
     node_header h{};
     node_header_init(h, list_node_magic, 128);
