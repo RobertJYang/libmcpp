@@ -34,11 +34,15 @@
 
 #if defined(MCDBUS_USE_OLD_SHM) && MCDBUS_USE_OLD_SHM
 
+#include <mc/engine/match.h>
 #include <mc/signal/connection.h>
 #include <mc/string.h>
 
+#include <cstdint>
 #include <memory>
+#include <mutex>
 #include <string>
+#include <unordered_map>
 
 namespace mc {
 class object_base;
@@ -46,6 +50,7 @@ class object_base;
 
 namespace mc::dbus {
 class connection;
+class message;
 class shm_tree;
 } // namespace mc::dbus
 
@@ -81,18 +86,26 @@ public:
 private:
     void on_object_added_signal(mc::object_base& obj);
     void on_object_removed_signal(mc::object_base& obj);
+    void on_match_added_signal(mc::engine::match_id id, const mc::engine::match_rule& rule);
+    void on_match_removed_signal(mc::engine::match_id id);
 
     void register_to_shm(mc::engine::abstract_object& obj);
     void unregister_from_shm(mc::string_view path);
+    void unregister_match_from_shm(mc::engine::match_id id);
+    void dispatch_signal_to_match(mc::engine::match_id id, mc::dbus::message& wire_msg);
 
-    mc::engine::service&                m_service;
-    mc::dbus::connection&               m_connection;
-    std::string                         m_service_name;
-    std::string                         m_unique_name;
-    std::unique_ptr<mc::dbus::shm_tree> m_shm_tree;
-    bool                                m_installed{false};
-    mc::scoped_connection               m_added_conn;
-    mc::scoped_connection               m_removed_conn;
+    mc::engine::service&                               m_service;
+    mc::dbus::connection&                              m_connection;
+    std::string                                        m_service_name;
+    std::string                                        m_unique_name;
+    std::unique_ptr<mc::dbus::shm_tree>                m_shm_tree;
+    bool                                               m_installed{false};
+    mc::scoped_connection                              m_added_conn;
+    mc::scoped_connection                              m_removed_conn;
+    mc::scoped_connection                              m_match_added_conn;
+    mc::scoped_connection                              m_match_removed_conn;
+    std::mutex                                         m_match_mutex;
+    std::unordered_map<mc::engine::match_id, uint64_t> m_shm_match_ids;
 };
 
 } // namespace mc::app::legacy_shm

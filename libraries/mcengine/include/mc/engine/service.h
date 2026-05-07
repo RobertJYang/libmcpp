@@ -19,6 +19,7 @@
 #include <mc/engine/proxy.h>
 #include <mc/future.h>
 #include <mc/object.h>
+#include <mc/signal/signal.h>
 #include <mc/string.h>
 #include <mc/string_view.h>
 #include <mc/time.h>
@@ -93,6 +94,9 @@ public:
     void     remove_match(match_id id) const;
     void     dispatch_event(const message& msg) const;
 
+    mc::signal<void(match_id, const match_rule&)> on_match_added;
+    mc::signal<void(match_id)>                    on_match_removed;
+
     message             send_with_reply(message request, mc::milliseconds timeout = mc::milliseconds(5000)) const;
     mc::future<message> async_send_with_reply(message request, mc::milliseconds timeout = mc::milliseconds(5000)) const;
 
@@ -104,8 +108,8 @@ public:
 
     // 兼容旧版接口，参数顺序为 (timeout, service_name, path, interface, method, signature, args)
     mc::variant timeout_call(mc::milliseconds timeout, mc::string_view service_name, mc::string_view path,
-            mc::string_view interface_name, mc::string_view method_name, mc::string_view signature,
-            const mc::variants& args = {}) const
+                             mc::string_view interface_name, mc::string_view method_name, mc::string_view signature,
+                             const mc::variants& args = {}) const
     {
         return call(path, service_name, interface_name, method_name, args, signature, timeout);
     }

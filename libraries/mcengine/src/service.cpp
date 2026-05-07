@@ -242,6 +242,7 @@ void service_impl::unregister_from_engine()
         auto table = mc::engine::engine::get_match_table();
         if (table) {
             for (auto id : drained) {
+                m_service->on_match_removed(id);
                 table->unsubscribe(id);
             }
         }
@@ -672,12 +673,14 @@ match::match_id service::add_match(match::match_rule rule, match::filter_spec sp
     auto table = engine::get_match_table();
     MC_ASSERT_THROW(table, mc::invalid_arg_exception, "engine match table 未初始化");
 
-    auto id = table->subscribe(m_name, std::move(rule), std::move(spec), std::move(callback));
+    auto rule_snapshot = rule;
+    auto id            = table->subscribe(m_name, std::move(rule), std::move(spec), std::move(callback));
 
     {
         std::lock_guard lock(m_impl->m_match_mutex);
         m_impl->m_owned_matches.insert(id);
     }
+    on_match_added(id, rule_snapshot);
     return id;
 }
 
@@ -695,6 +698,7 @@ void service::remove_match(match::match_id id) const
     if (!owned) {
         return;
     }
+    on_match_removed(id);
     if (auto table = engine::get_match_table()) {
         table->unsubscribe(id);
     }
