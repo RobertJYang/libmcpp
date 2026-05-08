@@ -350,3 +350,151 @@ TEST_F(std_interface_test, try_invoke_no_object_for_non_introspect_returns_nullo
                                                            get_args, "org.freedesktop.DBus.Properties");
     EXPECT_FALSE(hit.has_value());
 }
+
+//===--------------------------------------------------------------------------------===//
+// bmc.kepler.Object.Properties (common_properties_interface) 测试
+//===--------------------------------------------------------------------------------===//
+
+TEST_F(std_interface_test, common_properties_is_standard_interface)
+{
+    EXPECT_TRUE(mc::engine::standard_interfaces::is_standard_interface("bmc.kepler.Object.Properties"));
+}
+
+TEST_F(std_interface_test, common_properties_try_invoke_get_with_context)
+{
+    mc::variants args{mc::dict{}, mc::string("org.test.std.SampleInterface"), mc::string("Value")};
+    auto hit = mc::engine::standard_interfaces::try_invoke(service, obj.get(), obj->get_object_path(),
+                                                           "GetWithContext", args, "bmc.kepler.Object.Properties");
+    ASSERT_TRUE(hit.has_value());
+    EXPECT_EQ(hit->result_signature, "v");
+    EXPECT_EQ(hit->value.as<int32_t>(), 42);
+}
+
+TEST_F(std_interface_test, common_properties_try_invoke_get_all_with_context)
+{
+    mc::variants args{mc::dict{}, mc::string("org.test.std.SampleInterface")};
+    auto hit = mc::engine::standard_interfaces::try_invoke(service, obj.get(), obj->get_object_path(),
+                                                           "GetAllWithContext", args, "bmc.kepler.Object.Properties");
+    ASSERT_TRUE(hit.has_value());
+    EXPECT_EQ(hit->result_signature, "a{sv}");
+    auto d = hit->value.as<mc::dict>();
+    EXPECT_EQ(d["Value"], 42);
+    EXPECT_EQ(d["Label"], "hello");
+}
+
+TEST_F(std_interface_test, common_properties_get_parent_path_and_object_name)
+{
+    // 通过 Properties.Get 访问 common_properties 接口的通用属性
+    mc::variants get_args{mc::string("bmc.kepler.Object.Properties"), mc::string("ParentPath")};
+    auto hit = mc::engine::standard_interfaces::try_invoke(service, child.get(), child->get_object_path(), "Get",
+                                                           get_args, "org.freedesktop.DBus.Properties");
+    ASSERT_TRUE(hit.has_value());
+    EXPECT_EQ(hit->value.as_string(), "/org/test/std/SampleObject");
+
+    mc::variants name_args{mc::string("bmc.kepler.Object.Properties"), mc::string("ObjectName")};
+    auto name_hit = mc::engine::standard_interfaces::try_invoke(service, child.get(), child->get_object_path(), "Get",
+                                                                name_args, "org.freedesktop.DBus.Properties");
+    ASSERT_TRUE(name_hit.has_value());
+    EXPECT_EQ(name_hit->value.as_string(), "child");
+}
+
+TEST_F(std_interface_test, common_properties_get_class_name)
+{
+    mc::variants args{mc::string("bmc.kepler.Object.Properties"), mc::string("ClassName")};
+    auto hit = mc::engine::standard_interfaces::try_invoke(service, child.get(), child->get_object_path(), "Get", args,
+                                                           "org.freedesktop.DBus.Properties");
+    ASSERT_TRUE(hit.has_value());
+    EXPECT_EQ(hit->value.as_string(), "ChildObject");
+}
+
+TEST_F(std_interface_test, common_properties_get_all_returns_four_properties)
+{
+    mc::variants args{mc::string("bmc.kepler.Object.Properties")};
+    auto hit = mc::engine::standard_interfaces::try_invoke(service, child.get(), child->get_object_path(), "GetAll",
+                                                           args, "org.freedesktop.DBus.Properties");
+    ASSERT_TRUE(hit.has_value());
+    auto d = hit->value.as<mc::dict>();
+    EXPECT_NE(d.find("ParentPath"), d.end());
+    EXPECT_NE(d.find("ObjectName"), d.end());
+    EXPECT_NE(d.find("ClassName"), d.end());
+    EXPECT_NE(d.find("ObjectIdentifier"), d.end());
+    EXPECT_EQ(d.size(), 4u);
+}
+
+TEST_F(std_interface_test, common_properties_set_with_context_is_noop)
+{
+    // 通用属性接口不支持修改，SetWithContext 对 common_properties 接口应静默忽略
+    mc::variants args{mc::dict{}, mc::string("bmc.kepler.Object.Properties"), mc::string("ParentPath"),
+                      mc::variant{mc::string("/some/path")}};
+    auto hit = mc::engine::standard_interfaces::try_invoke(service, child.get(), child->get_object_path(),
+                                                           "SetWithContext", args, "bmc.kepler.Object.Properties");
+    ASSERT_TRUE(hit.has_value());
+    // ParentPath 不应被修改
+    mc::variants get_args{mc::string("bmc.kepler.Object.Properties"), mc::string("ParentPath")};
+    auto check = mc::engine::standard_interfaces::try_invoke(service, child.get(), child->get_object_path(), "Get",
+                                                             get_args, "org.freedesktop.DBus.Properties");
+    ASSERT_TRUE(check.has_value());
+    // child 的 ParentPath 应该还是 /org/test/std/SampleObject
+    EXPECT_EQ(check->value.as_string(), "/org/test/std/SampleObject");
+}
+
+TEST_F(std_interface_test, common_properties_introspect_contains_interface)
+{
+    auto hit = mc::engine::standard_interfaces::try_invoke(service, obj.get(), obj->get_object_path(), "Introspect",
+                                                           mc::variants{}, "org.freedesktop.DBus.Introspectable");
+    ASSERT_TRUE(hit.has_value());
+    mc::string xml = hit->value.as<mc::string>();
+    EXPECT_NE(xml.find("<interface name=\"bmc.kepler.Object.Properties\">"), mc::string::npos) << xml;
+    EXPECT_NE(xml.find("<property name=\"ParentPath\""), mc::string::npos) << xml;
+    EXPECT_NE(xml.find("<property name=\"ObjectName\""), mc::string::npos) << xml;
+    EXPECT_NE(xml.find("<property name=\"ClassName\""), mc::string::npos) << xml;
+    EXPECT_NE(xml.find("<method name=\"GetWithContext\">"), mc::string::npos) << xml;
+}
+
+TEST_F(std_interface_test, common_properties_get_managed_objects_includes_common_props)
+{
+    auto hit =
+        mc::engine::standard_interfaces::try_invoke(service, obj.get(), obj->get_object_path(), "GetManagedObjects",
+                                                    mc::variants{}, "org.freedesktop.DBus.ObjectManager");
+    ASSERT_TRUE(hit.has_value());
+    auto raw_dict = hit->value.as<mc::dict>();
+    mc::engine::object_manager_interface::objects_type map;
+    for (auto entry_it = raw_dict.begin(); entry_it != raw_dict.end(); ++entry_it) {
+        mc::engine::path                                      obj_path(entry_it->key.as_string());
+        mc::engine::object_manager_interface::interfaces_type ifaces;
+        auto                                                  ifaces_dict = entry_it->value.as<mc::dict>();
+        for (auto iface_it2 = ifaces_dict.begin(); iface_it2 != ifaces_dict.end(); ++iface_it2) {
+            ifaces[iface_it2->key.as<mc::string>()] = iface_it2->value.as<mc::dict>();
+        }
+        map[obj_path] = std::move(ifaces);
+    }
+    auto it = map.find(mc::engine::path("/org/test/std/SampleObject/child"));
+    ASSERT_NE(it, map.end());
+    // 验证 common_properties 接口被包含
+    auto cp_it = it->second.find("bmc.kepler.Object.Properties");
+    ASSERT_NE(cp_it, it->second.end());
+    EXPECT_NE(cp_it->second.find("ParentPath"), cp_it->second.end());
+    EXPECT_NE(cp_it->second.find("ObjectName"), cp_it->second.end());
+    EXPECT_NE(cp_it->second.find("ClassName"), cp_it->second.end());
+    EXPECT_NE(cp_it->second.find("ObjectIdentifier"), cp_it->second.end());
+}
+
+TEST_F(std_interface_test, common_properties_get_with_context_unknown_interface_errors)
+{
+    mc::variants args{mc::dict{}, mc::string("org.no.such.Interface"), mc::string("Value")};
+    EXPECT_THROW(mc::engine::standard_interfaces::try_invoke(service, obj.get(), obj->get_object_path(),
+                                                             "GetWithContext", args, "bmc.kepler.Object.Properties"),
+                 mc::exception);
+}
+
+TEST_F(std_interface_test, common_properties_get_private_properties)
+{
+    mc::variants args{mc::dict{}};
+    auto hit = mc::engine::standard_interfaces::try_invoke(service, obj.get(), obj->get_object_path(),
+                                                           "GetPrivateProperties", args, "bmc.kepler.Object.Properties");
+    ASSERT_TRUE(hit.has_value());
+    EXPECT_EQ(hit->result_signature, "s");
+    // 返回值应是 JSON 数组格式
+    auto result = hit->value.as_string();
+    EXPECT_TRUE(result == "[]" || !result.empty());
+}

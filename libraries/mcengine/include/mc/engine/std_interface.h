@@ -43,6 +43,7 @@ constexpr mc::string_view properties_interface_name     = "org.freedesktop.DBus.
 constexpr mc::string_view introspectable_interface_name = "org.freedesktop.DBus.Introspectable";
 constexpr mc::string_view peer_interface_name           = "org.freedesktop.DBus.Peer";
 constexpr mc::string_view object_manager_interface_name = "org.freedesktop.DBus.ObjectManager";
+constexpr mc::string_view common_properties_interface_name = "bmc.kepler.Object.Properties";
 
 namespace std_ifaces {
 
@@ -171,6 +172,66 @@ struct MC_API object_manager_interface : public mc::engine::interface<object_man
     static object_manager_interface& get_instance();
 };
 
+/*
+<interface name="bmc.kepler.Object.Properties">
+    <property name="ParentPath" type="s" access="read"/>
+    <property name="ObjectName" type="s" access="read"/>
+    <property name="ClassName" type="s" access="read"/>
+    <property name="ObjectIdentifier" type="(ysss)" access="read"/>
+    <method name="GetWithContext">
+      <arg type="a{ss}" name="context" direction="in"/>
+      <arg type="s" name="interface_name" direction="in"/>
+      <arg type="s" name="property_name" direction="in"/>
+      <arg type="v" name="value" direction="out"/>
+    </method>
+    <method name="SetWithContext">
+      <arg type="a{ss}" name="context" direction="in"/>
+      <arg type="s" name="interface_name" direction="in"/>
+      <arg type="s" name="property_name" direction="in"/>
+      <arg type="v" name="value" direction="in"/>
+    </method>
+    <method name="GetAllWithContext">
+      <arg type="a{ss}" name="context" direction="in"/>
+      <arg type="s" name="interface_name" direction="in"/>
+      <arg type="a{sv}" name="properties" direction="out"/>
+    </method>
+    <method name="GetPropertyDetail">
+      <arg type="a{ss}" name="context" direction="in"/>
+      <arg type="s" name="interface_name" direction="in"/>
+      <arg type="s" name="property_name" direction="in"/>
+      <arg type="s" name="detail" direction="out"/>
+    </method>
+    <method name="GetPrivateProperties">
+      <arg type="a{ss}" name="context" direction="in"/>
+      <arg type="s" name="detail" direction="out"/>
+    </method>
+</interface>
+*/
+struct MC_API common_properties_interface : public mc::engine::interface<common_properties_interface> {
+    MC_INTERFACE(common_properties_interface_name)
+
+    ~common_properties_interface() override = default;
+
+    mc::string_view    m_parent_path;
+    mc::string_view    m_object_name;
+    mc::string_view    m_class_name;
+    object_identifier_t m_object_identifier;
+
+    static mc::variant get(mc::string_view property_name);
+    static mc::dict    get_all();
+
+    mc::variant   get_with_context(std::map<mc::string, mc::string> context, mc::string_view interface_name,
+                                   mc::string_view property_name);
+    void          set_with_context(std::map<mc::string, mc::string> context, mc::string_view interface_name,
+                                   mc::string_view property_name, const mc::variant& value);
+    mc::dict      get_all_with_context(std::map<mc::string, mc::string> context, mc::string_view interface_name);
+    mc::string    get_property_detail(std::map<mc::string, mc::string> context, mc::string_view interface_name,
+                                      mc::string_view property_name);
+    mc::string    get_private_properties(std::map<mc::string, mc::string> context);
+
+    static common_properties_interface& get_instance();
+};
+
 class MC_API standard_interfaces {
 public:
     struct invoke_hit {
@@ -183,6 +244,9 @@ public:
                                                 mc::string_view interface_name);
 
     static bool is_standard_interface(mc::string_view interface_name) noexcept;
+
+    // common_properties 接口名
+    static constexpr mc::string_view common_properties_name = "bmc.kepler.Object.Properties";
 };
 
 } // namespace mc::engine
