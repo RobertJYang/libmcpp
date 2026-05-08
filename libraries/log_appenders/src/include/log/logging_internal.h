@@ -10,8 +10,8 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef MC_LOGGING_INTERNAL_H
-#define MC_LOGGING_INTERNAL_H
+#ifndef MC_LOG_BACKENDS_LOGGING_INTERNAL_H
+#define MC_LOG_BACKENDS_LOGGING_INTERNAL_H
 
 #include <fstream>
 #include <string>
@@ -65,11 +65,11 @@ inline void internal_log_handler(LogRecord* rec, bool limit)
     if (!ofs.is_open()) {
         return;
     }
-    if (rec && !rec->log.empty()) {
+    if (rec != nullptr && !rec->log.empty()) {
         ofs << rec->log << std::endl;
     }
 }
 
 } // namespace logging
 
-#endif
+#endif // MC_LOG_BACKENDS_LOGGING_INTERNAL_H

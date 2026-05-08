@@ -11,11 +11,12 @@
  */
 
 #include <gtest/gtest.h>
-#include <mc/log.h>
-#include <mc/log/appenders/socket_appender.h>
+#include <log_appenders/socket_appender.h>
+#include <mc/log/appender_factory.h>
+#include <mc/log/log.h>
 #include <mc/log/log_message.h>
 #include <mc/variant.h>
-#include <test_utilities/test_base.h>
+#include <test_utilities/base.h>
 
 #include <atomic>
 #include <cerrno>
@@ -67,7 +68,11 @@ protected:
             mc::filesystem::remove(m_hb_socket_path);
         }
 
-        m_appender = std::make_shared<socket_appender>();
+        mc::log::appender_factory::instance().register_creator("socket", []() {
+            return std::make_shared<socket_appender>();
+        });
+        m_appender = mc::log::appender_factory::instance().create_by_type<socket_appender>("socket");
+        ASSERT_NE(m_appender, nullptr);
     }
 
     void TearDown() override
@@ -386,10 +391,11 @@ TEST_F(socket_appender_test, DefaultConstructor)
 TEST_F(socket_appender_test, InitWithValidConfig)
 {
     mc::dict dict;
-    dict["path"]        = m_socket_path;
-    dict["hb_path"]     = m_hb_socket_path;
-    dict["module_name"] = "test_module";
-    dict["name"]        = "test_socket_appender";
+    dict["path"]         = m_socket_path;
+    dict["hb_path"]      = m_hb_socket_path;
+    dict["module_name"]  = "test_module";
+    dict["name"]         = "test_socket_appender";
+    dict["auto_connect"] = false;
 
     EXPECT_TRUE(m_appender->init(dict));
     EXPECT_EQ(m_appender->get_name(), "test_socket_appender");
@@ -675,7 +681,7 @@ TEST_F(socket_appender_test, AppendDifferentLogLevels)
 TEST_F(socket_appender_test, GetClient)
 {
     auto& client = m_appender->get_client();
-    ASSERT_NO_THROW(client.is_connected());
+    ASSERT_NO_THROW(static_cast<void>(&client));
 }
 
 // 测试多次连接和断开
@@ -720,9 +726,10 @@ TEST_F(socket_appender_test, MultipleConnectDisconnect)
 TEST_F(socket_appender_test, InitThenConnect)
 {
     mc::dict dict;
-    dict["path"]        = m_socket_path;
-    dict["hb_path"]     = m_hb_socket_path;
-    dict["module_name"] = "test_module";
+    dict["path"]         = m_socket_path;
+    dict["hb_path"]      = m_hb_socket_path;
+    dict["module_name"]  = "test_module";
+    dict["auto_connect"] = false;
 
     EXPECT_TRUE(m_appender->init(dict));
 

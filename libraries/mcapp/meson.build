@@ -16,6 +16,8 @@ tests_utilities = get_option('tests_utilities')
 build_test_utilities = build_tests or tests_utilities
 enable_coverage = get_option('enable_coverage')
 use_old_shm = get_option('use_old_shm')
+default_log_appenders_dir = get_option('default_log_appenders_dir')
+add_project_arguments('-DMCAPP_DEFAULT_LOG_APPENDERS_DIR="' + default_log_appenders_dir + '"', language: 'cpp')
 
 if enable_coverage
   coverage_args = [
@@ -36,6 +38,11 @@ endif
 
 incdir = include_directories('include')
 srcdir = include_directories('src')
+# libmcpp 根 include（mc/app 对外头等）
+libmcpp_incdir = []
+if meson.is_subproject()
+  libmcpp_incdir = [include_directories('../../include')]
+endif
 mcapp_test_incdir = include_directories('include', 'tests')
 mcapp_test_utilities_dep = declare_dependency()
 

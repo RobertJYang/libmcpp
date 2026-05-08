@@ -52,6 +52,16 @@ bool service::has_dbus() const noexcept
     return m_connection.is_connected();
 }
 
+micro_component_object* service::micro_component() noexcept
+{
+    return m_micro_component.get();
+}
+
+const micro_component_object* service::micro_component() const noexcept
+{
+    return m_micro_component.get();
+}
+
 const mc::string& service::path() const noexcept
 {
     return m_path;
@@ -88,7 +98,15 @@ bool service::start()
         return false;
     }
 
+    m_micro_component = mc::make_shared<micro_component_object>();
+    m_micro_component->init(name());
+    register_object(*m_micro_component);
+
     if (!mc::engine::service::start()) {
+        if (m_micro_component) {
+            unregister_object(m_micro_component->get_object_path());
+            m_micro_component.reset();
+        }
         tear_down_dbus_transport();
         m_state = service_state::failed;
         return false;
@@ -101,6 +119,11 @@ bool service::start()
 bool service::stop()
 {
     m_state = service_state::stopping;
+
+    if (m_micro_component) {
+        unregister_object(m_micro_component->get_object_path());
+        m_micro_component.reset();
+    }
 
     bool engine_ok = mc::engine::service::stop();
 

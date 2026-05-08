@@ -13,16 +13,21 @@
 #include <gtest/gtest.h>
 #include <mc/app/app_proto.h>
 #include <mc/app/application.h>
+#include <mc/app/micro_component.h>
 #include <mc/app/service.h>
 #include <mc/array.h>
 #include <mc/dbus/connection.h>
 #include <mc/dbus/message.h>
 #include <mc/engine.h>
 #include <mc/engine/payload.h>
+#include <mc/engine/proxy.h>
 #include <mc/engine/service.h>
 #include <mc/engine/service_proto.h>
 #include <mc/filesystem.h>
 #include <mc/json.h>
+#include <mc/log/appender.h>
+#include <mc/log/appender_factory.h>
+#include <mc/log/log_manager.h>
 #include <mc/reflect.h>
 #include <mc/runtime/runtime_context.h>
 #if MCENGINE_USE_SHM
@@ -36,11 +41,143 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <cstdlib>
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <string>
 #include <tuple>
+#include <unistd.h>
 #include <vector>
+
+namespace {
+
+#if defined(__APPLE__)
+constexpr mc::string_view k_builtin_file_appender_libname{"file_appender.dylib"};
+constexpr mc::string_view k_builtin_socket_appender_libname{"socket_appender.dylib"};
+#else
+constexpr mc::string_view k_builtin_file_appender_libname{"file_appender.so"};
+constexpr mc::string_view k_builtin_socket_appender_libname{"socket_appender.so"};
+#endif
+
+class memory_capture_appender : public mc::log::appender {
+public:
+    bool init(const mc::variant& /*args*/) override
+    {
+        return true;
+    }
+
+    void append(const mc::log::message& msg) override
+    {
+        m_lines.push_back(mc::string(msg.get_message()));
+    }
+
+    void clear_lines()
+    {
+        m_lines.clear();
+    }
+
+    bool any_line_contains_both(mc::string_view needle_a, mc::string_view needle_b) const
+    {
+        for (const mc::string& line : m_lines) {
+            if (line.find(needle_a) != mc::string::npos && line.find(needle_b) != mc::string::npos) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+private:
+    std::vector<mc::string> m_lines;
+};
+
+mc::filesystem::path make_scratch_appenders_directory_token(mc::string_view unique_marker)
+{
+    using namespace std::chrono;
+    const auto  ms   = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+    std::string name = "mcapp_ut_ad_";
+    name.append(unique_marker.data(), unique_marker.size());
+    name.push_back('_');
+    name += std::to_string(::getpid());
+    name.push_back('_');
+    name += std::to_string(static_cast<long long>(ms));
+    return mc::filesystem::temp_directory_path() / name;
+}
+
+struct scratch_appenders_directory_guard {
+    explicit scratch_appenders_directory_guard(mc::filesystem::path d) : dir(std::move(d))
+    {}
+
+    ~scratch_appenders_directory_guard()
+    {
+        (void)mc::filesystem::remove_all(dir);
+    }
+
+    mc::filesystem::path dir;
+};
+
+bool populate_appenders_scratch_dir_with_file_plugin(mc::filesystem::path dir)
+{
+    const auto resolve_plugin_root = []() -> const char* {
+        const char* global_root = std::getenv("MC_GLOBAL_BUILD_ROOT");
+        if (global_root != nullptr) {
+            mc::filesystem::path candidate = mc::filesystem::path(global_root) / "libraries" / "log_appenders" /
+                                             std::string(k_builtin_file_appender_libname);
+            if (mc::filesystem::exists(candidate)) {
+                return global_root;
+            }
+        }
+        const char* project_root = std::getenv("MC_BUILD_ROOT");
+        if (project_root != nullptr) {
+            mc::filesystem::path candidate = mc::filesystem::path(project_root) / "libraries" / "log_appenders" /
+                                             std::string(k_builtin_file_appender_libname);
+            if (mc::filesystem::exists(candidate)) {
+                return project_root;
+            }
+        }
+        ADD_FAILURE() << "cannot resolve libraries/log_appenders plugin (MC_GLOBAL_BUILD_ROOT / MC_BUILD_ROOT)";
+        return nullptr;
+    };
+
+    const char* build_root = resolve_plugin_root();
+    if (build_root == nullptr) {
+        return false;
+    }
+    mc::filesystem::path plugin =
+        mc::filesystem::path(build_root) / "libraries" / "log_appenders" / std::string(k_builtin_file_appender_libname);
+    if (!mc::filesystem::exists(plugin)) {
+        ADD_FAILURE() << "missing plugin " << plugin.string();
+        return false;
+    }
+    if (!mc::filesystem::create_directories(dir)) {
+        return false;
+    }
+    mc::filesystem::path link = dir / std::string(k_builtin_file_appender_libname);
+    return mc::filesystem::create_symlink(plugin, link);
+}
+
+struct default_logger_memory_capture_guard {
+    explicit default_logger_memory_capture_guard(std::shared_ptr<memory_capture_appender> sink)
+        : m_sink(std::move(sink))
+    {
+        m_sink->set_name("mcapp_ut_default_logger_capture");
+        m_sink->clear_lines();
+        mc::log::appender_ptr as_base = std::static_pointer_cast<mc::log::appender>(m_sink);
+        mc::log::log_manager::instance().get_logger().add_appender(as_base);
+    }
+
+    ~default_logger_memory_capture_guard()
+    {
+        mc::log::log_manager::instance().get_logger().remove_appender("mcapp_ut_default_logger_capture");
+        m_sink->clear_lines();
+    }
+
+    std::shared_ptr<memory_capture_appender> m_sink;
+};
+
+constexpr mc::string_view k_failed_load_appenders_hint{"Failed to load appenders"};
+
+} // namespace
 
 namespace test_mcapp {
 
@@ -150,6 +287,7 @@ protected:
 #endif
         mc::engine::engine::reset_for_test();
         mc::app::base_app::reset_for_test();
+        ::unsetenv("MCAPP_LOG_APPENDERS_DIR");
         m_app = std::make_unique<mc::app::application>();
         m_app->registry().register_service<test_mcapp::sample_service>("sample_service");
         m_app->registry().register_service<test_mcapp::echo_service>("echo_service");
@@ -193,7 +331,8 @@ protected:
         return m_app->initialize_with_plan(std::move(plan));
     }
 
-    mc::shared_ptr<test_mcapp::echo_service> start_echo_service(mc::string_view service_name = "mc.test.application.echo")
+    mc::shared_ptr<test_mcapp::echo_service>
+    start_echo_service(mc::string_view service_name = "mc.test.application.echo")
     {
         mc::app::service_definition definition;
         definition.name    = mc::string(service_name);
@@ -220,6 +359,81 @@ protected:
 
     std::unique_ptr<mc::app::application> m_app;
 };
+
+TEST_F(application_test, default_logging_scans_env_appenders_directory)
+{
+    scratch_appenders_directory_guard dir_guard(make_scratch_appenders_directory_token("scan"));
+    ASSERT_TRUE(populate_appenders_scratch_dir_with_file_plugin(dir_guard.dir));
+
+    ASSERT_EQ(::setenv("MCAPP_LOG_APPENDERS_DIR", dir_guard.dir.string().c_str(), 1), 0);
+
+    ASSERT_TRUE(initialize_with_single_service(make_sample_service_definition()));
+
+    auto file_app = mc::log::appender_factory::instance().create("mcapp_ut_file_probe", "file", mc::dict{});
+    ASSERT_NE(file_app, nullptr);
+}
+
+TEST_F(application_test, default_logging_attaches_default_file_appender_when_logging_omitted)
+{
+    scratch_appenders_directory_guard dir_guard(make_scratch_appenders_directory_token("default"));
+    ASSERT_TRUE(populate_appenders_scratch_dir_with_file_plugin(dir_guard.dir));
+    ASSERT_EQ(::setenv("MCAPP_LOG_APPENDERS_DIR", dir_guard.dir.string().c_str(), 1), 0);
+
+    auto default_log = mc::log::default_logger();
+    default_log.remove_appender("default_file");
+    ASSERT_EQ(default_log.find_appender("default_file"), nullptr);
+
+    ASSERT_TRUE(initialize_with_single_service(make_sample_service_definition()));
+
+    EXPECT_NE(default_log.find_appender("default_file"), nullptr);
+
+    default_log.remove_appender("default_file");
+}
+
+TEST_F(application_test, default_logging_load_failure_logged_when_missing_directory_and_no_explicit_logging)
+{
+    const std::string                   marker = "badappenders_marker_" + std::to_string(::getpid());
+    auto                                sink   = std::make_shared<memory_capture_appender>();
+    default_logger_memory_capture_guard log_guard(sink);
+
+    mc::filesystem::path bad_appenders_root =
+        mc::filesystem::temp_directory_path() /
+        mc::filesystem::path("mcapp_missing_ad_root_" + std::to_string(::getpid()));
+    mc::filesystem::path bad_appenders_dir = bad_appenders_root / marker;
+    ASSERT_FALSE(mc::filesystem::exists(bad_appenders_dir));
+
+    ASSERT_EQ(::setenv("MCAPP_LOG_APPENDERS_DIR", bad_appenders_dir.string().c_str(), 1), 0);
+    ASSERT_TRUE(initialize_with_single_service(make_sample_service_definition()));
+    EXPECT_TRUE(
+        sink->any_line_contains_both(k_failed_load_appenders_hint, mc::string_view(marker.data(), marker.size())));
+}
+
+TEST_F(application_test, default_logging_skip_avoids_builtin_appenders_probe_when_explicit_logging_marker)
+{
+    const std::string                   marker = "badappenders_skip_marker_" + std::to_string(::getpid());
+    auto                                sink   = std::make_shared<memory_capture_appender>();
+    default_logger_memory_capture_guard log_guard(sink);
+
+    mc::filesystem::path bad_appenders_root =
+        mc::filesystem::temp_directory_path() /
+        mc::filesystem::path("mcapp_missing_ad_skip_root_" + std::to_string(::getpid()));
+    mc::filesystem::path bad_appenders_dir = bad_appenders_root / marker;
+    ASSERT_FALSE(mc::filesystem::exists(bad_appenders_dir));
+
+    ASSERT_EQ(::setenv("MCAPP_LOG_APPENDERS_DIR", bad_appenders_dir.string().c_str(), 1), 0);
+
+    auto                  definition = make_sample_service_definition();
+    mc::app::service_plan plan;
+    plan.application.name         = mc::string("logging-skipped-app");
+    plan.application.io_threads   = 1;
+    plan.application.work_threads = 1;
+    plan.has_logging_config       = true;
+    plan.services.push_back(std::move(definition));
+
+    ASSERT_TRUE(m_app->initialize_with_plan(std::move(plan)));
+    EXPECT_FALSE(
+        sink->any_line_contains_both(k_failed_load_appenders_hint, mc::string_view(marker.data(), marker.size())));
+}
 
 TEST_F(application_test, initialize_builds_service_plan_from_plan)
 {
@@ -258,6 +472,90 @@ TEST_F(application_test, start_and_stop_manage_service_lifecycle)
     ASSERT_TRUE(m_app->stop());
     EXPECT_EQ(typed->state(), mc::app::service_state::stopped);
     EXPECT_EQ(typed->m_stop_count, 1);
+}
+
+namespace {
+
+class micro_component_iface_probe : public mc::engine::interface_proxy<micro_component_iface_probe> {
+public:
+    MC_INTERFACE_PROXY("bmc.kepler.MicroComponent");
+
+    MC_PROXY_PROP(mc::string, Name);
+    MC_PROXY_PROP(mc::string, Status);
+    MC_PROXY_METHOD(int32_t, HealthCheck, ((mc::dict, context)));
+};
+
+class micro_component_object_probe {
+public:
+    micro_component_iface_probe iface;
+
+    void bind_proxy(const mc::engine::object_proxy_seed& seed)
+    {
+        iface.bind_proxy(seed);
+    }
+};
+
+} // namespace
+
+TEST_F(application_test, app_service_auto_registers_micro_component_object)
+{
+    ASSERT_TRUE(initialize_with_single_service(make_sample_service_definition("mc.test.alpha"), "auto-mc-app"));
+    ASSERT_TRUE(m_app->start());
+
+    auto service = m_app->get_service("mc.test.alpha");
+    ASSERT_NE(service, nullptr);
+
+    auto* mc_obj = service->micro_component();
+    ASSERT_NE(mc_obj, nullptr);
+    EXPECT_EQ(mc_obj->get_object_path(), "/bmc/kepler/alpha/MicroComponent");
+
+    auto proxy = service->get_proxy<micro_component_object_probe>(mc_obj->get_object_path());
+    ASSERT_NE(proxy, nullptr);
+
+    EXPECT_EQ(proxy->iface.HealthCheck(mc::dict{}), 0);
+    EXPECT_EQ(proxy->iface.Name.get_value(), mc::string("alpha"));
+    EXPECT_EQ(proxy->iface.Status.get_value(), mc::string("InitCompleted"));
+
+    ASSERT_TRUE(m_app->stop());
+    EXPECT_EQ(service->micro_component(), nullptr);
+}
+
+TEST_F(application_test, default_logging_loads_log_appenders_plugins_for_file_and_socket)
+{
+    scratch_appenders_directory_guard dir_guard(make_scratch_appenders_directory_token("file_socket"));
+    ASSERT_TRUE(populate_appenders_scratch_dir_with_file_plugin(dir_guard.dir));
+
+    const char* build_root = std::getenv("MC_GLOBAL_BUILD_ROOT");
+    if (build_root == nullptr) {
+        build_root = std::getenv("MC_BUILD_ROOT");
+    }
+    ASSERT_NE(build_root, nullptr);
+    mc::filesystem::path socket_plugin = mc::filesystem::path(build_root) / "libraries" / "log_appenders" /
+                                         std::string(k_builtin_socket_appender_libname);
+    ASSERT_TRUE(mc::filesystem::exists(socket_plugin)) << socket_plugin.string();
+    ASSERT_TRUE(
+        mc::filesystem::create_symlink(socket_plugin, dir_guard.dir / std::string(k_builtin_socket_appender_libname)));
+
+    ASSERT_EQ(::setenv("MCAPP_LOG_APPENDERS_DIR", dir_guard.dir.string().c_str(), 1), 0);
+
+    auto default_log = mc::log::default_logger();
+    default_log.remove_appender("default_file");
+    ASSERT_EQ(default_log.find_appender("default_file"), nullptr);
+
+    ASSERT_TRUE(initialize_with_single_service(make_sample_service_definition()));
+
+    EXPECT_NE(default_log.find_appender("default_file"), nullptr);
+
+    mc::dict socket_args{{"path", mc::string("/tmp/mcapp_ut_probe.sock")},
+                         {"hb_path", mc::string("/tmp/mcapp_ut_probe.hb")},
+                         {"auto_connect", false}};
+    auto     socket_probe = mc::log::appender_factory::instance().create("ut_socket_probe", "socket", socket_args);
+    EXPECT_NE(socket_probe, nullptr);
+
+    auto file_probe = mc::log::appender_factory::instance().create("ut_file_probe", "file", mc::dict{});
+    EXPECT_NE(file_probe, nullptr);
+
+    default_log.remove_appender("default_file");
 }
 
 TEST_F(application_test, initialize_applies_descriptor_default_properties_before_service_config)
@@ -498,9 +796,9 @@ TEST_F(application_test, error_name_on_unknown_object_is_dbus_mapped)
     auto peer_conn = open_test_connection("");
 
     // 调用一个不存在的 object path，应触发 unknown_object 错误
-    auto call = mc::dbus::message::new_method_call(
-        service_name, mc::string_view("/mc/test/no/such/object"),
-        mc::string_view("org.freedesktop.DBus.Properties"), mc::string_view("Get"));
+    auto call =
+        mc::dbus::message::new_method_call(service_name, mc::string_view("/mc/test/no/such/object"),
+                                           mc::string_view("org.freedesktop.DBus.Properties"), mc::string_view("Get"));
     {
         auto writer = call.writer();
         writer.write_variant_value(mc::variant(mc::string("org.test.application.Echo")));
@@ -524,9 +822,9 @@ TEST_F(application_test, error_name_on_unknown_method_is_dbus_mapped)
     auto peer_conn = open_test_connection("");
 
     // 调用已有 object 但不存在的方法，应触发 unknown_method 错误
-    auto call = mc::dbus::message::new_method_call(
-        service_name, mc::string_view("/mc/test/application/echo"),
-        mc::string_view("org.test.application.Echo"), mc::string_view("NonExistentMethod"));
+    auto call  = mc::dbus::message::new_method_call(service_name, mc::string_view("/mc/test/application/echo"),
+                                                    mc::string_view("org.test.application.Echo"),
+                                                    mc::string_view("NonExistentMethod"));
     auto reply = call_sync(peer_conn, std::move(call));
 
     ASSERT_TRUE(reply.is_error()) << "expected error, got type=" << static_cast<int>(reply.get_type());
@@ -545,9 +843,8 @@ TEST_F(application_test, error_name_on_unknown_interface_is_dbus_mapped)
     auto peer_conn = open_test_connection("");
 
     // 调用已有 object 但不存在的 interface，应触发 unknown_interface 错误
-    auto call = mc::dbus::message::new_method_call(
-        service_name, mc::string_view("/mc/test/application/echo"),
-        mc::string_view("org.no.such.Interface"), mc::string_view("Ping"));
+    auto call  = mc::dbus::message::new_method_call(service_name, mc::string_view("/mc/test/application/echo"),
+                                                    mc::string_view("org.no.such.Interface"), mc::string_view("Ping"));
     auto reply = call_sync(peer_conn, std::move(call));
 
     ASSERT_TRUE(reply.is_error()) << "expected error, got type=" << static_cast<int>(reply.get_type());
@@ -588,13 +885,13 @@ TEST_F(application_test, introspect_intermediate_path_lists_child_segments)
 
     // /mc/test/application 上无注册对象，但其下方挂有 /mc/test/application/echo，
     // 按 DBus 规范应返回最小节点 XML，列出下一段子节点名 echo。
-    auto call = mc::dbus::message::new_method_call(service_name, mc::string_view("/mc/test/application"),
-                                                   mc::string_view("org.freedesktop.DBus.Introspectable"),
-                                                   mc::string_view("Introspect"));
+    auto call  = mc::dbus::message::new_method_call(service_name, mc::string_view("/mc/test/application"),
+                                                    mc::string_view("org.freedesktop.DBus.Introspectable"),
+                                                    mc::string_view("Introspect"));
     auto reply = call_sync(peer_conn, std::move(call));
 
-    ASSERT_TRUE(reply.is_method_return()) << "Introspect on intermediate path should return XML, got type="
-                                          << static_cast<int>(reply.get_type());
+    ASSERT_TRUE(reply.is_method_return())
+        << "Introspect on intermediate path should return XML, got type=" << static_cast<int>(reply.get_type());
     auto args = reply.read_args();
     ASSERT_EQ(args.size(), 1U);
     ASSERT_TRUE(args.front().is_string());

@@ -52,6 +52,8 @@ struct service_plan {
 
     application_definition        application;
     mc::array<service_definition> services;
+    // 为 true 表示调用方已等价于处理过配置中的 Logging；initialize_with_plan 不再注入默认 appender 目录
+    bool has_logging_config{false};
 };
 
 } // namespace mc::app

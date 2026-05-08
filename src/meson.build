@@ -6,7 +6,6 @@ srcdir = include_directories('.')
 subdir('crypto')
 subdir('mdb')
 subdir('debounce')
-subdir('log')
 subdir('validate')
 
 compress_src_files = [
@@ -24,7 +23,6 @@ base_src_files = [
   compress_src_files,
   mdb_src_files,
   debounce_src_files,
-  log_src_files,
   validate_src_files,
   crypto_src_files,
 ]
@@ -62,6 +60,8 @@ if enable_conan_compile
   base_dep_arr += [libsomp_dep, liblogger_dep, json_dep]
 endif
 
+base_lib_cpp_args = []
+
 if meson_build
   install_dir = meson.project_build_root() / 'usr/lib64'
   run_command('mkdir', '-p', install_dir, check: false)
@@ -77,6 +77,7 @@ libmcpp_base_lib = library(
   base_src_files,
   include_directories: base_inc_dirs,
   dependencies: base_dep_arr + [mcengine_dep, mcexpr_dep, mcapp_dep],
+  cpp_args: base_lib_cpp_args,
   install: true,
   install_dir: install_dir,
   build_by_default: true,
@@ -92,6 +93,7 @@ libmcpp_base_static_lib = static_library(
   base_src_files,
   include_directories: base_inc_dirs,
   dependencies: base_dep_arr + [mcengine_dep, mcexpr_dep, mcapp_dep],
+  cpp_args: base_lib_cpp_args,
   build_by_default: false,
 )
 libmcpp_base_internal_dep = declare_dependency(

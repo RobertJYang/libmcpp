@@ -19,6 +19,10 @@ namespace mc::expr {
 
 namespace detail {
 
+int register_builtin_module_conversion();
+int register_builtin_module_math();
+int register_builtin_module_string();
+
 class reflected_builtin_function : public function {
 public:
     reflected_builtin_function(mc::string name, mc::reflect::method_info_ptr method)
@@ -90,6 +94,16 @@ int builtin::register_symbol(mc::string name, mc::variant value)
 context& builtin::get_context()
 {
     return m_impl->builtin_context;
+}
+
+void register_builtin_modules()
+{
+    static std::once_flag once;
+    std::call_once(once, []() {
+        detail::register_builtin_module_conversion();
+        detail::register_builtin_module_math();
+        detail::register_builtin_module_string();
+    });
 }
 
 } // namespace mc::expr

@@ -10,6 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include <algorithm>
 #include <dlfcn.h>
 #include <functional>
 #include <mc/filesystem.h>
@@ -22,6 +23,24 @@
 
 namespace mc {
 namespace log {
+namespace {
+
+bool is_supported_library_extension(const mc::filesystem::path& path)
+{
+    const auto extension = path.extension().string();
+    return extension == "so" || extension == ".so" || extension == "dylib" || extension == ".dylib";
+}
+
+mc::string normalize_appender_type(mc::string type)
+{
+    constexpr std::string_view suffix = "_appender";
+    if (type.size() > suffix.size() && type.compare(type.size() - suffix.size(), suffix.size(), suffix) == 0) {
+        type.erase(type.size() - suffix.size());
+    }
+    return type;
+}
+
+} // namespace
 
 appender::~appender()
 {}
@@ -55,7 +74,7 @@ class appender_factory::impl {
 public:
     impl()
     {
-        register_builtin_appenders();
+        register_builtin_creators();
     }
 
     ~impl()
@@ -122,7 +141,7 @@ public:
             return false;
         }
 
-        auto creator = reinterpret_cast<appender_creator_c>(dlsym(handle, "create_appender_c"));
+        auto creator = reinterpret_cast<appender_creator_c>(dlsym(handle, "create_appender"));
         if (!creator) {
             elog("Failed to find creator function: ${path}, error: ${error}",
                  ("path", library_path)("error", dlerror()));
@@ -130,7 +149,7 @@ public:
             return false;
         }
 
-        auto destroyer = reinterpret_cast<appender_destroyer_c>(dlsym(handle, "destroy_appender_c"));
+        auto destroyer = reinterpret_cast<appender_destroyer_c>(dlsym(handle, "destroy_appender"));
         if (!destroyer) {
             elog("Failed to find destroyer function: ${path}, error: ${error}",
                  ("path", library_path)("error", dlerror()));
@@ -158,12 +177,14 @@ public:
             return;
         }
 
-        for (const auto& entry_path : mc::filesystem::list_files(dir)) {
-            if (entry_path.extension() != "so") {
+        auto entries = mc::filesystem::list_files(dir);
+        std::sort(entries.begin(), entries.end());
+        for (const auto& entry_path : entries) {
+            if (!is_supported_library_extension(entry_path)) {
                 continue;
             }
 
-            auto appender_type = entry_path.stem().string();
+            auto appender_type = normalize_appender_type(entry_path.stem().string());
             load(entry_path.string(), appender_type);
         }
     }
@@ -200,8 +221,7 @@ public:
     }
 
 private:
-    // 注册内置追加器
-    void register_builtin_appenders()
+    void register_builtin_creators()
     {
         register_creator("console", []() {
             return std::make_shared<console_appender>();

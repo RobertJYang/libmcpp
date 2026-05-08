@@ -10,11 +10,12 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <mc/log/appenders/socket_appender.h>
+#include <log_appenders/socket_appender.h>
 
 #include <cstdio>
 #include <dlfcn.h>
 #include <mc/filesystem.h>
+#include <mc/log/appender.h>
 #include <mc/log/log_level.h>
 #include <mc/time.h>
 
@@ -39,11 +40,47 @@ typedef const char* (*get_log_time_str_func_t)(int);
 static get_log_time_str_func_t get_log_time_str_ptr = nullptr;
 constexpr uint32_t             LOG_US_TIME          = 0x02;
 
+void socket_appender::stop_heartbeat_timer()
+{
+    if (m_hb_timer) {
+        m_hb_timer->stop();
+        m_hb_timer.reset();
+    }
+}
+
+void socket_appender::start_heartbeat_timer()
+{
+    disconnect();
+    if (m_heartbeat_interval_sec <= 0) {
+        return;
+    }
+
+    auto timer = mc::make_shared<mc::timer>();
+    timer->set_interval(mc::seconds(m_heartbeat_interval_sec));
+    timer->timeout.connect([this]() {
+        bool ok = true;
+        {
+            std::lock_guard<std::recursive_mutex> lock(m_mutex);
+            ok = m_client->heartbeat();
+            if (!ok) {
+                m_client->disconnect();
+            }
+        }
+        if (!ok) {
+            stop_heartbeat_timer();
+        }
+    });
+    m_hb_timer = timer;
+    m_hb_timer->start(mc::seconds(m_heartbeat_interval_sec));
+}
+
 bool socket_appender::init(const variant& args)
 {
     if (!args.is_object()) {
         return false;
     }
+
+    stop_heartbeat_timer();
 
     void* handle = dlopen(LOGGING_PATH, RTLD_NOW);
     if (!handle) {
@@ -68,11 +105,32 @@ bool socket_appender::init(const variant& args)
 
     if (dict.contains("module_name")) {
         std::string module_name = dict["module_name"].as<std::string>();
-        g_module_name           = module_name; // 存储到全局变量
+        g_module_name           = module_name;
+    }
+
+    m_auto_connect = true;
+    if (dict.contains("auto_connect")) {
+        m_auto_connect = dict["auto_connect"].as<bool>();
+    }
+
+    m_heartbeat_interval_sec = 1;
+    if (dict.contains("heartbeat_interval_sec")) {
+        m_heartbeat_interval_sec = static_cast<int>(dict["heartbeat_interval_sec"].as<std::int64_t>());
+    }
+
+    if (dict.contains("type")) {
+        set_type(dict["type"].as<std::string>());
     }
 
     set_path(path);
     set_hb_path(hb_path);
+
+    if (m_auto_connect) {
+        if (!connect()) {
+            return false;
+        }
+        start_heartbeat_timer();
+    }
 
     return true;
 }
@@ -120,14 +178,14 @@ void socket_appender::append(const message& msg)
 
 void socket_appender::set_path(std::string_view path)
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
     m_path.assign(path.begin(), path.end());
     m_client->set_path(m_path);
 }
 
 void socket_appender::set_hb_path(std::string_view hb_path)
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
     m_client->set_hb_path(hb_path);
 }
 
@@ -138,13 +196,13 @@ const std::string& socket_appender::get_path() const
 
 void socket_appender::set_type(const std::string& type)
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
     m_type = type;
 }
 
 const std::string& socket_appender::get_type() const
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
     return m_type;
 }
 
@@ -160,25 +218,26 @@ std::shared_ptr<socket_client> socket_appender::get_client_shared()
 
 bool socket_appender::connect()
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
     return ensure_connected();
 }
 
 void socket_appender::disconnect()
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
+    stop_heartbeat_timer();
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
     m_client->disconnect();
 }
 
 bool socket_appender::is_connected() const
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
     return m_client->is_connected();
 }
 
 bool socket_appender::heartbeat()
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
     return m_client->heartbeat();
 }
 
@@ -263,3 +322,5 @@ std::string socket_appender::format_message(const message& msg) const
 
 } // namespace log
 } // namespace mc
+
+MC_REGISTER_APPENDER(mc::log::socket_appender)

@@ -95,17 +95,17 @@ private:
 };
 
 /**
+ * @brief 注册所有 mcexpr 内建模块（conversion / math / string 等）
+ */
+MC_API void register_builtin_modules();
+
+/**
  * @brief 注册内建函数或内建变量的宏
  *
  * 在cpp文件的命名空间外部使用此宏自动注册内建函数或内建变量
  */
 #define MC_REGISTER_BUILTIN_SYMBOL(name, symbol)                                                                       \
     inline auto name##_symbol_id = mc::expr::builtin::get_instance().register_symbol(#name, symbol);
-
-#define MC_REGISTER_BUILTIN_MODULE(name, module)                                                                       \
-    namespace {                                                                                                        \
-    inline auto module_##name##_id = mc::expr::builtin::get_instance().register_module<module>();                      \
-    }
 
 } // namespace mc::expr
 

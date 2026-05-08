@@ -22,6 +22,7 @@
 
 #include <memory>
 
+#include <mc/app/micro_component.h>
 #include <mc/app/service_context.h>
 
 namespace mc::app {
@@ -58,6 +59,9 @@ public:
 
     bool has_dbus() const noexcept;
 
+    micro_component_object*       micro_component() noexcept;
+    const micro_component_object* micro_component() const noexcept;
+
 protected:
     bool         on_init(mc::dict properties) override;
     virtual bool on_configure();
@@ -71,13 +75,14 @@ private:
     bool bring_up_dbus_transport();
     void tear_down_dbus_transport();
 
-    mc::string                 m_path;
-    service_state              m_state{service_state::created};
-    mc::dict                   m_properties;
-    service_context            m_context;
-    bool                       m_has_context{false};
-    mc::dbus::connection       m_connection;
-    std::unique_ptr<app_proto> m_proto;
+    mc::string                             m_path;
+    service_state                          m_state{service_state::created};
+    mc::dict                               m_properties;
+    service_context                        m_context;
+    bool                                   m_has_context{false};
+    mc::dbus::connection                   m_connection;
+    std::unique_ptr<app_proto>             m_proto;
+    mc::shared_ptr<micro_component_object> m_micro_component;
 #if defined(MCDBUS_USE_OLD_SHM) && MCDBUS_USE_OLD_SHM
     // 仅顶层 use_old_shm=true 时实例化；析构延迟到 service.cpp 中（binding 完整类型在 cpp 可见）。
     // 宏由 mcdbus_dep 透传，与 mcdbus 内部对旧 shm 路径的取舍保持单一真相。

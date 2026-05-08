@@ -72,4 +72,13 @@ struct conversion_funcs {
 
 MC_REFLECT(mc::expr::conversion_funcs, (to_integer)(to_double)(to_string)(to_bool)(to_char));
 
-MC_REGISTER_BUILTIN_MODULE(conversion, mc::expr::conversion_funcs);
+namespace mc::expr::detail {
+
+// 由 mc::expr::register_builtin_modules() 显式调用，将 conversion 模块的所有静态方法
+// 注册到全局 builtin 上下文。具名函数确保静态库链接时不会被链接器丢弃。
+int register_builtin_module_conversion()
+{
+    return mc::expr::builtin::get_instance().register_module<mc::expr::conversion_funcs>();
+}
+
+} // namespace mc::expr::detail

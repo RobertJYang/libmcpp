@@ -10,17 +10,17 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <mc/log/appenders/socket_client.h>
+#include <log_appenders/socket_client.h>
 #include <mc/exception.h>
 
 #include <cerrno>
 #include <cstdint>
 #include <cstring>
 
+#include "securec.h"
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
-#include "securec.h"
 
 namespace mc {
 namespace log {
@@ -75,7 +75,7 @@ bool unix_socket::connect(std::string_view path)
 
     sockaddr_un addr{};
     addr.sun_family = AF_UNIX;
-    errno_t ret = memcpy_s(addr.sun_path, sizeof(addr.sun_path), path.data(), path.size());
+    errno_t ret     = memcpy_s(addr.sun_path, sizeof(addr.sun_path), path.data(), path.size());
     if (ret != EOK) {
         MC_THROW(mc::runtime_exception, "memcpy_s failed with error code ${code}", ("code", ret));
     }

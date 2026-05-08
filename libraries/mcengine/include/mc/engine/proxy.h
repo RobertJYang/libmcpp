@@ -201,21 +201,6 @@ private:
     mc::string_view          m_name;
 };
 
-template <typename R, typename SelfT, typename... Args>
-R proxy_invoke(SelfT& self, mc::string_view method_name, Args&&... args)
-{
-    mc::variants packed;
-    packed.reserve(sizeof...(Args));
-    (packed.emplace_back(mc::variant(std::forward<Args>(args))), ...);
-
-    auto& ctx = self.m_ctx;
-    if constexpr (std::is_void_v<R>) {
-        (void)ctx.invoke(method_name, packed);
-    } else {
-        return ctx.invoke(method_name, packed).template as<R>();
-    }
-}
-
 template <typename DerivedT>
 class interface_proxy {
 public:
@@ -254,16 +239,13 @@ protected:
         return property_proxy<T>(m_ctx, name);
     }
 
-    template <typename R = void, typename... Args>
-    R invoke(mc::string_view method_name, Args&&... args) const
+    template <typename R = void>
+    R invoke(mc::string_view method_name, const mc::variants& args, mc::string_view signature = {}) const
     {
-        mc::variants packed;
-        packed.reserve(sizeof...(Args));
-        (packed.emplace_back(mc::variant(std::forward<Args>(args))), ...);
         if constexpr (std::is_void_v<R>) {
-            (void)m_ctx.invoke(method_name, packed);
+            (void)m_ctx.invoke(method_name, args, signature);
         } else {
-            return m_ctx.invoke(method_name, packed).template as<R>();
+            return m_ctx.invoke(method_name, args, signature).template as<R>();
         }
     }
 };
@@ -281,8 +263,11 @@ protected:
 //
 //       MC_PROXY_METHOD(std::vector<uint8_t>, BitIORead,
 //                       ((uint32_t, offset))((uint8_t, length))((uint32_t, mask)));
+//       MC_PROXY_METHOD(std::vector<uint8_t>, BitIORead, "uyu",
+//                       ((uint32_t, offset))((uint8_t, length))((uint32_t, mask))); // 可选显式签名
 //
-//       MC_PROXY_METHOD0(int32_t, GetVersion);  // 无参版本
+//       MC_PROXY_METHOD(int32_t, GetVersion);     // 无参版本
+//       MC_PROXY_METHOD(int32_t, GetVersion, ""); // 无参 + 可选显式签名
 //   };
 // ---------------------------------------------------------------------------
 
@@ -293,23 +278,53 @@ protected:
 
 #define MC_ENGINE_PROXY_PARAM_DECL(r, d, e) MC_PP_TUPLE_ELEM(0, e) MC_PP_TUPLE_ELEM(1, e)
 #define MC_ENGINE_PROXY_PARAM_NAME(r, d, e) MC_PP_TUPLE_ELEM(1, e)
+#define MC_ENGINE_PROXY_PACK_PARAM(r, d, e) d.emplace_back(mc::variant(MC_PP_TUPLE_ELEM(1, e)));
 
 #define MC_ENGINE_PROXY_PARAMS_DECL(ARGS_SEQ)                                                                          \
     MC_PP_SEQ_ENUM(MC_PP_SEQ_TRANSFORM(MC_ENGINE_PROXY_PARAM_DECL, _, ARGS_SEQ))
 #define MC_ENGINE_PROXY_PARAMS_NAMES(ARGS_SEQ)                                                                         \
     MC_PP_SEQ_ENUM(MC_PP_SEQ_TRANSFORM(MC_ENGINE_PROXY_PARAM_NAME, _, ARGS_SEQ))
 
-#define MC_PROXY_METHOD(R, NAME, ARGS_SEQ)                                                                             \
-    R NAME(MC_ENGINE_PROXY_PARAMS_DECL(ARGS_SEQ)) const                                                                \
-    {                                                                                                                  \
-        return this->template invoke<R>(MC_PP_STRINGIZE(NAME), MC_ENGINE_PROXY_PARAMS_NAMES(ARGS_SEQ));                \
-    }
-
-#define MC_PROXY_METHOD0(R, NAME)                                                                                      \
+#define MC_PROXY_METHOD_IMPL_EMPTY(R, NAME)                                                                            \
     R NAME() const                                                                                                     \
     {                                                                                                                  \
-        return this->template invoke<R>(MC_PP_STRINGIZE(NAME));                                                        \
+        return this->template invoke<R>(MC_PP_STRINGIZE(NAME), mc::variants{});                                        \
     }
+
+#define MC_PROXY_METHOD_IMPL_EMPTY_SIG(R, NAME, SIGNATURE)                                                             \
+    R NAME() const                                                                                                     \
+    {                                                                                                                  \
+        return this->template invoke<R>(MC_PP_STRINGIZE(NAME), mc::variants{}, SIGNATURE);                             \
+    }
+
+#define MC_PROXY_METHOD_IMPL_ARGS(R, NAME, ARGS_SEQ)                                                                   \
+    R NAME(MC_ENGINE_PROXY_PARAMS_DECL(ARGS_SEQ)) const                                                                \
+    {                                                                                                                  \
+        mc::variants packed;                                                                                           \
+        packed.reserve(MC_PP_SEQ_SIZE(ARGS_SEQ));                                                                      \
+        MC_PP_SEQ_FOR_EACH(MC_ENGINE_PROXY_PACK_PARAM, packed, ARGS_SEQ)                                               \
+        return this->template invoke<R>(MC_PP_STRINGIZE(NAME), packed);                                                \
+    }
+
+#define MC_PROXY_METHOD_IMPL_SIG_ARGS(R, NAME, SIGNATURE, ARGS_SEQ)                                                    \
+    R NAME(MC_ENGINE_PROXY_PARAMS_DECL(ARGS_SEQ)) const                                                                \
+    {                                                                                                                  \
+        mc::variants packed;                                                                                           \
+        packed.reserve(MC_PP_SEQ_SIZE(ARGS_SEQ));                                                                      \
+        MC_PP_SEQ_FOR_EACH(MC_ENGINE_PROXY_PACK_PARAM, packed, ARGS_SEQ)                                               \
+        return this->template invoke<R>(MC_PP_STRINGIZE(NAME), packed, SIGNATURE);                                     \
+    }
+
+#define MC_PROXY_METHOD_SELECT_2(R, NAME) MC_PROXY_METHOD_IMPL_EMPTY(R, NAME)
+
+#define MC_PROXY_METHOD_SELECT_3(R, NAME, ARG)                                                                         \
+    MC_PP_IIF(MC_PP_IS_BEGIN_PARENS(ARG), MC_PROXY_METHOD_IMPL_ARGS, MC_PROXY_METHOD_IMPL_EMPTY_SIG)(R, NAME, ARG)
+
+#define MC_PROXY_METHOD_SELECT_4(R, NAME, SIGNATURE, ARGS_SEQ)                                                         \
+    MC_PROXY_METHOD_IMPL_SIG_ARGS(R, NAME, SIGNATURE, ARGS_SEQ)
+
+#define MC_PROXY_METHOD(R, NAME, ...)                                                                                  \
+    MC_PP_CAT(MC_PROXY_METHOD_SELECT_, MC_PP_VARIADIC_SIZE(R, NAME, ##__VA_ARGS__))(R, NAME, ##__VA_ARGS__)
 
 MC_API object_proxy_seed make_proxy_seed(mc::string_view path, proxy_policy policy = {});
 MC_API object_proxy_seed make_proxy_seed(mc::string_view path, mc::string_view service_hint, proxy_policy policy = {});

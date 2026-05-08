@@ -1,0 +1,9 @@
+option('meson_build', type: 'boolean', value: false, description: '与顶层 meson_build 对齐，用于 LOGGING_PATH 等宏')
+option('enable_conan_compile', type: 'boolean', value: false, description: '与顶层 enable_conan_compile 对齐，关闭 stub 头路径')
+option('tests', type: 'boolean', value: false, description: 'Build log_appenders tests')
+option(
+  'plugin_install_dir',
+  type: 'string',
+  value: '/opt/bmc/log/appenders',
+  description: '日志 appender 插件安装目录（与 mcapp 默认扫描目录一致）',
+)

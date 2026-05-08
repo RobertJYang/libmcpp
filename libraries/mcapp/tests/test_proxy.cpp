@@ -198,7 +198,7 @@ public:
     MC_PROXY_PROP(mc::dict, Meta);
 
     MC_PROXY_METHOD(int32_t, Add, ((int32_t, a))((int32_t, b)));
-    MC_PROXY_METHOD0(int32_t, GetVersion);
+    MC_PROXY_METHOD(int32_t, GetVersion);
 };
 
 class calc_obj_proxy {

@@ -13,7 +13,9 @@
 #include <test_utilities/engine_test_base.h>
 
 #include <cerrno>
+#include <cstdio>
 #include <cstring>
+#include <exception>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -34,7 +36,14 @@ void TestWithEngine::fork_child(const std::function<int()>& body) const
         int rc = 0;
         try {
             rc = body();
+        } catch (const std::exception& ex) {
+            // stderr + fflush：子进程在部分测试环境下全缓冲，避免诊断丢失
+            std::fprintf(stderr, "[fork_child] uncaught std::exception: %s\n", ex.what());
+            std::fflush(stderr);
+            rc = kChildExceptionExitCode;
         } catch (...) {
+            std::fprintf(stderr, "[fork_child] uncaught non-std exception\n");
+            std::fflush(stderr);
             rc = kChildExceptionExitCode;
         }
         // _exit 跳过整条析构链，模拟"进程崩溃来不及清理"，同时避免
@@ -109,15 +118,13 @@ void TestWithEngine::TearDown()
     mc::engine::shm_runtime_provider::reset_for_test();
 
     if (m_runtime) {
-        for (std::uint16_t endpoint_id = 1; endpoint_id <= mc::shm::shm_runtime::max_endpoints;
-             ++endpoint_id) {
+        for (std::uint16_t endpoint_id = 1; endpoint_id <= mc::shm::shm_runtime::max_endpoints; ++endpoint_id) {
             auto info = m_runtime->get_endpoint(endpoint_id);
             if (!info.has_value()) {
                 continue;
             }
             mc::shm::detail::mq_notifier::remove(info->notifier_name);
-            mc::shm::detail::mq_notifier::remove(
-                mc::shm::detail::mq_notifier::make_space_name(info->queue_name));
+            mc::shm::detail::mq_notifier::remove(mc::shm::detail::mq_notifier::make_space_name(info->queue_name));
             mc::shm::detail::shared_memory_backend::remove(info->queue_name);
         }
     }
@@ -130,8 +137,8 @@ void TestWithEngine::TearDown()
 
 std::shared_ptr<mc::shm::shm_runtime> TestWithEngine::runtime_alias() const
 {
-    return std::shared_ptr<mc::shm::shm_runtime>(m_runtime.get(),
-                                                 [](mc::shm::shm_runtime*) {});
+    return std::shared_ptr<mc::shm::shm_runtime>(m_runtime.get(), [](mc::shm::shm_runtime*) {
+    });
 }
 
 std::optional<mc::shm::endpoint> TestWithEngine::register_running_endpoint(mc::shm::shm_runtime& runtime,
@@ -174,8 +181,8 @@ TestWithEngine::mq_rx_pipeline::~mq_rx_pipeline()
     stop();
 }
 
-void TestWithEngine::mq_rx_pipeline::start(std::shared_ptr<mc::shm::shm_runtime> runtime,
-                                           const mc::shm::endpoint& ep, std::uint32_t instance_id)
+void TestWithEngine::mq_rx_pipeline::start(std::shared_ptr<mc::shm::shm_runtime> runtime, const mc::shm::endpoint& ep,
+                                           std::uint32_t instance_id)
 {
     channel.start(std::move(runtime), ep, instance_id);
     m_started = true;
@@ -208,7 +215,7 @@ void TestWithEngine::send_via_mq(mc::shm::shm_runtime& runtime, const mc::shm::e
     mc::proto::proto_request req;
     auto&                    ctx = req.ensure_context<mc::engine::service_proto::message_context>(&proto_root);
     ctx.msg                      = msg;
-    auto payload = mc::engine::encode_message_bytes(msg);
+    auto payload                 = mc::engine::encode_message_bytes(msg);
     req.buffer().append_payload(payload.data(), payload.size());
     ASSERT_EQ(proto_root.push(req), mc::proto::execution_state::completed);
 }

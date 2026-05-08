@@ -48,6 +48,7 @@ enable_coverage = get_option('enable_coverage')
 enable_conan_compile = get_option('enable_conan_compile')
 use_shm = get_option('use_shm')
 use_old_shm = get_option('use_old_shm')
+default_log_appenders_dir = get_option('default_log_appenders_dir')
 
 # 进程间通信架构由 use_shm（新 SHM）与 use_old_shm（旧 harbor/shm_tree 兼容）两个独立开关控制。
 # 顶层只做"互斥 + 透传"，运行时语义/skynet 依赖校验下沉到对应子工程：
@@ -215,6 +216,17 @@ mcengine_subproject = subproject(
 mcengine_dep = mcengine_subproject.get_variable('mcengine_dep')
 mcengine_lib = mcengine_subproject.get_variable('mcengine_lib')
 
+log_appenders_subproject = subproject(
+  'log_appenders',
+  default_options: [
+    'meson_build=' + meson_build.to_string(),
+    'enable_conan_compile=' + enable_conan_compile.to_string(),
+    'tests=' + build_tests.to_string(),
+    'plugin_install_dir=' + default_log_appenders_dir,
+  ],
+)
+log_appenders_dep = log_appenders_subproject.get_variable('log_appenders_dep')
+
 mcexpr_subproject = subproject(
   'mcexpr',
   default_options: [
@@ -248,6 +260,7 @@ mcapp_subproject = subproject(
     'tests_utilities=' + build_test_utilities.to_string(),
     'enable_coverage=' + enable_coverage.to_string(),
     'use_old_shm=' + use_old_shm.to_string(),
+    'default_log_appenders_dir=' + default_log_appenders_dir,
   ],
 )
 mcapp_dep = mcapp_subproject.get_variable('mcapp_dep')

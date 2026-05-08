@@ -69,4 +69,12 @@ struct string_module {
 } // namespace mc::expr
 
 MC_REFLECT(mc::expr::string_module, (length)(concat)(to_upper)(to_lower)(trim)(substring));
-MC_REGISTER_BUILTIN_MODULE(string, mc::expr::string_module);
+
+namespace mc::expr::detail {
+
+int register_builtin_module_string()
+{
+    return mc::expr::builtin::get_instance().register_module<mc::expr::string_module>();
+}
+
+} // namespace mc::expr::detail

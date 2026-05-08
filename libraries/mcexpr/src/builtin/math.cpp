@@ -120,4 +120,11 @@ struct math_funcs {
 
 MC_REFLECT(mc::expr::math_funcs, (abs)(min)(max)(round)(floor)(ceil)(sqrt)(pow)(log)(exp));
 
-MC_REGISTER_BUILTIN_MODULE(math, mc::expr::math_funcs);
+namespace mc::expr::detail {
+
+int register_builtin_module_math()
+{
+    return mc::expr::builtin::get_instance().register_module<mc::expr::math_funcs>();
+}
+
+} // namespace mc::expr::detail

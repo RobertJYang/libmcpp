@@ -1,11 +1,12 @@
 mcapp_test_files = files(
-  'test_base_app.cpp',
-  'test_application.cpp',
-  'test_service_registry.cpp',
   'test_app_proto.cpp',
-  'test_dbus_proto.cpp',
+  'test_application.cpp',
+  'test_base_app.cpp',
   'test_bus_name_invalid.cpp',
+  'test_dbus_proto.cpp',
+  'test_micro_component.cpp',
   'test_proxy.cpp',
+  'test_service_registry.cpp',
 )
 
 mcapp_test_main = configure_file(
@@ -56,6 +57,7 @@ mcapp_test_exe = executable(
 
 mcapp_test_env = environment()
 mcapp_test_env.set('MC_BUILD_ROOT', meson.project_build_root())
+mcapp_test_env.set('MC_GLOBAL_BUILD_ROOT', meson.global_build_root())
 
 # libsomp.so 依赖 liblogging.so，需要将其 lib 目录加入搜索路径
 # 优先使用 pkg-config，失败则回退到默认查找方式（支持 Conan CMake 等）

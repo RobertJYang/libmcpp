@@ -11,11 +11,12 @@
  */
 
 #include <gtest/gtest.h>
-#include <mc/log.h>
-#include <mc/log/appenders/file_appender.h>
+#include <log_appenders/file_appender.h>
+#include <mc/log/appender_factory.h>
+#include <mc/log/log.h>
 #include <mc/log/log_message.h>
 #include <mc/variant.h>
-#include <test_utilities/test_base.h>
+#include <test_utilities/base.h>
 
 #include <cstdarg>
 #include <fstream>
@@ -24,7 +25,7 @@
 #include <thread>
 #include <vector>
 
-#include "log/logging_internal.h"
+#include <log/logging_internal.h>
 
 using namespace mc::log;
 
@@ -77,7 +78,11 @@ protected:
         // 这样可以避免在测试环境中重复加载动态库或打印错误信息
         file_appender::set_debug_log_ptr(reinterpret_cast<void*>(static_cast<debug_log_func_t>(test_debug_log)));
 
-        m_appender = std::make_shared<file_appender>();
+        mc::log::appender_factory::instance().register_creator("file", []() {
+            return std::make_shared<file_appender>();
+        });
+        m_appender = mc::log::appender_factory::instance().create_by_type<file_appender>("file");
+        ASSERT_NE(m_appender, nullptr);
         if (mc::filesystem::exists(m_test_log_file)) {
             mc::filesystem::remove(m_test_log_file);
         }
@@ -344,7 +349,8 @@ TEST_F(file_appender_test, AppendMessagesConcurrently)
 // 测试 init 函数 - 非对象参数
 TEST_F(file_appender_test, InitWithNonObjectArgs)
 {
-    auto        appender   = std::make_shared<file_appender>();
+    auto appender = mc::log::appender_factory::instance().create_by_type<file_appender>("file");
+    ASSERT_NE(appender, nullptr);
     mc::variant non_object = 42; // 非对象类型
     EXPECT_FALSE(appender->init(non_object));
 }
@@ -352,7 +358,8 @@ TEST_F(file_appender_test, InitWithNonObjectArgs)
 // 测试 init 函数 - 包含 module_name 配置
 TEST_F(file_appender_test, InitWithModuleName)
 {
-    auto     appender = std::make_shared<file_appender>();
+    auto appender = mc::log::appender_factory::instance().create_by_type<file_appender>("file");
+    ASSERT_NE(appender, nullptr);
     mc::dict dict;
     dict["filename"]    = m_test_log_file.string();
     dict["module_name"] = "test_module";

@@ -15,6 +15,7 @@
 
 #include <mc/app/application.h>
 #include <mc/app/base_app.h>
+#include <mc/app/micro_component.h>
 #include <mc/app/service.h>
 #include <mc/app/service_context.h>
 #include <mc/app/service_plan.h>

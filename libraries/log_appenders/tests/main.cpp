@@ -10,16 +10,10 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef MC_LOG_BUILTIN_APPENDERS_H
-#define MC_LOG_BUILTIN_APPENDERS_H
+#include <gtest/gtest.h>
 
-#include <mc/common.h>
-
-namespace mc::log {
-
-MC_API void register_builtin_appenders();
-MC_API void bootstrap_default_logging();
-
-} // namespace mc::log
-
-#endif // MC_LOG_BUILTIN_APPENDERS_H
+int main(int argc, char** argv)
+{
+    testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
+}

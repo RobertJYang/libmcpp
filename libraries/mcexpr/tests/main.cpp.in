@@ -10,8 +10,13 @@
  */
 
 #include <gtest/gtest.h>
+#include <mc/expr/builtin.h>
 
-int main(int argc, char** argv) {
+int main(int argc, char** argv)
+{
+    // 显式注册 mcexpr 内建模块（conversion / math / string）。
+    // 静态库链接模式下，匿名命名空间静态注册器会被链接器丢弃，必须由可执行文件主动调用。
+    mc::expr::register_builtin_modules();
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

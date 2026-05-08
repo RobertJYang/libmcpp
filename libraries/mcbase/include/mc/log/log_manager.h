@@ -34,7 +34,7 @@ namespace log {
 struct appender_config {
     mc::string name;       // appender名称
     mc::string type;       // appender类型
-    mc::dict    properties; // appender属性配置
+    mc::dict   properties; // appender属性配置
     mc::string lib_path;   // 外部appender动态库路径，为空表示内部appender
 };
 
@@ -43,9 +43,9 @@ struct appender_config {
  */
 struct logger_config {
     mc::string              name;      // logger名称
-    log::level               level;     // 日志级别
+    log::level              level;     // 日志级别
     std::vector<mc::string> appenders; // 关联的appender名称列表
-    bool                     condition; // 是否输出日志，false 时不打印
+    bool                    condition; // 是否输出日志，false 时不打印
 
     logger_config(mc::string_view name = MC_LOG_DEFAULT_LOGGER) : name(name), condition(true)
     {}
@@ -55,8 +55,9 @@ struct logger_config {
  * @brief 日志系统配置结构
  */
 struct logging_config {
-    std::vector<appender_config> appenders; // appender配置列表
-    std::vector<logger_config>   loggers;   // logger配置列表
+    std::vector<mc::string>      appender_dirs; // appender动态库目录列表
+    std::vector<appender_config> appenders;     // appender配置列表
+    std::vector<logger_config>   loggers;       // logger配置列表
 };
 
 /**
@@ -131,7 +132,7 @@ private:
     void update_existing_logger(logger& log, const logger_config& log_config);
 
     std::unordered_map<mc::string, logger> m_loggers; // 日志记录器映射
-    std::mutex                              m_mutex;   // 互斥锁
+    std::mutex                             m_mutex;   // 互斥锁
 };
 
 } // namespace log

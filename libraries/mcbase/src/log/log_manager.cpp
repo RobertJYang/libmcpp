@@ -57,7 +57,7 @@ log_manager::log_manager()
 logger log_manager::get_logger(mc::string_view name)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
-    const mc::string           logger_name(name);
+    const mc::string            logger_name(name);
 
     auto it = m_loggers.find(logger_name);
     if (it != m_loggers.end()) {
@@ -182,6 +182,10 @@ logger log_manager::create_new_logger(const logger_config& log_config)
 
 bool log_manager::apply_config(const logging_config& config)
 {
+    for (const auto& appender_dir : config.appender_dirs) {
+        load_appenders(appender_dir);
+    }
+
     // 加载appender配置
     if (!load_appenders_from_config(config.appenders)) {
         wlog("Some appenders failed to load, continuing with other configurations");
@@ -236,4 +240,4 @@ void log_manager::set_dlog_level(level lvl)
 
 MC_REFLECT(mc::log::appender_config, (name)(type)(lib_path)(properties))
 MC_REFLECT(mc::log::logger_config, (name)(level)(appenders)(condition))
-MC_REFLECT(mc::log::logging_config, (appenders)(loggers))
+MC_REFLECT(mc::log::logging_config, (appender_dirs)(appenders)(loggers))

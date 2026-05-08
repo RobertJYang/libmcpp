@@ -10,13 +10,14 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef MC_LOG_SOCKET_APPENDER_H
-#define MC_LOG_SOCKET_APPENDER_H
+#ifndef MC_LOG_APPENDERS_SOCKET_APPENDER_H
+#define MC_LOG_APPENDERS_SOCKET_APPENDER_H
 
+#include <log_appenders/socket_client.h>
 #include <mc/log/appender.h>
-#include <mc/log/appenders/socket_client.h>
 #include <mc/log/logger.h>
 #include <mc/reflect.h>
+#include <mc/timer.h>
 #include <mc/variant.h>
 
 #include <memory>
@@ -64,15 +65,20 @@ public:
 private:
     bool        ensure_connected();
     std::string format_message(const message& msg) const;
+    void        stop_heartbeat_timer();
+    void        start_heartbeat_timer();
 
     std::shared_ptr<socket_client> m_client;
     std::string                    m_path;         ///< 日志socket路径
     std::string                    m_type{"file"}; ///< 日志输出类型
     std::string                    m_hb_path;      ///< 心跳socket路径
-    mutable std::mutex             m_mutex;
+    mc::timer_ptr                  m_hb_timer;     ///< 心跳定时器（由 init 在 auto_connect 时启动）
+    int                            m_heartbeat_interval_sec{1};
+    bool                           m_auto_connect{true};
+    mutable std::recursive_mutex   m_mutex;
 };
 
 } // namespace log
 } // namespace mc
 
-#endif // MC_LOG_SOCKET_APPENDER_H
+#endif // MC_LOG_APPENDERS_SOCKET_APPENDER_H

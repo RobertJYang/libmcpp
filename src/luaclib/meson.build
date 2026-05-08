@@ -105,7 +105,7 @@ if lua_dep.found()
     mc_log_src,
     name_prefix: '',
     name_suffix: 'so',
-    dependencies: lua_base_deps,
+    dependencies: lua_base_deps + [log_appenders_dep],
     link_with: [libmcpp_lib, libmcpp_lua_utils_lib],
     include_directories: base_inc_dirs1,
     install: true,

@@ -17,24 +17,45 @@
 #include <mc/engine/path.h>
 #include <mc/engine/property/processors.h>
 #include <mc/exception.h>
+#include <mc/expr/builtin.h>
 #include <mc/expr/engine.h>
 #include <mc/filesystem.h>
 #include <mc/json.h>
+#include <mc/log/appender_factory.h>
 #include <mc/log/log.h>
 #include <mc/log/log_manager.h>
+#include <mc/log/logger.h>
 #include <mc/runtime/runtime_context.h>
 #if defined(MCDBUS_USE_OLD_SHM) && MCDBUS_USE_OLD_SHM
 #include <mc/dbus/shm/harbor.h>
 #endif
 
 #include <algorithm>
+#include <cstdlib>
 #include <fstream>
 #include <optional>
 #include <sstream>
+#include <unistd.h>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-#include <unistd.h>
+
+namespace {
+
+mc::string resolve_default_log_appenders_directory_for_mcapp()
+{
+    const char* env = std::getenv("MCAPP_LOG_APPENDERS_DIR");
+    if (env != nullptr && env[0] != '\0') {
+        return mc::string(mc::string_view(env));
+    }
+#ifdef MCAPP_DEFAULT_LOG_APPENDERS_DIR
+    return mc::string(MCAPP_DEFAULT_LOG_APPENDERS_DIR);
+#else
+    return mc::string("/opt/bmc/log/appenders");
+#endif
+}
+
+} // namespace
 
 namespace mc::app {
 namespace detail {
@@ -56,7 +77,8 @@ struct bootstrap_options {
 
 class application_root_service : public service {
 public:
-    application_root_service() : service(mc::string("mcapp.root.p") + mc::to_string(static_cast<std::int64_t>(::getpid())))
+    application_root_service()
+        : service(mc::string("mcapp.root.p") + mc::to_string(static_cast<std::int64_t>(::getpid())))
     {
         set_path("/");
     }
@@ -309,6 +331,38 @@ mc::filesystem::path resolve_config_path(const mc::filesystem::path& source_path
     return mc::filesystem::normalize(source_path.parent_path() / resolved);
 }
 
+// 缺省 default_file appender 的固定名字，与外部约定保持一致。
+constexpr mc::string_view k_default_file_appender_name{"default_file"};
+
+void bootstrap_default_file_appender(mc::string_view module_name)
+{
+    auto default_log = mc::log::default_logger();
+    if (default_log.find_appender(k_default_file_appender_name) != nullptr) {
+        return;
+    }
+
+    auto& factory  = mc::log::appender_factory::instance();
+    auto  appender = factory.get_appender(k_default_file_appender_name);
+    if (appender == nullptr) {
+        mc::dict config;
+        if (!module_name.empty()) {
+            config["module_name"] = mc::string(module_name);
+        }
+        appender = factory.create(k_default_file_appender_name, "file", config);
+    }
+    if (appender != nullptr) {
+        default_log.add_appender(appender);
+    }
+}
+
+void apply_default_logging_config(mc::string_view module_name)
+{
+    mc::log::logging_config logging_config;
+    logging_config.appender_dirs.push_back(resolve_default_log_appenders_directory_for_mcapp());
+    mc::log::log_manager::instance().apply_config(logging_config);
+    bootstrap_default_file_appender(module_name);
+}
+
 bool apply_logging_config(const mc::variant& item)
 {
     try {
@@ -372,10 +426,10 @@ void merge_application_definition(service_plan& plan, const mc::dict& data)
 }
 
 bool load_plan_variant(const mc::variant& root, const mc::filesystem::path& source_path, service_plan& plan,
-                       std::unordered_set<std::string>& loading_files);
+                       std::unordered_set<std::string>& loading_files, bool& has_logging_config);
 
 bool load_plan_file(const mc::filesystem::path& source_path, service_plan& plan,
-                    std::unordered_set<std::string>& loading_files)
+                    std::unordered_set<std::string>& loading_files, bool& has_logging_config)
 {
     auto normalized = mc::filesystem::normalize(source_path);
     auto key        = normalized.string();
@@ -409,13 +463,13 @@ bool load_plan_file(const mc::filesystem::path& source_path, service_plan& plan,
         return false;
     }
 
-    auto loaded = load_plan_variant(root, normalized, plan, loading_files);
+    auto loaded = load_plan_variant(root, normalized, plan, loading_files, has_logging_config);
     loading_files.erase(key);
     return loaded;
 }
 
 bool load_service_dir(const mc::filesystem::path& source_path, mc::string_view relative_dir, service_plan& plan,
-                      std::unordered_set<std::string>& loading_files)
+                      std::unordered_set<std::string>& loading_files, bool& has_logging_config)
 {
     auto directory = resolve_config_path(source_path, relative_dir);
     if (!mc::filesystem::exists(directory) || !mc::filesystem::is_directory(directory)) {
@@ -433,7 +487,7 @@ bool load_service_dir(const mc::filesystem::path& source_path, mc::string_view r
 
     std::sort(files.begin(), files.end());
     for (const auto& file : files) {
-        if (!load_plan_file(file, plan, loading_files)) {
+        if (!load_plan_file(file, plan, loading_files, has_logging_config)) {
             return false;
         }
     }
@@ -441,10 +495,10 @@ bool load_service_dir(const mc::filesystem::path& source_path, mc::string_view r
 }
 
 bool load_manifest_dict(const mc::dict& data, const mc::filesystem::path& source_path, service_plan& plan,
-                        std::unordered_set<std::string>& loading_files)
+                        std::unordered_set<std::string>& loading_files, bool& has_logging_config)
 {
     for (const auto& import_path : dict_string_array(data, "imports")) {
-        if (!load_plan_file(resolve_config_path(source_path, import_path), plan, loading_files)) {
+        if (!load_plan_file(resolve_config_path(source_path, import_path), plan, loading_files, has_logging_config)) {
             return false;
         }
     }
@@ -452,6 +506,7 @@ bool load_manifest_dict(const mc::dict& data, const mc::filesystem::path& source
     merge_application_definition(plan, data);
 
     if (data.contains("logging")) {
+        has_logging_config = true;
         if (!apply_logging_config(data["logging"])) {
             return false;
         }
@@ -466,14 +521,14 @@ bool load_manifest_dict(const mc::dict& data, const mc::filesystem::path& source
             if (!service_data.contains("kind")) {
                 service_data["kind"] = "Service";
             }
-            if (!load_plan_variant(service_data, source_path, plan, loading_files)) {
+            if (!load_plan_variant(service_data, source_path, plan, loading_files, has_logging_config)) {
                 return false;
             }
         }
     }
 
     for (const auto& service_dir : dict_string_array(data, "service_dirs")) {
-        if (!load_service_dir(source_path, service_dir, plan, loading_files)) {
+        if (!load_service_dir(source_path, service_dir, plan, loading_files, has_logging_config)) {
             return false;
         }
     }
@@ -482,7 +537,7 @@ bool load_manifest_dict(const mc::dict& data, const mc::filesystem::path& source
 }
 
 bool load_plan_variant(const mc::variant& root, const mc::filesystem::path& source_path, service_plan& plan,
-                       std::unordered_set<std::string>& loading_files)
+                       std::unordered_set<std::string>& loading_files, bool& has_logging_config)
 {
     auto process_item = [&](const mc::variant& item) {
         if (!item.is_dict()) {
@@ -495,7 +550,7 @@ bool load_plan_variant(const mc::variant& root, const mc::filesystem::path& sour
         if (kind == "ApplicationManifest" ||
             (kind.empty() &&
              (data.contains("imports") || data.contains("service_dirs") || data.contains("services")))) {
-            return load_manifest_dict(data, source_path, plan, loading_files);
+            return load_manifest_dict(data, source_path, plan, loading_files, has_logging_config);
         }
 
         if (kind == "Application") {
@@ -509,6 +564,7 @@ bool load_plan_variant(const mc::variant& root, const mc::filesystem::path& sour
         }
 
         if (kind == "Logging") {
+            has_logging_config = true;
             return apply_logging_config(item);
         }
 
@@ -532,7 +588,7 @@ bool load_plan_variant(const mc::variant& root, const mc::filesystem::path& sour
     return false;
 }
 
-bool load_plan_from_config_file(const bootstrap_options& options, service_plan& plan)
+bool load_plan_from_config_file(const bootstrap_options& options, service_plan& plan, bool& has_logging_config)
 {
     plan.application.config_file = options.config_file;
 
@@ -541,7 +597,7 @@ bool load_plan_from_config_file(const bootstrap_options& options, service_plan& 
     }
 
     std::unordered_set<std::string> loading_files;
-    return load_plan_file(options.config_file, plan, loading_files);
+    return load_plan_file(options.config_file, plan, loading_files, has_logging_config);
 }
 
 void apply_bootstrap_options(service_plan& plan, const bootstrap_options& options)
@@ -695,6 +751,9 @@ bool application::initialize_with_plan(service_plan plan)
 {
     prepare_initialize();
     m_plan = std::move(plan);
+    if (!m_plan.has_logging_config) {
+        detail::apply_default_logging_config(m_plan.application.name);
+    }
     return initialize_from_current_plan();
 }
 
@@ -708,12 +767,16 @@ bool application::initialize_internal(const app_options& options)
         return false;
     }
 
-    if (!detail::load_plan_from_config_file(bootstrap_options, m_plan)) {
+    bool has_logging_config = false;
+    if (!detail::load_plan_from_config_file(bootstrap_options, m_plan, has_logging_config)) {
         clear_application_state();
         return false;
     }
 
     detail::apply_bootstrap_options(m_plan, bootstrap_options);
+    if (!has_logging_config) {
+        detail::apply_default_logging_config(m_plan.application.name);
+    }
     return initialize_from_current_plan();
 }
 
@@ -973,6 +1036,7 @@ bool application::bootstrap_engine_endpoint()
 #endif
     mc::engine::register_property_processors();
     mc::expr::register_path_template_backend();
+    mc::expr::register_builtin_modules();
     return true;
 }
 

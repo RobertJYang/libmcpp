@@ -13,6 +13,7 @@
 #include <mc/app/dbus_proto.h>
 
 #include <mc/dbus/error.h>
+#include <mc/dbus/message.h>
 #include <mc/engine/message.h>
 #include <mc/engine/payload.h>
 #include <mc/engine/service_proto.h>
@@ -22,6 +23,8 @@
 #if defined(MCDBUS_USE_OLD_SHM) && MCDBUS_USE_OLD_SHM
 #include <mc/dbus/shm/shm_tree.h>
 #endif
+
+#include <mc/reflect/signature.h>
 
 #include <string_view>
 #include <utility>
@@ -105,6 +108,26 @@ std::size_t count_signature_fields(mc::string_view signature) noexcept
         ++count;
     }
     return count;
+}
+
+// typed proxy 的 invoke 可能不带签名（空串）；走 DBus 发送前按参数补齐 D-Bus 签名。
+// 注意：如果调用方已显式提供签名（非空），这里不做改写，交给 validate 进行严格校验。
+void ensure_method_call_dbus_signature_matches_args(mc::engine::message& msg)
+{
+    const auto* payload = msg.try_as<mc::engine::method_call_payload>();
+    if (payload == nullptr) {
+        return;
+    }
+    const mc::string_view sig = payload->signature;
+    if (!sig.empty() || payload->args.empty()) {
+        return;
+    }
+    mc::reflect::signature built;
+    for (const auto& arg : payload->args) {
+        mc::dbus::detail::variant_to_dbus_signature(built, arg);
+    }
+    mc::variants args_copy = payload->args;
+    msg.body = mc::engine::make_payload<mc::engine::method_call_payload>(built.str(), std::move(args_copy));
 }
 
 bool write_wire_args(mc::dbus::message& msg, const mc::variants& args, mc::string_view signature)
@@ -362,6 +385,7 @@ std::size_t dbus_proto::inbound_count() const noexcept
 
 mc::future<mc::engine::message> dbus_proto::async_send_with_reply(mc::engine::message msg, mc::milliseconds timeout)
 {
+    ensure_method_call_dbus_signature_matches_args(msg);
     if (auto error_text = validate_method_call_request(msg); !error_text.empty()) {
         return mc::resolve(make_error_response(msg, "mc.engine.invalid_args", error_text));
     }

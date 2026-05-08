@@ -13,10 +13,10 @@
 #include <cerrno>
 #include <cstring>
 #include <dlfcn.h>
+#include <log_appenders/file_appender.h>
 #include <mc/engine/context.h>
 #include <mc/engine/service.h>
 #include <mc/filesystem.h>
-#include <mc/log/appenders/file_appender.h>
 #include <mc/log/log_level.h>
 #include <ostream>
 #include <stdarg.h>
@@ -555,3 +555,5 @@ void file_appender::set_debug_log_ptr(void* func_ptr)
 
 } // namespace log
 } // namespace mc
+
+MC_REGISTER_APPENDER(mc::log::file_appender)

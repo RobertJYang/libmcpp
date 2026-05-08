@@ -10,8 +10,8 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef MC_LOG_FILE_APPENDER_H
-#define MC_LOG_FILE_APPENDER_H
+#ifndef MC_LOG_APPENDERS_FILE_APPENDER_H
+#define MC_LOG_APPENDERS_FILE_APPENDER_H
 
 #include <fstream>
 #include <mc/log/appender.h>
@@ -136,4 +136,4 @@ private:
 } // namespace log
 } // namespace mc
 
-#endif // MC_LOG_FILE_APPENDER_H
+#endif // MC_LOG_APPENDERS_FILE_APPENDER_H
