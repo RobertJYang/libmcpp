@@ -42,6 +42,11 @@ public:
     {
         return a + b;
     }
+
+    virtual std::vector<uint8_t> RepeatByte(uint8_t value, uint8_t count)
+    {
+        return std::vector<uint8_t>(count, value);
+    }
 };
 
 // 虚方法 override 版本
@@ -117,6 +122,7 @@ public:
     MC_PROXY_PROP(mc::dict, DictValue);
 
     MC_PROXY_METHOD(int32_t, Add, ((int32_t, a))((int32_t, b)));
+    MC_PROXY_METHOD((std::vector<uint8_t>, "ay"), RepeatByte, ((uint8_t, value, "y"))((uint8_t, count)));
 };
 
 class test_obj_proxy {
@@ -134,7 +140,8 @@ public:
 // 反射注册
 MC_REFLECT(test_interface,
            ((IntValue, "IntValue"))((StrValue, "StrValue"))((VecValue, "VecValue"))((DictValue, "DictValue"))((Add,
-                                                                                                               "Add")))
+                                                                                                               "Add"))(
+               (RepeatByte, "RepeatByte")))
 MC_REFLECT(test_object, ((iface, "Iface")))
 MC_REFLECT(test_interface_override, ((Add, "Add")))
 MC_REFLECT(test_object_override, ((iface, "Iface")))
@@ -234,6 +241,24 @@ TEST_F(proxy_test, method_invoke_and_virtual_override)
     auto proxy_override = svc.get_proxy<test_obj_proxy>("/org/test/proxy/obj1");
     ASSERT_NE(proxy_override, nullptr);
     EXPECT_EQ(proxy_override->iface.Add(3, 4), 304);
+}
+
+TEST_F(proxy_test, method_invoke_with_explicit_result_and_param_signature)
+{
+    auto proxy = svc.get_proxy<test_obj_proxy>("/org/test/proxy/obj0");
+    ASSERT_NE(proxy, nullptr);
+
+    auto bytes = proxy->iface.RepeatByte(uint8_t{0x5a}, uint8_t{3});
+    EXPECT_EQ(bytes, (std::vector<uint8_t>{0x5a, 0x5a, 0x5a}));
+}
+
+TEST_F(proxy_test, explicit_result_signature_mismatch_throws)
+{
+    auto proxy = svc.get_proxy<test_obj_proxy>("/org/test/proxy/obj0");
+    ASSERT_NE(proxy, nullptr);
+
+    EXPECT_THROW((void)proxy->iface.context().invoke("RepeatByte", mc::variants{uint8_t{1}, uint8_t{2}}, "yy", "s"),
+                 mc::method_call_exception);
 }
 
 // ---- 跨 service 访问 ----

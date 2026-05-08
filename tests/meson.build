@@ -77,10 +77,30 @@ test_exe = executable(
   build_by_default: false,
 )
 
+test_env = environment()
+
+# libsomp.so 依赖 liblogging.so，需要将其 lib 目录加入搜索路径
+# 优先使用 pkg-config，失败则回退到默认查找方式（支持 Conan CMake 等）
+_liblogger_dep = dependency('liblogger', method: 'pkg-config', required: false)
+if not _liblogger_dep.found()
+  _liblogger_dep = dependency('liblogger', required: false)
+endif
+if _liblogger_dep.found()
+  _liblogger_libdir = _liblogger_dep.get_variable(pkgconfig: 'libdir', default_value: '')
+  if _liblogger_libdir == ''
+    _liblogger_libdir = _liblogger_dep.get_variable('libdir', default_value: '')
+  endif
+  if _liblogger_libdir != ''
+    message('liblogger libdir: ' + _liblogger_libdir)
+    test_env.prepend('LD_LIBRARY_PATH', _liblogger_libdir)
+  endif
+endif
+
 # 注册测试
 test(
   'libmcpp unit tests',
   test_exe,
+  env: test_env,
   is_parallel: false,
   timeout: 300,
 )

@@ -16,16 +16,11 @@
 #include <mc/app/application.h>
 #include <mc/app/service.h>
 #include <mc/dbus/connection.h>
-#if defined(MCDBUS_USE_OLD_SHM) && MCDBUS_USE_OLD_SHM
-#include <mc/dbus/shm/harbor.h>
-#endif
 #include <mc/engine.h>
 #include <mc/engine/proxy.h>
 #include <mc/reflect.h>
 #include <mc/runtime/runtime_context.h>
-#include <mc/singleton.h>
-#include <test_utilities/dbus_daemon_manager.h>
-#include <test_utilities/engine_test_base.h>
+#include <test_utilities/test_base.h>
 
 #include <atomic>
 #include <chrono>
@@ -224,35 +219,13 @@ MC_REFLECT(mcapp_proxy_test::props_object, ((iface, "Iface")))
 // 测试 fixture
 // ============================================================================
 
-class proxy_test : public mc::test::TestWithEngine {
+class proxy_test : public mc::test::TestWithDbusDaemon {
 protected:
     static constexpr mc::string_view k_server_name{"mc.test.proxy.server"};
 
-    static mc::test::dbus_daemon_manager& get_dbus_daemon()
-    {
-        return mc::singleton<mc::test::dbus_daemon_manager>::instance();
-    }
-
-    static void SetUpTestSuite()
-    {
-#if defined(MCDBUS_USE_OLD_SHM) && MCDBUS_USE_OLD_SHM
-        mc::dbus::harbor::reset_for_test();
-#endif
-        TestWithEngine::SetUpTestSuite();
-        ASSERT_TRUE(get_dbus_daemon().start()) << "启动 DBus 守护进程失败";
-    }
-
-    static void TearDownTestSuite()
-    {
-#if defined(MCDBUS_USE_OLD_SHM) && MCDBUS_USE_OLD_SHM
-        mc::dbus::harbor::reset_for_test();
-#endif
-        TestWithEngine::TearDownTestSuite();
-    }
-
     void SetUp() override
     {
-        TestWithEngine::SetUp();
+        TestWithDbusDaemon::SetUp();
 
         mc::app::base_app::reset_for_test();
 
@@ -287,7 +260,7 @@ protected:
 
         mc::app::base_app::reset_for_test();
         // engine::reset_for_test 与 SHM region 释放都由基类 TearDown 统一管理。
-        TestWithEngine::TearDown();
+        TestWithDbusDaemon::TearDown();
     }
 
     // 在子进程中创建独立的 client service + DBus 通道

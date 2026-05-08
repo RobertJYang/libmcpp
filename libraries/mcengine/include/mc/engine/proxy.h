@@ -23,6 +23,7 @@
 #include <mc/engine/message.h>
 #include <mc/memory.h>
 #include <mc/pp.h>
+#include <mc/reflect/signature.h>
 #include <mc/string.h>
 #include <mc/string_view.h>
 #include <mc/time.h>
@@ -94,7 +95,7 @@ public:
                                    proxy_get_all_mode mode = proxy_get_all_mode::complete) const;
     void set_property(mc::string_view interface_name, mc::string_view property_name, const mc::variant& value) const;
     mc::variant invoke(mc::string_view interface_name, mc::string_view method_name, const mc::variants& args = {},
-                       mc::string_view signature = {}) const;
+                       mc::string_view signature = {}, mc::string_view result_signature = {}) const;
 
     template <typename ProxyType>
     std::unique_ptr<ProxyType> as() const
@@ -106,7 +107,7 @@ public:
 
 private:
     mc::variant call_message(mc::string_view interface_name, mc::string_view method_name, const mc::variants& args,
-                             mc::string_view signature) const;
+                             mc::string_view signature, mc::string_view result_signature) const;
     message     make_method_call(mc::string_view interface_name, mc::string_view method_name, const mc::variants& args,
                                  mc::string_view signature) const;
 
@@ -144,7 +145,7 @@ public:
     void        set_property(mc::string_view property_name, const mc::variant& value) const;
     mc::dict    get_all_properties(proxy_get_all_mode mode = proxy_get_all_mode::complete) const;
     mc::variant invoke(mc::string_view method_name, const mc::variants& args = {},
-                       mc::string_view signature = {}) const;
+                       mc::string_view signature = {}, mc::string_view result_signature = {}) const;
 
 private:
     void ensure_bound() const;
@@ -156,6 +157,20 @@ private:
     mc::shared_ptr<proxy_shm_resolver> m_resolver;
     proxy_policy                       m_policy;
 };
+
+namespace detail {
+
+template <typename T>
+inline void append_proxy_signature(mc::reflect::signature& signature, mc::string_view explicit_signature = {})
+{
+    if (!explicit_signature.empty()) {
+        signature += explicit_signature;
+        return;
+    }
+    signature += mc::reflect::get_signature<T>();
+}
+
+} // namespace detail
 
 template <typename T>
 class property_proxy {
@@ -240,12 +255,13 @@ protected:
     }
 
     template <typename R = void>
-    R invoke(mc::string_view method_name, const mc::variants& args, mc::string_view signature = {}) const
+    R invoke(mc::string_view method_name, const mc::variants& args, mc::string_view signature = {},
+             mc::string_view result_signature = {}) const
     {
         if constexpr (std::is_void_v<R>) {
-            (void)m_ctx.invoke(method_name, args, signature);
+            (void)m_ctx.invoke(method_name, args, signature, result_signature);
         } else {
-            return m_ctx.invoke(method_name, args, signature).template as<R>();
+            return m_ctx.invoke(method_name, args, signature, result_signature).template as<R>();
         }
     }
 };
@@ -262,12 +278,12 @@ protected:
 //       MC_PROXY_PROP(uint8_t,  OffsetWidth);
 //
 //       MC_PROXY_METHOD(std::vector<uint8_t>, BitIORead,
-//                       ((uint32_t, offset))((uint8_t, length))((uint32_t, mask)));
-//       MC_PROXY_METHOD(std::vector<uint8_t>, BitIORead, "uyu",
-//                       ((uint32_t, offset))((uint8_t, length))((uint32_t, mask))); // 可选显式签名
+//                       ((uint32_t, offset))((uint8_t, length, "y"))((uint32_t, mask)));
+//       MC_PROXY_METHOD((std::vector<uint8_t>, "ay"), BitIORead,
+//                       ((uint32_t, offset))((uint8_t, length, "y"))((uint32_t, mask))); // 可选显式返回签名
 //
 //       MC_PROXY_METHOD(int32_t, GetVersion);     // 无参版本
-//       MC_PROXY_METHOD(int32_t, GetVersion, ""); // 无参 + 可选显式签名
+//       MC_PROXY_METHOD((int32_t, "i"), GetVersion); // 无参 + 可选显式返回签名
 //   };
 // ---------------------------------------------------------------------------
 
@@ -276,43 +292,70 @@ protected:
 #define MC_PROXY_PROP(TYPE, NAME)                                                                                      \
     mc::engine::property_proxy<TYPE> NAME = this->template property<TYPE>(MC_PP_STRINGIZE(NAME))
 
+#define MC_ENGINE_PROXY_IS_TUPLE(x) MC_PP_IS_BEGIN_PARENS(x)
+
+#define MC_ENGINE_PROXY_RETURN_TYPE_RAW(RETURN_DESC)                                                                   \
+    MC_PP_IIF(MC_ENGINE_PROXY_IS_TUPLE(RETURN_DESC), MC_ENGINE_PROXY_RETURN_TYPE_TUPLE,                               \
+              MC_ENGINE_PROXY_RETURN_TYPE_VALUE)(RETURN_DESC)
+#define MC_ENGINE_PROXY_RETURN_TYPE_VALUE(RETURN_TYPE) RETURN_TYPE
+#define MC_ENGINE_PROXY_RETURN_TYPE_TUPLE(RETURN_DESC) MC_PP_TUPLE_ELEM(0, RETURN_DESC)
+
+#define MC_ENGINE_PROXY_RETURN_SIGNATURE(RETURN_DESC)                                                                  \
+    MC_PP_IIF(MC_ENGINE_PROXY_IS_TUPLE(RETURN_DESC), MC_ENGINE_PROXY_RETURN_SIGNATURE_TUPLE,                          \
+              MC_ENGINE_PROXY_RETURN_SIGNATURE_EMPTY)(RETURN_DESC)
+#define MC_ENGINE_PROXY_RETURN_SIGNATURE_EMPTY(...) ""
+#define MC_ENGINE_PROXY_RETURN_SIGNATURE_TUPLE(RETURN_DESC) MC_PP_TUPLE_ELEM(1, RETURN_DESC)
+
+#define MC_ENGINE_PROXY_PARAM_SIZE(PARAM) MC_PP_VARIADIC_SIZE(MC_PP_TUPLE_ENUM(PARAM))
 #define MC_ENGINE_PROXY_PARAM_DECL(r, d, e) MC_PP_TUPLE_ELEM(0, e) MC_PP_TUPLE_ELEM(1, e)
 #define MC_ENGINE_PROXY_PARAM_NAME(r, d, e) MC_PP_TUPLE_ELEM(1, e)
 #define MC_ENGINE_PROXY_PACK_PARAM(r, d, e) d.emplace_back(mc::variant(MC_PP_TUPLE_ELEM(1, e)));
+#define MC_ENGINE_PROXY_PARAM_SIGNATURE_EMPTY(...) ""
+#define MC_ENGINE_PROXY_PARAM_SIGNATURE_EXPLICIT(PARAM) MC_PP_TUPLE_ELEM(2, PARAM)
+#define MC_ENGINE_PROXY_PARAM_APPEND_SIGNATURE(r, d, e)                                                                \
+    mc::engine::detail::append_proxy_signature<MC_PP_TUPLE_ELEM(0, e)>(                                                \
+        d, MC_PP_IIF(MC_PP_EQUAL(MC_ENGINE_PROXY_PARAM_SIZE(e), 3), MC_ENGINE_PROXY_PARAM_SIGNATURE_EXPLICIT,         \
+                     MC_ENGINE_PROXY_PARAM_SIGNATURE_EMPTY)(e));
 
 #define MC_ENGINE_PROXY_PARAMS_DECL(ARGS_SEQ)                                                                          \
     MC_PP_SEQ_ENUM(MC_PP_SEQ_TRANSFORM(MC_ENGINE_PROXY_PARAM_DECL, _, ARGS_SEQ))
 #define MC_ENGINE_PROXY_PARAMS_NAMES(ARGS_SEQ)                                                                         \
     MC_PP_SEQ_ENUM(MC_PP_SEQ_TRANSFORM(MC_ENGINE_PROXY_PARAM_NAME, _, ARGS_SEQ))
 
-#define MC_PROXY_METHOD_IMPL_EMPTY(R, NAME)                                                                            \
-    R NAME() const                                                                                                     \
+#define MC_PROXY_METHOD_IMPL_EMPTY(RETURN_DESC, NAME)                                                                  \
+    MC_ENGINE_PROXY_RETURN_TYPE_RAW(RETURN_DESC) NAME() const                                                          \
     {                                                                                                                  \
-        return this->template invoke<R>(MC_PP_STRINGIZE(NAME), mc::variants{});                                        \
+        return this->template invoke<MC_ENGINE_PROXY_RETURN_TYPE_RAW(RETURN_DESC)>(                                    \
+            MC_PP_STRINGIZE(NAME), mc::variants{}, "", MC_ENGINE_PROXY_RETURN_SIGNATURE(RETURN_DESC));                 \
     }
 
-#define MC_PROXY_METHOD_IMPL_EMPTY_SIG(R, NAME, SIGNATURE)                                                             \
-    R NAME() const                                                                                                     \
+#define MC_PROXY_METHOD_IMPL_EMPTY_SIG(RETURN_DESC, NAME, SIGNATURE)                                                   \
+    MC_ENGINE_PROXY_RETURN_TYPE_RAW(RETURN_DESC) NAME() const                                                          \
     {                                                                                                                  \
-        return this->template invoke<R>(MC_PP_STRINGIZE(NAME), mc::variants{}, SIGNATURE);                             \
+        return this->template invoke<MC_ENGINE_PROXY_RETURN_TYPE_RAW(RETURN_DESC)>(                                    \
+            MC_PP_STRINGIZE(NAME), mc::variants{}, SIGNATURE, MC_ENGINE_PROXY_RETURN_SIGNATURE(RETURN_DESC));          \
     }
 
-#define MC_PROXY_METHOD_IMPL_ARGS(R, NAME, ARGS_SEQ)                                                                   \
-    R NAME(MC_ENGINE_PROXY_PARAMS_DECL(ARGS_SEQ)) const                                                                \
+#define MC_PROXY_METHOD_IMPL_ARGS(RETURN_DESC, NAME, ARGS_SEQ)                                                         \
+    MC_ENGINE_PROXY_RETURN_TYPE_RAW(RETURN_DESC) NAME(MC_ENGINE_PROXY_PARAMS_DECL(ARGS_SEQ)) const                    \
+    {                                                                                                                  \
+        mc::variants packed;                                                                                           \
+        mc::reflect::signature signature;                                                                              \
+        packed.reserve(MC_PP_SEQ_SIZE(ARGS_SEQ));                                                                      \
+        MC_PP_SEQ_FOR_EACH(MC_ENGINE_PROXY_PACK_PARAM, packed, ARGS_SEQ)                                               \
+        MC_PP_SEQ_FOR_EACH(MC_ENGINE_PROXY_PARAM_APPEND_SIGNATURE, signature, ARGS_SEQ)                                \
+        return this->template invoke<MC_ENGINE_PROXY_RETURN_TYPE_RAW(RETURN_DESC)>(                                    \
+            MC_PP_STRINGIZE(NAME), packed, signature.str(), MC_ENGINE_PROXY_RETURN_SIGNATURE(RETURN_DESC));            \
+    }
+
+#define MC_PROXY_METHOD_IMPL_SIG_ARGS(RETURN_DESC, NAME, SIGNATURE, ARGS_SEQ)                                          \
+    MC_ENGINE_PROXY_RETURN_TYPE_RAW(RETURN_DESC) NAME(MC_ENGINE_PROXY_PARAMS_DECL(ARGS_SEQ)) const                    \
     {                                                                                                                  \
         mc::variants packed;                                                                                           \
         packed.reserve(MC_PP_SEQ_SIZE(ARGS_SEQ));                                                                      \
         MC_PP_SEQ_FOR_EACH(MC_ENGINE_PROXY_PACK_PARAM, packed, ARGS_SEQ)                                               \
-        return this->template invoke<R>(MC_PP_STRINGIZE(NAME), packed);                                                \
-    }
-
-#define MC_PROXY_METHOD_IMPL_SIG_ARGS(R, NAME, SIGNATURE, ARGS_SEQ)                                                    \
-    R NAME(MC_ENGINE_PROXY_PARAMS_DECL(ARGS_SEQ)) const                                                                \
-    {                                                                                                                  \
-        mc::variants packed;                                                                                           \
-        packed.reserve(MC_PP_SEQ_SIZE(ARGS_SEQ));                                                                      \
-        MC_PP_SEQ_FOR_EACH(MC_ENGINE_PROXY_PACK_PARAM, packed, ARGS_SEQ)                                               \
-        return this->template invoke<R>(MC_PP_STRINGIZE(NAME), packed, SIGNATURE);                                     \
+        return this->template invoke<MC_ENGINE_PROXY_RETURN_TYPE_RAW(RETURN_DESC)>(                                    \
+            MC_PP_STRINGIZE(NAME), packed, SIGNATURE, MC_ENGINE_PROXY_RETURN_SIGNATURE(RETURN_DESC));                  \
     }
 
 #define MC_PROXY_METHOD_SELECT_2(R, NAME) MC_PROXY_METHOD_IMPL_EMPTY(R, NAME)

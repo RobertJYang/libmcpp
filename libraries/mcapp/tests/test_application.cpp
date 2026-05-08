@@ -349,7 +349,8 @@ protected:
 #endif
         mc::engine::engine::reset_for_test();
         mc::app::base_app::reset_for_test();
-        mc::log::default_logger().remove_appender("default_file");
+        // 先移除 logger 持有的插件 appender，再重置工厂卸载 so，避免悬空虚表。
+        mc::log::default_logger().clear_appenders();
         mc::log::appender_factory::reset_for_test();
         ::unsetenv("MCAPP_LOG_APPENDERS_DIR");
         ::unsetenv("MCAPP_TEST_DEFAULT_FILE_LOG_PATH");
@@ -364,7 +365,8 @@ protected:
             m_app->stop();
         }
         m_app.reset();
-        mc::log::default_logger().remove_appender("default_file");
+        // 先移除 logger 持有的插件 appender，再重置工厂卸载 so，避免悬空虚表。
+        mc::log::default_logger().clear_appenders();
         mc::log::appender_factory::reset_for_test();
         mc::app::base_app::reset_for_test();
         mc::engine::engine::reset_for_test();

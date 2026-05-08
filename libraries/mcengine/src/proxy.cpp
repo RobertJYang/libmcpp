@@ -213,7 +213,8 @@ private:
 #endif // MCENGINE_USE_SHM
 
 // 通过 service 发送消息并等待回复
-mc::variant call_via_service(const service* svc, const message& request, const proxy_policy& policy)
+mc::variant call_via_service(const service* svc, const message& request, const proxy_policy& policy,
+                             mc::string_view expected_result_signature = {})
 {
     if (svc == nullptr) {
         throw_proxy_error("proxy 未绑定 service (请通过 service::get_proxy 获取)");
@@ -233,6 +234,10 @@ mc::variant call_via_service(const service* svc, const message& request, const p
     auto* payload = response.try_as<method_return_payload>();
     if (payload == nullptr) {
         throw_proxy_error("远端 method_return 缺少 payload");
+    }
+    if (!expected_result_signature.empty() && payload->signature != expected_result_signature) {
+        MC_THROW(mc::method_call_exception, "远端返回签名不匹配: 期望${expected}, 实际${actual}",
+                 ("expected", expected_result_signature)("actual", payload->signature));
     }
     return payload->value;
 }
@@ -315,7 +320,7 @@ mc::variant object_proxy::get_property(mc::string_view interface_name, mc::strin
 
         if (result.status == shm_read_status::nocache) {
             return call_message(std_ifaces::properties, std_ifaces::get,
-                                mc::variants{mc::string(interface_name), mc::string(property_name)}, "ss");
+                                mc::variants{mc::string(interface_name), mc::string(property_name)}, "ss", {});
         }
 
         if (result.status == shm_read_status::hit && m_policy.route == proxy_route::auto_) {
@@ -325,7 +330,7 @@ mc::variant object_proxy::get_property(mc::string_view interface_name, mc::strin
 #endif
 
     return call_message(std_ifaces::properties, std_ifaces::get,
-                        mc::variants{mc::string(interface_name), mc::string(property_name)}, "ss");
+                        mc::variants{mc::string(interface_name), mc::string(property_name)}, "ss", {});
 }
 
 mc::dict object_proxy::get_all_properties(mc::string_view interface_name, proxy_get_all_mode mode) const
@@ -340,7 +345,7 @@ mc::dict object_proxy::get_all_properties(mc::string_view interface_name, proxy_
     }
 
     auto value =
-        call_message(std_ifaces::properties, std_ifaces::get_all, mc::variants{mc::string(interface_name)}, "s");
+        call_message(std_ifaces::properties, std_ifaces::get_all, mc::variants{mc::string(interface_name)}, "s", {});
     if (value.is_dict()) {
         return value.as<mc::dict>();
     }
@@ -351,20 +356,21 @@ void object_proxy::set_property(mc::string_view interface_name, mc::string_view 
                                 const mc::variant& value) const
 {
     (void)call_message(std_ifaces::properties, std_ifaces::set,
-                       mc::variants{mc::string(interface_name), mc::string(property_name), value}, "ssv");
+                       mc::variants{mc::string(interface_name), mc::string(property_name), value}, "ssv", {});
 }
 
 mc::variant object_proxy::invoke(mc::string_view interface_name, mc::string_view method_name, const mc::variants& args,
-                                 mc::string_view signature) const
+                                 mc::string_view signature, mc::string_view result_signature) const
 {
-    return call_message(interface_name, method_name, args, signature);
+    return call_message(interface_name, method_name, args, signature, result_signature);
 }
 
 mc::variant object_proxy::call_message(mc::string_view interface_name, mc::string_view method_name,
-                                       const mc::variants& args, mc::string_view signature) const
+                                       const mc::variants& args, mc::string_view signature,
+                                       mc::string_view result_signature) const
 {
     auto request = build_method_call(m_ref, interface_name, method_name, args, signature, m_policy);
-    return call_via_service(m_svc, request, m_policy);
+    return call_via_service(m_svc, request, m_policy, result_signature);
 }
 
 message object_proxy::make_method_call(mc::string_view interface_name, mc::string_view method_name,
@@ -477,12 +483,12 @@ mc::dict interface_proxy_context::get_all_properties(proxy_get_all_mode mode) co
 }
 
 mc::variant interface_proxy_context::invoke(mc::string_view method_name, const mc::variants& args,
-                                            mc::string_view signature) const
+                                            mc::string_view signature, mc::string_view result_signature) const
 {
     ensure_bound();
 
     auto request = build_method_call(m_ref, m_iface_name, method_name, args, signature, m_policy);
-    return call_via_service(m_svc, request, m_policy);
+    return call_via_service(m_svc, request, m_policy, result_signature);
 }
 
 // ---------------------------------------------------------------------------
