@@ -5,16 +5,33 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "单元测试",
+            "name": "app_test",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/builddir/tests/libmcpp_test",
+            "program": "${workspaceFolder}/builddir/libraries/mcapp/tests/mcapp_test",
             "args": [
                 "--timeout=0",
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
-            "environment": [],
+            "environment": [
+                {
+                    "name": "MC_BUILD_ROOT",
+                    "value": "${workspaceFolder}/builddir"
+                },
+                {
+                    "name": "MC_GLOBAL_BUILD_ROOT",
+                    "value": "${workspaceFolder}/builddir"
+                },
+                {
+                    "name": "LD_LIBRARY_PATH",
+                    "value": "${env:LD_LIBRARY_PATH}"
+                },
+                {
+                    "name": "DYLD_LIBRARY_PATH",
+                    "value": "${env:DYLD_LIBRARY_PATH}"
+                }
+            ],
             "externalConsole": false,
             "osx": {
                 "MIMode": "lldb",

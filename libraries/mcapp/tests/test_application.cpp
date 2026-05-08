@@ -42,6 +42,7 @@
 #include <chrono>
 #include <condition_variable>
 #include <cstdlib>
+#include <fstream>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -55,9 +56,11 @@ namespace {
 #if defined(__APPLE__)
 constexpr mc::string_view k_builtin_file_appender_libname{"file_appender.dylib"};
 constexpr mc::string_view k_builtin_socket_appender_libname{"socket_appender.dylib"};
+constexpr mc::string_view k_test_file_appender_plugin_libname{"mcapp_test_file_appender_plugin.dylib"};
 #else
 constexpr mc::string_view k_builtin_file_appender_libname{"file_appender.so"};
 constexpr mc::string_view k_builtin_socket_appender_libname{"socket_appender.so"};
+constexpr mc::string_view k_test_file_appender_plugin_libname{"mcapp_test_file_appender_plugin.so"};
 #endif
 
 class memory_capture_appender : public mc::log::appender {
@@ -116,31 +119,33 @@ struct scratch_appenders_directory_guard {
     mc::filesystem::path dir;
 };
 
+const char* resolve_global_build_root_with_candidate(const std::string& relative_candidate)
+{
+    const char* global_root = std::getenv("MC_GLOBAL_BUILD_ROOT");
+    if (global_root != nullptr) {
+        mc::filesystem::path candidate = mc::filesystem::path(global_root) / relative_candidate;
+        if (mc::filesystem::exists(candidate)) {
+            return global_root;
+        }
+    }
+
+    const char* project_root = std::getenv("MC_BUILD_ROOT");
+    if (project_root != nullptr) {
+        mc::filesystem::path candidate = mc::filesystem::path(project_root) / relative_candidate;
+        if (mc::filesystem::exists(candidate)) {
+            return project_root;
+        }
+    }
+
+    return nullptr;
+}
+
 bool populate_appenders_scratch_dir_with_file_plugin(mc::filesystem::path dir)
 {
-    const auto resolve_plugin_root = []() -> const char* {
-        const char* global_root = std::getenv("MC_GLOBAL_BUILD_ROOT");
-        if (global_root != nullptr) {
-            mc::filesystem::path candidate = mc::filesystem::path(global_root) / "libraries" / "log_appenders" /
-                                             std::string(k_builtin_file_appender_libname);
-            if (mc::filesystem::exists(candidate)) {
-                return global_root;
-            }
-        }
-        const char* project_root = std::getenv("MC_BUILD_ROOT");
-        if (project_root != nullptr) {
-            mc::filesystem::path candidate = mc::filesystem::path(project_root) / "libraries" / "log_appenders" /
-                                             std::string(k_builtin_file_appender_libname);
-            if (mc::filesystem::exists(candidate)) {
-                return project_root;
-            }
-        }
-        ADD_FAILURE() << "cannot resolve libraries/log_appenders plugin (MC_GLOBAL_BUILD_ROOT / MC_BUILD_ROOT)";
-        return nullptr;
-    };
-
-    const char* build_root = resolve_plugin_root();
+    const char* build_root = resolve_global_build_root_with_candidate("libraries/log_appenders/" +
+                                                                      std::string(k_builtin_file_appender_libname));
     if (build_root == nullptr) {
+        ADD_FAILURE() << "cannot resolve libraries/log_appenders plugin (MC_GLOBAL_BUILD_ROOT / MC_BUILD_ROOT)";
         return false;
     }
     mc::filesystem::path plugin =
@@ -149,11 +154,67 @@ bool populate_appenders_scratch_dir_with_file_plugin(mc::filesystem::path dir)
         ADD_FAILURE() << "missing plugin " << plugin.string();
         return false;
     }
-    if (!mc::filesystem::create_directories(dir)) {
+    if (!mc::filesystem::exists(dir) && !mc::filesystem::create_directories(dir)) {
         return false;
     }
     mc::filesystem::path link = dir / std::string(k_builtin_file_appender_libname);
     return mc::filesystem::create_symlink(plugin, link);
+}
+
+bool populate_appenders_scratch_dir_with_test_file_plugin(mc::filesystem::path dir)
+{
+    const char* build_root = resolve_global_build_root_with_candidate("libraries/mcapp/tests/" +
+                                                                      std::string(k_test_file_appender_plugin_libname));
+    if (build_root == nullptr) {
+        ADD_FAILURE() << "cannot resolve mcapp test file appender plugin (MC_GLOBAL_BUILD_ROOT / MC_BUILD_ROOT)";
+        return false;
+    }
+
+    mc::filesystem::path plugin = mc::filesystem::path(build_root) / "libraries" / "mcapp" / "tests" /
+                                  std::string(k_test_file_appender_plugin_libname);
+    if (!mc::filesystem::exists(plugin)) {
+        ADD_FAILURE() << "missing plugin " << plugin.string();
+        return false;
+    }
+    if (!mc::filesystem::exists(dir) && !mc::filesystem::create_directories(dir)) {
+        return false;
+    }
+
+    mc::filesystem::path link = dir / std::string(k_builtin_file_appender_libname);
+    return mc::filesystem::create_symlink(plugin, link);
+}
+
+bool populate_appenders_scratch_dir_with_socket_plugin(mc::filesystem::path dir)
+{
+    const char* build_root = resolve_global_build_root_with_candidate("libraries/log_appenders/" +
+                                                                      std::string(k_builtin_socket_appender_libname));
+    if (build_root == nullptr) {
+        ADD_FAILURE() << "cannot resolve libraries/log_appenders socket plugin (MC_GLOBAL_BUILD_ROOT / MC_BUILD_ROOT)";
+        return false;
+    }
+
+    mc::filesystem::path plugin = mc::filesystem::path(build_root) / "libraries" / "log_appenders" /
+                                  std::string(k_builtin_socket_appender_libname);
+    if (!mc::filesystem::exists(plugin)) {
+        ADD_FAILURE() << "missing plugin " << plugin.string();
+        return false;
+    }
+    if (!mc::filesystem::exists(dir) && !mc::filesystem::create_directories(dir)) {
+        return false;
+    }
+
+    mc::filesystem::path link = dir / std::string(k_builtin_socket_appender_libname);
+    return mc::filesystem::create_symlink(plugin, link);
+}
+
+std::string read_file_contents(const mc::filesystem::path& file_path)
+{
+    std::ifstream file(file_path);
+    if (!file.is_open()) {
+        return {};
+    }
+
+    return std::string((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
 }
 
 struct default_logger_memory_capture_guard {
@@ -175,7 +236,8 @@ struct default_logger_memory_capture_guard {
     std::shared_ptr<memory_capture_appender> m_sink;
 };
 
-constexpr mc::string_view k_failed_load_appenders_hint{"Failed to load appenders"};
+constexpr mc::string_view k_default_file_appender_create_failed_hint{
+    "mcapp create default file appender[default_file] failed"};
 
 } // namespace
 
@@ -287,7 +349,10 @@ protected:
 #endif
         mc::engine::engine::reset_for_test();
         mc::app::base_app::reset_for_test();
+        mc::log::default_logger().remove_appender("default_file");
+        mc::log::appender_factory::reset_for_test();
         ::unsetenv("MCAPP_LOG_APPENDERS_DIR");
+        ::unsetenv("MCAPP_TEST_DEFAULT_FILE_LOG_PATH");
         m_app = std::make_unique<mc::app::application>();
         m_app->registry().register_service<test_mcapp::sample_service>("sample_service");
         m_app->registry().register_service<test_mcapp::echo_service>("echo_service");
@@ -299,8 +364,12 @@ protected:
             m_app->stop();
         }
         m_app.reset();
+        mc::log::default_logger().remove_appender("default_file");
+        mc::log::appender_factory::reset_for_test();
         mc::app::base_app::reset_for_test();
         mc::engine::engine::reset_for_test();
+        ::unsetenv("MCAPP_LOG_APPENDERS_DIR");
+        ::unsetenv("MCAPP_TEST_DEFAULT_FILE_LOG_PATH");
 #if MCENGINE_USE_SHM
         mc::shm::shutdown_default_runtime();
         mc::shm::detail::shared_memory_backend::remove(k_default_shm_region);
@@ -331,6 +400,21 @@ protected:
         return m_app->initialize_with_plan(std::move(plan));
     }
 
+    bool initialize_from_config_file(const mc::filesystem::path& config_path)
+    {
+        std::vector<std::string> argv_storage{"mcapp_test", "--config", config_path.string()};
+        std::vector<char*>       argv;
+        argv.reserve(argv_storage.size());
+        for (auto& arg : argv_storage) {
+            argv.push_back(arg.data());
+        }
+
+        mc::app::app_options options;
+        options.argc = static_cast<int>(argv.size());
+        options.argv = argv.data();
+        return m_app->initialize(options);
+    }
+
     mc::shared_ptr<test_mcapp::echo_service>
     start_echo_service(mc::string_view service_name = "mc.test.application.echo")
     {
@@ -359,6 +443,42 @@ protected:
 
     std::unique_ptr<mc::app::application> m_app;
 };
+
+TEST_F(application_test, default_logging_end_to_end_loads_appenders_and_writes_default_file_log)
+{
+    scratch_appenders_directory_guard dir_guard(make_scratch_appenders_directory_token("e2e_default_file"));
+    ASSERT_TRUE(populate_appenders_scratch_dir_with_test_file_plugin(dir_guard.dir));
+    ASSERT_TRUE(populate_appenders_scratch_dir_with_socket_plugin(dir_guard.dir));
+
+    auto log_file = dir_guard.dir / "default_file_output.log";
+    ASSERT_EQ(::setenv("MCAPP_LOG_APPENDERS_DIR", dir_guard.dir.string().c_str(), 1), 0);
+    ASSERT_EQ(::setenv("MCAPP_TEST_DEFAULT_FILE_LOG_PATH", log_file.string().c_str(), 1), 0);
+
+    auto default_log = mc::log::default_logger();
+    default_log.remove_appender("default_file");
+    ASSERT_EQ(default_log.find_appender("default_file"), nullptr);
+    ASSERT_EQ(mc::log::appender_factory::instance().get_appender("default_file"), nullptr);
+    default_log.set_level(mc::log::level::info);
+
+    ASSERT_TRUE(initialize_with_single_service(make_sample_service_definition("mc.test.e2e.default_file"),
+                                               "mcapp_default_file_e2e"));
+
+    ASSERT_NE(default_log.find_appender("default_file"), nullptr);
+
+    mc::dict socket_args{{"path", mc::string("/tmp/mcapp_ut_e2e.sock")},
+                         {"hb_path", mc::string("/tmp/mcapp_ut_e2e.hb")},
+                         {"auto_connect", false}};
+    auto     socket_probe = mc::log::appender_factory::instance().create("ut_socket_probe_e2e", "socket", socket_args);
+    ASSERT_NE(socket_probe, nullptr);
+
+    const std::string marker = "mcapp default file e2e marker " + std::to_string(::getpid());
+    ilog("${marker}", ("marker", marker));
+
+    ASSERT_TRUE(mc::filesystem::exists(log_file)) << log_file.string();
+    EXPECT_NE(read_file_contents(log_file).find(marker), std::string::npos);
+
+    default_log.remove_appender("default_file");
+}
 
 TEST_F(application_test, default_logging_scans_env_appenders_directory)
 {
@@ -404,8 +524,7 @@ TEST_F(application_test, default_logging_load_failure_logged_when_missing_direct
 
     ASSERT_EQ(::setenv("MCAPP_LOG_APPENDERS_DIR", bad_appenders_dir.string().c_str(), 1), 0);
     ASSERT_TRUE(initialize_with_single_service(make_sample_service_definition()));
-    EXPECT_TRUE(
-        sink->any_line_contains_both(k_failed_load_appenders_hint, mc::string_view(marker.data(), marker.size())));
+    EXPECT_TRUE(sink->any_line_contains_both(k_default_file_appender_create_failed_hint, "default_file"));
 }
 
 TEST_F(application_test, default_logging_skip_avoids_builtin_appenders_probe_when_explicit_logging_marker)
@@ -431,8 +550,261 @@ TEST_F(application_test, default_logging_skip_avoids_builtin_appenders_probe_whe
     plan.services.push_back(std::move(definition));
 
     ASSERT_TRUE(m_app->initialize_with_plan(std::move(plan)));
-    EXPECT_FALSE(
-        sink->any_line_contains_both(k_failed_load_appenders_hint, mc::string_view(marker.data(), marker.size())));
+    EXPECT_FALSE(sink->any_line_contains_both(k_default_file_appender_create_failed_hint, "default_file"));
+}
+
+TEST_F(application_test, explicit_logging_without_appender_dirs_still_loads_builtin_file_appender)
+{
+    scratch_appenders_directory_guard dir_guard(make_scratch_appenders_directory_token("explicit_logging"));
+    ASSERT_TRUE(populate_appenders_scratch_dir_with_file_plugin(dir_guard.dir));
+    ASSERT_EQ(::setenv("MCAPP_LOG_APPENDERS_DIR", dir_guard.dir.string().c_str(), 1), 0);
+
+    auto          config_path = dir_guard.dir / "config.json";
+    std::ofstream config_file(config_path);
+    ASSERT_TRUE(config_file.is_open()) << config_path.string();
+    config_file << R"JSON([
+  {
+    "api_version": "v1",
+    "kind": "Application",
+    "meta": {
+      "name": "mcapp_explicit_logging_app"
+    }
+  },
+  {
+    "api_version": "v1",
+    "kind": "Service",
+    "type": "sample_service",
+    "meta": {
+      "name": "mc.test.explicit.logging"
+    },
+    "enabled": true
+  },
+  {
+    "api_version": "v1",
+    "kind": "Logging",
+    "appenders": [
+      {
+        "name": "explicit_file",
+        "type": "file",
+        "properties": {
+          "module_name": "mcapp_explicit_logging"
+        }
+      }
+    ],
+    "loggers": [
+      {
+        "name": "default",
+        "level": "notice",
+        "appenders": ["explicit_file"]
+      }
+    ]
+  }
+])JSON";
+    config_file.close();
+
+    auto default_log = mc::log::default_logger();
+    default_log.remove_appender("default_file");
+    ASSERT_EQ(default_log.find_appender("default_file"), nullptr);
+
+    ASSERT_TRUE(initialize_from_config_file(config_path));
+
+    EXPECT_EQ(default_log.find_appender("default_file"), nullptr);
+    EXPECT_NE(default_log.find_appender("explicit_file"), nullptr);
+    EXPECT_NE(mc::log::appender_factory::instance().get_appender("explicit_file"), nullptr);
+}
+
+TEST_F(application_test, explicit_logging_with_empty_appender_dirs_does_not_load_default_dir)
+{
+    scratch_appenders_directory_guard dir_guard(make_scratch_appenders_directory_token("explicit_logging_empty_dirs"));
+    ASSERT_TRUE(populate_appenders_scratch_dir_with_file_plugin(dir_guard.dir));
+    ASSERT_EQ(::setenv("MCAPP_LOG_APPENDERS_DIR", dir_guard.dir.string().c_str(), 1), 0);
+
+    auto          config_path = dir_guard.dir / "config.json";
+    std::ofstream config_file(config_path);
+    ASSERT_TRUE(config_file.is_open()) << config_path.string();
+    config_file << R"JSON([
+  {
+    "api_version": "v1",
+    "kind": "Application",
+    "meta": {
+      "name": "mcapp_explicit_logging_empty_dirs_app"
+    }
+  },
+  {
+    "api_version": "v1",
+    "kind": "Service",
+    "type": "sample_service",
+    "meta": {
+      "name": "mc.test.explicit.logging.empty_dirs"
+    },
+    "enabled": true
+  },
+  {
+    "api_version": "v1",
+    "kind": "Logging",
+    "appender_dirs": [],
+    "appenders": [
+      {
+        "name": "explicit_file_empty_dirs",
+        "type": "file",
+        "properties": {
+          "module_name": "mcapp_explicit_logging_empty_dirs"
+        }
+      }
+    ],
+    "loggers": [
+      {
+        "name": "default",
+        "level": "notice",
+        "appenders": ["explicit_file_empty_dirs"]
+      }
+    ]
+  }
+])JSON";
+    config_file.close();
+
+    auto default_log = mc::log::default_logger();
+    default_log.remove_appender("default_file");
+    ASSERT_EQ(default_log.find_appender("default_file"), nullptr);
+
+    ASSERT_TRUE(initialize_from_config_file(config_path));
+
+    EXPECT_EQ(default_log.find_appender("default_file"), nullptr);
+    EXPECT_EQ(default_log.find_appender("explicit_file_empty_dirs"), nullptr);
+    EXPECT_EQ(mc::log::appender_factory::instance().get_appender("explicit_file_empty_dirs"), nullptr);
+}
+
+TEST_F(application_test, explicit_logging_with_explicit_appender_dirs_does_not_merge_default_dir)
+{
+    scratch_appenders_directory_guard default_dir_guard(make_scratch_appenders_directory_token("default_source"));
+    scratch_appenders_directory_guard explicit_dir_guard(make_scratch_appenders_directory_token("explicit_source"));
+    ASSERT_TRUE(populate_appenders_scratch_dir_with_file_plugin(default_dir_guard.dir));
+    ASSERT_TRUE(mc::filesystem::exists(explicit_dir_guard.dir) ||
+                mc::filesystem::create_directories(explicit_dir_guard.dir));
+    ASSERT_EQ(::setenv("MCAPP_LOG_APPENDERS_DIR", default_dir_guard.dir.string().c_str(), 1), 0);
+
+    auto          config_path = explicit_dir_guard.dir / "config.json";
+    std::ofstream config_file(config_path);
+    ASSERT_TRUE(config_file.is_open()) << config_path.string();
+    config_file << R"JSON([
+  {
+    "api_version": "v1",
+    "kind": "Application",
+    "meta": {
+      "name": "mcapp_explicit_logging_dirs_app"
+    }
+  },
+  {
+    "api_version": "v1",
+    "kind": "Service",
+    "type": "sample_service",
+    "meta": {
+      "name": "mc.test.explicit.logging.dirs"
+    },
+    "enabled": true
+  },
+  {
+    "api_version": "v1",
+    "kind": "Logging",
+    "appender_dirs": [
+      "__EXPLICIT_DIR__"
+    ],
+    "appenders": [
+      {
+        "name": "explicit_file_dirs",
+        "type": "file",
+        "properties": {
+          "module_name": "mcapp_explicit_logging_dirs"
+        }
+      }
+    ],
+    "loggers": [
+      {
+        "name": "default",
+        "level": "notice",
+        "appenders": ["explicit_file_dirs"]
+      }
+    ]
+  }
+])JSON";
+    config_file.close();
+
+    auto config_text = read_file_contents(config_path);
+    auto marker_pos  = config_text.find("__EXPLICIT_DIR__");
+    ASSERT_NE(marker_pos, std::string::npos);
+    config_text.replace(marker_pos, std::string("__EXPLICIT_DIR__").size(), explicit_dir_guard.dir.string());
+    std::ofstream rewrite_file(config_path);
+    ASSERT_TRUE(rewrite_file.is_open()) << config_path.string();
+    rewrite_file << config_text;
+    rewrite_file.close();
+
+    auto default_log = mc::log::default_logger();
+    default_log.remove_appender("default_file");
+    ASSERT_EQ(default_log.find_appender("default_file"), nullptr);
+
+    ASSERT_TRUE(initialize_from_config_file(config_path));
+
+    EXPECT_EQ(default_log.find_appender("default_file"), nullptr);
+    EXPECT_EQ(default_log.find_appender("explicit_file_dirs"), nullptr);
+    EXPECT_EQ(mc::log::appender_factory::instance().get_appender("explicit_file_dirs"), nullptr);
+}
+
+TEST_F(application_test, manifest_logging_without_appender_dirs_still_loads_builtin_file_appender)
+{
+    scratch_appenders_directory_guard dir_guard(make_scratch_appenders_directory_token("manifest_logging"));
+    ASSERT_TRUE(populate_appenders_scratch_dir_with_file_plugin(dir_guard.dir));
+    ASSERT_EQ(::setenv("MCAPP_LOG_APPENDERS_DIR", dir_guard.dir.string().c_str(), 1), 0);
+
+    auto          config_path = dir_guard.dir / "config.json";
+    std::ofstream config_file(config_path);
+    ASSERT_TRUE(config_file.is_open()) << config_path.string();
+    config_file << R"JSON({
+  "api_version": "v1",
+  "kind": "ApplicationManifest",
+  "meta": {
+    "name": "mcapp_manifest_logging_app"
+  },
+  "services": [
+    {
+      "api_version": "v1",
+      "kind": "Service",
+      "type": "sample_service",
+      "meta": {
+        "name": "mc.test.manifest.logging"
+      },
+      "enabled": true
+    }
+  ],
+  "logging": {
+    "appenders": [
+      {
+        "name": "manifest_file",
+        "type": "file",
+        "properties": {
+          "module_name": "mcapp_manifest_logging"
+        }
+      }
+    ],
+    "loggers": [
+      {
+        "name": "default",
+        "level": "notice",
+        "appenders": ["manifest_file"]
+      }
+    ]
+  }
+})JSON";
+    config_file.close();
+
+    auto default_log = mc::log::default_logger();
+    default_log.remove_appender("default_file");
+    ASSERT_EQ(default_log.find_appender("default_file"), nullptr);
+
+    ASSERT_TRUE(initialize_from_config_file(config_path));
+
+    EXPECT_EQ(default_log.find_appender("default_file"), nullptr);
+    EXPECT_NE(default_log.find_appender("manifest_file"), nullptr);
+    EXPECT_NE(mc::log::appender_factory::instance().get_appender("manifest_file"), nullptr);
 }
 
 TEST_F(application_test, initialize_builds_service_plan_from_plan)

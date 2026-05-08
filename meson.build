@@ -16,6 +16,7 @@ project(
 add_project_arguments('-fvisibility=hidden', language: 'cpp')
 
 cpp_compiler = meson.get_compiler('cpp')
+fs = import('fs')
 if cpp_compiler.get_id() == 'clang'
   add_project_arguments('-Wno-#warnings', language: 'cpp')
 endif
@@ -112,8 +113,34 @@ else
   message('使用系统 Boost')
 endif
 
-# 设置编译宏
-if meson.is_cross_build()
+# 优先探测外部 liblogger/liblogging；探测不到时回退到工程内 stub。
+liblogger_optional_dep = dependency('liblogger', method: 'pkg-config', required: false)
+if not liblogger_optional_dep.found()
+  liblogger_optional_dep = dependency('liblogger', required: false)
+endif
+
+liblogging_filename = 'liblogging.so'
+if host_machine.system() == 'darwin'
+  liblogging_filename = 'liblogging.dylib'
+endif
+
+liblogging_path = ''
+if liblogger_optional_dep.found()
+  liblogger_libdir = liblogger_optional_dep.get_variable(pkgconfig: 'libdir', default_value: '')
+  if liblogger_libdir == ''
+    liblogger_libdir = liblogger_optional_dep.get_variable('libdir', default_value: '')
+  endif
+
+  if liblogger_libdir != ''
+    liblogging_candidate = join_paths(liblogger_libdir, liblogging_filename)
+    if fs.exists(liblogging_candidate)
+      liblogging_path = liblogging_candidate
+      message('检测到外部 logging 库: ' + liblogging_path)
+    endif
+  endif
+endif
+
+if liblogging_path == '' and (enable_conan_compile or meson.is_cross_build())
   current_buildtype = get_option('buildtype')
   if current_buildtype == 'debug'
     add_project_arguments('-DBUILD_TYPE=BUILD_TYPE_DEBUG', language: 'cpp')
@@ -121,9 +148,13 @@ if meson.is_cross_build()
     add_project_arguments('-DBUILD_TYPE=BUILD_TYPE_RELEASE', language: 'cpp')
   endif
   add_project_arguments('-DLOGGING_PATH="/usr/lib64/liblogging.so"', language: 'cpp')
+elif liblogging_path != ''
+  add_project_arguments('-DBUILD_TYPE=BUILD_TYPE_DT', language: 'cpp')
+  add_project_arguments('-DLOGGING_PATH="' + liblogging_path + '"', language: 'cpp')
 else
   add_project_arguments('-DBUILD_TYPE=BUILD_TYPE_DT', language: 'cpp')
   add_project_arguments('-DLOGGING_PATH=""', language: 'cpp')
+  message('未检测到外部 logging 库，回退到工程内 stub 实现')
 endif
 
 # 尝试使用 pkg-config 查找依赖

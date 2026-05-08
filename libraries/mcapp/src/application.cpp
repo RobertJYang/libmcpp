@@ -334,6 +334,32 @@ mc::filesystem::path resolve_config_path(const mc::filesystem::path& source_path
 // 缺省 default_file appender 的固定名字，与外部约定保持一致。
 constexpr mc::string_view k_default_file_appender_name{"default_file"};
 
+void bootstrap_default_file_appender(mc::string_view module_name);
+
+void append_default_logging_appender_dir(mc::log::logging_config& logging_config)
+{
+    auto appender_dir = resolve_default_log_appenders_directory_for_mcapp();
+    auto it = std::find(logging_config.appender_dirs.begin(), logging_config.appender_dirs.end(), appender_dir);
+    if (it != logging_config.appender_dirs.end()) {
+        return;
+    }
+
+    logging_config.appender_dirs.push_back(appender_dir);
+}
+
+void apply_resolved_logging_config(mc::log::logging_config logging_config, mc::string_view module_name,
+                                   bool append_default_appender_dir,
+                                   bool bootstrap_default_file_appender_for_default_logger)
+{
+    if (append_default_appender_dir) {
+        append_default_logging_appender_dir(logging_config);
+    }
+    mc::log::log_manager::instance().apply_config(logging_config);
+    if (bootstrap_default_file_appender_for_default_logger) {
+        bootstrap_default_file_appender(module_name);
+    }
+}
+
 void bootstrap_default_file_appender(mc::string_view module_name)
 {
     auto default_log = mc::log::default_logger();
@@ -352,23 +378,26 @@ void bootstrap_default_file_appender(mc::string_view module_name)
     }
     if (appender != nullptr) {
         default_log.add_appender(appender);
+    } else {
+        wlog("mcapp create default file appender[${name}] failed", ("name", k_default_file_appender_name));
     }
 }
 
 void apply_default_logging_config(mc::string_view module_name)
 {
-    mc::log::logging_config logging_config;
-    logging_config.appender_dirs.push_back(resolve_default_log_appenders_directory_for_mcapp());
-    mc::log::log_manager::instance().apply_config(logging_config);
-    bootstrap_default_file_appender(module_name);
+    apply_resolved_logging_config(mc::log::logging_config{}, module_name, true, true);
 }
 
 bool apply_logging_config(const mc::variant& item)
 {
     try {
         mc::log::logging_config logging_config;
+        bool                    append_default_appender_dir = true;
+        if (item.is_dict()) {
+            append_default_appender_dir = !item.as<mc::dict>().contains("appender_dirs");
+        }
         mc::from_variant(item, logging_config);
-        mc::log::log_manager::instance().apply_config(logging_config);
+        apply_resolved_logging_config(std::move(logging_config), {}, append_default_appender_dir, false);
         return true;
     } catch (const std::exception& e) {
         elog("apply mcapp logging config failed: ${error}", ("error", e.what()));

@@ -96,6 +96,7 @@ bool log_manager::load_single_appender(const appender_config& app_config)
         return false;
     }
 
+    ilog("Appender[${name}] is ready, type[${type}]", ("name", app_config.name)("type", app_config.type));
     return true;
 }
 

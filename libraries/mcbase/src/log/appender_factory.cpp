@@ -17,6 +17,7 @@
 #include <mc/log/appender_factory.h>
 #include <mc/log/appenders/console_appender.h>
 #include <mc/log/log.h>
+#include <mc/singleton.h>
 #include <mc/variant.h>
 #include <string_view>
 #include <unordered_map>
@@ -143,8 +144,6 @@ public:
 
         auto creator = reinterpret_cast<appender_creator_c>(dlsym(handle, "create_appender"));
         if (!creator) {
-            elog("Failed to find creator function: ${path}, error: ${error}",
-                 ("path", library_path)("error", dlerror()));
             dlclose(handle);
             return false;
         }
@@ -165,6 +164,7 @@ public:
             }
             return appender_ptr();
         });
+        ilog("Loaded log appender: type: ${type}", ("type", appender_type));
 
         return true;
     }
@@ -173,7 +173,6 @@ public:
     {
         const auto dir = mc::filesystem::path(dir_path);
         if (!mc::filesystem::is_directory(dir)) {
-            elog("Failed to load appenders: ${path}", ("path", dir_path));
             return;
         }
 
@@ -230,13 +229,16 @@ private:
 
     void cleanup()
     {
+        // 先释放 appender 实例，避免其析构函数仍依赖已卸载的插件代码。
+        m_appenders.clear();
+        m_creators.clear();
+
         for (const auto& [path, lib_info] : m_libraries) {
             if (lib_info.handle) {
                 dlclose(lib_info.handle);
             }
         }
         m_libraries.clear();
-        m_creators.clear();
     }
 
     // 从库信息创建追加器实例
@@ -264,8 +266,9 @@ private:
 // appender_factory 实现
 appender_factory& appender_factory::instance()
 {
-    static appender_factory instance;
-    return instance;
+    return mc::singleton_leaky<appender_factory>::instance_with_creator([]() {
+        return new appender_factory();
+    });
 }
 
 appender_factory::appender_factory() : m_impl(std::make_unique<impl>())
@@ -306,6 +309,11 @@ appender_ptr appender_factory::get_or_create_appender(mc::string_view name, mc::
 void appender_factory::register_creator(mc::string_view type, std::function<appender_ptr()> creator)
 {
     m_impl->register_creator(type, std::move(creator));
+}
+
+void appender_factory::reset_for_test()
+{
+    mc::singleton_leaky<appender_factory>::reset_for_test();
 }
 
 } // namespace log

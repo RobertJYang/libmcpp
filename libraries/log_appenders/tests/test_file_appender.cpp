@@ -105,6 +105,8 @@ protected:
     {
         mc::test::TestBase::SetUp();
         mc::log::default_logger().set_level(mc::log::level::off);
+        logging::set_stub_log_path(m_test_log_file.string());
+        file_appender::set_debug_log_ptr(reinterpret_cast<void*>(static_cast<debug_log_func_t>(test_debug_log)));
 
         // 在每个测试开始时重新初始化日志文件
         std::ofstream ofs(m_test_log_file, std::ios::trunc);
@@ -122,6 +124,8 @@ protected:
     {
         // 刷新并关闭文件
         m_appender->flush();
+        logging::set_stub_log_path(m_test_log_file.string());
+        file_appender::set_debug_log_ptr(reinterpret_cast<void*>(static_cast<debug_log_func_t>(test_debug_log)));
 
         // 删除测试文件
         if (mc::filesystem::exists(m_test_log_file)) {
@@ -364,6 +368,31 @@ TEST_F(file_appender_test, InitWithModuleName)
     dict["filename"]    = m_test_log_file.string();
     dict["module_name"] = "test_module";
     EXPECT_TRUE(appender->init(dict));
+}
+
+TEST_F(file_appender_test, InitWithFilenameWritesToConfiguredFileWithoutStubFallback)
+{
+    auto appender = mc::log::appender_factory::instance().create_by_type<file_appender>("file");
+    ASSERT_NE(appender, nullptr);
+
+    auto target_file = m_test_dir.child_path("configured_filename_only.log");
+    if (mc::filesystem::exists(target_file)) {
+        mc::filesystem::remove(target_file);
+    }
+
+    logging::set_stub_log_path("");
+    file_appender::set_debug_log_ptr(nullptr);
+
+    mc::dict dict;
+    dict["filename"]       = target_file.string();
+    dict["flush_on_write"] = true;
+    ASSERT_TRUE(appender->init(dict));
+
+    auto msg = create_test_message(level::info, "写入指定文件");
+    ASSERT_NO_THROW(appender->append(msg));
+    appender->flush();
+
+    EXPECT_TRUE(check_log_file_exists_and_not_empty(target_file.string()));
 }
 
 // 测试追加函数 - 空文件名上下文

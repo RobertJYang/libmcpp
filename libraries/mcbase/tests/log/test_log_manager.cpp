@@ -711,6 +711,28 @@ TEST_F(log_manager_test, AppenderFactoryGetNonExistentAppender)
     EXPECT_EQ(non_existent, nullptr);
 }
 
+TEST_F(log_manager_test, AppenderFactoryResetForTestClearsFactoryState)
+{
+    auto type_name = make_unique_name("reset_type");
+    auto app_name  = make_unique_name("reset_app");
+
+    appender_factory::instance().register_creator(type_name, []() {
+        return std::make_shared<tracking_appender>();
+    });
+
+    auto created = appender_factory::instance().create(app_name, type_name, mc::dict{});
+    ASSERT_NE(created, nullptr);
+    ASSERT_NE(appender_factory::instance().get_appender(app_name), nullptr);
+
+    appender_factory::reset_for_test();
+
+    EXPECT_EQ(appender_factory::instance().get_appender(app_name), nullptr);
+
+    auto console_name = make_unique_name("console_after_reset");
+    auto console      = appender_factory::instance().create(console_name, "console", mc::dict{});
+    EXPECT_NE(console, nullptr);
+}
+
 // 测试 log_manager 的 get_logger 创建新 logger 的路径（覆盖行 72-74）
 TEST_F(log_manager_test, GetLoggerCreatesNewLogger)
 {

@@ -22,6 +22,17 @@ if enable_coverage
   mcapp_test_link_args += coverage_link_args
 endif
 
+mcapp_test_file_appender_plugin = shared_library(
+  'mcapp_test_file_appender_plugin',
+  'test_file_appender_plugin.cpp',
+  include_directories: [incdir, srcdir, mcapp_test_incdir],
+  dependencies: [mcbase_dep],
+  gnu_symbol_visibility: 'default',
+  name_prefix: '',
+  install: false,
+  build_by_default: false,
+)
+
 mcapp_test_lib = static_library(
   'mcapp_test_lib',
   mcapp_test_files,
@@ -42,6 +53,7 @@ mcapp_test_exe = executable(
   link_whole: [
     mcapp_test_lib,
   ],
+  link_with: [mcapp_test_file_appender_plugin],
   include_directories: [incdir, srcdir, mcapp_test_incdir],
   dependencies: [
     gtest_dep,

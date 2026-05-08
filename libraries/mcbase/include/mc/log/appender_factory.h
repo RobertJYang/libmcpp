@@ -117,9 +117,9 @@ public:
     appender_ptr get_or_create_appender(mc::string_view name, mc::string_view type, const mc::dict& config);
 
     /**
-     * @brief 清理所有资源
+     * @brief 重置工厂单例（仅用于测试）
      */
-    static void cleanup();
+    static void reset_for_test();
 
     /**
      * @brief 析构函数

@@ -119,13 +119,21 @@ bool file_appender::init(const variant& args)
             set_log_module_name_ptr(module_name.c_str());
         }
     }
+    if (dict.contains("filename") && dict["filename"].is_string()) {
+        m_file_config.filename = dict["filename"].as<std::string>();
+    }
     if (dict.contains("truncate") && dict["truncate"].is_bool()) {
         m_file_config.truncate = dict["truncate"].as<bool>();
     }
     if (dict.contains("flush_on_write") && dict["flush_on_write"].is_bool()) {
         m_file_config.flush_on_write = dict["flush_on_write"].as<bool>();
     }
+
+    close_file();
     open_file();
+    if (!m_file_config.filename.empty() && !m_file.is_open()) {
+        return false;
+    }
     return true;
 }
 
