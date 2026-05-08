@@ -148,6 +148,13 @@ public:
     uint64_t add_match(match_rule& rule, mc::dbus::match_cb_t&& cb);
 
     /**
+     * @brief 测试共享内存中是否存在匹配该消息的订阅
+     * @param msg [in] DBus消息
+     * @return 存在匹配订阅返回 true，否则返回 false
+     */
+    static bool test_shm_match(DBusMessage* msg);
+
+    /**
      * @brief 移除匹配规则
      * @param id [in] 规则ID
      */
@@ -282,7 +289,7 @@ public:
 private:
     std::string                                         m_service_name;
     std::string                                         m_unique_name;
-    ::shm::object_tree*                                   m_tree;
+    ::shm::object_tree*                                 m_tree;
     std::unordered_map<uint64_t, std::function<void()>> m_shm_slots;
 };
 
@@ -305,7 +312,7 @@ struct MC_API shm_obj_visitor : mc::engine::metadata_visitor {
      */
     void handle_interface_begin(const mc::engine::interface_metadata& iface) override
     {
-        m_shm_intf = &m_shm_obj.register_interface(m_shm_ins, false, iface.metadata->get_class_name());
+        m_shm_intf   = &m_shm_obj.register_interface(m_shm_ins, false, iface.metadata->get_class_name());
         m_iface_meta = &iface;
         m_iface      = mc::engine::to_interface_ptr(&m_obj, iface.interface);
     }
@@ -356,9 +363,9 @@ struct MC_API shm_obj_visitor : mc::engine::metadata_visitor {
     const mc::engine::abstract_object&    m_obj;
     const mc::engine::abstract_interface* m_iface{nullptr};
     const mc::engine::interface_metadata* m_iface_meta{nullptr};
-    ::shm::shared_memory&                   m_shm_ins;
-    ::shm::object&                          m_shm_obj;
-    ::shm::interface*                       m_shm_intf;
+    ::shm::shared_memory&                 m_shm_ins;
+    ::shm::object&                        m_shm_obj;
+    ::shm::interface*                     m_shm_intf;
 };
 } // namespace mc::dbus
 

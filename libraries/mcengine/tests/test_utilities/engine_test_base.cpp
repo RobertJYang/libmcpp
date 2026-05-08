@@ -36,14 +36,7 @@ void TestWithEngine::fork_child(const std::function<int()>& body) const
         int rc = 0;
         try {
             rc = body();
-        } catch (const std::exception& ex) {
-            // stderr + fflush：子进程在部分测试环境下全缓冲，避免诊断丢失
-            std::fprintf(stderr, "[fork_child] uncaught std::exception: %s\n", ex.what());
-            std::fflush(stderr);
-            rc = kChildExceptionExitCode;
         } catch (...) {
-            std::fprintf(stderr, "[fork_child] uncaught non-std exception\n");
-            std::fflush(stderr);
             rc = kChildExceptionExitCode;
         }
         // _exit 跳过整条析构链，模拟"进程崩溃来不及清理"，同时避免

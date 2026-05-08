@@ -34,6 +34,7 @@ struct service_impl;
 class abstract_object;
 class service_object_table;
 class service_proto;
+class service_backend;
 } // namespace mc::engine
 
 namespace mc::engine {
@@ -87,6 +88,7 @@ public:
 
     void           set_proto(service_proto* proto);
     service_proto* get_proto() const;
+    void           set_backend(service_backend* backend);
 
     void emit(const message& msg) const;
 

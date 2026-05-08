@@ -22,6 +22,7 @@
 #include <mc/engine/path_iterator.h>
 #include <mc/engine/property/types.h>
 #include <mc/engine/service.h>
+#include <mc/engine/service_backend.h>
 #include <mc/engine/service_proto.h>
 #include <mc/engine/utils.h>
 #include <mc/exception.h>
@@ -184,6 +185,7 @@ struct service_impl {
     bool             m_registered{false};
     bool             m_started{false};
     service_proto*   m_proto{nullptr};
+    service_backend* m_backend{nullptr};
 
     std::mutex                          m_match_mutex;
     std::unordered_set<match::match_id> m_owned_matches;
@@ -231,6 +233,17 @@ void service_impl::unregister_from_engine()
         return;
     }
 
+    if (m_backend != nullptr) {
+        for (auto it = m_object_table->begin(0U); it != m_object_table->end(0U); ++it) {
+            if (it.is_end()) {
+                break;
+            }
+            const auto& obj_ptr = (*it).second;
+            if (obj_ptr) {
+                m_backend->on_object_removed(*obj_ptr);
+            }
+        }
+    }
     m_object_table->clear();
     shm_binding::detach(m_shm_state);
     mc::engine::engine::unregister_service(m_service);
@@ -245,6 +258,9 @@ void service_impl::unregister_from_engine()
         auto table = mc::engine::engine::get_match_table();
         if (table) {
             for (auto id : drained) {
+                if (m_backend != nullptr) {
+                    m_backend->on_match_removed(id);
+                }
                 m_service->on_match_removed(id);
                 table->unsubscribe(id);
             }
@@ -283,6 +299,10 @@ void service_impl::register_object(abstract_object& obj)
     }
 
     shm_binding::notify_after_register();
+
+    if (m_backend != nullptr) {
+        m_backend->on_object_added(obj);
+    }
 }
 
 abstract_object* service_impl::find_owner(mc::string_view path) const
@@ -326,6 +346,9 @@ void service_impl::unregister_object(mc::string_view path)
         if (engine_child) {
             unregister_object(engine_child->get_object_path());
         }
+    }
+    if (m_backend != nullptr) {
+        m_backend->on_object_removed(obj);
     }
     m_object_table->remove(mc::shared_ptr<abstract_object>(&obj));
 
@@ -540,6 +563,15 @@ void service::emit(const message& msg) const
         m.header.sender = m_name;
     }
 
+    service_backend* backend = nullptr;
+    {
+        std::lock_guard lock(m_impl->m_mutex);
+        backend = m_impl->m_backend;
+    }
+    if (backend != nullptr && !backend->emit(m)) {
+        return;
+    }
+
     auto table = engine::get_match_table();
     if (!table) {
         return;
@@ -668,6 +700,12 @@ service_proto* service::get_proto() const
     return m_impl->m_proto;
 }
 
+void service::set_backend(service_backend* backend)
+{
+    std::lock_guard lock(m_impl->m_mutex);
+    m_impl->m_backend = backend;
+}
+
 match::match_id service::add_match(match::match_rule rule, match::filter_spec spec,
                                    match::match_callback callback) const
 {
@@ -682,6 +720,14 @@ match::match_id service::add_match(match::match_rule rule, match::filter_spec sp
     {
         std::lock_guard lock(m_impl->m_match_mutex);
         m_impl->m_owned_matches.insert(id);
+    }
+    service_backend* backend = nullptr;
+    {
+        std::lock_guard lock(m_impl->m_mutex);
+        backend = m_impl->m_backend;
+    }
+    if (backend != nullptr) {
+        backend->on_match_added(id, rule_snapshot);
     }
     on_match_added(id, rule_snapshot);
     return id;
@@ -700,6 +746,14 @@ void service::remove_match(match::match_id id) const
     }
     if (!owned) {
         return;
+    }
+    service_backend* backend = nullptr;
+    {
+        std::lock_guard lock(m_impl->m_mutex);
+        backend = m_impl->m_backend;
+    }
+    if (backend != nullptr) {
+        backend->on_match_removed(id);
     }
     on_match_removed(id);
     if (auto table = engine::get_match_table()) {

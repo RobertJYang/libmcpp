@@ -224,6 +224,41 @@ class AppConan(ConanBase):
         )
         return bool(self.options.test) and self._active_project_name() == recipe_project_name
 
+    def _meson_bool(self, value):
+        return "true" if value else "false"
+
+    def _meson_reconfigure_args(self):
+        """为已有 builddir 显式同步会漂移的 Meson 选项，避免清空缓存。"""
+        build_tests = self._build_own_tests()
+        build_test_utilities = self._build_test_utilities()
+        args = [
+            f"-Dtests={self._meson_bool(build_tests)}",
+            f"-Dtests_utilities={self._meson_bool(build_test_utilities)}",
+            f"-Dexamples={self._meson_bool(self._build_examples())}",
+            f"-Duse_shm={self._meson_bool(bool(self.options.use_shm))}",
+            f"-Duse_old_shm={self._meson_bool(bool(self.options.use_old_shm))}",
+        ]
+        for subproject_name in ("mcbase", "mcengine", "mcexpr", "mcdbus", "mcapp"):
+            args.append(
+                f"-D{subproject_name}:tests={self._meson_bool(build_tests)}"
+            )
+        for subproject_name in ("mcbase", "mcengine", "mcapp"):
+            args.append(
+                f"-D{subproject_name}:tests_utilities={self._meson_bool(build_test_utilities)}"
+            )
+        args.extend(
+            [
+                f"-Dmcengine:use_shm={self._meson_bool(bool(self.options.use_shm))}",
+                f"-Dmcdbus:use_old_shm={self._meson_bool(bool(self.options.use_old_shm))}",
+                f"-Dmcapp:use_old_shm={self._meson_bool(bool(self.options.use_old_shm))}",
+            ]
+        )
+        return args
+
+    def _reconfigure_existing_build(self):
+        configure_args = " ".join(self._meson_reconfigure_args())
+        self.run(f'meson configure "{self.build_folder}" {configure_args}')
+
     def generate(self):
         os.environ["PKG_CONFIG"] = "/usr/bin/pkg-config"
         tc = MesonToolchain(self, "ninja")
@@ -307,16 +342,12 @@ class AppConan(ConanBase):
     def build(self):
         meson = Meson(self)
         if os.path.exists(os.path.join(self.build_folder, "meson-private", "coredata.dat")):
-            self.run(
-                "meson setup --clearcache --reconfigure "
-                f'"{self.build_folder}" "{self.source_folder}"'
-            )
+            self._reconfigure_existing_build()
         else:
             meson.configure()
+        meson.build()
         if self._build_own_tests():
             self.test()
-        else:
-            meson.build()
 
     def test(self):
         """运行 Meson 测试"""
@@ -325,7 +356,7 @@ class AppConan(ConanBase):
         filter_arg = os.environ.get("MCLI_TEST_FILTER")
         verbose = os.environ.get("MCLI_TEST_VERBOSE")
 
-        cmd = ["meson", "test", "-v"]
+        cmd = ["meson", "test", "-v", "-C", self.build_folder, "--no-rebuild"]
 
         if filter_arg:
             cmd.extend(["--suite", filter_arg])

@@ -31,8 +31,8 @@ if enable_coverage
   add_project_link_arguments(coverage_link_args, language: 'cpp')
 endif
 
-# mcapp 的旧 shm 粘合层与 mcdbus 的旧 shm 实现是配对的：仅用于 src/meson.build
-# 决定是否把 legacy_shm_binding.cpp 加入编译目标。
+# mcapp 的 service backend 与 mcdbus 的旧 shm 实现是配对的：仅用于 src/meson.build
+# 决定是否把 service_backend.cpp 加入编译目标。
 # C++ 侧统一用 mcdbus 透传过来的 MCDBUS_USE_OLD_SHM 宏来 #if 切换，避免与 mcdbus 出现
 # 不同步的"两个真相"（如下方 use_old_shm 与 mcdbus:use_old_shm 通过 default_options 强同步）。
 

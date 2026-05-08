@@ -28,10 +28,7 @@
 namespace mc::app {
 
 class app_proto;
-
-namespace legacy_shm {
-class binding;
-} // namespace legacy_shm
+class service_backend;
 
 enum class service_state { created, configured, starting, running, stopping, stopped, failed };
 
@@ -84,9 +81,7 @@ private:
     std::unique_ptr<app_proto>             m_proto;
     mc::shared_ptr<micro_component_object> m_micro_component;
 #if defined(MCDBUS_USE_OLD_SHM) && MCDBUS_USE_OLD_SHM
-    // 仅顶层 use_old_shm=true 时实例化；析构延迟到 service.cpp 中（binding 完整类型在 cpp 可见）。
-    // 宏由 mcdbus_dep 透传，与 mcdbus 内部对旧 shm 路径的取舍保持单一真相。
-    std::unique_ptr<legacy_shm::binding> m_legacy_shm;
+    std::unique_ptr<service_backend> m_backend;
 #endif
 };
 

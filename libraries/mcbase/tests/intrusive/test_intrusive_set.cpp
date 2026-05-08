@@ -131,7 +131,7 @@ TEST(intrusive_set_test, erase_by_iterator)
 
     auto it = nodes.find(second);
     ASSERT_NE(it, nodes.end());
-    auto next_it = nodes.erase(it);
+    nodes.erase(it);
 
     EXPECT_EQ(nodes.size(), 2U);
     EXPECT_EQ(nodes.find(second), nodes.end());
