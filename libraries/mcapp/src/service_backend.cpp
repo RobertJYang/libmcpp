@@ -26,6 +26,7 @@
 #include <mc/engine/message.h>
 #include <mc/engine/payload.h>
 #include <mc/engine/service.h>
+#include <mc/engine/std_interface.h>
 #include <mc/log/log.h>
 
 #include <chrono>
@@ -55,6 +56,29 @@ void _wait_for_backend_shm_lock()
     }
 }
 
+const mc::reflect::method_type_info* _resolve_method_info(mc::engine::service& svc, std::string_view path,
+                                                          std::string_view interface_name, std::string_view method_name)
+{
+    if (auto* standard_method = mc::engine::standard_interfaces::get_method_info(interface_name, method_name);
+        standard_method != nullptr) {
+        return standard_method;
+    }
+
+    auto& table         = svc.get_object_table();
+    auto  path_key      = mc::string_view(path.data(), path.size());
+    auto  interface_key = mc::string_view(interface_name.data(), interface_name.size());
+    auto  method_key    = mc::string_view(method_name.data(), method_name.size());
+    auto  it            = table.find<mc::engine::by_path>(path_key);
+    if (!it.is_end()) {
+        const auto& meta = (*it).get_metadata();
+        auto        info = meta.get_method_info(method_key, interface_key);
+        if (info.item != nullptr) {
+            return info.item;
+        }
+    }
+    return nullptr;
+}
+
 mc::dbus::invoke_result _dispatch_via_engine(mc::engine::service& svc, std::string_view path,
                                              std::string_view interface_name, std::string_view method_name,
                                              const mc::variants& args)
@@ -69,17 +93,7 @@ mc::dbus::invoke_result _dispatch_via_engine(mc::engine::service& svc, std::stri
 
     mc::engine::message response = mc::engine::dispatch(svc, request);
 
-    const mc::reflect::method_type_info* method_info   = nullptr;
-    auto&                                table         = svc.get_object_table();
-    auto                                 path_key      = mc::string_view(path.data(), path.size());
-    auto                                 interface_key = mc::string_view(interface_name.data(), interface_name.size());
-    auto                                 method_key    = mc::string_view(method_name.data(), method_name.size());
-    auto                                 it            = table.find<mc::engine::by_path>(path_key);
-    if (!it.is_end()) {
-        const auto& meta = (*it).get_metadata();
-        auto        info = meta.get_method_info(method_key, interface_key);
-        method_info      = info.item;
-    }
+    auto* method_info = _resolve_method_info(svc, path, interface_name, method_name);
 
     if (response.header.type == mc::engine::message_type::method_return) {
         if (auto* payload = response.try_as<mc::engine::method_return_payload>(); payload != nullptr) {

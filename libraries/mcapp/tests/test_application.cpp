@@ -18,6 +18,7 @@
 #include <mc/array.h>
 #include <mc/dbus/connection.h>
 #include <mc/dbus/message.h>
+#include <mc/dbus/sd_bus.h>
 #include <mc/engine.h>
 #include <mc/engine/payload.h>
 #include <mc/engine/proxy.h>
@@ -1018,6 +1019,28 @@ TEST_F(application_test, peer_ping_hits_standard_interface)
         << "Peer.Ping 应返回 method_return, got " << static_cast<int>(reply.get_type());
     EXPECT_TRUE(reply.read_args().empty());
 }
+
+#if defined(MCDBUS_USE_OLD_SHM) && MCDBUS_USE_OLD_SHM
+TEST_F(application_test, object_manager_get_managed_objects_over_old_shm_returns_success)
+{
+    constexpr mc::string_view service_name = "mc.test.application.echo";
+
+    auto svc = start_echo_service(service_name);
+    ASSERT_NE(svc, nullptr);
+
+    mc::dbus::sd_bus bus(true, false);
+    bus.request_name("org.test.application.echo.client");
+
+    auto result = bus.shm_timeout_call(mc::seconds(5),
+                                       {service_name, "/mc/test/application/echo", "org.freedesktop.DBus.ObjectManager",
+                                        "GetManagedObjects", "", mc::variants{}});
+
+    ASSERT_TRUE(result.has_value());
+    ASSERT_EQ(result->size(), 1u);
+    ASSERT_TRUE((*result)[0].is_dict());
+    EXPECT_TRUE((*result)[0].as_dict().empty());
+}
+#endif
 
 TEST_F(application_test, properties_get_all_returns_registered_properties)
 {

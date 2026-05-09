@@ -66,6 +66,23 @@ bool object_has_interface(abstract_object& object, mc::string_view interface_nam
     return object.has_interface(interface_name);
 }
 
+abstract_interface* get_standard_interface(mc::string_view interface_name) noexcept
+{
+    if (interface_name == std_ifaces::properties) {
+        return &properties_interface::get_instance();
+    }
+    if (interface_name == std_ifaces::introspectable) {
+        return &introspectable_interface::get_instance();
+    }
+    if (interface_name == std_ifaces::peer) {
+        return &peer_interface::get_instance();
+    }
+    if (interface_name == std_ifaces::object_manager) {
+        return &object_manager_interface::get_instance();
+    }
+    return nullptr;
+}
+
 std::optional<standard_interfaces::invoke_hit> invoke_standard_interface(abstract_object&    object,
                                                                          abstract_interface& target,
                                                                          mc::string_view     method_name,
@@ -94,6 +111,16 @@ bool standard_interfaces::is_standard_interface(mc::string_view interface_name) 
 {
     return interface_name == properties_interface_name || interface_name == introspectable_interface_name ||
            interface_name == peer_interface_name || interface_name == object_manager_interface_name;
+}
+
+const method_type_info* standard_interfaces::get_method_info(mc::string_view interface_name,
+                                                             mc::string_view method_name) noexcept
+{
+    auto* target = get_standard_interface(interface_name);
+    if (target == nullptr) {
+        return nullptr;
+    }
+    return target->get_method_info(method_name);
 }
 
 bool standard_interfaces::show_context_in_introspect() noexcept
@@ -679,16 +706,8 @@ standard_interfaces::try_invoke(const service& svc, abstract_object* object, mc:
         return invoke_hit{mc::variant(std::move(xml)), "s"};
     }
 
-    abstract_interface* target = nullptr;
-    if (interface_name == std_ifaces::properties) {
-        target = &properties_interface::get_instance();
-    } else if (interface_name == std_ifaces::introspectable) {
-        target = &introspectable_interface::get_instance();
-    } else if (interface_name == std_ifaces::peer) {
-        target = &peer_interface::get_instance();
-    } else if (interface_name == std_ifaces::object_manager) {
-        target = &object_manager_interface::get_instance();
-    } else {
+    auto* target = get_standard_interface(interface_name);
+    if (target == nullptr) {
         return std::nullopt;
     }
     (void)path;

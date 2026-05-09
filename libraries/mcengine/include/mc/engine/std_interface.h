@@ -243,9 +243,11 @@ public:
                                                 mc::string_view method_name, const mc::variants& args,
                                                 mc::string_view interface_name);
 
-    static bool is_standard_interface(mc::string_view interface_name) noexcept;
-    static bool show_context_in_introspect() noexcept;
-    static void set_show_context_in_introspect(bool value) noexcept;
+    static bool                    is_standard_interface(mc::string_view interface_name) noexcept;
+    static const method_type_info* get_method_info(mc::string_view interface_name,
+                                                   mc::string_view method_name) noexcept;
+    static bool                    show_context_in_introspect() noexcept;
+    static void                    set_show_context_in_introspect(bool value) noexcept;
 
     // common_properties 接口名
     static constexpr mc::string_view common_properties_name = "bmc.kepler.Object.Properties";
