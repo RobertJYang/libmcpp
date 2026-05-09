@@ -181,6 +181,28 @@ mc::variants _read_signal_args(mc::dbus::message& wire_msg)
     }
 }
 
+bool _is_legacy_object_manager_signal(const mc::engine::message& msg) noexcept
+{
+    return msg.header.interface_name == "org.freedesktop.DBus.ObjectManager" &&
+           (msg.header.member_name == "InterfacesAdded" || msg.header.member_name == "InterfacesRemoved");
+}
+
+mc::engine::message _rewrite_legacy_object_manager_signal_path(const mc::engine::message& msg)
+{
+    if (!_is_legacy_object_manager_signal(msg)) {
+        return msg;
+    }
+
+    auto  rewritten = msg;
+    auto* payload   = rewritten.try_as<mc::engine::signal_payload>();
+    if (payload == nullptr || payload->args.empty() || !payload->args[0].is_string()) {
+        return msg;
+    }
+
+    rewritten.header.path = payload->args[0].as_string();
+    return rewritten;
+}
+
 mc::engine::message _make_engine_signal(mc::dbus::message& wire_msg)
 {
     mc::engine::message msg;
@@ -344,8 +366,10 @@ bool service_backend::emit(const mc::engine::message& msg)
     }
 
     try {
+        auto outbound = _rewrite_legacy_object_manager_signal_path(msg);
+
         mc::dbus::message probe;
-        if (!_make_wire_signal(msg, probe, true)) {
+        if (!_make_wire_signal(outbound, probe, true)) {
             return true;
         }
         if (!mc::dbus::shm_tree::test_shm_match(probe.get_dbus_message())) {
@@ -353,7 +377,7 @@ bool service_backend::emit(const mc::engine::message& msg)
         }
 
         mc::dbus::message wire;
-        if (!_make_wire_signal(msg, wire, false)) {
+        if (!_make_wire_signal(outbound, wire, false)) {
             return true;
         }
         mc::dbus::send_signal(m_connection, wire);

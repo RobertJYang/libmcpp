@@ -518,7 +518,92 @@ TEST_F(proxy_test, cross_process_typed_proxy_read_write)
     EXPECT_EQ(static_cast<mc::string>(m_server->obj()->iface.Label), "from-child");
 }
 
+#if defined(MCDBUS_USE_OLD_SHM) && MCDBUS_USE_OLD_SHM
+TEST_F(proxy_test, cross_process_app_interfaces_added_uses_object_path_over_mq)
+{
+    std::atomic<int> hits{0};
+    std::atomic<int> pair_count{0};
+    std::atomic<int> path_ok{0};
+    std::atomic<int> body_ok{0};
+
+    mc::engine::match::match_rule rule;
+    rule.type           = "signal";
+    rule.interface_name = "org.freedesktop.DBus.ObjectManager";
+    rule.member_name    = "InterfacesAdded";
+    rule.path           = "/mc/test/props/publisher";
+
+    auto id = m_server->add_match(rule, mc::engine::match::filter_spec{}, [&](const mc::engine::message& msg) {
+        pair_count = static_cast<int>(mc::engine::match::get_target_match_ids(msg.header).size());
+        if (msg.header.path == mc::string("/mc/test/props/publisher")) {
+            path_ok = 1;
+        }
+        if (const auto* payload = msg.try_as<mc::engine::signal_payload>()) {
+            if (payload->signature == "oa{sa{sv}}" && payload->args.size() == 2 &&
+                payload->args[0] == mc::variant(mc::string("/mc/test/props/publisher")) && payload->args[1].is_dict()) {
+                body_ok = 1;
+            }
+        }
+        ++hits;
+    });
+    ASSERT_NE(id, 0U);
+
+    fork_child([&]() -> int {
+        return run_in_child([&]() {
+            try {
+                mc::app::base_app::reset_for_test();
+
+                auto child_app = std::make_unique<mc::app::application>();
+                child_app->registry().register_service<mcapp_proxy_test::props_service>("props_service");
+
+                mc::app::service_definition def;
+                def.name    = "mc.test.props.publisher";
+                def.type    = "props_service";
+                def.enabled = true;
+
+                mc::app::service_plan plan;
+                plan.application.name         = "props-intf-add-child-app";
+                plan.application.io_threads   = 1;
+                plan.application.work_threads = 1;
+                plan.services.push_back(std::move(def));
+
+                if (!child_app->initialize_with_plan(std::move(plan))) {
+                    return 10;
+                }
+                if (!child_app->start()) {
+                    return 11;
+                }
+
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+                child_app->stop();
+                mc::app::base_app::reset_for_test();
+                return 0;
+            } catch (const std::exception& ex) {
+                std::fprintf(stderr, "child exception: %s\n", ex.what());
+                return 99;
+            } catch (...) {
+                std::fprintf(stderr, "child exception: unknown\n");
+                return 98;
+            }
+        });
+    });
+
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+    while (std::chrono::steady_clock::now() < deadline && hits.load() == 0) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    }
+
+    EXPECT_GE(hits.load(), 1);
+    EXPECT_EQ(pair_count.load(), 1);
+    EXPECT_EQ(path_ok.load(), 1);
+    EXPECT_EQ(body_ok.load(), 1);
+
+    m_server->remove_match(id);
+}
+#endif
+
 #if MCENGINE_USE_SHM
+
 TEST_F(proxy_test, cross_process_app_property_change_emits_properties_changed_over_mq)
 {
     std::atomic<int> hits{0};
