@@ -16,13 +16,13 @@
 
 #include <gtest/gtest.h>
 #include <mc/engine/engine.h>
+#include <mc/engine/match.h>
+#include <mc/engine/message.h>
 #include <mc/engine/object.h>
 #include <mc/engine/payload.h>
 #include <mc/engine/property.h>
-#include <mc/engine/service_proto.h>
-#include <mc/engine/match.h>
-#include <mc/engine/message.h>
 #include <mc/engine/service.h>
+#include <mc/engine/service_proto.h>
 #include <test_utilities/engine_test_base.h>
 
 #include <atomic>
@@ -82,10 +82,9 @@ TEST_F(service_emit_test, emit_local_target_routes_via_route_inbound)
     rule.member_name    = "LocalHit";
 
     std::atomic<int> hits{0};
-    auto             id = receiver.add_match(rule, mc::engine::filter_spec{},
-                                 [&](const mc::engine::message& /*m*/) {
-                                     hits.fetch_add(1, std::memory_order_acq_rel);
-                                 });
+    auto             id = receiver.add_match(rule, mc::engine::filter_spec{}, [&](const mc::engine::message& /*m*/) {
+        hits.fetch_add(1, std::memory_order_acq_rel);
+    });
     ASSERT_NE(id, 0u);
 
     mc::engine::message msg;
@@ -117,11 +116,10 @@ TEST_F(service_emit_test, emit_auto_fills_sender_when_empty)
 
     std::atomic<int> hits{0};
     mc::string       captured_sender;
-    auto             id = receiver.add_match(rule, mc::engine::filter_spec{},
-                                 [&](const mc::engine::message& m) {
-                                     hits.fetch_add(1, std::memory_order_acq_rel);
-                                     captured_sender = m.header.sender;
-                                 });
+    auto             id = receiver.add_match(rule, mc::engine::filter_spec{}, [&](const mc::engine::message& m) {
+        hits.fetch_add(1, std::memory_order_acq_rel);
+        captured_sender = m.header.sender;
+    });
     ASSERT_NE(id, 0u);
 
     mc::engine::message msg;
@@ -158,10 +156,12 @@ TEST_F(service_emit_test, emit_fanout_to_multiple_receivers)
 
     std::atomic<int> hits_a{0};
     std::atomic<int> hits_b{0};
-    auto             id_a = receiver_a.add_match(rule, mc::engine::filter_spec{},
-                                     [&](const mc::engine::message&) { hits_a.fetch_add(1); });
-    auto             id_b = receiver_b.add_match(rule, mc::engine::filter_spec{},
-                                     [&](const mc::engine::message&) { hits_b.fetch_add(1); });
+    auto             id_a = receiver_a.add_match(rule, mc::engine::filter_spec{}, [&](const mc::engine::message&) {
+        hits_a.fetch_add(1);
+    });
+    auto             id_b = receiver_b.add_match(rule, mc::engine::filter_spec{}, [&](const mc::engine::message&) {
+        hits_b.fetch_add(1);
+    });
 
     mc::engine::message msg;
     msg.header.type           = mc::engine::message_type::signal;
@@ -228,6 +228,42 @@ TEST_F(service_emit_test, invalidated_property_changed_uses_invalidated_properti
 
     EXPECT_GE(hits.load(), 1);
     EXPECT_EQ(body_ok.load(), 1);
+
+    receiver.remove_match(id);
+    sender.stop();
+    receiver.stop();
+}
+
+TEST_F(service_emit_test, unregistered_object_property_change_is_suppressed)
+{
+    sample_service sender("mc.test.emit.unregistered.sender");
+    sample_service receiver("mc.test.emit.unregistered.receiver");
+    sender.init();
+    receiver.init();
+    sender.start();
+    receiver.start();
+
+    mc::engine::match_rule rule;
+    rule.type           = "signal";
+    rule.interface_name = "org.freedesktop.DBus.Properties";
+    rule.member_name    = "PropertiesChanged";
+
+    std::atomic<int> hits{0};
+    auto             id = receiver.add_match(rule, mc::engine::filter_spec{}, [&](const mc::engine::message&) {
+        hits.fetch_add(1, std::memory_order_acq_rel);
+    });
+    ASSERT_NE(id, 0u);
+
+    auto obj = props_object::create();
+    obj->set_object_name("emit_unregistered_props");
+    obj->set_service(&sender);
+
+    obj->iface.Counter = int32_t{42};
+    EXPECT_EQ(hits.load(std::memory_order_acquire), 0);
+
+    sender.register_object(obj);
+    obj->iface.Counter = int32_t{43};
+    EXPECT_GT(hits.load(std::memory_order_acquire), 0);
 
     receiver.remove_match(id);
     sender.stop();

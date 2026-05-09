@@ -141,9 +141,22 @@ namespace {
 //
 // 容错原则：DBus PropertiesChanged 信号是 property 赋值的副作用，
 // 任何信号构造/发送失败都不能反过来打断 property 赋值本身。
-// 典型场景：对象先 set_service 后才 set_parent；在两步之间发生属性赋值时，
-// _make_properties_changed 中调用 obj.get_object_path() 会因 parent 缺失抛异常，
-// 这里必须吞掉，仅记录日志。
+bool _is_registered_object(service& svc, abstract_object& obj) noexcept
+{
+    try {
+        auto path = obj.get_object_path();
+        if (path.empty()) {
+            return false;
+        }
+
+        auto it = svc.get_object_table().find<by_path>(path);
+        return !it.is_end() && &(*it) == &obj;
+    } catch (...) {
+        // 未完成注册的对象可能暂时无法解析 path，直接抑制属性变更信号。
+        return false;
+    }
+}
+
 void _property_changed_global_filter(mc::object& target, mc::event& e)
 {
     auto* property_event = dynamic_cast<property_changed_event*>(&e);
@@ -162,6 +175,9 @@ void _property_changed_global_filter(mc::object& target, mc::event& e)
     }
 
     if (obj->is_initializing()) {
+        return;
+    }
+    if (!_is_registered_object(*svc, *obj)) {
         return;
     }
     try {
