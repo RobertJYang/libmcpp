@@ -27,14 +27,14 @@
 
 namespace mc::dbus {
 
-static constexpr size_t                                       MQ_BUFFER_SIZE     = 1024 * 1024;
-static uint32_t                                               g_reply_msg_serial = 0;
+static constexpr size_t                                         MQ_BUFFER_SIZE     = 1024 * 1024;
+static uint32_t                                                 g_reply_msg_serial = 0;
 static std::unordered_map<std::string, ::shm::message_queue_t*> g_msg_queues;
-static std::mutex                                             g_msg_queues_mutex;
-static std::atomic<uint64_t>                                  g_next_match_id{1};
+static std::mutex                                               g_msg_queues_mutex;
+static std::atomic<uint64_t>                                    g_next_match_id{1};
 
 ::shm::object_tree* create_shm_tree(std::string_view harbor_name, std::string_view service_name,
-                                  std::string_view unique_name)
+                                    std::string_view unique_name)
 {
     MC_ASSERT(!harbor_name.empty(), "harbor name is empty");
     MC_ASSERT(!service_name.empty(), "service name is empty");
@@ -161,7 +161,8 @@ harbor& harbor::get_instance()
     });
 }
 
-void harbor::reset_for_test() {
+void harbor::reset_for_test()
+{
     mc::singleton<harbor>::reset_for_test();
 }
 
@@ -174,7 +175,8 @@ void harbor::stop_if_created()
     instance->stop();
 }
 
-void harbor::init_message_queue() {
+void harbor::init_message_queue()
+{
     auto& ins             = ::shm::shared_memory::get_instance();
     auto& harbor_tree_map = ins.get_object_tree_map(m_harbor_name);
     auto  harbor_it       = harbor_tree_map.find(m_harbor_name);
@@ -382,7 +384,7 @@ void harbor::process_dbus_message(DBusMessage* msg)
         // 异步处理 signal 消息，避免阻塞 harbor 线程
         dbus_message_ref(msg);
         try {
-            mc::get_work_context().get_executor().post([this, msg]() mutable {
+            mc::runtime::post([this, msg]() mutable {
                 try {
                     auto& match = m_connection.get_match();
                     match.run_msg(msg);
@@ -390,7 +392,7 @@ void harbor::process_dbus_message(DBusMessage* msg)
                     elog("failed to process signal, error: ${error}", ("error", e.what()));
                 }
                 dbus_message_unref(msg);
-            });
+            }, mc::runtime::io_executor);
         } catch (...) {
             // post 失败，lambda 不会执行，回退 async ref
             dbus_message_unref(msg);
@@ -428,13 +430,13 @@ void harbor::process_local_message(const variants& unpacked)
              "path", msg->path())("interface", msg->interface())("member", msg->member()));
 #endif
     if (!is_reply) {
-        mc::get_work_context().get_executor().post([this, msg = std::move(msg)]() mutable {
+        mc::runtime::post([this, msg = std::move(msg)]() mutable {
             try {
                 invoke_method(msg.get());
             } catch (const std::exception& e) {
                 elog("failed to process method invoke, error: ${error}", ("error", e.what()));
             }
-        });
+        }, mc::runtime::io_executor);
         return;
     }
     reply_shm_msg(msg->destination(), msg->get_reply_serial(), *msg);
@@ -573,7 +575,7 @@ void harbor::remove_shm_msg(std::string_view source_name, uint32_t serial)
 
 void harbor::unregister_service(std::string service_name)
 {
-    std::string unique_name;
+    std::string           unique_name;
     [[maybe_unused]] bool no_registered_services = false;
     {
         std::lock_guard lock(m_unique_name_map_mutex);
