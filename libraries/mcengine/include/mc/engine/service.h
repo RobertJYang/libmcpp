@@ -52,12 +52,12 @@ public:
     void cleanup();
     bool is_healthy() const;
 
-    virtual void    on_dump(mc::dict context, mc::string filepath);
-    virtual void    on_detach_debug_console(mc::dict context);
-    virtual int32_t on_reboot_prepare(mc::dict context);
-    virtual int32_t on_reboot_process(mc::dict context);
-    virtual int32_t on_reboot_action(mc::dict context);
-    virtual void    on_reboot_cancel(mc::dict context);
+    virtual void    on_dump(mc::string filepath);
+    virtual void    on_detach_debug_console();
+    virtual int32_t on_reboot_prepare();
+    virtual int32_t on_reboot_process();
+    virtual int32_t on_reboot_action();
+    virtual void    on_reboot_cancel();
 
     template <typename ObjectType>
     void register_object(mc::shared_ptr<ObjectType> obj)

@@ -33,7 +33,7 @@ struct micro_component_interface : public mc::engine::interface<micro_component_
 
     ~micro_component_interface() override = default;
 
-    int32_t health_check(mc::dict context) const;
+    int32_t health_check() const;
 
     mc::engine::property<int32_t>    m_pid;
     mc::engine::property<mc::string> m_author;
@@ -49,14 +49,14 @@ struct mc_config_manage_interface : public mc::engine::interface<mc_config_manag
 
     ~mc_config_manage_interface() override = default;
 
-    std::vector<std::tuple<mc::string, mc::string>> backup(mc::dict context, mc::string filepath);
+    std::vector<std::tuple<mc::string, mc::string>> backup(mc::string filepath);
 
-    mc::string export_config(mc::dict context, mc::string type);
-    void       import_config(mc::dict context, mc::string data, mc::string type);
-    void       recover(mc::dict context, mc::dict preserve_list);
-    mc::string verify(mc::dict context, mc::string data);
-    mc::string get_preserved_config(mc::dict context, mc::dict preserve_flag);
-    mc::string get_trusted_config(mc::dict context);
+    mc::string export_config(mc::string type);
+    void       import_config(mc::string data, mc::string type);
+    void       recover(mc::dict preserve_list);
+    mc::string verify(mc::string data);
+    mc::string get_preserved_config(mc::dict preserve_flag);
+    mc::string get_trusted_config();
 };
 
 struct mc_debug_interface : public mc::engine::interface<mc_debug_interface> {
@@ -64,10 +64,10 @@ struct mc_debug_interface : public mc::engine::interface<mc_debug_interface> {
 
     ~mc_debug_interface() override;
 
-    void attach_debug_console(mc::dict context, uint32_t port);
-    void detach_debug_console(mc::dict context);
-    void dump(mc::dict context, mc::string filepath);
-    void set_dlog_level(mc::dict context, mc::string level, uint8_t effective_hours);
+    void attach_debug_console(uint32_t port);
+    void detach_debug_console();
+    void dump(mc::string filepath);
+    void set_dlog_level(mc::string level, uint8_t effective_hours);
     void set_dlog_type(mc::string type);
 
     mc::engine::property<mc::string> m_dlog_level;
@@ -88,10 +88,10 @@ struct mc_reboot_interface : public mc::engine::interface<mc_reboot_interface> {
 
     ~mc_reboot_interface() override = default;
 
-    int32_t prepare(mc::dict context);
-    int32_t process(mc::dict context);
-    int32_t action(mc::dict context);
-    void    cancel(mc::dict context);
+    int32_t prepare();
+    int32_t process();
+    int32_t action();
+    void    cancel();
 };
 
 struct mc_reset_interface : public mc::engine::interface<mc_reset_interface> {
@@ -99,9 +99,9 @@ struct mc_reset_interface : public mc::engine::interface<mc_reset_interface> {
 
     ~mc_reset_interface() override = default;
 
-    int32_t prepare(mc::dict context, mc::string reset_type);
-    int32_t action(mc::dict context, mc::string reset_type);
-    void    cancel(mc::dict context, mc::string reset_type);
+    int32_t prepare(mc::string reset_type);
+    int32_t action(mc::string reset_type);
+    void    cancel(mc::string reset_type);
 };
 
 struct mc_maintenance_interface : public mc::engine::interface<mc_maintenance_interface> {
@@ -109,7 +109,7 @@ struct mc_maintenance_interface : public mc::engine::interface<mc_maintenance_in
 
     ~mc_maintenance_interface() override;
 
-    void dlog_limit(mc::dict context, bool enabled, uint8_t duration_mins);
+    void dlog_limit(bool enabled, uint8_t duration_mins);
 
     mc::timer_ptr      m_dlog_limit_timer;
     mutable std::mutex m_dlog_limit_mutex;

@@ -379,14 +379,14 @@ TEST_F(engine_test, test_object_reflect)
     mc::variant var;
     mc::to_variant(*obj, var);
 
-    mc::dict expected = {{"org.test.test_interface_1",
-                          mc::dict{{"i32", 20}, {"str", "123"}, {"vec", mc::variants{1, 2, 3}}, {"normal_v", 100}}},
-                         {"bmc.kepler.Object.Properties",
-                          mc::dict{{"ParentPath", ""},
-                                   {"ObjectName", ""},
-                                   {"ClassName", "TestObject"},
-                                   {"ObjectIdentifier", mc::engine::object_identifier_t{}}}},
-                         {"org.test.test_interface_2", mc::dict{{"variant", 100}}}};
+    mc::dict expected = {
+        {"org.test.test_interface_1",
+         mc::dict{{"i32", 20}, {"str", "123"}, {"vec", mc::variants{1, 2, 3}}, {"normal_v", 100}}},
+        {"bmc.kepler.Object.Properties", mc::dict{{"ParentPath", ""},
+                                                  {"ObjectName", ""},
+                                                  {"ClassName", "TestObject"},
+                                                  {"ObjectIdentifier", mc::engine::object_identifier_t{}}}},
+        {"org.test.test_interface_2", mc::dict{{"variant", 100}}}};
     EXPECT_EQ(var.get_object(), expected) << var.to_string() << "\n" << expected.to_string();
 
     auto obj2 = test_object::create();
@@ -551,15 +551,14 @@ TEST(ServiceApiValidation, InitAllowsOpaqueServiceName)
 
 TEST_F(engine_test, ServiceLifecycleHooks)
 {
-    mc::dict dump_context{{"phase", "collect"}};
-    auto     tmp_dir     = mc::filesystem::temp_directory_path();
-    auto     nonexistent = (tmp_dir / "nonexistent").string();
-    service.on_dump(dump_context, nonexistent);
-    service.on_detach_debug_console({});
-    EXPECT_EQ(service.on_reboot_prepare({}), 0);
-    EXPECT_EQ(service.on_reboot_process({}), 0);
-    EXPECT_EQ(service.on_reboot_action({}), 0);
-    service.on_reboot_cancel({});
+    auto tmp_dir     = mc::filesystem::temp_directory_path();
+    auto nonexistent = (tmp_dir / "nonexistent").string();
+    service.on_dump(nonexistent);
+    service.on_detach_debug_console();
+    EXPECT_EQ(service.on_reboot_prepare(), 0);
+    EXPECT_EQ(service.on_reboot_process(), 0);
+    EXPECT_EQ(service.on_reboot_action(), 0);
+    service.on_reboot_cancel();
 
     service.cleanup();
     EXPECT_TRUE(service.is_healthy());
@@ -583,8 +582,8 @@ TEST_F(engine_test, test_service_add_match_works_without_protocol)
     mc::engine::match_rule rule;
     rule.type = "signal";
 
-    int hits = 0;
-    auto id  = service.add_match(rule, mc::engine::filter_spec{}, [&](const mc::engine::message&) {
+    int  hits = 0;
+    auto id   = service.add_match(rule, mc::engine::filter_spec{}, [&](const mc::engine::message&) {
         ++hits;
     });
     ASSERT_NE(id, 0u);
@@ -604,8 +603,10 @@ TEST_F(engine_test, test_service_add_match_rejects_unknown_filter_backend)
     spec.backend_type = 9999; // 任意未注册的 backend type
     spec.text         = "{}";
 
-    EXPECT_THROW(service.add_match(rule, std::move(spec), [](const mc::engine::message&) {
-                 }), mc::invalid_arg_exception);
+    EXPECT_THROW(service.add_match(rule, std::move(spec),
+                                   [](const mc::engine::message&) {
+    }),
+                 mc::invalid_arg_exception);
 }
 
 TEST_F(engine_test, test_service_callback_exception_does_not_block_other_subscribers)
@@ -613,8 +614,8 @@ TEST_F(engine_test, test_service_callback_exception_does_not_block_other_subscri
     mc::engine::match_rule rule;
     rule.type = "signal";
 
-    int hits = 0;
-    auto bad = service.add_match(rule, mc::engine::filter_spec{}, [](const mc::engine::message&) {
+    int  hits = 0;
+    auto bad  = service.add_match(rule, mc::engine::filter_spec{}, [](const mc::engine::message&) {
         throw std::runtime_error("boom");
     });
     auto good = service.add_match(rule, mc::engine::filter_spec{}, [&](const mc::engine::message&) {
@@ -654,8 +655,8 @@ TEST_F(engine_test, test_service_add_match_dispatches_only_matching_messages)
     rule.type           = "signal";
     rule.interface_name = "org.test.events";
 
-    int hits = 0;
-    auto id  = service.add_match(rule, mc::engine::filter_spec{}, [&](const mc::engine::message& /*msg*/) {
+    int  hits = 0;
+    auto id   = service.add_match(rule, mc::engine::filter_spec{}, [&](const mc::engine::message& /*msg*/) {
         ++hits;
     });
 

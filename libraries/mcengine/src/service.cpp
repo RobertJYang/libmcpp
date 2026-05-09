@@ -436,43 +436,34 @@ bool service::is_healthy() const
     return true;
 }
 
-void service::on_dump(mc::dict context, mc::string filepath)
+void service::on_dump(mc::string filepath)
 {
-    MC_UNUSED(context);
     MC_UNUSED(filepath);
 }
 
-void service::on_detach_debug_console(mc::dict context)
-{
-    MC_UNUSED(context);
-}
+void service::on_detach_debug_console()
+{}
 
-int32_t service::on_reboot_prepare(mc::dict context)
+int32_t service::on_reboot_prepare()
 {
-    MC_UNUSED(context);
     return 0;
 }
 
-int32_t service::on_reboot_process(mc::dict context)
+int32_t service::on_reboot_process()
 {
-    MC_UNUSED(context);
     return 0;
 }
 
-int32_t service::on_reboot_action(mc::dict context)
+int32_t service::on_reboot_action()
 {
-    MC_UNUSED(context);
     return 0;
 }
 
-void service::on_reboot_cancel(mc::dict context)
-{
-    MC_UNUSED(context);
-}
+void service::on_reboot_cancel()
+{}
 
 bool service::on_init(dict args)
 {
-    MC_UNUSED(args);
     return true;
 }
 

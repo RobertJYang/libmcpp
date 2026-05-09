@@ -210,108 +210,96 @@ void dump_service_tree(mc::engine::service* svc, mc::string_view filepath)
 
 namespace mc::app {
 
-int32_t micro_component_interface::health_check(mc::dict context) const
+int32_t micro_component_interface::health_check() const
 {
-    MC_UNUSED(context);
     return 0;
 }
 
-std::vector<std::tuple<mc::string, mc::string>> mc_config_manage_interface::backup(mc::dict   context,
-                                                                                   mc::string filepath)
+std::vector<std::tuple<mc::string, mc::string>> mc_config_manage_interface::backup(mc::string filepath)
 {
-    MC_UNUSED(context);
     MC_UNUSED(filepath);
     return {};
 }
 
-mc::string mc_config_manage_interface::export_config(mc::dict context, mc::string type)
+mc::string mc_config_manage_interface::export_config(mc::string type)
 {
-    MC_UNUSED(context);
     MC_UNUSED(type);
     return {};
 }
 
-void mc_config_manage_interface::import_config(mc::dict context, mc::string data, mc::string type)
+void mc_config_manage_interface::import_config(mc::string data, mc::string type)
 {
-    MC_UNUSED(context);
     MC_UNUSED(data);
     MC_UNUSED(type);
 }
 
-void mc_config_manage_interface::recover(mc::dict context, mc::dict preserve_list)
+void mc_config_manage_interface::recover(mc::dict preserve_list)
 {
-    MC_UNUSED(context);
     MC_UNUSED(preserve_list);
 }
 
-mc::string mc_config_manage_interface::verify(mc::dict context, mc::string data)
+mc::string mc_config_manage_interface::verify(mc::string data)
 {
-    MC_UNUSED(context);
     MC_UNUSED(data);
     return {};
 }
 
-mc::string mc_config_manage_interface::get_preserved_config(mc::dict context, mc::dict preserve_flag)
+mc::string mc_config_manage_interface::get_preserved_config(mc::dict preserve_flag)
 {
-    MC_UNUSED(context);
     MC_UNUSED(preserve_flag);
     return {};
 }
 
-mc::string mc_config_manage_interface::get_trusted_config(mc::dict context)
+mc::string mc_config_manage_interface::get_trusted_config()
 {
-    MC_UNUSED(context);
     return {};
 }
 
-void mc_debug_interface::dump(mc::dict context, mc::string filepath)
+void mc_debug_interface::dump(mc::string filepath)
 {
     auto* service = get_service();
     dump_service_tree(service, filepath);
-    service->on_dump(std::move(context), std::move(filepath));
+    service->on_dump(filepath);
 }
 
-int32_t mc_reboot_interface::prepare(mc::dict context)
+int32_t mc_reboot_interface::prepare()
 {
     auto* service = get_service();
-    return service->on_reboot_prepare(std::move(context));
+    return service->on_reboot_prepare();
 }
 
-int32_t mc_reboot_interface::process(mc::dict context)
+int32_t mc_reboot_interface::process()
 {
     auto* service = get_service();
-    return service->on_reboot_process(std::move(context));
+    return service->on_reboot_process();
 }
 
-int32_t mc_reboot_interface::action(mc::dict context)
+int32_t mc_reboot_interface::action()
 {
     auto* service = get_service();
-    return service->on_reboot_action(std::move(context));
+    return service->on_reboot_action();
 }
 
-void mc_reboot_interface::cancel(mc::dict context)
+void mc_reboot_interface::cancel()
 {
     auto* service = get_service();
-    service->on_reboot_cancel(std::move(context));
+    service->on_reboot_cancel();
 }
 
-int32_t mc_reset_interface::prepare(mc::dict context, mc::string reset_type)
+int32_t mc_reset_interface::prepare(mc::string reset_type)
 {
-    MC_UNUSED(context);
     MC_UNUSED(reset_type);
     return 0;
 }
 
-int32_t mc_reset_interface::action(mc::dict context, mc::string reset_type)
+int32_t mc_reset_interface::action(mc::string reset_type)
 {
-    MC_UNUSED(context);
     MC_UNUSED(reset_type);
     return 0;
 }
 
-void mc_reset_interface::cancel(mc::dict context, mc::string reset_type)
+void mc_reset_interface::cancel(mc::string reset_type)
 {
-    MC_UNUSED(context);
     MC_UNUSED(reset_type);
 }
 
@@ -343,10 +331,8 @@ mc_maintenance_interface::~mc_maintenance_interface()
     }
 }
 
-void mc_debug_interface::attach_debug_console(mc::dict context, uint32_t port)
+void mc_debug_interface::attach_debug_console(uint32_t port)
 {
-    MC_UNUSED(context);
-
     std::lock_guard<std::mutex> lock(m_debug_console_mutex);
 
     auto default_log    = mc::log::default_logger();
@@ -393,7 +379,7 @@ void mc_debug_interface::attach_debug_console(mc::dict context, uint32_t port)
     }
 }
 
-void mc_debug_interface::detach_debug_console(mc::dict context)
+void mc_debug_interface::detach_debug_console()
 {
     std::lock_guard<std::mutex> lock(m_debug_console_mutex);
 
@@ -416,7 +402,7 @@ void mc_debug_interface::detach_debug_console(mc::dict context)
     m_debug_hb_socket_path.clear();
 
     auto* service = get_service();
-    service->on_detach_debug_console(std::move(context));
+    service->on_detach_debug_console();
 }
 
 static void set_log_level(mc::log::level lvl, mc::string log_info)
@@ -425,10 +411,8 @@ static void set_log_level(mc::log::level lvl, mc::string log_info)
     operation_log("${info}", ("info", log_info));
 }
 
-void mc_debug_interface::set_dlog_level(mc::dict context, mc::string level, uint8_t effective_hours)
+void mc_debug_interface::set_dlog_level(mc::string level, uint8_t effective_hours)
 {
-    MC_UNUSED(context);
-
     std::lock_guard<std::mutex> lock(m_dlog_level_mutex);
 
     auto lvl_opt = mc::log::to_level(level.view());
@@ -473,10 +457,8 @@ static void set_log_limit_env(bool enabled, mc::string log_info)
     operation_log("${info}", ("info", log_info));
 }
 
-void mc_maintenance_interface::dlog_limit(mc::dict context, bool enabled, uint8_t duration_mins)
+void mc_maintenance_interface::dlog_limit(bool enabled, uint8_t duration_mins)
 {
-    MC_UNUSED(context);
-
     std::lock_guard<std::mutex> lock(m_dlog_limit_mutex);
 
     if (m_dlog_limit_timer) {

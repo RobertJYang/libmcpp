@@ -110,36 +110,36 @@ public:
     MC_PROXY_PROP(mc::string, DlogLevel);
     MC_PROXY_PROP(mc::string, DlogType);
 
-    MC_PROXY_METHOD(void, AttachDebugConsole, ((mc::dict, context))((uint32_t, port)));
-    MC_PROXY_METHOD(void, DetachDebugConsole, ((mc::dict, context)));
-    MC_PROXY_METHOD(void, Dump, ((mc::dict, context))((mc::string, filepath)));
-    MC_PROXY_METHOD(void, SetDlogLevel, ((mc::dict, context))((mc::string, level))((uint8_t, effective_hours)));
+    MC_PROXY_METHOD(void, AttachDebugConsole, ((uint32_t, port)));
+    MC_PROXY_METHOD(void, DetachDebugConsole);
+    MC_PROXY_METHOD(void, Dump, ((mc::string, filepath)));
+    MC_PROXY_METHOD(void, SetDlogLevel, ((mc::string, level))((uint8_t, effective_hours)));
 };
 
 class reboot_iface_proxy : public mc::engine::interface_proxy<reboot_iface_proxy> {
 public:
     MC_INTERFACE_PROXY("bmc.kepler.MicroComponent.Reboot");
 
-    MC_PROXY_METHOD(int32_t, Prepare, ((mc::dict, context)));
-    MC_PROXY_METHOD(int32_t, Process, ((mc::dict, context)));
-    MC_PROXY_METHOD(int32_t, Action, ((mc::dict, context)));
-    MC_PROXY_METHOD(void, Cancel, ((mc::dict, context)));
+    MC_PROXY_METHOD(int32_t, Prepare);
+    MC_PROXY_METHOD(int32_t, Process);
+    MC_PROXY_METHOD(int32_t, Action);
+    MC_PROXY_METHOD(void, Cancel);
 };
 
 class reset_iface_proxy : public mc::engine::interface_proxy<reset_iface_proxy> {
 public:
     MC_INTERFACE_PROXY("bmc.kepler.MicroComponent.Reset");
 
-    MC_PROXY_METHOD(int32_t, Prepare, ((mc::dict, context))((mc::string, reset_type)));
-    MC_PROXY_METHOD(int32_t, Action, ((mc::dict, context))((mc::string, reset_type)));
-    MC_PROXY_METHOD(void, Cancel, ((mc::dict, context))((mc::string, reset_type)));
+    MC_PROXY_METHOD(int32_t, Prepare, ((mc::string, reset_type)));
+    MC_PROXY_METHOD(int32_t, Action, ((mc::string, reset_type)));
+    MC_PROXY_METHOD(void, Cancel, ((mc::string, reset_type)));
 };
 
 class maintenance_iface_proxy : public mc::engine::interface_proxy<maintenance_iface_proxy> {
 public:
     MC_INTERFACE_PROXY("bmc.kepler.Release.Maintenance");
 
-    MC_PROXY_METHOD(void, DlogLimit, ((mc::dict, context))((bool, enabled))((uint8_t, duration_mins)));
+    MC_PROXY_METHOD(void, DlogLimit, ((bool, enabled))((uint8_t, duration_mins)));
 };
 
 class micro_component_object_proxy {
@@ -240,11 +240,10 @@ TEST_F(micro_component_proxy_test, config_manage_methods_via_proxy_return_defaul
 
 TEST_F(micro_component_proxy_test, attach_debug_console_via_proxy_configures_socket_appenders)
 {
-    m_proxy->debug_iface.AttachDebugConsole(mc::dict{}, 2233U);
+    m_proxy->debug_iface.AttachDebugConsole(2233U);
 
-    auto default_log = mc::log::default_logger();
-    auto default_appender =
-        std::dynamic_pointer_cast<tracking_socket_appender>(default_log.find_appender("mdbctl"));
+    auto default_log      = mc::log::default_logger();
+    auto default_appender = std::dynamic_pointer_cast<tracking_socket_appender>(default_log.find_appender("mdbctl"));
     ASSERT_NE(default_appender, nullptr);
     EXPECT_EQ(default_appender->init_count(), 1);
     EXPECT_EQ(default_appender->last_config()["path"], "/dev/shm/2233.sock");
@@ -266,14 +265,14 @@ TEST_F(micro_component_proxy_test, attach_debug_console_via_proxy_configures_soc
 
 TEST_F(micro_component_proxy_test, detach_debug_console_via_proxy_clears_socket_appenders)
 {
-    m_proxy->debug_iface.AttachDebugConsole(mc::dict{}, 4321U);
+    m_proxy->debug_iface.AttachDebugConsole(4321U);
 
     auto default_log = mc::log::default_logger();
     auto mdbctl_log  = mc::log::logger::get(MC_LOG_MDBCTL_LOGGER);
     ASSERT_NE(default_log.find_appender("mdbctl"), nullptr);
     ASSERT_NE(mdbctl_log.find_appender("mdbctl_socket"), nullptr);
 
-    m_proxy->debug_iface.DetachDebugConsole(mc::dict{});
+    m_proxy->debug_iface.DetachDebugConsole();
 
     EXPECT_EQ(default_log.find_appender("mdbctl"), nullptr);
     EXPECT_EQ(mdbctl_log.find_appender("mdbctl_socket"), nullptr);
@@ -282,64 +281,64 @@ TEST_F(micro_component_proxy_test, detach_debug_console_via_proxy_clears_socket_
 
 TEST_F(micro_component_proxy_test, attach_debug_console_twice_via_proxy_throws)
 {
-    m_proxy->debug_iface.AttachDebugConsole(mc::dict{}, 5555U);
-    EXPECT_ANY_THROW(m_proxy->debug_iface.AttachDebugConsole(mc::dict{}, 5555U));
+    m_proxy->debug_iface.AttachDebugConsole(5555U);
+    EXPECT_ANY_THROW(m_proxy->debug_iface.AttachDebugConsole(5555U));
 }
 
 TEST_F(micro_component_proxy_test, set_dlog_level_via_proxy_updates_log_manager)
 {
-    m_proxy->debug_iface.SetDlogLevel(mc::dict{}, mc::string("warn"), 0);
+    m_proxy->debug_iface.SetDlogLevel(mc::string("warn"), 0);
     EXPECT_EQ(m_proxy->debug_iface.DlogLevel.get_value(), mc::string("warn"));
     EXPECT_TRUE(mc::log::default_logger().is_enabled(mc::log::level::warn));
     EXPECT_FALSE(mc::log::default_logger().is_enabled(mc::log::level::info));
 
-    m_proxy->debug_iface.SetDlogLevel(mc::dict{}, mc::string("error"), 0);
+    m_proxy->debug_iface.SetDlogLevel(mc::string("error"), 0);
     EXPECT_EQ(m_proxy->debug_iface.DlogLevel.get_value(), mc::string("error"));
     EXPECT_FALSE(mc::log::default_logger().is_enabled(mc::log::level::warn));
 
-    m_proxy->debug_iface.SetDlogLevel(mc::dict{}, mc::string("notice"), 0);
+    m_proxy->debug_iface.SetDlogLevel(mc::string("notice"), 0);
     EXPECT_EQ(m_proxy->debug_iface.DlogLevel.get_value(), mc::string("notice"));
     EXPECT_TRUE(mc::log::default_logger().is_enabled(mc::log::level::notice));
 }
 
 TEST_F(micro_component_proxy_test, set_dlog_level_via_proxy_rejects_invalid)
 {
-    EXPECT_ANY_THROW(m_proxy->debug_iface.SetDlogLevel(mc::dict{}, mc::string("verbose-not-supported"), 0));
+    EXPECT_ANY_THROW(m_proxy->debug_iface.SetDlogLevel(mc::string("verbose-not-supported"), 0));
 }
 
 TEST_F(micro_component_proxy_test, reboot_methods_via_proxy_return_zero)
 {
-    EXPECT_EQ(m_proxy->reboot_iface.Prepare(mc::dict{}), 0);
-    EXPECT_EQ(m_proxy->reboot_iface.Process(mc::dict{}), 0);
-    EXPECT_EQ(m_proxy->reboot_iface.Action(mc::dict{}), 0);
-    EXPECT_NO_THROW(m_proxy->reboot_iface.Cancel(mc::dict{}));
+    EXPECT_EQ(m_proxy->reboot_iface.Prepare(), 0);
+    EXPECT_EQ(m_proxy->reboot_iface.Process(), 0);
+    EXPECT_EQ(m_proxy->reboot_iface.Action(), 0);
+    EXPECT_NO_THROW(m_proxy->reboot_iface.Cancel());
 }
 
 TEST_F(micro_component_proxy_test, reset_methods_via_proxy_return_zero)
 {
-    EXPECT_EQ(m_proxy->reset_iface.Prepare(mc::dict{}, mc::string("warm")), 0);
-    EXPECT_EQ(m_proxy->reset_iface.Action(mc::dict{}, mc::string("cold")), 0);
-    EXPECT_NO_THROW(m_proxy->reset_iface.Cancel(mc::dict{}, mc::string("warm")));
+    EXPECT_EQ(m_proxy->reset_iface.Prepare(mc::string("warm")), 0);
+    EXPECT_EQ(m_proxy->reset_iface.Action(mc::string("cold")), 0);
+    EXPECT_NO_THROW(m_proxy->reset_iface.Cancel(mc::string("warm")));
 }
 
 TEST_F(micro_component_proxy_test, dlog_limit_via_proxy_handles_all_branches)
 {
     setenv("MCC_DEBUG", "1", 1);
-    m_proxy->maintenance_iface.DlogLimit(mc::dict{}, true, 60);
+    m_proxy->maintenance_iface.DlogLimit(true, 60);
     EXPECT_EQ(getenv("MCC_DEBUG"), nullptr);
 
     setenv("MCC_DEBUG", "1", 1);
-    m_proxy->maintenance_iface.DlogLimit(mc::dict{}, false, 0);
+    m_proxy->maintenance_iface.DlogLimit(false, 0);
     EXPECT_EQ(getenv("MCC_DEBUG"), nullptr);
 
     unsetenv("MCC_DEBUG");
-    m_proxy->maintenance_iface.DlogLimit(mc::dict{}, false, 60);
+    m_proxy->maintenance_iface.DlogLimit(false, 60);
     const char* val = getenv("MCC_DEBUG");
     ASSERT_NE(val, nullptr);
     EXPECT_STREQ(val, "1");
 
     unsetenv("MCC_DEBUG");
-    m_proxy->maintenance_iface.DlogLimit(mc::dict{}, false, 1);
+    m_proxy->maintenance_iface.DlogLimit(false, 1);
     val = getenv("MCC_DEBUG");
     ASSERT_NE(val, nullptr);
     EXPECT_STREQ(val, "1");
@@ -352,7 +351,7 @@ TEST_F(micro_component_proxy_test, dump_via_proxy_writes_log_to_existing_directo
     mc::string dest_dir = mc::string::concat("./testdir_dump_proxy_", unique_suffix);
     mc::filesystem::create_directories(dest_dir);
 
-    m_proxy->debug_iface.Dump(mc::dict{}, dest_dir);
+    m_proxy->debug_iface.Dump(dest_dir);
 
     mc::string log_path = mc::string::concat(dest_dir, "/mdb_info.log");
     EXPECT_TRUE(mc::filesystem::exists(log_path));
@@ -366,7 +365,7 @@ TEST_F(micro_component_proxy_test, dump_via_proxy_writes_log_to_existing_directo
 TEST_F(micro_component_proxy_test, dump_via_proxy_with_invalid_directory_does_not_throw)
 {
     mc::string invalid_dir = "/nonexistent/invalid/micro_component_dump_proxy_path";
-    EXPECT_NO_THROW(m_proxy->debug_iface.Dump(mc::dict{}, invalid_dir));
+    EXPECT_NO_THROW(m_proxy->debug_iface.Dump(invalid_dir));
     mc::string log_path = mc::string::concat(invalid_dir, "/mdb_info.log");
     EXPECT_FALSE(mc::filesystem::exists(log_path));
 }
