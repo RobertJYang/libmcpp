@@ -12,6 +12,7 @@
 
 #include <mc/engine/dispatcher.h>
 
+#include <mc/engine/context.h>
 #include <mc/engine/errors/std_errors.h>
 #include <mc/engine/object.h>
 #include <mc/engine/service.h>
@@ -87,21 +88,53 @@ message make_reported_error_response(const message& request, const mc::error_ptr
     return {};
 }
 
+static void parse_context_arg(context& ctx, const mc::variants& args)
+{
+    if (args.empty() || !args[0].is_dict()) {
+        return;
+    }
+    mc::dict first_arg = args[0].as_dict();
+    for (const auto& entry : first_arg) {
+        if (!entry.key.is_string() || !entry.value.is_string()) {
+            return;
+        }
+    }
+    ctx.set_args(first_arg);
+}
+
 message dispatch_method_call(const service& svc, const message& request, const method_call_payload& payload)
 {
     auto&            table = svc.get_object_table();
     auto             it    = table.find<by_path>(request.header.path);
     abstract_object* obj   = it.is_end() ? nullptr : const_cast<abstract_object*>(&*it);
 
+    if (obj == nullptr) {
+        if (auto std_hit = standard_interfaces::try_invoke(svc, obj, request.header.path, request.header.member_name,
+                                                           payload.args, request.header.interface_name);
+            std_hit.has_value()) {
+            auto body = make_payload<method_return_payload>(std::move(std_hit->value), std_hit->result_signature);
+            return make_response(request, message_type::method_return, std::move(body));
+        }
+        return make_engine_error_response(request, errors::unknown_object, {{"path", request.header.path}});
+    }
+
+    auto* owner_svc = obj->get_service();
+    if (owner_svc == nullptr) {
+        owner_svc = const_cast<service*>(&svc);
+    }
+    context               ctx(*owner_svc, *obj);
+    detail::variants_call call_info{payload.args, request.header.interface_name, request.header.member_name};
+    call_info.path   = request.header.path;
+    call_info.sender = request.header.sender;
+    ctx.set_call_info(call_info);
+    context_stack::context call_ctx(owner_svc, ctx);
+    parse_context_arg(ctx, payload.args);
+
     if (auto std_hit = standard_interfaces::try_invoke(svc, obj, request.header.path, request.header.member_name,
                                                        payload.args, request.header.interface_name);
         std_hit.has_value()) {
         auto body = make_payload<method_return_payload>(std::move(std_hit->value), std_hit->result_signature);
         return make_response(request, message_type::method_return, std::move(body));
-    }
-
-    if (obj == nullptr) {
-        return make_engine_error_response(request, errors::unknown_object, {{"path", request.header.path}});
     }
 
     if (!obj->has_interface(request.header.interface_name)) {

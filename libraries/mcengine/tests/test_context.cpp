@@ -13,6 +13,7 @@
 #include <gtest/gtest.h>
 
 #include <mc/engine/context.h>
+#include <mc/engine/dispatcher.h>
 #include <mc/engine/engine.h>
 #include <mc/engine/interface.h>
 #include <mc/engine/object.h>
@@ -20,6 +21,7 @@
 #include <mc/engine/service.h>
 #include <mc/error_engine.h>
 #include <mc/exception.h>
+#include <test_utilities/engine_test_base.h>
 
 namespace mc::test::engine_tests {
 
@@ -28,6 +30,27 @@ public:
     MC_INTERFACE("org.openubmc.test.context.interface")
 
     ::mc::engine::property<int32_t> m_value{0};
+
+    ::mc::string read_privilege_from_context(const std::map<::mc::string, ::mc::string>& context)
+    {
+        auto it = context.find("Privilege");
+        if (it == context.end()) {
+            return "missing_param";
+        }
+        auto* current_ctx = ::mc::engine::context::get_current_context_ptr();
+        if (current_ctx == nullptr) {
+            return "missing_tls";
+        }
+        auto privilege = current_ctx->get_arg("Privilege");
+        if (!privilege.is_string()) {
+            return "missing_tls_value";
+        }
+        auto privilege_str = privilege.as<::mc::string_view>();
+        if (privilege_str != it->second) {
+            return "mismatch";
+        }
+        return ::mc::string(privilege_str);
+    }
 };
 
 class context_test_object : public ::mc::engine::object<context_test_object> {
@@ -51,7 +74,8 @@ public:
 
 } // namespace mc::test::engine_tests
 
-MC_REFLECT(mc::test::engine_tests::context_test_interface, ((m_value, "Value")))
+MC_REFLECT(mc::test::engine_tests::context_test_interface,
+           ((m_value, "Value"))((read_privilege_from_context, "ReadPrivilegeFromContext")))
 MC_REFLECT(mc::test::engine_tests::context_test_object, ((m_iface, "Interface")))
 
 namespace {
@@ -194,6 +218,56 @@ TEST_F(ContextTest, ContextSetArgs)
     EXPECT_EQ(ctx.get_arg("key1").as_int64(), 42);
     EXPECT_EQ(ctx.get_arg("key2").as_string(), "value");
     EXPECT_EQ(ctx.get_arg("key3").as_bool(), true);
+}
+
+} // namespace
+
+namespace {
+
+class ContextDispatchTest : public ::mc::test::TestWithEngine {
+protected:
+    void SetUp() override
+    {
+        TestWithEngine::SetUp();
+        ASSERT_TRUE(service.init());
+        ASSERT_TRUE(service.start());
+
+        object = context_test_object::create();
+        object->init();
+        service.register_object(object);
+    }
+
+    void TearDown() override
+    {
+        service.stop();
+        ::mc::error_engine::reset_for_test();
+        TestWithEngine::TearDown();
+    }
+
+    context_test_service                  service;
+    ::mc::shared_ptr<context_test_object> object;
+};
+
+TEST_F(ContextDispatchTest, dispatcher_injects_first_a_ss_into_thread_local_context)
+{
+    ::mc::dict context_args;
+    context_args["Privilege"] = "255";
+
+    ::mc::engine::message request;
+    request.header.type           = ::mc::engine::message_type::method_call;
+    request.header.destination    = ::mc::string(service.name());
+    request.header.sender         = "org.openubmc.test.client";
+    request.header.path           = object->get_object_path();
+    request.header.interface_name = "org.openubmc.test.context.interface";
+    request.header.member_name    = "ReadPrivilegeFromContext";
+    request.header.serial         = 1;
+    request.body = ::mc::engine::make_payload<::mc::engine::method_call_payload>("a{ss}", ::mc::variants{context_args});
+
+    auto response = ::mc::engine::dispatch(service, request);
+    ASSERT_EQ(response.header.type, ::mc::engine::message_type::method_return);
+    auto* payload = response.try_as<::mc::engine::method_return_payload>();
+    ASSERT_NE(payload, nullptr);
+    EXPECT_EQ(payload->value.as<::mc::string>(), "255");
 }
 
 } // namespace
