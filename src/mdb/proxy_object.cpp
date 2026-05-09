@@ -21,6 +21,30 @@
 static constexpr const char*      PROP_IFACE      = "bmc.kepler.Object.Properties";
 static constexpr mc::milliseconds DEFAULT_TIMEOUT = mc::milliseconds(30000); // 30秒
 
+namespace {
+
+mc::dict make_forward_context_args()
+{
+    auto* engine_ctx = mc::engine::context::get_current_context_ptr();
+    if (engine_ctx == nullptr) {
+        return {};
+    }
+    return engine_ctx->snapshot_for_internal_rpc();
+}
+
+// 构造 wire 调用签名：<context_sig><tail>。
+mc::string make_wire_signature(mc::string_view tail)
+{
+    auto       ctx_sig = mc::engine::internal_context_wire_signature_string();
+    mc::string sig;
+    sig.reserve(ctx_sig.size() + tail.size());
+    sig.append(ctx_sig);
+    sig.append(tail);
+    return sig;
+}
+
+} // namespace
+
 // 接收裸指针的构造函数（不拥有 bus 所有权）
 proxy_object::proxy_object(mc::dbus::sd_bus* bus, std::string service, std::string path, std::string interface,
                            const interface_info& iface_info)
@@ -69,16 +93,12 @@ mc::variant proxy_object::get_property(const std::string& name)
         MC_THROW(mc::exception, "invalid property");
     }
 
-    mc::dict ctx{};
-    auto*    engine_ctx = mc::engine::context::get_current_context_ptr();
-    if (engine_ctx) {
-        ctx = engine_ctx->get_args();
-    }
-
+    mc::dict     ctx  = make_forward_context_args();
     mc::variants args = {ctx, m_interface, name};
 
     try {
-        mc::dbus::method_call_params params{m_service, m_path, PROP_IFACE, "GetWithContext", "a{ss}ss", args};
+        auto                         signature = make_wire_signature("ss");
+        mc::dbus::method_call_params params{m_service, m_path, PROP_IFACE, "GetWithContext", signature, args};
         mc::variants                 results = m_bus->timeout_call(DEFAULT_TIMEOUT, params);
         return mdb_utils::convert_method_result(results);
     } catch (const std::exception& e) {
@@ -95,16 +115,12 @@ void proxy_object::set_property(const std::string& name, const mc::variant& valu
 
     mdb_validator::check(name, prop->type, value);
 
-    mc::dict ctx{};
-    auto*    engine_ctx = mc::engine::context::get_current_context_ptr();
-    if (engine_ctx) {
-        ctx = engine_ctx->get_args();
-    }
-
+    mc::dict     ctx  = make_forward_context_args();
     mc::variants args = {ctx, m_interface, name, value};
 
     try {
-        mc::dbus::method_call_params params{m_service, m_path, PROP_IFACE, "SetWithContext", "a{ss}ssv", args};
+        auto                         signature = make_wire_signature("ssv");
+        mc::dbus::method_call_params params{m_service, m_path, PROP_IFACE, "SetWithContext", signature, args};
         m_bus->timeout_call(DEFAULT_TIMEOUT, params);
     } catch (const std::exception& e) {
         throw;
@@ -113,16 +129,12 @@ void proxy_object::set_property(const std::string& name, const mc::variant& valu
 
 mc::dict proxy_object::get_all_properties()
 {
-    mc::dict ctx{};
-    auto*    engine_ctx = mc::engine::context::get_current_context_ptr();
-    if (engine_ctx) {
-        ctx = engine_ctx->get_args();
-    }
-
+    mc::dict     ctx  = make_forward_context_args();
     mc::variants args = {ctx, m_interface};
 
     try {
-        mc::dbus::method_call_params params{m_service, m_path, PROP_IFACE, "GetAllWithContext", "a{ss}s", args};
+        auto                         signature = make_wire_signature("s");
+        mc::dbus::method_call_params params{m_service, m_path, PROP_IFACE, "GetAllWithContext", signature, args};
         mc::variants                 results = m_bus->timeout_call(DEFAULT_TIMEOUT, params);
         mc::variant                  result  = mdb_utils::convert_method_result(results);
         if (result.is_dict()) {
@@ -137,18 +149,15 @@ mc::dict proxy_object::get_all_properties()
 
 std::pair<mc::dict, mc::dict> proxy_object::get_properties(const mc::variants& prop_names)
 {
-    mc::dict ctx{};
-    auto*    engine_ctx = mc::engine::context::get_current_context_ptr();
-    if (engine_ctx) {
-        ctx = engine_ctx->get_args();
-    }
+    mc::dict ctx = make_forward_context_args();
 
     // 调用 GetPropertiesByNames 方法
-    // 方法签名: a{ss}sas (context, interface, prop_names)
+    // 方法签名: <context_sig>sas (context, interface, prop_names)
     mc::variants args = {ctx, mc::variant(m_interface), mc::variant(prop_names)};
 
     try {
-        mc::dbus::method_call_params params{m_service, m_path, PROP_IFACE, "GetPropertiesByNames", "a{ss}sas", args};
+        auto                         signature = make_wire_signature("sas");
+        mc::dbus::method_call_params params{m_service, m_path, PROP_IFACE, "GetPropertiesByNames", signature, args};
         mc::variants                 results = m_bus->timeout_call(DEFAULT_TIMEOUT, params);
 
         // 处理返回值： (all_data, errs)

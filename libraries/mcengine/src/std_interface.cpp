@@ -43,6 +43,11 @@ const mc::string get_managed_objects = mc::string::from_quark("GetManagedObjects
 
 namespace {
 
+// 默认是否在 introspect 中显示 context 首参，由进程启动时的 MC_CONTEXT_SIGNATURE 模式推导：
+// none 模式表示外部不应感知 context 首参，因此 introspect 默认隐藏；其它模式默认显示。
+// 运行时仍可通过 standard_interfaces::set_show_context_in_introspect() 覆盖。
+bool g_show_context_in_introspect = current_context_signature_mode() != context_signature_mode::none;
+
 // try_invoke 内压栈，供标准接口通过 object_call_stack 取当前对象（不经 obj.invoke）。
 class scoped_object_context {
 public:
@@ -89,6 +94,16 @@ bool standard_interfaces::is_standard_interface(mc::string_view interface_name) 
 {
     return interface_name == properties_interface_name || interface_name == introspectable_interface_name ||
            interface_name == peer_interface_name || interface_name == object_manager_interface_name;
+}
+
+bool standard_interfaces::show_context_in_introspect() noexcept
+{
+    return g_show_context_in_introspect;
+}
+
+void standard_interfaces::set_show_context_in_introspect(bool value) noexcept
+{
+    g_show_context_in_introspect = value;
 }
 
 //===--------------------------------------------------------------------------------===//
@@ -185,7 +200,8 @@ struct introspect_visitor : metadata_visitor {
         xml_data.append(info->name);
         xml_data += "\">";
 
-        auto                            args_sig = info->get_args_signature();
+        auto args_sig = standard_interfaces::show_context_in_introspect() ? info->get_full_args_signature()
+                                                                          : info->get_args_signature();
         mc::reflect::signature_iterator it(args_sig);
         auto                            args_it = it.get_content_iterator();
         while (!args_it.at_end()) {
@@ -506,8 +522,7 @@ mc::dict common_properties_interface::get_all()
     return iface->get_all_properties(mc::engine::property_options::from_mdb);
 }
 
-mc::variant common_properties_interface::get_with_context(std::map<mc::string, mc::string> context,
-                                                          mc::string_view interface_name,
+mc::variant common_properties_interface::get_with_context(mc::engine::context context, mc::string_view interface_name,
                                                           mc::string_view property_name)
 {
     (void)context;
@@ -527,9 +542,8 @@ mc::variant common_properties_interface::get_with_context(std::map<mc::string, m
     return object->get_property(property_name, interface_name);
 }
 
-void common_properties_interface::set_with_context(std::map<mc::string, mc::string> context,
-                                                   mc::string_view interface_name, mc::string_view property_name,
-                                                   const mc::variant& value)
+void common_properties_interface::set_with_context(mc::engine::context context, mc::string_view interface_name,
+                                                   mc::string_view property_name, const mc::variant& value)
 {
     (void)context;
     if (interface_name == common_properties_interface_name) {
@@ -549,8 +563,7 @@ void common_properties_interface::set_with_context(std::map<mc::string, mc::stri
     object->set_property(property_name, value, interface_name);
 }
 
-mc::dict common_properties_interface::get_all_with_context(std::map<mc::string, mc::string> context,
-                                                           mc::string_view interface_name)
+mc::dict common_properties_interface::get_all_with_context(mc::engine::context context, mc::string_view interface_name)
 {
     (void)context;
     if (interface_name == common_properties_interface_name) {
@@ -569,7 +582,7 @@ namespace {
 #define BUILD_TYPE_RELEASE (0x0c)
 } // namespace
 
-mc::string common_properties_interface::get_private_properties(std::map<mc::string, mc::string> context)
+mc::string common_properties_interface::get_private_properties(mc::engine::context context)
 {
     (void)context;
 #if defined(BUILD_TYPE) && defined(BUILD_TYPE_RELEASE) && BUILD_TYPE == BUILD_TYPE_RELEASE
@@ -602,14 +615,18 @@ mc::variant get_target_property_value(service* srv, mc::string_view service_name
                                       mc::string_view interface, mc::string_view property)
 {
     mc::variants args{mc::dict{}, interface, property};
+    mc::string   signature;
+    auto         context_sig = internal_context_wire_signature_string();
+    signature.reserve(context_sig.size() + 2);
+    signature.append(context_sig);
+    signature.append("ss");
     return srv->timeout_call(mc::milliseconds(GET_PROPERTY_CALL_TIMEOUT), service_name, path,
-                             common_properties_interface_name, "GetWithContext", "a{ss}ss", args);
+                             common_properties_interface_name, "GetWithContext", signature, args);
 }
 } // namespace
 
-mc::string common_properties_interface::get_property_detail(std::map<mc::string, mc::string> context,
-                                                             mc::string_view interface_name,
-                                                             mc::string_view property_name)
+mc::string common_properties_interface::get_property_detail(mc::engine::context context, mc::string_view interface_name,
+                                                            mc::string_view property_name)
 {
     (void)context;
 #if defined(BUILD_TYPE) && defined(BUILD_TYPE_RELEASE) && BUILD_TYPE == BUILD_TYPE_RELEASE
@@ -635,8 +652,9 @@ mc::string common_properties_interface::get_property_detail(std::map<mc::string,
         values.push_back(value);
     }
     mc::string sync_values = mc::json::json_encode(values);
-    return mc::format_dict(mc::string_view(R"({{"source":${sync_source},"type":"synchronization","value":${sync_values}}})"),
-                           mc::mutable_dict()("sync_source", sync_info->source)("sync_values", sync_values));
+    return mc::format_dict(
+        mc::string_view(R"({{"source":${sync_source},"type":"synchronization","value":${sync_values}}})"),
+        mc::mutable_dict()("sync_source", sync_info->source)("sync_values", sync_values));
 #endif
 }
 

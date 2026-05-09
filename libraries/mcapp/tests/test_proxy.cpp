@@ -16,7 +16,9 @@
 #include <mc/app/application.h>
 #include <mc/app/service.h>
 #include <mc/dbus/connection.h>
+#include <mc/dbus/error.h>
 #include <mc/engine.h>
+#include <mc/engine/context.h>
 #include <mc/engine/proxy.h>
 #include <mc/reflect.h>
 #include <mc/runtime/runtime_context.h>
@@ -66,6 +68,38 @@ public:
     virtual int32_t GetVersion()
     {
         return 42;
+    }
+
+    virtual mc::string EchoCtxTag(mc::engine::context ctx, mc::string tail)
+    {
+        auto       tag_var = ctx.get_arg("WireTag");
+        mc::string buf;
+        if (tag_var.is_string()) {
+            buf = tag_var.as_string();
+        } else if (!tag_var.is_null()) {
+            buf = tag_var.to_string();
+        }
+        buf += "|";
+        buf += tail;
+        return buf;
+    }
+
+    virtual mc::string EchoImplicitWire(mc::string tail)
+    {
+        auto* ptr = mc::engine::context::get_current_context_ptr();
+        if (ptr == nullptr) {
+            return mc::string("|") + tail;
+        }
+        auto       tag_var = ptr->get_arg("WireTag");
+        mc::string buf;
+        if (tag_var.is_string()) {
+            buf = tag_var.as_string();
+        } else if (!tag_var.is_null()) {
+            buf = tag_var.to_string();
+        }
+        buf += "|";
+        buf += tail;
+        return buf;
     }
 };
 
@@ -209,8 +243,8 @@ public:
 } // namespace mcapp_proxy_test
 
 MC_REFLECT(mcapp_proxy_test::calc_interface,
-           ((Counter, "Counter"))((Label, "Label"))((Items, "Items"))((Meta, "Meta"))((Add, "Add"))((GetVersion,
-                                                                                                     "GetVersion")))
+           ((Counter, "Counter"))((Label, "Label"))((Items, "Items"))((Meta, "Meta"))((Add, "Add"))(
+               (GetVersion, "GetVersion"))((EchoCtxTag, "EchoCtxTag"))((EchoImplicitWire, "EchoImplicitWire")))
 MC_REFLECT(mcapp_proxy_test::calc_object, ((iface, "Iface")))
 MC_REFLECT(mcapp_proxy_test::props_interface, ((Counter, "Counter"))((InvalidatedCounter, "InvalidatedCounter")))
 MC_REFLECT(mcapp_proxy_test::props_object, ((iface, "Iface")))
@@ -1090,4 +1124,84 @@ TEST_F(proxy_test, native_dbus_interop_properties_and_methods)
 
     // 验证 Set 生效
     EXPECT_EQ(static_cast<int32_t>(m_server->obj()->iface.Counter), 456);
+}
+TEST_F(proxy_test, native_dbus_wire_context_echo_methods_and_invalid_signature)
+{
+    fork_child([&]() -> int {
+        return run_in_child([&]() {
+            child_client client;
+            if (!client.init()) {
+                return 10;
+            }
+
+            mc::engine::proxy_policy policy;
+            policy.timeout               = mc::milliseconds(5000);
+            mc::dict         wire_dict   = mc::dict{{"WireTag", mc::variant(mc::string("e2e-wire"))}};
+            const mc::string cs_sig      = mc::string(mc::engine::context_signature_string());
+            const mc::string wire_plus_s = cs_sig + "s";
+
+            // 显式 context 首参 + tail
+            {
+                mc::engine::message msg;
+                msg.header.type           = mc::engine::message_type::method_call;
+                msg.header.destination    = mc::string("mc.test.proxy.server");
+                msg.header.path           = mc::string("/mc/test/proxy/calc");
+                msg.header.interface_name = mc::string("org.test.Calc");
+                msg.header.member_name    = mc::string("EchoCtxTag");
+                msg.body                  = mc::engine::make_payload<mc::engine::method_call_payload>(
+                    wire_plus_s, mc::variants{wire_dict, mc::string("tail-alpha")});
+
+                auto reply = client.proto->send_with_reply(std::move(msg), policy.timeout);
+                if (reply.header.type != mc::engine::message_type::method_return) {
+                    return 40;
+                }
+                auto* payload = reply.try_as<mc::engine::method_return_payload>();
+                if (payload == nullptr || payload->value != mc::variant(mc::string("e2e-wire|tail-alpha"))) {
+                    return 41;
+                }
+            }
+
+            // 隐式 context：dispatcher 合并 wire dict 后进 TLS
+            {
+                mc::engine::message msg;
+                msg.header.type           = mc::engine::message_type::method_call;
+                msg.header.destination    = mc::string("mc.test.proxy.server");
+                msg.header.path           = mc::string("/mc/test/proxy/calc");
+                msg.header.interface_name = mc::string("org.test.Calc");
+                msg.header.member_name    = mc::string("EchoImplicitWire");
+                msg.body                  = mc::engine::make_payload<mc::engine::method_call_payload>(
+                    wire_plus_s, mc::variants{wire_dict, mc::string("tail-beta")});
+
+                auto reply = client.proto->send_with_reply(std::move(msg), policy.timeout);
+                if (reply.header.type != mc::engine::message_type::method_return) {
+                    return 42;
+                }
+                auto* payload = reply.try_as<mc::engine::method_return_payload>();
+                if (payload == nullptr || payload->value != mc::variant(mc::string("e2e-wire|tail-beta"))) {
+                    return 43;
+                }
+            }
+
+            // EchoCtxTag 错误签名："ss" 且首参非 dict → invalid_args
+            {
+                mc::engine::message msg;
+                msg.header.type           = mc::engine::message_type::method_call;
+                msg.header.destination    = "mc.test.proxy.server";
+                msg.header.path           = "/mc/test/proxy/calc";
+                msg.header.interface_name = "org.test.Calc";
+                msg.header.member_name    = "EchoCtxTag";
+                msg.body = mc::engine::make_payload<mc::engine::method_call_payload>("ss", mc::variants{"bad", "tail"});
+
+                auto reply = client.proto->send_with_reply(std::move(msg), policy.timeout);
+                if (reply.header.type != mc::engine::message_type::error) {
+                    return 44;
+                }
+                if (reply.header.error_name != mc::string(mc::dbus::error_names::invalid_args)) {
+                    return 45;
+                }
+            }
+
+            return 0;
+        });
+    });
 }

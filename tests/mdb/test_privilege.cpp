@@ -140,9 +140,9 @@ TEST_F(privilege_validate_test, validate_auth_not_required)
 {
     mc::engine::context ctx(service, obj);
 
-    // Auth 不为 "1"（auth_required），应该直接返回
-    ctx.set_arg("Auth", "0");
-    ctx.set_arg("Privilege", "255");
+    // Auth 不为 auth_required，应该直接返回
+    ctx.set_auth(mc::engine::auth_state::no_auth);
+    ctx.set_privilege(255);
 
     {
         mc::engine::context_stack::context guard(&service, ctx);
@@ -150,32 +150,20 @@ TEST_F(privilege_validate_test, validate_auth_not_required)
     }
 }
 
-TEST_F(privilege_validate_test, validate_auth_not_string)
+TEST_F(privilege_validate_test, validate_integer_privilege_sufficient)
 {
     mc::engine::context ctx(service, obj);
 
-    // Auth 不是字符串，应该直接返回
-    ctx.set_arg("Auth", mc::variant(1));
-    ctx.set_arg("Privilege", "255");
+    ctx.set_auth(mc::engine::auth_state::auth_required);
+    ctx.set_privilege(255);
 
     {
         mc::engine::context_stack::context guard(&service, ctx);
         EXPECT_NO_THROW(validate(privilege::read_only));
     }
-}
 
-TEST_F(privilege_validate_test, validate_privilege_not_string)
-{
-    mc::engine::context ctx(service, obj);
-
-    // Privilege 不是字符串，应该抛出 insufficient_privilege_exception
-    ctx.set_arg("Auth", "1");
-    ctx.set_arg("Privilege", mc::variant(255));
-
-    {
-        mc::engine::context_stack::context guard(&service, ctx);
-        EXPECT_THROW(validate(privilege::read_only), mc::insufficient_privilege_exception);
-    }
+    ASSERT_TRUE(ctx.auth().has_value());
+    EXPECT_EQ(*ctx.auth(), mc::engine::auth_state::no_auth);
 }
 
 TEST_F(privilege_validate_test, validate_privilege_conversion_error)
@@ -183,12 +171,18 @@ TEST_F(privilege_validate_test, validate_privilege_conversion_error)
     mc::engine::context ctx(service, obj);
 
     // Privilege 字段格式错误，无法转换为数字
-    ctx.set_arg("Auth", "1");
-    ctx.set_arg("Privilege", "invalid");
+    ctx.set_auth(mc::engine::auth_state::auth_required);
+    EXPECT_THROW(ctx.set_arg("Privilege", "invalid"), mc::bad_cast_exception);
+}
+
+TEST_F(privilege_validate_test, validate_accepts_string_privilege_from_set_args)
+{
+    mc::engine::context ctx(service, obj);
+    ctx.set_args({{"Auth", "1"}, {"Privilege", "255"}});
 
     {
         mc::engine::context_stack::context guard(&service, ctx);
-        EXPECT_THROW(validate(privilege::user_mgmt), mc::insufficient_privilege_exception);
+        EXPECT_NO_THROW(validate(privilege::user_mgmt));
     }
 }
 
@@ -197,8 +191,8 @@ TEST_F(privilege_validate_test, validate_expected_zero_with_configure_self)
     mc::engine::context ctx(service, obj);
 
     // 期望权限为 0 且 priv 为 ConfigureSelf，应该抛出 password_changed_required_exception
-    ctx.set_arg("Auth", "1");
-    ctx.set_arg("Privilege", "256");
+    ctx.set_auth(mc::engine::auth_state::auth_required);
+    ctx.set_privilege(privilege::configure_self);
 
     {
         mc::engine::context_stack::context guard(&service, ctx);
@@ -211,8 +205,8 @@ TEST_F(privilege_validate_test, validate_expected_zero_with_other_privilege)
     mc::engine::context ctx(service, obj);
 
     // 期望权限为 0 且 priv 不为 ConfigureSelf，应该直接返回
-    ctx.set_arg("Auth", "1");
-    ctx.set_arg("Privilege", "1");
+    ctx.set_auth(mc::engine::auth_state::auth_required);
+    ctx.set_privilege(privilege::read_only);
 
     {
         mc::engine::context_stack::context guard(&service, ctx);
@@ -225,8 +219,8 @@ TEST_F(privilege_validate_test, validate_insufficient_privilege)
     mc::engine::context ctx(service, obj);
 
     // 当前权限不满足期望权限，应该抛出 insufficient_privilege_exception
-    ctx.set_arg("Auth", "1");
-    ctx.set_arg("Privilege", "1"); // 只有 read_only
+    ctx.set_auth(mc::engine::auth_state::auth_required);
+    ctx.set_privilege(privilege::read_only);
 
     {
         mc::engine::context_stack::context guard(&service, ctx);
@@ -238,18 +232,17 @@ TEST_F(privilege_validate_test, validate_sufficient_privilege)
 {
     mc::engine::context ctx(service, obj);
 
-    // 当前权限满足期望权限，应该成功并将 Auth 置为 "0" (no_auth)
-    ctx.set_arg("Auth", "1");
-    ctx.set_arg("Privilege", "255"); // 所有权限
+    // 当前权限满足期望权限，应该成功并将 Auth 置为 no_auth
+    ctx.set_auth(mc::engine::auth_state::auth_required);
+    ctx.set_privilege(255); // 所有权限
 
     {
         mc::engine::context_stack::context guard(&service, ctx);
         EXPECT_NO_THROW(validate(privilege::user_mgmt));
     }
 
-    // 验证 Auth 已被置为 "0"
-    auto auth_var = ctx.get_arg("Auth");
-    EXPECT_EQ(auth_var.as_string(), "0");
+    ASSERT_TRUE(ctx.auth().has_value());
+    EXPECT_EQ(*ctx.auth(), mc::engine::auth_state::no_auth);
 }
 
 TEST_F(privilege_validate_test, validate_exact_privilege)
@@ -257,17 +250,16 @@ TEST_F(privilege_validate_test, validate_exact_privilege)
     mc::engine::context ctx(service, obj);
 
     // 当前权限正好等于期望权限
-    ctx.set_arg("Auth", "1");
-    ctx.set_arg("Privilege", "16"); // user_mgmt
+    ctx.set_auth(mc::engine::auth_state::auth_required);
+    ctx.set_privilege(privilege::user_mgmt);
 
     {
         mc::engine::context_stack::context guard(&service, ctx);
         EXPECT_NO_THROW(validate(privilege::user_mgmt));
     }
 
-    // 验证 Auth 已被置为 "0"
-    auto auth_var = ctx.get_arg("Auth");
-    EXPECT_EQ(auth_var.as_string(), "0");
+    ASSERT_TRUE(ctx.auth().has_value());
+    EXPECT_EQ(*ctx.auth(), mc::engine::auth_state::no_auth);
 }
 
 TEST_F(privilege_validate_test, validate_multiple_privileges)
@@ -275,17 +267,16 @@ TEST_F(privilege_validate_test, validate_multiple_privileges)
     mc::engine::context ctx(service, obj);
 
     // 当前权限包含多个权限，满足期望的单个权限
-    ctx.set_arg("Auth", "1");
-    ctx.set_arg("Privilege", "49"); // read_only | user_mgmt | power_mgmt
+    ctx.set_auth(mc::engine::auth_state::auth_required);
+    ctx.set_privilege(49); // read_only | user_mgmt | power_mgmt
 
     {
         mc::engine::context_stack::context guard(&service, ctx);
         EXPECT_NO_THROW(validate(privilege::user_mgmt));
     }
 
-    // 验证 Auth 已被置为 "0"
-    auto auth_var = ctx.get_arg("Auth");
-    EXPECT_EQ(auth_var.as_string(), "0");
+    ASSERT_TRUE(ctx.auth().has_value());
+    EXPECT_EQ(*ctx.auth(), mc::engine::auth_state::no_auth);
 }
 
 TEST_F(privilege_validate_test, validate_combined_privilege_requirement)
@@ -293,8 +284,8 @@ TEST_F(privilege_validate_test, validate_combined_privilege_requirement)
     mc::engine::context ctx(service, obj);
 
     // 测试组合权限要求
-    ctx.set_arg("Auth", "1");
-    ctx.set_arg("Privilege", "49"); // read_only | user_mgmt | power_mgmt
+    ctx.set_auth(mc::engine::auth_state::auth_required);
+    ctx.set_privilege(49); // read_only | user_mgmt | power_mgmt
 
     {
         mc::engine::context_stack::context guard(&service, ctx);
@@ -309,8 +300,8 @@ TEST_F(privilege_validate_test, validate_combined_privilege_insufficient)
     mc::engine::context ctx(service, obj);
 
     // 测试组合权限不足的情况
-    ctx.set_arg("Auth", "1");
-    ctx.set_arg("Privilege", "1"); // 只有 read_only
+    ctx.set_auth(mc::engine::auth_state::auth_required);
+    ctx.set_privilege(privilege::read_only);
 
     {
         mc::engine::context_stack::context guard(&service, ctx);

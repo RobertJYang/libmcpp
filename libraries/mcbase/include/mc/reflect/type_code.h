@@ -63,10 +63,11 @@ inline type_code char_to_type(char c)
 
 // 类型组合
 namespace container {
-constexpr mc::string_view array_of_byte{"ay", 2};       // 字节数组
-constexpr mc::string_view array_of_string{"as", 2};     // 字符串数组
-constexpr mc::string_view array_of_variant{"av", 2};   // 变体数组
-constexpr mc::string_view dict_string_var{"a{sv}", 5}; // 字符串到变体的字典
+constexpr mc::string_view array_of_byte{"ay", 2};         // 字节数组
+constexpr mc::string_view array_of_string{"as", 2};       // 字符串数组
+constexpr mc::string_view array_of_variant{"av", 2};      // 变体数组
+constexpr mc::string_view dict_string_var{"a{sv}", 5};    // 字符串到 variant 的 dict
+constexpr mc::string_view dict_string_string{"a{ss}", 5}; // 字符串到字符串的 dict
 } // namespace container
 
 /**

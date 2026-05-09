@@ -348,7 +348,7 @@ struct MC_API shm_obj_visitor : mc::engine::metadata_visitor {
     void handle(const mc::engine::method_type_info* info) override
     {
         ::shm::method& shm_method =
-            m_shm_intf->add_m(m_shm_ins, info->name, info->get_args_signature(), info->get_result_signature());
+            m_shm_intf->add_m(m_shm_ins, info->name, info->get_full_args_signature(), info->get_result_signature());
         shm_method.set_privilege(0);
         shm_method.set_flags(info->flags);
     }

@@ -201,14 +201,14 @@ void get_initiator(std::string& interface, std::string& username, std::string& c
     }
     auto& ctx = mc::engine::context::get_current_context();
 
-    if (ctx.get_arg("interface_name")) {
-        interface = ctx.get_arg("interface_name").as<std::string_view>();
+    if (auto value = ctx.interface_name(); value.has_value()) {
+        interface = *value;
     }
-    if (ctx.get_arg("username")) {
-        username = ctx.get_arg("username").as<std::string_view>();
+    if (auto value = ctx.username(); value.has_value()) {
+        username = *value;
     }
-    if (ctx.get_arg("client_addr")) {
-        client_addr = ctx.get_arg("client_addr").as<std::string_view>();
+    if (auto value = ctx.client_addr(); value.has_value()) {
+        client_addr = *value;
     }
 }
 

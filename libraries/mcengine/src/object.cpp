@@ -10,12 +10,12 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include "shm_property_sync.h"
 #include <mc/engine/errors/std_errors.h>
-#include <mc/engine/object.h>
 #include <mc/engine/internal/shm_binding.h>
+#include <mc/engine/object.h>
 #include <mc/engine/path.h>
 #include <mc/engine/service.h>
-#include "shm_property_sync.h"
 #include <mc/engine/utils.h>
 #include <mc/log/log.h>
 
@@ -309,8 +309,7 @@ void object_impl::set_owner(abstract_object* new_owner)
     _sync_owner_to_shm(old_owner, new_owner);
 }
 
-void object_impl::_sync_owner_to_shm(abstract_object* old_owner,
-                                     abstract_object* new_owner) noexcept
+void object_impl::_sync_owner_to_shm(abstract_object* old_owner, abstract_object* new_owner) noexcept
 {
     shm_binding::sync_owner(*this, old_owner, new_owner);
 }
@@ -411,8 +410,7 @@ void object_impl::init_interface_object(const object_metadata& metadata)
     });
 }
 
-mc::variant object_impl::get_property(mc::string_view property_name, mc::string_view interface_name,
-                                      int options) const
+mc::variant object_impl::get_property(mc::string_view property_name, mc::string_view interface_name, int options) const
 {
     // TODO:: 属性目前没有实现对象重载接口属性，后续需要实现
     const auto& metadata = get_metadata();
@@ -435,15 +433,16 @@ bool object_impl::handle_override(property_base* prop, mc::string_view property_
     if (!ctx) {
         return false;
     }
-    auto override_value = prop->get_override_value();
-    auto override_mode  = ctx->get_arg("OverrideMode");
+    auto  override_value = prop->get_override_value();
+    auto& override_args  = ctx->local();
+    auto  override_mode  = override_args.contains("OverrideMode") ? override_args["OverrideMode"] : mc::variant{};
     if (override_mode.is_null()) {
         if (override_value.is_null()) {
             return false;
         }
         // 已有Override值情况下，以非Override模式设置属性值，只更新后台原始值，不发属性变更信号
         // 这里设置上下文标记，后续流程的属性值设置视为Override模式设置，与lua框架保持一致
-        ctx->set_arg("OverrideMode", "set");
+        override_args["OverrideMode"] = "set";
         return false;
     }
     auto old_value = prop->get_value(0);
@@ -456,13 +455,12 @@ bool object_impl::handle_override(property_base* prop, mc::string_view property_
             return true;
         }
         prop->set_override_value({});
-        ctx->set_arg("OverrideMode", mc::variant());
+        override_args.erase("OverrideMode");
     }
     return true;
 }
 
-bool object_impl::set_property(mc::string_view property_name, const mc::variant& value,
-                               mc::string_view interface_name)
+bool object_impl::set_property(mc::string_view property_name, const mc::variant& value, mc::string_view interface_name)
 {
     const auto& metadata = get_metadata();
     auto        info     = metadata.get_property_info(property_name, interface_name);
@@ -556,7 +554,7 @@ abstract_interface* object_impl::get_interface(mc::string_view interface_name) c
 void object_impl::from_variant(const mc::dict& d, object_impl& obj)
 {
     object_initializing_guard guard(obj);
-    const auto& metadata = obj.get_metadata();
+    const auto&               metadata = obj.get_metadata();
     metadata.visit_properties([&](interface_item<property_type_info> info) {
         if (!d.contains(info.item->name)) {
             return;
@@ -675,8 +673,7 @@ mc::variant object_impl::emit(mc::string_view signal_name, const mc::variants& a
     return {};
 }
 
-invoke_result object_impl::invoke(mc::string_view method_name, const mc::variants& args,
-                                  mc::string_view interface_name)
+invoke_result object_impl::invoke(mc::string_view method_name, const mc::variants& args, mc::string_view interface_name)
 {
     return detail::invoke_impl<invoke_result>(this, method_name, args, interface_name);
 }

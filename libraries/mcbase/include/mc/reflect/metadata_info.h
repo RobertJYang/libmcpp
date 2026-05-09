@@ -35,6 +35,10 @@
 #include <mc/traits.h>
 #include <mc/variant.h>
 
+namespace mc::engine {
+class context;
+} // namespace mc::engine
+
 namespace mc::reflect {
 
 #ifndef MC_REFLECT_FLAG_READONLY
@@ -481,9 +485,20 @@ struct MC_API method_type_info : public member_info_base {
     constexpr method_type_info(mc::string_view n) : member_info_base(n)
     {}
 
-    virtual mc::string_view get_args_signature() const   = 0;
-    virtual mc::string_view get_result_signature() const = 0;
-    virtual size_t          arg_count() const            = 0;
+    // 返回业务参数签名（不含首参 mc::engine::context）。
+    virtual mc::string_view get_args_signature() const = 0;
+    // 返回完整绑定签名（若实现侧显式声明 mc::engine::context 首参，则包含该参数）。
+    virtual mc::string_view get_full_args_signature() const = 0;
+    virtual mc::string_view get_result_signature() const    = 0;
+    // 原始 C++ 形参个数，包含可能存在的显式 context 首参。
+    virtual size_t arg_count() const                = 0;
+    virtual bool   has_explicit_context_arg() const = 0;
+
+    // 业务参数个数，等于 arg_count() 减去显式 context 首参（若有）。
+    size_t business_arg_count() const
+    {
+        return arg_count() - (has_explicit_context_arg() ? 1U : 0U);
+    }
 
     virtual bool         is_static() const                                              = 0;
     virtual mc::variant  invoke_erased(void* obj, const mc::variants& args) const       = 0;
@@ -535,7 +550,8 @@ struct MC_API method_info : public method_type_info {
                 invoke_raw_func_t invoke_raw_func, async_invoke_raw_func_t async_invoke_raw_func,
                 invoke_static_raw_func_t       invoke_static_raw_func,
                 async_invoke_static_raw_func_t async_invoke_static_raw_func, std::type_index typeinfo,
-                mc::string_view type_name, mc::string_view args_signature, mc::string_view result_signature);
+                mc::string_view type_name, mc::string_view args_signature, mc::string_view full_args_signature,
+                mc::string_view result_signature, bool has_explicit_context_arg);
 
     static method_info* create(mc::string_view n, uint32_t relative_offset, uint32_t function_size,
                                uint32_t method_arg_count, bool is_static_method, invoke_func_t invoke_func,
@@ -545,7 +561,8 @@ struct MC_API method_info : public method_type_info {
                                invoke_static_raw_func_t       invoke_static_raw_func,
                                async_invoke_static_raw_func_t async_invoke_static_raw_func, std::type_index typeinfo,
                                mc::string_view type_name, mc::string_view args_signature,
-                               mc::string_view result_signature, const void* function_data);
+                               mc::string_view full_args_signature, mc::string_view result_signature,
+                               bool has_explicit_context_arg, const void* function_data);
 
     bool              is_static() const override;
     mc::variant       invoke_erased(void* obj, const mc::variants& args) const override;
@@ -556,7 +573,9 @@ struct MC_API method_info : public method_type_info {
     mc::string_view   type_name() const noexcept override;
     size_t            arg_count() const override;
     mc::string_view   get_args_signature() const override;
+    mc::string_view   get_full_args_signature() const override;
     mc::string_view   get_result_signature() const override;
+    bool              has_explicit_context_arg() const override;
     uint32_t          offset() const noexcept override;
     int               type() const noexcept override;
     member_info_base* clone() const override;
@@ -582,8 +601,12 @@ private:
     async_invoke_static_raw_func_t m_async_invoke_static_raw;
     std::type_index                m_typeinfo;
     mc::string_view                m_type_name;
-    mc::string_view                m_args_signature;
-    mc::string_view                m_result_signature;
+    // 业务参数签名（不含首参 mc::engine::context）。
+    mc::string_view m_args_signature;
+    // 完整绑定参数签名（含首参 mc::engine::context，若有）。
+    mc::string_view m_full_args_signature;
+    mc::string_view m_result_signature;
+    bool            m_has_explicit_context_arg;
 };
 
 struct runtime_method_deleter {
@@ -657,15 +680,44 @@ FunctionType load_method_function(const method_info& info)
     return function;
 }
 
+template <typename Tuple>
+struct explicit_context_arg_traits {
+    static constexpr bool value = false;
+    using business_args_type    = Tuple;
+};
+
+template <typename Head, typename... Tail>
+struct explicit_context_arg_traits<std::tuple<Head, Tail...>> {
+    static constexpr bool value = std::is_same_v<Head, mc::engine::context>;
+    using business_args_type    = std::conditional_t<value, std::tuple<Tail...>, std::tuple<Head, Tail...>>;
+};
+
+template <typename Tuple>
+struct all_tuple_variant_convertible;
+
+template <>
+struct all_tuple_variant_convertible<std::tuple<>> : std::true_type {};
+
+template <typename Head, typename... Tail>
+struct all_tuple_variant_convertible<std::tuple<Head, Tail...>>
+    : std::bool_constant<(is_variant_convertible_v<Head> || is_variant_v<Head>) &&
+                         all_tuple_variant_convertible<std::tuple<Tail...>>::value> {};
+
 template <typename R, typename... Args>
 struct method_signature_ops {
-    using raw_result_type = R;
-    using result_type     = mc::traits::remove_cvref_t<R>;
-    using args_type       = std::tuple<mc::traits::remove_cvref_t<Args>...>;
+    using raw_result_type         = R;
+    using result_type             = mc::traits::remove_cvref_t<R>;
+    using args_type               = std::tuple<mc::traits::remove_cvref_t<Args>...>;
+    using explicit_context_traits = explicit_context_arg_traits<args_type>;
+    using business_args_type      = typename explicit_context_traits::business_args_type;
+
+    static constexpr bool   has_explicit_context_arg = explicit_context_traits::value;
+    static constexpr size_t raw_arg_count            = sizeof...(Args);
+    static constexpr size_t business_arg_count       = std::tuple_size_v<business_args_type>;
 
     static_assert(std::is_void_v<R> || is_variant_constructible_v<R> || is_variant_v<R>,
                   "方法返回类型必须是void或者可以转换为mc::variant");
-    static_assert(all_variant_convertible_v<mc::traits::remove_cvref_t<Args>...>, "参数类型必须可从mc::variant转换");
+    static_assert(all_tuple_variant_convertible<business_args_type>::value, "参数类型必须可从mc::variant转换");
 
     static std::type_index typeinfo()
     {
@@ -677,7 +729,14 @@ struct method_signature_ops {
         return pretty_name<R>();
     }
 
+    // 业务参数签名（剥离显式 context 首参后得到的 tuple 签名）。
     static mc::string_view get_args_signature()
+    {
+        return mc::reflect::get_signature<business_args_type>();
+    }
+
+    // 完整绑定参数签名（保留显式 context 首参，如果声明了的话）。
+    static mc::string_view get_full_args_signature()
     {
         return mc::reflect::get_signature<args_type>();
     }
@@ -695,14 +754,13 @@ struct method_signature_ops {
 
     static args_type convert_args([[maybe_unused]] mc::string_view name, const mc::variants& args)
     {
-        constexpr size_t arg_count = sizeof...(Args);
         if constexpr (std::is_same_v<args_type, std::tuple<mc::variants>>) {
             return args_type{args};
         } else {
-            if (args.size() < arg_count) {
-                throw_method_arg_not_enough(name, arg_count, args.size());
+            if (args.size() < raw_arg_count) {
+                throw_method_arg_not_enough(name, raw_arg_count, args.size());
             }
-            return convert_args_impl(name, args, std::make_index_sequence<arg_count>());
+            return convert_args_impl(name, args, std::make_index_sequence<raw_arg_count>());
         }
     }
 
@@ -941,9 +999,10 @@ struct erased_method_registration_factory {
             bindings::async_invoke_func, bindings::invoke_static_func, bindings::async_invoke_static_func,
             bindings::invoke_raw_func, bindings::async_invoke_raw_func, bindings::invoke_static_raw_func,
             bindings::async_invoke_static_raw_func, typeid(typename function_traits::raw_result_type),
-            pretty_name<typename function_traits::raw_result_type>(),
-            mc::reflect::get_signature<typename function_traits::args_type>(),
-            mc::reflect::get_signature<typename function_traits::result_type>(), &function);
+            pretty_name<typename function_traits::raw_result_type>(), bindings::signature_ops::get_args_signature(),
+            bindings::signature_ops::get_full_args_signature(),
+            mc::reflect::get_signature<typename function_traits::result_type>(),
+            bindings::signature_ops::has_explicit_context_arg, &function);
     }
 };
 

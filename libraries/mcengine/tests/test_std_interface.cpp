@@ -83,6 +83,7 @@ protected:
     void SetUp() override
     {
         TestWithEngine::SetUp();
+        mc::engine::standard_interfaces::set_show_context_in_introspect(false);
         service.init();
         service.start();
 
@@ -98,6 +99,7 @@ protected:
 
     void TearDown() override
     {
+        mc::engine::standard_interfaces::set_show_context_in_introspect(false);
         service.stop();
         TestWithEngine::TearDown();
     }
@@ -366,8 +368,8 @@ TEST_F(std_interface_test, common_properties_is_formal_interface_not_standard_in
 TEST_F(std_interface_test, common_properties_try_invoke_skips_formal_interface)
 {
     mc::variants args{mc::dict{}, mc::string("org.test.std.SampleInterface"), mc::string("Value")};
-    auto hit = mc::engine::standard_interfaces::try_invoke(service, obj.get(), obj->get_object_path(),
-                                                           "GetWithContext", args, "bmc.kepler.Object.Properties");
+    auto hit = mc::engine::standard_interfaces::try_invoke(service, obj.get(), obj->get_object_path(), "GetWithContext",
+                                                           args, "bmc.kepler.Object.Properties");
     EXPECT_FALSE(hit.has_value());
 
     auto value = obj->invoke("GetWithContext", args, "bmc.kepler.Object.Properties");
@@ -377,8 +379,8 @@ TEST_F(std_interface_test, common_properties_try_invoke_skips_formal_interface)
 TEST_F(std_interface_test, common_properties_invoke_get_all_with_context)
 {
     mc::variants args{mc::dict{}, mc::string("org.test.std.SampleInterface")};
-    auto value = obj->invoke("GetAllWithContext", args, "bmc.kepler.Object.Properties");
-    auto d     = value.as<mc::dict>();
+    auto         value = obj->invoke("GetAllWithContext", args, "bmc.kepler.Object.Properties");
+    auto         d     = value.as<mc::dict>();
     EXPECT_EQ(d["Value"], 42);
     EXPECT_EQ(d["Label"], "hello");
 }
@@ -450,13 +452,40 @@ TEST_F(std_interface_test, common_properties_introspect_contains_interface)
     EXPECT_NE(xml.find("<method name=\"GetWithContext\">"), mc::string::npos) << xml;
 }
 
+TEST_F(std_interface_test, common_properties_introspect_hides_context_arg_by_default)
+{
+    auto hit = mc::engine::standard_interfaces::try_invoke(service, obj.get(), obj->get_object_path(), "Introspect",
+                                                           mc::variants{}, "org.freedesktop.DBus.Introspectable");
+    ASSERT_TRUE(hit.has_value());
+    auto xml = hit->value.as<mc::string>();
+    EXPECT_NE(xml.find("<method name=\"GetWithContext\"><arg type=\"s\" direction=\"in\" /><arg type=\"s\" "
+                       "direction=\"in\" /><arg type=\"v\" direction=\"out\" /></method>"),
+              mc::string::npos)
+        << xml;
+}
+
+TEST_F(std_interface_test, common_properties_introspect_can_show_context_arg)
+{
+    mc::engine::standard_interfaces::set_show_context_in_introspect(true);
+
+    auto hit = mc::engine::standard_interfaces::try_invoke(service, obj.get(), obj->get_object_path(), "Introspect",
+                                                           mc::variants{}, "org.freedesktop.DBus.Introspectable");
+    ASSERT_TRUE(hit.has_value());
+    auto xml = hit->value.as<mc::string>();
+    EXPECT_NE(xml.find("<method name=\"GetWithContext\"><arg type=\"a{ss}\" direction=\"in\" /><arg type=\"s\" "
+                       "direction=\"in\" /><arg type=\"s\" direction=\"in\" /><arg type=\"v\" "
+                       "direction=\"out\" /></method>"),
+              mc::string::npos)
+        << xml;
+}
+
 TEST_F(std_interface_test, common_properties_get_managed_objects_includes_common_props)
 {
     auto hit =
         mc::engine::standard_interfaces::try_invoke(service, obj.get(), obj->get_object_path(), "GetManagedObjects",
                                                     mc::variants{}, "org.freedesktop.DBus.ObjectManager");
     ASSERT_TRUE(hit.has_value());
-    auto raw_dict = hit->value.as<mc::dict>();
+    auto                                               raw_dict = hit->value.as<mc::dict>();
     mc::engine::object_manager_interface::objects_type map;
     for (auto entry_it = raw_dict.begin(); entry_it != raw_dict.end(); ++entry_it) {
         mc::engine::path                                      obj_path(entry_it->key.as_string());
@@ -481,14 +510,13 @@ TEST_F(std_interface_test, common_properties_get_managed_objects_includes_common
 TEST_F(std_interface_test, common_properties_get_with_context_unknown_interface_errors)
 {
     mc::variants args{mc::dict{}, mc::string("org.no.such.Interface"), mc::string("Value")};
-    EXPECT_THROW(obj->invoke("GetWithContext", args, "bmc.kepler.Object.Properties"),
-                 mc::exception);
+    EXPECT_THROW(obj->invoke("GetWithContext", args, "bmc.kepler.Object.Properties"), mc::exception);
 }
 
 TEST_F(std_interface_test, common_properties_get_private_properties)
 {
     mc::variants args{mc::dict{}};
-    auto hit = obj->invoke("GetPrivateProperties", args, "bmc.kepler.Object.Properties");
+    auto         hit = obj->invoke("GetPrivateProperties", args, "bmc.kepler.Object.Properties");
     // 返回值应是 JSON 数组格式
     auto result = hit.as_string();
     EXPECT_TRUE(result == "[]" || !result.empty());

@@ -101,14 +101,17 @@ method_info::method_info(mc::string_view n, uint32_t relative_offset, uint32_t f
                          invoke_raw_func_t invoke_raw_func, async_invoke_raw_func_t async_invoke_raw_func,
                          invoke_static_raw_func_t       invoke_static_raw_func,
                          async_invoke_static_raw_func_t async_invoke_static_raw_func, std::type_index typeinfo,
-                         mc::string_view type_name, mc::string_view args_signature, mc::string_view result_signature)
+                         mc::string_view type_name, mc::string_view args_signature,
+                         mc::string_view full_args_signature, mc::string_view result_signature,
+                         bool has_explicit_context_arg)
     : method_type_info(n), m_relative_offset(relative_offset), m_function_size(function_size),
       m_arg_count(method_arg_count), m_is_static(is_static_method), m_invoke(invoke_func),
       m_async_invoke(async_invoke_func), m_invoke_static(invoke_static_func),
       m_async_invoke_static(async_invoke_static_func), m_invoke_raw(invoke_raw_func),
       m_async_invoke_raw(async_invoke_raw_func), m_invoke_static_raw(invoke_static_raw_func),
       m_async_invoke_static_raw(async_invoke_static_raw_func), m_typeinfo(typeinfo), m_type_name(type_name),
-      m_args_signature(args_signature), m_result_signature(result_signature)
+      m_args_signature(args_signature), m_full_args_signature(full_args_signature),
+      m_result_signature(result_signature), m_has_explicit_context_arg(has_explicit_context_arg)
 {
     if (!n.empty()) {
         this->name_quark = mc::quark{mc::detail::intern_trusted_literal(n)};
@@ -123,13 +126,15 @@ method_info* method_info::create(mc::string_view n, uint32_t relative_offset, ui
                                  invoke_static_raw_func_t       invoke_static_raw_func,
                                  async_invoke_static_raw_func_t async_invoke_static_raw_func, std::type_index typeinfo,
                                  mc::string_view type_name, mc::string_view args_signature,
-                                 mc::string_view result_signature, const void* function_data)
+                                 mc::string_view full_args_signature, mc::string_view result_signature,
+                                 bool has_explicit_context_arg, const void* function_data)
 {
     auto* storage = static_cast<char*>(operator new(sizeof(method_info) + function_size));
     auto* method  = new (storage) method_info(
         n, relative_offset, function_size, method_arg_count, is_static_method, invoke_func, async_invoke_func,
         invoke_static_func, async_invoke_static_func, invoke_raw_func, async_invoke_raw_func, invoke_static_raw_func,
-        async_invoke_static_raw_func, typeinfo, type_name, args_signature, result_signature);
+        async_invoke_static_raw_func, typeinfo, type_name, args_signature, full_args_signature, result_signature,
+        has_explicit_context_arg);
     std::memcpy(method->function_storage(), function_data, function_size);
     return method;
 }
@@ -196,9 +201,19 @@ mc::string_view method_info::get_args_signature() const
     return m_args_signature;
 }
 
+mc::string_view method_info::get_full_args_signature() const
+{
+    return m_full_args_signature;
+}
+
 mc::string_view method_info::get_result_signature() const
 {
     return m_result_signature;
+}
+
+bool method_info::has_explicit_context_arg() const
+{
+    return m_has_explicit_context_arg;
 }
 
 uint32_t method_info::offset() const noexcept

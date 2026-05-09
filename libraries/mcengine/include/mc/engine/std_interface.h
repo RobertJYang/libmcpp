@@ -39,10 +39,10 @@
 
 namespace mc::engine {
 
-constexpr mc::string_view properties_interface_name     = "org.freedesktop.DBus.Properties";
-constexpr mc::string_view introspectable_interface_name = "org.freedesktop.DBus.Introspectable";
-constexpr mc::string_view peer_interface_name           = "org.freedesktop.DBus.Peer";
-constexpr mc::string_view object_manager_interface_name = "org.freedesktop.DBus.ObjectManager";
+constexpr mc::string_view properties_interface_name        = "org.freedesktop.DBus.Properties";
+constexpr mc::string_view introspectable_interface_name    = "org.freedesktop.DBus.Introspectable";
+constexpr mc::string_view peer_interface_name              = "org.freedesktop.DBus.Peer";
+constexpr mc::string_view object_manager_interface_name    = "org.freedesktop.DBus.ObjectManager";
 constexpr mc::string_view common_properties_interface_name = "bmc.kepler.Object.Properties";
 
 namespace std_ifaces {
@@ -220,14 +220,14 @@ struct MC_API common_properties_interface : public mc::engine::interface<common_
     static mc::variant get(mc::string_view property_name);
     static mc::dict    get_all();
 
-    mc::variant   get_with_context(std::map<mc::string, mc::string> context, mc::string_view interface_name,
+    mc::variant get_with_context(mc::engine::context context, mc::string_view interface_name,
+                                 mc::string_view property_name);
+    void set_with_context(mc::engine::context context, mc::string_view interface_name, mc::string_view property_name,
+                          const mc::variant& value);
+    mc::dict   get_all_with_context(mc::engine::context context, mc::string_view interface_name);
+    mc::string get_property_detail(mc::engine::context context, mc::string_view interface_name,
                                    mc::string_view property_name);
-    void          set_with_context(std::map<mc::string, mc::string> context, mc::string_view interface_name,
-                                   mc::string_view property_name, const mc::variant& value);
-    mc::dict      get_all_with_context(std::map<mc::string, mc::string> context, mc::string_view interface_name);
-    mc::string    get_property_detail(std::map<mc::string, mc::string> context, mc::string_view interface_name,
-                                      mc::string_view property_name);
-    mc::string    get_private_properties(std::map<mc::string, mc::string> context);
+    mc::string get_private_properties(mc::engine::context context);
 
     static common_properties_interface& get_instance();
 };
@@ -244,6 +244,8 @@ public:
                                                 mc::string_view interface_name);
 
     static bool is_standard_interface(mc::string_view interface_name) noexcept;
+    static bool show_context_in_introspect() noexcept;
+    static void set_show_context_in_introspect(bool value) noexcept;
 
     // common_properties 接口名
     static constexpr mc::string_view common_properties_name = "bmc.kepler.Object.Properties";

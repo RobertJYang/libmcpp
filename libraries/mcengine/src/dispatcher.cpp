@@ -88,18 +88,48 @@ message make_reported_error_response(const message& request, const mc::error_ptr
     return {};
 }
 
-static void parse_context_arg(context& ctx, const mc::variants& args)
+bool is_wire_context_arg(const mc::variant& value)
 {
-    if (args.empty() || !args[0].is_dict()) {
-        return;
+    if (!value.is_dict()) {
+        return false;
     }
-    mc::dict first_arg = args[0].as_dict();
+    auto first_arg = value.as_dict();
     for (const auto& entry : first_arg) {
-        if (!entry.key.is_string() || !entry.value.is_string()) {
-            return;
+        if (!entry.key.is_string()) {
+            return false;
         }
     }
-    ctx.set_args(first_arg);
+    return true;
+}
+
+bool normalize_method_args(context& ctx, const mc::variants& args, size_t business_arg_count,
+                           bool has_explicit_context_arg, mc::variants& normalized_args)
+{
+    normalized_args.clear();
+
+    if (args.size() == business_arg_count) {
+        if (has_explicit_context_arg) {
+            normalized_args.push_back(ctx.get_args());
+        }
+        for (const auto& arg : args) {
+            normalized_args.push_back(arg);
+        }
+        return true;
+    }
+
+    if (args.size() != business_arg_count + 1 || args.empty() || !is_wire_context_arg(args[0])) {
+        return false;
+    }
+
+    ctx.set_args(args[0].as_dict());
+
+    if (has_explicit_context_arg) {
+        normalized_args.push_back(ctx.get_args());
+    }
+    for (size_t i = 1; i < args.size(); ++i) {
+        normalized_args.push_back(args[i]);
+    }
+    return true;
 }
 
 message dispatch_method_call(const service& svc, const message& request, const method_call_payload& payload)
@@ -128,7 +158,6 @@ message dispatch_method_call(const service& svc, const message& request, const m
     call_info.sender = request.header.sender;
     ctx.set_call_info(call_info);
     context_stack::context call_ctx(owner_svc, ctx);
-    parse_context_arg(ctx, payload.args);
 
     if (auto std_hit = standard_interfaces::try_invoke(svc, obj, request.header.path, request.header.member_name,
                                                        payload.args, request.header.interface_name);
@@ -145,8 +174,18 @@ message dispatch_method_call(const service& svc, const message& request, const m
         return make_engine_error_response(request, errors::unknown_method, {{"method", request.header.member_name}});
     }
 
-    auto info  = obj->get_metadata().get_method_info(request.header.member_name, request.header.interface_name);
-    auto value = obj->invoke(request.header.member_name, payload.args, request.header.interface_name);
+    auto info = obj->get_metadata().get_method_info(request.header.member_name, request.header.interface_name);
+    if (info.item == nullptr) {
+        return make_engine_error_response(request, errors::unknown_method, {{"method", request.header.member_name}});
+    }
+
+    mc::variants normalized_args;
+    if (!normalize_method_args(ctx, payload.args, info.item->business_arg_count(),
+                               info.item->has_explicit_context_arg(), normalized_args)) {
+        return make_engine_error_response(request, errors::invalid_args);
+    }
+
+    auto value = obj->invoke(request.header.member_name, normalized_args, request.header.interface_name);
     auto body  = make_payload<method_return_payload>(
         std::move(value), info.item == nullptr ? mc::string_view{} : info.item->get_result_signature());
     return make_response(request, message_type::method_return, std::move(body));

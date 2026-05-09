@@ -76,12 +76,34 @@ public:
     TestInterface2 m_iface2;
 };
 
+class OverrideInterface : public mc::engine::interface<OverrideInterface> {
+public:
+    MC_INTERFACE("org.test.OverrideInterface")
+
+    mc::engine::property<int32_t> m_value{0};
+};
+
+class OverrideObject : public mc::engine::object<OverrideObject> {
+public:
+    MC_OBJECT(OverrideObject, "OverrideObject", "/org/test/OverrideObject", (OverrideInterface))
+
+    OverrideInterface m_iface;
+};
+
+class OverrideService : public mc::engine::service {
+public:
+    OverrideService() : mc::engine::service("org.test.override.service")
+    {}
+};
+
 } // namespace
 
 MC_REFLECT(TestInterface1, ((m_value, "value"))((add, "Add"))((subtract, "Subtract"))((value_changed, "value_changed")))
 MC_REFLECT(TestInterface2,
            ((m_value, "value"))((set_value, "SetValue"))((get_value, "GetValue"))((value_changed, "value_changed")))
 MC_REFLECT(TTestObject, ((m_iface1, "iface1"))((m_iface2, "iface2")))
+MC_REFLECT(OverrideInterface, ((m_value, "Value")))
+MC_REFLECT(OverrideObject, ((m_iface, "Iface")))
 
 class object_test : public mc::test::TestBase {
 protected:
@@ -336,4 +358,23 @@ TEST_F(object_test, test_has_interface)
     // 测试不存在的接口
     EXPECT_FALSE(obj.has_interface("non_existing_interface"));
     EXPECT_FALSE(obj.has_interface("org.test.NonExistingInterface"));
+}
+
+TEST(object_override_test, override_mode_uses_local)
+{
+    OverrideService service;
+    OverrideObject  obj;
+    obj.set_object_name("override");
+    obj.set_object_path("/org/test/OverrideObject");
+
+    mc::engine::context ctx(service, obj);
+    ctx.local()["OverrideMode"] = "set";
+
+    {
+        mc::engine::context_stack::context guard(&service, ctx);
+        EXPECT_TRUE(obj.set_property("Value", 42, "org.test.OverrideInterface"));
+    }
+
+    EXPECT_EQ(obj.m_iface.m_value.get_override_value().as_int64(), 42);
+    EXPECT_EQ(ctx.local()["OverrideMode"].as_string(), "set");
 }
