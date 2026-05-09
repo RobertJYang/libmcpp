@@ -14,8 +14,8 @@
 #include <new>
 #include <unordered_set>
 
-#include <mc/engine/base.h>
 #include <mc/engine/metadata.h>
+#include <mc/engine/object.h>
 
 using namespace mc::reflect;
 
@@ -287,29 +287,37 @@ object_metadata::object_metadata(mc::string_view class_name, const struct_metada
                                  const metadata_list** iface_metadatas, size_t count)
 {
     // 先加载对象自身的反射数据，对象会遮盖接口的属性
-    const struct_metadata* obj_metadatas[2];
+    const struct_metadata* obj_metadatas[3];
     obj_metadatas[0] = &metadata;
-    obj_metadatas[1] = &mc::reflect::reflector<abstract_object>::get_metadata();
-    m_impl           = std::make_unique<impl>(class_name, obj_metadatas, 2);
+    obj_metadatas[1] = &mc::reflect::reflector<object_impl>::get_metadata();
+    obj_metadatas[2] = &mc::reflect::reflector<abstract_object>::get_metadata();
+    m_impl           = std::make_unique<impl>(class_name, obj_metadatas, 3);
     m_impl->load_object_metadata();
-    if (iface_metadatas == nullptr || count == 0) {
-        return; // 该对象没有 interface 成员，直接返回
+
+    if (iface_metadatas != nullptr && count != 0) {
+        const auto& properties = metadata.get_properties();
+        (void)properties;
+        for (size_t i = 0; i < count; ++i) {
+            const auto& struct_metadata = iface_metadatas[i]->get_struct_metadata();
+            if (struct_metadata.empty()) {
+                continue;
+            }
+
+            auto interface_property = get_interface_property(metadata, i);
+            if (interface_property == nullptr) {
+                continue;
+            }
+
+            interface_metadata im{interface_property, iface_metadatas[i]};
+            m_impl->load_interface_metadata(&im);
+        }
     }
 
-    const auto& properties = metadata.get_properties();
-    for (size_t i = 0; i < count; ++i) {
-        const auto& struct_metadata = iface_metadatas[i]->get_struct_metadata();
-        if (struct_metadata.empty()) {
-            continue;
-        }
-
-        auto interface_property = get_interface_property(metadata, i);
-        if (interface_property == nullptr) {
-            continue;
-        }
-
-        interface_metadata im{interface_property, iface_metadatas[i]};
-        m_impl->load_interface_metadata(&im);
+    auto* common_properties_info =
+        mc::reflect::reflector<object_impl>::get_metadata().get_property_info(common_properties_interface_name);
+    if (common_properties_info != nullptr) {
+        interface_metadata common_properties_metadata{common_properties_info, &common_properties_interface::metadata()};
+        m_impl->load_interface_metadata(&common_properties_metadata);
     }
 }
 

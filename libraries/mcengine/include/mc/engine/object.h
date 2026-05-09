@@ -17,6 +17,7 @@
 #include <mc/engine/event.h>
 #include <mc/engine/interface.h>
 #include <mc/engine/metadata.h>
+#include <mc/engine/std_interface.h>
 #include <mc/exception.h>
 #include <mc/object.h>
 #include <mc/small_function.h>
@@ -139,6 +140,12 @@ private:
 
 class MC_API object_impl : public abstract_object {
 public:
+    template <typename Members>
+    static constexpr void initial_members(Members& members)
+    {
+        detail::set_object_member_flags<std::tuple<common_properties_interface*>>(members);
+    }
+
     object_impl(core_object* parent);
     ~object_impl() override;
 
@@ -173,19 +180,16 @@ public:
     void     set_service(service* s) override;
     service* get_service() const override;
 
-    mc::variant get_property(mc::string_view property_name, mc::string_view interface_name,
-                             int options) const override;
-    bool        set_property(mc::string_view property_name, const mc::variant& value,
-                             mc::string_view interface_name) override;
-    mc::dict    get_all_properties(mc::string_view interface_name = {}, int options = 0) const override;
-    bool        has_property(mc::string_view property_name, mc::string_view interface_name) const override;
+    mc::variant get_property(mc::string_view property_name, mc::string_view interface_name, int options) const override;
+    bool set_property(mc::string_view property_name, const mc::variant& value, mc::string_view interface_name) override;
+    mc::dict get_all_properties(mc::string_view interface_name = {}, int options = 0) const override;
+    bool     has_property(mc::string_view property_name, mc::string_view interface_name) const override;
 
-    void                   set_property_ref_info(mc::string_view property_name, mc::string_view info,
-                                                 mc::string_view interface_name = {}) override;
-    mc::string             get_property_ref_info(mc::string_view property_name,
-                                                 mc::string_view interface_name = {}) const override;
-    void                   set_property_sync_info(mc::string_view property_name, property_sync_info_ptr info,
-                                                  mc::string_view interface_name = {}) override;
+    void       set_property_ref_info(mc::string_view property_name, mc::string_view info,
+                                     mc::string_view interface_name = {}) override;
+    mc::string get_property_ref_info(mc::string_view property_name, mc::string_view interface_name = {}) const override;
+    void       set_property_sync_info(mc::string_view property_name, property_sync_info_ptr info,
+                                      mc::string_view interface_name = {}) override;
     property_sync_info_ptr get_property_sync_info(mc::string_view property_name,
                                                   mc::string_view interface_name = {}) const override;
 
@@ -208,6 +212,8 @@ public:
 
     virtual mc::string_view get_path_pattern() const = 0;
 
+    common_properties_interface m_common_properties_interface;
+
 protected:
     void add_managed_object(abstract_object* obj) override;
     void remove_managed_object(abstract_object* obj) override;
@@ -219,6 +225,7 @@ protected:
     // owner 关系发生变更后把当前对象的 SHM parent / 旧 owner.children / 新 owner.children
     // 三处一起更新；OFF 模式或缺 m_shm_handle 时为 no-op。
     void _sync_owner_to_shm(abstract_object* old_owner, abstract_object* new_owner) noexcept;
+
 protected:
     mutable std::string                                           m_object_path;
     mutable std::string                                           m_position;

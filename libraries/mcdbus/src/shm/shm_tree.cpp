@@ -290,28 +290,8 @@ namespace {
 constexpr mc::milliseconds PROP_RPC_TIMEOUT{3000};
 constexpr std::string_view MDB_SERVICE_NAME{"bmc.kepler.maca"};
 constexpr std::string_view PROPS_IFACE{"bmc.kepler.Object.Properties"};
-constexpr std::string_view OBJECT_NAME_PROP{"ObjectName"};
-constexpr std::string_view CLASS_NAME_PROP{"ClassName"};
 constexpr std::string_view GET_WITH_CTX{"GetWithContext"};
 constexpr std::string_view GET_WITH_CTX_SIG{"a{ss}ss"};
-
-[[maybe_unused]] static void register_object_metadata_view(::shm::shared_memory& ins, ::shm::object& shm_obj,
-                                                           const mc::engine::abstract_object& obj)
-{
-    auto& iface = shm_obj.register_interface(ins, false, PROPS_IFACE);
-    shm_obj.add_named_object_view(ins, PROPS_IFACE);
-
-    auto add_string_property = [&](std::string_view property_name, std::string_view value) {
-        auto prop = iface.add_p(ins, property_name, "s");
-        prop->set_read_privilege(0);
-        prop->set_write_privilege(0);
-        prop->set_flags(0);
-        shm_tree::set_property_inner(prop, variant(std::string(value)));
-    };
-
-    add_string_property(OBJECT_NAME_PROP, obj.get_object_name());
-    add_string_property(CLASS_NAME_PROP, obj.get_class_name());
-}
 } // namespace
 
 // 构建 GetWithContext RPC 调用的参数
@@ -1320,7 +1300,6 @@ void shm_tree::register_object(mc::engine::abstract_object& obj)
     ::shm::object&  shm_obj = m_tree->register_object(ins, path);
     shm_obj_visitor visitor(shm_obj, obj);
     obj.get_metadata().visit(visitor);
-    register_object_metadata_view(ins, shm_obj, obj);
     obj.property_update_shm().connect([this, &obj](const mc::variant& value, const auto& prop) {
         try {
             auto iface     = prop.get_interface()->get_interface_name();

@@ -226,6 +226,11 @@ TEST_F(interface_inherit_test, test_get_all_properties)
                                                                            {"MiddleValue", "test_middle"},
                                                                            {"ExtendedValue", 9.99},
                                                                            {"CommonProp", "test_common"}}},
+                                   {"bmc.kepler.Object.Properties",
+                                    mc::dict{{"ParentPath", ""},
+                                             {"ObjectName", ""},
+                                             {"ClassName", "TestObject"},
+                                             {"ObjectIdentifier", mc::engine::object_identifier_t{}}}},
                                    // 包含对象级别的属性
                                    {"CommonProp", "object_common"},
                                    {"path", "/org/test/TestObject"},

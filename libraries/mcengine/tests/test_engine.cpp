@@ -381,6 +381,11 @@ TEST_F(engine_test, test_object_reflect)
 
     mc::dict expected = {{"org.test.test_interface_1",
                           mc::dict{{"i32", 20}, {"str", "123"}, {"vec", mc::variants{1, 2, 3}}, {"normal_v", 100}}},
+                         {"bmc.kepler.Object.Properties",
+                          mc::dict{{"ParentPath", ""},
+                                   {"ObjectName", ""},
+                                   {"ClassName", "TestObject"},
+                                   {"ObjectIdentifier", mc::engine::object_identifier_t{}}}},
                          {"org.test.test_interface_2", mc::dict{{"variant", 100}}}};
     EXPECT_EQ(var.get_object(), expected) << var.to_string() << "\n" << expected.to_string();
 

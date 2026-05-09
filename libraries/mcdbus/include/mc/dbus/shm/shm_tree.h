@@ -313,6 +313,9 @@ struct MC_API shm_obj_visitor : mc::engine::metadata_visitor {
     void handle_interface_begin(const mc::engine::interface_metadata& iface) override
     {
         m_shm_intf   = &m_shm_obj.register_interface(m_shm_ins, false, iface.metadata->get_class_name());
+        if (iface.metadata->get_class_name() == OBJECT_PROPERTIES_INTERFACE) {
+            m_shm_obj.add_named_object_view(m_shm_ins, OBJECT_PROPERTIES_INTERFACE);
+        }
         m_iface_meta = &iface;
         m_iface      = mc::engine::to_interface_ptr(&m_obj, iface.interface);
     }

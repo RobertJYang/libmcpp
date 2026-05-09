@@ -695,3 +695,5 @@ bool object_impl::has_method(mc::string_view method_name, mc::string_view interf
 }
 
 } // namespace mc::engine
+
+MC_REFLECT(mc::engine::object_impl, ((m_common_properties_interface, "bmc.kepler.Object.Properties")))

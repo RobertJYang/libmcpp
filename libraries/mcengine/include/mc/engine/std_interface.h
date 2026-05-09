@@ -212,10 +212,10 @@ struct MC_API common_properties_interface : public mc::engine::interface<common_
 
     ~common_properties_interface() override = default;
 
-    mc::string_view    m_parent_path;
-    mc::string_view    m_object_name;
-    mc::string_view    m_class_name;
-    object_identifier_t m_object_identifier;
+    mc::string_view     parent_path() const;
+    mc::string_view     object_name() const;
+    mc::string_view     class_name() const;
+    object_identifier_t object_identifier() const;
 
     static mc::variant get(mc::string_view property_name);
     static mc::dict    get_all();

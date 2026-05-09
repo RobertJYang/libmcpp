@@ -88,8 +88,7 @@ std::optional<standard_interfaces::invoke_hit> invoke_standard_interface(abstrac
 bool standard_interfaces::is_standard_interface(mc::string_view interface_name) noexcept
 {
     return interface_name == properties_interface_name || interface_name == introspectable_interface_name ||
-           interface_name == peer_interface_name || interface_name == object_manager_interface_name ||
-           interface_name == common_properties_interface_name;
+           interface_name == peer_interface_name || interface_name == object_manager_interface_name;
 }
 
 //===--------------------------------------------------------------------------------===//
@@ -108,9 +107,6 @@ mc::variant properties_interface::get(mc::string_view interface_name, mc::string
     if (object == nullptr) {
         return {};
     }
-    if (interface_name == common_properties_interface_name) {
-        return common_properties_interface::get(property_name);
-    }
     if (!object_has_interface(*object, interface_name)) {
         MC_REPLY_ERROR_AND_THROW(errors::unknown_interface, ("interface", interface_name));
     }
@@ -126,9 +122,6 @@ mc::dict properties_interface::get_all(mc::string_view interface_name)
     if (object == nullptr) {
         return {};
     }
-    if (interface_name == common_properties_interface_name) {
-        return common_properties_interface::get_all();
-    }
     if (!object_has_interface(*object, interface_name)) {
         MC_REPLY_ERROR_AND_THROW(errors::unknown_interface, ("interface", interface_name));
     }
@@ -139,10 +132,6 @@ void properties_interface::set(mc::string_view interface_name, mc::string_view p
 {
     auto* object = object_call_stack::top_value();
     if (object == nullptr) {
-        return;
-    }
-    // 通用属性接口不支持修改属性
-    if (interface_name == common_properties_interface_name) {
         return;
     }
     if (!object_has_interface(*object, interface_name)) {
@@ -296,7 +285,6 @@ mc::string introspectable_interface::introspect()
     v.add_standard_interface(properties_interface::get_instance());
     v.add_standard_interface(peer_interface::get_instance());
     v.add_standard_interface(object_manager_interface::get_instance());
-    v.add_standard_interface(common_properties_interface::get_instance());
     // 列出子对象节点
     v.handle_children(*object);
     v.xml_data += "</node>";
@@ -417,18 +405,12 @@ struct object_manager_visitor : metadata_visitor {
         if (m_interface_metadata == nullptr || m_interface_metadata->interface == nullptr) {
             return;
         }
-        if (m_interface_metadata->metadata != nullptr &&
-            m_interface_metadata->metadata->get_class_name() == common_properties_interface_name) {
-            mc::variant value                 = common_properties_interface::get(info->name);
-            m_current[mc::string(info->name)] = value;
-        } else {
-            const auto* iface = to_interface_ptr(m_object, m_interface_metadata->interface);
-            if (iface == nullptr) {
-                return;
-            }
-            mc::variant value                 = iface->get_property(info->name, mc::engine::property_options::memory);
-            m_current[mc::string(info->name)] = value;
+        const auto* iface = to_interface_ptr(m_object, m_interface_metadata->interface);
+        if (iface == nullptr) {
+            return;
         }
+        mc::variant value                 = iface->get_property(info->name, mc::engine::property_options::memory);
+        m_current[mc::string(info->name)] = value;
     }
 
     abstract_object*                          m_object;
@@ -454,12 +436,6 @@ object_manager_interface::objects_type object_manager_interface::get_managed_obj
         }
         object_manager_visitor v(child);
         child->get_metadata().visit(v);
-        // 为子对象建立调用上下文，手动添加 common_properties 接口属性
-        object_call_stack::context obj_ctx{child->get_service(), *child};
-        mc::dict common_props = common_properties_interface::get_all();
-        if (!common_props.empty()) {
-            v.m_interfaces[mc::string(common_properties_interface_name)] = common_props;
-        }
         mc::engine::path key{mc::string(child->get_object_path())};
         result[key] = v.m_interfaces;
     }
@@ -476,27 +452,45 @@ common_properties_interface& common_properties_interface::get_instance()
     return instance;
 }
 
+mc::string_view common_properties_interface::parent_path() const
+{
+    auto* object = get_owner();
+    if (object == nullptr) {
+        return {};
+    }
+    auto* owner = object->get_owner();
+    return owner != nullptr ? owner->get_object_path() : mc::string_view{};
+}
+
+mc::string_view common_properties_interface::object_name() const
+{
+    auto* object = get_owner();
+    return object != nullptr ? object->get_object_name() : mc::string_view{};
+}
+
+mc::string_view common_properties_interface::class_name() const
+{
+    auto* object = get_owner();
+    return object != nullptr ? object->get_class_name() : mc::string_view{};
+}
+
+object_identifier_t common_properties_interface::object_identifier() const
+{
+    auto* object = get_owner();
+    return object != nullptr ? object->get_object_identifier() : object_identifier_t{};
+}
+
 mc::variant common_properties_interface::get(mc::string_view property_name)
 {
     auto* object = object_call_stack::top_value();
     if (object == nullptr) {
         return {};
     }
-    if (property_name == "ParentPath") {
-        auto* owner = object->get_owner();
-        return owner != nullptr ? owner->get_object_path() : mc::string_view{};
+    auto* iface = object->get_interface(common_properties_interface_name);
+    if (iface == nullptr) {
+        return {};
     }
-    if (property_name == "ObjectName") {
-        return object->get_object_name();
-    }
-    if (property_name == "ClassName") {
-        return object->get_class_name();
-    }
-    if (property_name == "ObjectIdentifier") {
-        return object->get_object_identifier();
-    }
-    MC_REPLY_ERROR_AND_THROW(errors::unknown_property, ("property", property_name));
-    return {};
+    return iface->get_property(property_name);
 }
 
 mc::dict common_properties_interface::get_all()
@@ -505,13 +499,11 @@ mc::dict common_properties_interface::get_all()
     if (object == nullptr) {
         return {};
     }
-    mc::dict dict;
-    auto*     owner = object->get_owner();
-    dict["ParentPath"]       = owner != nullptr ? owner->get_object_path() : mc::string_view{};
-    dict["ObjectName"]       = object->get_object_name();
-    dict["ClassName"]        = object->get_class_name();
-    dict["ObjectIdentifier"] = object->get_object_identifier();
-    return dict;
+    auto* iface = object->get_interface(common_properties_interface_name);
+    if (iface == nullptr) {
+        return {};
+    }
+    return iface->get_all_properties(mc::engine::property_options::from_mdb);
 }
 
 mc::variant common_properties_interface::get_with_context(std::map<mc::string, mc::string> context,
@@ -520,7 +512,7 @@ mc::variant common_properties_interface::get_with_context(std::map<mc::string, m
 {
     (void)context;
     if (interface_name == common_properties_interface_name) {
-        return get(property_name);
+        return get_property(property_name, mc::engine::property_options::from_mdb);
     }
     auto* object = object_call_stack::top_value();
     if (object == nullptr) {
@@ -561,13 +553,13 @@ mc::dict common_properties_interface::get_all_with_context(std::map<mc::string, 
                                                            mc::string_view interface_name)
 {
     (void)context;
+    if (interface_name == common_properties_interface_name) {
+        return get_all_properties(mc::engine::property_options::from_mdb);
+    }
     auto* object = object_call_stack::top_value();
     if (object == nullptr) {
         elog("failed to get object from call stack");
         return {};
-    }
-    if (interface_name == common_properties_interface_name) {
-        return get_all();
     }
     return object->get_all_properties(interface_name, mc::engine::property_options::from_mdb);
 }
@@ -678,8 +670,6 @@ standard_interfaces::try_invoke(const service& svc, abstract_object* object, mc:
         target = &peer_interface::get_instance();
     } else if (interface_name == std_ifaces::object_manager) {
         target = &object_manager_interface::get_instance();
-    } else if (interface_name == std_ifaces::common_properties) {
-        target = &common_properties_interface::get_instance();
     } else {
         return std::nullopt;
     }
@@ -696,7 +686,8 @@ MC_REFLECT(mc::engine::peer_interface, ((ping, "Ping"))((get_machine_id, "GetMac
 MC_REFLECT(mc::engine::object_manager_interface,
            ((get_managed_objects, "GetManagedObjects"))(interfaces_added)(interfaces_removed))
 MC_REFLECT(mc::engine::common_properties_interface,
-           ((m_parent_path, "ParentPath"))((m_object_name, "ObjectName"))((m_class_name, "ClassName"))(
-               (m_object_identifier, "ObjectIdentifier"))((get_with_context, "GetWithContext"))(
+           (MC_COMPUTED_PROPERTY("ParentPath", parent_path))(MC_COMPUTED_PROPERTY("ObjectName", object_name))(
+               MC_COMPUTED_PROPERTY("ClassName", class_name))(
+               MC_COMPUTED_PROPERTY("ObjectIdentifier", object_identifier))((get_with_context, "GetWithContext"))(
                (set_with_context, "SetWithContext"))((get_all_with_context, "GetAllWithContext"))(
                (get_property_detail, "GetPropertyDetail"))((get_private_properties, "GetPrivateProperties")))

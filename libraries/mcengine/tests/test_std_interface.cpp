@@ -355,29 +355,30 @@ TEST_F(std_interface_test, try_invoke_no_object_for_non_introspect_returns_nullo
 // bmc.kepler.Object.Properties (common_properties_interface) 测试
 //===--------------------------------------------------------------------------------===//
 
-TEST_F(std_interface_test, common_properties_is_standard_interface)
+TEST_F(std_interface_test, common_properties_is_formal_interface_not_standard_interface)
 {
-    EXPECT_TRUE(mc::engine::standard_interfaces::is_standard_interface("bmc.kepler.Object.Properties"));
+    EXPECT_FALSE(mc::engine::standard_interfaces::is_standard_interface("bmc.kepler.Object.Properties"));
+    EXPECT_TRUE(obj->has_interface("bmc.kepler.Object.Properties"));
+    EXPECT_TRUE(obj->has_method("GetWithContext", "bmc.kepler.Object.Properties"));
+    EXPECT_TRUE(obj->has_property("ObjectName", "bmc.kepler.Object.Properties"));
 }
 
-TEST_F(std_interface_test, common_properties_try_invoke_get_with_context)
+TEST_F(std_interface_test, common_properties_try_invoke_skips_formal_interface)
 {
     mc::variants args{mc::dict{}, mc::string("org.test.std.SampleInterface"), mc::string("Value")};
     auto hit = mc::engine::standard_interfaces::try_invoke(service, obj.get(), obj->get_object_path(),
                                                            "GetWithContext", args, "bmc.kepler.Object.Properties");
-    ASSERT_TRUE(hit.has_value());
-    EXPECT_EQ(hit->result_signature, "v");
-    EXPECT_EQ(hit->value.as<int32_t>(), 42);
+    EXPECT_FALSE(hit.has_value());
+
+    auto value = obj->invoke("GetWithContext", args, "bmc.kepler.Object.Properties");
+    EXPECT_EQ(value.as<int32_t>(), 42);
 }
 
-TEST_F(std_interface_test, common_properties_try_invoke_get_all_with_context)
+TEST_F(std_interface_test, common_properties_invoke_get_all_with_context)
 {
     mc::variants args{mc::dict{}, mc::string("org.test.std.SampleInterface")};
-    auto hit = mc::engine::standard_interfaces::try_invoke(service, obj.get(), obj->get_object_path(),
-                                                           "GetAllWithContext", args, "bmc.kepler.Object.Properties");
-    ASSERT_TRUE(hit.has_value());
-    EXPECT_EQ(hit->result_signature, "a{sv}");
-    auto d = hit->value.as<mc::dict>();
+    auto value = obj->invoke("GetAllWithContext", args, "bmc.kepler.Object.Properties");
+    auto d     = value.as<mc::dict>();
     EXPECT_EQ(d["Value"], 42);
     EXPECT_EQ(d["Label"], "hello");
 }
@@ -426,9 +427,7 @@ TEST_F(std_interface_test, common_properties_set_with_context_is_noop)
     // 通用属性接口不支持修改，SetWithContext 对 common_properties 接口应静默忽略
     mc::variants args{mc::dict{}, mc::string("bmc.kepler.Object.Properties"), mc::string("ParentPath"),
                       mc::variant{mc::string("/some/path")}};
-    auto hit = mc::engine::standard_interfaces::try_invoke(service, child.get(), child->get_object_path(),
-                                                           "SetWithContext", args, "bmc.kepler.Object.Properties");
-    ASSERT_TRUE(hit.has_value());
+    EXPECT_NO_THROW(child->invoke("SetWithContext", args, "bmc.kepler.Object.Properties"));
     // ParentPath 不应被修改
     mc::variants get_args{mc::string("bmc.kepler.Object.Properties"), mc::string("ParentPath")};
     auto check = mc::engine::standard_interfaces::try_invoke(service, child.get(), child->get_object_path(), "Get",
@@ -482,19 +481,15 @@ TEST_F(std_interface_test, common_properties_get_managed_objects_includes_common
 TEST_F(std_interface_test, common_properties_get_with_context_unknown_interface_errors)
 {
     mc::variants args{mc::dict{}, mc::string("org.no.such.Interface"), mc::string("Value")};
-    EXPECT_THROW(mc::engine::standard_interfaces::try_invoke(service, obj.get(), obj->get_object_path(),
-                                                             "GetWithContext", args, "bmc.kepler.Object.Properties"),
+    EXPECT_THROW(obj->invoke("GetWithContext", args, "bmc.kepler.Object.Properties"),
                  mc::exception);
 }
 
 TEST_F(std_interface_test, common_properties_get_private_properties)
 {
     mc::variants args{mc::dict{}};
-    auto hit = mc::engine::standard_interfaces::try_invoke(service, obj.get(), obj->get_object_path(),
-                                                           "GetPrivateProperties", args, "bmc.kepler.Object.Properties");
-    ASSERT_TRUE(hit.has_value());
-    EXPECT_EQ(hit->result_signature, "s");
+    auto hit = obj->invoke("GetPrivateProperties", args, "bmc.kepler.Object.Properties");
     // 返回值应是 JSON 数组格式
-    auto result = hit->value.as_string();
+    auto result = hit.as_string();
     EXPECT_TRUE(result == "[]" || !result.empty());
 }
