@@ -9,13 +9,13 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
+#include "securec.h"
 #include <mc/fmt/format.h>
 #include <mc/fmt/formatter_chrono.h>
-#include "securec.h"
 
 namespace mc::fmt::detail {
 
-static void pad_number(std::string& out, int value, int width, pad_type pad)
+static void pad_number(mc::string& out, int value, int width, pad_type pad)
 {
     char buffer[32];
     int  len = snprintf_s(buffer, sizeof(buffer), sizeof(buffer), "%d", value);
@@ -30,7 +30,7 @@ static void pad_number(std::string& out, int value, int width, pad_type pad)
     }
 }
 
-void format_float(std::string& out, double value, int precision, bool has_precision)
+void format_float(mc::string& out, double value, int precision, bool has_precision)
 {
     detail::format_spec spec;
     format_context      ctx(out);
@@ -41,11 +41,11 @@ void format_float(std::string& out, double value, int precision, bool has_precis
     detail::format_to(ctx, spec, value);
 }
 
-duration_format_handler_base::duration_format_handler_base(std::string& output, int precision, bool has_precision)
+duration_format_handler_base::duration_format_handler_base(mc::string& output, int precision, bool has_precision)
     : m_output(output), m_precision(precision), m_has_precision(has_precision)
 {}
 
-void duration_format_handler_base::on_text(std::string_view text)
+void duration_format_handler_base::on_text(mc::string_view text)
 {
     m_output.append(text);
 }
@@ -158,9 +158,13 @@ void duration_format_handler_base::on_am_pm()
     m_output += (hours < 12) ? "AM" : "PM";
 }
 
-void duration_format_handler_base::on_timezone_offset(numeric_system)
+void duration_format_handler_base::on_timezone_offset(numeric_system, bool iso8601_colon_offset)
 {
-    m_output += "+0000";
+    if (iso8601_colon_offset) {
+        m_output += "+00:00";
+    } else {
+        m_output += "+0000";
+    }
 }
 
 void duration_format_handler_base::on_timezone_name(numeric_system)
@@ -178,10 +182,10 @@ void duration_format_handler_base::on_incomplete_spec()
     // 在实际格式化时不需要做任何操作，错误检查在编译期完成
 }
 
-time_point_format_handler_base::time_point_format_handler_base(std::string& output) : m_output(output)
+time_point_format_handler_base::time_point_format_handler_base(mc::string& output) : m_output(output)
 {}
 
-void time_point_format_handler_base::on_text(std::string_view text)
+void time_point_format_handler_base::on_text(mc::string_view text)
 {
     m_output.append(text);
 }
@@ -240,7 +244,7 @@ void time_point_format_handler_base::on_second(numeric_system, pad_type pad)
     uint32_t subsec_ns = get_subseconds_ns();
     if (subsec_ns > 0) {
         m_output += '.';
-        std::string subsec_str = std::to_string(subsec_ns);
+        mc::string subsec_str = mc::to_string(subsec_ns);
         // 补齐前导零
         while (subsec_str.length() < 9) {
             subsec_str = "0" + subsec_str;
@@ -303,13 +307,6 @@ void time_point_format_handler_base::on_duration_unit()
 {
     // time_point 不支持 duration 单位
 }
-// 平台判断宏
-#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) ||                       \
-    (defined(__linux__) && defined(__GLIBC__))
-#define MC_HAS_TM_GMTOFF 1
-#else
-#define MC_HAS_TM_GMTOFF 0
-#endif
 
 void time_point_format_handler_base::on_am_pm()
 {
@@ -317,83 +314,21 @@ void time_point_format_handler_base::on_am_pm()
     m_output += (m_tm.tm_hour < 12) ? "AM" : "PM";
 }
 
-void time_point_format_handler_base::on_timezone_offset(numeric_system)
+void time_point_format_handler_base::on_timezone_offset(numeric_system, bool iso8601_colon_offset)
 {
     ensure_tm();
-
-    // 获取本地时间结构
-    std::tm local_tm = *std::localtime(&m_time_t);
-
-    int offset_minutes = 0;
-#if MC_HAS_TM_GMTOFF
-    // 支持 tm_gmtoff 的平台
-    offset_minutes = local_tm.tm_gmtoff / 60;
-#else
-    // 通过比较 UTC 和本地时间来计算偏移量
-    std::tm utc_tm    = *std::gmtime(&m_time_t);
-    int     hour_diff = local_tm.tm_hour - utc_tm.tm_hour;
-    int     min_diff  = local_tm.tm_min - utc_tm.tm_min;
-    if (hour_diff > 12) {
-        hour_diff -= 24;
-    } else if (hour_diff < -12) {
-        hour_diff += 24;
+    // C++20 formatter<sys_time>: %z 为 0min；%Ez/%Oz 在时与分之间插入 ':'（零偏移为 +00:00）
+    if (iso8601_colon_offset) {
+        m_output += "+00:00";
+    } else {
+        m_output += "+0000";
     }
-    offset_minutes = hour_diff * 60 + min_diff;
-#endif
-    int hours   = std::abs(offset_minutes) / 60;
-    int minutes = std::abs(offset_minutes) % 60;
-    m_output += (offset_minutes >= 0 ? "+" : "-");
-    m_output += (hours < 10 ? "0" : "") + std::to_string(hours);
-    m_output += (minutes < 10 ? "0" : "") + std::to_string(minutes);
 }
 
 void time_point_format_handler_base::on_timezone_name(numeric_system)
 {
-    ensure_tm();
-
-    std::tm     local_tm = *std::localtime(&m_time_t);
-    const char* tz_name  = nullptr;
-#if MC_HAS_TM_GMTOFF
-    tz_name = local_tm.tm_zone;
-#else
-    tz_name = getenv("TZ");
-    if (!tz_name) {
-        std::tm utc_tm    = *std::gmtime(&m_time_t);
-        int     hour_diff = local_tm.tm_hour - utc_tm.tm_hour;
-        int     min_diff  = local_tm.tm_min - utc_tm.tm_min;
-        if (hour_diff > 12) {
-            hour_diff -= 24;
-        } else if (hour_diff < -12) {
-            hour_diff += 24;
-        }
-        int offset_minutes = hour_diff * 60 + min_diff;
-        if (offset_minutes == 0) {
-            tz_name = "UTC";
-        } else if (offset_minutes == 480) {
-            tz_name = "CST";
-        } else if (offset_minutes == -300) {
-            tz_name = "EST";
-        } else if (offset_minutes == -360) {
-            tz_name = "CST";
-        } else if (offset_minutes == -420) {
-            tz_name = "MST";
-        } else if (offset_minutes == -480) {
-            tz_name = "PST";
-        } else {
-            int hours   = std::abs(offset_minutes) / 60;
-            int minutes = std::abs(offset_minutes) % 60;
-            m_output += (offset_minutes >= 0 ? "+" : "-");
-            m_output += (hours < 10 ? "0" : "") + std::to_string(hours);
-            m_output += (minutes < 10 ? "0" : "") + std::to_string(minutes);
-            return;
-        }
-    }
-#endif
-    if (tz_name) {
-        m_output += tz_name;
-    } else {
-        on_timezone_offset(numeric_system::standard);
-    }
+    // C++20 std::formatter<std::chrono::sys_time>: %Z 替换为 "UTC"（CharT 拓宽至 char 即本字面值）
+    m_output += "UTC";
 }
 
 void time_point_format_handler_base::on_invalid_spec()

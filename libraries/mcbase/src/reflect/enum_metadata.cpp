@@ -33,23 +33,23 @@ static bool is_continuous_enum(const enum_member_info* values, size_t count)
 }
 
 struct enum_metadata::impl {
-    using name_to_value_map_t = std::unordered_map<std::string_view, enum_value_type>;
-    using value_to_name_map_t = std::unordered_map<enum_value_type, std::string_view>;
+    using name_to_value_map_t = std::unordered_map<mc::string_view, enum_value_type>;
+    using value_to_name_map_t = std::unordered_map<enum_value_type, mc::string_view>;
     struct data_t {
         mutable std::unique_ptr<name_to_value_map_t> name_to_value;
         mutable std::unique_ptr<value_to_name_map_t> value_to_name;
     };
 
-    std::optional<std::string_view> get_name(enum_value_type value) const;
-    std::optional<enum_value_type>  get_value(std::string_view name) const;
+    std::optional<mc::string_view> get_name(enum_value_type value) const;
+    std::optional<enum_value_type>  get_value(mc::string_view name) const;
 
     void init_value_to_name_map(const data_t& data) const;
     void init_name_to_value_map(const data_t& data) const;
 
-    std::optional<std::string_view> get_name_from_cache(const data_t& data, enum_value_type value) const;
-    std::optional<enum_value_type>  get_value_from_cache(const data_t& data, std::string_view name) const;
+    std::optional<mc::string_view> get_name_from_cache(const data_t& data, enum_value_type value) const;
+    std::optional<enum_value_type>  get_value_from_cache(const data_t& data, mc::string_view name) const;
 
-    std::string_view        name;
+    mc::string_view        name;
     const enum_member_info* values;
     size_t                  count;
     bool                    is_continuous; // 是否连续
@@ -81,7 +81,7 @@ void enum_metadata::impl::init_name_to_value_map(const data_t& data) const
     }
 }
 
-std::optional<std::string_view> enum_metadata::impl::get_name_from_cache(const data_t&   data,
+std::optional<mc::string_view> enum_metadata::impl::get_name_from_cache(const data_t&   data,
                                                                          enum_value_type value) const
 {
     auto it = data.value_to_name->find(value);
@@ -93,7 +93,7 @@ std::optional<std::string_view> enum_metadata::impl::get_name_from_cache(const d
 }
 
 std::optional<enum_value_type> enum_metadata::impl::get_value_from_cache(const data_t&    data,
-                                                                         std::string_view name) const
+                                                                         mc::string_view name) const
 {
     auto it = data.name_to_value->find(name);
     if (it == data.name_to_value->end()) {
@@ -103,7 +103,7 @@ std::optional<enum_value_type> enum_metadata::impl::get_value_from_cache(const d
     return it->second;
 }
 
-std::optional<std::string_view> enum_metadata::impl::get_name(enum_value_type value) const
+std::optional<mc::string_view> enum_metadata::impl::get_name(enum_value_type value) const
 {
     if (count == 0) {
         return std::nullopt;
@@ -118,14 +118,14 @@ std::optional<std::string_view> enum_metadata::impl::get_name(enum_value_type va
     }
 
     // 非连续枚举，从缓存映射表中查找
-    return data.with_rlock_ptr([this, value](auto locked_ptr) -> std::optional<std::string_view> {
+    return data.with_rlock_ptr([this, value](auto locked_ptr) -> std::optional<mc::string_view> {
         if (locked_ptr->value_to_name) {
             return get_name_from_cache(*locked_ptr, value);
         }
 
         // 还没有构建缓存映射表，先解锁读锁再重新拿写锁构建缓存映射表
         locked_ptr.unlock();
-        return data.with_lock([this, value](auto& data) -> std::optional<std::string_view> {
+        return data.with_lock([this, value](auto& data) -> std::optional<mc::string_view> {
             if (!data.value_to_name) {
                 // 第一次构造 value_to_name 映射表
                 init_value_to_name_map(data);
@@ -136,7 +136,7 @@ std::optional<std::string_view> enum_metadata::impl::get_name(enum_value_type va
     });
 }
 
-std::optional<enum_value_type> enum_metadata::impl::get_value(std::string_view enum_name) const
+std::optional<enum_value_type> enum_metadata::impl::get_value(mc::string_view enum_name) const
 {
     // 由于采用了延迟初始化方案，所以需要加锁等待。
     // 其实一个简单的原子指针操作就可以了，因为枚举缓存一旦构建就不会再变化，但目前还是加个读锁是考虑到动态模块中
@@ -159,7 +159,7 @@ std::optional<enum_value_type> enum_metadata::impl::get_value(std::string_view e
     });
 }
 
-enum_metadata::enum_metadata(std::string_view name, enum_values values) : m_impl(std::make_unique<impl>())
+enum_metadata::enum_metadata(mc::string_view name, enum_values values) : m_impl(std::make_unique<impl>())
 {
     m_impl->name          = name;
     m_impl->values        = values.members;
@@ -175,7 +175,7 @@ enum_metadata::~enum_metadata()
     });
 }
 
-enum_value_type enum_metadata::get_value(std::string_view name) const
+enum_value_type enum_metadata::get_value(mc::string_view name) const
 {
     auto value = m_impl->get_value(name);
     if (!value) {
@@ -195,7 +195,7 @@ enum_value_type enum_metadata::get_value_from_variant(const mc::variant& var) co
     return *value;
 }
 
-std::string_view enum_metadata::get_name(enum_value_type value) const
+mc::string_view enum_metadata::get_name(enum_value_type value) const
 {
     auto name = m_impl->get_name(value);
     if (!name) {
@@ -205,7 +205,7 @@ std::string_view enum_metadata::get_name(enum_value_type value) const
     return *name;
 }
 
-std::optional<enum_value_type> enum_metadata::try_get_value(std::string_view name) const
+std::optional<enum_value_type> enum_metadata::try_get_value(mc::string_view name) const
 {
     return m_impl->get_value(name);
 }
@@ -233,12 +233,12 @@ std::optional<enum_value_type> enum_metadata::try_get_value_from_variant(const m
     return std::nullopt;
 }
 
-std::optional<std::string_view> enum_metadata::try_get_name(enum_value_type value) const
+std::optional<mc::string_view> enum_metadata::try_get_name(enum_value_type value) const
 {
     return m_impl->get_name(value);
 }
 
-bool enum_metadata::has_value(std::string_view name) const
+bool enum_metadata::has_value(mc::string_view name) const
 {
     return m_impl->get_value(name).has_value();
 }
@@ -248,9 +248,9 @@ bool enum_metadata::has_value(enum_value_type value) const
     return m_impl->get_name(value).has_value();
 }
 
-std::vector<std::string_view> enum_metadata::get_names() const
+std::vector<mc::string_view> enum_metadata::get_names() const
 {
-    std::vector<std::string_view> names;
+    std::vector<mc::string_view> names;
     names.reserve(m_impl->count);
     for (size_t i = 0; i < m_impl->count; ++i) {
         names.push_back(m_impl->values[i].name);

@@ -199,7 +199,7 @@ std::type_index variants::element_type() const
     return m_data ? m_data->element_type() : typeid(void);
 }
 
-std::string variants::element_type_name() const
+mc::string variants::element_type_name() const
 {
     return m_data ? m_data->element_type_name() : "void";
 }
@@ -772,6 +772,11 @@ const i_variants* variants::data() const
 i_variants* variants::data()
 {
     return m_data.get();
+}
+
+mc::shared_ptr<i_variants> variants::shared_data() const
+{
+    return m_data;
 }
 
 } // namespace mc

@@ -18,6 +18,30 @@
 #include <mc/reflect/metadata_info.h>
 #include <mc/reflect/reflect.h>
 
+namespace mc::reflect::detail {
+
+void struct_to_variant_default(const struct_metadata& metadata, const void* obj, mc::dict& dict)
+{
+    metadata.visit_properties([&](const property_type_info* property) {
+        if (!dict.contains(property->name)) {
+            dict[property->name] = property->get_value(obj);
+        }
+        return visit_status::VS_CONTINUE;
+    });
+}
+
+void struct_from_variant_default(const struct_metadata& metadata, const mc::dict& dict, void* obj)
+{
+    metadata.visit_properties([&](const property_type_info* property) {
+        if (dict.contains(property->name)) {
+            property->set_value(obj, dict[property->name]);
+        }
+        return visit_status::VS_CONTINUE;
+    });
+}
+
+} // namespace mc::reflect::detail
+
 namespace mc::reflect {
 
 /**
@@ -26,7 +50,7 @@ namespace mc::reflect {
  * @param value 整数值
  * @param enum_type 枚举类型名称
  */
-void throw_bad_enum_cast(int64_t value, const char* enum_type)
+void throw_bad_enum_cast(int64_t value, mc::string_view enum_type)
 {
     MC_THROW(mc::bad_cast_exception, "无法将整数 ${value} 转换为枚举类型 ${enum_type}",
              ("value", value)("enum_type", enum_type));
@@ -38,7 +62,7 @@ void throw_bad_enum_cast(int64_t value, const char* enum_type)
  * @param value 字符串键
  * @param enum_type 枚举类型名称
  */
-void throw_bad_enum_cast(const char* value, const char* enum_type)
+void throw_bad_enum_cast(mc::string_view value, mc::string_view enum_type)
 {
     MC_THROW(mc::bad_cast_exception, "无法将字符串 ${value} 转换为枚举类型 ${enum_type}",
              ("value", value)("enum_type", enum_type));
@@ -51,7 +75,7 @@ void throw_bad_enum_cast(const char* value, const char* enum_type)
  * @param expect_count 期望的参数数量
  * @param actual_count 实际的参数数量
  */
-void throw_method_arg_not_enough(std::string_view method_name, size_t expect_count, size_t actual_count)
+void throw_method_arg_not_enough(mc::string_view method_name, size_t expect_count, size_t actual_count)
 {
     MC_THROW(mc::bad_function_call_exception,
              "调用方法 ${method_name} 参数不足，需要 ${expect_count} 个，实际提供 ${actual_count} 个",
@@ -63,7 +87,7 @@ void throw_method_arg_not_enough(std::string_view method_name, size_t expect_cou
  *
  * @param method_name 方法名称
  */
-void throw_method_not_exist(std::string_view method_name)
+void throw_method_not_exist(mc::string_view method_name)
 {
     MC_THROW(mc::bad_function_call_exception, "调用不存在的方法 ${method_name}", ("method_name", method_name));
 }
@@ -74,30 +98,30 @@ void throw_method_not_exist(std::string_view method_name)
  * @param k 变体类型
  * @param e 反射类型
  */
-void throw_variant_cast(const char* type, const char* variant_type)
+void throw_variant_cast(mc::string_view type, mc::string_view variant_type)
 {
     MC_THROW(mc::bad_cast_exception, "反射类型 ${type} 不支持从 ${variant_type} 转换",
              ("type", type)("variant_type", variant_type));
 }
 
-void throw_not_enum_type(std::string_view type_name)
+void throw_not_enum_type(mc::string_view type_name)
 {
     MC_THROW(mc::bad_type_exception, "类型不是枚举类型: ${type_name}", ("type_name", type_name));
 }
 
-void throw_enum_value_not_found(std::string_view type_name, std::string_view value_name)
+void throw_enum_value_not_found(mc::string_view type_name, mc::string_view value_name)
 {
     MC_THROW(mc::bad_type_exception, "枚举类型 ${type_name} 不存在值 ${value_name}",
              ("type_name", type_name)("value_name", value_name));
 }
 
-void throw_enum_value_not_found(std::string_view type_name, uint64_t value)
+void throw_enum_value_not_found(mc::string_view type_name, uint64_t value)
 {
     MC_THROW(mc::bad_type_exception, "枚举类型 ${type_name} 不存在值 ${value}",
              ("type_name", type_name)("value", value));
 }
 
-void throw_enum_not_support_create_object(std::string_view type_name)
+void throw_enum_not_support_create_object(mc::string_view type_name)
 {
     MC_THROW(mc::bad_type_exception, "枚举类型不支持创建对象实例: ${type_name}", ("type_name", type_name));
 }

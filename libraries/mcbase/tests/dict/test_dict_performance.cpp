@@ -15,6 +15,7 @@
  * @brief 测试 dict 和 dict 类的性能
  */
 #include <chrono>
+#include <cstdint>
 #include <gtest/gtest.h>
 #include <map>
 #include <mc/dict.h>
@@ -27,7 +28,7 @@
 using namespace mc;
 
 // 辅助函数：生成随机字符串
-std::string random_string(size_t length)
+mc::string random_string(size_t length)
 {
     static const char alphanum[] = "0123456789"
                                    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -37,7 +38,7 @@ std::string random_string(size_t length)
     std::mt19937                    gen(rd());
     std::uniform_int_distribution<> dis(0, sizeof(alphanum) - 2);
 
-    std::string result;
+    mc::string result;
     result.reserve(length);
 
     for (size_t i = 0; i < length; ++i) {
@@ -48,9 +49,9 @@ std::string random_string(size_t length)
 }
 
 // 辅助函数：生成随机键值对
-std::vector<std::pair<std::string, variant>> generate_random_pairs(size_t count)
+std::vector<std::pair<mc::string, variant>> generate_random_pairs(size_t count)
 {
-    std::vector<std::pair<std::string, variant>> pairs;
+    std::vector<std::pair<mc::string, variant>> pairs;
     pairs.reserve(count);
 
     std::random_device              rd;
@@ -58,8 +59,8 @@ std::vector<std::pair<std::string, variant>> generate_random_pairs(size_t count)
     std::uniform_int_distribution<> type_dis(0, 3);
 
     for (size_t i = 0; i < count; ++i) {
-        std::string key = "key_" + std::to_string(i);
-        variant     value;
+        mc::string key = "key_" + std::to_string(i);
+        variant    value;
 
         switch (type_dis(gen)) {
             case 0:
@@ -82,6 +83,25 @@ std::vector<std::pair<std::string, variant>> generate_random_pairs(size_t count)
     return pairs;
 }
 
+std::vector<variant> build_variant_keys(const std::vector<mc::string>& keys)
+{
+    std::vector<variant> result;
+    result.reserve(keys.size());
+    for (const auto& key : keys) {
+        result.emplace_back(key);
+    }
+    return result;
+}
+
+template <typename Fn>
+long long measure_us(Fn&& fn)
+{
+    const auto start = std::chrono::high_resolution_clock::now();
+    fn();
+    const auto end = std::chrono::high_resolution_clock::now();
+    return std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+}
+
 // 测试 dict 和 std::map 的插入性能
 TEST(DictPerformanceTest, DISABLED_InsertionPerformance)
 {
@@ -102,7 +122,7 @@ TEST(DictPerformanceTest, DISABLED_InsertionPerformance)
     // 测试 std::map 插入性能
     start = std::chrono::high_resolution_clock::now();
 
-    std::map<std::string, variant> m;
+    std::map<mc::string, variant> m;
     for (const auto& pair : pairs) {
         m[pair.first] = pair.second;
     }
@@ -113,7 +133,7 @@ TEST(DictPerformanceTest, DISABLED_InsertionPerformance)
     // 测试 std::unordered_map 插入性能
     start = std::chrono::high_resolution_clock::now();
 
-    std::unordered_map<std::string, variant> um;
+    std::unordered_map<mc::string, variant> um;
     for (const auto& pair : pairs) {
         um[pair.first] = pair.second;
     }
@@ -133,79 +153,94 @@ TEST(DictPerformanceTest, DISABLED_InsertionPerformance)
     EXPECT_EQ(um.size(), count);
 }
 
-// 测试 dict 和 std::map 的查找性能
+// 测试公平单次查找路径下的性能，并同时观察 variant key 的附加开销
 TEST(DictPerformanceTest, DISABLED_LookupPerformance)
 {
     const size_t count = 10000;
     auto         pairs = generate_random_pairs(count);
 
-    // 准备测试数据
-    dict                                     md;
-    std::map<std::string, variant>           m;
-    std::unordered_map<std::string, variant> um;
+    dict                                    md;
+    std::map<mc::string, variant>           ordered_map;
+    std::unordered_map<mc::string, variant> string_key_map;
+    std::unordered_map<variant, variant>    variant_key_map;
 
+    md.reserve(count);
+    string_key_map.reserve(count);
+    variant_key_map.reserve(count);
     for (const auto& pair : pairs) {
-        md[pair.first] = pair.second;
-        m[pair.first]  = pair.second;
-        um[pair.first] = pair.second;
+        md[pair.first]                       = pair.second;
+        ordered_map[pair.first]              = pair.second;
+        string_key_map[pair.first]           = pair.second;
+        variant_key_map[variant(pair.first)] = pair.second;
     }
 
-    // 随机选择一些键进行查找
     std::random_device              rd;
     std::mt19937                    gen(rd());
     std::uniform_int_distribution<> dis(0, count - 1);
 
-    const size_t             lookup_count = 1000;
-    std::vector<std::string> lookup_keys;
+    const size_t            lookup_count = 5000;
+    std::vector<mc::string> lookup_keys;
     lookup_keys.reserve(lookup_count);
-
     for (size_t i = 0; i < lookup_count; ++i) {
         lookup_keys.push_back("key_" + std::to_string(dis(gen)));
     }
+    auto lookup_variant_keys = build_variant_keys(lookup_keys);
 
-    // 测试 dict 查找性能
-    auto start = std::chrono::high_resolution_clock::now();
+    volatile std::uint64_t sink = 0;
 
-    for (const auto& key : lookup_keys) {
-        if (md.contains(key)) {
-            variant v = md[key];
+    const auto dict_find_string_view_us = measure_us([&]() {
+        for (const auto& key : lookup_keys) {
+            auto it = md.find(mc::string_view(key));
+            if (it != md.end()) {
+                sink += static_cast<std::uint64_t>(it->key.size());
+            }
         }
-    }
+    });
 
-    auto end         = std::chrono::high_resolution_clock::now();
-    auto md_duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-
-    // 测试 std::map 查找性能
-    start = std::chrono::high_resolution_clock::now();
-
-    for (const auto& key : lookup_keys) {
-        auto it = m.find(key);
-        if (it != m.end()) {
-            variant v = it->second;
+    const auto dict_find_variant_us = measure_us([&]() {
+        for (const auto& key : lookup_variant_keys) {
+            auto it = md.find(key);
+            if (it != md.end()) {
+                sink += static_cast<std::uint64_t>(it->key.size());
+            }
         }
-    }
+    });
 
-    end               = std::chrono::high_resolution_clock::now();
-    auto map_duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-
-    // 测试 std::unordered_map 查找性能
-    start = std::chrono::high_resolution_clock::now();
-
-    for (const auto& key : lookup_keys) {
-        auto it = um.find(key);
-        if (it != um.end()) {
-            variant v = it->second;
+    const auto ordered_map_find_us = measure_us([&]() {
+        for (const auto& key : lookup_keys) {
+            auto it = ordered_map.find(key);
+            if (it != ordered_map.end()) {
+                sink += static_cast<std::uint64_t>(it->first.size());
+            }
         }
-    }
+    });
 
-    end                = std::chrono::high_resolution_clock::now();
-    auto umap_duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+    const auto unordered_string_key_us = measure_us([&]() {
+        for (const auto& key : lookup_keys) {
+            auto it = string_key_map.find(key);
+            if (it != string_key_map.end()) {
+                sink += static_cast<std::uint64_t>(it->first.size());
+            }
+        }
+    });
 
-    // 输出性能结果
+    const auto unordered_variant_key_us = measure_us([&]() {
+        for (const auto& key : lookup_variant_keys) {
+            auto it = variant_key_map.find(key);
+            if (it != variant_key_map.end()) {
+                sink += static_cast<std::uint64_t>(it->first.size());
+            }
+        }
+    });
+
     std::cout << "Lookup performance for " << lookup_count << " operations:" << std::endl;
-    std::cout << "dict: " << md_duration << " us" << std::endl;
-    std::cout << "std::map: " << map_duration << " us" << std::endl;
-    std::cout << "std::unordered_map: " << umap_duration << " us" << std::endl;
+    std::cout << "dict find(string_view): " << dict_find_string_view_us << " us" << std::endl;
+    std::cout << "dict find(variant): " << dict_find_variant_us << " us" << std::endl;
+    std::cout << "std::map<string, variant>::find: " << ordered_map_find_us << " us" << std::endl;
+    std::cout << "std::unordered_map<string, variant>::find: " << unordered_string_key_us << " us" << std::endl;
+    std::cout << "std::unordered_map<variant, variant>::find: " << unordered_variant_key_us << " us" << std::endl;
+
+    EXPECT_GT(sink, 0U);
 }
 
 // 测试 dict 和 std::map 的迭代性能
@@ -215,9 +250,9 @@ TEST(DictPerformanceTest, DISABLED_IterationPerformance)
     auto         pairs = generate_random_pairs(count);
 
     // 准备测试数据
-    dict                                     md;
-    std::map<std::string, variant>           m;
-    std::unordered_map<std::string, variant> um;
+    dict                                    md;
+    std::map<mc::string, variant>           m;
+    std::unordered_map<mc::string, variant> um;
 
     for (const auto& pair : pairs) {
         md[pair.first] = pair.second;
@@ -275,9 +310,9 @@ TEST(DictPerformanceTest, DISABLED_ErasurePerformance)
     auto         pairs = generate_random_pairs(count);
 
     // 准备测试数据
-    dict                                     md;
-    std::map<std::string, variant>           m;
-    std::unordered_map<std::string, variant> um;
+    dict                                    md;
+    std::map<mc::string, variant>           m;
+    std::unordered_map<mc::string, variant> um;
 
     for (const auto& pair : pairs) {
         md[pair.first] = pair.second;
@@ -290,8 +325,8 @@ TEST(DictPerformanceTest, DISABLED_ErasurePerformance)
     std::mt19937                    gen(rd());
     std::uniform_int_distribution<> dis(0, count - 1);
 
-    const size_t             erase_count = 1000;
-    std::vector<std::string> erase_keys;
+    const size_t            erase_count = 1000;
+    std::vector<mc::string> erase_keys;
     erase_keys.reserve(erase_count);
 
     for (size_t i = 0; i < erase_count; ++i) {

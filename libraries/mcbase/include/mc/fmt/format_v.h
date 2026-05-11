@@ -18,6 +18,7 @@
 #include <string_view>
 
 #include <mc/common.h>
+#include <mc/string.h>
 
 namespace mc {
 
@@ -28,7 +29,7 @@ namespace fmt {
  * @param ... 可变参数
  * @return 格式化后的字符串
  */
-MC_API std::string format_v(const char* format, ...);
+MC_API mc::string format_v(const char* format, ...);
 
 /**
  * @brief C 风格可变参数格式化字符串
@@ -36,7 +37,7 @@ MC_API std::string format_v(const char* format, ...);
  * @param args 可变参数
  * @return 格式化后的字符串
  */
-MC_API std::string format_vv(const char* format, va_list args);
+MC_API mc::string format_vv(const char* format, va_list args);
 
 /**
  * @brief C 风格可变参数格式化字符串，并追加到目标字符串
@@ -44,7 +45,7 @@ MC_API std::string format_vv(const char* format, va_list args);
  * @param format 格式化字符串
  * @param ... 可变参数
  */
-MC_API bool format_v(std::string& result, const char* format, ...);
+MC_API bool format_v(mc::string& result, const char* format, ...);
 
 /**
  * @brief C 风格可变参数格式化字符串，并追加到目标字符串
@@ -52,7 +53,7 @@ MC_API bool format_v(std::string& result, const char* format, ...);
  * @param format 格式化字符串
  * @param args 可变参数
  */
-MC_API bool format_vv(std::string& result, const char* format, va_list args);
+MC_API bool format_vv(mc::string& result, const char* format, va_list args);
 
 } // namespace fmt
 

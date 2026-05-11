@@ -35,10 +35,10 @@ namespace mc::fmt::detail {
 template <typename T>
 class named_arg {
 public:
-    constexpr explicit named_arg(std::string_view name, const T& value) : m_name(name), m_value(value)
+    constexpr explicit named_arg(mc::string_view name, const T& value) : m_name(name), m_value(value)
     {}
 
-    constexpr std::string_view name() const
+    constexpr mc::string_view name() const
     {
         return m_name;
     }
@@ -49,13 +49,13 @@ public:
     }
 
 private:
-    std::string_view m_name;
+    mc::string_view m_name;
     const T&         m_value;
 };
 
 // 创建命名参数的辅助函数
 template <typename T>
-auto arg(std::string_view name, const T& value) -> named_arg<T>
+auto arg(mc::string_view name, const T& value) -> named_arg<T>
 {
     return named_arg<T>{name, value};
 }
@@ -66,7 +66,7 @@ auto arg(const T& value) -> const T&
     return std::forward<const T&>(value);
 }
 
-using string_view = std::string_view;
+using string_view = mc::string_view;
 using monostate   = std::monostate;
 struct format_spec;
 
@@ -76,13 +76,13 @@ struct custom_t {
 
     const void* obj;
     void (*format_fn)(const void*, format_context&, const format_spec& spec);
-    bool (*parse_fn)(std::string_view, format_spec&);
+    bool (*parse_fn)(mc::string_view, format_spec&);
 };
 
 // format_arg 类型擦除存储，支持基础类型和自定义类型
 struct format_arg {
     using storage_type = std::variant<monostate, bool, char, int64_t, uint64_t, double, float, long double,
-                                      std::string_view, const char*, const void*, custom_t>;
+                                      mc::string_view, const char*, const void*, custom_t>;
 
     storage_type value;
     bool         used = false;
@@ -118,10 +118,16 @@ struct format_arg {
     explicit format_arg(long double v) : value(v)
     {}
 
-    explicit format_arg(std::string_view v) : value(v)
+    explicit format_arg(mc::string_view v) : value(v)
     {}
 
-    explicit format_arg(const std::string& v) : value(std::string_view{v})
+    explicit format_arg(const mc::string& v) : value(mc::string_view{v})
+    {}
+
+    explicit format_arg(std::string_view v) : value(mc::string_view{v})
+    {}
+
+    explicit format_arg(const std::string& v) : value(mc::string_view{v})
     {}
 
     explicit format_arg(const char* v) : value(v)
@@ -210,7 +216,7 @@ struct format_arg {
     }
     bool is_string() const
     {
-        return std::holds_alternative<std::string_view>(value);
+        return std::holds_alternative<mc::string_view>(value);
     }
     bool is_cstring() const
     {
@@ -254,9 +260,9 @@ struct format_arg {
     {
         return std::get<char>(value);
     }
-    std::string_view as_string() const
+    mc::string_view as_string() const
     {
-        return std::get<std::string_view>(value);
+        return std::get<mc::string_view>(value);
     }
     const char* as_cstring() const
     {
@@ -279,7 +285,7 @@ struct format_arg {
 
     bool parse_custom(const char*& ptr, const char* end, format_spec& spec) const
     {
-        std::string_view format_str(ptr, end - ptr - 1);
+        mc::string_view format_str(ptr, end - ptr - 1);
         return as_custom().parse_fn(format_str, spec);
     }
 
@@ -306,7 +312,7 @@ private:
             formatter<T>{}.template format<format_context>(*static_cast<const T*>(p), ctx, spec);
         };
         if constexpr (has_parse_v<T>) {
-            custom_val.parse_fn = [](std::string_view fmt_str, format_spec& spec) -> bool {
+            custom_val.parse_fn = [](mc::string_view fmt_str, format_spec& spec) -> bool {
                 return formatter<T>{}.template parse<false>(fmt_str, spec);
             };
         } else {
@@ -325,7 +331,7 @@ constexpr size_t max_args = MC_FMT_MAX_ARGS;
 
 template <typename Arg>
 struct arg_entry {
-    std::string_view name;
+    mc::string_view name;
     Arg              arg;
 };
 
@@ -353,7 +359,7 @@ struct arg_store {
     template <typename T, std::enable_if_t<!is_named_arg_v<T>, int> = 0>
     constexpr void add_arg(const T& value)
     {
-        entries[m_size].name = std::string_view{};
+        entries[m_size].name = mc::string_view{};
         entries[m_size].arg  = Arg(value);
         ++m_size;
     }
@@ -370,7 +376,7 @@ struct arg_store {
     constexpr void add_arg(const std::monostate&)
     {}
 
-    constexpr void add_arg(std::string_view name, Arg arg)
+    constexpr void add_arg(mc::string_view name, Arg arg)
     {
         entries[m_size].name = name;
         entries[m_size].arg  = arg;
@@ -399,7 +405,7 @@ struct arg_store {
     }
 
     // 按名称获取参数
-    constexpr bool get_named(std::string_view name, Arg& arg, size_t& index) const
+    constexpr bool get_named(mc::string_view name, Arg& arg, size_t& index) const
     {
         for (size_t i = 0; i < m_size; ++i) {
             if (entries[i].name == name) {
@@ -429,7 +435,7 @@ struct arg_store {
         entries[index].arg.make_unused();
     }
 
-    constexpr bool resolve_dynamic_param(size_t& index, std::string_view name, int& out)
+    constexpr bool resolve_dynamic_param(size_t& index, mc::string_view name, int& out)
     {
         Arg arg;
         if (index != INVALID_INDEX ? !get_arg(index, arg) : !get_named(name, arg, index)) {

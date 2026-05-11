@@ -25,13 +25,13 @@ TEST(IOBufferTest, StringOperations)
     auto buffer = io::io_buffer::create(100);
 
     // 写入字符串
-    std::string test_str      = "测试字符串";
+    mc::string test_str      = "测试字符串";
     auto        bytes_written = buffer->write(test_str.data(), test_str.size());
     EXPECT_EQ(bytes_written, test_str.size());
     EXPECT_EQ(buffer->length(), test_str.size());
 
     // 读取为字符串视图
-    std::string_view sv(reinterpret_cast<const char*>(buffer->data()), buffer->length());
+    mc::string_view sv(reinterpret_cast<const char*>(buffer->data()), buffer->length());
     EXPECT_EQ(sv, test_str);
 
     // 使用 normalize 合并缓冲区并获取字符串视图

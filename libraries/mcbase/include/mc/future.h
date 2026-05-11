@@ -21,15 +21,14 @@ template <typename... Futures>
 auto all(Futures&&... futures) -> Future<std::tuple<typename std::decay_t<Futures>::result_type...>>;
 
 template <typename... Futures>
-auto any(Futures&&... futures)
-    -> Future<std::pair<
-        std::size_t, mc::traits::apply_type_t<std::variant,
-                                              mc::traits::type_set_t<typename std::decay_t<Futures>::result_type...>>>>;
+auto any(Futures&&... futures) -> Future<std::pair<
+    std::size_t,
+    mc::traits::apply_type_t<std::variant, mc::traits::type_set_t<typename std::decay_t<Futures>::result_type...>>>>;
 
 // 容器版本的 all 函数
 template <typename Iterator>
-auto all(Iterator begin,
-         Iterator end) -> Future<std::vector<typename std::iterator_traits<Iterator>::value_type::result_type>>;
+auto all(Iterator begin, Iterator end)
+    -> Future<std::vector<typename std::iterator_traits<Iterator>::value_type::result_type>>;
 
 // 容器版本的 any 函数
 template <typename Iterator>
@@ -40,7 +39,7 @@ auto any(Iterator begin, Iterator end)
 
 namespace mc {
 // 从执行器创建 promise
-template <typename T, typename Executor = mc::io_context::executor_type>
+template <typename T, typename Executor = mc::runtime::any_executor>
 auto make_promise(Executor executor = mc::get_io_executor())
     -> std::enable_if_t<futures::detail::is_executor_v<Executor>,
                         mc::futures::Promise<mc::futures::detail::state_tt<T>>>
@@ -53,6 +52,23 @@ auto make_promise(Execution& execution) -> std::enable_if_t<futures::detail::is_
                                                             mc::futures::Promise<mc::futures::detail::state_tt<T>>>
 {
     return mc::futures::make_promise<T>(execution.get_executor());
+}
+
+template <typename T, typename Executor, typename Task>
+auto make_deferred_future(Executor executor, Task&& task)
+    -> std::enable_if_t<futures::detail::is_executor_v<Executor>,
+                        decltype(mc::futures::make_deferred_future<T>(std::move(executor), std::forward<Task>(task)))>
+{
+    return mc::futures::make_deferred_future<T>(std::move(executor), std::forward<Task>(task));
+}
+
+template <typename T, typename Execution, typename Task>
+auto make_deferred_future(Execution& execution, Task&& task)
+    -> std::enable_if_t<futures::detail::is_execution_context_v<Execution>,
+                        decltype(mc::futures::make_deferred_future<T>(execution.get_executor(),
+                                                                      std::forward<Task>(task)))>
+{
+    return mc::futures::make_deferred_future<T>(execution.get_executor(), std::forward<Task>(task));
 }
 
 template <typename T>
@@ -105,18 +121,18 @@ auto reject(std::exception_ptr eptr, Executor executor = runtime::any_executor()
 }
 
 template <typename T, typename Execution = runtime::immediate_context>
-auto reject(std::exception_ptr eptr,
-            Execution&         execution) -> std::enable_if_t<detail::is_execution_context_v<Execution>,
-                                                      mc::futures::Future<mc::futures::detail::state_tt<T>>>
+auto reject(std::exception_ptr eptr, Execution& execution)
+    -> std::enable_if_t<detail::is_execution_context_v<Execution>,
+                        mc::futures::Future<mc::futures::detail::state_tt<T>>>
 {
     return reject<T>(std::move(eptr), execution.get_executor());
 }
 
 // 便利函数：直接从异常创建
 template <typename T, typename Exception, typename Execution = runtime::immediate_context>
-auto reject(Exception&& ex,
-            Execution&  execution) -> std::enable_if_t<detail::is_execution_context_v<Execution>,
-                                                      mc::futures::Future<mc::futures::detail::state_tt<T>>>
+auto reject(Exception&& ex, Execution& execution)
+    -> std::enable_if_t<detail::is_execution_context_v<Execution>,
+                        mc::futures::Future<mc::futures::detail::state_tt<T>>>
 {
     return reject<T>(std::make_exception_ptr(std::forward<Exception>(ex)), execution);
 }
@@ -129,7 +145,7 @@ auto reject(Exception&& ex, Executor executor = mc::any_executor())
 }
 
 // 超时函数：给 future 添加超时功能
-template <typename FutureType, typename Duration, typename Executor = mc::io_context::executor_type>
+template <typename FutureType, typename Duration, typename Executor = mc::runtime::any_executor>
 auto timeout(FutureType future, Duration timeout_duration, Executor executor = mc::get_io_executor())
     -> std::enable_if_t<detail::is_future_v<FutureType> && detail::is_executor_v<Executor>,
                         Future<mc::futures::detail::state_tt<typename FutureType::value_type>>>
@@ -157,7 +173,7 @@ auto timeout(FutureType future, Duration timeout_duration, Execution& execution)
 }
 
 // 延迟执行函数：创建一个在指定时间后完成的 future
-template <typename Duration, typename Executor = mc::io_context::executor_type>
+template <typename Duration, typename Executor = mc::runtime::any_executor>
 auto delay(Duration delay_duration, Executor executor = mc::get_io_executor())
     -> std::enable_if_t<std::is_constructible_v<std::chrono::steady_clock::duration, Duration> &&
                             detail::is_executor_v<Executor>,
@@ -167,15 +183,15 @@ auto delay(Duration delay_duration, Executor executor = mc::get_io_executor())
 }
 
 // 时间为 0 的延时函数，目的是延迟执行链式调用
-template <typename Executor = mc::io_context::executor_type>
+template <typename Executor = mc::runtime::any_executor>
 auto delay(Executor executor = mc::get_io_executor()) -> std::enable_if_t<detail::is_executor_v<Executor>, Future<void>>
 {
     return delay(std::chrono::steady_clock::duration::zero(), executor);
 }
 
 template <typename Duration, typename Execution>
-auto delay(Duration   delay_duration,
-           Execution& execution) -> std::enable_if_t<detail::is_execution_context_v<Execution>, Future<void>>
+auto delay(Duration delay_duration, Execution& execution)
+    -> std::enable_if_t<detail::is_execution_context_v<Execution>, Future<void>>
 {
     return delay(delay_duration, execution.get_executor());
 }

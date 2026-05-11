@@ -14,16 +14,22 @@
 #define MC_RUNTIME_RUNTIME_CONTEXT_H
 
 #include <mc/common.h>
+#include <mc/event.h>
 
-#include <boost/asio.hpp>
 #include <mc/runtime/any_executor.h>
-#include <mc/runtime/runtime_executor.h>
 #include <mc/runtime/thread_pool.h>
 
 #include <functional>
 #include <memory>
 
+namespace mc {
+class event;
+class object;
+} // namespace mc
+
 namespace mc::runtime {
+
+using global_event_filter = std::function<void(mc::object& target, mc::event& e)>;
 
 class runtime_context;
 
@@ -50,16 +56,28 @@ public:
     void join();
     bool is_stopped() const noexcept;
 
+    // fork 后子进程重建 runtime 线程池。
+    void reset_after_fork();
+
     thread_pool& io() noexcept;
     thread_pool& work() noexcept;
 
-    runtime_executor           get_executor() noexcept;
-    thread_pool::executor_type get_io_executor() noexcept;
-    thread_pool::executor_type get_work_executor() noexcept;
+    any_executor get_executor() noexcept;
+    any_executor get_io_executor() noexcept;
+    any_executor get_work_executor() noexcept;
+
+    void send_event(mc::object& target, mc::event& e);
+    void post_event(mc::object& target, std::unique_ptr<mc::event> e);
+    void post_event(mc::object& target, std::unique_ptr<mc::event> e, int priority);
+    void send_posted_events(mc::object* target = nullptr, mc::event_type_id type = mc::invalid_event_type);
+    void remove_posted_events(mc::object* target = nullptr, mc::event_type_id type = mc::invalid_event_type);
+
+    global_event_filter install_global_filter(mc::event_type_id type, global_event_filter filter);
+    void                remove_global_filter(mc::event_type_id type);
 
     static any_executor create_strand();
-    thread_pool::strand create_io_strand();
-    thread_pool::strand create_work_strand();
+    any_executor        create_io_strand();
+    any_executor        create_work_strand();
 
 private:
     class impl;
@@ -95,13 +113,13 @@ inline thread_pool& get_work_context()
  * @brief 获取默认线程池
  * @return 默认线程池
  */
-MC_API thread_pool::executor_type get_default_executor();
+MC_API any_executor get_default_executor();
 
 /**
  * @brief 获取IO线程池
  * @return IO线程池
  */
-inline auto get_io_executor()
+inline any_executor get_io_executor()
 {
     return get_io_context().get_executor();
 }
@@ -110,7 +128,7 @@ inline auto get_io_executor()
  * @brief 获取系统线程池
  * @return 系统线程池
  */
-inline auto get_work_executor()
+inline any_executor get_work_executor()
 {
     return get_work_context().get_executor();
 }

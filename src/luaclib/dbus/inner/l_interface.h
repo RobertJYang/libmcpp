@@ -14,9 +14,9 @@
 #define MC_DBUS_L_INTERFACE_H
 
 #include <dbus/dbus.h>
-#include <mc/core/object.h>
 #include <mc/dbus/dynamic_object.h>
 #include <mc/dict.h>
+#include <mc/object.h>
 #include <mc/variant.h>
 #include <string>
 #include <string_view>

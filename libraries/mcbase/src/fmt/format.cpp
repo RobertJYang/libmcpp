@@ -24,7 +24,7 @@
 namespace mc::fmt {
 
 // 格式化字符串并追加到结果字符串中
-static void format_dict_base(std::string& result, std::string_view format_str, const mc::dict& args, bool icase)
+static void format_dict_base(mc::string& result, mc::string_view format_str, const mc::dict& args, bool icase)
 {
     if (format_str.empty()) {
         return;
@@ -39,31 +39,31 @@ static void format_dict_base(std::string& result, std::string_view format_str, c
     detail::format_parser::parse(format_str, ctx);
 }
 
-void format_dict(std::string& result, std::string_view format_str, const dict& args)
+void format_dict(mc::string& result, mc::string_view format_str, const dict& args)
 {
     format_dict_base(result, format_str, args, false);
 }
 
-std::string format_dict(std::string_view format_str, const dict& args)
+mc::string format_dict(mc::string_view format_str, const dict& args)
 {
-    std::string result;
+    mc::string result;
     format_dict_base(result, format_str, args, false);
     return result;
 }
 
-void format_dict_icase(std::string& result, std::string_view format_str, const dict& args)
+void format_dict_icase(mc::string& result, mc::string_view format_str, const dict& args)
 {
     format_dict_base(result, format_str, args, true);
 }
 
-std::string format_dict_icase(std::string_view format_str, const dict& args)
+mc::string format_dict_icase(mc::string_view format_str, const dict& args)
 {
-    std::string result;
+    mc::string result;
     format_dict_base(result, format_str, args, true);
     return result;
 }
 
-std::string format_v(const char* format, ...)
+mc::string format_v(const char* format, ...)
 {
     va_list args;
     va_start(args, format);
@@ -72,14 +72,14 @@ std::string format_v(const char* format, ...)
     return result;
 }
 
-std::string format_vv(const char* format, va_list args)
+mc::string format_vv(const char* format, va_list args)
 {
-    std::string result;
+    mc::string result;
     format_vv(result, format, args);
     return result;
 }
 
-bool format_v(std::string& result, const char* format, ...)
+bool format_v(mc::string& result, const char* format, ...)
 {
     va_list args;
     va_start(args, format);
@@ -88,7 +88,7 @@ bool format_v(std::string& result, const char* format, ...)
     return ret;
 }
 
-bool format_vv(std::string& result, const char* format, va_list args)
+bool format_vv(mc::string& result, const char* format, va_list args)
 {
     va_list args_tmp;
     va_copy(args_tmp, args);
@@ -122,7 +122,7 @@ public:
         return true;
     }
 
-    bool get_named_arg(std::string_view name, detail::format_arg&, size_t&) const
+    bool get_named_arg(mc::string_view name, detail::format_arg&, size_t&) const
     {
         arg_names[name] = true;
         return true;
@@ -142,7 +142,7 @@ public:
         MC_UNUSED(index);
     }
 
-    bool resolve_dynamic_param(size_t index, std::string_view name, int& out)
+    bool resolve_dynamic_param(size_t index, mc::string_view name, int& out)
     {
         MC_UNUSED(index);
         MC_UNUSED(name);
@@ -168,7 +168,7 @@ public:
     bool             is_valid{true};
 };
 
-bool get_format_args(std::string_view format, mc::dict& arg_names)
+bool get_format_args(mc::string_view format, mc::dict& arg_names)
 {
     if (format.empty()) {
         return true;

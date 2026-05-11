@@ -10,6 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include <dict/include/index.h>
 #include <mc/dict.h>
 #include <mc/dict/entry.h>
 #include <mc/json.h>
@@ -17,18 +18,21 @@
 #include <mc/variant/copy_context.h>
 #include <mc/variant/variant_reference.h>
 #include <stdexcept>
+#include <string>
 #include <unordered_map>
 
 namespace mc {
 
 // 拷贝构造函数
-dict::dict(const dict& other) {
+dict::dict(const dict& other)
+{
     other.ensure_data();
     m_data = other.m_data;
 }
 
 // 拷贝赋值运算符
-dict& dict::operator=(const dict& other) {
+dict& dict::operator=(const dict& other)
+{
     other.ensure_data();
     m_data = other.m_data;
     return *this;
@@ -38,13 +42,13 @@ dict& dict::operator=(const dict& other) {
 dict::dict(const std::vector<entry>& entries) : m_data(mc::make_shared<data_t>())
 {
     for (auto&& entry_val : entries) {
-        auto it = m_data->index.find(entry_val.key, m_data->index.hash_function(), m_data->index.key_eq());
-        if (it != m_data->index.end()) {
-            const_cast<entry&>(*it).value = entry_val.value;
+        auto* current = m_data->index->find(entry_val.key);
+        if (current != nullptr) {
+            current->value = entry_val.value;
         } else {
-            entry* new_entry = new entry(std::move(entry_val.key), entry_val.value);
+            entry* new_entry = m_data->create_entry(std::move(entry_val.key), entry_val.value);
             m_data->entries.push_back(*new_entry);
-            m_data->index.insert(*new_entry);
+            m_data->index->insert(*new_entry);
         }
     }
 }
@@ -53,35 +57,31 @@ dict::dict(const std::vector<entry>& entries) : m_data(mc::make_shared<data_t>()
 dict::dict(std::initializer_list<std::pair<variant, variant>> init) : m_data(mc::make_shared<data_t>())
 {
     for (const auto& pair : init) {
-        auto it = m_data->index.find(pair.first, m_data->index.hash_function(), m_data->index.key_eq());
-        if (it != m_data->index.end()) {
-            const_cast<entry&>(*it).value = pair.second;
+        auto* current = m_data->index->find(pair.first);
+        if (current != nullptr) {
+            current->value = pair.second;
         } else {
-            entry* new_entry = new entry(pair.first, pair.second);
+            entry* new_entry = m_data->create_entry(pair.first, pair.second);
             m_data->entries.push_back(*new_entry);
-            m_data->index.insert(*new_entry);
+            m_data->index->insert(*new_entry);
         }
     }
 }
 
 // 查找指定键的元素
-const dict::entry* dict::find_entry(const std::string& key) const
+const dict::entry* dict::find_entry(const mc::string& key) const
 {
-    return find_entry(std::string_view(key));
+    return find_entry(mc::string_view(key));
 }
 
 // 查找指定键的元素 (string_view 版本)
-const dict::entry* dict::find_entry(std::string_view key) const
+const dict::entry* dict::find_entry(mc::string_view key) const
 {
     if (!m_data) {
         return nullptr;
     }
 
-    auto it = m_data->index.find(key, m_data->index.hash_function(), m_data->index.key_eq());
-    if (it != m_data->index.end()) {
-        return &(*it);
-    }
-    return nullptr;
+    return m_data->index->find(key);
 }
 
 // 查找指定键的元素 (const char* 版本)
@@ -90,7 +90,7 @@ const dict::entry* dict::find_entry(const char* key) const
     if (key == nullptr) {
         throw std::invalid_argument("键不能为空指针");
     }
-    return find_entry(std::string_view(key));
+    return find_entry(mc::string_view(key));
 }
 
 const dict::entry* dict::find_entry(const variant& key) const
@@ -99,27 +99,32 @@ const dict::entry* dict::find_entry(const variant& key) const
         return nullptr;
     }
 
-    auto it = m_data->index.find(key, m_data->index.hash_function(), m_data->index.key_eq());
-    if (it != m_data->index.end()) {
-        return &(*it);
+    return m_data->index->find(key);
+}
+
+// quark fast-path：调用方喂入预计算 hash_code，省一次 mc::string_hash
+const dict::entry* dict::find_entry(mc::string_view key, std::size_t hash_code) const
+{
+    if (!m_data) {
+        return nullptr;
     }
-    return nullptr;
+    return m_data->index->find(key, hash_code);
 }
 
 // 获取指定键的值
-const variant& dict::operator[](const std::string& key) const
+const variant& dict::operator[](const mc::string& key) const
 {
-    return (*this)[std::string_view(key)];
+    return (*this)[mc::string_view(key)];
 }
 
 // 获取指定键的值 (string_view 版本)
-const variant& dict::operator[](std::string_view key) const
+const variant& dict::operator[](mc::string_view key) const
 {
     const auto* e = find_entry(key);
     if (e) {
         return e->value;
     }
-    throw std::out_of_range("字典中不存在键: " + std::string(key));
+    throw std::out_of_range(mc::to_std_string(mc::string("字典中不存在键: ") + key));
 }
 
 // 获取指定键的值 (const char* 版本)
@@ -128,7 +133,7 @@ const variant& dict::operator[](const char* key) const
     if (key == nullptr) {
         throw std::invalid_argument("键不能为空指针");
     }
-    return (*this)[std::string_view(key)];
+    return (*this)[mc::string_view(key)];
 }
 
 const variant& dict::operator[](const variant& key) const
@@ -137,7 +142,7 @@ const variant& dict::operator[](const variant& key) const
     if (e) {
         return e->value;
     }
-    throw std::out_of_range("字典中不存在键: " + key.to_string());
+    throw std::out_of_range(mc::to_std_string(mc::string("字典中不存在键: ") + key.to_string()));
 }
 
 // 支持整数键的 operator[]（用于数组类型 dict）
@@ -152,13 +157,13 @@ const variant& dict::operator[](int64_t key) const
 }
 
 // 获取指定键的值，如果不存在则返回默认值
-const variant& dict::get(const std::string& key, const variant& default_value) const
+const variant& dict::get(const mc::string& key, const variant& default_value) const
 {
-    return get(std::string_view(key), default_value);
+    return get(mc::string_view(key), default_value);
 }
 
 // 获取指定键的值，如果不存在则返回默认值 (string_view 版本)
-const variant& dict::get(std::string_view key, const variant& default_value) const
+const variant& dict::get(mc::string_view key, const variant& default_value) const
 {
     const auto* e = find_entry(key);
     if (e) {
@@ -173,7 +178,7 @@ const variant& dict::get(const char* key, const variant& default_value) const
     if (key == nullptr) {
         throw std::invalid_argument("键不能为空指针");
     }
-    return get(std::string_view(key), default_value);
+    return get(mc::string_view(key), default_value);
 }
 
 const variant& dict::get(const variant& key, const variant& default_value) const
@@ -186,13 +191,13 @@ const variant& dict::get(const variant& key, const variant& default_value) const
 }
 
 // 判断是否包含指定键
-bool dict::contains(const std::string& key) const
+bool dict::contains(const mc::string& key) const
 {
-    return contains(std::string_view(key));
+    return contains(mc::string_view(key));
 }
 
 // 判断是否包含指定键 (string_view 版本)
-bool dict::contains(std::string_view key) const
+bool dict::contains(mc::string_view key) const
 {
     return find_entry(key) != nullptr;
 }
@@ -203,7 +208,7 @@ bool dict::contains(const char* key) const
     if (key == nullptr) {
         throw std::invalid_argument("键不能为空指针");
     }
-    return contains(std::string_view(key));
+    return contains(mc::string_view(key));
 }
 
 bool dict::contains(const variant& key) const
@@ -319,22 +324,25 @@ const dict::entry& dict::at_index(size_t index) const
         throw std::out_of_range("字典索引越界");
     }
 
-    auto it = m_data->entries.begin();
-    std::advance(it, index);
-    return *it;
+    auto* cached_entry = m_data->entry_at_index(index);
+    if (cached_entry == nullptr) {
+        throw std::out_of_range("字典索引越界");
+    }
+
+    return *cached_entry;
 }
 
 // 获取指定键的值
-const variant& dict::at(const std::string& key) const
+const variant& dict::at(const mc::string& key) const
 {
-    return at(std::string_view(key));
+    return at(mc::string_view(key));
 }
 
-const variant& dict::at(std::string_view key) const
+const variant& dict::at(mc::string_view key) const
 {
     const auto* e = find_entry(key);
     if (!e) {
-        throw std::out_of_range("字典中不存在键: " + std::string(key));
+        throw std::out_of_range(mc::to_std_string(mc::string("字典中不存在键: ") + key));
     }
     return e->value;
 }
@@ -344,14 +352,14 @@ const variant& dict::at(const char* key) const
     if (key == nullptr) {
         throw std::invalid_argument("键不能为空指针");
     }
-    return at(std::string_view(key));
+    return at(mc::string_view(key));
 }
 
 const variant& dict::at(const variant& key) const
 {
     const auto* e = find_entry(key);
     if (!e) {
-        throw std::out_of_range("字典中不存在键: " + key.to_string());
+        throw std::out_of_range(mc::to_std_string(mc::string("字典中不存在键: ") + key.to_string()));
     }
     return e->value;
 }
@@ -373,25 +381,17 @@ int dict::find_entry_index(const entry* e) const
         return -1;
     }
 
-    // 计算索引位置
-    int index = 0;
-    for (auto it = m_data->entries.begin(); it != m_data->entries.end(); ++it, ++index) {
-        if (&(*it) == e) {
-            return index;
-        }
-    }
-
-    return -1; // 理论上不会到达这里
+    return m_data->entry_index(e);
 }
 
 // 查找键的索引位置
-int dict::find_index(const std::string& key) const
+int dict::find_index(const mc::string& key) const
 {
     return find_entry_index(find_entry(key));
 }
 
 // 查找键的索引位置 (string_view 版本)
-int dict::find_index(std::string_view key) const
+int dict::find_index(mc::string_view key) const
 {
     return find_entry_index(find_entry(key));
 }
@@ -466,21 +466,22 @@ void dict::clear()
     }
 
     // 先清空索引，这样钩子就不再链接到容器中
-    m_data->index.clear();
+    m_data->index->clear();
     // 然后清空链表并释放内存
-    m_data->entries.clear_and_dispose([](dict_types::entry* p) {
-        delete p;
+    m_data->entries.clear_and_dispose([this](dict_types::entry* p) {
+        m_data->destroy_entry(p);
     });
+    m_data->invalidate_order_cache();
 }
 
-// 查找指定键的元素，返回迭代器 (std::string 版本)
-dict::const_iterator dict::find(const std::string& key) const
+// 查找指定键的元素，返回迭代器 (mc::string 版本)
+dict::const_iterator dict::find(const mc::string& key) const
 {
-    return find(std::string_view(key));
+    return find(mc::string_view(key));
 }
 
-// 查找指定键的元素，返回迭代器 (std::string_view 版本)
-dict::const_iterator dict::find(std::string_view key) const
+// 查找指定键的元素，返回迭代器 (mc::string_view 版本)
+dict::const_iterator dict::find(mc::string_view key) const
 {
     const auto* e = find_entry(key);
     if (!e) {
@@ -497,7 +498,7 @@ dict::const_iterator dict::find(const char* key) const
     if (key == nullptr) {
         throw std::invalid_argument("键不能为空指针");
     }
-    return find(std::string_view(key));
+    return find(mc::string_view(key));
 }
 
 dict::const_iterator dict::find(const variant& key) const
@@ -508,6 +509,59 @@ dict::const_iterator dict::find(const variant& key) const
     }
     auto base_it = m_data->entries.iterator_to(*const_cast<entry*>(e));
     return const_iterator(iterator(base_it));
+}
+
+// quark const 重载：descriptor() 单次 resolve 拿 (view, hash)，复用 fast-path
+
+dict::const_iterator dict::find(mc::quark key) const
+{
+    const auto d = key.descriptor();
+    const auto* e = find_entry(d.view, d.hash);
+    if (!e) {
+        return end();
+    }
+    auto base_it = m_data->entries.iterator_to(*const_cast<entry*>(e));
+    return const_iterator(iterator(base_it));
+}
+
+const variant& dict::operator[](mc::quark key) const
+{
+    const auto d = key.descriptor();
+    const auto* e = find_entry(d.view, d.hash);
+    if (e) {
+        return e->value;
+    }
+    throw std::out_of_range(mc::to_std_string(mc::string("字典中不存在键: ") + d.view));
+}
+
+const variant& dict::get(mc::quark key, const variant& default_value) const
+{
+    const auto d = key.descriptor();
+    const auto* e = find_entry(d.view, d.hash);
+    return e ? e->value : default_value;
+}
+
+bool dict::contains(mc::quark key) const
+{
+    const auto d = key.descriptor();
+    return find_entry(d.view, d.hash) != nullptr;
+}
+
+const variant& dict::at(mc::quark key) const
+{
+    const auto d = key.descriptor();
+    const auto* e = find_entry(d.view, d.hash);
+    if (!e) {
+        throw std::out_of_range(mc::to_std_string(mc::string("字典中不存在键: ") + d.view));
+    }
+    return e->value;
+}
+
+int dict::find_index(mc::quark key) const
+{
+    const auto d = key.descriptor();
+    const auto* e = find_entry(d.view, d.hash);
+    return e == nullptr ? -1 : find_entry_index(e);
 }
 
 dict::const_iterator dict::find(std::size_t index) const
@@ -522,8 +576,12 @@ dict::const_iterator dict::find(std::size_t index) const
         return end();
     }
 
-    auto base_it = m_data->entries.begin();
-    std::advance(base_it, index);
+    auto* cached_entry = m_data->entry_at_index(index);
+    if (cached_entry == nullptr) {
+        return end();
+    }
+
+    auto base_it = m_data->entries.iterator_to(*const_cast<entry*>(cached_entry));
     return const_iterator(iterator(base_it));
 }
 
@@ -542,18 +600,21 @@ size_t dict::hash() const
     }
 
     // 使用黄金比例作为种子
-    size_t       h    = 0x9e3779b9 ^ size();
-    const size_t step = (size() >> 5) + 1;
-    for (size_t l1 = size(); l1 >= step; l1 -= step) {
-        const auto& e          = at_index(l1 - 1);
-        size_t      entry_hash = e.key.hash() ^ e.value.hash();
-        h                      = h ^ ((h << 5) + (h >> 2) + entry_hash);
+    size_t       h          = 0x9e3779b9 ^ size();
+    const size_t step       = (size() >> 5) + 1;
+    size_t       item_index = 0;
+    for (const auto& e : m_data->entries) {
+        if ((item_index % step) == 0) {
+            const size_t entry_hash = e.key.hash() ^ e.value.hash();
+            h                       = h ^ ((h << 5) + (h >> 2) + entry_hash);
+        }
+        ++item_index;
     }
 
     return h;
 }
 
-std::string dict::to_string() const
+mc::string dict::to_string() const
 {
     return json::json_encode(*this);
 }
@@ -564,9 +625,9 @@ dict dict::copy() const
     result.m_data = mc::make_shared<data_t>();
 
     for (const auto& entry : *this) {
-        dict_types::entry* new_entry = new dict_types::entry(entry.key, entry.value);
+        dict_types::entry* new_entry = result.m_data->create_entry(entry.key, entry.value);
         result.m_data->entries.push_back(*new_entry);
-        result.m_data->index.insert(*new_entry);
+        result.m_data->index->insert(*new_entry);
     }
 
     return result;
@@ -596,9 +657,9 @@ dict dict::deep_copy(mc::detail::copy_context* ctx) const
     for (const auto& entry : *this) {
         mc::variant        copied_key   = entry.key.deep_copy(ctx);
         mc::variant        copied_value = entry.value.deep_copy(ctx);
-        dict_types::entry* new_entry    = new dict_types::entry(std::move(copied_key), std::move(copied_value));
+        dict_types::entry* new_entry    = result.m_data->create_entry(std::move(copied_key), std::move(copied_value));
         result.m_data->entries.push_back(*new_entry);
-        result.m_data->index.insert(*new_entry);
+        result.m_data->index->insert(*new_entry);
     }
 
     return result;

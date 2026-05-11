@@ -12,17 +12,26 @@
 
 #include "module/include/module_loader.h"
 #include <mc/log/log.h>
-#include <mc/string.h>
+#include <mc/string_utils.h>
 
 #include <dlfcn.h>
 #include <limits.h>
+#include <string>
+#include <string_view>
 #include <unistd.h>
 
 #ifdef __APPLE__
 #include <mach-o/dyld.h>
 #endif
 
-using split_iterator = mc::string::split_iterator;
+using split_iterator = mc::strings::split_iterator;
+
+namespace {
+mc::filesystem::path to_filesystem_path(mc::string_view path)
+{
+    return mc::filesystem::path(std::string(path.data(), path.size()));
+}
+} // namespace
 
 #ifndef MC_MODULE_PATH_SEP
 #define MC_MODULE_PATH_SEP ";"
@@ -47,36 +56,36 @@ using split_iterator = mc::string::split_iterator;
 namespace mc::module {
 
 #if defined(__APPLE__)
-static constexpr std::string_view k_module_ext = ".dylib";
+static constexpr mc::string_view k_module_ext(".dylib", 6);
 #else
-static constexpr std::string_view k_module_ext = ".so";
+static constexpr mc::string_view k_module_ext(".so", 3);
 #endif
 
-static std::string get_executable_path()
+static mc::string get_executable_path()
 {
     char path[PATH_MAX];
 #ifdef __APPLE__
     uint32_t size = PATH_MAX;
     if (_NSGetExecutablePath(path, &size) == 0) {
-        return std::string(path);
+        return mc::string(path);
     }
 #else
     ssize_t count = readlink("/proc/self/exe", path, PATH_MAX);
     if (count > 0) {
-        return std::string(path, count);
+        return mc::string(path, count);
     }
 #endif
     return "";
 }
 
-static std::string make_lib_name(std::string_view module_name)
+static mc::string make_lib_name(mc::string_view module_name)
 {
-    std::string lib_name;
+    mc::string lib_name;
     for (auto it = split_iterator(module_name, ".:"); it != split_iterator(); ++it) {
         if (!lib_name.empty()) {
             lib_name += "_";
         }
-        lib_name += *it;
+        lib_name.append(*it);
     }
 
     return lib_name;
@@ -87,20 +96,23 @@ static void unloadlib(void* lib)
     dlclose(lib);
 }
 
-static void* loadlib(std::string_view path, bool glb = false)
+static void* loadlib(mc::string_view path, bool glb = false)
 {
-    return dlopen(path.data(), RTLD_NOW | (glb ? RTLD_GLOBAL : RTLD_LOCAL));
+    // dlopen 需要以空字符结尾的路径；mc::string_view 不保证 data()[size()] 之后可安全读取
+    const std::string path_z(path.data(), path.size());
+    return dlopen(path_z.c_str(), RTLD_NOW | (glb ? RTLD_GLOBAL : RTLD_LOCAL));
 }
 
-static void* sym(void* lib, std::string_view sym)
+static void* sym(void* lib, mc::string_view sym_name)
 {
-    return dlsym(lib, sym.data());
+    const std::string sym_z(sym_name.data(), sym_name.size());
+    return dlsym(lib, sym_z.c_str());
 }
 
-static bool is_readable_impl(std::string_view path)
+static bool is_readable_impl(mc::string_view path)
 {
     try {
-        mc::filesystem::path fs_path(path);
+        mc::filesystem::path fs_path = to_filesystem_path(path);
         return mc::filesystem::exists(fs_path) && mc::filesystem::is_regular_file(fs_path);
     } catch (const std::exception&) {
         return false;
@@ -121,15 +133,23 @@ module_loader::module_loader()
 
     // 2. 添加可执行文件相对路径
     try {
-        auto exe_path = mc::filesystem::path(get_executable_path());
-        auto exe_dir  = exe_path.parent_path();
+        mc::string      exe_str  = get_executable_path();
+        mc::string_view exe_sv   = exe_str.view();
+        auto            exe_path = to_filesystem_path(exe_sv);
+        auto            exe_dir  = exe_path.parent_path();
 
         // 可执行文件目录下的模块路径
-        const std::string ext(k_module_ext);
-        add_load_paths((exe_dir / (std::string("?") + ext)).string());
-        add_load_paths((exe_dir / (std::string("?/init") + ext)).string());
-        add_load_paths((exe_dir / (std::string("modules/?") + ext)).string());
-        add_load_paths((exe_dir / (std::string("modules/?/init") + ext)).string());
+        const mc::string ext(k_module_ext);
+        auto             join_exe = [&exe_dir](const mc::string& rel) {
+            return (exe_dir / mc::to_std_string(rel)).string();
+        };
+        add_load_paths(join_exe(mc::string("?") + ext));
+        add_load_paths(join_exe(mc::string("?/init") + ext));
+        add_load_paths(join_exe(mc::string("modules/?") + ext));
+        add_load_paths(join_exe(mc::string("modules/?/init") + ext));
+        // mcbase 测试：mock 位于可执行文件同级的 module/（如 .../tests/module/mc.dylib）
+        add_load_paths(join_exe(mc::string("module/?") + ext));
+        add_load_paths(join_exe(mc::string("module/?/init") + ext));
     } catch (const std::exception& e) {
         wlog("get executable path failed: ${error}", ("error", e.what()));
     }
@@ -140,19 +160,20 @@ module_loader::module_loader()
 
 module_loader::~module_loader() = default;
 
-void module_loader::add_load_paths(const std::string& paths)
+void module_loader::add_load_paths(const mc::string& paths)
 {
-    for (auto it = split_iterator(paths, MC_MODULE_PATH_SEP); it != split_iterator(); ++it) {
-        auto path = mc::string::trim(*it);
+    for (auto it = split_iterator(paths.view(), MC_MODULE_PATH_SEP);
+         it != split_iterator(); ++it) {
+        auto path = mc::strings::trim(*it);
         if (!path.empty()) {
             add_load_path(path);
         }
     }
 }
 
-void module_loader::add_load_path(const std::string& path)
+void module_loader::add_load_path(const mc::string& path)
 {
-    if (path.find('?') == std::string::npos) {
+    if (path.find('?') == mc::string::npos) {
         wlog("invalid module path: ${path}, need '?'", ("path", path));
         return;
     }
@@ -174,12 +195,15 @@ bool module_loader::is_readable(const fs::path& path) const
     }
 }
 
-bool module_loader::load_path(const fs::path& lib_path, const std::string& export_name,
-                              const std::string& template_path, load_callback callback) const
+bool module_loader::load_path(const fs::path& lib_path, const mc::string& export_name, const mc::string& template_path,
+                              load_callback callback) const
 {
     // 构建完整路径
-    std::string actual_path = template_path;
-    mc::string::replace_all_inplace(actual_path, "?", lib_path.string());
+    mc::string actual_path = template_path;
+    {
+        const std::string lib_path_text = lib_path.string();
+        actual_path = mc::strings::replace_all(actual_path.view(), "?", mc::string_view(lib_path_text.data(), lib_path_text.size()));
+    }
 
     // 检查文件是否存在且可读
     if (!m_load_lib_func.is_readable(actual_path)) {
@@ -230,17 +254,17 @@ bool module_loader::load_path(const fs::path& lib_path, const std::string& expor
     return false;
 }
 
-bool module_loader::load_module(std::string_view module_name, load_callback callback) const
+bool module_loader::load_module(mc::string_view module_name, load_callback callback) const
 {
-    fs::path    base_path;
-    std::string export_name = make_lib_name(module_name);
+    fs::path   base_path;
+    mc::string export_name = make_lib_name(module_name);
 
     dlog("start load module: ${name}, export function prefix: mc_*_${export_name}",
          ("name", module_name)("export_name", export_name));
 
     // 遍历所有可能的路径组合
     for (auto it = split_iterator(module_name, ".:"); it != split_iterator(); ++it) {
-        base_path /= *it;
+        base_path /= to_filesystem_path(*it);
 
         // 遍历所有搜索路径模板
         for (const auto& template_path : m_search_paths) {
@@ -254,11 +278,11 @@ bool module_loader::load_module(std::string_view module_name, load_callback call
     return false;
 }
 
-void module_loader::add_search_path(std::string_view path)
+void module_loader::add_search_path(mc::string_view path)
 {
     auto it = std::find(m_search_paths.begin(), m_search_paths.end(), path);
     if (it == m_search_paths.end()) {
-        m_search_paths.push_back(std::string(path));
+        m_search_paths.push_back(mc::string(path));
     }
 }
 
@@ -267,7 +291,7 @@ void module_loader::clear_search_paths()
     m_search_paths.clear();
 }
 
-const std::vector<std::string>& module_loader::search_paths() const
+const std::vector<mc::string>& module_loader::search_paths() const
 {
     return m_search_paths;
 }

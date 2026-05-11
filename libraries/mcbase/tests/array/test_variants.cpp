@@ -47,7 +47,7 @@ TEST(variants_test, StronglyTypedIntArrayAccess)
 
 TEST(variants_test, StronglyTypedStringArrayAccess)
 {
-    mc::array<std::string> arr = {"hello", "world", "test"};
+    mc::array<mc::string> arr = {"hello", "world", "test"};
     mc::variant            v   = arr;
 
     EXPECT_TRUE(v.is_array());
@@ -61,7 +61,7 @@ TEST(variants_test, StronglyTypedStringArrayAccess)
     EXPECT_EQ(v[0].as_string(), "HELLO");
 
     // 取回原始类型
-    mc::array<std::string> arr2 = v.as<mc::array<std::string>>();
+    mc::array<mc::string> arr2 = v.as<mc::array<mc::string>>();
     EXPECT_EQ(arr2[0], "HELLO");
     EXPECT_EQ(arr2[1], "world");
 }
@@ -96,7 +96,7 @@ TEST(variants_test, StronglyTypedArrayInDict)
 {
     // 测试在 dict 中使用强类型数组
     mc::array<int>         arr1 = {1, 2, 3};
-    mc::array<std::string> arr2 = {"a", "b", "c"};
+    mc::array<mc::string> arr2 = {"a", "b", "c"};
 
     mc::dict obj;
     obj["numbers"] = arr1;
@@ -214,7 +214,7 @@ TEST(variants_test, WeaklyTypedArrayAcceptAnyType)
 TEST(variants_test, StronglyTypedStringArrayRejectNonString)
 {
     // 测试强类型字符串数组拒绝非字符串类型
-    mc::array<std::string> str_arr = {"hello", "world", "test"};
+    mc::array<mc::string> str_arr = {"hello", "world", "test"};
     mc::variant            v       = str_arr;
 
     EXPECT_TRUE(v.is_array());
@@ -233,15 +233,15 @@ TEST(variants_test, StronglyTypedStringArrayRejectNonString)
 TEST(variants_test, StronglyTypedStringArrayAcceptString)
 {
     // 测试强类型字符串数组接受字符串类型
-    mc::array<std::string> str_arr = {"hello", "world", "test"};
+    mc::array<mc::string> str_arr = {"hello", "world", "test"};
     mc::variant            v       = str_arr;
 
     // 设置为字符串字面量
     v[0] = "HELLO";
     EXPECT_EQ(v[0].as_string(), "HELLO");
 
-    // 设置为 std::string
-    v[1] = std::string("WORLD");
+    // 设置为 mc::string
+    v[1] = mc::string("WORLD");
     EXPECT_EQ(v[1].as_string(), "WORLD");
 
     // 设置为 const char*
@@ -366,8 +366,8 @@ TEST(variants_test, ComparisonWithVectorInt)
 
 TEST(variants_test, ComparisonWithVectorString)
 {
-    // 测试 variants 与 std::vector<std::string> 的比较
-    std::vector<std::string> vec = {"hello", "world", "test"};
+    // 测试 variants 与 std::vector<mc::string> 的比较
+    std::vector<mc::string> vec = {"hello", "world", "test"};
     mc::variants             var_arr{"hello", "world", "test"};
 
     // 相等比较
@@ -376,12 +376,12 @@ TEST(variants_test, ComparisonWithVectorString)
     EXPECT_FALSE(var_arr != vec);
 
     // 不等比较
-    std::vector<std::string> vec2 = {"hello", "world", "test2"};
+    std::vector<mc::string> vec2 = {"hello", "world", "test2"};
     EXPECT_FALSE(var_arr == vec2);
     EXPECT_TRUE(var_arr != vec2);
 
     // 小于比较（字典序）
-    std::vector<std::string> vec3 = {"a", "b", "c"};
+    std::vector<mc::string> vec3 = {"a", "b", "c"};
     EXPECT_FALSE(var_arr < vec3);
     EXPECT_TRUE(vec3 < var_arr);
 }
@@ -841,7 +841,7 @@ TEST(variants_test, std_sort_lambda_comparator)
 
     // 按字符串长度排序
     std::sort(arr.begin(), arr.end(), [](const mc::variant& a, const mc::variant& b) {
-        return a.as<std::string>().length() < b.as<std::string>().length();
+        return a.as<mc::string>().length() < b.as<mc::string>().length();
     });
 
     EXPECT_EQ(arr.size(), 4);

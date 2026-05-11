@@ -62,7 +62,7 @@ TEST_F(VariantComparisonTest, VariantToVariantComparison)
     ASSERT_EQ(v5, v6) << "相同类型和值的浮点数variant应该相等";
 
     // 字符串类型比较
-    variant v7("test"), v8(std::string("test"));
+    variant v7("test"), v8(mc::string("test"));
     ASSERT_EQ(v7, v8) << "相同内容的字符串variant应该相等";
 }
 
@@ -126,7 +126,7 @@ TEST_F(VariantComparisonTest, VariantToPrimitiveComparison)
  */
 TEST_F(VariantComparisonTest, VariantToStringComparison)
 {
-    std::string test_str = "Hello, World!";
+    mc::string test_str = "Hello, World!";
 
     // string_type比较
     variant v1(test_str);
@@ -143,6 +143,23 @@ TEST_F(VariantComparisonTest, VariantToStringComparison)
     // 其他类型与字符串比较
     variant v3(42);
     ASSERT_NE(v3, test_str) << "非字符串或blob类型的variant不应该与字符串相等";
+}
+
+TEST_F(VariantComparisonTest, StdStringLeftComparison)
+{
+    std::string test_str = "Hello, World!";
+    std::string lower    = "Alpha";
+    std::string upper    = "Zulu";
+    variant     value(test_str);
+    variant     non_string(42);
+
+    EXPECT_TRUE(test_str == value);
+    EXPECT_FALSE(test_str != value);
+    EXPECT_TRUE(test_str <= value);
+    EXPECT_TRUE(test_str >= value);
+    EXPECT_TRUE(lower < value);
+    EXPECT_TRUE(upper > value);
+    EXPECT_TRUE(test_str != non_string);
 }
 
 /**
@@ -277,22 +294,26 @@ TEST_F(VariantComparisonTest, StringToBoolComparison)
  */
 TEST_F(VariantComparisonTest, VariantStringViewNumericComparisons)
 {
-    using namespace std::string_view_literals;
-
     variant double_value(1.25);
     variant bool_value(false);
 
-    EXPECT_TRUE(double_value < "2.50"sv);
-    EXPECT_TRUE(double_value > "1.00"sv);
+    const mc::string_view sv250("2.50", 4);
+    const mc::string_view sv100("1.00", 4);
+    const mc::string_view sv_true("true", 4);
+    const mc::string_view sv_zz("zz", 2);
+    const mc::string_view sv_aa("aa", 2);
 
-    EXPECT_TRUE(bool_value < "true"sv);
-    EXPECT_FALSE(bool_value == "true"sv);
+    EXPECT_TRUE(double_value < sv250);
+    EXPECT_TRUE(double_value > sv100);
+
+    EXPECT_TRUE(bool_value < sv_true);
+    EXPECT_FALSE(bool_value == sv_true);
 
     mc::blob blob_data;
     blob_data.data = {'b', 'c'};
     variant blob_value(blob_data);
-    EXPECT_TRUE(blob_value < "zz"sv);
-    EXPECT_TRUE(blob_value > "aa"sv);
+    EXPECT_TRUE(blob_value < sv_zz);
+    EXPECT_TRUE(blob_value > sv_aa);
 }
 
 /**
@@ -457,10 +478,10 @@ TEST_F(VariantComparisonTest, StringVariantComparison)
     EXPECT_TRUE("hello" <= v_str);
     EXPECT_TRUE("hello" >= v_str);
 
-    // std::string测试
-    std::string str1 = "hello";
-    std::string str2 = "world";
-    std::string str3 = "abc";
+    // mc::string测试
+    mc::string str1 = "hello";
+    mc::string str2 = "world";
+    mc::string str3 = "abc";
 
     EXPECT_TRUE(v_str < str2);
     EXPECT_FALSE(v_str > str2);
@@ -469,7 +490,7 @@ TEST_F(VariantComparisonTest, StringVariantComparison)
     EXPECT_TRUE(v_str > str3);
     EXPECT_TRUE(v_str >= str3);
 
-    // std::string与variant比较
+    // mc::string与variant比较
     EXPECT_TRUE(str3 < v_str);
     EXPECT_FALSE(str2 < v_str);
     EXPECT_TRUE(str1 <= v_str);
@@ -491,8 +512,8 @@ TEST_F(VariantComparisonTest, StringVariantComparison)
     // 前缀相等时，还要比较字符串的长度
 
     const char nullTermStr[] = "123\0";
-    EXPECT_TRUE(v_special < std::string(nullTermStr, 4));
-    EXPECT_TRUE(v_special == std::string(nullTermStr, 3));
+    EXPECT_TRUE(v_special < mc::string(nullTermStr, 4));
+    EXPECT_TRUE(v_special == mc::string(nullTermStr, 3));
 }
 
 /**
@@ -591,12 +612,12 @@ TEST_F(VariantComparisonTest, ExceptionMessageUsesPrettyName)
         bool result = v < 10;
         FAIL() << "应当抛出异常";
     } catch (const mc::invalid_op_exception& e) {
-        std::string error_msg = e.what();
+        mc::string error_msg = e.what();
         // 检查异常信息中是否包含操作符
-        EXPECT_TRUE(error_msg.find("<") != std::string::npos);
+        EXPECT_TRUE(error_msg.find("<") != mc::string::npos);
         // 检查异常信息中是否包含类型名称
-        EXPECT_TRUE(error_msg.find("null") != std::string::npos);
-        EXPECT_TRUE(error_msg.find("numeric") != std::string::npos);
+        EXPECT_TRUE(error_msg.find("null") != mc::string::npos);
+        EXPECT_TRUE(error_msg.find("numeric") != mc::string::npos);
     }
 
     // 测试另一种操作符
@@ -604,9 +625,9 @@ TEST_F(VariantComparisonTest, ExceptionMessageUsesPrettyName)
         bool result = v > 10;
         FAIL() << "应当抛出异常";
     } catch (const mc::invalid_op_exception& e) {
-        std::string error_msg = e.what();
+        mc::string error_msg = e.what();
         // 检查异常信息中是否包含操作符
-        EXPECT_TRUE(error_msg.find(">") != std::string::npos);
+        EXPECT_TRUE(error_msg.find(">") != mc::string::npos);
     }
 }
 
@@ -647,12 +668,19 @@ TEST_F(VariantComparisonTest, StringEqualityOperators)
 {
     // 字符串相等性测试
     variant v3("hello");
-    EXPECT_TRUE(v3.as<std::string>() == "hello");
-    EXPECT_FALSE(v3.as<std::string>() != "hello");
+    EXPECT_TRUE(v3.as<mc::string>() == "hello");
+    EXPECT_FALSE(v3.as<mc::string>() != "hello");
 
-    std::string str = "hello";
-    EXPECT_TRUE(v3.as<std::string>() == str);
-    EXPECT_FALSE(v3.as<std::string>() != str);
+    mc::string str = "hello";
+    EXPECT_TRUE(v3.as<mc::string>() == str);
+    EXPECT_FALSE(v3.as<mc::string>() != str);
+
+    std::string std_str = "hello";
+    EXPECT_TRUE(v3 == std_str);
+    EXPECT_FALSE(v3 != std_str);
+
+    std::string_view std_view = "hello";
+    EXPECT_TRUE(variant(std_view) == std_view);
 }
 
 /**
@@ -724,9 +752,9 @@ TEST_F(VariantComparisonTest, CharacterComparison)
  */
 TEST_F(VariantComparisonTest, StringViewComparison)
 {
-    std::string_view sv1 = "hello";
-    std::string_view sv2 = "world";
-    std::string_view sv3 = "abc";
+    mc::string_view sv1 = "hello";
+    mc::string_view sv2 = "world";
+    mc::string_view sv3 = "abc";
 
     variant v_str("hello");
 
@@ -749,6 +777,40 @@ TEST_F(VariantComparisonTest, StringViewComparison)
     EXPECT_TRUE(sv1 <= v_str);
 
     // 空视图测试
+    mc::string_view empty_sv;
+    variant         v_empty("");
+
+    EXPECT_TRUE(v_empty == empty_sv);
+    EXPECT_TRUE(empty_sv == v_empty);
+    EXPECT_FALSE(v_str == empty_sv);
+    EXPECT_TRUE(v_empty < sv1);
+    EXPECT_TRUE(empty_sv < v_str);
+}
+
+TEST_F(VariantComparisonTest, StdStringViewComparison)
+{
+    std::string_view sv1 = "hello";
+    std::string_view sv2 = "world";
+    std::string_view sv3 = "abc";
+
+    variant v_str("hello");
+
+    EXPECT_TRUE(v_str == sv1);
+    EXPECT_FALSE(v_str == sv2);
+    EXPECT_TRUE(v_str != sv2);
+    EXPECT_TRUE(v_str < sv2);
+    EXPECT_TRUE(v_str <= sv1);
+    EXPECT_TRUE(v_str > sv3);
+    EXPECT_TRUE(v_str >= sv1);
+
+    EXPECT_TRUE(sv1 == v_str);
+    EXPECT_FALSE(sv2 == v_str);
+    EXPECT_TRUE(sv2 != v_str);
+    EXPECT_TRUE(sv2 > v_str);
+    EXPECT_TRUE(sv1 >= v_str);
+    EXPECT_TRUE(sv3 < v_str);
+    EXPECT_TRUE(sv1 <= v_str);
+
     std::string_view empty_sv;
     variant          v_empty("");
 
@@ -757,6 +819,31 @@ TEST_F(VariantComparisonTest, StringViewComparison)
     EXPECT_FALSE(v_str == empty_sv);
     EXPECT_TRUE(v_empty < sv1);
     EXPECT_TRUE(empty_sv < v_str);
+}
+
+TEST_F(VariantComparisonTest, StdStringBidirectionalComparisonPreservesEmbeddedNull)
+{
+    std::string      text("ab\0c", 4);
+    std::string      greater("ab\0d", 4);
+    std::string_view text_view(text.data(), text.size());
+    std::string_view greater_view(greater.data(), greater.size());
+    variant          value(text);
+    variant          greater_value(greater);
+
+    EXPECT_TRUE(value == text);
+    EXPECT_TRUE(text == value);
+    EXPECT_FALSE(value != text);
+    EXPECT_FALSE(text != value);
+
+    EXPECT_TRUE(value == text_view);
+    EXPECT_TRUE(text_view == value);
+    EXPECT_FALSE(value != text_view);
+    EXPECT_FALSE(text_view != value);
+
+    EXPECT_TRUE(value < greater);
+    EXPECT_TRUE(text < greater_value);
+    EXPECT_TRUE(value < greater_view);
+    EXPECT_TRUE(text_view < greater_value);
 }
 
 /**
@@ -809,24 +896,24 @@ TEST_F(VariantComparisonTest, ComplexNestedStructureComparison)
 TEST_F(VariantComparisonTest, SpecialStringComparison)
 {
     // 包含特殊字符的字符串
-    std::string special_chars = "Special chars: \n\t\r\b\f\\\"\'";
-    variant     v_special(special_chars);
+    mc::string special_chars = "Special chars: \n\t\r\b\f\\\"\'";
+    variant    v_special(special_chars);
     EXPECT_EQ(v_special, special_chars);
 
     // 包含二进制零的字符串
-    const char  bin_zero[] = "binary\0zero";
-    std::string bin_zero_str(bin_zero, sizeof(bin_zero) - 1);
-    variant     v_bin_zero(bin_zero_str);
+    const char bin_zero[] = "binary\0zero";
+    mc::string bin_zero_str(bin_zero, sizeof(bin_zero) - 1);
+    variant    v_bin_zero(bin_zero_str);
     EXPECT_EQ(v_bin_zero, bin_zero_str);
 
     // 非常长的字符串
-    std::string long_string(10000, 'a');
-    variant     v_long(long_string);
+    mc::string long_string(10000, 'a');
+    variant    v_long(long_string);
     EXPECT_EQ(v_long, long_string);
 
     // Unicode字符串
-    std::string unicode = "Unicode: 中文 Русский नमस्ते";
-    variant     v_unicode(unicode);
+    mc::string unicode = "Unicode: 中文 Русский नमस्ते";
+    variant    v_unicode(unicode);
     EXPECT_EQ(v_unicode, unicode);
     EXPECT_TRUE(v_unicode < unicode + "a");
     EXPECT_TRUE(v_unicode > unicode.substr(0, unicode.size() - 1));
@@ -1024,11 +1111,11 @@ TEST_F(VariantComparisonTest, BlobComparisonOperators)
     EXPECT_TRUE(v_blob2 > v_blob1);
 
     // 与字符串比较
-    std::string str1 = "\x01\x02\x03";
+    mc::string str1 = "\x01\x02\x03";
     EXPECT_TRUE(v_blob1 == str1);
     EXPECT_TRUE(str1 == v_blob1);
 
-    std::string str2 = "\x01\x02\x04";
+    mc::string str2 = "\x01\x02\x04";
     EXPECT_TRUE(v_blob1 < str2);
     EXPECT_TRUE(str2 > v_blob1);
 }
@@ -1097,12 +1184,12 @@ TEST_F(VariantComparisonTest, NumericStringAndBlobConversions)
 TEST_F(VariantComparisonTest, VariantStringViewConversions)
 {
     variant v_numeric(5);
-    EXPECT_TRUE(v_numeric < std::string_view("6"));
-    EXPECT_TRUE(v_numeric > std::string_view("4"));
+    EXPECT_TRUE(v_numeric < mc::string_view("6"));
+    EXPECT_TRUE(v_numeric > mc::string_view("4"));
 
     variant v_blob(mc::blob{'1', '0'});
-    EXPECT_TRUE(v_blob == std::string_view("10"));
-    EXPECT_TRUE(v_blob < std::string_view("11"));
+    EXPECT_TRUE(v_blob == mc::string_view("10"));
+    EXPECT_TRUE(v_blob < mc::string_view("11"));
 
     variant v_string("abc");
     variant v_blob_compare(mc::blob{'a', 'b', 'd'});
@@ -1111,7 +1198,7 @@ TEST_F(VariantComparisonTest, VariantStringViewConversions)
 
     variant v_bool(true);
     EXPECT_THROW([&v_bool]() {
-        return v_bool < std::string_view("maybe");
+        return v_bool < mc::string_view("maybe");
     }(), mc::invalid_op_exception);
 }
 

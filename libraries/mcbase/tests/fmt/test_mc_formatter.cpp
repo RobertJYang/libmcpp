@@ -35,23 +35,23 @@ protected:
 TEST_F(mc_formatter_test, VariantFormatting) {
     // 测试基本类型
     mc::variant v1      = 42;
-    std::string result1 = sformat("{}", v1);
+    mc::string result1 = sformat("{}", v1);
     EXPECT_EQ(result1, "42");
 
     mc::variant v2      = 3.14;
-    std::string result2 = sformat("{}", v2);
+    mc::string result2 = sformat("{}", v2);
     EXPECT_EQ(result2, "3.14");
 
     mc::variant v3      = "hello";
-    std::string result3 = sformat("{}", v3);
+    mc::string result3 = sformat("{}", v3);
     EXPECT_EQ(result3, "hello");
 
     mc::variant v4      = true;
-    std::string result4 = sformat("{}", v4);
+    mc::string result4 = sformat("{}", v4);
     EXPECT_EQ(result4, "true");
 
     mc::variant v5; // null
-    std::string result5 = sformat("{}", v5);
+    mc::string result5 = sformat("{}", v5);
     EXPECT_EQ(result5, "null");
 }
 
@@ -85,7 +85,7 @@ TEST_F(mc_formatter_test, VariantFormatWithSpec) {
 TEST_F(mc_formatter_test, FormatCharFromVariant) {
     // variant 中存放 int8_t('A')
     mc::variant v      = static_cast<int8_t>('A');
-    std::string result = sformat("{}", v);
+    mc::string result = sformat("{}", v);
     // 默认行为：按整数输出
     EXPECT_EQ(result, "65");
 }
@@ -95,7 +95,7 @@ TEST_F(mc_formatter_test, BlobFormatterOutputsSize) {
     // 创建 mc::blob
     mc::blob blob;
     blob.data          = std::vector<char>{static_cast<char>(1), static_cast<char>(2), static_cast<char>(3)};
-    std::string result = sformat("{}", blob);
+    mc::string result = sformat("{}", blob);
     // 期望输出 "blob(3 bytes)"
     EXPECT_EQ(result, "blob(3 bytes)");
 }
@@ -105,7 +105,7 @@ TEST_F(mc_formatter_test, ExtensionFormatterUsesTypeName) {
     // 定义一个继承 variant_extension_base 的伪 extension
     class custom_ext : public mc::variant_extension_base {
     public:
-        std::string_view get_type_name() const override {
+        mc::string_view get_type_name() const override {
             return "custom_ext";
         }
 
@@ -120,7 +120,7 @@ TEST_F(mc_formatter_test, ExtensionFormatterUsesTypeName) {
 
     auto        ext = mc::make_shared<custom_ext>();
     mc::variant v(ext);
-    std::string result = sformat("{}", v);
+    mc::string result = sformat("{}", v);
     // 期望输出 "extension(custom_ext)"
     EXPECT_EQ(result, "extension(custom_ext)");
 }
@@ -147,7 +147,7 @@ TEST_F(mc_formatter_test, VariantsFormatting) {
     arr.push_back("test");
     arr.push_back(true);
 
-    std::string result = sformat("{}", arr);
+    mc::string result = sformat("{}", arr);
     EXPECT_EQ(result, "[1,2.5,\"test\",true]");
 }
 
@@ -160,7 +160,7 @@ TEST_F(mc_formatter_test, DictFormatting) {
     dict["age"]        = 30;
     dict["is_student"] = false;
 
-    std::string result = sformat("{}", dict);
+    mc::string result = sformat("{}", dict);
     EXPECT_EQ(result, "{\"name\":张三,\"age\":30,\"is_student\":false}");
 }
 
@@ -173,7 +173,7 @@ TEST_F(mc_formatter_test, MutableDictFormatting) {
     dict["population"] = 21540000;
     dict["is_capital"] = true;
 
-    std::string result = sformat("{}", dict);
+    mc::string result = sformat("{}", dict);
     EXPECT_EQ(result, "{\"city\":北京,\"population\":21540000,\"is_capital\":true}");
 }
 
@@ -196,7 +196,7 @@ TEST_F(mc_formatter_test, NestedStructureFormatting) {
     outer_dict["numbers"] = arr;
     outer_dict["name"]    = "test";
 
-    std::string result = sformat("{}", outer_dict);
+    mc::string result = sformat("{}", outer_dict);
     EXPECT_EQ(result, "{\"point\":{\"x\":10,\"y\":20},\"numbers\":[1,2,3],\"name\":test}");
 }
 
@@ -210,7 +210,7 @@ TEST_F(mc_formatter_test, VariantWithArrayFormatting) {
     arr.push_back("c");
 
     mc::variant v      = arr;
-    std::string result = sformat("{}", v);
+    mc::string result = sformat("{}", v);
     EXPECT_EQ(result, "[\"a\",\"b\",\"c\"]");
 }
 
@@ -223,7 +223,7 @@ TEST_F(mc_formatter_test, VariantWithDictFormatting) {
     dict["key2"] = 42;
 
     mc::variant v      = dict;
-    std::string result = sformat("{}", v);
+    mc::string result = sformat("{}", v);
     EXPECT_EQ(result, "{\"key1\":value1,\"key2\":42}");
 }
 
@@ -245,7 +245,7 @@ TEST_F(mc_formatter_test, ComplexNestedFormatting) {
     outer_arr.push_back("end");
 
     mc::variant v      = outer_arr;
-    std::string result = sformat("{}", v);
+    mc::string result = sformat("{}", v);
     EXPECT_EQ(result, "[1,{\"nested_key\":[\"nested1\",\"nested2\"]},\"end\"]");
 }
 

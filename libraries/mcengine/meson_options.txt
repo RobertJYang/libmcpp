@@ -1,0 +1,45 @@
+option(
+  'tests',
+  type: 'boolean',
+  value: true,
+  description: '是否构建测试用例，默认为true',
+)
+
+option(
+  'tests_utilities',
+  type: 'boolean',
+  value: true,
+  description: '是否构建测试辅助库，默认为true',
+)
+
+option(
+  'enable_coverage',
+  type: 'boolean',
+  value: false,
+  description: '是否启用代码覆盖率统计，默认为false',
+)
+
+option(
+  'boost_root',
+  type: 'string',
+  value: '',
+  description: 'Boost include root directory (if not set, uses BOOST_ROOT or system Boost)',
+)
+
+# 编译期切换：mcengine 默认 storage_engine 是 local（heap）还是 shm。
+# 默认 ON：mcengine 自带 shm_runtime_provider lazy bootstrap，普通调用方无需手动
+# 注入 shm_runtime。要在嵌入式特化场景退回 local（heap）只需
+# `meson configure -Dlibraries/mcengine:use_shm=false`，类型层兼容路径完整保留。
+option(
+  'use_shm',
+  type: 'boolean',
+  value: true,
+  description: 'mcengine 默认 storage_engine 使用 mc::db::shm_storage_engine（默认 ON）',
+)
+
+option(
+  'with_benches',
+  type: 'boolean',
+  value: false,
+  description: '构建 mcengine SHM 微基准',
+)

@@ -21,7 +21,7 @@
 namespace mc::db {
 
 // 前向声明
-template <typename ObjectType, typename KeyExtractor, bool IsUnique, typename Tag, typename Allocator>
+template <typename ObjectType, typename KeyExtractor, bool IsUnique, typename Tag, typename Allocator, typename Engine>
 class index;
 
 /**
@@ -143,7 +143,7 @@ public:
      * 获取键视图
      * @return 键视图
      */
-    std::string_view key() const
+    mc::string_view key() const
     {
         if (m_is_end) {
             return {};
@@ -152,7 +152,7 @@ public:
     }
 
     // 跳到下一个前缀的位置，用于equal_range场景只给定部分key时使用
-    iterator to_next_prefix(std::string_view key_view)
+    iterator to_next_prefix(mc::string_view key_view)
     {
         if (m_is_end) {
             return *this;
@@ -180,7 +180,7 @@ private:
             return false;
         }
 
-        std::string_view key = m_iterator.key();
+        mc::string_view key = m_iterator.key();
         size_t           n   = key.length();
         // 前缀完全匹配或没有前缀要求
         if (n == m_prefix_len || m_prefix_len == 0) {
@@ -218,7 +218,7 @@ private:
     }
 
     template <bool IsCompound>
-    bool check_compound_key(std::string_view key, int n)
+    bool check_compound_key(mc::string_view key, int n)
     {
         if constexpr (!IsCompound) {
             return false;
@@ -242,7 +242,7 @@ private:
     }
 
     template <bool IsCompound>
-    bool check_unique_key(std::string_view& key, size_t& n)
+    bool check_unique_key(mc::string_view& key, size_t& n)
     {
         if constexpr (!IsCompound) {
             // 非组合键必须精确匹配长度
@@ -278,7 +278,7 @@ private:
     bool         m_is_end;
 
     // 声明mem_index为友元类
-    template <typename, typename, bool, typename, typename>
+    template <typename, typename, bool, typename, typename, typename>
     friend class index;
 };
 

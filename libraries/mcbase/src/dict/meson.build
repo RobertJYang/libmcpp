@@ -1,4 +1,6 @@
 dict_src_files = [
-  'dict/dict.cpp',
-  'dict/mutable_dict.cpp',
+    'dict/entry_storage.cpp',
+    'dict/index.cpp',
+    'dict/dict.cpp',
+    'dict/mutable_dict.cpp',
 ]

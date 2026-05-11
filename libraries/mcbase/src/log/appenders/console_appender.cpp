@@ -21,16 +21,17 @@
 
 namespace {
 // 简单的 basename 实现，不依赖 filesystem 模块
-std::string simple_basename(std::string_view path) {
+mc::string simple_basename(mc::string_view path)
+{
     if (path.empty()) {
         return "";
     }
     // 查找最后一个路径分隔符
     auto last_slash = path.find_last_of("/\\");
-    if (last_slash == std::string_view::npos) {
-        return std::string(path);
+    if (last_slash == mc::string_view::npos) {
+        return mc::string(path);
     }
-    return std::string(path.substr(last_slash + 1));
+    return mc::string(path.substr(last_slash + 1));
 }
 } // namespace
 
@@ -43,6 +44,8 @@ std::string simple_basename(std::string_view path) {
 #include <iostream>
 #include <mutex>
 #include <sstream>
+#include <string>
+#include <string_view>
 
 MC_REFLECT_ENUM(mc::log::console_appender::color_type, (console_default)(red)(green)(brown)(blue)(magenta)(cyan)(white))
 MC_REFLECT_ENUM(mc::log::console_appender::stream_type, (std_out)(std_error))
@@ -126,54 +129,62 @@ void console_appender::append(const message& msg)
     const context& ctx = msg.get_context();
 
     // 构建日志行 - 预分配足够的空间避免重新分配
-    std::string line;
+    mc::string line;
     line.reserve(512); // 增加预留空间，避免多次重分配
 
     // 格式化日志消息
     // 日志级别 (5字符宽度)
-    mc::string::fixed_width_append(line, 5, mc::log::to_string(msg.get_level()));
+    {
+        mc::string_view lvl = mc::log::to_string(msg.get_level());
+        mc::strings::fixed_width_append(line, 5, lvl);
+    }
     line.push_back(' ');
 
     // 时间戳（使用当前时间而不是消息时间，避免长时间处理导致的时间差）
-    std::string_view time_str = mc::time_point::now();
-    line.append(time_str);
+    mc::string_view time_str = mc::time_point::now();
+    line.append(time_str.data(), time_str.size());
     line.push_back(' ');
 
     // 添加线程ID
-    line.append("[" + std::to_string(msg.get_thread_id()) + "] ");
+    line.push_back('[');
+    line.append(mc::to_string(msg.get_thread_id()));
+    line.append("] ");
 
     // 文件和行号 (25字符宽度)
-    std::string file_line;
+    mc::string file_line;
     file_line.reserve(64); // 预分配足够空间
 
     if (ctx.m_file.empty()) {
         file_line.append("unknown");
     } else {
-        file_line.append(simple_basename(ctx.m_file));
+        file_line.append(simple_basename(ctx.m_file.view()));
     }
     file_line.push_back(':');
-    file_line.append(std::to_string(ctx.m_line));
+    file_line.append(mc::to_string(ctx.m_line));
 
-    mc::string::fixed_width_append(line, 25, file_line);
+    {
+        mc::string_view fl = file_line.view();
+        mc::strings::fixed_width_append(line, 25, fl);
+    }
     line.push_back(' ');
 
     // 函数名 (20字符宽度)
     if (!ctx.m_function.empty()) {
-        std::string_view func_view(ctx.m_function);
+        mc::string_view func_view(ctx.m_function.view());
         // 去除命名空间前缀
         size_t pos = func_view.find_last_of(':');
-        if (pos != std::string::npos && pos + 1 < func_view.size()) {
+        if (pos != mc::string_view::npos && pos + 1 < func_view.size()) {
             func_view = func_view.substr(pos + 1);
         }
-        mc::string::fixed_width_append(line, 20, func_view);
+        mc::strings::fixed_width_append(line, 20, func_view);
         line.push_back(' ');
     }
 
     // 消息内容
     line.append("| ");
     // 过滤无效字符，避免输出控制字符导致终端显示异常
-    std::string message_str = msg.get_message();
-    line.append(message_str);
+    mc::string message_str(msg.get_message());
+    line.append(message_str.data(), message_str.size());
 
     // 输出带颜色的日志
     color_type text_color = m_impl->level_colors[static_cast<int>(msg.get_level())];
@@ -188,7 +199,7 @@ void console_appender::append(const message& msg)
     }
 }
 
-void console_appender::print(const std::string& text, color_type text_color)
+void console_appender::print(const mc::string& text, color_type text_color)
 {
     if (text.empty()) {
         return;

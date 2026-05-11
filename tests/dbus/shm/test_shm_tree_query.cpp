@@ -116,7 +116,7 @@ struct query_test_service_1 : public mc::engine::service {
     query_test_service_1() : mc::engine::service("org.openubmc.query_test_service_1")
     {}
 
-    bool init(mc::dict args = {}) override
+    bool init(mc::dict args = {})
     {
         mc::dict args_mut(args);
         args_mut["service_path"] = "/org/openubmc/query_test_service_1";
@@ -124,7 +124,7 @@ struct query_test_service_1 : public mc::engine::service {
         return mc::engine::service::init(args_mut);
     }
 
-    bool start() override
+    bool start()
     {
         if (!mc::engine::service::start()) {
             return false;
@@ -149,7 +149,7 @@ struct query_test_service_2 : public mc::engine::service {
     query_test_service_2() : mc::engine::service("org.openubmc.query_test_service_2")
     {}
 
-    bool init(mc::dict args = {}) override
+    bool init(mc::dict args = {})
     {
         mc::dict args_mut(args);
         args_mut["service_path"] = "/org/openubmc/query_test_service_2";
@@ -157,7 +157,7 @@ struct query_test_service_2 : public mc::engine::service {
         return mc::engine::service::init(args_mut);
     }
 
-    bool start() override
+    bool start()
     {
         if (!mc::engine::service::start()) {
             return false;
@@ -219,6 +219,7 @@ protected:
         }                                                                                                              \
     } while (0)
 
+#if defined(MCENGINE_USE_SHM) && MCENGINE_USE_SHM
 // ========== call_shm_get_property 测试 ==========
 TEST_F(ShmTreeQueryTest, call_shm_get_property_success)
 {
@@ -469,6 +470,7 @@ TEST_F(ShmTreeQueryTest, get_mdb_interface_owners_success)
     auto result = mc::dbus::shm_tree::get_mdb_interface_owners("org.openubmc.query_test_interface_a");
     ASSERT_FALSE(result.empty());
 }
+#endif
 
 TEST_F(ShmTreeQueryTest, get_mdb_interface_owners_not_found)
 {

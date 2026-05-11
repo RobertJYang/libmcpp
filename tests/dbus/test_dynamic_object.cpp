@@ -13,21 +13,24 @@
 #include <gtest/gtest.h>
 #include <mc/dbus/dynamic_object.h>
 #include <mc/dbus/sd_bus.h>
-#include <mc/dbus/shm/shm_tree.h>
 #include <mc/memory.h>
 #include <mc/variant.h>
-#include <test_utilities/test_base.h>
+
+// shm_tree 仅在旧 dbus/shm 兼容机制启用时存在实体实现；
+// 关 use_old_shm 时整个 update_shm_prop 用例都跳过，shm_tree 头也不引。
+#if defined(MCDBUS_USE_OLD_SHM) && MCDBUS_USE_OLD_SHM
+#include <mc/dbus/shm/shm_tree.h>
+#endif
 
 using namespace mc::dbus;
 
 static sd_bus*                        test_bus;
 static mc::shared_ptr<dynamic_object> test_object;
 
-class DynamicObjectTest : public mc::test::TestWithDbusDaemon {
+class DynamicObjectTest : public ::testing::Test {
 protected:
     static void SetUpTestSuite()
     {
-        mc::test::TestWithDbusDaemon::SetUpTestSuite();
         // Create sd_bus instance
         test_bus = new sd_bus(true, false);
         test_bus->request_name("org.test.dynamic_object");
@@ -70,7 +73,6 @@ protected:
     {
         delete test_bus;
         test_object.reset();
-        mc::test::TestWithDbusDaemon::TearDownTestSuite();
     }
 
     void SetUp() override
@@ -305,8 +307,9 @@ TEST_F(DynamicObjectTest, test_get_all_properties)
     EXPECT_EQ(empty_props.size(), 0u);
 }
 
-#if defined(ENABLE_CONAN_COMPILE) && ENABLE_CONAN_COMPILE == 1
+#if defined(MCDBUS_USE_OLD_SHM) && MCDBUS_USE_OLD_SHM
 // Test update_shm_prop
+// 仅在启用旧 dbus/shm 兼容机制（harbor + shm_tree）时验证 shm 属性写回。
 TEST_F(DynamicObjectTest, test_update_shm_prop)
 {
     test_object->update_shm_prop("StringProp", mc::variant("test_update_shm_prop"),

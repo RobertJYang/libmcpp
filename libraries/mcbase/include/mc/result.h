@@ -15,10 +15,8 @@
 #include <mc/error.h>
 #include <mc/exception.h>
 #include <mc/future.h>
-#include <mc/reflect/base.h>
 #include <mc/reflect/signature_helper.h>
 #include <mc/runtime/any_executor.h>
-#include <mc/runtime/executor.h>
 #include <mc/time.h>
 #include <mc/traits.h>
 #include <mc/variant.h>
@@ -248,7 +246,8 @@ public:
             m_future.wait();
         }
         if (m_future.is_rejected()) {
-            return mc::error::from_exception(m_future.get_exception());
+            auto exception = m_future.get_exception();
+            return exception ? mc::error::from_exception(*exception) : mc::error_ptr{};
         }
         return {};
     }
@@ -264,19 +263,35 @@ public:
      *  })
      */
     template <typename F>
-    auto then(F&& func, launch policy = launch::async, std::optional<mc::any_executor> executor = std::nullopt)
+    auto then(F&& func, launch policy = launch::async)
         -> std::enable_if_t<detail::result_traits<T, F, param_type>::value,
                             typename detail::result_traits<T, F, param_type>::future_type>
     {
-        return m_future.then(std::forward<F>(func), policy, executor);
+        return m_future.then(std::forward<F>(func), policy);
     }
 
     template <typename F>
-    auto catch_error(F&& func, launch policy = launch::async, std::optional<mc::any_executor> executor = std::nullopt)
+    auto then(F&& func, launch policy, mc::any_executor executor)
+        -> std::enable_if_t<detail::result_traits<T, F, param_type>::value,
+                            typename detail::result_traits<T, F, param_type>::future_type>
+    {
+        return m_future.then(std::forward<F>(func), policy, std::move(executor));
+    }
+
+    template <typename F>
+    auto catch_error(F&& func, launch policy = launch::async)
         -> std::enable_if_t<detail::result_traits<T, F, const mc::exception&>::value,
                             typename detail::result_traits<T, F, const mc::exception&>::future_type>
     {
-        return m_future.catch_error(std::forward<F>(func), policy, executor);
+        return m_future.catch_error(std::forward<F>(func), policy);
+    }
+
+    template <typename F>
+    auto catch_error(F&& func, launch policy, mc::any_executor executor)
+        -> std::enable_if_t<detail::result_traits<T, F, const mc::exception&>::value,
+                            typename detail::result_traits<T, F, const mc::exception&>::future_type>
+    {
+        return m_future.catch_error(std::forward<F>(func), policy, std::move(executor));
     }
 
     void cancel()
@@ -285,9 +300,15 @@ public:
     }
 
     template <typename F>
-    auto finally(F&& func, launch policy = launch::async, std::optional<mc::any_executor> executor = std::nullopt)
+    auto finally(F&& func, launch policy = launch::async)
     {
-        return m_future.finally(std::forward<F>(func), policy, executor);
+        return m_future.finally(std::forward<F>(func), policy);
+    }
+
+    template <typename F>
+    auto finally(F&& func, launch policy, mc::any_executor executor)
+    {
+        return m_future.finally(std::forward<F>(func), policy, std::move(executor));
     }
 
     template <typename F>
@@ -418,7 +439,7 @@ namespace reflect::detail {
 
 template <typename FutureType>
 struct signature_helper<FutureType, std::enable_if_t<mc::futures::detail::is_future_v<FutureType>>> {
-    static void apply(std::string& sig)
+    static void apply(mc::string& sig)
     {
         sig = mc::reflect::detail::get_signature<typename FutureType::value_type>();
     }
@@ -426,7 +447,7 @@ struct signature_helper<FutureType, std::enable_if_t<mc::futures::detail::is_fut
 
 template <typename T>
 struct signature_helper<result<T>, void> {
-    static void apply(std::string& sig)
+    static void apply(mc::string& sig)
     {
         sig = mc::reflect::detail::get_signature<T>();
     }

@@ -15,8 +15,6 @@
 
 #include <mc/common.h>
 
-#include <boost/asio.hpp>
-
 namespace mc::runtime {
 
 class immediate_context;
@@ -66,8 +64,6 @@ public:
 
     void on_work_finished() const noexcept;
 
-    immediate_context& context() const noexcept;
-
     /**
      * @brief 检查当前线程是否在此 executor 上执行
      * @note immediate_executor 总是在当前线程执行，所以始终返回 true
@@ -76,19 +72,10 @@ public:
     {
         return true;
     }
-
-    // 支持 execution::blocking.never 属性
-    immediate_executor require(boost::asio::execution::blocking_t::never_t) const;
-
-    // 查询执行器属性
-    static constexpr boost::asio::execution::blocking_t query(boost::asio::execution::blocking_t)
-    {
-        return boost::asio::execution::blocking.never;
-    }
 };
 
 // immediate_context 用于立即执行回调的上下文
-class MC_API immediate_context : public boost::asio::execution_context {
+class MC_API immediate_context {
 public:
     using executor_type = immediate_executor;
 
@@ -99,10 +86,5 @@ public:
 };
 
 } // namespace mc::runtime
-
-namespace boost::asio {
-template <>
-struct is_executor<mc::runtime::immediate_executor> : std::true_type {};
-} // namespace boost::asio
 
 #endif // MC_RUNTIME_IMMEDIATE_CONTEXT_H

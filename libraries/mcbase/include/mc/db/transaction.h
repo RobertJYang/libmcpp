@@ -14,7 +14,7 @@
 #define MC_DATABASE_TRANSACTION_H
 
 #include <mc/db/common.h>
-#include <mc/intrusive/intrusive.h>
+#include <mc/intrusive/unordered_set.h>
 #include <mc/singleton.h>
 
 #include <atomic>

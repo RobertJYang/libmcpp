@@ -14,38 +14,34 @@
 
 namespace test {
 
-test_service::test_service(std::string_view name) : mc::engine::service(name)
+test_service::test_service(mc::string name) : mc::app::service(std::move(name))
 {}
 
 test_service::~test_service()
 {}
 
-bool test_service::init(mc::dict args)
+bool test_service::on_start()
 {
-    return mc::engine::service::init(args);
+    setup_tasks_root();
+    return true;
 }
 
-bool test_service::start()
+bool test_service::on_stop()
 {
-    if (!mc::engine::service::start()) {
-        return false;
+    m_tasks.reset();
+    return true;
+}
+
+void test_service::setup_tasks_root()
+{
+    if (m_tasks) {
+        return;
     }
 
-    m_tasks = mc::make_shared<my_tasks_object>(this);
+    m_tasks = my_tasks_object::create();
+    m_tasks->set_object_name("TasksObject");
+    m_tasks->set_object_path("/bmc/kepler/TaskService/Tasks");
     register_object(m_tasks);
-    return true;
-}
-
-bool test_service::stop()
-{
-    if (!mc::engine::service::stop()) {
-        return false;
-    }
-
-    // for (auto& task : m_tasks) {
-    //     // task->stop();
-    // }
-    return true;
 }
 
 } // namespace test

@@ -105,7 +105,7 @@ struct edge_less {
     // 添加对key_view和key_buffer的比较支持
     bool operator()(const key_view& a, const key_view& b) const
     {
-        return std::less<std::string_view>()(a, b);
+        return std::less<mc::string_view>()(a, b);
     }
 
     bool operator()(const key_buffer<>& a, const key_view& b) const
@@ -149,7 +149,7 @@ struct edge_greater {
     // 添加对key_view和key_buffer的比较支持
     bool operator()(const key_view& a, const key_view& b) const
     {
-        return std::greater<std::string_view>()(a, b);
+        return std::greater<mc::string_view>()(a, b);
     }
 
     bool operator()(const key_buffer<>& a, const key_view& b) const
@@ -195,7 +195,7 @@ public:
     using key_type     = key_buffer<typename alloc_traits::template rebind_alloc<char>>;
     using edge_type    = edge<node>;
     using edges_type   = edges<node>;
-    using ref_ptr_type = shared_ptr<node, default_deleter<node>, pointer_type>;
+    using ref_ptr_type = shared_ptr<node, pointer_type>;
     using list_type    = ref_list<node, pointer_type>;
     using compare_type = std::conditional_t<IsLess, edge_less<node>, edge_greater<node>>;
 

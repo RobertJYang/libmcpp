@@ -21,6 +21,7 @@
 #include <initializer_list>
 #include <memory>
 #include <stdexcept>
+#include <string_view>
 #include <vector>
 
 #include <mc/common.h>
@@ -38,7 +39,7 @@ namespace detail {
  *
  * @param msg 异常消息
  */
-[[noreturn]] MC_API void throw_array_out_of_range(const char* msg);
+[[noreturn]] MC_API void throw_array_out_of_range(mc::string_view msg);
 
 /**
  * @brief array 的内部实现类
@@ -50,33 +51,46 @@ template <typename T, typename Allocator = std::allocator<T>>
 class array_impl : public mc::i_variants, public std::vector<T, Allocator> {
 public:
     using base_type = std::vector<T, Allocator>;
+    using self_type = array_impl<T, Allocator>;
 
     // 继承所有 std::vector 的构造函数
     using base_type::base_type;
 
     // 默认构造函数
     array_impl() : base_type()
-    {}
+    {
+        init_shared_release_protocol();
+    }
 
     // 从 allocator 构造
     explicit array_impl(const Allocator& alloc) : base_type(alloc)
-    {}
+    {
+        init_shared_release_protocol();
+    }
 
     // 从 std::vector 拷贝构造
     array_impl(const base_type& vec) : base_type(vec)
-    {}
+    {
+        init_shared_release_protocol();
+    }
 
     // 从 std::vector 移动构造
     array_impl(base_type&& vec) noexcept : base_type(std::move(vec))
-    {}
+    {
+        init_shared_release_protocol();
+    }
 
     // 拷贝构造函数
     array_impl(const array_impl& other) : base_type(static_cast<const base_type&>(other))
-    {}
+    {
+        init_shared_release_protocol();
+    }
 
     // 移动构造函数
     array_impl(array_impl&& other) noexcept : base_type(std::move(static_cast<base_type&&>(other)))
-    {}
+    {
+        init_shared_release_protocol();
+    }
 
     ~array_impl()
     {}
@@ -125,7 +139,7 @@ public:
         return typeid(T);
     }
 
-    std::string element_type_name() const override
+    mc::string element_type_name() const override
     {
         return mc::pretty_name<T>();
     }
@@ -152,6 +166,13 @@ public:
     // 拷贝操作
     mc::shared_ptr<i_variants> copy() const override;
     mc::shared_ptr<i_variants> deep_copy(mc::detail::copy_context* ctx = nullptr) const override;
+
+private:
+    void init_shared_release_protocol()
+    {
+        this->ensure_shared_release_protocol(
+            &mc::memory::detail::shared_release_ops_for<self_type>::value);
+    }
 };
 } // namespace detail
 
@@ -386,7 +407,7 @@ public:
     {
         ensure_data();
         try {
-            auto* impl = static_cast<detail::array_impl<T>*>(m_data.get());
+            auto* impl = static_cast<impl_type*>(m_data.get());
             return static_cast<std::vector<T, Allocator>&>(*impl).at(pos);
         } catch (const std::out_of_range&) {
             detail::throw_array_out_of_range("array::at: index out of range");
@@ -399,7 +420,7 @@ public:
             detail::throw_array_out_of_range("array::at: index out of range");
         }
         try {
-            const auto* impl = static_cast<const detail::array_impl<T>*>(m_data.get());
+            const auto* impl = static_cast<const impl_type*>(m_data.get());
             return static_cast<const std::vector<T, Allocator>&>(*impl).at(pos);
         } catch (const std::out_of_range&) {
             detail::throw_array_out_of_range("array::at: index out of range");
@@ -636,7 +657,7 @@ public:
     iterator insert(const_iterator pos, const T& value)
     {
         ensure_data();
-        auto* impl = static_cast<detail::array_impl<T>*>(m_data.get());
+        auto* impl = static_cast<impl_type*>(m_data.get());
         auto  it   = static_cast<std::vector<T, Allocator>&>(*impl).insert(pos, value);
         return it;
     }
@@ -644,7 +665,7 @@ public:
     iterator insert(const_iterator pos, T&& value)
     {
         ensure_data();
-        auto* impl = static_cast<detail::array_impl<T>*>(m_data.get());
+        auto* impl = static_cast<impl_type*>(m_data.get());
         auto  it   = static_cast<std::vector<T, Allocator>&>(*impl).insert(pos, std::move(value));
         return it;
     }
@@ -659,7 +680,7 @@ public:
     iterator insert(const_iterator pos, size_type count, const T& value)
     {
         ensure_data();
-        auto* impl = static_cast<detail::array_impl<T>*>(m_data.get());
+        auto* impl = static_cast<impl_type*>(m_data.get());
         auto  it   = static_cast<std::vector<T, Allocator>&>(*impl).insert(pos, count, value);
         return it;
     }
@@ -676,7 +697,7 @@ public:
     iterator insert(const_iterator pos, InputIt first, InputIt last)
     {
         ensure_data();
-        auto* impl = static_cast<detail::array_impl<T>*>(m_data.get());
+        auto* impl = static_cast<impl_type*>(m_data.get());
         auto  it   = static_cast<std::vector<T, Allocator>&>(*impl).insert(pos, first, last);
         return it;
     }
@@ -691,7 +712,7 @@ public:
     {
         ensure_data();
         // 直接访问 array_impl<T> 的底层 vector
-        auto* impl = static_cast<detail::array_impl<T>*>(m_data.get());
+        auto* impl = static_cast<impl_type*>(m_data.get());
         auto  it   = static_cast<std::vector<T, Allocator>&>(*impl).insert(pos, ilist);
         return it;
     }
@@ -935,12 +956,31 @@ public:
     }
 
     /**
-     * @brief 转换为 std::vector
+     * @brief 转换为 std::vector 的拷贝
      * @return std::vector 的拷贝
      */
     vector_type to_vector() const
     {
         return m_data ? vector_type(*m_data) : vector_type();
+    }
+
+    /**
+     * @brief 隐式转换为 const std::vector 引用
+     * @return 底层 std::vector 的常量引用（零拷贝）
+     * @note 允许 mc::array 在需要 const std::vector<T>& 的 C++ 函数参数中隐式转换，
+     *       直接引用内部数据，不产生拷贝。
+     *       引用生命周期与 mc::array 对象绑定，mc::array 析构后引用失效。
+     */
+    operator const vector_type&() const
+    {
+        static const vector_type empty;
+        return m_data ? static_cast<const vector_type&>(*m_data) : empty;
+    }
+
+    operator vector_type&()
+    {
+        ensure_data();
+        return static_cast<vector_type&>(*m_data);
     }
 
 private:

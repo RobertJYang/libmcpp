@@ -403,7 +403,7 @@ public:
      * @param length 数据长度
      * @return 读取的数据
      */
-    std::string_view read(std::size_t offset, std::size_t length) const;
+    mc::string_view read(std::size_t offset, std::size_t length) const;
 
     /**
      * @brief 从指定位置读取数据，如果实际数据长度小于请求的长度，则抛出异常
@@ -431,7 +431,7 @@ public:
      * @param length 数据长度
      * @return 读取的数据
      */
-    std::string_view try_read(std::size_t offset, std::size_t length) const noexcept;
+    mc::string_view try_read(std::size_t offset, std::size_t length) const noexcept;
 
     /**
      * @brief 从指定位置读取一些数据，实际读取的字节数可能小于请求的长度
@@ -440,7 +440,7 @@ public:
      * @param length 数据长度
      * @return 实际读取的数据
      */
-    std::string_view read_some(std::size_t offset, std::size_t length) const;
+    mc::string_view read_some(std::size_t offset, std::size_t length) const;
 
     /**
      * @brief 从指定位置读取一些数据，实际读取的字节数可能小于请求的长度
@@ -544,7 +544,7 @@ public:
      *
      * @return 合并后的数据视图
      */
-    std::string_view normalize();
+    mc::string_view normalize();
 
 private:
     /**

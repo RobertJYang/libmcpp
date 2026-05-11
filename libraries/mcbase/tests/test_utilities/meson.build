@@ -14,6 +14,7 @@ test_utilities_lib = static_library(
   dependencies: [boost_dep, gtest_dep, mcbase_dep],
   install: true,
   install_dir: install_dir,
+  build_by_default: true,
 )
 
 test_utilities_dep = declare_dependency(

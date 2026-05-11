@@ -45,10 +45,10 @@ TEST(JsonEncodeTest, BasicTypes)
     EXPECT_EQ(json_encode(variant(false)), "false");
 
     // 字符串测试
-    EXPECT_EQ(json_encode(variant(std::string("hello"))), "\"hello\"");
-    EXPECT_EQ(json_encode(variant(std::string(""))), "\"\"");
-    EXPECT_EQ(json_encode(variant(std::string("hello\nworld"))), "\"hello\\nworld\"");
-    EXPECT_EQ(json_encode(variant(std::string("hello\"world"))), "\"hello\\\"world\"");
+    EXPECT_EQ(json_encode(variant(mc::string("hello"))), "\"hello\"");
+    EXPECT_EQ(json_encode(variant(mc::string(""))), "\"\"");
+    EXPECT_EQ(json_encode(variant(mc::string("hello\nworld"))), "\"hello\\nworld\"");
+    EXPECT_EQ(json_encode(variant(mc::string("hello\"world"))), "\"hello\\\"world\"");
 }
 
 // 数字类型编码测试
@@ -104,9 +104,9 @@ TEST(JsonEncodeTest, CompoundTypes)
     // 嵌套对象测试 - 使用初始化列表构造
     dict        nested_obj{{"info", dict{{"name", "张三"}, {"age", 30}, {"married", false}}},
                            {"scores", variants{variant(1), variant("test"), variant(true)}}};
-    std::string result = json_encode(variant(nested_obj));
-    EXPECT_TRUE(result.find("\"info\":{") != std::string::npos);
-    EXPECT_TRUE(result.find("\"scores\":[") != std::string::npos);
+    mc::string result = json_encode(variant(nested_obj));
+    EXPECT_TRUE(result.find("\"info\":{") != mc::string::npos);
+    EXPECT_TRUE(result.find("\"scores\":[") != mc::string::npos);
 }
 
 // 编码选项测试
@@ -116,17 +116,17 @@ TEST(JsonEncodeOptionsTest, PrettyPrint)
     dict obj{{"name", "张三"}, {"age", 30}, {"scores", variants{variant(85), variant(92), variant(78)}}};
 
     // 默认选项（紧凑输出）
-    std::string compact = json_encode(variant(obj));
+    mc::string compact = json_encode(variant(obj));
     EXPECT_EQ(compact, "{\"name\":\"张三\",\"age\":30,\"scores\":[85,92,78]}");
 
     // 格式化输出
     json_encode_options pretty_options;
     pretty_options.pretty_print = true;
-    std::string formatted       = json_encode(variant(obj), pretty_options);
+    mc::string formatted       = json_encode(variant(obj), pretty_options);
 
     // 验证格式化输出包含换行和缩进
-    EXPECT_NE(formatted.find("\n"), std::string::npos);
-    EXPECT_NE(formatted.find("    "), std::string::npos);
+    EXPECT_NE(formatted.find("\n"), mc::string::npos);
+    EXPECT_NE(formatted.find("    "), mc::string::npos);
 }
 
 TEST(JsonEncodeOptionsTest, EscapeNonAscii) {
@@ -134,14 +134,14 @@ TEST(JsonEncodeOptionsTest, EscapeNonAscii) {
     dict obj{{"message", "你好，世界"}};
 
     // 默认选项（不转义非ASCII字符）
-    std::string normal = json_encode(variant(obj));
+    mc::string normal = json_encode(variant(obj));
     EXPECT_EQ(normal, "{\"message\":\"你好，世界\"}");
 
     // 转义非ASCII字符
     json_encode_options escape_options;
     escape_options.escape_non_ascii = true;
-    std::string escaped             = json_encode(variant(obj), escape_options);
-    EXPECT_NE(escaped.find("\\u"), std::string::npos);
+    mc::string escaped             = json_encode(variant(obj), escape_options);
+    EXPECT_NE(escaped.find("\\u"), mc::string::npos);
 }
 
 TEST(JsonEncodeOptionsTest, SortKeys) {
@@ -149,13 +149,13 @@ TEST(JsonEncodeOptionsTest, SortKeys) {
     dict obj{{"c", 3}, {"a", 1}, {"b", 2}};
 
     // 默认选项（保持原有顺序）
-    std::string unsorted = json_encode(variant(obj));
+    mc::string unsorted = json_encode(variant(obj));
     EXPECT_EQ(unsorted, "{\"c\":3,\"a\":1,\"b\":2}");
 
     // 按键排序
     json_encode_options sort_options;
     sort_options.sort_keys = true;
-    std::string sorted     = json_encode(variant(obj), sort_options);
+    mc::string sorted     = json_encode(variant(obj), sort_options);
     EXPECT_EQ(sorted, "{\"a\":1,\"b\":2,\"c\":3}");
 }
 
@@ -163,7 +163,7 @@ TEST(JsonEncodeOptionsTest, FloatPrecision) {
     // 创建测试数据
     variant value(3.14159265359);
     // 默认精度测试（-1，使用最大精度）
-    std::string default_precision = json_encode(value);
+    mc::string default_precision = json_encode(value);
 
     // 指定不同精度测试
     json_encode_options options;
@@ -200,7 +200,7 @@ TEST(JsonEncodeOptionsTest, FloatPrecision) {
 
     for (const auto& val : special_values) {
         // 确保可以正确编码和解码
-        std::string encoded = json_encode(val);
+        mc::string encoded = json_encode(val);
         variant     decoded = json_decode(encoded);
         EXPECT_DOUBLE_EQ(decoded.as<double>(), val.as<double>());
     }
@@ -261,12 +261,12 @@ TEST(JsonEncodeOptionsTest, IndentSize) {
     // 测试不同的缩进大小
     for (int size : {0, 2, 4, 8}) {
         options.indent_size = size;
-        std::string result  = json_encode(variant(obj), options);
+        mc::string result  = json_encode(variant(obj), options);
 
         // 验证缩进
         if (size > 0) {
-            std::string expected_indent(size, ' ');
-            EXPECT_NE(result.find("\n" + expected_indent), std::string::npos);
+            mc::string expected_indent(size, ' ');
+            EXPECT_NE(result.find("\n" + expected_indent), mc::string::npos);
         }
     }
 
@@ -299,14 +299,14 @@ TEST(JsonEncodeOptionsTest, CombinedOptions) {
     options.float_precision  = 2;
     options.max_depth        = 3; // 修改为3，因为测试数据最多有3层嵌套
 
-    std::string result = json_encode(variant(obj), options);
+    mc::string result = json_encode(variant(obj), options);
 
     // 验证结果
-    EXPECT_NE(result.find("\n"), std::string::npos);               // 格式化输出
-    EXPECT_NE(result.find("  "), std::string::npos);               // 2空格缩进
-    EXPECT_NE(result.find("\\u"), std::string::npos);              // 非ASCII转义
+    EXPECT_NE(result.find("\n"), mc::string::npos);                // 格式化输出
+    EXPECT_NE(result.find("  "), mc::string::npos);                // 2空格缩进
+    EXPECT_NE(result.find("\\u"), mc::string::npos);               // 非ASCII转义
     EXPECT_TRUE(result.find("\"age\"") < result.find("\"name\"")); // 键排序
-    EXPECT_NE(result.find("98.77"), std::string::npos);            // 浮点数精度
+    EXPECT_NE(result.find("98.77"), mc::string::npos);             // 浮点数精度
 
     // 创建超出深度限制的数据
     dict deep_obj{{"level1", dict{{"level2", dict{{"level3", dict{{"level4", 1}}}}}}}};
@@ -324,10 +324,10 @@ TEST(JsonDecodeTest, BasicTypes)
     EXPECT_FALSE(json_decode("false").as<bool>());
 
     // 字符串测试
-    EXPECT_EQ(json_decode("\"hello\"").as<std::string>(), "hello");
-    EXPECT_EQ(json_decode("\"\"").as<std::string>(), "");
-    EXPECT_EQ(json_decode("\"hello\\nworld\"").as<std::string>(), "hello\nworld");
-    EXPECT_EQ(json_decode("\"hello\\\"world\"").as<std::string>(), "hello\"world");
+    EXPECT_EQ(json_decode("\"hello\"").as<mc::string>(), "hello");
+    EXPECT_EQ(json_decode("\"\"").as<mc::string>(), "");
+    EXPECT_EQ(json_decode("\"hello\\nworld\"").as<mc::string>(), "hello\nworld");
+    EXPECT_EQ(json_decode("\"hello\\\"world\"").as<mc::string>(), "hello\"world");
 }
 
 // 数字类型解码测试
@@ -376,12 +376,12 @@ TEST(JsonDecodeTest, CompoundTypes)
     variant arr = json_decode("[1,\"test\",true]");
     EXPECT_EQ(arr.get_array().size(), 3);
     EXPECT_EQ(arr.get_array()[0].as<int8_t>(), 1);
-    EXPECT_EQ(arr.get_array()[1].as<std::string>(), "test");
+    EXPECT_EQ(arr.get_array()[1].as<mc::string>(), "test");
     EXPECT_EQ(arr.get_array()[2].as<bool>(), true);
 
     // 对象测试
     variant obj = json_decode("{\"name\":\"张三\",\"age\":30,\"married\":false}");
-    EXPECT_EQ(obj.get_object()["name"].as<std::string>(), "张三");
+    EXPECT_EQ(obj.get_object()["name"].as<mc::string>(), "张三");
     EXPECT_EQ(obj.get_object()["age"].as<int8_t>(), 30);
     EXPECT_EQ(obj.get_object()["married"].as<bool>(), false);
 
@@ -396,14 +396,14 @@ TEST(JsonDecodeTest, CompoundTypes)
             "scores": [1, "test", true]
         }
     )");
-    EXPECT_EQ(nested.get_object()["info"].get_object()["name"].as<std::string>(), "张三");
+    EXPECT_EQ(nested.get_object()["info"].get_object()["name"].as<mc::string>(), "张三");
     EXPECT_EQ(nested.get_object()["scores"].get_array().size(), 3);
 }
 
 // 解码选项测试
 TEST(JsonDecodeOptionsTest, MaxDepth) {
     // 创建深度嵌套的JSON字符串
-    std::string nested_json = R"(
+    mc::string nested_json = R"(
         {
             "level1": {
                 "level2": {
@@ -428,7 +428,7 @@ TEST(JsonDecodeOptionsTest, MaxDepth) {
 
 TEST(JsonDecodeOptionsTest, MaxInputLength) {
     // 创建一个长字符串
-    std::string long_json = "[";
+    mc::string long_json = "[";
     for (size_t i = 0; i < 1000; ++i) {
         if (i > 0) {
             long_json += ",";
@@ -448,8 +448,8 @@ TEST(JsonDecodeOptionsTest, MaxInputLength) {
 
 TEST(JsonDecodeOptionsTest, MaxStringLength) {
     // 创建一个包含长字符串的JSON
-    std::string str_value(1000, 'a'); // 1000个'a'字符
-    std::string json = "\"" + str_value + "\"";
+    mc::string str_value(1000, 'a'); // 1000个'a'字符
+    mc::string json = "\"" + str_value + "\"";
 
     // 默认字符串长度限制（64KB）应该可以正常解码
     EXPECT_NO_THROW(json_decode(json));
@@ -460,14 +460,14 @@ TEST(JsonDecodeOptionsTest, MaxStringLength) {
     EXPECT_THROW(json_decode(json, str_options), parse_error_exception);
 
     // 测试对象键名长度限制
-    std::string long_key(1000, 'k'); // 1000个'k'字符
+    mc::string long_key(1000, 'k'); // 1000个'k'字符
     json = "{\"" + long_key + "\":123}";
     EXPECT_THROW(json_decode(json, str_options), parse_error_exception);
 }
 
 TEST(JsonDecodeOptionsTest, MaxArraySize) {
     // 创建一个大数组的JSON
-    std::string array_json = "[";
+    mc::string array_json = "[";
     for (size_t i = 0; i < 1000; ++i) {
         if (i > 0) {
             array_json += ",";
@@ -487,7 +487,7 @@ TEST(JsonDecodeOptionsTest, MaxArraySize) {
 
 TEST(JsonDecodeOptionsTest, MaxObjectSize) {
     // 创建一个大对象的JSON
-    std::string object_json = "{";
+    mc::string object_json = "{";
     for (size_t i = 0; i < 1000; ++i) {
         if (i > 0) {
             object_json += ",";
@@ -536,7 +536,7 @@ TEST(JsonDecodeOptionsTest, OptionNormalization) {
 
 TEST(JsonDecodeOptionsTest, CombinedOptions) {
     // 创建一个复杂的JSON，包含多个可能超出限制的部分
-    std::string complex_json = R"(
+    mc::string complex_json = R"(
         {
             "nested": {
                 "array": [1, 2, 3, 4, 5],
@@ -595,18 +595,18 @@ TEST(JsonErrorTest, InvalidInput)
 TEST(JsonStringTest, EscapeSequences)
 {
     // 基本转义序列
-    EXPECT_EQ(json_decode("\"\\\"\"").as<std::string>(), "\"");
-    EXPECT_EQ(json_decode("\"\\\\\"").as<std::string>(), "\\");
-    EXPECT_EQ(json_decode("\"\\/\"").as<std::string>(), "/");
-    EXPECT_EQ(json_decode("\"\\b\"").as<std::string>(), "\b");
-    EXPECT_EQ(json_decode("\"\\f\"").as<std::string>(), "\f");
-    EXPECT_EQ(json_decode("\"\\n\"").as<std::string>(), "\n");
-    EXPECT_EQ(json_decode("\"\\r\"").as<std::string>(), "\r");
-    EXPECT_EQ(json_decode("\"\\t\"").as<std::string>(), "\t");
+    EXPECT_EQ(json_decode("\"\\\"\"").as<mc::string>(), "\"");
+    EXPECT_EQ(json_decode("\"\\\\\"").as<mc::string>(), "\\");
+    EXPECT_EQ(json_decode("\"\\/\"").as<mc::string>(), "/");
+    EXPECT_EQ(json_decode("\"\\b\"").as<mc::string>(), "\b");
+    EXPECT_EQ(json_decode("\"\\f\"").as<mc::string>(), "\f");
+    EXPECT_EQ(json_decode("\"\\n\"").as<mc::string>(), "\n");
+    EXPECT_EQ(json_decode("\"\\r\"").as<mc::string>(), "\r");
+    EXPECT_EQ(json_decode("\"\\t\"").as<mc::string>(), "\t");
 
     // Unicode转义序列
-    EXPECT_EQ(json_decode("\"\\u0020\"").as<std::string>(), " ");
-    EXPECT_EQ(json_decode("\"\\u0041\"").as<std::string>(), "A");
+    EXPECT_EQ(json_decode("\"\\u0020\"").as<mc::string>(), " ");
+    EXPECT_EQ(json_decode("\"\\u0041\"").as<mc::string>(), "A");
 
     // 无效的转义序列
     EXPECT_THROW(json_decode("\"\\x\""), parse_error_exception);
@@ -620,7 +620,7 @@ TEST(JsonWhitespaceTest, WhitespaceHandling)
 {
     // 前导和尾随空白
     EXPECT_EQ(json_decode(" 123 ").as<int8_t>(), 123);
-    EXPECT_EQ(json_decode("\n\"test\"\t").as<std::string>(), "test");
+    EXPECT_EQ(json_decode("\n\"test\"\t").as<mc::string>(), "test");
     EXPECT_EQ(json_decode("\r\n{\n\"key\"\r:\n123\n}\n").get_object()["key"].as<int8_t>(), 123);
 
     // 对象和数组中的空白
@@ -632,20 +632,20 @@ TEST(JsonWhitespaceTest, WhitespaceHandling)
 TEST(JsonChineseTest, ChineseCharacters)
 {
     // 中文字符串编码
-    EXPECT_EQ(json_encode(variant(std::string("你好，世界"))), "\"你好，世界\"");
+    EXPECT_EQ(json_encode(variant(mc::string("你好，世界"))), "\"你好，世界\"");
 
     // 中文字符串解码
-    EXPECT_EQ(json_decode("\"你好，世界\"").as<std::string>(), "你好，世界");
+    EXPECT_EQ(json_decode("\"你好，世界\"").as<mc::string>(), "你好，世界");
 
     // 包含中文的对象
     dict chinese_obj{{"姓名", "张三"}, {"年龄", 30}, {"城市", "北京"}};
 
-    std::string encoded = json_encode(variant(chinese_obj));
+    mc::string encoded = json_encode(variant(chinese_obj));
     variant     decoded = json_decode(encoded);
 
-    EXPECT_EQ(decoded.get_object()["姓名"].as<std::string>(), "张三");
+    EXPECT_EQ(decoded.get_object()["姓名"].as<mc::string>(), "张三");
     EXPECT_EQ(decoded.get_object()["年龄"].as<int8_t>(), 30);
-    EXPECT_EQ(decoded.get_object()["城市"].as<std::string>(), "北京");
+    EXPECT_EQ(decoded.get_object()["城市"].as<mc::string>(), "北京");
 }
 
 // 编解码循环测试
@@ -661,7 +661,7 @@ TEST(JsonRoundTripTest, EncodeDecode)
                   {"object_value", dict{{"key", "value"}}}};
 
     // 编码然后解码
-    std::string encoded = json_encode(variant(original));
+    mc::string encoded = json_encode(variant(original));
     variant     decoded = json_decode(encoded);
 
     auto decoded_1 = json_decode(decoded.to_string());
@@ -673,40 +673,40 @@ TEST(JsonRoundTripTest, EncodeDecode)
     EXPECT_EQ(result["bool_value"].as<bool>(), true);
     EXPECT_EQ(result["int_value"].as<int32_t>(), 12345);
     EXPECT_DOUBLE_EQ(result["float_value"].as<double>(), 123.45);
-    EXPECT_EQ(result["string_value"].as<std::string>(), "test string");
+    EXPECT_EQ(result["string_value"].as<mc::string>(), "test string");
     EXPECT_EQ(result["array_value"].get_array().size(), 3);
-    EXPECT_EQ(result["object_value"].get_object()["key"].as<std::string>(), "value");
+    EXPECT_EQ(result["object_value"].get_object()["key"].as<mc::string>(), "value");
 }
 
 // 测试字符串转义序列编码
 TEST(JsonEncodeTest, StringEscapeSequences)
 {
-    std::string test_str = "test\"string\\with\nnewline\tand\bbackspace\fformfeed\rreturn";
+    mc::string test_str = "test\"string\\with\nnewline\tand\bbackspace\fformfeed\rreturn";
     variant     v(test_str);
-    std::string encoded = json_encode(v);
+    mc::string encoded = json_encode(v);
 
-    EXPECT_NE(encoded.find("\\\""), std::string::npos);
-    EXPECT_NE(encoded.find("\\\\"), std::string::npos);
-    EXPECT_NE(encoded.find("\\n"), std::string::npos);
-    EXPECT_NE(encoded.find("\\t"), std::string::npos);
-    EXPECT_NE(encoded.find("\\b"), std::string::npos);
-    EXPECT_NE(encoded.find("\\f"), std::string::npos);
-    EXPECT_NE(encoded.find("\\r"), std::string::npos);
+    EXPECT_NE(encoded.find("\\\""), mc::string::npos);
+    EXPECT_NE(encoded.find("\\\\"), mc::string::npos);
+    EXPECT_NE(encoded.find("\\n"), mc::string::npos);
+    EXPECT_NE(encoded.find("\\t"), mc::string::npos);
+    EXPECT_NE(encoded.find("\\b"), mc::string::npos);
+    EXPECT_NE(encoded.find("\\f"), mc::string::npos);
+    EXPECT_NE(encoded.find("\\r"), mc::string::npos);
 }
 
 // 测试控制字符的 Unicode 转义
 TEST(JsonEncodeTest, ControlCharacterUnicodeEscape)
 {
-    std::string test_str;
+    mc::string test_str;
     test_str += static_cast<char>(0x01); // 控制字符
     variant     v(test_str);
-    std::string encoded = json_encode(v);
-    EXPECT_NE(encoded.find("\\u"), std::string::npos);
+    mc::string encoded = json_encode(v);
+    EXPECT_NE(encoded.find("\\u"), mc::string::npos);
 }
 
 // 测试深度限制错误
 TEST(JsonDecodeTest, MaxDepthExceeded) {
-    std::string deep_json = "{\"level1\":{\"level2\":{\"level3\":{\"level4\":{\"level5\":1}}}}}";
+    mc::string deep_json = "{\"level1\":{\"level2\":{\"level3\":{\"level4\":{\"level5\":1}}}}}";
     json_decode_options options;
     options.max_depth = 3;
     EXPECT_THROW(json_decode(deep_json, options), parse_error_exception);
@@ -714,7 +714,7 @@ TEST(JsonDecodeTest, MaxDepthExceeded) {
 
 // 测试输入长度限制错误
 TEST(JsonDecodeTest, MaxInputLengthExceeded) {
-    std::string long_json = "\"" + std::string(1000, 'a') + "\"";
+    mc::string long_json = "\"" + mc::string(1000, 'a') + "\"";
     json_decode_options options;
     options.max_input_length = 100;
     EXPECT_THROW(json_decode(long_json, options), parse_error_exception);
@@ -722,8 +722,8 @@ TEST(JsonDecodeTest, MaxInputLengthExceeded) {
 
 // 测试字符串长度限制错误
 TEST(JsonDecodeTest, MaxStringLengthExceeded) {
-    std::string long_str(1000, 'a');
-    std::string json = "\"" + long_str + "\"";
+    mc::string long_str(1000, 'a');
+    mc::string json = "\"" + long_str + "\"";
     json_decode_options options;
     options.max_string_length = 100;
     EXPECT_THROW(json_decode(json, options), parse_error_exception);
@@ -731,7 +731,7 @@ TEST(JsonDecodeTest, MaxStringLengthExceeded) {
 
 // 测试数组大小限制错误
 TEST(JsonDecodeTest, MaxArraySizeExceeded) {
-    std::string array_json = "[";
+    mc::string array_json = "[";
     for (int i = 0; i < 1000; ++i) {
         if (i > 0) {
             array_json += ",";
@@ -746,7 +746,7 @@ TEST(JsonDecodeTest, MaxArraySizeExceeded) {
 
 // 测试对象大小限制错误
 TEST(JsonDecodeTest, MaxObjectSizeExceeded) {
-    std::string object_json = "{";
+    mc::string object_json = "{";
     for (int i = 0; i < 1000; ++i) {
         if (i > 0) {
             object_json += ",";
@@ -816,18 +816,18 @@ TEST(JsonEncodeTest, EncodeDictOverload) {
     dict obj{{"key", "value"}};
     json_encode_options options;
     options.pretty_print = true;
-    std::string result = json_encode(obj, options);
-    EXPECT_NE(result.find("\"key\""), std::string::npos);
-    EXPECT_NE(result.find("\"value\""), std::string::npos);
+    mc::string result = json_encode(obj, options);
+    EXPECT_NE(result.find("\"key\""), mc::string::npos);
+    EXPECT_NE(result.find("\"value\""), mc::string::npos);
 }
 
 // 测试 json_encode(const std::vector<variant>&, const json_encode_options&) 重载
 TEST(JsonEncodeTest, EncodeVectorOverload) {
     std::vector<variant> arr{variant(1), variant("test")};
     json_encode_options options;
-    std::string result = json_encode(arr, options);
-    EXPECT_NE(result.find("1"), std::string::npos);
-    EXPECT_NE(result.find("\"test\""), std::string::npos);
+    mc::string result = json_encode(arr, options);
+    EXPECT_NE(result.find("1"), mc::string::npos);
+    EXPECT_NE(result.find("\"test\""), mc::string::npos);
 }
 
 } // namespace test

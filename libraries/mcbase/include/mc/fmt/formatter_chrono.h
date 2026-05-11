@@ -21,6 +21,7 @@
 #include <string_view>
 #include <type_traits>
 
+#include <mc/fmt/format_compile.h>
 #include <mc/fmt/format_parser.h>
 #include <mc/fmt/format_spec.h>
 #include <mc/fmt/formatter.h>
@@ -139,7 +140,7 @@ constexpr const char* get_unit_str()
 template <typename Derived>
 struct chrono_format_handler {
     // 文本处理
-    constexpr void on_text(std::string_view text)
+    constexpr void on_text(mc::string_view text)
     {
         static_cast<Derived*>(this)->on_text(text);
     }
@@ -216,9 +217,9 @@ struct chrono_format_handler {
         static_cast<Derived*>(this)->on_am_pm();
     }
 
-    constexpr void on_timezone_offset(numeric_system ns)
+    constexpr void on_timezone_offset(numeric_system ns, bool iso8601_colon_offset = false)
     {
-        static_cast<Derived*>(this)->on_timezone_offset(ns);
+        static_cast<Derived*>(this)->on_timezone_offset(ns, iso8601_colon_offset);
     }
 
     constexpr void on_timezone_name(numeric_system ns)
@@ -249,7 +250,7 @@ struct chrono_format_checker : chrono_format_handler<chrono_format_checker<IsCom
         : has_precision_integral(has_precision), is_duration_formatter(is_duration)
     {}
 
-    constexpr void on_text(std::string_view)
+    constexpr void on_text(mc::string_view)
     {}
 
     constexpr void on_year(numeric_system, pad_type)
@@ -332,7 +333,7 @@ struct chrono_format_checker : chrono_format_handler<chrono_format_checker<IsCom
 
     constexpr void on_am_pm()
     {}
-    constexpr void on_timezone_offset(numeric_system)
+    constexpr void on_timezone_offset(numeric_system, bool)
     {
         if (is_duration_formatter) {
             MC_COMPILE_TIME_ERROR("Duration 不支持时区偏移格式说明符 (%z)");
@@ -370,7 +371,7 @@ struct chrono_format_checker : chrono_format_handler<chrono_format_checker<IsCom
 
 // 解析 chrono 格式字符串
 template <typename Handler>
-constexpr std::string_view parse_chrono_format(std::string_view fmt, Handler&& handler)
+constexpr mc::string_view parse_chrono_format(mc::string_view fmt, Handler&& handler)
 {
     auto it         = fmt.begin();
     auto end        = fmt.end();
@@ -384,7 +385,7 @@ constexpr std::string_view parse_chrono_format(std::string_view fmt, Handler&& h
 
         // 输出前面的文本
         if (it != text_begin) {
-            handler.on_text(std::string_view(&*text_begin, static_cast<size_t>(it - text_begin)));
+            handler.on_text(mc::string_view(&*text_begin, static_cast<size_t>(it - text_begin)));
         }
 
         ++it; // 跳过 '%'
@@ -397,7 +398,6 @@ constexpr std::string_view parse_chrono_format(std::string_view fmt, Handler&& h
         pad_type       pad      = pad_type::zero;
         numeric_system ns       = numeric_system::standard;
         char           modifier = 0;
-        (void)modifier; // 防止未使用警告
 
         // 处理填充修饰符
         if (*it == '-') {
@@ -511,9 +511,11 @@ constexpr std::string_view parse_chrono_format(std::string_view fmt, Handler&& h
             case 'p':
                 handler.on_am_pm();
                 break;
-            case 'z':
-                handler.on_timezone_offset(ns);
+            case 'z': {
+                const bool iso8601_colon_offset = (modifier == 'E' || modifier == 'O');
+                handler.on_timezone_offset(ns, iso8601_colon_offset);
                 break;
+            }
             case 'Z':
                 handler.on_timezone_name(ns);
                 break;
@@ -529,13 +531,15 @@ constexpr std::string_view parse_chrono_format(std::string_view fmt, Handler&& h
 
     // 处理剩余文本
     if (text_begin != it) {
-        handler.on_text(std::string_view(&*text_begin, static_cast<size_t>(it - text_begin)));
+        handler.on_text(mc::string_view(&*text_begin, static_cast<size_t>(it - text_begin)));
     }
 
-    return std::string_view(&*it, static_cast<size_t>(end - it));
+    return mc::string_view(&*it, static_cast<size_t>(end - it));
 }
 
 } // namespace detail
+
+using format_spec = detail::format_spec;
 
 // duration 的格式化器特化
 template <typename Rep, typename Period>
@@ -545,14 +549,14 @@ private:
         constexpr custom_spec()
         {}
 
-        std::string_view format_str;
-        int              precision     = -1;
-        bool             has_precision = false;
+        mc::string_view format_str;
+        int             precision     = -1;
+        bool            has_precision = false;
     };
 
 public:
     template <bool IsCompileTime = false>
-    constexpr bool parse(std::string_view fmt_str, format_spec& spec)
+    constexpr bool parse(mc::string_view fmt_str, format_spec& spec)
     {
         custom_spec custom;
         if (fmt_str.empty()) {
@@ -577,7 +581,7 @@ public:
 
         // 剩余部分为格式字符串
         if (it != end) {
-            custom.format_str = std::string_view(&*it, static_cast<size_t>(end - it));
+            custom.format_str = mc::string_view(&*it, static_cast<size_t>(end - it));
         }
 
         // 验证格式字符串
@@ -615,12 +619,12 @@ private:
         constexpr custom_spec()
         {}
 
-        std::string_view format_str;
+        mc::string_view format_str;
     };
 
 public:
     template <bool IsCompileTime = false>
-    constexpr bool parse(std::string_view fmt_str, format_spec& spec)
+    constexpr bool parse(mc::string_view fmt_str, format_spec& spec)
     {
         custom_spec custom;
         if (fmt_str.empty()) {
@@ -653,5 +657,7 @@ public:
 };
 
 } // namespace mc::fmt
+
+#include <mc/fmt/formatter_chrono_inl.h>
 
 #endif // MC_FORMATTER_CHRONO_H

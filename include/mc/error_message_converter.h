@@ -97,8 +97,8 @@ public:
     ~error_message_converter()                                             = default;
     error_message_converter(const error_message_converter&)                = delete;
     error_message_converter& operator=(const error_message_converter&)     = delete;
-    error_message_converter(error_message_converter&&) noexcept            = default;
-    error_message_converter& operator=(error_message_converter&&) noexcept = default;
+    error_message_converter(error_message_converter&&) noexcept            = delete;
+    error_message_converter& operator=(error_message_converter&&) noexcept = delete;
 
     /**
      * @brief 加载标准错误定义文件

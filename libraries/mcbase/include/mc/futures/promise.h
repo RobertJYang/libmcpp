@@ -21,14 +21,19 @@ class Future;
 
 namespace detail {
 template <typename T>
-constexpr bool is_executor_v = boost::asio::is_executor<T>::value || std::is_same_v<T, boost::asio::any_io_executor>;
+struct is_executor_impl
+    : std::bool_constant<std::is_constructible_v<mc::runtime::any_executor, mc::traits::remove_cvref_t<T>>> {};
+
+template <typename T>
+constexpr bool is_executor_v = is_executor_impl<T>::value;
 
 template <typename T, typename = void>
 struct is_execution_context : std::false_type {};
 
 template <typename T>
-struct is_execution_context<T, std::void_t<typename T::executor_type>>
-    : std::bool_constant<!std::is_same_v<T, typename T::executor_type>> {};
+struct is_execution_context<T, std::void_t<typename T::executor_type, decltype(std::declval<T&>().get_executor())>>
+    : std::bool_constant<!std::is_same_v<mc::traits::remove_cvref_t<T>, typename T::executor_type> &&
+                         is_executor_v<decltype(std::declval<T&>().get_executor())>> {};
 
 template <typename T>
 constexpr bool is_execution_context_v = is_execution_context<T>::value;
@@ -66,21 +71,26 @@ public:
         any_promise::set_value();
     }
 
-    bool set_state_value(const state_type& state)
+    bool set_state_value(const state_base& state)
     {
         if (!state.is_ready()) {
             return false;
         }
 
+        if (state.is_cancelled()) {
+            cancel();
+            return false;
+        }
+
         if (state.is_rejected()) {
-            set_exception(state.get_exception());
+            state.copy_exception_to(*this);
             return false;
         }
 
         if constexpr (std::is_void_v<T>) {
             set_value();
         } else {
-            set_value(state.get_value());
+            set_value(mc::futures::State<T>::get_value(state));
         }
         return true;
     }
@@ -90,12 +100,6 @@ public:
 
     // 获取关联的Future
     future_type get_future();
-
-    const state_ptr<state_type>& get_state() const
-    {
-        auto& state = any_promise::get_state();
-        return *reinterpret_cast<const state_ptr<state_type>*>(&state);
-    }
 };
 
 template <typename T, typename Executor>
@@ -103,6 +107,65 @@ auto make_promise(Executor executor)
 {
     return Promise<detail::state_tt<T>>(std::move(executor));
 }
+
+namespace detail {
+
+// make_deferred_future 的内部 holder
+template <typename T, typename Task>
+struct deferred_future_holder {
+    Promise<T> promise;
+    Task       task;
+
+    template <typename U>
+    deferred_future_holder(Promise<T> p, U&& t) : promise(std::move(p)), task(std::forward<U>(t))
+    {}
+};
+
+template <typename T, typename Task>
+void deferred_future_task_fn(void* ctx) noexcept
+{
+    auto* holder = static_cast<deferred_future_holder<T, Task>*>(ctx);
+    try {
+        if constexpr (std::is_void_v<T>) {
+            holder->task();
+            holder->promise.set_value();
+        } else {
+            holder->promise.set_value(holder->task());
+        }
+    } catch (...) {
+        holder->promise.set_current_exception();
+    }
+}
+
+template <typename T, typename Task>
+void deferred_future_task_dtor(void* ctx) noexcept
+{
+    delete static_cast<deferred_future_holder<T, Task>*>(ctx);
+}
+
+} // namespace detail
+
+template <typename T, typename Executor, typename Task>
+auto make_deferred_future(Executor executor, Task&& task)
+{
+    using value_type = detail::state_tt<T>;
+    using task_type  = std::decay_t<Task>;
+
+    auto promise = make_promise<T>(std::move(executor));
+    promise.set_policy(launch::deferred);
+
+    auto future = promise.get_future();
+
+    using holder_type = detail::deferred_future_holder<value_type, task_type>;
+    auto* holder      = new holder_type(std::move(promise), std::forward<Task>(task));
+
+    future.get_state()->install_deferred_task(&detail::deferred_future_task_fn<value_type, task_type>,
+                                              static_cast<void*>(holder),
+                                              &detail::deferred_future_task_dtor<value_type, task_type>);
+
+    return future;
+}
+
 } // namespace mc::futures
 
 #include <mc/futures/detail/promise_impl.h>

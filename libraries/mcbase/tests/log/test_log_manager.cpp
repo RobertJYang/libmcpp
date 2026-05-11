@@ -73,7 +73,8 @@ private:
     mc::log::messages m_messages;
 };
 
-std::string make_unique_name(const std::string& prefix) {
+mc::string make_unique_name(const mc::string& prefix)
+{
     static std::atomic<uint32_t> counter{0};
     return prefix + "_" + std::to_string(++counter);
 }
@@ -146,7 +147,8 @@ TEST_F(log_manager_test, SingletonInstance)
 }
 
 // 测试获取默认 logger
-TEST_F(log_manager_test, GetDefaultLogger) {
+TEST_F(log_manager_test, GetDefaultLogger)
+{
     log_manager& manager        = log_manager::instance();
     logger       default_logger = manager.get_logger();
 
@@ -154,7 +156,8 @@ TEST_F(log_manager_test, GetDefaultLogger) {
 }
 
 // 测试获取指定名称的 logger
-TEST_F(log_manager_test, GetNamedLogger) {
+TEST_F(log_manager_test, GetNamedLogger)
+{
     log_manager& manager     = log_manager::instance();
     logger       test_logger = manager.get_logger("test_logger");
 
@@ -250,30 +253,32 @@ TEST_F(log_manager_test, ApplyConfigCondition)
 {
     log_manager& manager = log_manager::instance();
 
-    auto mem_appender = std::make_shared<memory_appender>();
-    mem_appender->set_name("condition_test_mem");
-    appender_factory::instance().register_creator("condition_test_mem", [mem_appender]() {
+    const auto appender_name = make_unique_name("condition_test_mem");
+    const auto logger_name   = make_unique_name("condition_test_logger");
+    auto       mem_appender  = std::make_shared<memory_appender>();
+    mem_appender->set_name(appender_name);
+    appender_factory::instance().register_creator(appender_name, [mem_appender]() {
         return mem_appender;
     });
 
     logging_config  config;
     appender_config app_config;
-    app_config.name       = "condition_test_mem";
-    app_config.type       = "condition_test_mem";
+    app_config.name       = appender_name;
+    app_config.type       = appender_name;
     app_config.lib_path   = "";
     app_config.properties = mc::dict{};
     config.appenders.push_back(app_config);
 
     logger_config log_config;
-    log_config.name      = "condition_test_logger";
+    log_config.name      = logger_name;
     log_config.level     = level::info;
-    log_config.appenders = {"condition_test_mem"};
+    log_config.appenders = {appender_name};
     log_config.condition = false;
     config.loggers.push_back(log_config);
 
     ASSERT_TRUE(manager.apply_config(config));
 
-    logger test_logger = manager.get_logger("condition_test_logger");
+    logger test_logger = manager.get_logger(logger_name);
     mc_ilog(test_logger, "不应输出");
     ASSERT_TRUE(mem_appender->get_messages().empty());
 
@@ -299,7 +304,8 @@ TEST_F(log_manager_test, LoadAppenderLibrary)
 TEST_F(log_manager_test, FactoryCreateAppender)
 {
     // 使用唯一的名称避免冲突
-    std::string unique_prefix = "factory_test_" + std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
+    mc::string unique_prefix =
+        "factory_test_" + std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
 
     // 使用 appender_factory 创建 console appender
     mc::dict config;
@@ -404,8 +410,7 @@ TEST_F(log_manager_test, AppenderFactoryReinitializeExisting)
 {
     auto type_name = make_unique_name("tracking_type");
     auto app_name  = make_unique_name("tracking_app");
-    appender_factory::instance().register_creator(
-        type_name, []() {
+    appender_factory::instance().register_creator(type_name, []() {
         return std::make_shared<tracking_appender>();
     });
 
@@ -428,8 +433,7 @@ TEST_F(log_manager_test, AppenderFactoryRejectsDuplicateName)
 {
     auto type_name = make_unique_name("dup_type");
     auto app_name  = make_unique_name("dup_app");
-    appender_factory::instance().register_creator(
-        type_name, []() {
+    appender_factory::instance().register_creator(type_name, []() {
         return std::make_shared<tracking_appender>();
     });
 
@@ -440,19 +444,20 @@ TEST_F(log_manager_test, AppenderFactoryRejectsDuplicateName)
     EXPECT_EQ(duplicate, nullptr);
 }
 
-TEST_F(log_manager_test, LoadAppendersHandlesInvalidLibraries) {
+TEST_F(log_manager_test, LoadAppendersHandlesInvalidLibraries)
+{
     // 跳过需要文件系统的测试
     GTEST_SKIP() << "Test skipped - filesystem module removed";
 }
 
-TEST_F(log_manager_test, ApplyConfigHandlesPartialAppenderFailures) {
+TEST_F(log_manager_test, ApplyConfigHandlesPartialAppenderFailures)
+{
     auto valid_type  = make_unique_name("valid_type");
     auto valid_app   = make_unique_name("valid_app");
     auto invalid_app = make_unique_name("invalid_app");
     auto logger_name = make_unique_name("config_logger");
 
-    appender_factory::instance().register_creator(
-        valid_type, []() {
+    appender_factory::instance().register_creator(valid_type, []() {
         return std::make_shared<tracking_appender>();
     });
 
@@ -476,7 +481,7 @@ TEST_F(log_manager_test, ApplyConfigHandlesPartialAppenderFailures) {
 
     EXPECT_TRUE(log_manager::instance().apply_config(config));
 
-    auto logger_instance = log_manager::instance().get_logger(logger_name.c_str());
+    auto logger_instance = log_manager::instance().get_logger(logger_name);
     ASSERT_EQ(logger_instance.get_appenders().size(), 1);
     auto tracking = std::dynamic_pointer_cast<tracking_appender>(appender_factory::instance().get_appender(valid_app));
     ASSERT_NE(tracking, nullptr);
@@ -491,8 +496,7 @@ TEST_F(log_manager_test, ApplyConfigUpdatesAndRemovesAppenders)
     auto app_one     = make_unique_name("app_one");
     auto logger_name = make_unique_name("update_logger");
 
-    appender_factory::instance().register_creator(
-        type_name, []() {
+    appender_factory::instance().register_creator(type_name, []() {
         return std::make_shared<tracking_appender>();
     });
 
@@ -510,7 +514,7 @@ TEST_F(log_manager_test, ApplyConfigUpdatesAndRemovesAppenders)
 
     EXPECT_TRUE(log_manager::instance().apply_config(first_config));
 
-    auto logger_instance = log_manager::instance().get_logger(logger_name.c_str());
+    auto logger_instance = log_manager::instance().get_logger(logger_name);
     ASSERT_EQ(logger_instance.get_appenders().size(), 1);
 
     logging_config second_config;
@@ -519,7 +523,7 @@ TEST_F(log_manager_test, ApplyConfigUpdatesAndRemovesAppenders)
     second_config.loggers.push_back(remove_cfg);
 
     EXPECT_TRUE(log_manager::instance().apply_config(second_config));
-    logger_instance = log_manager::instance().get_logger(logger_name.c_str());
+    logger_instance = log_manager::instance().get_logger(logger_name);
     EXPECT_TRUE(logger_instance.get_appenders().empty());
     EXPECT_EQ(logger_instance.get_level(), level::error);
 
@@ -530,7 +534,7 @@ TEST_F(log_manager_test, ApplyConfigUpdatesAndRemovesAppenders)
     third_config.loggers.push_back(missing_cfg);
 
     EXPECT_TRUE(log_manager::instance().apply_config(third_config));
-    logger_instance = log_manager::instance().get_logger(logger_name.c_str());
+    logger_instance = log_manager::instance().get_logger(logger_name);
     EXPECT_TRUE(logger_instance.get_appenders().empty());
     EXPECT_EQ(logger_instance.get_level(), level::warn);
 }
@@ -554,7 +558,7 @@ TEST_F(log_manager_test, ApplyConfigExternalLibraryLoadFailure)
 
     EXPECT_TRUE(log_manager::instance().apply_config(config));
 
-    auto logger_instance = log_manager::instance().get_logger(logger_name.c_str());
+    auto logger_instance = log_manager::instance().get_logger(logger_name);
     EXPECT_TRUE(logger_instance.get_appenders().empty());
     EXPECT_EQ(appender_factory::instance().get_appender(ext_app_name), nullptr);
 }
@@ -584,13 +588,13 @@ TEST_F(log_manager_test, ApplyConfigSkipRedundantAppenderUpdates)
 
     ASSERT_TRUE(log_manager::instance().apply_config(config));
 
-    auto logger_before = log_manager::instance().get_logger(logger_name.c_str());
+    auto logger_before = log_manager::instance().get_logger(logger_name);
     ASSERT_EQ(logger_before.get_appenders().size(), 1);
     auto first_ptr = logger_before.get_appenders().front();
 
     EXPECT_TRUE(log_manager::instance().apply_config(config));
 
-    auto logger_after = log_manager::instance().get_logger(logger_name.c_str());
+    auto logger_after = log_manager::instance().get_logger(logger_name);
     ASSERT_EQ(logger_after.get_appenders().size(), 1);
     EXPECT_EQ(logger_after.get_appenders().front().get(), first_ptr.get());
 }
@@ -599,8 +603,7 @@ TEST_F(log_manager_test, AppenderFactoryInitFailureReturnsNullptr)
 {
     auto type_name = make_unique_name("failing_type");
     auto app_name  = make_unique_name("failing_app");
-    appender_factory::instance().register_creator(
-        type_name, []() {
+    appender_factory::instance().register_creator(type_name, []() {
         return std::make_shared<failing_init_appender>();
     });
 
@@ -652,8 +655,7 @@ TEST_F(log_manager_test, AppenderFactoryDuplicateName)
     auto type_name = make_unique_name("dup_type");
     auto app_name  = make_unique_name("dup_app");
 
-    appender_factory::instance().register_creator(
-        type_name, []() {
+    appender_factory::instance().register_creator(type_name, []() {
         return std::make_shared<tracking_appender>();
     });
 
@@ -709,6 +711,28 @@ TEST_F(log_manager_test, AppenderFactoryGetNonExistentAppender)
     EXPECT_EQ(non_existent, nullptr);
 }
 
+TEST_F(log_manager_test, AppenderFactoryResetForTestClearsFactoryState)
+{
+    auto type_name = make_unique_name("reset_type");
+    auto app_name  = make_unique_name("reset_app");
+
+    appender_factory::instance().register_creator(type_name, []() {
+        return std::make_shared<tracking_appender>();
+    });
+
+    auto created = appender_factory::instance().create(app_name, type_name, mc::dict{});
+    ASSERT_NE(created, nullptr);
+    ASSERT_NE(appender_factory::instance().get_appender(app_name), nullptr);
+
+    appender_factory::reset_for_test();
+
+    EXPECT_EQ(appender_factory::instance().get_appender(app_name), nullptr);
+
+    auto console_name = make_unique_name("console_after_reset");
+    auto console      = appender_factory::instance().create(console_name, "console", mc::dict{});
+    EXPECT_NE(console, nullptr);
+}
+
 // 测试 log_manager 的 get_logger 创建新 logger 的路径（覆盖行 72-74）
 TEST_F(log_manager_test, GetLoggerCreatesNewLogger)
 {
@@ -750,8 +774,7 @@ TEST_F(log_manager_test, UpdateExistingLoggerAddAppender)
     // 创建一个 appender
     auto type_name = make_unique_name("update_type");
     auto app_name  = make_unique_name("update_app");
-    appender_factory::instance().register_creator(
-        type_name, []() {
+    appender_factory::instance().register_creator(type_name, []() {
         return std::make_shared<tracking_appender>();
     });
 
@@ -763,7 +786,7 @@ TEST_F(log_manager_test, UpdateExistingLoggerAddAppender)
 
     // 先创建一个 logger
     auto logger_name = make_unique_name("update_logger");
-    auto logger      = manager.get_logger(logger_name.c_str());
+    auto logger      = manager.get_logger(logger_name);
 
     // 然后通过配置添加 appender
     logging_config config;
@@ -775,7 +798,7 @@ TEST_F(log_manager_test, UpdateExistingLoggerAddAppender)
 
     EXPECT_TRUE(manager.apply_config(config));
 
-    auto updated_logger = manager.get_logger(logger_name.c_str());
+    auto updated_logger = manager.get_logger(logger_name);
     EXPECT_FALSE(updated_logger.get_appenders().empty());
 }
 
@@ -787,8 +810,7 @@ TEST_F(log_manager_test, UpdateExistingLoggerRemoveAppender)
     // 创建一个 appender 并添加到 logger
     auto type_name = make_unique_name("remove_type");
     auto app_name  = make_unique_name("remove_app");
-    appender_factory::instance().register_creator(
-        type_name, []() {
+    appender_factory::instance().register_creator(type_name, []() {
         return std::make_shared<tracking_appender>();
     });
 
@@ -815,7 +837,7 @@ TEST_F(log_manager_test, UpdateExistingLoggerRemoveAppender)
 
     EXPECT_TRUE(manager.apply_config(second_config));
 
-    auto updated_logger = manager.get_logger(logger_name.c_str());
+    auto updated_logger = manager.get_logger(logger_name);
     EXPECT_TRUE(updated_logger.get_appenders().empty());
     EXPECT_EQ(updated_logger.get_level(), level::warn);
 }

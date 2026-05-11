@@ -25,11 +25,8 @@ MC_MODULE_REFLECT(mc_test_database, mc::test::database::db_connection,
                   ((disconnect, "disconnect"))             // 断开连接
                   ((execute_query, "executeQuery"))        // 执行查询
                   ((execute_update, "executeUpdate"))      // 执行更新
-                  ((get_status, "getStatus"))              // 获取状态
                   ((get_host, "getHost"))                  // 获取主机
                   ((get_database_name, "getDatabaseName")) // 获取数据库名
-                  ((set_database_type, "setDatabaseType")) // 设置数据库类型
-                  ((get_database_type, "getDatabaseType")) // 获取数据库类型
                   ((get_last_query, "getLastQuery"))       // 获取最后查询
                   ((test_connection, "testConnection")))   // 测试连接
 

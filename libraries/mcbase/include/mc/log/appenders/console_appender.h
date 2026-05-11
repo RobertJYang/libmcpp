@@ -118,7 +118,7 @@ private:
      * @param text 文本内容
      * @param text_color 文本颜色
      */
-    void print(const std::string& text, color_type color);
+    void print(const mc::string& text, color_type color);
 
     class impl;
     std::unique_ptr<impl> m_impl;

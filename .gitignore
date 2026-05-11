@@ -1,11 +1,13 @@
 # Build directory
 builddir/
+build/
 
 # IDE settings
 .vscode/*
 !.vscode/tasks.json
 !.vscode/launch.json
 .cursor/
+.worktrees/
 .meson*
 
 # Subprojects downloaded sources
@@ -13,6 +15,7 @@ subprojects/*
 # But keep wrap files and packagefiles
 !subprojects/*.wrap
 !subprojects/packagefiles/
+**/subprojects/*
 
 tests/smart-build-*.log
 tests/bingo*.log
@@ -60,3 +63,6 @@ ninja_test/
 
 # Conan files
 conanbase.py
+
+.mclang
+__pycache__

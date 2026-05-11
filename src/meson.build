@@ -4,11 +4,8 @@ srcdir = include_directories('.')
 
 # 包含子目录的 meson.build 文件
 subdir('crypto')
-subdir('dbus')
 subdir('mdb')
 subdir('debounce')
-subdir('interprocess')
-subdir('log')
 subdir('validate')
 
 compress_src_files = [
@@ -24,11 +21,10 @@ base_src_files = [
   'error_message_converter.cpp',
 
   compress_src_files,
+  mdb_src_files,
   debounce_src_files,
-  log_src_files,
   validate_src_files,
   crypto_src_files,
-  interprocess_src_files,
 ]
 
 if enable_conan_compile
@@ -39,7 +35,13 @@ endif
 libmcpp_src_files = ['variant_c_api.cpp']
 
 zlib_dep = dependency('zlib', required: true)
-dep_arr = [mcbase_dep, boost_dep, boost_program_options_dep, dbus_dep, glib_dep]
+dep_arr = [
+  mcbase_dep,
+  boost_dep,
+  dbus_dep,
+  glib_dep,
+  mcdbus_dep,
+]
 base_dep_arr = dep_arr + [zlib_dep]
 mcpp_deps = []
 
@@ -56,8 +58,9 @@ if enable_conan_compile
   liblogger_dep = dependency('liblogger', method: 'pkg-config', required: true)
   json_dep = dependency('json', method: 'pkg-config', required: true)
   base_dep_arr += [libsomp_dep, liblogger_dep, json_dep]
-  dep_arr += [libsomp_dep]
 endif
+
+base_lib_cpp_args = []
 
 if meson_build
   install_dir = meson.project_build_root() / 'usr/lib64'
@@ -73,7 +76,8 @@ libmcpp_base_lib = library(
   'mcpp_base',
   base_src_files,
   include_directories: base_inc_dirs,
-  dependencies: base_dep_arr,
+  dependencies: base_dep_arr + [mcengine_dep, mcexpr_dep, mcapp_dep],
+  cpp_args: base_lib_cpp_args,
   install: true,
   install_dir: install_dir,
   build_by_default: true,
@@ -81,12 +85,20 @@ libmcpp_base_lib = library(
 libmcpp_base_dep = declare_dependency(
   include_directories: base_inc_dirs,
   link_with: libmcpp_base_lib,
-  dependencies: base_dep_arr,
+)
+
+# 内部测试需要访问未导出的符号，使用静态 base 库避免受符号可见性影响。
+libmcpp_base_static_lib = static_library(
+  'mcpp_base_static',
+  base_src_files,
+  include_directories: base_inc_dirs,
+  dependencies: base_dep_arr + [mcengine_dep, mcexpr_dep, mcapp_dep],
+  cpp_args: base_lib_cpp_args,
+  build_by_default: false,
 )
 libmcpp_base_internal_dep = declare_dependency(
   include_directories: base_inc_dirs,
-  link_with: libmcpp_base_lib,
-  dependencies: dep_arr,
+  link_with: libmcpp_base_static_lib,
 )
 mcpp_deps += [libmcpp_base_dep]
 
@@ -109,36 +121,21 @@ else
   endif
 endif
 
-# 先构建核心库（core, engine, expr），因为这些库被 luaclib 依赖
-subdir('core')
-subdir('engine')
-subdir('expr')
-
-# 创建静态库
+# 创建 libmcpp 静态库，供内部测试按需显式链接
 libmcpp_static_lib = static_library(
   'mcpp',
   libmcpp_src_files,
   include_directories: base_inc_dirs,
-  dependencies: [mcbase_dep, glib_dep],
-  link_whole: [
-    libmcpp_base_lib,
-    libmcpp_core_lib,
-    libmcpp_engine_lib,
-    libmcpp_expr_lib,
-  ],
+  dependencies: [libmcpp_base_internal_dep, mcengine_dep, mcexpr_dep, mcapp_dep],
+  build_by_default: false,
 )
 
-# 创建动态库，将整个静态库的符号包含进去
-# 必须显式声明 dependencies：libmcpp_base 等单元调用的 securec_* 符号由 libmcbase 提供，
-# link_whole 不会自动把 mcbase_dep 链进本 .so，否则链接阶段会报 memcpy_s 等未定义引用
+# 创建 libmcpp 动态库，只链接自然依赖，不二次包装子库
 libmcpp_shared_lib = shared_library(
   'mcpp',
-  [],
+  libmcpp_src_files,
   include_directories: base_inc_dirs,
-  dependencies: base_dep_arr,
-  link_whole: [
-    libmcpp_static_lib,
-  ],
+  dependencies: [libmcpp_base_dep, mcengine_dep, mcexpr_dep, mcapp_dep],
   install: true,
   install_dir: install_dir,
   build_by_default: true,
@@ -156,15 +153,15 @@ libmcpp_lib = libmcpp_shared_lib
 libmcpp_dep = declare_dependency(
   include_directories: [incdir],
   link_with: libmcpp_shared_lib,
-  dependencies: base_dep_arr,
+  dependencies: [libmcpp_base_dep, mcengine_dep, mcexpr_dep, mcapp_dep],
 )
 
 # 为项目内部测试程序
-# 测试程序使用静态库，可以访问所有符号（包括隐藏的）
+# 测试程序使用静态 libmcpp，并显式链接需要访问的内部依赖
 libmcpp_dep_with_link = declare_dependency(
   include_directories: incdir,
-  link_whole: libmcpp_static_lib,
-  dependencies: dep_arr,
+  link_with: libmcpp_static_lib,
+  dependencies: [libmcpp_base_internal_dep, mcengine_dep, mcexpr_dep, mcapp_dep],
 )
 
 # Lua 模块构建（需要在所有库创建之后）

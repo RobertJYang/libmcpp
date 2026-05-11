@@ -42,7 +42,7 @@ uint64_t savepoint::resource_id() const
 
 // 数据库事务实现
 transaction::transaction()
-    : m_resource_map(resource_map::bucket_traits(m_buckets, MC_DICT_BUCKET_COUNT), resource_hash(), resource_equal()),
+    : m_resource_map(resource_map::bucket_traits(m_buckets, MC_DB_BUCKET_COUNT), resource_hash(), resource_equal()),
       m_current_savepoint_id(-1)
 {}
 

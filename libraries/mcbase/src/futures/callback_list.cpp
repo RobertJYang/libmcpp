@@ -13,8 +13,94 @@
 #include <mc/futures/callback_list.h>
 
 #include <algorithm>
+#include <mc/futures/any_promise.h>
+#include <mc/futures/state.h>
 
 namespace mc::futures {
+
+namespace detail {
+
+bool handle_result_state_common(any_promise& promise, state_base& state);
+
+void invoke_future_result_ready_holder(void* ptr)
+{
+    auto* holder = static_cast<future_result_ready_holder_base*>(ptr);
+    try {
+        if (holder->promise != nullptr && holder->state != nullptr &&
+            detail::handle_result_state_common(*holder->promise, *holder->state)) {
+            return;
+        }
+
+        if (holder->invoke_body != nullptr) {
+            holder->invoke_body(ptr);
+        }
+    } catch (...) {
+        if (holder->promise != nullptr) {
+            holder->promise->set_current_exception();
+        }
+    }
+}
+
+void invoke_future_error_handler_holder(void* ptr)
+{
+    auto* holder = static_cast<future_result_ready_holder_base*>(ptr);
+    try {
+        if (holder->invoke_body != nullptr) {
+            holder->invoke_body(ptr);
+        }
+    } catch (...) {
+        if (holder->promise != nullptr) {
+            holder->promise->set_current_exception();
+        }
+    }
+}
+
+void* clone_future_result_ready_holder(const void* ptr)
+{
+    auto* holder =
+        const_cast<future_result_ready_holder_base*>(static_cast<const future_result_ready_holder_base*>(ptr));
+    holder->ref_count.fetch_add(1, std::memory_order_relaxed);
+    return holder;
+}
+
+void destroy_future_result_ready_holder(void* ptr) noexcept
+{
+    auto* holder = static_cast<future_result_ready_holder_base*>(ptr);
+    if (holder == nullptr) {
+        return;
+    }
+
+    if (holder->ref_count.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+        if (holder->destroy_self != nullptr) {
+            holder->destroy_self(holder);
+        }
+    }
+}
+
+} // namespace detail
+
+callback_type::~callback_type()
+{
+    reset();
+}
+
+void callback_type::operator()()
+{
+    if (m_invoke) {
+        m_invoke(m_data);
+    }
+}
+
+void callback_type::reset() noexcept
+{
+    if (m_destroy) {
+        m_destroy(m_data);
+    }
+    m_data    = nullptr;
+    m_invoke  = nullptr;
+    m_clone   = nullptr;
+    m_destroy = nullptr;
+}
 
 callback_pool& callback_pool::instance()
 {

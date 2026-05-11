@@ -1,11 +1,16 @@
 # 包含子目录的 meson.build 文件
-subdir('core')
+subdir('intrusive')
 subdir('dict')
 subdir('fmt')
 subdir('log')
 subdir('memory')
 subdir('reflect')
+subdir('signal')
+subdir('protocol')
+subdir('quark')
 subdir('runtime')
+subdir('shm')
+subdir('metric')
 subdir('string')
 subdir('variant')
 subdir('db')
@@ -19,20 +24,29 @@ base_src_files = [
   'exception.cpp',
   'json.cpp',
   'time.cpp',
+  'timer.cpp',
   'singleton.cpp',
   'error.cpp',
   'error_engine.cpp',
+  'event.cpp',
   'result.cpp',
   'array.cpp',
   'filesystem.cpp',
+  'object_base.cpp',
+  'object.cpp',
 
-  core_src_files,
+  intrusive_src_files,
   dict_src_files,
   fmt_src_files,
   log_src_files,
   memory_src_files,
   reflect_src_files,
+  signal_src_files,
+  protocol_src_files,
+  quark_src_files,
   runtime_src_files,
+  shm_src_files,
+  metric_src_files,
   string_src_files,
   variant_src_files,
   db_src_files,
@@ -49,6 +63,13 @@ dep_arr = [boost_dep]
 if securec_dep.found()
   dep_arr += [securec_dep]
 endif
+
+# GCC 7 requires -lstdc++fs for std::experimental::filesystem
+cc = meson.get_compiler('cpp')
+stdcxxfs = cc.find_library('stdc++fs', required: false)
+if stdcxxfs.found()
+  dep_arr += [stdcxxfs]
+endif
 mcbasedeps = []
 
 install_dir = get_option('libdir')
@@ -63,6 +84,8 @@ mcbase_lib = library(
   base_src_files,
   include_directories: [incdir, srcdir],
   dependencies: dep_arr,
+  cpp_args: mcbase_sanitizer_cpp_args + quark_cpp_args,
+  link_args: mcbase_sanitizer_link_args,
   install: true,
   install_dir: install_dir,
   install_rpath: mcbase_install_rpath,
@@ -71,8 +94,21 @@ mcbase_lib = library(
   soversion: '1',
 )
 
+# 白盒测试需要链接静态库，避免 -fvisibility=hidden 导致内部符号不可见
+mcbase_static_lib = static_library(
+  'mcbase_static',
+  base_src_files,
+  include_directories: [incdir, srcdir],
+  dependencies: dep_arr,
+  cpp_args: mcbase_sanitizer_cpp_args + quark_cpp_args,
+  install: false,
+  build_by_default: false,
+)
+
 mcbase_dep = declare_dependency(
   include_directories: incdir,
   link_with: mcbase_lib,
   dependencies: dep_arr,
+  compile_args: mcbase_sanitizer_cpp_args + quark_cpp_args,
+  link_args: mcbase_sanitizer_link_args,
 )

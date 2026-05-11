@@ -25,9 +25,9 @@ class my_task_object : public mc::engine::object<my_task_object> {
 public:
     MC_OBJECT(my_task_object, "TaskObject", "/bmc/kepler/TaskService/Tasks/${Id}", (my_task_interface))
 
-    my_task_object(mc::core::object* parent = nullptr);
+    my_task_object(mc::object* parent = nullptr);
 
-    static mc::shared_ptr<my_task_object> create_task(mc::core::object* parent, mc::milliseconds timeout);
+    static mc::shared_ptr<my_task_object> create_task(mc::object* parent, mc::milliseconds timeout);
 
     my_task_interface m_task;
     static uint32_t   m_next_task_id;
@@ -40,7 +40,7 @@ class my_tasks_object : public mc::engine::object<my_tasks_object> {
 public:
     MC_OBJECT(my_tasks_object, "TasksObject", "/bmc/kepler/TaskService/Tasks", (tasks_interface))
 
-    my_tasks_object(mc::core::object* parent = nullptr);
+    my_tasks_object(mc::object* parent = nullptr);
 
     // 测试在对象中实现接口的方法
     std::string_view              create_task(const std::string& name);

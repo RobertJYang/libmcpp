@@ -42,7 +42,7 @@ TEST(DictConstructionTest, VectorEntryConstructor)
 
     EXPECT_EQ(d.size(), 3);
     EXPECT_EQ(d["key1"].as<int>(), 123);
-    EXPECT_EQ(d["key2"].as<std::string>(), "value");
+    EXPECT_EQ(d["key2"].as<mc::string>(), "value");
     EXPECT_EQ(d["key3"].as<bool>(), true);
 }
 
@@ -53,7 +53,7 @@ TEST(DictConstructionTest, InitializerListConstructor)
 
     EXPECT_EQ(d.size(), 3);
     EXPECT_EQ(d["key1"].as<int>(), 123);
-    EXPECT_EQ(d["key2"].as<std::string>(), "value");
+    EXPECT_EQ(d["key2"].as<mc::string>(), "value");
     EXPECT_EQ(d["key3"].as<bool>(), true);
 }
 
@@ -67,7 +67,7 @@ TEST(DictConstructionTest, CopyConstructor)
     // 验证 d2 是 d1 的副本
     EXPECT_EQ(d2.size(), 3);
     EXPECT_EQ(d2["key1"].as<int>(), 123);
-    EXPECT_EQ(d2["key2"].as<std::string>(), "value");
+    EXPECT_EQ(d2["key2"].as<mc::string>(), "value");
     EXPECT_EQ(d2["key3"].as<bool>(), true);
 
     // 验证 d1 和 d2 共享数据
@@ -88,7 +88,7 @@ TEST(DictConstructionTest, MoveConstructor)
     // 验证 d2 包含正确的数据
     EXPECT_EQ(d2.size(), 3);
     EXPECT_EQ(d2["key1"].as<int>(), 123);
-    EXPECT_EQ(d2["key2"].as<std::string>(), "value");
+    EXPECT_EQ(d2["key2"].as<mc::string>(), "value");
     EXPECT_EQ(d2["key3"].as<bool>(), true);
 }
 
@@ -103,7 +103,7 @@ TEST(DictConstructionTest, AssignmentOperator)
     // 验证 d2 是 d1 的副本
     EXPECT_EQ(d2.size(), 3);
     EXPECT_EQ(d2["key1"].as<int>(), 123);
-    EXPECT_EQ(d2["key2"].as<std::string>(), "value");
+    EXPECT_EQ(d2["key2"].as<mc::string>(), "value");
     EXPECT_EQ(d2["key3"].as<bool>(), true);
 
     // 验证 d1 和 d2 共享数据
@@ -125,7 +125,7 @@ TEST(DictConstructionTest, MoveAssignmentOperator)
     // 验证 d2 包含正确的数据
     EXPECT_EQ(d2.size(), 3);
     EXPECT_EQ(d2["key1"].as<int>(), 123);
-    EXPECT_EQ(d2["key2"].as<std::string>(), "value");
+    EXPECT_EQ(d2["key2"].as<mc::string>(), "value");
     EXPECT_EQ(d2["key3"].as<bool>(), true);
 }
 
@@ -149,7 +149,7 @@ TEST(DictConstructionTest, MutableDictVectorEntryConstructor)
 
     EXPECT_EQ(md.size(), 3);
     EXPECT_EQ(md["key1"].as<int>(), 123);
-    EXPECT_EQ(md["key2"].as<std::string>(), "value");
+    EXPECT_EQ(md["key2"].as<mc::string>(), "value");
     EXPECT_EQ(md["key3"].as<bool>(), true);
 }
 
@@ -160,7 +160,7 @@ TEST(DictConstructionTest, MutableDictInitializerListConstructor)
 
     EXPECT_EQ(md.size(), 3);
     EXPECT_EQ(md["key1"].as<int>(), 123);
-    EXPECT_EQ(md["key2"].as<std::string>(), "value");
+    EXPECT_EQ(md["key2"].as<mc::string>(), "value");
     EXPECT_EQ(md["key3"].as<bool>(), true);
 }
 
@@ -174,7 +174,7 @@ TEST(DictConstructionTest, MutableDictFromDictConstructor)
     // 验证 md 包含与 d 相同的数据
     EXPECT_EQ(md.size(), 3);
     EXPECT_EQ(md["key1"].as<int>(), 123);
-    EXPECT_EQ(md["key2"].as<std::string>(), "value");
+    EXPECT_EQ(md["key2"].as<mc::string>(), "value");
     EXPECT_EQ(md["key3"].as<bool>(), true);
 
     // 验证 md 和 d 共享数据
@@ -192,7 +192,7 @@ TEST(DictConstructionTest, MutableDictCopyConstructor)
     // 验证 md2 是 md1 的副本
     EXPECT_EQ(md2.size(), 3);
     EXPECT_EQ(md2["key1"].as<int>(), 123);
-    EXPECT_EQ(md2["key2"].as<std::string>(), "value");
+    EXPECT_EQ(md2["key2"].as<mc::string>(), "value");
     EXPECT_EQ(md2["key3"].as<bool>(), true);
 
     // 验证 md1 和 md2 共享数据
@@ -210,7 +210,7 @@ TEST(DictConstructionTest, MutableDictMoveConstructor)
     // 验证 md2 包含正确的数据
     EXPECT_EQ(md2.size(), 3);
     EXPECT_EQ(md2["key1"].as<int>(), 123);
-    EXPECT_EQ(md2["key2"].as<std::string>(), "value");
+    EXPECT_EQ(md2["key2"].as<mc::string>(), "value");
     EXPECT_EQ(md2["key3"].as<bool>(), true);
 }
 
@@ -225,7 +225,7 @@ TEST(DictConstructionTest, MutableDictAssignmentOperator)
     // 验证 md2 是 md1 的副本
     EXPECT_EQ(md2.size(), 3);
     EXPECT_EQ(md2["key1"].as<int>(), 123);
-    EXPECT_EQ(md2["key2"].as<std::string>(), "value");
+    EXPECT_EQ(md2["key2"].as<mc::string>(), "value");
     EXPECT_EQ(md2["key3"].as<bool>(), true);
 
     // 验证 md1 和 md2 共享数据
@@ -244,7 +244,7 @@ TEST(DictConstructionTest, MutableDictMoveAssignmentOperator)
     // 验证 md2 包含正确的数据
     EXPECT_EQ(md2.size(), 3);
     EXPECT_EQ(md2["key1"].as<int>(), 123);
-    EXPECT_EQ(md2["key2"].as<std::string>(), "value");
+    EXPECT_EQ(md2["key2"].as<mc::string>(), "value");
     EXPECT_EQ(md2["key3"].as<bool>(), true);
 }
 
@@ -259,7 +259,7 @@ TEST(DictConstructionTest, MutableDictAssignmentFromDict)
     // 验证 md 包含与 d 相同的数据
     EXPECT_EQ(md.size(), 3);
     EXPECT_EQ(md["key1"].as<int>(), 123);
-    EXPECT_EQ(md["key2"].as<std::string>(), "value");
+    EXPECT_EQ(md["key2"].as<mc::string>(), "value");
     EXPECT_EQ(md["key3"].as<bool>(), true);
 
     // 验证 md 和 d 共享数据
@@ -280,19 +280,19 @@ TEST(DictConstructionTest, MutableDictChainedConstruction)
     md2("key2", "value")("key3", true);
     EXPECT_EQ(md2.size(), 3);
     EXPECT_EQ(md2["key1"].as<int>(), 123);
-    EXPECT_EQ(md2["key2"].as<std::string>(), "value");
+    EXPECT_EQ(md2["key2"].as<mc::string>(), "value");
     EXPECT_EQ(md2["key3"].as<bool>(), true);
 
     // 使用不同类型的键
-    std::string      key1 = "key1";
-    std::string_view key2 = "key2";
+    mc::string      key1 = "key1";
+    mc::string_view key2 = "key2";
     const char*      key3 = "key3";
 
     dict md3(key1, 123);
     md3(key2, "value")(key3, true);
     EXPECT_EQ(md3.size(), 3);
     EXPECT_EQ(md3["key1"].as<int>(), 123);
-    EXPECT_EQ(md3["key2"].as<std::string>(), "value");
+    EXPECT_EQ(md3["key2"].as<mc::string>(), "value");
     EXPECT_EQ(md3["key3"].as<bool>(), true);
 
     // 测试混合使用链式调用和其他方法
@@ -301,7 +301,7 @@ TEST(DictConstructionTest, MutableDictChainedConstruction)
     md4("key3", true);
     EXPECT_EQ(md4.size(), 3);
     EXPECT_EQ(md4["key1"].as<int>(), 123);
-    EXPECT_EQ(md4["key2"].as<std::string>(), "value");
+    EXPECT_EQ(md4["key2"].as<mc::string>(), "value");
     EXPECT_EQ(md4["key3"].as<bool>(), true);
 }
 
@@ -320,7 +320,7 @@ TEST(DictConstructionTest, DictConstructorFromVectorWithDuplicateKeys)
     // 验证重复键的值被覆盖（后一个值覆盖前一个值）
     EXPECT_EQ(d.size(), 3);                           // 只有3个唯一的键
     EXPECT_EQ(d["key1"].as<int>(), 200);              // 应该是后一个值
-    EXPECT_EQ(d["key2"].as<std::string>(), "value2"); // 应该是后一个值
+    EXPECT_EQ(d["key2"].as<mc::string>(), "value2"); // 应该是后一个值
     EXPECT_EQ(d["key3"].as<bool>(), true);
 }
 

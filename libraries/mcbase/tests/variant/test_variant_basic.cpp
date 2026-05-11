@@ -133,8 +133,8 @@ TEST_F(VariantBasicTest, FloatingPointValues)
  */
 TEST_F(VariantBasicTest, StringValues)
 {
-    // 从 std::string 构造
-    std::string str = "Hello, World!";
+    // 从 mc::string 构造
+    mc::string str = "Hello, World!";
     variant     v_str(str);
     verify_string_value(v_str, str);
 
@@ -285,7 +285,7 @@ TEST_F(VariantBasicTest, AsWithDefaultValue)
     ASSERT_EQ(v_null.as<int>(100), 100) << "null转整数失败时应返回默认值";
     ASSERT_EQ(v_null.as<double>(3.14), 3.14) << "null转浮点数失败时应返回默认值";
     // 注意：null转字符串会返回"null"而不是抛出异常
-    ASSERT_EQ(v_null.as<std::string>("default"), "null") << "null转字符串会返回'null'而不是默认值";
+    ASSERT_EQ(v_null.as<mc::string>("default"), "null") << "null转字符串会返回'null'而不是默认值";
     ASSERT_EQ(v_null.as<bool>(true), false) << "null转布尔值会返回false而不是默认值";
 
     // 测试不同整数类型间的转换

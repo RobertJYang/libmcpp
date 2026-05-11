@@ -121,23 +121,26 @@ struct all_variant_convertible<> : std::true_type {};
 template <typename T, typename... Rest>
 struct all_variant_convertible<T, Rest...> {
     static constexpr bool value =
-        (is_variant_convertible_v<T> || is_variant_v<T>) &&
-        all_variant_convertible<Rest...>::value;
+        (is_variant_convertible_v<T> || is_variant_v<T>) && all_variant_convertible<Rest...>::value;
 };
 
 template <typename... Args>
 inline constexpr bool all_variant_convertible_v = all_variant_convertible<Args...>::value;
 
 namespace detail {
-[[noreturn]] MC_API void throw_method_arg_not_match(std::string_view method_name, std::string_view expect_type,
-                                                    std::string_view actual_type);
+[[noreturn]] MC_API void throw_method_arg_not_match(mc::string_view method_name, mc::string_view expect_type,
+                                                    mc::string_view actual_type);
 
 template <typename Arg>
 static auto convert_arg(const char* name, const mc::variant& var)
     -> std::enable_if_t<!is_variant_v<std::decay_t<Arg>>, std::remove_reference_t<Arg>>
 {
     using arg_type = mc::traits::remove_cvref_t<std::decay_t<Arg>>;
-    if constexpr (std::is_same_v<arg_type, std::string> || std::is_same_v<arg_type, std::string_view>) {
+    if constexpr (std::is_same_v<arg_type, mc::string>) {
+        if (var.is_string()) {
+            return mc::string(var.get_string());
+        }
+    } else if constexpr (std::is_same_v<arg_type, mc::string_view>) {
         if (var.is_string()) {
             return var.get_string();
         }

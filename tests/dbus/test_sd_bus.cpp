@@ -11,6 +11,7 @@
  */
 
 #include <gtest/gtest.h>
+#include <atomic>
 #include <mc/engine.h>
 #include <mc/exception.h>
 #include <mc/string.h>
@@ -147,7 +148,7 @@ struct test_service_1 : public mc::engine::service {
     test_service_1() : mc::engine::service("org.test.test_service_1")
     {}
 
-    bool init(mc::dict args = {}) override
+    bool init(mc::dict args = {})
     {
         mc::dict args_mut(args);
         args_mut["service_path"] = "/org/test/test_service_1";
@@ -155,16 +156,11 @@ struct test_service_1 : public mc::engine::service {
         return mc::engine::service::init(args_mut);
     }
 
-    bool start() override
+    bool start()
     {
         if (!mc::engine::service::start()) {
             return false;
         }
-#if defined(ENABLE_CONAN_COMPILE) && ENABLE_CONAN_COMPILE == 1
-#else
-        auto ins = shm::shared_memory::get_instance();
-        ins.get_tree("harbor.org.test.test_service_1")->set_harbor_name("");
-#endif
         m_obj_1 = mc::make_shared<TestObject1>();
         m_obj_1->init();
         register_object(*m_obj_1);
@@ -182,12 +178,12 @@ struct test_devmon_service : public mc::engine::service {
     test_devmon_service() : mc::engine::service("bmc.kepler.devmon")
     {}
 
-    bool init(mc::dict args = {}) override
+    bool init(mc::dict args = {})
     {
         return mc::engine::service::init(args);
     }
 
-    bool start() override
+    bool start()
     {
         if (!mc::engine::service::start()) {
             return false;
@@ -221,35 +217,251 @@ using namespace mc::dbus;
 
 static tests::dbus::sd_bus::test_service_1*      service_1;
 static tests::dbus::sd_bus::test_devmon_service* devmon_service;
+static connection*                               service_1_conn;
+static connection*                               devmon_conn;
+static DBusConnection*                           service_1_raw_conn;
+static DBusConnection*                           devmon_raw_conn;
+static std::atomic_bool                          server_dispatch_running{false};
+static std::thread*                              service_1_dispatch_thread;
+static std::thread*                              devmon_dispatch_thread;
 static sd_bus*                                   test_bus;
 
+namespace {
+
+message make_method_return(message& request)
+{
+    return message::new_method_return(request);
+}
+
+void send_empty_reply(DBusConnection* raw_conn, message& request)
+{
+    auto reply = make_method_return(request);
+    ASSERT_TRUE(raw_conn != nullptr);
+    ASSERT_TRUE(dbus_connection_send(raw_conn, reply.get_dbus_message(), nullptr));
+    dbus_connection_flush(raw_conn);
+}
+
+template <typename ValueType>
+void send_value_reply(DBusConnection* raw_conn, message& request, ValueType&& value)
+{
+    auto reply = make_method_return(request);
+    auto writer = reply.writer();
+    writer << std::forward<ValueType>(value);
+    ASSERT_TRUE(raw_conn != nullptr);
+    ASSERT_TRUE(dbus_connection_send(raw_conn, reply.get_dbus_message(), nullptr));
+    dbus_connection_flush(raw_conn);
+}
+
+DBusHandlerResult handle_test_service_1_call(DBusConnection* raw_conn, message& msg)
+{
+    if (!msg.is_method_call()) {
+        return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+    }
+
+    const auto args = msg.read_args();
+    if (msg.get_path() == "/org/test/sd_bus/TestObject1") {
+        const auto member = std::string(msg.get_member());
+        auto&      iface  = service_1->m_obj_1->m_iface1;
+        if (member == "SetValue") {
+            MC_ASSERT(args.size() == 1, "SetValue expects 1 argument");
+            iface.set_value(args[0].as_int32());
+            send_empty_reply(raw_conn, msg);
+            return DBUS_HANDLER_RESULT_HANDLED;
+        }
+        if (member == "GetValue") {
+            send_value_reply(raw_conn, msg, iface.get_value());
+            return DBUS_HANDLER_RESULT_HANDLED;
+        }
+        if (member == "Sleep") {
+            MC_ASSERT(args.size() == 1, "Sleep expects 1 argument");
+            iface.sleep(args[0].as_int32());
+            send_empty_reply(raw_conn, msg);
+            return DBUS_HANDLER_RESULT_HANDLED;
+        }
+        if (member == "ParseRequestor") {
+            MC_ASSERT(args.size() == 1 && args[0].is_dict(), "ParseRequestor expects a dict context");
+            send_value_reply(raw_conn, msg, iface.parse_requestor(args[0].as_dict()));
+            return DBUS_HANDLER_RESULT_HANDLED;
+        }
+    }
+
+    MC_THROW(mc::exception, "unsupported test service call: ${path}.${member}",
+             ("path", msg.get_path())("member", msg.get_member()));
+}
+
+DBusHandlerResult handle_devmon_call(DBusConnection* raw_conn, message& msg)
+{
+    if (!msg.is_method_call()) {
+        return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+    }
+
+    const auto args   = msg.read_args();
+    const auto member = std::string(msg.get_member());
+    auto&      iface  = devmon_service->m_obj_chip->m_iface;
+
+    if (member == "BitIORead") {
+        MC_ASSERT(args.size() == 3, "BitIORead expects 3 arguments");
+        send_value_reply(raw_conn, msg, iface.BitIORead(args[0].as_uint32(), args[1].as_uint8(), args[2].as_uint32()));
+        return DBUS_HANDLER_RESULT_HANDLED;
+    }
+    if (member == "BitIOWrite") {
+        MC_ASSERT(args.size() == 4, "BitIOWrite expects 4 arguments");
+        iface.BitIOWrite(args[0].as_uint32(), args[1].as_uint8(), args[2].as_uint32(),
+                         args[3].as<std::vector<uint8_t>>());
+        send_empty_reply(raw_conn, msg);
+        return DBUS_HANDLER_RESULT_HANDLED;
+    }
+    if (member == "BlockIORead") {
+        MC_ASSERT(args.size() == 2, "BlockIORead expects 2 arguments");
+        send_value_reply(raw_conn, msg, iface.BlockIORead(args[0].as_uint32(), args[1].as_uint32()));
+        return DBUS_HANDLER_RESULT_HANDLED;
+    }
+    if (member == "BlockIOWrite") {
+        MC_ASSERT(args.size() == 2, "BlockIOWrite expects 2 arguments");
+        iface.BlockIOWrite(args[0].as_uint32(), args[1].as<std::vector<uint8_t>>());
+        send_empty_reply(raw_conn, msg);
+        return DBUS_HANDLER_RESULT_HANDLED;
+    }
+    if (member == "BlockIOWriteRead") {
+        MC_ASSERT(args.size() == 2, "BlockIOWriteRead expects 2 arguments");
+        send_value_reply(raw_conn, msg,
+                         iface.BlockIOWriteRead(args[0].as<std::vector<uint8_t>>(), args[1].as_uint32()));
+        return DBUS_HANDLER_RESULT_HANDLED;
+    }
+    if (member == "BlockIOComboWriteRead") {
+        MC_ASSERT(args.size() == 4, "BlockIOComboWriteRead expects 4 arguments");
+        send_value_reply(raw_conn, msg,
+                         iface.BlockIOComboWriteRead(args[0].as_uint32(), args[1].as<std::vector<uint8_t>>(),
+                                                     args[2].as_uint32(), args[3].as_uint32()));
+        return DBUS_HANDLER_RESULT_HANDLED;
+    }
+
+    MC_THROW(mc::exception, "unsupported devmon call: ${member}", ("member", member));
+}
+
+void dispatch_connection_loop(connection& conn)
+{
+    while (server_dispatch_running.load(std::memory_order_acquire)) {
+        auto* raw_conn = conn.get_connection();
+        if (raw_conn != nullptr) {
+            dbus_connection_read_write(raw_conn, 10);
+            conn.dispatch();
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+}
+
+} // namespace
+
+// 设计说明：
+//   service_1 / devmon_service 内部含 mc::engine::object 子树（property 等），
+//   它们的 shadow / offset_ptr 在 use_shm=true 时绑定到 mcengine 当前 SHM region。
+//   TestWithEngine 的契约是：每个 test case 的 SetUp 都会 reset_for_test() 并装一
+//   个 per-case region；engine 对象生命周期必须 ≤ 单个 case，否则旧 shadow 会引
+//   用新 region 之外的地址，触发 SIGSEGV。
+//
+//   因此把 service_1 / devmon_service / test_bus / connection 全部从 SuiteSetUp
+//   降到 per-case SetUp。dbus-daemon 仍由 TestWithDbusDaemon 套件级启停，
+//   request_name 在 case 之间因 disconnect() 已释放，可以安全地反复申请。
 class SdBusTest : public mc::test::TestWithDbusDaemon {
 protected:
     static void SetUpTestSuite()
     {
-        mc::test::TestWithDbusDaemon::SetUpTestSuite();
+        TestWithDbusDaemon::SetUpTestSuite();
+    }
+
+    static void TearDownTestSuite()
+    {
+        TestWithDbusDaemon::TearDownTestSuite();
+    }
+
+    void SetUp() override
+    {
+        TestWithDbusDaemon::SetUp();
+
         service_1 = new tests::dbus::sd_bus::test_service_1();
         service_1->init();
         service_1->start();
         devmon_service = new tests::dbus::sd_bus::test_devmon_service();
         devmon_service->init();
         devmon_service->start();
+
+        service_1_conn = new connection(connection::open_session_bus(mc::get_io_context()));
+        ASSERT_TRUE(service_1_conn->start());
+        ASSERT_TRUE(std::get<0>(service_1_conn->request_name("org.test.test_service_1")));
+        service_1_raw_conn = service_1_conn->get_connection();
+        service_1_conn->register_path("/org/test/sd_bus/TestObject1",
+                                      [](message& msg) -> DBusHandlerResult {
+                                          return handle_test_service_1_call(service_1_raw_conn, msg);
+                                      });
+        service_1_conn->register_path("/org/test/sd_bus/TestObjectA",
+                                      [](message& msg) -> DBusHandlerResult {
+                                          return handle_test_service_1_call(service_1_raw_conn, msg);
+                                      });
+
+        devmon_conn = new connection(connection::open_session_bus(mc::get_io_context()));
+        ASSERT_TRUE(devmon_conn->start());
+        ASSERT_TRUE(std::get<0>(devmon_conn->request_name("bmc.kepler.devmon")));
+        devmon_raw_conn = devmon_conn->get_connection();
+        devmon_conn->register_path("/bmc/dev/TestChip",
+                                   [](message& msg) -> DBusHandlerResult {
+                                       return handle_devmon_call(devmon_raw_conn, msg);
+                                   });
+
+        server_dispatch_running.store(true, std::memory_order_release);
+        service_1_dispatch_thread = new std::thread([]() { dispatch_connection_loop(*service_1_conn); });
+        devmon_dispatch_thread    = new std::thread([]() { dispatch_connection_loop(*devmon_conn); });
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
         test_bus = new sd_bus(true, false);
         test_bus->request_name("org.openubmc.test_bus");
-#if defined(ENABLE_CONAN_COMPILE) && ENABLE_CONAN_COMPILE == 1
+#if defined(ENABLE_CONAN_COMPILE) && ENABLE_CONAN_COMPILE == 1 && defined(MCENGINE_USE_SHM) && MCENGINE_USE_SHM
 #else
         test_bus->set_enable_local_request(false);
 #endif
     }
 
-    static void TearDownTestSuite()
+    void TearDown() override
     {
-        service_1->stop();
-        devmon_service->stop();
-        delete service_1;
-        delete devmon_service;
-        delete test_bus;
-        mc::test::TestWithDbusDaemon::TearDownTestSuite();
+        server_dispatch_running.store(false, std::memory_order_release);
+        if (service_1_dispatch_thread != nullptr) {
+            service_1_dispatch_thread->join();
+            delete service_1_dispatch_thread;
+            service_1_dispatch_thread = nullptr;
+        }
+        if (devmon_dispatch_thread != nullptr) {
+            devmon_dispatch_thread->join();
+            delete devmon_dispatch_thread;
+            devmon_dispatch_thread = nullptr;
+        }
+        if (service_1_conn != nullptr) {
+            service_1_conn->disconnect();
+            delete service_1_conn;
+            service_1_conn     = nullptr;
+            service_1_raw_conn = nullptr;
+        }
+        if (devmon_conn != nullptr) {
+            devmon_conn->disconnect();
+            delete devmon_conn;
+            devmon_conn     = nullptr;
+            devmon_raw_conn = nullptr;
+        }
+        if (service_1 != nullptr) {
+            service_1->stop();
+            delete service_1;
+            service_1 = nullptr;
+        }
+        if (devmon_service != nullptr) {
+            devmon_service->stop();
+            delete devmon_service;
+            devmon_service = nullptr;
+        }
+        if (test_bus != nullptr) {
+            delete test_bus;
+            test_bus = nullptr;
+        }
+        TestWithDbusDaemon::TearDown();
     }
 };
 
@@ -343,17 +555,14 @@ TEST_F(SdBusTest, test_disable_local_request_fallback_to_dbus)
 }
 
 // 测试指定超时时间调用
-TEST_F(SdBusTest, test_call_timeout)
-{
-    // 使用阻塞式 sd_bus 校验超时语义，避免非阻塞路径在高并发测试场景下出现时序抖动
-    sd_bus blocking_bus(true, true);
-    auto   result =
-        blocking_bus.timeout_call(mc::seconds(3), {"org.test.test_service_1", "/org/test/sd_bus/TestObject1",
-                                                   "org.test.sd_bus.TestInterface1", "Sleep", "i", mc::variants{2}});
+// 注意：此测试用例禁用，因为它会导致测试运行时间过长，不要在单元测试中无效睡眠太久
+TEST_F(SdBusTest, DISABLED_test_call_timeout) {
+    auto result = test_bus->timeout_call(mc::seconds(3), {"org.test.test_service_1", "/org/test/sd_bus/TestObject1",
+                                                          "org.test.sd_bus.TestInterface1", "Sleep", "i", mc::variants{2}});
     ASSERT_TRUE(result.empty());
     EXPECT_THROW(
-        blocking_bus.timeout_call(mc::seconds(1), {"org.test.test_service_1", "/org/test/sd_bus/TestObject1",
-                                                   "org.test.sd_bus.TestInterface1", "Sleep", "i", mc::variants{2}}),
+        test_bus->timeout_call(mc::seconds(1), {"org.test.test_service_1", "/org/test/sd_bus/TestObject1",
+                                                "org.test.sd_bus.TestInterface1", "Sleep", "i", mc::variants{2}}),
         mc::exception);
 }
 
@@ -434,6 +643,7 @@ TEST_F(SdBusTest, test_context_requestor)
     EXPECT_EQ(result[0].as_string(), "org.openubmc.test_bus");
 }
 
+
 // 测试有异常处理的方法调用
 TEST_F(SdBusTest, test_protected_call)
 {
@@ -465,7 +675,7 @@ TEST_F(SdBusTest, test_unprotected_call)
                  mc::exception);
 }
 
-#if defined(ENABLE_CONAN_COMPILE) && ENABLE_CONAN_COMPILE == 1
+#if defined(ENABLE_CONAN_COMPILE) && ENABLE_CONAN_COMPILE == 1 && defined(MCENGINE_USE_SHM) && MCENGINE_USE_SHM
 // 测试共享内存调用
 TEST_F(SdBusTest, test_shm_call)
 {

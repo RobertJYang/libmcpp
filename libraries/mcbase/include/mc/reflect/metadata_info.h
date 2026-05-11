@@ -17,7 +17,9 @@
 #ifndef MC_REFLECT_METADATA_INFO_H
 #define MC_REFLECT_METADATA_INFO_H
 
+#include <cstring>
 #include <functional>
+#include <memory>
 #include <string_view>
 #include <tuple>
 #include <typeindex>
@@ -26,13 +28,22 @@
 
 #include <mc/error.h>
 #include <mc/future.h>
+#include <mc/quark.h>
 #include <mc/reflect/base.h>
 #include <mc/reflect/signature_helper.h>
 #include <mc/result.h>
 #include <mc/traits.h>
 #include <mc/variant.h>
 
+namespace mc::engine {
+class context;
+} // namespace mc::engine
+
 namespace mc::reflect {
+
+#ifndef MC_REFLECT_FLAG_READONLY
+#define MC_REFLECT_FLAG_READONLY 0x08 // 属性只读
+#endif
 
 // 标签类型 - 用于区分不同类型的成员
 struct property_tag {};
@@ -103,20 +114,19 @@ enum member_info_type {
 //------------------------------------------------------------------------------
 
 // 成员信息基类
-// @note 我们预留了 flags 用于存储自定义其他信息，比如 engine 模块的 MC_REFLECT_FLAG_PROPERTY_TPL 用于标记该属性是
-// property<T> 类型。 这里不做过多约定由用户自己决定如何使用，为了保证定义的 flags 位不冲突，要求必须用宏定义 FLAG，并以
-// MC_REFLECT_FLAG_* 作为开头命名，这样 通过简单的字符串查找就可以检查是否冲突
-struct member_info_base {
-    std::string_view name;
-    uint32_t         flags;   // 扩展 flags，用于存储自定义其他信息
-    uint32_t base_offset = 0; // 如果该反射信息表示的是其他类的基类，则该值为基类相对于子类基址的偏移量，否则为 0
-    uint64_t data;            // 扩展数据，用于存储自定义其他信息
+struct MC_API member_info_base {
+    mc::string_view name;
+    // 与 name 对应的 quark
+    mc::quark name_quark{};
+    uint32_t  flags;           // 扩展 flags，用于存储自定义其他信息
+    uint32_t  base_offset = 0; // 如果该反射信息表示的是其他类的基类，则该值为基类相对于子类基址的偏移量，否则为 0
+    uint64_t  data;            // 扩展数据，用于存储自定义其他信息
 
-    constexpr member_info_base(std::string_view n) : name(n), flags(0), base_offset(0), data(0)
+    constexpr member_info_base(mc::string_view n) : name(n), name_quark(), flags(0), base_offset(0), data(0)
     {}
 
     virtual std::type_index   typeinfo() const  = 0;
-    virtual std::string_view  type_name() const = 0;
+    virtual mc::string_view   type_name() const = 0;
     virtual int               type() const      = 0;
     virtual uint32_t          offset() const    = 0;
     virtual member_info_base* clone() const     = 0;
@@ -179,11 +189,18 @@ struct member_info_base {
 // 属性元数据结构
 //------------------------------------------------------------------------------
 
-struct property_type_info : public member_info_base {
-    constexpr property_type_info(std::string_view n) : member_info_base(n)
+struct MC_API property_type_info : public member_info_base {
+    constexpr property_type_info(mc::string_view n) : member_info_base(n)
     {}
 
-    virtual std::string_view get_signature() const = 0;
+    virtual mc::string_view get_signature() const                                       = 0;
+    virtual mc::variant     get_value_erased(const void* obj) const                     = 0;
+    virtual void            set_value_erased(void* obj, const mc::variant& value) const = 0;
+
+    bool is_writable() const noexcept
+    {
+        return !has_flags(MC_REFLECT_FLAG_READONLY);
+    }
 
     // 使用反射信息基类直接调用对象属性，用于动态反射类型擦除后使用
     mc::variant get_value(const void* obj) const;
@@ -198,130 +215,173 @@ struct property_type_info : public member_info_base {
     {
         set_value(&obj, value);
     }
-};
 
-// 属性信息基类
-template <typename C>
-struct property_info_base : public property_type_info {
-    using class_type  = C;
-    using getter_type = std::function<mc::variant(const C&)>;
-    using setter_type = std::function<void(C&, const mc::variant&)>;
-
-    constexpr property_info_base(std::string_view n) : property_type_info(n)
-    {}
-
-    virtual mc::variant get_value(const C& obj) const                     = 0;
-    virtual void        set_value(C& obj, const mc::variant& value) const = 0;
-    virtual getter_type getter() const                                    = 0;
-    virtual setter_type setter() const                                    = 0;
-};
-
-// 类型擦除后通过反射获取属性值，用 std::monostate 类型作为对象类型，因为我们并不会真正使用这个类型，
-// 只是为了计算指针偏移量到正确的对象地址
-inline mc::variant property_type_info::get_value(const void* obj) const
-{
-    return reinterpret_cast<const property_info_base<std::monostate>*>(this)->get_value(
-        *static_cast<const std::monostate*>(obj));
-}
-inline void property_type_info::set_value(void* obj, const mc::variant& value) const
-{
-    reinterpret_cast<const property_info_base<std::monostate>*>(this)->set_value(*static_cast<std::monostate*>(obj),
-                                                                                 value);
-}
-
-// 属性元数据具体实现
-// TODO:: 目前为每个类的每个属性都实例化一个 property_info<C, M> 类型，后续可以给所有的
-// 属性类型打个包，只实例化一个 propertis_info 类型，减少模板展开的代码大小
-template <typename C, typename M, typename BaseT = C>
-struct property_info : public property_info_base<C> {
-    using class_type  = C;
-    using member_type = M;
-    using tag_type    = property_tag;
-    using base_type   = BaseT;
-    using typename property_info_base<C>::getter_type;
-    using typename property_info_base<C>::setter_type;
-
-    M BaseT::*member_ptr;
-
-    constexpr property_info(std::string_view n, M BaseT::*ptr) : property_info_base<C>(n), member_ptr(ptr)
-    {}
-
-    // 获取属性值
-    mc::variant get_value(const C& obj) const override
-    {
-        return mc::variant(get_object(obj).*member_ptr);
-    }
-
-    // 设置属性值
-    void set_value(C& obj, const mc::variant& value) const override
-    {
-        value.as(get_object(obj).*member_ptr);
-    }
-
-    getter_type getter() const override
+    template <typename C, std::enable_if_t<std::is_class_v<C>, int> = 0>
+    std::function<mc::variant(const C&)> getter() const
     {
         return [this](const C& obj) {
             return get_value(obj);
         };
     }
 
-    setter_type setter() const override
+    template <typename C, std::enable_if_t<std::is_class_v<C>, int> = 0>
+    std::function<void(C&, const mc::variant&)> setter() const
     {
         return [this](C& obj, const mc::variant& value) {
             set_value(obj, value);
         };
     }
+};
 
-    uint32_t offset() const noexcept override
+template <typename C>
+using property_info_base = property_type_info;
+
+namespace detail {
+
+template <typename MemberPtr>
+struct property_member_pointer_traits;
+
+template <typename Member, typename BaseT>
+struct property_member_pointer_traits<Member BaseT::*> {
+    using member_type = Member;
+    using base_type   = BaseT;
+
+    static uint32_t offset(Member BaseT::* member_ptr) noexcept
     {
-        return MC_MEMBER_OFFSETOF(C, member_ptr);
+        return static_cast<uint32_t>(MC_MEMBER_OFFSETOF(BaseT, member_ptr));
+    }
+};
+
+template <typename MemberType>
+struct property_member_ops {
+    static mc::variant get_value(const void* member_ptr)
+    {
+        const auto& member = *static_cast<const MemberType*>(member_ptr);
+        if constexpr (std::is_constructible_v<mc::variant, const MemberType&>) {
+            return mc::variant(member);
+        } else {
+            mc::variant value;
+            mc::to_variant(member, value);
+            return value;
+        }
     }
 
-    std::type_index typeinfo() const override
+    static void set_value(void* member_ptr, const mc::variant& value)
     {
-        return typeid(member_type);
+        value.as(*static_cast<MemberType*>(member_ptr));
     }
 
-    std::string_view type_name() const noexcept override
+    static std::type_index typeinfo()
     {
-        return pretty_name<member_type>();
+        return typeid(MemberType);
     }
 
-    std::string_view get_signature() const override
+    static mc::string_view type_name() noexcept
     {
-        return mc::reflect::get_signature<member_type>();
+        return pretty_name<MemberType>();
     }
 
-    int type() const noexcept override
+    static mc::string_view get_signature()
+    {
+        return mc::reflect::get_signature<MemberType>();
+    }
+};
+
+} // namespace detail
+
+struct MC_API property_info : public property_type_info {
+    using get_value_func_t = mc::variant (*)(const void*);
+    using set_value_func_t = void (*)(void*, const mc::variant&);
+    using string_func_t    = mc::string_view (*)();
+
+    property_info(mc::string_view n, uint32_t relative_offset, get_value_func_t getter, set_value_func_t setter,
+                  std::type_index typeinfo, mc::string_view type_name, mc::string_view signature);
+
+    mc::variant       get_value_erased(const void* obj) const override;
+    void              set_value_erased(void* obj, const mc::variant& value) const override;
+    std::type_index   typeinfo() const override;
+    mc::string_view   type_name() const noexcept override;
+    mc::string_view   get_signature() const override;
+    int               type() const noexcept override;
+    uint32_t          offset() const noexcept override;
+    member_info_base* clone() const override;
+
+private:
+    const void* get_member_ptr(const void* obj) const noexcept;
+    void*       get_member_ptr(void* obj) const noexcept;
+
+    uint32_t         m_relative_offset;
+    get_value_func_t m_get_value;
+    set_value_func_t m_set_value;
+    std::type_index  m_typeinfo;
+    mc::string_view  m_type_name;
+    mc::string_view  m_signature;
+};
+
+template <typename MemberPtr>
+struct static_property_info {
+    static_assert(std::is_member_object_pointer_v<MemberPtr>, "static_property_info 只支持成员对象指针");
+
+    using member_pointer_type   = MemberPtr;
+    using member_pointer_traits = detail::property_member_pointer_traits<MemberPtr>;
+    using member_type           = typename member_pointer_traits::member_type;
+    using tag_type              = property_tag;
+    using base_type             = typename member_pointer_traits::base_type;
+
+    mc::string_view name;
+    uint32_t        flags       = 0;
+    uint32_t        base_offset = 0;
+    uint64_t        data        = 0;
+    MemberPtr       member_ptr;
+
+    constexpr static_property_info(mc::string_view n, MemberPtr ptr) : name(n), member_ptr(ptr)
+    {}
+
+    constexpr int type() const noexcept
     {
         return static_cast<int>(member_info_type::property);
     }
 
-    member_info_base* clone() const override
+    constexpr bool has_flags(uint32_t value) const noexcept
     {
-        return new property_info<C, M, BaseT>(this->name, member_ptr);
+        return (flags & value) == value;
     }
 
-    const BaseT& get_object(const C& obj) const noexcept
+    constexpr void set_flags(uint32_t value) noexcept
     {
-        return *this->template adjust_object_pointer<BaseT>(&obj);
+        flags |= value;
     }
 
-    BaseT& get_object(C& obj) const noexcept
+    constexpr void set_data(uint32_t value) noexcept
     {
-        return *this->template adjust_object_pointer<BaseT>(&obj);
+        data = value;
+    }
+
+    constexpr uint32_t get_data() const noexcept
+    {
+        return static_cast<uint32_t>(data);
+    }
+
+    property_info* create_runtime_property() const
+    {
+        using ops             = detail::property_member_ops<member_type>;
+        auto* property        = new property_info(name, member_pointer_traits::offset(member_ptr), &ops::get_value,
+                                                  &ops::set_value, typeid(member_type), pretty_name<member_type>(),
+                                                  mc::reflect::get_signature<member_type>());
+        property->flags       = flags;
+        property->base_offset = base_offset;
+        property->data        = data;
+        return property;
     }
 };
 
 // 计算属性元数据具体实现
 template <typename C, typename Getter, typename Setter = void*>
-struct computed_property_info : public property_info_base<C> {
+struct computed_property_info : public property_type_info {
     using class_type  = C;
     using member_type = typename mc::traits::function_traits<Getter>::return_type;
     using tag_type    = property_tag;
     using base_type   = C;
-    using typename property_info_base<C>::getter_type;
-    using typename property_info_base<C>::setter_type;
 
     using set_function_type = Setter;
     using get_function_type = Getter;
@@ -329,18 +389,29 @@ struct computed_property_info : public property_info_base<C> {
     get_function_type m_getter;
     set_function_type m_setter;
 
-    constexpr computed_property_info(std::string_view n, get_function_type getter, set_function_type setter = nullptr)
-        : property_info_base<C>(n), m_getter(getter), m_setter(setter)
-    {}
+    constexpr computed_property_info(mc::string_view n, get_function_type getter, set_function_type setter = nullptr)
+        : property_type_info(n), m_getter(getter), m_setter(setter)
+    {
+        if constexpr (std::is_same_v<set_function_type, void*>) {
+            this->set_flags(MC_REFLECT_FLAG_READONLY);
+        }
+    }
 
     // 获取属性值
-    mc::variant get_value(const C& obj) const override
+    mc::variant get_value(const C& obj) const
     {
-        return (get_object(obj).*m_getter)();
+        auto result = (get_object(obj).*m_getter)();
+        if constexpr (std::is_constructible_v<mc::variant, decltype(result)>) {
+            return mc::variant(result);
+        } else {
+            mc::variant value;
+            mc::to_variant(result, value);
+            return value;
+        }
     }
 
     // 设置属性值
-    void set_value(C& obj, const mc::variant& value) const override
+    void set_value(C& obj, const mc::variant& value) const
     {
         if constexpr (std::is_same_v<set_function_type, void*>) {
             MC_UNUSED(value);
@@ -349,18 +420,14 @@ struct computed_property_info : public property_info_base<C> {
         }
     }
 
-    getter_type getter() const override
+    mc::variant get_value_erased(const void* obj) const override
     {
-        return [this](const C& obj) {
-            return get_value(obj);
-        };
+        return get_value(*static_cast<const C*>(obj));
     }
 
-    std::function<void(C&, const mc::variant&)> setter() const override
+    void set_value_erased(void* obj, const mc::variant& value) const override
     {
-        return [this](C& obj, const mc::variant& value) {
-            set_value(obj, value);
-        };
+        set_value(*static_cast<C*>(obj), value);
     }
 
     uint32_t offset() const noexcept override
@@ -373,12 +440,12 @@ struct computed_property_info : public property_info_base<C> {
         return typeid(member_type);
     }
 
-    std::string_view type_name() const noexcept override
+    mc::string_view type_name() const noexcept override
     {
         return pretty_name<member_type>();
     }
 
-    std::string_view get_signature() const override
+    mc::string_view get_signature() const override
     {
         return mc::reflect::get_signature<member_type>();
     }
@@ -390,7 +457,13 @@ struct computed_property_info : public property_info_base<C> {
 
     member_info_base* clone() const override
     {
-        return new computed_property_info<C, Getter, Setter>(this->name, m_getter, m_setter);
+        auto* p = new computed_property_info<C, Getter, Setter>(this->name, m_getter, m_setter);
+        p->name_quark =
+            this->name_quark.valid() ? this->name_quark : mc::quark{mc::detail::intern_trusted_literal(this->name)};
+        p->flags       = this->flags;
+        p->base_offset = this->base_offset;
+        p->data        = this->data;
+        return p;
     }
 
     const C& get_object(const C& obj) const noexcept
@@ -408,285 +481,650 @@ struct computed_property_info : public property_info_base<C> {
 // 方法元数据结构
 //------------------------------------------------------------------------------
 
-struct method_type_info : public member_info_base {
-    constexpr method_type_info(std::string_view n) : member_info_base(n)
+struct MC_API method_type_info : public member_info_base {
+    constexpr method_type_info(mc::string_view n) : member_info_base(n)
     {}
 
-    virtual std::string_view get_args_signature() const   = 0;
-    virtual std::string_view get_result_signature() const = 0;
-    virtual size_t           arg_count() const            = 0;
+    // 返回业务参数签名（不含首参 mc::engine::context）。
+    virtual mc::string_view get_args_signature() const = 0;
+    // 返回完整绑定签名（若实现侧显式声明 mc::engine::context 首参，则包含该参数）。
+    virtual mc::string_view get_full_args_signature() const = 0;
+    virtual mc::string_view get_result_signature() const    = 0;
+    // 原始 C++ 形参个数，包含可能存在的显式 context 首参。
+    virtual size_t arg_count() const                = 0;
+    virtual bool   has_explicit_context_arg() const = 0;
 
-    // 静态方法相关接口
-    virtual bool         is_static() const                            = 0;
-    virtual mc::variant  invoke(const mc::variants& args) const       = 0;
-    virtual async_result async_invoke(const mc::variants& args) const = 0;
+    // 业务参数个数，等于 arg_count() 减去显式 context 首参（若有）。
+    size_t business_arg_count() const
+    {
+        return arg_count() - (has_explicit_context_arg() ? 1U : 0U);
+    }
+
+    virtual bool         is_static() const                                              = 0;
+    virtual mc::variant  invoke_erased(void* obj, const mc::variants& args) const       = 0;
+    virtual async_result async_invoke_erased(void* obj, const mc::variants& args) const = 0;
+    virtual mc::variant  invoke_static_erased(const mc::variants& args) const           = 0;
+    virtual async_result async_invoke_static_erased(const mc::variants& args) const     = 0;
 
     // 使用反射信息基类直接调用对象方法，用于动态反射类型擦除后使用
     mc::variant  invoke(void* obj, const mc::variants& args) const;
     async_result async_invoke(void* obj, const mc::variants& args) const;
     template <typename C, std::enable_if_t<std::is_class_v<C>, int> = 0>
-    mc::variant invoke(C& obj, const mc::variants& args) const noexcept
+    mc::variant invoke(C& obj, const mc::variants& args) const
     {
         return invoke(&obj, args);
     }
     template <typename C, std::enable_if_t<std::is_class_v<C>, int> = 0>
-    async_result async_invoke(C& obj, const mc::variants& args) const noexcept
+    async_result async_invoke(C& obj, const mc::variants& args) const
     {
         return async_invoke(&obj, args);
     }
+
+    mc::variant invoke(const mc::variants& args) const
+    {
+        return invoke_static_erased(args);
+    }
+
+    async_result async_invoke(const mc::variants& args) const
+    {
+        return async_invoke_static_erased(args);
+    }
 };
 
-// 方法信息基类
 template <typename C>
-struct method_info_base : public method_type_info {
-    using class_type = C;
-    using method_type_info::async_invoke;
-    using method_type_info::invoke;
+using method_info_base = method_type_info;
 
-    constexpr method_info_base(std::string_view n) : method_type_info(n)
-    {}
+struct MC_API method_info : public method_type_info {
+    using invoke_func_t                  = mc::variant (*)(const method_info&, void*, const mc::variants&);
+    using async_invoke_func_t            = async_result (*)(const method_info&, void*, const mc::variants&);
+    using invoke_static_func_t           = mc::variant (*)(const method_info&, const mc::variants&);
+    using async_invoke_static_func_t     = async_result (*)(const method_info&, const mc::variants&);
+    using invoke_raw_func_t              = mc::variant (*)(const method_info&, void*, const void*);
+    using async_invoke_raw_func_t        = async_result (*)(const method_info&, void*, const void*);
+    using invoke_static_raw_func_t       = mc::variant (*)(const method_info&, const void*);
+    using async_invoke_static_raw_func_t = async_result (*)(const method_info&, const void*);
 
-    virtual mc::variant  invoke(C& obj, const mc::variants& args) const       = 0;
-    virtual async_result async_invoke(C& obj, const mc::variants& args) const = 0;
+    method_info(mc::string_view n, uint32_t relative_offset, uint32_t function_size, uint32_t method_arg_count,
+                bool is_static_method, invoke_func_t invoke_func, async_invoke_func_t async_invoke_func,
+                invoke_static_func_t invoke_static_func, async_invoke_static_func_t async_invoke_static_func,
+                invoke_raw_func_t invoke_raw_func, async_invoke_raw_func_t async_invoke_raw_func,
+                invoke_static_raw_func_t       invoke_static_raw_func,
+                async_invoke_static_raw_func_t async_invoke_static_raw_func, std::type_index typeinfo,
+                mc::string_view type_name, mc::string_view args_signature, mc::string_view full_args_signature,
+                mc::string_view result_signature, bool has_explicit_context_arg);
+
+    static method_info* create(mc::string_view n, uint32_t relative_offset, uint32_t function_size,
+                               uint32_t method_arg_count, bool is_static_method, invoke_func_t invoke_func,
+                               async_invoke_func_t async_invoke_func, invoke_static_func_t invoke_static_func,
+                               async_invoke_static_func_t async_invoke_static_func, invoke_raw_func_t invoke_raw_func,
+                               async_invoke_raw_func_t        async_invoke_raw_func,
+                               invoke_static_raw_func_t       invoke_static_raw_func,
+                               async_invoke_static_raw_func_t async_invoke_static_raw_func, std::type_index typeinfo,
+                               mc::string_view type_name, mc::string_view args_signature,
+                               mc::string_view full_args_signature, mc::string_view result_signature,
+                               bool has_explicit_context_arg, const void* function_data);
+
+    bool              is_static() const override;
+    mc::variant       invoke_erased(void* obj, const mc::variants& args) const override;
+    async_result      async_invoke_erased(void* obj, const mc::variants& args) const override;
+    mc::variant       invoke_static_erased(const mc::variants& args) const override;
+    async_result      async_invoke_static_erased(const mc::variants& args) const override;
+    std::type_index   typeinfo() const override;
+    mc::string_view   type_name() const noexcept override;
+    size_t            arg_count() const override;
+    mc::string_view   get_args_signature() const override;
+    mc::string_view   get_full_args_signature() const override;
+    mc::string_view   get_result_signature() const override;
+    bool              has_explicit_context_arg() const override;
+    uint32_t          offset() const noexcept override;
+    int               type() const noexcept override;
+    member_info_base* clone() const override;
+    const void*       function_storage() const noexcept;
+    void*             function_storage() noexcept;
+    mc::variant       invoke_raw(void* obj, const void* converted_args) const;
+    mc::variant       invoke_static_raw(const void* converted_args) const;
+    async_result      async_invoke_raw(void* obj, const void* converted_args) const;
+    async_result      async_invoke_static_raw(const void* converted_args) const;
+
+private:
+    uint32_t                       m_relative_offset;
+    uint32_t                       m_function_size;
+    uint32_t                       m_arg_count;
+    bool                           m_is_static;
+    invoke_func_t                  m_invoke;
+    async_invoke_func_t            m_async_invoke;
+    invoke_static_func_t           m_invoke_static;
+    async_invoke_static_func_t     m_async_invoke_static;
+    invoke_raw_func_t              m_invoke_raw;
+    async_invoke_raw_func_t        m_async_invoke_raw;
+    invoke_static_raw_func_t       m_invoke_static_raw;
+    async_invoke_static_raw_func_t m_async_invoke_static_raw;
+    std::type_index                m_typeinfo;
+    mc::string_view                m_type_name;
+    // 业务参数签名（不含首参 mc::engine::context）。
+    mc::string_view m_args_signature;
+    // 完整绑定参数签名（含首参 mc::engine::context，若有）。
+    mc::string_view m_full_args_signature;
+    mc::string_view m_result_signature;
+    bool            m_has_explicit_context_arg;
 };
 
-// 方法元数据具体实现
-template <typename Class, typename BaseT, bool IsConst, bool IsStatic, typename RetType, typename... Args>
-class method_info : public method_info_base<Class> {
-public:
-    using tag_type = method_tag;
+struct runtime_method_deleter {
+    void operator()(method_info* method) const noexcept
+    {
+        if (!method) {
+            return;
+        }
+        ::operator delete(method);
+    }
+};
 
-    using non_const_function_type = RetType (BaseT::*)(Args...);
-    using const_function_type     = RetType (BaseT::*)(Args...) const;
-    using static_function_type    = RetType (*)(Args...);
-    using member_function_type    = std::conditional_t<IsConst, const_function_type, non_const_function_type>;
-    using function_type           = std::conditional_t<IsStatic, static_function_type, member_function_type>;
-    using result_type             = mc::traits::remove_cvref_t<RetType>;
+using method_info_ptr = std::unique_ptr<method_info, runtime_method_deleter>;
+
+namespace detail {
+
+template <typename FunctionPtr>
+struct method_function_traits;
+
+template <typename T>
+struct is_result_type : std::false_type {};
+
+template <typename T>
+struct is_result_type<mc::result<T>> : std::true_type {};
+
+template <typename T>
+constexpr bool is_result_type_v = is_result_type<mc::traits::remove_cvref_t<T>>::value;
+
+template <typename T>
+constexpr bool is_async_return_type_v =
+    is_result_type_v<T> || mc::futures::detail::is_future_v<mc::traits::remove_cvref_t<T>>;
+
+template <typename R, typename BaseT, typename... Args>
+struct method_function_traits<R (BaseT::*)(Args...)> {
+    using function_type               = R (BaseT::*)(Args...);
+    using raw_result_type             = R;
+    using result_type                 = mc::traits::remove_cvref_t<R>;
+    using args_type                   = std::tuple<mc::traits::remove_cvref_t<Args>...>;
+    using base_type                   = BaseT;
+    static constexpr bool   is_static = false;
+    static constexpr size_t arg_count = sizeof...(Args);
+};
+
+template <typename R, typename BaseT, typename... Args>
+struct method_function_traits<R (BaseT::*)(Args...) const> {
+    using function_type               = R (BaseT::*)(Args...) const;
+    using raw_result_type             = R;
+    using result_type                 = mc::traits::remove_cvref_t<R>;
+    using args_type                   = std::tuple<mc::traits::remove_cvref_t<Args>...>;
+    using base_type                   = BaseT;
+    static constexpr bool   is_static = false;
+    static constexpr size_t arg_count = sizeof...(Args);
+};
+
+template <typename R, typename... Args>
+struct method_function_traits<R (*)(Args...)> {
+    using function_type               = R (*)(Args...);
+    using raw_result_type             = R;
+    using result_type                 = mc::traits::remove_cvref_t<R>;
+    using args_type                   = std::tuple<mc::traits::remove_cvref_t<Args>...>;
+    using base_type                   = void;
+    static constexpr bool   is_static = true;
+    static constexpr size_t arg_count = sizeof...(Args);
+};
+
+template <typename FunctionType>
+FunctionType load_method_function(const method_info& info)
+{
+    FunctionType function;
+    std::memcpy(&function, info.function_storage(), sizeof(function));
+    return function;
+}
+
+template <typename Tuple>
+struct explicit_context_arg_traits {
+    static constexpr bool value = false;
+    using business_args_type    = Tuple;
+};
+
+template <typename Head, typename... Tail>
+struct explicit_context_arg_traits<std::tuple<Head, Tail...>> {
+    static constexpr bool value = std::is_same_v<Head, mc::engine::context>;
+    using business_args_type    = std::conditional_t<value, std::tuple<Tail...>, std::tuple<Head, Tail...>>;
+};
+
+template <typename Tuple>
+struct all_tuple_variant_convertible;
+
+template <>
+struct all_tuple_variant_convertible<std::tuple<>> : std::true_type {};
+
+template <typename Head, typename... Tail>
+struct all_tuple_variant_convertible<std::tuple<Head, Tail...>>
+    : std::bool_constant<(is_variant_convertible_v<Head> || is_variant_v<Head>) &&
+                         all_tuple_variant_convertible<std::tuple<Tail...>>::value> {};
+
+template <typename R, typename... Args>
+struct method_signature_ops {
+    using raw_result_type         = R;
+    using result_type             = mc::traits::remove_cvref_t<R>;
     using args_type               = std::tuple<mc::traits::remove_cvref_t<Args>...>;
-    using class_type              = Class;
-    using base_type               = BaseT;
+    using explicit_context_traits = explicit_context_arg_traits<args_type>;
+    using business_args_type      = typename explicit_context_traits::business_args_type;
 
-    // 静态断言确保返回类型可以转换为variant
-    static_assert(std::is_void_v<RetType> || is_variant_constructible_v<RetType> || is_variant_v<RetType>,
+    static constexpr bool   has_explicit_context_arg = explicit_context_traits::value;
+    static constexpr size_t raw_arg_count            = sizeof...(Args);
+    static constexpr size_t business_arg_count       = std::tuple_size_v<business_args_type>;
+
+    static_assert(std::is_void_v<R> || is_variant_constructible_v<R> || is_variant_v<R>,
                   "方法返回类型必须是void或者可以转换为mc::variant");
+    static_assert(all_tuple_variant_convertible<business_args_type>::value, "参数类型必须可从mc::variant转换");
 
-    // 静态断言确保所有参数类型都可以从variant转换
-    static_assert(all_variant_constructible_v<mc::traits::remove_cvref_t<Args>...>, "参数类型必须可转换为mc::variant");
-
-    constexpr method_info(std::string_view name, function_type func) : method_info_base<Class>(name), m_function(func)
-    {}
-
-    bool is_static() const override
+    static std::type_index typeinfo()
     {
-        return IsStatic;
+        return typeid(R);
     }
 
-    template <typename C>
-    RetType call_impl(C& obj, Args&&... args) const
+    static mc::string_view type_name() noexcept
     {
-        if constexpr (!IsStatic) {
-            if constexpr (std::is_same_v<C, Class>) {
-                return (get_object(obj).*m_function)(std::forward<Args>(args)...);
-            } else {
-                throw_method_not_exist(this->name);
-            }
-        } else {
-            return m_function(std::forward<Args>(args)...);
-        }
+        return pretty_name<R>();
     }
 
-    template <typename C, typename ResultType, size_t... I>
-    ResultType call_with_exact_args(C& obj, const mc::variants& args, std::index_sequence<I...>) const
+    // 业务参数签名（剥离显式 context 首参后得到的 tuple 签名）。
+    static mc::string_view get_args_signature()
     {
-        if constexpr (std::is_void_v<RetType>) {
-            call_impl(obj, mc::detail::convert_arg<mc::traits::remove_cvref_t<Args>>(this->name.data(), args[I])...);
-            return {};
-        } else {
-            return ResultType(call_impl(
-                obj, mc::detail::convert_arg<mc::traits::remove_cvref_t<Args>>(this->name.data(), args[I])...));
-        }
+        return mc::reflect::get_signature<business_args_type>();
     }
 
-    // 调用方法，要求参数数量 >= 函数参数数量
-    template <typename C, typename ResultType>
-    ResultType invoke_impl(C& obj, const variants& args) const
-    {
-        constexpr size_t arg_count = sizeof...(Args);
-
-        // 如果是单个参数，且参数类型是 mc::variants，优化一下直接调用
-        if constexpr (std::is_same_v<args_type, std::tuple<mc::variants>>) {
-            if constexpr (std::is_void_v<RetType>) {
-                call_impl(obj, args);
-                return {};
-            } else {
-                return call_impl(obj, args);
-            }
-        } else {
-            if (args.size() < arg_count) {
-                throw_method_arg_not_enough(this->name, arg_count, args.size());
-            }
-
-            return call_with_exact_args<C, ResultType>(obj, args, std::make_index_sequence<arg_count>());
-        }
-    }
-
-    mc::variant invoke(Class& obj, const mc::variants& args) const override
-    {
-        return invoke_impl<Class, mc::variant>(obj, args);
-    }
-
-    mc::variant invoke(const mc::variants& args) const override
-    {
-        if (!IsStatic) {
-            // 非静态方法不能直接调用，需要传入对象，这里抛出方法不存在异常
-            throw_method_not_exist(this->name);
-        }
-        int dummy = 0;
-        return invoke_impl<int, mc::variant>(dummy, args);
-    }
-
-    async_result async_invoke(Class& obj, const mc::variants& args) const override
-    {
-        try {
-            return invoke_impl<Class, async_result>(obj, args);
-        } catch (...) {
-            return mc::reject<async_result>(std::current_exception());
-        }
-    }
-
-    async_result async_invoke(const mc::variants& args) const override
-    {
-        try {
-            if (!IsStatic) {
-                // 非静态方法不能直接调用，需要传入对象，这里抛出方法不存在异常
-                throw_method_not_exist(this->name);
-            }
-            int dummy = 0;
-            return invoke_impl<int, async_result>(dummy, args);
-        } catch (...) {
-            return mc::reject<async_result>(std::current_exception());
-        }
-    }
-
-    std::type_index typeinfo() const override
-    {
-        return typeid(RetType);
-    }
-
-    std::string_view type_name() const noexcept override
-    {
-        return pretty_name<RetType>();
-    }
-
-    size_t arg_count() const override
-    {
-        return sizeof...(Args);
-    }
-
-    std::string_view get_args_signature() const override
+    // 完整绑定参数签名（保留显式 context 首参，如果声明了的话）。
+    static mc::string_view get_full_args_signature()
     {
         return mc::reflect::get_signature<args_type>();
     }
 
-    std::string_view get_result_signature() const override
+    static mc::string_view get_result_signature()
     {
         return mc::reflect::get_signature<result_type>();
     }
 
-    uint32_t offset() const noexcept override
+    template <size_t... I>
+    static args_type convert_args_impl(mc::string_view name, const mc::variants& args, std::index_sequence<I...>)
     {
-        return get_function_offset(m_function);
+        return args_type{mc::detail::convert_arg<mc::traits::remove_cvref_t<Args>>(name.data(), args[I])...};
     }
 
-    int type() const noexcept override
+    static args_type convert_args([[maybe_unused]] mc::string_view name, const mc::variants& args)
+    {
+        if constexpr (std::is_same_v<args_type, std::tuple<mc::variants>>) {
+            return args_type{args};
+        } else {
+            if (args.size() < raw_arg_count) {
+                throw_method_arg_not_enough(name, raw_arg_count, args.size());
+            }
+            return convert_args_impl(name, args, std::make_index_sequence<raw_arg_count>());
+        }
+    }
+
+    static mc::variant invoke_erased(const method_info& info, void* obj, const mc::variants& args)
+    {
+        auto converted = convert_args(info.name, args);
+        return info.invoke_raw(obj, &converted);
+    }
+
+    static mc::variant invoke_static(const method_info& info, const mc::variants& args)
+    {
+        auto converted = convert_args(info.name, args);
+        return info.invoke_static_raw(&converted);
+    }
+
+    static async_result async_invoke_erased(const method_info& info, void* obj, const mc::variants& args)
+    {
+        auto converted = convert_args(info.name, args);
+        return info.async_invoke_raw(obj, &converted);
+    }
+
+    static async_result async_invoke_static(const method_info& info, const mc::variants& args)
+    {
+        auto converted = convert_args(info.name, args);
+        return info.async_invoke_static_raw(&converted);
+    }
+};
+
+template <typename FunctionPtr>
+struct method_signature_for;
+
+template <typename R, typename BaseT, typename... Args>
+struct method_signature_for<R (BaseT::*)(Args...)> : method_signature_ops<R, Args...> {};
+
+template <typename R, typename BaseT, typename... Args>
+struct method_signature_for<R (BaseT::*)(Args...) const> : method_signature_ops<R, Args...> {};
+
+template <typename R, typename... Args>
+struct method_signature_for<R (*)(Args...)> : method_signature_ops<R, Args...> {};
+
+inline mc::variant invoke_non_static_method_as_static(const method_info& info, const mc::variants&)
+{
+    throw_method_not_exist(info.name);
+}
+
+template <typename FunctionPtr>
+struct method_function_ops;
+
+template <typename R, typename BaseT, typename... Args>
+struct method_function_ops<R (BaseT::*)(Args...)> {
+    using function_type = R (BaseT::*)(Args...);
+    using args_type     = typename method_signature_ops<R, Args...>::args_type;
+
+    static mc::variant invoke_raw(const method_info& info, void* obj, const void* converted_args)
+    {
+        auto        function = load_method_function<function_type>(info);
+        auto&       target   = *reinterpret_cast<BaseT*>(reinterpret_cast<char*>(obj) + info.base_offset);
+        const auto& values   = *static_cast<const args_type*>(converted_args);
+        if constexpr (std::is_void_v<R>) {
+            std::apply([&](const auto&... converted) {
+                (target.*function)(converted...);
+            }, values);
+            return {};
+        } else {
+            return std::apply([&](const auto&... converted) {
+                return mc::variant((target.*function)(converted...));
+            }, values);
+        }
+    }
+
+    static async_result async_invoke_raw(const method_info& info, void* obj, const void* converted_args)
+    {
+        auto        function = load_method_function<function_type>(info);
+        auto&       target   = *reinterpret_cast<BaseT*>(reinterpret_cast<char*>(obj) + info.base_offset);
+        const auto& values   = *static_cast<const args_type*>(converted_args);
+        return std::apply([&](const auto&... converted) -> async_result {
+            return async_result((target.*function)(converted...));
+        }, values);
+    }
+};
+
+template <typename R, typename BaseT, typename... Args>
+struct method_function_ops<R (BaseT::*)(Args...) const> {
+    using function_type = R (BaseT::*)(Args...) const;
+    using args_type     = typename method_signature_ops<R, Args...>::args_type;
+
+    static mc::variant invoke_raw(const method_info& info, void* obj, const void* converted_args)
+    {
+        auto        function = load_method_function<function_type>(info);
+        const auto& target   = *reinterpret_cast<const BaseT*>(reinterpret_cast<const char*>(obj) + info.base_offset);
+        const auto& values   = *static_cast<const args_type*>(converted_args);
+        if constexpr (std::is_void_v<R>) {
+            std::apply([&](const auto&... converted) {
+                (target.*function)(converted...);
+            }, values);
+            return {};
+        } else {
+            return std::apply([&](const auto&... converted) {
+                return mc::variant((target.*function)(converted...));
+            }, values);
+        }
+    }
+
+    static async_result async_invoke_raw(const method_info& info, void* obj, const void* converted_args)
+    {
+        auto        function = load_method_function<function_type>(info);
+        const auto& target   = *reinterpret_cast<const BaseT*>(reinterpret_cast<const char*>(obj) + info.base_offset);
+        const auto& values   = *static_cast<const args_type*>(converted_args);
+        return std::apply([&](const auto&... converted) -> async_result {
+            return async_result((target.*function)(converted...));
+        }, values);
+    }
+};
+
+template <typename R, typename... Args>
+struct method_function_ops<R (*)(Args...)> {
+    using function_type = R (*)(Args...);
+    using args_type     = typename method_signature_ops<R, Args...>::args_type;
+
+    static mc::variant invoke_static_raw(const method_info& info, const void* converted_args)
+    {
+        auto        function = load_method_function<function_type>(info);
+        const auto& values   = *static_cast<const args_type*>(converted_args);
+        if constexpr (std::is_void_v<R>) {
+            std::apply([&](const auto&... converted) {
+                function(converted...);
+            }, values);
+            return {};
+        } else {
+            return std::apply([&](const auto&... converted) {
+                return mc::variant(function(converted...));
+            }, values);
+        }
+    }
+
+    static async_result async_invoke_static_raw(const method_info& info, const void* converted_args)
+    {
+        auto        function = load_method_function<function_type>(info);
+        const auto& values   = *static_cast<const args_type*>(converted_args);
+        return std::apply([&](const auto&... converted) -> async_result {
+            return async_result(function(converted...));
+        }, values);
+    }
+};
+
+template <typename FunctionPtr, bool IsStatic, bool IsAsync>
+struct method_runtime_bindings_impl;
+
+template <typename FunctionPtr>
+struct method_runtime_bindings_impl<FunctionPtr, false, false> {
+    using signature_ops = method_signature_for<FunctionPtr>;
+    using function_ops  = method_function_ops<FunctionPtr>;
+
+    inline static constexpr method_info::invoke_func_t        invoke_func        = &signature_ops::invoke_erased;
+    inline static constexpr method_info::async_invoke_func_t  async_invoke_func  = nullptr;
+    inline static constexpr method_info::invoke_static_func_t invoke_static_func = &invoke_non_static_method_as_static;
+    inline static constexpr method_info::async_invoke_static_func_t     async_invoke_static_func = nullptr;
+    inline static constexpr method_info::invoke_raw_func_t              invoke_raw_func = &function_ops::invoke_raw;
+    inline static constexpr method_info::async_invoke_raw_func_t        async_invoke_raw_func        = nullptr;
+    inline static constexpr method_info::invoke_static_raw_func_t       invoke_static_raw_func       = nullptr;
+    inline static constexpr method_info::async_invoke_static_raw_func_t async_invoke_static_raw_func = nullptr;
+};
+
+template <typename FunctionPtr>
+struct method_runtime_bindings_impl<FunctionPtr, false, true> {
+    using signature_ops = method_signature_for<FunctionPtr>;
+    using function_ops  = method_function_ops<FunctionPtr>;
+
+    inline static constexpr method_info::invoke_func_t        invoke_func        = &signature_ops::invoke_erased;
+    inline static constexpr method_info::async_invoke_func_t  async_invoke_func  = &signature_ops::async_invoke_erased;
+    inline static constexpr method_info::invoke_static_func_t invoke_static_func = &invoke_non_static_method_as_static;
+    inline static constexpr method_info::async_invoke_static_func_t async_invoke_static_func = nullptr;
+    inline static constexpr method_info::invoke_raw_func_t          invoke_raw_func = &function_ops::invoke_raw;
+    inline static constexpr method_info::async_invoke_raw_func_t    async_invoke_raw_func =
+        &function_ops::async_invoke_raw;
+    inline static constexpr method_info::invoke_static_raw_func_t       invoke_static_raw_func       = nullptr;
+    inline static constexpr method_info::async_invoke_static_raw_func_t async_invoke_static_raw_func = nullptr;
+};
+
+template <typename FunctionPtr>
+struct method_runtime_bindings_impl<FunctionPtr, true, false> {
+    using signature_ops = method_signature_for<FunctionPtr>;
+    using function_ops  = method_function_ops<FunctionPtr>;
+
+    inline static constexpr method_info::invoke_func_t              invoke_func        = nullptr;
+    inline static constexpr method_info::async_invoke_func_t        async_invoke_func  = nullptr;
+    inline static constexpr method_info::invoke_static_func_t       invoke_static_func = &signature_ops::invoke_static;
+    inline static constexpr method_info::async_invoke_static_func_t async_invoke_static_func = nullptr;
+    inline static constexpr method_info::invoke_raw_func_t          invoke_raw_func          = nullptr;
+    inline static constexpr method_info::async_invoke_raw_func_t    async_invoke_raw_func    = nullptr;
+    inline static constexpr method_info::invoke_static_raw_func_t   invoke_static_raw_func =
+        &function_ops::invoke_static_raw;
+    inline static constexpr method_info::async_invoke_static_raw_func_t async_invoke_static_raw_func = nullptr;
+};
+
+template <typename FunctionPtr>
+struct method_runtime_bindings_impl<FunctionPtr, true, true> {
+    using signature_ops = method_signature_for<FunctionPtr>;
+    using function_ops  = method_function_ops<FunctionPtr>;
+
+    inline static constexpr method_info::invoke_func_t              invoke_func        = nullptr;
+    inline static constexpr method_info::async_invoke_func_t        async_invoke_func  = nullptr;
+    inline static constexpr method_info::invoke_static_func_t       invoke_static_func = &signature_ops::invoke_static;
+    inline static constexpr method_info::async_invoke_static_func_t async_invoke_static_func =
+        &signature_ops::async_invoke_static;
+    inline static constexpr method_info::invoke_raw_func_t        invoke_raw_func       = nullptr;
+    inline static constexpr method_info::async_invoke_raw_func_t  async_invoke_raw_func = nullptr;
+    inline static constexpr method_info::invoke_static_raw_func_t invoke_static_raw_func =
+        &function_ops::invoke_static_raw;
+    inline static constexpr method_info::async_invoke_static_raw_func_t async_invoke_static_raw_func =
+        &function_ops::async_invoke_static_raw;
+};
+
+template <typename FunctionPtr>
+using method_runtime_bindings =
+    method_runtime_bindings_impl<FunctionPtr, method_function_traits<FunctionPtr>::is_static,
+                                 is_async_return_type_v<typename method_function_traits<FunctionPtr>::raw_result_type>>;
+
+template <auto Function>
+struct method_function_constant {
+    using function_type                         = decltype(Function);
+    inline static constexpr function_type value = Function;
+};
+
+template <typename FunctionPtr>
+struct erased_method_registration_factory {
+    using function_traits = method_function_traits<FunctionPtr>;
+    using bindings        = method_runtime_bindings<FunctionPtr>;
+
+    static method_info* create(mc::string_view name, const void* function_data)
+    {
+        const auto& function = *static_cast<const FunctionPtr*>(function_data);
+        return method_info::create(
+            name, static_cast<uint32_t>(get_function_offset(function)), static_cast<uint32_t>(sizeof(FunctionPtr)),
+            static_cast<uint32_t>(function_traits::arg_count), function_traits::is_static, bindings::invoke_func,
+            bindings::async_invoke_func, bindings::invoke_static_func, bindings::async_invoke_static_func,
+            bindings::invoke_raw_func, bindings::async_invoke_raw_func, bindings::invoke_static_raw_func,
+            bindings::async_invoke_static_raw_func, typeid(typename function_traits::raw_result_type),
+            pretty_name<typename function_traits::raw_result_type>(), bindings::signature_ops::get_args_signature(),
+            bindings::signature_ops::get_full_args_signature(),
+            mc::reflect::get_signature<typename function_traits::result_type>(),
+            bindings::signature_ops::has_explicit_context_arg, &function);
+    }
+};
+
+} // namespace detail
+
+struct method_registration_info {
+    using create_runtime_method_func_t = method_info* (*)(mc::string_view name, const void* function_data);
+    using tag_type                     = method_tag;
+
+    mc::string_view              name;
+    uint32_t                     flags           = 0;
+    uint32_t                     base_offset     = 0;
+    uint64_t                     data            = 0;
+    create_runtime_method_func_t m_create_method = nullptr;
+    const void*                  m_function_data = nullptr;
+
+    constexpr method_registration_info(mc::string_view n, create_runtime_method_func_t create_method,
+                                       const void* function_data)
+        : name(n), m_create_method(create_method), m_function_data(function_data)
+    {}
+
+    constexpr int type() const noexcept
     {
         return static_cast<int>(member_info_type::method);
     }
 
-    member_info_base* clone() const override
+    constexpr bool has_flags(uint32_t value) const noexcept
     {
-        return new method_info<Class, BaseT, IsConst, IsStatic, RetType, Args...>(this->name, m_function);
+        return (flags & value) == value;
     }
 
-    const BaseT& get_object(const Class& obj) const noexcept
+    constexpr void set_flags(uint32_t value) noexcept
     {
-        return *this->template adjust_object_pointer<BaseT>(&obj);
+        flags |= value;
     }
 
-    BaseT& get_object(Class& obj) const noexcept
+    constexpr void set_data(uint32_t value) noexcept
     {
-        return *this->template adjust_object_pointer<BaseT>(&obj);
+        data = value;
     }
 
-    function_type m_function;
+    constexpr uint32_t get_data() const noexcept
+    {
+        return static_cast<uint32_t>(data);
+    }
+
+    method_info* create_runtime_method() const
+    {
+        auto* method        = m_create_method(name, m_function_data);
+        method->flags       = flags;
+        method->base_offset = base_offset;
+        method->data        = data;
+        return method;
+    }
+
+    method_info_ptr create_runtime_method_ptr() const
+    {
+        return method_info_ptr(create_runtime_method());
+    }
 };
 
-// 类型擦除后通过反射调用方法，用 std::monostate 类型作为对象类型，因为我们并不会真正使用这个类型，
-// 只是为了计算指针偏移量到正确的对象地址
-inline mc::variant method_type_info::invoke(void* obj, const mc::variants& args) const
-{
-    return reinterpret_cast<const method_info_base<std::monostate>*>(this)->invoke(*static_cast<std::monostate*>(obj),
-                                                                                   args);
-}
+template <typename FunctionPtr>
+struct static_method_info : public method_registration_info {
+    static_assert(std::is_member_function_pointer_v<FunctionPtr> || mc::detail::is_function_pointer<FunctionPtr>::value,
+                  "static_method_info 只支持成员函数或静态函数");
 
-inline async_result method_type_info::async_invoke(void* obj, const mc::variants& args) const
-{
-    return reinterpret_cast<const method_info_base<std::monostate>*>(this)->async_invoke(
-        *static_cast<std::monostate*>(obj), args);
-}
+    using function_type   = FunctionPtr;
+    using function_traits = detail::method_function_traits<FunctionPtr>;
+    using result_type     = typename function_traits::result_type;
+    using args_type       = typename function_traits::args_type;
+    using class_type      = std::conditional_t<function_traits::is_static, void, typename function_traits::base_type>;
+    using base_type       = std::conditional_t<function_traits::is_static, void, typename function_traits::base_type>;
 
-// 创建方法元数据的辅助函数
-template <typename C, typename BaseT, typename R, typename... Args>
-constexpr auto make_method_info(R (BaseT::*method)(Args...), std::string_view name)
-{
-    return method_info<C, BaseT, false, false, R, Args...>{name, method};
-}
+    FunctionPtr m_function;
 
-template <typename C, typename BaseT, typename R, typename... Args>
-constexpr auto make_method_info(R (BaseT::*method)(Args...) const, std::string_view name)
-{
-    return method_info<C, BaseT, true, false, R, Args...>{name, method};
-}
+    constexpr static_method_info(mc::string_view n, FunctionPtr function)
+        : method_registration_info(n, &detail::erased_method_registration_factory<FunctionPtr>::create, &m_function),
+          m_function(function)
+    {}
+};
 
-template <typename C, typename R, typename... Args>
-constexpr auto make_static_method_info(R (*method)(Args...), std::string_view name)
+template <auto Function>
+constexpr auto make_erased_static_method_info(mc::string_view name)
 {
-    return method_info<C, C, false, true, R, Args...>{name, method};
+    using function_type = decltype(Function);
+    return std::tuple<method_registration_info>{
+        method_registration_info{name, &detail::erased_method_registration_factory<function_type>::create,
+                                 &detail::method_function_constant<Function>::value}};
 }
 
 //------------------------------------------------------------------------------
 // 基类元数据结构
 //------------------------------------------------------------------------------
-struct base_class_type_info : public member_info_base {
-    constexpr base_class_type_info(std::string_view n) : member_info_base(n)
+struct MC_API base_class_type_info : public member_info_base {
+    constexpr base_class_type_info(mc::string_view n) : member_info_base(n)
     {}
 
     virtual type_id_type           get_type_id() const   = 0;
-    virtual std::string_view       get_signature() const = 0;
+    virtual mc::string_view        get_signature() const = 0;
     virtual const struct_metadata& get_metadata() const  = 0;
 
-    // 使用反射信息基类直接获取基类属性值和调用基类方法，用于动态反射类型擦除后使用
-    mc::variant  get_value(void* obj, std::string_view name) const;
-    void         set_value(void* obj, std::string_view name, const mc::variant& value) const;
-    mc::variant  invoke(void* obj, std::string_view name, const mc::variants& args) const;
-    async_result async_invoke(void* obj, std::string_view name, const mc::variants& args) const;
+    mc::variant  get_value(void* obj, mc::string_view name) const;
+    void         set_value(void* obj, mc::string_view name, const mc::variant& value) const;
+    mc::variant  invoke(void* obj, mc::string_view name, const mc::variants& args) const;
+    async_result async_invoke(void* obj, mc::string_view name, const mc::variants& args) const;
     template <typename C, std::enable_if_t<std::is_class_v<C>, int> = 0>
-    mc::variant get_value(const C& obj, std::string_view name) const
+    mc::variant get_value(const C& obj, mc::string_view name) const
     {
         return get_value(&obj, name);
     }
     template <typename C, std::enable_if_t<std::is_class_v<C>, int> = 0>
-    void set_value(C& obj, std::string_view name, const mc::variant& value) const
+    void set_value(C& obj, mc::string_view name, const mc::variant& value) const
     {
         set_value(&obj, name, value);
     }
     template <typename C, std::enable_if_t<std::is_class_v<C>, int> = 0>
-    mc::variant invoke(C& obj, std::string_view name, const mc::variants& args) const
+    mc::variant invoke(C& obj, mc::string_view name, const mc::variants& args) const
     {
         return invoke(&obj, name, args);
     }
     template <typename C, std::enable_if_t<std::is_class_v<C>, int> = 0>
-    async_result async_invoke(C& obj, std::string_view name, const mc::variants& args) const
+    async_result async_invoke(C& obj, mc::string_view name, const mc::variants& args) const
     {
         return async_invoke(&obj, name, args);
     }
@@ -694,13 +1132,13 @@ struct base_class_type_info : public member_info_base {
 
 template <typename C>
 struct base_class_info_base : public base_class_type_info {
-    constexpr base_class_info_base(std::string_view n = {}) : base_class_type_info(n)
+    constexpr base_class_info_base(mc::string_view n = {}) : base_class_type_info(n)
     {}
 
-    virtual mc::variant  get_value(const C& obj, std::string_view name) const                        = 0;
-    virtual void         set_value(C& obj, std::string_view name, const mc::variant& value) const    = 0;
-    virtual mc::variant  invoke(C& obj, std::string_view name, const mc::variants& args) const       = 0;
-    virtual async_result async_invoke(C& obj, std::string_view name, const mc::variants& args) const = 0;
+    virtual mc::variant  get_value(const C& obj, mc::string_view name) const                        = 0;
+    virtual void         set_value(C& obj, mc::string_view name, const mc::variant& value) const    = 0;
+    virtual mc::variant  invoke(C& obj, mc::string_view name, const mc::variants& args) const       = 0;
+    virtual async_result async_invoke(C& obj, mc::string_view name, const mc::variants& args) const = 0;
 };
 
 // 属性元数据具体实现
@@ -711,7 +1149,7 @@ struct base_class_info : public base_class_info_base<C> {
     using base_type   = BaseT;
     using tag_type    = base_class_tag;
 
-    constexpr base_class_info(std::string_view base_class_name) : base_class_info_base<C>(base_class_name)
+    constexpr base_class_info(mc::string_view base_class_name) : base_class_info_base<C>(base_class_name)
     {}
 
     std::type_index typeinfo() const override
@@ -719,7 +1157,7 @@ struct base_class_info : public base_class_info_base<C> {
         return typeid(base_type);
     }
 
-    std::string_view type_name() const noexcept override
+    mc::string_view type_name() const noexcept override
     {
         return pretty_name<base_type>();
     }
@@ -734,7 +1172,7 @@ struct base_class_info : public base_class_info_base<C> {
         return reflector<base_type>::get_metadata();
     }
 
-    std::string_view get_signature() const override
+    mc::string_view get_signature() const override
     {
         return mc::reflect::get_signature<base_type>();
     }
@@ -744,10 +1182,10 @@ struct base_class_info : public base_class_info_base<C> {
         return reflector<base_type>::get_type_id();
     }
 
-    mc::variant  get_value(const C& obj, std::string_view name) const override;
-    void         set_value(C& obj, std::string_view name, const mc::variant& value) const override;
-    mc::variant  invoke(C& obj, std::string_view name, const mc::variants& args) const override;
-    async_result async_invoke(C& obj, std::string_view name, const mc::variants& args) const override;
+    mc::variant  get_value(const C& obj, mc::string_view name) const override;
+    void         set_value(C& obj, mc::string_view name, const mc::variant& value) const override;
+    mc::variant  invoke(C& obj, mc::string_view name, const mc::variants& args) const override;
+    async_result async_invoke(C& obj, mc::string_view name, const mc::variants& args) const override;
 
     int type() const noexcept override
     {
@@ -756,7 +1194,13 @@ struct base_class_info : public base_class_info_base<C> {
 
     member_info_base* clone() const override
     {
-        return new base_class_info<C, BaseT>(this->name);
+        auto* p = new base_class_info<C, BaseT>(this->name);
+        p->name_quark =
+            this->name_quark.valid() ? this->name_quark : mc::quark{mc::detail::intern_trusted_literal(this->name)};
+        p->flags       = this->flags;
+        p->base_offset = this->base_offset;
+        p->data        = this->data;
+        return p;
     }
 
     const BaseT& get_object(const C& obj) const noexcept
@@ -770,42 +1214,19 @@ struct base_class_info : public base_class_info_base<C> {
     }
 };
 
-// 类型擦除后通过反射获取基类属性值和调用基类方法，用 std::monostate 类型作为对象类型，因为我们并不会真正使用这个类型，
-// 只是为了计算指针偏移量到正确的对象地址
-inline mc::variant base_class_type_info::get_value(void* obj, std::string_view name) const
-{
-    return reinterpret_cast<const base_class_info_base<std::monostate>*>(this)->get_value(
-        *static_cast<std::monostate*>(obj), name);
-}
-inline void base_class_type_info::set_value(void* obj, std::string_view name, const mc::variant& value) const
-{
-    reinterpret_cast<const base_class_info_base<std::monostate>*>(this)->set_value(*static_cast<std::monostate*>(obj),
-                                                                                   name, value);
-}
-inline mc::variant base_class_type_info::invoke(void* obj, std::string_view name, const mc::variants& args) const
-{
-    return reinterpret_cast<const base_class_info_base<std::monostate>*>(this)->invoke(
-        *static_cast<std::monostate*>(obj), name, args);
-}
-inline async_result base_class_type_info::async_invoke(void* obj, std::string_view name, const mc::variants& args) const
-{
-    return reinterpret_cast<const base_class_info_base<std::monostate>*>(this)->async_invoke(
-        *static_cast<std::monostate*>(obj), name, args);
-}
-
 /**
  * @brief 枚举成员信息
  */
 using enum_value_type = uint32_t;
 struct enum_member_info {
-    std::string_view name;  // 枚举成员名称
-    enum_value_type  value; // 枚举值
+    mc::string_view name;  // 枚举成员名称
+    enum_value_type value; // 枚举值
 
     constexpr enum_member_info() : name(), value(0)
     {}
 
     template <typename EnumType>
-    constexpr enum_member_info(std::string_view n, EnumType v) : name(n), value(static_cast<enum_value_type>(v))
+    constexpr enum_member_info(mc::string_view n, EnumType v) : name(n), value(static_cast<enum_value_type>(v))
     {
         static_assert(std::is_enum_v<EnumType>, "EnumType must be an enum type");
     }
@@ -817,83 +1238,59 @@ struct enum_member_info {
     constexpr enum_member_info& operator=(enum_member_info&&)      = default;
 };
 
-/**
- * @brief 用户可以通过特化此模板为自定义成员类型提供反射支持
- *
- * 示例：假设有信号成员类型 mc::signal<T>，用户可以这样特化：
- *
- * // 首先定义信号标签类型
- * namespace mc::reflect {
- * struct signal_tag {};
- * }
- *
- * // 然后定义信号信息类
- * template <typename C, typename Signature>
- * struct signal_info : public member_info_base {
- *     using tag_type = mc::reflect::signal_tag;
- *
- *     mc::signal<Signature> C::* signal_ptr;
- *
- *     constexpr signal_info(std::string_view n, mc::signal<Signature> C::* ptr)
- *         : member_info_base(n), signal_ptr(ptr) {}
- *
- *     std::type_index typeinfo() const override { return typeid(mc::signal<Signature>); }
- *     std::string_view type_name() const noexcept override { return "signal"; }
- * };
- *
- * // 最后特化 member_info_creator
- * template <typename T, typename Signature, typename BaseT>
- * struct member_info_creator<T, mc::signal<Signature>, BaseT, void> {
- *     static constexpr auto create(mc::signal<Signature> BaseT::* member_ptr, std::string_view
- * name) { return std::tuple<signal_info<T, Signature>>{signal_info<T, Signature>{name,
- * member_ptr}};
- *     }
- * };
- *
- * // 然后可以使用 get_members_by_tag 提取信号成员
- * auto signals = reflector<T>::get_members_by_tag<mc::reflect::signal_tag>();
- */
+/** @brief 自定义成员类型的扩展点 */
 template <typename T, typename M, typename BaseT = T, typename = void>
 struct member_info_creator {
-    static constexpr auto create(M BaseT::* member_ptr, std::string_view name) {
+    static constexpr auto create(M BaseT::* member_ptr, mc::string_view name)
+    {
         MC_UNUSED(member_ptr);
         MC_UNUSED(name);
         static_assert(is_property_v<M BaseT::*> || is_method_v<M BaseT::*>,
                       "不支持的成员类型，请为此类型创建特化版本的 member_info_creator");
-        return std::tuple<>(); // 永远不会执行到这里
+        return std::tuple<>();
     }
 };
 
 // 属性成员特化
 template <typename T, typename M, typename BaseT>
 struct member_info_creator<T, M, BaseT, std::enable_if_t<is_property_v<M BaseT::*>>> {
-    static constexpr auto create(M BaseT::*member_ptr, std::string_view name)
+    static constexpr auto create(M BaseT::* member_ptr, mc::string_view name)
     {
-        return std::tuple<property_info<T, M>>{property_info<T, M>{name, member_ptr}};
+        return std::tuple<static_property_info<M BaseT::*>>{static_property_info<M BaseT::*>{name, member_ptr}};
+    }
+};
+
+template <typename T, typename M, typename BaseT>
+struct member_info_creator<T, M, BaseT,
+                           std::enable_if_t<!is_property_v<M BaseT::*> && std::is_member_object_pointer_v<M BaseT::*> &&
+                                            (is_variant_constructible_v<M> || is_variant_convertible_v<M>)>> {
+    static constexpr auto create(M BaseT::* member_ptr, mc::string_view name)
+    {
+        return std::tuple<static_property_info<M BaseT::*>>{static_property_info<M BaseT::*>{name, member_ptr}};
     }
 };
 
 // 方法成员特化
 template <typename T, typename M, typename BaseT>
 struct member_info_creator<T, M, BaseT, std::enable_if_t<is_method_v<M BaseT::*>>> {
-    static constexpr auto create(M BaseT::*member_ptr, std::string_view name)
+    static constexpr auto create(M BaseT::* member_ptr, mc::string_view name)
     {
-        return std::make_tuple(make_method_info<T>(member_ptr, name));
+        return std::tuple<static_method_info<M BaseT::*>>{static_method_info<M BaseT::*>{name, member_ptr}};
     }
 };
 
 // 静态成员函数特化
 template <typename T, typename R, typename... Args>
 struct member_info_creator<T, R (*)(Args...), void, std::enable_if_t<is_method_v<R (*)(Args...)>>> {
-    static constexpr auto create(R (*static_func)(Args...), std::string_view name)
+    static constexpr auto create(R (*static_func)(Args...), mc::string_view name)
     {
-        return std::make_tuple(make_static_method_info<T>(static_func, name));
+        return std::tuple<static_method_info<R (*)(Args...)>>{static_method_info<R (*)(Args...)>{name, static_func}};
     }
 };
 
 struct computed_property_info_creator {
     template <typename T, typename Getter, typename Setter>
-    static constexpr auto create(Getter getter, Setter setter, std::string_view name)
+    static constexpr auto create(Getter getter, Setter setter, mc::string_view name)
     {
         return std::make_tuple(computed_property_info<T, Getter, Setter>{name, getter, setter});
     }
@@ -904,7 +1301,7 @@ struct base_class_info_creator {
     static_assert(std::is_base_of_v<Base, T>, "T must be derived from Base class");
     static_assert(is_reflectable<Base>(), "Base class must be reflectable");
 
-    static constexpr auto create(std::string_view base_class_name)
+    static constexpr auto create(mc::string_view base_class_name)
     {
         if (base_class_name.empty()) {
             base_class_name = get_type_name<Base>();

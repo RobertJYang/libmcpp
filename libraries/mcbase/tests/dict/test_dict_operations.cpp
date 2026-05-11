@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <gtest/gtest.h>
 #include <mc/dict.h>
+#include <mc/dict/entry.h>
 #include <mc/variant.h>
 #include <vector>
 
@@ -118,14 +119,14 @@ TEST(DictOperationsTest, DictFind)
 {
     dict d({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
-    // 测试 find 方法 (std::string 版本)
-    auto it1 = d.find(std::string("key1"));
+    // 测试 find 方法 (mc::string 版本)
+    auto it1 = d.find(mc::string("key1"));
     EXPECT_NE(it1, d.end());
     EXPECT_EQ(it1->key, "key1");
     EXPECT_EQ(it1->value, 123);
 
-    // 测试 find 方法 (std::string_view 版本)
-    auto it2 = d.find(std::string_view("key2"));
+    // 测试 find 方法 (mc::string_view 版本)
+    auto it2 = d.find(mc::string_view("key2"));
     EXPECT_NE(it2, d.end());
     EXPECT_EQ(it2->key, "key2");
     EXPECT_EQ(it2->value, "value");
@@ -868,8 +869,8 @@ TEST(DictOperationsTest, MutableDictFind)
 {
     dict md({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
-    // 测试 find 方法 (std::string 版本)
-    auto it1 = md.find(std::string("key1"));
+    // 测试 find 方法 (mc::string 版本)
+    auto it1 = md.find(mc::string("key1"));
     EXPECT_NE(it1, md.end());
     EXPECT_EQ(it1->key, "key1");
     EXPECT_EQ(it1->value, 123);
@@ -878,8 +879,8 @@ TEST(DictOperationsTest, MutableDictFind)
     it1->value = 456;
     EXPECT_EQ(md["key1"], 456);
 
-    // 测试 find 方法 (std::string_view 版本)
-    auto it2 = md.find(std::string_view("key2"));
+    // 测试 find 方法 (mc::string_view 版本)
+    auto it2 = md.find(mc::string_view("key2"));
     EXPECT_NE(it2, md.end());
     EXPECT_EQ(it2->key, "key2");
     EXPECT_EQ(it2->value, "value");
@@ -1041,8 +1042,8 @@ TEST(DictOperationsTest, MutableDictInsert)
         dict md;
 
         // 使用非variant类型调用insert
-        std::string key   = "key1";
-        int         value = 123;
+        mc::string key   = "key1";
+        int        value = 123;
         md.insert(key, value);
 
         EXPECT_EQ(md.size(), 1);
@@ -1139,14 +1140,111 @@ TEST(DictOperationsTest, MutableDictInsertInteraction)
 
     // 测试通过 std::map 的迭代器插入
     {
-        std::map<std::string, int> map = {{"key1", 100}, {"key2", 200}};
-        dict                       md;
+        std::map<mc::string, int> map = {{"key1", 100}, {"key2", 200}};
+        dict                      md;
         md.insert(map.begin(), map.end());
 
         EXPECT_EQ(md.size(), 2);
         EXPECT_EQ(md["key1"], 100);
         EXPECT_EQ(md["key2"], 200);
     }
+}
+
+TEST(DictOperationsTest, MutableDictIndexGrowsWithMoreEntries)
+{
+    dict md;
+
+    for (int i = 0; i < 64; ++i) {
+        md.insert(mc::string("key") + std::to_string(i), i);
+    }
+
+    ASSERT_NE(md.data(), nullptr);
+    EXPECT_GT(md.data()->index_bucket_count(), MC_DICT_BUCKET_COUNT);
+
+    for (int i = 0; i < 64; ++i) {
+        EXPECT_EQ(md[mc::string("key") + std::to_string(i)], i);
+    }
+}
+
+TEST(DictOperationsTest, MutableDictIndexKeepsLookupStableAfterErase)
+{
+    dict md;
+
+    for (int i = 0; i < 64; ++i) {
+        md.insert(mc::string("key") + std::to_string(i), i);
+    }
+
+    const auto grown_bucket_count = md.data()->index_bucket_count();
+    ASSERT_GT(grown_bucket_count, MC_DICT_BUCKET_COUNT);
+
+    for (int i = 0; i < 48; ++i) {
+        EXPECT_TRUE(md.erase(mc::string("key") + std::to_string(i)));
+    }
+
+    EXPECT_LT(md.data()->index_bucket_count(), grown_bucket_count);
+
+    for (int i = 48; i < 64; ++i) {
+        EXPECT_TRUE(md.contains(mc::string("key") + std::to_string(i)));
+        EXPECT_EQ(md[mc::string("key") + std::to_string(i)], i);
+    }
+}
+
+TEST(DictOperationsTest, MutableDictOrderCacheBuildsAndInvalidatesOnMutation)
+{
+    dict md;
+    md.insert("key1", 1);
+    md.insert("key2", 2);
+    md.insert("key3", 3);
+
+    ASSERT_NE(md.data(), nullptr);
+    EXPECT_EQ(md.data()->order_cache_size(), 0U);
+
+    EXPECT_EQ(md.at_index(1).key, "key2");
+    EXPECT_EQ(md.data()->order_cache_size(), md.size());
+
+    md.insert("key4", 4);
+    EXPECT_EQ(md.data()->order_cache_size(), 0U);
+    EXPECT_EQ(md.find_index("key4"), 3);
+    EXPECT_EQ(md.data()->order_cache_size(), md.size());
+
+    EXPECT_TRUE(md.erase("key2"));
+    EXPECT_EQ(md.data()->order_cache_size(), 0U);
+    EXPECT_EQ(md.find_index("key3"), 1);
+    EXPECT_EQ(md.data()->order_cache_size(), md.size());
+}
+
+TEST(DictOperationsTest, MutableDictReservePreallocatesIndex)
+{
+    dict md;
+
+    md.reserve(64);
+    ASSERT_NE(md.data(), nullptr);
+
+    const auto reserved_bucket_count = md.data()->index_bucket_count();
+    EXPECT_GT(reserved_bucket_count, MC_DICT_BUCKET_COUNT);
+
+    for (int i = 0; i < 64; ++i) {
+        md.insert(mc::string("key") + std::to_string(i), i);
+    }
+
+    EXPECT_EQ(md.data()->index_bucket_count(), reserved_bucket_count);
+}
+
+TEST(DictOperationsTest, MutableDictReusesFreedEntrySlot)
+{
+    dict md;
+    md.insert("key1", 1);
+    md.insert("key2", 2);
+
+    auto* removed_entry = &(*md.find("key2"));
+    ASSERT_NE(removed_entry, nullptr);
+
+    EXPECT_TRUE(md.erase("key2"));
+    md.insert("key3", 3);
+
+    auto* inserted_entry = &(*md.find("key3"));
+    ASSERT_NE(inserted_entry, nullptr);
+    EXPECT_EQ(inserted_entry, removed_entry);
 }
 
 // 测试 find_entry(nullptr) 异常 - 通过 find() 间接测试
@@ -1174,14 +1272,14 @@ TEST(DictOperationsTest, DictOperatorBracketWithVariantKeyNotFound)
     EXPECT_THROW(d[non_existent_key], std::out_of_range);
 }
 
-// 测试 get(const std::string&, const variant&)
+// 测试 get(const mc::string&, const variant&)
 TEST(DictOperationsTest, DictGetWithStringKey)
 {
     dict    d({{"key1", 123}, {"key2", "value"}});
     variant default_val(456);
-    EXPECT_EQ(d.get(std::string("key1"), default_val).as<int>(), 123);
-    EXPECT_EQ(d.get(std::string("key2"), default_val).as<std::string>(), "value");
-    EXPECT_EQ(d.get(std::string("key3"), default_val).as<int>(), 456);
+    EXPECT_EQ(d.get(mc::string("key1"), default_val).as<int>(), 123);
+    EXPECT_EQ(d.get(mc::string("key2"), default_val).as<mc::string>(), "value");
+    EXPECT_EQ(d.get(mc::string("key3"), default_val).as<int>(), 456);
 }
 
 // 测试 get(nullptr, default_value) 异常
@@ -1202,7 +1300,7 @@ TEST(DictOperationsTest, DictGetWithVariantKey)
     variant default_val(456);
 
     EXPECT_EQ(d.get(key1, default_val).as<int>(), 123);
-    EXPECT_EQ(d.get(key2, default_val).as<std::string>(), "value");
+    EXPECT_EQ(d.get(key2, default_val).as<mc::string>(), "value");
     EXPECT_EQ(d.get(key3, default_val).as<int>(), 456);
 }
 
@@ -1214,12 +1312,12 @@ TEST(DictOperationsTest, DictAtIndexOutOfRangeWithEmptyDict)
     EXPECT_THROW(d.at_index(1), std::out_of_range);
 }
 
-// 测试 at(const std::string&)
+// 测试 at(const mc::string&)
 TEST(DictOperationsTest, DictAtWithStringKey)
 {
     const dict d({{"key1", 123}, {"key2", "value"}});
-    EXPECT_EQ(d.at(std::string("key1")).as<int>(), 123);
-    EXPECT_EQ(d.at(std::string("key2")).as<std::string>(), "value");
+    EXPECT_EQ(d.at(mc::string("key1")).as<int>(), 123);
+    EXPECT_EQ(d.at(mc::string("key2")).as<mc::string>(), "value");
 }
 
 // 测试 at 键不存在异常
@@ -1245,7 +1343,7 @@ TEST(DictOperationsTest, DictAtWithVariantKey)
     variant    key3("key3");
 
     EXPECT_EQ(d.at(key1).as<int>(), 123);
-    EXPECT_EQ(d.at(key2).as<std::string>(), "value");
+    EXPECT_EQ(d.at(key2).as<mc::string>(), "value");
     EXPECT_THROW(d.at(key3), std::out_of_range);
 }
 
@@ -1352,18 +1450,18 @@ TEST(DictOperationsTest, MutableDictEraseWithVariantKey)
     EXPECT_EQ(md.size(), 1);
 }
 
-// 测试非 const at(const std::string&)
+// 测试非 const at(const mc::string&)
 TEST(DictOperationsTest, MutableDictAtWithStringKey)
 {
     dict md;
     md["key1"] = 123;
     md["key2"] = "value";
 
-    md.at(std::string("key1")) = 456;
+    md.at(mc::string("key1")) = 456;
     EXPECT_EQ(md["key1"].as<int>(), 456);
 
-    md.at(std::string("key2")) = "new_value";
-    EXPECT_EQ(md["key2"].as<std::string>(), "new_value");
+    md.at(mc::string("key2")) = "new_value";
+    EXPECT_EQ(md["key2"].as<mc::string>(), "new_value");
 }
 
 // 测试非 const at(nullptr) 异常
@@ -1389,7 +1487,7 @@ TEST(DictOperationsTest, MutableDictAtWithVariantKey)
     EXPECT_EQ(md["key1"].as<int>(), 456);
 
     md.at(key2) = "new_value";
-    EXPECT_EQ(md["key2"].as<std::string>(), "new_value");
+    EXPECT_EQ(md["key2"].as<mc::string>(), "new_value");
 
     EXPECT_THROW(md.at(key3) = 789, std::out_of_range);
 }

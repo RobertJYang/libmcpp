@@ -14,15 +14,13 @@
 #include "handler.h"
 
 // 导出消息类型枚举到模块
-MC_MODULE_REFLECT_ENUM(mc_protocol, mc::protocol::message_type, (REQUEST)(RESPONSE)(NOTIFICATION))
+MC_MODULE_REFLECT_ENUM(mc_protocol, mc::proto::message_type, (REQUEST)(RESPONSE)(NOTIFICATION))
 
 // 导出协议版本枚举到模块
-MC_MODULE_REFLECT_ENUM(mc_protocol, mc::protocol::protocol_version, (V1_0)(V1_1)(V2_0))
+MC_MODULE_REFLECT_ENUM(mc_protocol, mc::proto::protocol_version, (V1_0)(V1_1)(V2_0))
 
 // 导出协议处理器类到模块
-MC_MODULE_REFLECT(mc_protocol, mc::protocol::protocol_handler,
-                  ((set_version, "setVersion"))                      // 设置版本
-                  ((get_version, "getVersion"))                      // 获取版本
+MC_MODULE_REFLECT(mc_protocol, mc::proto::protocol_handler,
                   ((handle_request, "handleRequest"))                // 处理请求
                   ((handle_response, "handleResponse"))              // 处理响应
                   ((send_notification, "sendNotification"))          // 发送通知

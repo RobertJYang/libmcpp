@@ -17,16 +17,19 @@
 #include <mc/db/index_tag.h>
 #include <mc/db/key.h>
 #include <mc/db/key_extractor.h>
+#include <mc/db/local_storage_engine.h>
+#include <mc/db/query/query.h>
+#include <mc/db/storage_engine.h>
 #include <mc/db/table_base.h>
 #include <mc/db/table_op.h>
 #include <mc/exception.h>
-#include <mc/im/radix_tree.h>
 #include <mc/memory.h>
 #include <mc/reflect.h>
-#include <mc/signal_slot.h>
+#include <mc/string_utils.h>
 #include <mc/traits.h>
 
 #include <atomic>
+#include <cstddef>
 #include <functional>
 #include <memory>
 #include <string>
@@ -85,27 +88,53 @@ constexpr bool verify_indices_object_type()
 }
 
 /**
- * 创建对象ID索引
+ * IndexDef 的总索引数：用户索引数 + 1（默认 object_id 索引）
  */
-template <typename ObjectType, typename Alloc>
+template <typename IndexDef>
+inline constexpr std::size_t indices_count_v = std::tuple_size_v<typename IndexDef::indices> + 1U;
+
+/**
+ * 创建对象ID索引
+ *
+ * @tparam Engine 存储引擎类型
+ *
+ * 注意：`alloc` 是 per-index 的 allocator（已由调用方通过 derive_per_index_alloc 派生过）
+ */
+template <typename ObjectType, typename Alloc, typename Engine>
 auto make_object_id_index(const Alloc& alloc = Alloc())
 {
-    return index<ObjectType, detail::object_id_key<ObjectType>, true, void, Alloc>(detail::object_id_key<ObjectType>{},
-                                                                                   alloc, 0);
+    return index<ObjectType, detail::object_id_key<ObjectType>, true, void, Alloc, Engine>(
+        detail::object_id_key<ObjectType>{}, alloc, 0);
 }
 
 /**
- * 生成索引元组帮助类，包含用户定义的索引
+ * 生成索引元组帮助类
+ *
+ * 索引在 table 模式下不再各自持 owned engine，统一通过 set_engine() 由 table
+ * 的共享 engine 注入。这里只负责把 N 个 index 实例就位并指定 index_id。
  */
-template <typename ObjectType, typename Tuple, std::size_t... Is, typename Alloc>
-auto make_indices_with_user_indices_impl(std::index_sequence<Is...>, const Alloc& alloc)
-{
-    return std::make_tuple(
-        make_object_id_index<ObjectType, Alloc>(alloc),
-        index<ObjectType, typename std::tuple_element_t<Is, Tuple>::key_extractor_type,
-              std::tuple_element_t<Is, Tuple>::is_unique, typename std::tuple_element_t<Is, Tuple>::tag_type, Alloc>(
-            typename std::tuple_element_t<Is, Tuple>::key_extractor_type{}, alloc, Is + 1)...);
-}
+template <typename ObjectType, typename IndexTuple, typename Alloc, typename Engine, typename IndexSeq>
+struct user_indices_builder;
+
+template <typename ObjectType, typename IndexTuple, typename Alloc, typename Engine, std::size_t... Is>
+struct user_indices_builder<ObjectType, IndexTuple, Alloc, Engine, std::index_sequence<Is...>> {
+    using object_id_index_type = index<ObjectType, detail::object_id_key<ObjectType>, true, void, Alloc, Engine>;
+
+    static auto build()
+    {
+        return std::make_tuple(
+            object_id_index_type(typename object_id_index_type::table_mode_t{}, detail::object_id_key<ObjectType>{}, 0,
+                                 nullptr),
+            index<ObjectType, typename std::tuple_element_t<Is, IndexTuple>::key_extractor_type,
+                  std::tuple_element_t<Is, IndexTuple>::is_unique,
+                  typename std::tuple_element_t<Is, IndexTuple>::tag_type, Alloc, Engine>(
+                typename index<ObjectType, typename std::tuple_element_t<Is, IndexTuple>::key_extractor_type,
+                               std::tuple_element_t<Is, IndexTuple>::is_unique,
+                               typename std::tuple_element_t<Is, IndexTuple>::tag_type, Alloc, Engine>::table_mode_t{},
+                typename std::tuple_element_t<Is, IndexTuple>::key_extractor_type{}, static_cast<uint8_t>(Is + 1),
+                nullptr)...);
+    }
+};
 
 /**
  * 遍历索引元组并执行操作的辅助函数
@@ -153,7 +182,7 @@ struct has_member_key<
  * 获取成员键名
  */
 template <typename KeyExtractor, typename ObjectType, typename MemberType>
-std::string get_property_name()
+mc::string get_property_name()
 {
     if constexpr (has_member_key<KeyExtractor, ObjectType, MemberType>::value) {
         return KeyExtractor::template get_property_name<ObjectType, MemberType>();
@@ -177,7 +206,7 @@ struct has_member_function_key<
  * 获取成员函数键名
  */
 template <typename KeyExtractor, typename ObjectType, typename ReturnType>
-std::string get_member_function_name()
+mc::string get_member_function_name()
 {
     if constexpr (has_member_function_key<KeyExtractor, ObjectType, ReturnType>::value) {
         return KeyExtractor::template get_member_function_name<ObjectType, ReturnType>();
@@ -210,53 +239,80 @@ struct has_createor<ObjectType, std::void_t<decltype(ObjectType::create(std::dec
  * @tparam ObjectType 对象类型
  * @tparam IndexDef 索引定义类型，默认为 no_indices
  */
-template <typename ObjectType, typename IndexDef = no_indices, typename Allocator = std::allocator<char>>
+template <typename ObjectType, typename IndexDef = no_indices, typename Allocator = std::allocator<char>,
+          typename Engine = local_storage_engine<ObjectType, detail::indices_count_v<IndexDef>, Allocator>>
 class table : public table_base {
 public:
     using object_type           = ObjectType;
     using indices_def           = typename IndexDef::indices;
     using object_ptr_type       = mc::shared_ptr<object_type>;
     using const_object_ptr_type = mc::shared_ptr<const object_type>;
-    using index_map_config      = mc::im::tree_config<object_ptr_type, Allocator>;
-    using index_txn_type        = mc::im::transaction<index_map_config>;
-    using alloc_type            = typename index_txn_type::allocator_type;
-    using tree_type             = typename index_txn_type::tree_type;
-    using raw_iterator          = typename tree_type::iterator;
+    using engine_type           = Engine;
+    using alloc_type            = typename Engine::allocator_type;
+    using raw_iterator          = engine_raw_iterator_t<Engine>;
 
-    // 确保所有索引使用相同的对象类型
+    static constexpr std::size_t index_count = detail::indices_count_v<IndexDef>;
+
     static_assert(detail::verify_indices_object_type<object_type, indices_def>(),
                   "All indices must use the same object type");
 
-    // 索引元组类型
-    using indices_tuple_type =
-        std::conditional_t<std::is_same_v<IndexDef, no_indices>,
-                           std::tuple<decltype(detail::make_object_id_index<ObjectType>(std::declval<alloc_type>()))>,
-                           decltype(detail::make_indices_with_user_indices_impl<ObjectType, indices_def>(
-                               std::make_index_sequence<std::tuple_size_v<indices_def>>{},
-                               std::declval<alloc_type>()))>;
+    using indices_tuple_type = std::conditional_t<
+        std::is_same_v<IndexDef, no_indices>,
+        std::tuple<index<ObjectType, detail::object_id_key<ObjectType>, true, void, alloc_type, Engine>>,
+        decltype(detail::user_indices_builder<ObjectType, indices_def, alloc_type, Engine,
+                                              std::make_index_sequence<std::tuple_size_v<indices_def>>>::build())>;
 
-    using indices_array_type = std::array<index_base<object_type>*, std::tuple_size_v<indices_tuple_type>>;
+    using indices_array_type =
+        std::array<index_base<object_type, alloc_type, Engine>*, std::tuple_size_v<indices_tuple_type>>;
 
     /**
      * 构造函数
-     * @param alloc 内存分配器
+     *
+     * table 持有唯一的 m_engine，所有 index 通过 set_engine() 注入此引擎，
+     *     不再 per-index 各自持事务。
      */
-    table(std::string_view name = std::string_view(), uint32_t table_id = 0, const alloc_type& alloc = alloc_type())
-        : m_indices(make_indices(alloc)), m_table_id(table_id ? table_id : transaction::alloc_table_id()), m_name(name)
+    table(mc::string_view name = mc::string_view(), uint32_t table_id = 0, const alloc_type& alloc = alloc_type())
+        : m_engine(std::make_unique<Engine>(alloc, name)), m_indices(make_indices()),
+          m_table_id(table_id ? table_id : transaction::alloc_table_id()), m_name(name)
     {
         size_t i = 0;
         detail::for_each_index(m_indices, [&i, this](auto& idx) {
-            m_indices_array[i++] = &idx;
+            m_indices_array[i] = &idx;
+            idx.set_engine(*m_engine, i);
             idx.set_table(this);
+            ++i;
             return true;
         });
         if (m_name.empty()) {
-            m_name = mc::string::join("", "table_", std::to_string(m_table_id), mc::pretty_name<object_type>());
+            m_name = mc::strings::join("", "table_", mc::to_string(m_table_id), mc::pretty_name<object_type>());
         }
     }
 
     ~table()
     {}
+
+    /**
+     * 访问 table 持有的存储引擎实例。
+     *
+     * 用途：
+     *   - mcengine 在 USE_SHM 路径上注入 shm_handle_extractor / reconstruct_fn；
+     *   - 诊断 / 测试观察引擎内部状态。
+     * 注意：返回的引用生命周期与 table 一致，调用方不应另行持有。
+     */
+    Engine& engine() noexcept
+    {
+        return *m_engine;
+    }
+    const Engine& engine() const noexcept
+    {
+        return *m_engine;
+    }
+
+    object_id_type generate_available_id()
+    {
+        std::lock_guard lock(m_mutex);
+        return generate_available_id_internal();
+    }
 
     /**
      * 向表中添加一条记录
@@ -280,7 +336,7 @@ public:
 
         // 如果对象没有有效ID，则分配新ID
         if (!obj_ptr->has_valid_id()) {
-            obj_ptr->set_object_id(generate_id());
+            obj_ptr->set_object_id(generate_available_id_internal());
         }
 
         // 是否需要事务管理
@@ -444,11 +500,8 @@ public:
     {
         std::lock_guard lock(m_mutex);
 
-        detail::for_each_index(m_indices, [savepoint_id](auto& idx) {
-            idx.rollback_to(savepoint_id);
-            return true;
-        });
-        m_txn_savepoint_id = std::get<0>(m_indices).last_savepoint_id();
+        m_engine->rollback_to(savepoint_id);
+        m_txn_savepoint_id = m_engine->current_save_point();
     }
 
     struct lock_guard {
@@ -468,20 +521,14 @@ public:
     {
         std::lock_guard lock(m_mutex);
 
-        detail::for_each_index(m_indices, [](auto& idx) {
-            idx.lock_db();
-            return true;
-        });
+        m_engine->lock_db();
     }
 
     void unlock_db()
     {
         std::lock_guard lock(m_mutex);
 
-        detail::for_each_index(m_indices, [](auto& idx) {
-            idx.unlock_db();
-            return true;
-        });
+        m_engine->unlock_db();
     }
 
     /**
@@ -507,7 +554,7 @@ public:
     {
         std::lock_guard lock(m_mutex);
 
-        return std::get<I>(m_indices).find(keys...);
+        return index_ref<I>().find(keys...);
     }
 
     /**
@@ -521,7 +568,7 @@ public:
     {
         std::lock_guard lock(m_mutex);
 
-        return get<Tag>().find(keys...);
+        return index_ref<Tag>().find(keys...);
     }
 
     object_ptr_type find_by_index(size_t index_id, const mc::variant& value)
@@ -582,31 +629,55 @@ public:
     /**
      * 统一的获取索引方法，既支持数字索引又支持标签类型
      * @tparam I 索引序号
-     * @return 索引引用
+     * @return 索引引用。注意：返回后不再持有表锁；运行时代码优先使用 with_index()。
      */
     template <size_t I>
     auto& get()
     {
         std::lock_guard lock(m_mutex);
 
-        return std::get<I>(m_indices);
+        return index_ref<I>();
     }
 
     /**
      * 统一的获取索引方法，既支持数字索引又支持标签类型
      * @tparam Tag 标签类型
-     * @return 索引引用
+     * @return 索引引用。注意：返回后不再持有表锁；运行时代码优先使用 with_index()。
      */
     template <typename Tag, typename = std::enable_if_t<mc::db::is_tag_v<Tag>>>
     auto& get()
     {
         std::lock_guard lock(m_mutex);
 
-        if constexpr (std::is_same_v<Tag, by_object_id_tag>) {
-            return std::get<0>(m_indices);
+        return index_ref<Tag>();
+    }
+
+    // 锁内访问索引，运行时代码优先使用这个入口。
+    template <size_t I, typename Func>
+    decltype(auto) with_index(Func&& func)
+    {
+        std::lock_guard lock(m_mutex);
+
+        using result_type = std::invoke_result_t<Func, decltype(index_ref<I>())>;
+        if constexpr (std::is_void_v<result_type>) {
+            std::invoke(std::forward<Func>(func), index_ref<I>());
+            return;
         } else {
-            constexpr size_t index = mc::db::detail::tag_index_of<Tag, indices_def>::value + 1;
-            return std::get<index>(m_indices);
+            return std::invoke(std::forward<Func>(func), index_ref<I>());
+        }
+    }
+
+    template <typename Tag, typename Func, typename = std::enable_if_t<mc::db::is_tag_v<Tag>>>
+    decltype(auto) with_index(Func&& func)
+    {
+        std::lock_guard lock(m_mutex);
+
+        using result_type = std::invoke_result_t<Func, decltype(index_ref<Tag>())>;
+        if constexpr (std::is_void_v<result_type>) {
+            std::invoke(std::forward<Func>(func), index_ref<Tag>());
+            return;
+        } else {
+            return std::invoke(std::forward<Func>(func), index_ref<Tag>());
         }
     }
 
@@ -639,7 +710,7 @@ public:
      * 获取表名
      * @return 表名
      */
-    std::string_view get_table_name() const override
+    mc::string_view get_table_name() const override
     {
         return m_name;
     }
@@ -654,6 +725,21 @@ public:
         return table_query<table<object_type, IndexDef>>(*this).query_one(builder);
     }
 
+    object_ptr_type find(const condition& cond)
+    {
+        return find(query_builder(cond));
+    }
+
+    object_ptr_type find_object(const query_builder& builder)
+    {
+        return find(builder);
+    }
+
+    object_ptr_type find_object(const condition& cond)
+    {
+        return find(cond);
+    }
+
     /**
      * 查询记录
      * @param builder 查询构建器
@@ -663,6 +749,11 @@ public:
     std::vector<object_ptr_type> query(const query_builder& builder, size_t limit = 0)
     {
         return table_query<table<object_type, IndexDef>>(*this).query(builder, limit);
+    }
+
+    std::vector<object_ptr_type> query_object(const query_builder& builder, size_t limit = 0)
+    {
+        return query(builder, limit);
     }
 
     /**
@@ -675,6 +766,12 @@ public:
     bool query(const query_builder& builder, Handler&& handler)
     {
         return table_query<table<object_type, IndexDef>>(*this).query(builder, std::forward<Handler>(handler));
+    }
+
+    template <typename Handler, typename = std::enable_if_t<std::is_invocable_r_v<bool, Handler, object_type&>>>
+    bool query_object(const query_builder& builder, Handler&& handler)
+    {
+        return query(builder, std::forward<Handler>(handler));
     }
 
     std::vector<object_ptr_type> all()
@@ -696,7 +793,7 @@ public:
         return update_internal(condition, values, txn);
     }
 
-    size_t update(const query_builder& condition, const std::map<std::string, variant>& values,
+    size_t update(const query_builder& condition, const std::map<mc::string, variant>& values,
                   transaction* txn = nullptr)
     {
         std::lock_guard lock(m_mutex);
@@ -733,10 +830,7 @@ public:
             on_object_removed(const_cast<object_type&>(*it));
         }
 
-        detail::for_each_index(m_indices, [](auto& idx) {
-            idx.clear();
-            return true;
-        });
+        m_engine->clear();
     }
 
     bool empty() const override
@@ -756,20 +850,14 @@ public:
 protected:
     void commit_internal()
     {
-        detail::for_each_index(m_indices, [](auto& idx) {
-            idx.commit();
-            return true;
-        });
+        m_engine->commit();
         m_txn_savepoint_id   = -1;
         m_index_savepoint_id = -1;
     }
 
     void rollback_internal()
     {
-        detail::for_each_index(m_indices, [](auto& idx) {
-            idx.rollback();
-            return true;
-        });
+        m_engine->rollback();
         m_txn_savepoint_id   = -1;
         m_index_savepoint_id = -1;
     }
@@ -778,11 +866,8 @@ protected:
     {
         auto sp = txn->last_savepoint_id();
         if (m_txn_savepoint_id != sp) {
-            detail::for_each_index(m_indices, [&](auto& idx) {
-                m_index_savepoint_id = idx.alloc_save_point();
-                return true;
-            });
-            m_txn_savepoint_id = sp;
+            m_index_savepoint_id = m_engine->save_point();
+            m_txn_savepoint_id   = sp;
         }
         return m_index_savepoint_id;
     }
@@ -800,58 +885,35 @@ protected:
         return nullptr;
     }
 
-    size_t do_remove_object(const query_builder& condition, transaction* txn) override
-    {
-        if constexpr (mc::reflect::is_reflectable<object_type>()) {
-            return remove(condition, txn);
-        } else {
-            MC_UNUSED(txn);
-        }
-
-        return 0;
-    }
-
-    object_ptr do_find_object(const query_builder& condition) override
-    {
-        if constexpr (mc::reflect::is_reflectable<object_type>()) {
-            return find(condition).template static_pointer_cast<object_base>();
-        }
-
-        return nullptr;
-    }
-
-    bool do_query_object(const query_builder& builder, table_base::query_handler&& handler) override
-    {
-        if constexpr (mc::reflect::is_reflectable<object_type>()) {
-            return query(builder, [handler = std::forward<table_base::query_handler>(handler)](object_type& obj) {
-                return handler(obj);
-            });
-        }
-        return false;
-    }
-
-    size_t do_update_object(const query_builder& condition, const mc::dict& values, transaction* txn) override
-    {
-        if constexpr (mc::reflect::is_reflectable<object_type>()) {
-            return update_internal(condition, values, txn);
-        } else {
-            MC_UNUSED(txn);
-        }
-        return 0;
-    }
-
-    size_t do_update_object(const query_builder& condition, const std::map<std::string, variant>& values,
-                            transaction* txn) override
-    {
-        if constexpr (mc::reflect::is_reflectable<object_type>()) {
-            return update_internal(condition, values, txn);
-        } else {
-            MC_UNUSED(txn);
-        }
-        return 0;
-    }
-
 private:
+    template <size_t I>
+    auto& index_ref()
+    {
+        return std::get<I>(m_indices);
+    }
+
+    template <typename Tag>
+    auto& index_ref()
+    {
+        if constexpr (std::is_same_v<Tag, by_object_id_tag>) {
+            return std::get<0>(m_indices);
+        } else {
+            constexpr size_t index = mc::db::detail::tag_index_of<Tag, indices_def>::value + 1;
+            return std::get<index>(m_indices);
+        }
+    }
+
+    object_id_type generate_available_id_internal()
+    {
+        auto& id_idx = std::get<0>(m_indices);
+        for (;;) {
+            auto id = generate_id();
+            if (!id_idx.contains_key(id)) {
+                return id;
+            }
+        }
+    }
+
     // 从 dict 更新对象
     void update_object(object_type& obj, const dict& values)
     {
@@ -861,7 +923,7 @@ private:
     }
 
     // 从 map 更新对象
-    void update_object(object_type& obj, const std::map<std::string, variant>& values)
+    void update_object(object_type& obj, const std::map<mc::string, variant>& values)
     {
         for (auto& entry : values) {
             mc::reflect::set_property(obj, entry.first, entry.second);
@@ -881,12 +943,11 @@ private:
                     updated_count++;
                 }
                 return true;
-            } else {
-                // 非可复制类型，直接更新对象
-                update_object(const_cast<object_type&>(obj), values);
-                updated_count++;
-                return true;
             }
+            // 非可复制类型，直接更新对象
+            update_object(const_cast<object_type&>(obj), values);
+            updated_count++;
+            return true;
         };
 
         query(condition, handler);
@@ -894,25 +955,26 @@ private:
     }
 
     /**
-     * 根据IndexDef选择合适的索引创建方法
+     * 根据 IndexDef 选择合适的索引元组构造方式
      */
-    indices_tuple_type make_indices(const alloc_type& alloc = alloc_type())
+    indices_tuple_type make_indices()
     {
+        using object_id_idx_t = index<object_type, detail::object_id_key<object_type>, true, void, alloc_type, Engine>;
         if constexpr (std::is_same_v<IndexDef, no_indices>) {
-            // 只使用默认的对象ID索引
-            return std::make_tuple(detail::make_object_id_index<object_type>(alloc));
+            return std::make_tuple(object_id_idx_t(typename object_id_idx_t::table_mode_t{},
+                                                   detail::object_id_key<object_type>{}, 0, nullptr));
         } else {
-            // 使用默认的对象ID索引加上用户定义的索引
-            return detail::make_indices_with_user_indices_impl<object_type, indices_def>(
-                std::make_index_sequence<std::tuple_size_v<indices_def>>{}, alloc);
+            return detail::user_indices_builder<object_type, indices_def, alloc_type, Engine,
+                                                std::make_index_sequence<std::tuple_size_v<indices_def>>>::build();
         }
     }
 
     mutable std::recursive_mutex m_mutex;
+    std::unique_ptr<Engine>      m_engine; ///< per-table 共享存储引擎
     indices_tuple_type           m_indices;
     indices_array_type           m_indices_array;
     uint32_t                     m_table_id = {0}; ///< 表ID
-    std::string                  m_name;           ///< 表名
+    mc::string                   m_name;           ///< 表名
 
     int32_t m_txn_savepoint_id   = {-1}; ///< 事务保存点ID
     int32_t m_index_savepoint_id = {-1}; ///< 索引保存点ID

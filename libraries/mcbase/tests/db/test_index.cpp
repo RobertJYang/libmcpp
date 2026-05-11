@@ -23,6 +23,7 @@
 #include <mc/db/key_extractor.h>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <test_utilities/base.h>
 #include <unordered_map>
 #include <vector>
@@ -33,20 +34,20 @@ struct user : mc::db::object_base {
     using id_type = int;
 
     user() = default;
-    user(int id, std::string name, int age, double score = 0.0, std::string city = std::string(),
-         std::string department = std::string())
+    user(int id, mc::string name, int age, double score = 0.0, mc::string city = mc::string(),
+         mc::string department = mc::string())
         : m_name(name), m_age(age), m_score(score), m_city(city), m_department(department)
     {
         set_object_id(id);
     }
 
-    std::string m_name;
-    int         m_age;
-    double      m_score;
-    std::string m_city;
-    std::string m_department;
+    mc::string m_name;
+    int        m_age;
+    double     m_score;
+    mc::string m_city;
+    mc::string m_department;
 
-    const std::string& name() const
+    const mc::string& name() const
     {
         return m_name;
     }
@@ -72,7 +73,7 @@ TEST_F(database_index_test, mc_database_index_basic)
     user u2(2, "李四", 25);
     user u3(3, "王五", 22);
 
-    auto name_extractor = mc::db::make_key<user, const std::string&, &user::name>();
+    auto name_extractor = mc::db::make_key<user, const mc::string&, &user::name>();
     auto index          = mc::db::make_index<user, true>(name_extractor);
 
     // 添加用户到索引
@@ -128,6 +129,73 @@ TEST_F(database_index_test, mc_database_index_functor_key)
     EXPECT_EQ(found->get_object_id(), 2);
 }
 
+TEST_F(database_index_test, mc_database_index_std_string_key_compatibility)
+{
+    user u1(1, "张三", 20);
+    user u2(2, "李四", 25);
+
+    auto extractor = mc::db::make_key<user>([](const user& u) -> std::string {
+        return std::string(u.name());
+    });
+
+    auto index = mc::db::make_index<user, true>(extractor);
+
+    EXPECT_TRUE(index->add(u1));
+    EXPECT_TRUE(index->add(u2));
+
+    auto found = index->find(std::string("李四"));
+    ASSERT_NE(found, index->end());
+    EXPECT_EQ(found->get_object_id(), 2);
+}
+
+TEST_F(database_index_test, mdb_key_append_value_std_string_compatibility)
+{
+    std::string      std_text("ab\0cd", 5);
+    std::string_view std_view(std_text.data(), std_text.size());
+
+    mc::db::mdb_key key_from_mc_string;
+    key_from_mc_string.init(1, true);
+    key_from_mc_string.append_value(mc::string("ab\0cd", 5));
+
+    mc::db::mdb_key key_from_mc_view;
+    key_from_mc_view.init(1, true);
+    key_from_mc_view.append_value(mc::string_view("ab\0cd", 5));
+
+    mc::db::mdb_key key_from_std_string;
+    key_from_std_string.init(1, true);
+    key_from_std_string.append_value(std_text);
+
+    mc::db::mdb_key key_from_std_view;
+    key_from_std_view.init(1, true);
+    key_from_std_view.append_value(std_view);
+
+    EXPECT_EQ(key_from_std_string.key(), key_from_mc_string.key());
+    EXPECT_EQ(key_from_std_view.key(), key_from_mc_view.key());
+    EXPECT_EQ(key_from_std_string.key(), key_from_std_view.key());
+}
+
+TEST_F(database_index_test, mdb_key_write_value_std_string_compatibility)
+{
+    std::string      std_text("ab\0cd", 5);
+    std::string_view std_view(std_text.data(), std_text.size());
+
+    mc::db::mdb_key key_from_mc_string;
+    key_from_mc_string.write_value(mc::string("ab\0cd", 5));
+
+    mc::db::mdb_key key_from_mc_view;
+    key_from_mc_view.write_value(mc::string_view("ab\0cd", 5));
+
+    mc::db::mdb_key key_from_std_string;
+    key_from_std_string.write_value(std_text);
+
+    mc::db::mdb_key key_from_std_view;
+    key_from_std_view.write_value(std_view);
+
+    EXPECT_EQ(key_from_std_string.key(), key_from_mc_string.key());
+    EXPECT_EQ(key_from_std_view.key(), key_from_mc_view.key());
+    EXPECT_EQ(key_from_std_string.key(), key_from_std_view.key());
+}
+
 // 测试 mc::db 复合操作
 TEST_F(database_index_test, mc_database_index_operations)
 {
@@ -137,7 +205,7 @@ TEST_F(database_index_test, mc_database_index_operations)
     user u3(3, "王五", 22);
 
     // 使用mc::database的成员函数键提取器
-    auto name_extractor = mc::db::make_key<user, const std::string&, &user::name>();
+    auto name_extractor = mc::db::make_key<user, const mc::string&, &user::name>();
 
     // 创建索引
     auto index = mc::db::make_index<user, true>(name_extractor);
@@ -180,7 +248,7 @@ TEST_F(database_index_test, compound_key_test)
     user u5(5, "王五", 30);
 
     // 创建组合索引：名字 + 年龄
-    auto name_extractor     = mc::db::make_key<user, const std::string&, &user::name>();
+    auto name_extractor     = mc::db::make_key<user, const mc::string&, &user::name>();
     auto age_extractor      = mc::db::make_key<user, int, &user::age>();
     auto name_age_extractor = mc::db::make_key(name_extractor, age_extractor);
     auto index              = mc::db::make_index<user, true>(name_age_extractor);
@@ -470,8 +538,8 @@ TEST_F(database_index_test, non_unique_compound_key_test)
     // 创建组合键提取器
     using key_extractor =
         mc::db::detail::composite_key<mc::db::detail::member_key<user, int, &user::m_age>,
-                                      mc::db::detail::member_key<user, std::string, &user::m_city>,
-                                      mc::db::detail::member_key<user, std::string, &user::m_department>>;
+                                      mc::db::detail::member_key<user, mc::string, &user::m_city>,
+                                      mc::db::detail::member_key<user, mc::string, &user::m_department>>;
 
     // 创建非唯一索引
     auto idx = mc::db::make_index<user, false>(key_extractor());
@@ -489,7 +557,7 @@ TEST_F(database_index_test, non_unique_compound_key_test)
     // 测试场景1：按年龄和城市查询
     {
         auto [begin, end] = idx->equal_range(25, "北京");
-        std::vector<std::string> names;
+        std::vector<mc::string> names;
         for (auto it = begin; it != end; ++it) {
             names.push_back(it->m_name);
         }
@@ -501,7 +569,7 @@ TEST_F(database_index_test, non_unique_compound_key_test)
     // 测试场景2：按年龄查询
     {
         auto [begin, end] = idx->equal_range(30);
-        std::vector<std::string> names;
+        std::vector<mc::string> names;
         for (auto it = begin; it != end; ++it) {
             names.push_back(it->m_name);
         }

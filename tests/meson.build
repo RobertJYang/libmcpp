@@ -1,13 +1,9 @@
 subdir('algorithm')
 subdir('compress')
-subdir('core')
 subdir('crypto')
 subdir('dbus')
 subdir('debounce')
-subdir('engine')
 subdir('error_message')
-subdir('expr')
-subdir('interprocess')
 subdir('log')
 subdir('mdb')
 subdir('lua')
@@ -24,44 +20,41 @@ test_files = [
   # 根目录测试文件
   'test_validate.cpp',
   'test_validator.cpp',
+  'test_timer.cpp',
 
   # 各子目录的测试文件
   test_compress_files,
-  test_core_files,
   test_crypto_files,
   test_dbus_files,
   test_debounce_files,
-  test_engine_files,
-  test_expr_files,
-  test_interprocess_files,
   test_log_files,
   test_variant_files,
   test_algorithm_files,
   test_mdb_files,
-  test_error_message_files
+  test_error_message_files,
 ]
 
 if enable_conan_compile
   test_files += 'test_json_wrapper.cpp'
 endif
 
+mcdbus_src_incdir = include_directories('../libraries/mcdbus/src')
 # 构建 include_directories 列表（使用根目录定义的 stubdir_global）
-test_inc_dirs = [incdir, srcdir]
+test_inc_dirs = [incdir, srcdir, mcdbus_src_incdir]
 if not enable_conan_compile
   test_inc_dirs += [stubdir_global]
 endif
-
-dbus_dep = dependency('dbus-1', method: 'pkg-config', required: true)
 
 # 创建测试可执行文件
 test_cpp_args = []
 test_link_args = []
 test_deps = [
-  mcbase_test_dep,
   gtest_dep,
   test_utilities_dep,
   lua_dep,
+  mcdbus_internal_dep,
   libmcpp_dep_with_link,
+  openssl_dep,
 ]
 if enable_coverage
   test_cpp_args += coverage_args
@@ -80,13 +73,34 @@ test_exe = executable(
   dependencies: test_deps,
   cpp_args: test_cpp_args,
   link_args: test_link_args,
-  install: true,
+  install: false,
+  build_by_default: false,
 )
+
+test_env = environment()
+
+# libsomp.so 依赖 liblogging.so，需要将其 lib 目录加入搜索路径
+# 优先使用 pkg-config，失败则回退到默认查找方式（支持 Conan CMake 等）
+_liblogger_dep = dependency('liblogger', method: 'pkg-config', required: false)
+if not _liblogger_dep.found()
+  _liblogger_dep = dependency('liblogger', required: false)
+endif
+if _liblogger_dep.found()
+  _liblogger_libdir = _liblogger_dep.get_variable(pkgconfig: 'libdir', default_value: '')
+  if _liblogger_libdir == ''
+    _liblogger_libdir = _liblogger_dep.get_variable('libdir', default_value: '')
+  endif
+  if _liblogger_libdir != ''
+    message('liblogger libdir: ' + _liblogger_libdir)
+    test_env.prepend('LD_LIBRARY_PATH', _liblogger_libdir)
+  endif
+endif
 
 # 注册测试
 test(
   'libmcpp unit tests',
   test_exe,
-  depends: mock_dynamic_module,
-  timeout: 60,
+  env: test_env,
+  is_parallel: false,
+  timeout: 300,
 )

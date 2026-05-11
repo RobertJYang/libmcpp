@@ -7,15 +7,16 @@ project(
     'cpp_std=c++17',
     'libdir=lib',
     'cpp_args=-fPIC -Wall -Wno-unused-parameter -Wno-unused-variable -Wno-sign-compare -Wno-pedantic',
-    'default_library=static',
+    'default_library=shared',
   ],
-  subproject_dir: 'libraries',  # 指定子项目目录为 libraries
+  subproject_dir: 'libraries', # 指定子项目目录为 libraries
 )
 
 # 添加编译器选项
 add_project_arguments('-fvisibility=hidden', language: 'cpp')
 
 cpp_compiler = meson.get_compiler('cpp')
+fs = import('fs')
 if cpp_compiler.get_id() == 'clang'
   add_project_arguments('-Wno-#warnings', language: 'cpp')
 endif
@@ -42,9 +43,26 @@ endif
 
 meson_build = get_option('meson_build')
 build_tests = get_option('tests')
-tests_utilities = get_option('tests_utilities')
+build_examples = get_option('examples')
+build_test_utilities = build_tests or build_examples or get_option('tests_utilities')
 enable_coverage = get_option('enable_coverage')
 enable_conan_compile = get_option('enable_conan_compile')
+use_shm = get_option('use_shm')
+use_old_shm = get_option('use_old_shm')
+default_log_appenders_dir = get_option('default_log_appenders_dir')
+
+# 进程间通信架构由 use_shm（新 SHM）与 use_old_shm（旧 harbor/shm_tree 兼容）两个独立开关控制。
+# 顶层只做"互斥 + 透传"，运行时语义/skynet 依赖校验下沉到对应子工程：
+#   - mcengine 子工程使用 use_shm；
+#   - mcdbus / mcapp 子工程使用 use_old_shm；
+#   - mcdbus 子工程在 use_old_shm=true 时强校验 skynet 必须可用，否则 configure 报错。
+if use_shm and use_old_shm
+  error(
+    'use_shm 与 use_old_shm 互斥，不能同时为 true。',
+    '请二选一：-Duse_shm=true -Duse_old_shm=false（新架构，meson 默认）',
+    '或 -Duse_shm=false -Duse_old_shm=true（旧 dbus/shm 兼容，conan 默认）。',
+  )
+endif
 
 # 编译宏定义（必须在构建目标之前）
 add_project_arguments(
@@ -69,16 +87,60 @@ if enable_coverage
 endif
 
 # 依赖项
-boost_dep = dependency('boost', method: 'pkg-config', required: true)
-boost_program_options_dep = dependency(
-  'boost',
-  modules: ['program_options'],
-  method: 'pkg-config',
-  required: true,
-)
+boost_root = get_option('boost_root')
+if boost_root == ''
+  boost_root = run_command('sh', '-c', 'echo $BOOST_ROOT', check: false).stdout().strip()
+endif
 
-# 设置编译宏
-if meson.is_cross_build()
+if boost_root != ''
+  boost_include_dir = boost_root
+  if not cpp_compiler.has_header('boost/version.hpp', args: ['-I' + boost_include_dir], required: false)
+    boost_include_dir = boost_root / 'include'
+  endif
+  if not cpp_compiler.has_header('boost/version.hpp', args: ['-I' + boost_include_dir], required: false)
+    error('Boost headers not found in ' + boost_root)
+  endif
+  boost_dep = declare_dependency(compile_args: ['-I' + boost_include_dir])
+  message('使用 Boost: ' + boost_include_dir)
+else
+  boost_dep = dependency('boost', required: false)
+  if not boost_dep.found()
+    if not cpp_compiler.has_header('boost/version.hpp', required: false)
+      error('Boost headers not found')
+    endif
+    boost_dep = declare_dependency()
+  endif
+  message('使用系统 Boost')
+endif
+
+# 优先探测外部 liblogger/liblogging；探测不到时回退到工程内 stub。
+liblogger_optional_dep = dependency('liblogger', method: 'pkg-config', required: false)
+if not liblogger_optional_dep.found()
+  liblogger_optional_dep = dependency('liblogger', required: false)
+endif
+
+liblogging_filename = 'liblogging.so'
+if host_machine.system() == 'darwin'
+  liblogging_filename = 'liblogging.dylib'
+endif
+
+liblogging_path = ''
+if liblogger_optional_dep.found()
+  liblogger_libdir = liblogger_optional_dep.get_variable(pkgconfig: 'libdir', default_value: '')
+  if liblogger_libdir == ''
+    liblogger_libdir = liblogger_optional_dep.get_variable('libdir', default_value: '')
+  endif
+
+  if liblogger_libdir != ''
+    liblogging_candidate = join_paths(liblogger_libdir, liblogging_filename)
+    if fs.exists(liblogging_candidate)
+      liblogging_path = liblogging_candidate
+      message('检测到外部 logging 库: ' + liblogging_path)
+    endif
+  endif
+endif
+
+if liblogging_path == '' and (enable_conan_compile or meson.is_cross_build())
   current_buildtype = get_option('buildtype')
   if current_buildtype == 'debug'
     add_project_arguments('-DBUILD_TYPE=BUILD_TYPE_DEBUG', language: 'cpp')
@@ -86,16 +148,29 @@ if meson.is_cross_build()
     add_project_arguments('-DBUILD_TYPE=BUILD_TYPE_RELEASE', language: 'cpp')
   endif
   add_project_arguments('-DLOGGING_PATH="/usr/lib64/liblogging.so"', language: 'cpp')
+elif liblogging_path != ''
+  add_project_arguments('-DBUILD_TYPE=BUILD_TYPE_DT', language: 'cpp')
+  add_project_arguments('-DLOGGING_PATH="' + liblogging_path + '"', language: 'cpp')
 else
   add_project_arguments('-DBUILD_TYPE=BUILD_TYPE_DT', language: 'cpp')
   add_project_arguments('-DLOGGING_PATH=""', language: 'cpp')
-  test_log_dir = meson.current_build_dir() + '/log'
-  add_project_arguments('-DTEST_LOG_DIR="' + test_log_dir + '"', language: 'cpp')
+  message('未检测到外部 logging 库，回退到工程内 stub 实现')
 endif
 
 # 尝试使用 pkg-config 查找依赖
 dbus_dep = dependency('dbus-1', method: 'pkg-config', required: true)
 glib_dep = dependency('glib-2.0', method: 'pkg-config', required: true)
+sys_private_deps = []
+if meson.is_cross_build()
+  pcre2_dep = dependency('libpcre2-8', method: 'pkg-config', required: false)
+  systemd_dep = dependency('libsystemd', method: 'pkg-config', required: false)
+  if pcre2_dep.found()
+    sys_private_deps += pcre2_dep
+  endif
+  if systemd_dep.found()
+    sys_private_deps += systemd_dep
+  endif
+endif
 if enable_conan_compile
   openssl_dep = dependency('openssl', required: true)
 else
@@ -106,16 +181,15 @@ endif
 incdir = include_directories('include')
 srcdir = include_directories('src')
 
-# 定义 stub 目录（在子目录中使用）
-enable_conan_compile_global = get_option('enable_conan_compile')
-if not enable_conan_compile_global
+# stub 头目录（非 Conan 构建时用于占位缺失的外部接口）
+if not enable_conan_compile
   stubdir_global = include_directories('stub')
 else
   stubdir_global = []
 endif
 
 # 测试依赖
-if build_tests or tests_utilities
+if build_tests
   gtest_dep = dependency('gtest', method: 'pkg-config', required: true)
 endif
 
@@ -135,49 +209,166 @@ mcbase_dep = dependency(
   default_options: [
     'default_library=shared',
     'tests=' + build_tests.to_string(),
-    'tests_utilities=' + tests_utilities.to_string(),
+    'tests_utilities=' + build_test_utilities.to_string(),
     'securec=' + mcbase_securec_option,
+    'boost_root=' + boost_root,
   ],
   required: true,
 )
 # 获取 subproject 以访问其他变量（如 incdir, lib 等）
-# 注意：我们需要总是创建 subproject，因为我们需要访问其变量（如 mcbase_lib, mcbase_test_lib 等）
-# 即使 dependency 使用了系统依赖，我们仍然需要 subproject 来构建测试等
-mcbase_subproject = subproject('mcbase', default_options: [
-  'default_library=shared',
-  'tests=' + build_tests.to_string(),
-  'tests_utilities=' + tests_utilities.to_string(),
-  'meson_build=' + meson_build.to_string(),
-  'securec=' + mcbase_securec_option,
-])
+# 注意：我们需要总是创建 subproject，因为我们需要访问其变量（如 mcbase_lib 等）
+# 即使 dependency 使用了系统依赖，我们仍然需要 subproject 来构建测试辅助库等
+mcbase_subproject = subproject(
+  'mcbase',
+  default_options: [
+    'default_library=shared',
+    'tests=' + build_tests.to_string(),
+    'tests_utilities=' + build_test_utilities.to_string(),
+    'meson_build=' + meson_build.to_string(),
+    'securec=' + mcbase_securec_option,
+    'boost_root=' + boost_root,
+  ],
+)
 # 从子项目获取其他需要的变量
 mcbase_incdir = mcbase_subproject.get_variable('incdir')
 mcbase_lib = mcbase_subproject.get_variable('mcbase_lib')
-if build_tests
-  mcbase_test_lib = mcbase_subproject.get_variable('mcbase_test_lib')
-  mcbase_test_dep = mcbase_subproject.get_variable('mcbase_test_dep')
+
+mcengine_subproject = subproject(
+  'mcengine',
+  default_options: [
+    'default_library=shared',
+    'tests=' + build_tests.to_string(),
+    'tests_utilities=' + build_test_utilities.to_string(),
+    'enable_coverage=' + enable_coverage.to_string(),
+    'boost_root=' + boost_root,
+    'use_shm=' + use_shm.to_string(),
+  ],
+)
+mcengine_dep = mcengine_subproject.get_variable('mcengine_dep')
+mcengine_lib = mcengine_subproject.get_variable('mcengine_lib')
+
+log_appenders_subproject = subproject(
+  'log_appenders',
+  default_options: [
+    'meson_build=' + meson_build.to_string(),
+    'enable_conan_compile=' + enable_conan_compile.to_string(),
+    'tests=' + build_tests.to_string(),
+    'plugin_install_dir=' + default_log_appenders_dir,
+  ],
+)
+log_appenders_dep = log_appenders_subproject.get_variable('log_appenders_dep')
+
+mcexpr_subproject = subproject(
+  'mcexpr',
+  default_options: [
+    'default_library=shared',
+    'tests=' + build_tests.to_string(),
+    'enable_coverage=' + enable_coverage.to_string(),
+    'boost_root=' + boost_root,
+  ],
+)
+mcexpr_dep = mcexpr_subproject.get_variable('mcexpr_dep')
+mcexpr_lib = mcexpr_subproject.get_variable('mcexpr_lib')
+
+mcdbus_subproject = subproject(
+  'mcdbus',
+  default_options: [
+    'default_library=shared',
+    'tests=' + build_tests.to_string(),
+    'enable_coverage=' + enable_coverage.to_string(),
+    'enable_conan_compile=' + enable_conan_compile.to_string(),
+    'use_old_shm=' + use_old_shm.to_string(),
+  ],
+)
+mcdbus_dep = mcdbus_subproject.get_variable('mcdbus_dep')
+mcdbus_lib = mcdbus_subproject.get_variable('mcdbus_lib')
+mcdbus_internal_dep = mcdbus_subproject.get_variable('mcdbus_internal_dep')
+
+mcapp_subproject = subproject(
+  'mcapp',
+  default_options: [
+    'tests=' + build_tests.to_string(),
+    'tests_utilities=' + build_test_utilities.to_string(),
+    'enable_coverage=' + enable_coverage.to_string(),
+    'use_old_shm=' + use_old_shm.to_string(),
+    'default_log_appenders_dir=' + default_log_appenders_dir,
+  ],
+)
+mcapp_dep = mcapp_subproject.get_variable('mcapp_dep')
+mcapp_lib = mcapp_subproject.get_variable('mcapp_lib')
+
+# 一致性校验：subproject(default_options=...) 仅在子工程"首次加载"时生效，后续
+# `meson configure -Duse_shm=... -Duse_old_shm=...` 单独覆盖顶层选项时，子工程选项
+# 不会自动跟随。这里在所有子工程加载完后做一次硬校验，确保顶层 use_shm / use_old_shm
+# 与 mcengine:use_shm / mcdbus:use_old_shm / mcapp:use_old_shm 始终保持单一真相；
+# 任何错位都立刻 error，并指引用户用全 -D 显式覆盖或干脆 rm -rf builddir。
+mcengine_use_shm_actual = mcengine_subproject.get_variable('use_shm')
+mcdbus_use_old_shm_actual = mcdbus_subproject.get_variable('use_old_shm')
+mcapp_use_old_shm_actual = mcapp_subproject.get_variable('use_old_shm')
+mcbase_tests_actual = mcbase_subproject.get_variable('build_tests')
+mcengine_tests_actual = mcengine_subproject.get_variable('build_tests')
+mcexpr_tests_actual = mcexpr_subproject.get_variable('build_tests')
+mcdbus_tests_actual = mcdbus_subproject.get_variable('build_tests')
+mcapp_tests_actual = mcapp_subproject.get_variable('build_tests')
+if mcengine_use_shm_actual != use_shm or mcdbus_use_old_shm_actual != use_old_shm or mcapp_use_old_shm_actual != use_old_shm
+  error(
+    '顶层 use_shm / use_old_shm 与子工程实际值不一致：',
+    '顶层 use_shm=' + use_shm.to_string() + '，use_old_shm=' + use_old_shm.to_string(),
+    'mcengine:use_shm=' + mcengine_use_shm_actual.to_string() + '（期望 ' + use_shm.to_string() + '）',
+    'mcdbus:use_old_shm=' + mcdbus_use_old_shm_actual.to_string() + '（期望 ' + use_old_shm.to_string() + '）',
+    'mcapp:use_old_shm=' + mcapp_use_old_shm_actual.to_string() + '（期望 ' + use_old_shm.to_string() + '）',
+    '原因：subproject default_options 不会在 reconfigure 时重新下发。',
+    '解决：要么 rm -rf builddir 重新 setup；要么显式同时设置全部子选项，例如：',
+    '  meson configure builddir -Duse_shm=' + use_shm.to_string() + ' -Duse_old_shm=' + use_old_shm.to_string()
+    + ' -Dmcengine:use_shm=' + use_shm.to_string()
+    + ' -Dmcdbus:use_old_shm=' + use_old_shm.to_string()
+    + ' -Dmcapp:use_old_shm=' + use_old_shm.to_string(),
+  )
+endif
+if build_tests and (
+  not mcbase_tests_actual or
+  not mcengine_tests_actual or
+  not mcexpr_tests_actual or
+  not mcdbus_tests_actual or
+  not mcapp_tests_actual
+)
+  error(
+    '顶层 tests=true，但至少一个子工程 tests 仍为 false，meson test 将不会运行完整子模块测试：',
+    'mcbase:tests=' + mcbase_tests_actual.to_string(),
+    'mcengine:tests=' + mcengine_tests_actual.to_string(),
+    'mcexpr:tests=' + mcexpr_tests_actual.to_string(),
+    'mcdbus:tests=' + mcdbus_tests_actual.to_string(),
+    'mcapp:tests=' + mcapp_tests_actual.to_string(),
+    '原因：subproject default_options 不会在 reconfigure 时重新下发。',
+    '解决：要么 rm -rf builddir 重新 setup；要么显式同时设置全部子选项，例如：',
+    '  meson configure builddir -Dtests=true'
+    + ' -Dmcbase:tests=true'
+    + ' -Dmcengine:tests=true'
+    + ' -Dmcexpr:tests=true'
+    + ' -Dmcdbus:tests=true'
+    + ' -Dmcapp:tests=true',
+  )
+endif
+if build_test_utilities
   mcbase_test_utilities_dep = mcbase_subproject.get_variable('test_utilities_dep')
-  mock_dynamic_module = mcbase_subproject.get_variable('mock_dynamic_module')
-elif tests_utilities
-  # 只需要测试工具库，不需要测试库本身
-  mcbase_test_lib = []
-  mcbase_test_dep = declare_dependency()  # 空依赖
-  mcbase_test_utilities_dep = mcbase_subproject.get_variable('test_utilities_dep')
-  mock_dynamic_module = []  # 空列表
+  mcengine_test_utilities_dep = mcengine_subproject.get_variable('mcengine_test_utilities_dep')
+  mcapp_test_utilities_dep = mcapp_subproject.get_variable('mcapp_test_utilities_dep')
+  test_utilities_dep = declare_dependency(
+    dependencies: [
+      mcbase_test_utilities_dep,
+      mcengine_test_utilities_dep,
+      mcapp_test_utilities_dep,
+    ],
+  )
 else
-  mcbase_test_lib = []
-  mcbase_test_dep = declare_dependency()  # 空依赖
-  mcbase_test_utilities_dep = declare_dependency()  # 空依赖
-  mock_dynamic_module = []  # 空列表
+  test_utilities_dep = declare_dependency()
 endif
 
 subdir('include')
 subdir('src')
-subdir('modules')
-subdir('tests/test_utilities')
+if build_examples
+  subdir('examples')
+endif
 if build_tests
-  if meson_build
-    subdir('examples')
-  endif
   subdir('tests')
 endif

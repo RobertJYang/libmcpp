@@ -15,6 +15,7 @@
 
 #include <mc/db/common.h>
 #include <mc/db/key.h>
+#include <mc/reflect.h>
 
 #include <functional>
 #include <string>
@@ -46,7 +47,7 @@ struct key_extractor_traits;
  * @tparam KeyType 键类型
  * @tparam Member 成员变量指针
  */
-template <typename ObjectType, typename KeyType, KeyType ObjectType::*Member>
+template <typename ObjectType, typename KeyType, KeyType ObjectType::* Member>
 class member_key {
 public:
     using object_type                     = ObjectType;
@@ -98,10 +99,10 @@ public:
      * 获取字段名称
      * @return 字段名称列表
      */
-    static std::vector<std::string> get_field_names()
+    static std::vector<mc::string> get_field_names()
     {
         if constexpr (mc::reflect::is_reflectable<ObjectType>()) {
-            return {std::string(mc::reflect::get_property_name<ObjectType>(Member))};
+            return {mc::string(mc::reflect::get_property_name<ObjectType>(Member))};
         } else {
             return {};
         }
@@ -166,11 +167,11 @@ public:
      * 获取字段名称列表
      * @return 字段名称列表
      */
-    static std::vector<std::string> get_field_names()
+    static std::vector<mc::string> get_field_names()
     {
         if constexpr (mc::reflect::is_reflectable<ObjectType>()) {
             auto* method = mc::reflect::get_method_info<ObjectType>(MemberFn);
-            return method ? std::vector<std::string>{std::string(method->name)} : std::vector<std::string>{};
+            return method ? std::vector<mc::string>{mc::string(method->name)} : std::vector<mc::string>{};
         } else {
             return {};
         }
@@ -242,7 +243,7 @@ public:
      * 获取字段名称列表
      * @return 字段名称列表
      */
-    static std::vector<std::string> get_field_names()
+    static std::vector<mc::string> get_field_names()
     {
         return {};
     }
@@ -320,9 +321,9 @@ public:
      * 获取字段名称列表
      * @return 字段名称列表
      */
-    static std::vector<std::string> get_field_names()
+    static std::vector<mc::string> get_field_names()
     {
-        std::vector<std::string> names;
+        std::vector<mc::string> names;
         get_field_names_impl(names, std::index_sequence_for<Extractors...>());
         return names;
     }
@@ -373,7 +374,7 @@ private:
      * @param indices 编译期索引序列
      */
     template <size_t... I>
-    static void get_field_names_impl(std::vector<std::string>& names, std::index_sequence<I...>)
+    static void get_field_names_impl(std::vector<mc::string>& names, std::index_sequence<I...>)
     {
         (append_field_names<I>(names), ...);
     }
@@ -383,13 +384,13 @@ private:
      * @param names 字段名称列表
      */
     template <size_t I>
-    static void append_field_names(std::vector<std::string>& names)
+    static void append_field_names(std::vector<mc::string>& names)
     {
         using extractor_type = std::tuple_element_t<I, std::tuple<Extractors...>>;
         auto extractor_names = extractor_type::get_field_names();
         if (extractor_names.empty()) {
-            using key_type   = typename extractor_type::key_type;
-            std::string name = mc::pretty_name<key_type>();
+            using key_type  = typename extractor_type::key_type;
+            mc::string name = mc::pretty_name<key_type>();
             name += "_";
             name += std::to_string(I);
             names.emplace_back(std::move(name));
@@ -402,7 +403,7 @@ private:
 /**
  * 键提取器特性萃取类，成员变量版本
  */
-template <typename ObjectType, typename KeyType, KeyType ObjectType::*Member>
+template <typename ObjectType, typename KeyType, KeyType ObjectType::* Member>
 struct key_extractor_traits<member_key<ObjectType, KeyType, Member>> {
     using object_type    = ObjectType;
     using key_type       = KeyType;
@@ -506,7 +507,7 @@ public:
      * 获取字段名称
      * @return 字段名称
      */
-    static std::vector<std::string> get_field_names()
+    static std::vector<mc::string> get_field_names()
     {
         return {"object_id"};
     }
@@ -532,7 +533,7 @@ struct key_extractor_traits<object_id_key<ObjectType>> {
  * @tparam Member 成员变量指针
  * @return 键提取器
  */
-template <typename ObjectType, typename KeyType, KeyType ObjectType::*Member>
+template <typename ObjectType, typename KeyType, KeyType ObjectType::* Member>
 auto make_key()
 {
     return detail::member_key<ObjectType, KeyType, Member>();

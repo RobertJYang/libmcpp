@@ -203,9 +203,9 @@ std::size_t io_stream::read(void* data, std::size_t length)
     return result;
 }
 
-std::string_view io_stream::read(std::size_t length)
+mc::string_view io_stream::read(std::size_t length)
 {
-    std::string_view result = m_buffer->read(m_read_pos, length);
+    mc::string_view result = m_buffer->read(m_read_pos, length);
     m_read_pos += length;
     return result;
 }
@@ -217,9 +217,9 @@ std::size_t io_stream::read_some(void* data, std::size_t length)
     return result;
 }
 
-std::string_view io_stream::read_some(std::size_t length)
+mc::string_view io_stream::read_some(std::size_t length)
 {
-    std::string_view result = m_buffer->read_some(m_read_pos, length);
+    mc::string_view result = m_buffer->read_some(m_read_pos, length);
     m_read_pos += length;
     return result;
 }
@@ -233,9 +233,9 @@ bool io_stream::try_read(void* data, std::size_t length)
     return false;
 }
 
-std::string_view io_stream::try_read(std::size_t length)
+mc::string_view io_stream::try_read(std::size_t length)
 {
-    std::string_view result = m_buffer->try_read(m_read_pos, length);
+    mc::string_view result = m_buffer->try_read(m_read_pos, length);
     if (result.empty()) {
         return {};
     }
@@ -252,7 +252,7 @@ std::size_t io_stream::write(const void* data, std::size_t length)
     return length;
 }
 
-std::size_t io_stream::write(std::string_view str)
+std::size_t io_stream::write(mc::string_view str)
 {
     return write(str.data(), str.size());
 }
@@ -346,7 +346,7 @@ void io_stream::ensure_writable() const
     }
 }
 
-std::string_view io_stream::peek(std::size_t max_length) const
+mc::string_view io_stream::peek(std::size_t max_length) const
 {
     std::size_t length = std::min(readable_bytes(), max_length);
     if (length == 0) {
@@ -354,15 +354,15 @@ std::string_view io_stream::peek(std::size_t max_length) const
     }
 
     auto data = m_buffer->data() + m_read_pos;
-    return std::string_view(reinterpret_cast<const char*>(data), std::min(length, max_length));
+    return mc::string_view(reinterpret_cast<const char*>(data), std::min(length, max_length));
 }
 
-std::string_view io_stream::get_data() const
+mc::string_view io_stream::get_data() const
 {
-    return std::string_view(reinterpret_cast<const char*>(m_buffer->data()), m_buffer->length());
+    return mc::string_view(reinterpret_cast<const char*>(m_buffer->data()), m_buffer->length());
 }
 
-std::string_view io_stream::get_writeable_data(std::size_t min_length)
+mc::string_view io_stream::get_writeable_data(std::size_t min_length)
 {
     if (m_read_pos == m_write_pos) {
         m_read_pos  = 0;

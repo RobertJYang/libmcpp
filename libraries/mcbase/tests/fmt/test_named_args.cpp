@@ -18,15 +18,16 @@ using namespace mc::fmt;
 
 class named_args_test : public testing::Test {
 protected:
-    void SetUp() override {
-    }
+    void SetUp() override
+    {}
 
-    void TearDown() override {
-    }
+    void TearDown() override
+    {}
 };
 
 // 测试基本的命名参数功能
-TEST(named_args, basic_named_args) {
+TEST(named_args, basic_named_args)
+{
     using namespace mc::fmt;
 
     // 测试 ${name} 语法
@@ -43,7 +44,8 @@ TEST(named_args, basic_named_args) {
 }
 
 // 测试错误处理
-TEST(named_args, error_handling) {
+TEST(named_args, error_handling)
+{
     using namespace mc::fmt;
 
     // 命名参数名称不能为空
@@ -60,14 +62,12 @@ TEST(named_args, error_handling) {
 }
 
 // 测试嵌套{}处理
-TEST(named_args, nested_braces) {
+TEST(named_args, nested_braces)
+{
     using namespace mc::fmt;
 
     // 测试命名参数中的动态格式说明符
-    auto result1 = sformat("${value:{width}.{precision}f}",
-                           ("value", 3.14159),
-                           ("width", 8),
-                           ("precision", 3));
+    auto result1 = sformat("${value:{width}.{precision}f}", ("value", 3.14159), ("width", 8), ("precision", 3));
     EXPECT_EQ(result1, "   3.142");
 
     // 测试位置参数中的动态格式说明符
@@ -80,32 +80,46 @@ TEST(named_args, nested_braces) {
 }
 
 // 测试带格式规范的命名参数
-TEST_F(named_args_test, test_named_args_with_format_spec) {
-    auto result = sformat("${name} has ${balance:.2f} dollars",
-                          ("name", "David"),
-                          ("balance", 123.456));
+TEST_F(named_args_test, test_named_args_with_format_spec)
+{
+    auto result = sformat("${name} has ${balance:.2f} dollars", ("name", "David"), ("balance", 123.456));
     EXPECT_EQ(result, "David has 123.46 dollars");
 }
 
 // 测试多种数据类型
-TEST_F(named_args_test, test_various_types) {
-    auto result = sformat("${name}: int=${int_val}, float=${float_val:.1f}, bool=${bool_val}",
-                          ("name", "Types"),
-                          ("int_val", 42),
-                          ("float_val", 3.14159),
-                          ("bool_val", true));
+TEST_F(named_args_test, test_various_types)
+{
+    auto result = sformat("${name}: int=${int_val}, float=${float_val:.1f}, bool=${bool_val}", ("name", "Types"),
+                          ("int_val", 42), ("float_val", 3.14159), ("bool_val", true));
     EXPECT_EQ(result, "Types: int=42, float=3.1, bool=true");
 }
 
 // 测试字符串类型
-TEST_F(named_args_test, test_string_types) {
-    std::string std_str = "std::string";
+TEST_F(named_args_test, test_string_types)
+{
+    mc::string  std_str = "mc::string";
     const char* c_str   = "C string";
 
-    auto result = sformat("${std_str} and ${c_str}",
-                          ("std_str", std_str),
-                          ("c_str", c_str));
-    EXPECT_EQ(result, "std::string and C string");
+    auto result = sformat("${std_str} and ${c_str}", ("std_str", std_str), ("c_str", c_str));
+    EXPECT_EQ(result, "mc::string and C string");
+}
+
+TEST_F(named_args_test, test_std_string_named_values)
+{
+    std::string      std_str  = "std::string";
+    std::string_view std_view = "std::string_view";
+
+    auto result = sformat("${std_str} and ${std_view}", ("std_str", std_str), ("std_view", std_view));
+    EXPECT_EQ(result, "std::string and std::string_view");
+}
+
+TEST_F(named_args_test, test_std_string_named_values_preserve_embedded_null)
+{
+    std::string      std_str("ab\0cd", 5);
+    std::string_view std_view(std_str.data(), std_str.size());
+
+    auto result = sformat("${std_str}|${std_view}", ("std_str", std_str), ("std_view", std_view));
+    EXPECT_EQ(result.view(), mc::string_view("ab\0cd|ab\0cd", 11));
 }
 
 // // 测试指针类型
@@ -115,17 +129,19 @@ TEST_F(named_args_test, test_string_types) {
 
 //     // 指针地址会变化，所以只检查格式是否正确
 //     EXPECT_TRUE(result.find("Value at ") == 0);
-//     EXPECT_TRUE(result.find("0x") != std::string::npos || result.find("0X") != std::string::npos);
+//     EXPECT_TRUE(result.find("0x") != mc::string::npos || result.find("0X") != mc::string::npos);
 // }
 
 // 测试字符类型
-TEST_F(named_args_test, test_char_type) {
+TEST_F(named_args_test, test_char_type)
+{
     auto result = sformat("Character: ${ch}", ("ch", 'A'));
     EXPECT_EQ(result, "Character: A");
 }
 
 // 测试转义
-TEST_F(named_args_test, test_escaped_braces) {
+TEST_F(named_args_test, test_escaped_braces)
+{
     auto result = sformat("{{name}} is ${name}", ("name", "literal"));
     EXPECT_EQ(result, "{name} is literal");
 
@@ -138,7 +154,8 @@ TEST_F(named_args_test, test_escaped_braces) {
     EXPECT_FALSE(not_ok);
 }
 
-TEST_F(named_args_test, test_nocopyable) {
+TEST_F(named_args_test, test_nocopyable)
+{
     using namespace mc::fmt;
 
     // 测试不可拷贝类型用作命名参数
@@ -161,7 +178,8 @@ TEST_F(named_args_test, test_nocopyable) {
 }
 
 // 测试命名和非命名参数混合格式
-TEST_F(named_args_test, test_mixed_format) {
+TEST_F(named_args_test, test_mixed_format)
+{
     auto result = sformat("${name} has ${balance:.2f} dollars, " // 命名参数
                           "{2} has {3:.2f} dollars, "            // 显示位置参数
                           "{} has {:.2f} dollars, "              // 隐式位置参数

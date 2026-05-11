@@ -17,7 +17,7 @@
 #include <functional>
 #include <gtest/gtest.h>
 #include <mc/reflect.h>
-#include <mc/signal_slot.h>
+#include <mc/signal/signal.h>
 #include <mc/variant.h>
 #include <string>
 
@@ -36,9 +36,9 @@ template <typename C, typename Signature>
 struct signal_info : public mc::reflect::member_info_base {
     using tag_type = mc::reflect::signal_tag;
 
-    mc::signal<Signature> C::*signal_ptr;
+    mc::signal<Signature> C::* signal_ptr;
 
-    constexpr signal_info(std::string_view n, mc::signal<Signature> C::*ptr)
+    constexpr signal_info(mc::string_view n, mc::signal<Signature> C::* ptr)
         : mc::reflect::member_info_base(n), signal_ptr(ptr)
     {}
 
@@ -46,7 +46,7 @@ struct signal_info : public mc::reflect::member_info_base {
     {
         return typeid(mc::signal<Signature>);
     }
-    std::string_view type_name() const override
+    mc::string_view type_name() const override
     {
         return "signal";
     }
@@ -71,12 +71,12 @@ class TestValue {
 public:
     MC_REFLECTABLE("test_custom_member_info.TestValue");
 
-    std::string m_name;
-    int         m_value;
+    mc::string m_name;
+    int        m_value;
 
     // 信号成员（无法被转换成 mc::variant）
-    mc::signal<void(int)>                value_changed;
-    mc::signal<void(const std::string&)> name_changed;
+    mc::signal<void(int)>               value_changed;
+    mc::signal<void(const mc::string&)> name_changed;
 
     // 普通方法
     void set_value(int v)
@@ -87,7 +87,7 @@ public:
         }
     }
 
-    void set_name(const std::string& n)
+    void set_name(const mc::string& n)
     {
         if (m_name != n) {
             m_name = n;
@@ -106,7 +106,7 @@ namespace mc::reflect {
 
 template <typename Signature>
 struct member_info_creator<TestValue, mc::signal<Signature>> {
-    static constexpr auto create(mc::signal<Signature> TestValue::*member_ptr, std::string_view name)
+    static constexpr auto create(mc::signal<Signature> TestValue::* member_ptr, mc::string_view name)
     {
         return std::make_tuple(signal_info<TestValue, Signature>{name, member_ptr});
     }

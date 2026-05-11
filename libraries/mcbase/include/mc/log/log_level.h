@@ -13,10 +13,9 @@
 #ifndef MC_LOG_LEVEL_H
 #define MC_LOG_LEVEL_H
 
-#include <cctype>
 #include <cstdint>
+#include <mc/string_utils.h>
 #include <optional>
-#include <string>
 #include <string_view>
 
 namespace mc {
@@ -56,31 +55,31 @@ enum class level {
  * @brief 获取日志级别的字符串表示
  *
  * @param lvl 日志级别
- * @return std::string 日志级别的字符串表示
+ * @return mc::string_view 日志级别的字符串表示
  */
-inline std::string_view to_string(level lvl)
+inline mc::string_view to_string(level lvl)
 {
     switch (lvl) {
         case level::all:
-            return "ALL";
+            return mc::string_view("ALL");
         case level::trace:
-            return "TRACE";
+            return mc::string_view("TRACE");
         case level::debug:
-            return "DEBUG";
+            return mc::string_view("DEBUG");
         case level::info:
-            return "INFO";
+            return mc::string_view("INFO");
         case level::notice:
-            return "NOTICE";
+            return mc::string_view("NOTICE");
         case level::warn:
-            return "WARN";
+            return mc::string_view("WARN");
         case level::error:
-            return "ERROR";
+            return mc::string_view("ERROR");
         case level::fatal:
-            return "FATAL";
+            return mc::string_view("FATAL");
         case level::off:
-            return "OFF";
+            return mc::string_view("OFF");
         default:
-            return "UNKNOWN";
+            return mc::string_view("UNKNOWN");
     }
 }
 
@@ -88,46 +87,66 @@ inline std::string_view to_string(level lvl)
  * @brief 将字符串转换为日志级别（大小写不敏感）
  *
  * @param name 日志级别名称
- * @return std::optional<level> 转换成功返回对应级别，失败返回std::nullopt
+ * @param result 转换成功时写入对应级别
+ * @return 转换成功返回 true，否则返回 false
  */
-inline std::optional<level> to_level(std::string_view name)
+inline bool try_to_level(mc::string_view name, level& result)
 {
     if (name.empty()) {
-        return std::nullopt;
+        return false;
     }
 
-    std::string normalized;
-    normalized.reserve(name.size());
-    for (char ch : name) {
-        normalized.push_back(static_cast<char>(std::toupper(static_cast<unsigned char>(ch))));
+    if (mc::strings::iequals(mc::string_view(name), "ALL")) {
+        result = level::all;
+        return true;
+    }
+    if (mc::strings::iequals(mc::string_view(name), "TRACE")) {
+        result = level::trace;
+        return true;
+    }
+    if (mc::strings::iequals(mc::string_view(name), "DEBUG")) {
+        result = level::debug;
+        return true;
+    }
+    if (mc::strings::iequals(mc::string_view(name), "INFO")) {
+        result = level::info;
+        return true;
+    }
+    if (mc::strings::iequals(mc::string_view(name), "NOTICE")) {
+        result = level::notice;
+        return true;
+    }
+    if (mc::strings::iequals(mc::string_view(name), "WARN") || mc::strings::iequals(mc::string_view(name), "WARNING")) {
+        result = level::warn;
+        return true;
+    }
+    if (mc::strings::iequals(mc::string_view(name), "ERROR")) {
+        result = level::error;
+        return true;
+    }
+    if (mc::strings::iequals(mc::string_view(name), "FATAL")) {
+        result = level::fatal;
+        return true;
+    }
+    if (mc::strings::iequals(mc::string_view(name), "OFF")) {
+        result = level::off;
+        return true;
     }
 
-    if (normalized == "ALL") {
-        return level::all;
-    }
-    if (normalized == "TRACE") {
-        return level::trace;
-    }
-    if (normalized == "DEBUG") {
-        return level::debug;
-    }
-    if (normalized == "INFO") {
-        return level::info;
-    }
-    if (normalized == "NOTICE") {
-        return level::notice;
-    }
-    if (normalized == "WARN" || normalized == "WARNING") {
-        return level::warn;
-    }
-    if (normalized == "ERROR") {
-        return level::error;
-    }
-    if (normalized == "FATAL") {
-        return level::fatal;
-    }
-    if (normalized == "OFF") {
-        return level::off;
+    return false;
+}
+
+/**
+ * @brief 兼容旧接口，将字符串转换为日志级别（大小写不敏感）
+ *
+ * @param name 日志级别名称
+ * @return std::optional<level> 转换成功返回对应级别，失败返回 std::nullopt
+ */
+inline std::optional<level> to_level(mc::string_view name)
+{
+    level result = level::all;
+    if (try_to_level(mc::string_view(name), result)) {
+        return result;
     }
 
     return std::nullopt;

@@ -22,14 +22,15 @@
 #include <vector>
 
 #include <algorithm>
+#include <functional>
 #include <map>
 #include <memory>
 #include <mutex>
 #include <stdexcept>
 #include <unordered_map>
 
-#include <mc/intrusive/intrusive.h>
 #include <mc/memory.h>
+#include <mc/quark.h>
 #include <mc/variant/variant_common.h>
 
 namespace mc {
@@ -56,8 +57,9 @@ struct data_t;
  *       修改共享数据会影响所有共享该数据的对象。
  *
  * @note
- * 此类使用侵入式容器实现，有序索引部分用的是list，通过键查找元素的性能较好，但随机索引访问（如
- * at_index(index)） 的性能较慢，时间复杂度为 O(n)。如果需要顺序访问所有元素，强烈建议使用迭代器
+ * 此类内部同时维护插入顺序链表、基于 Robin Hood 的键索引，以及懒构建的顺序缓存。
+ * 键查找通常是接近 O(1) 的哈希查找；at_index(index) / find_index() 在顺序缓存有效时可接近 O(1)，
+ * 但在缓存失效后的首次访问需要 O(n) 重建顺序缓存。如果需要顺序访问所有元素，强烈建议使用迭代器
  *       （begin()/end()）而不是索引，以获得更好的性能。例如：
  *
  *       // 低效的遍历方式（不推荐）
@@ -183,7 +185,8 @@ public:
      * @return 返回自身引用
      */
     template <typename K, typename T>
-    dict& operator=(std::initializer_list<std::pair<K, T>> init) {
+    dict& operator=(std::initializer_list<std::pair<K, T>> init)
+    {
         dict new_dict(init);
         *this = std::move(new_dict);
         return *this;
@@ -208,39 +211,75 @@ public:
      * @note 如果键不存在，会自动创建
      * @note 此操作可能会修改共享数据，影响所有共享该数据的对象
      */
-    variant& operator[](const std::string& key);
-    variant& operator[](std::string_view key);
+    variant& operator[](const mc::string& key);
+    variant& operator[](mc::string_view key);
+    variant& operator[](const std::string& key)
+    {
+        return (*this)[mc::string_view(key.data(), key.size())];
+    }
+    variant& operator[](std::string_view key)
+    {
+        return (*this)[mc::string_view(key.data(), key.size())];
+    }
     variant& operator[](const char* key);
     variant& operator[](int key);     // 支持整数键，避免 int 转换为 const char*
     variant& operator[](int64_t key); // 支持整数键
     variant& operator[](const variant& key);
+    variant& operator[](mc::quark key);
 
     /**
      * @brief 获取指定键的值（const 版本）
      * @throw std::out_of_range 如果键不存在
      */
-    const variant& operator[](const std::string& key) const;
-    const variant& operator[](std::string_view key) const;
+    const variant& operator[](const mc::string& key) const;
+    const variant& operator[](mc::string_view key) const;
+    const variant& operator[](const std::string& key) const
+    {
+        return (*this)[mc::string_view(key.data(), key.size())];
+    }
+    const variant& operator[](std::string_view key) const
+    {
+        return (*this)[mc::string_view(key.data(), key.size())];
+    }
     const variant& operator[](const char* key) const;
     const variant& operator[](int key) const;     // 支持整数键，避免 int 转换为 const char*
     const variant& operator[](int64_t key) const; // 支持整数键
     const variant& operator[](const variant& key) const;
+    const variant& operator[](mc::quark key) const;
     /**
      * @brief 获取指定键的值，如果不存在则返回默认值
      */
-    const variant& get(const std::string& key, const variant& default_value) const;
-    const variant& get(std::string_view key, const variant& default_value) const;
+    const variant& get(const mc::string& key, const variant& default_value) const;
+    const variant& get(mc::string_view key, const variant& default_value) const;
+    const variant& get(const std::string& key, const variant& default_value) const
+    {
+        return get(mc::string_view(key.data(), key.size()), default_value);
+    }
+    const variant& get(std::string_view key, const variant& default_value) const
+    {
+        return get(mc::string_view(key.data(), key.size()), default_value);
+    }
     const variant& get(const char* key, const variant& default_value) const;
     const variant& get(const variant& key, const variant& default_value) const;
+    const variant& get(mc::quark key, const variant& default_value) const;
     /**
      * @brief 判断是否包含指定键
      */
-    bool contains(const std::string& key) const;
-    bool contains(std::string_view key) const;
+    bool contains(const mc::string& key) const;
+    bool contains(mc::string_view key) const;
+    bool contains(const std::string& key) const
+    {
+        return contains(mc::string_view(key.data(), key.size()));
+    }
+    bool contains(std::string_view key) const
+    {
+        return contains(mc::string_view(key.data(), key.size()));
+    }
     bool contains(const char* key) const;
     bool contains(int key) const;     // 支持整数键，避免 int 转换为 const char*
     bool contains(int64_t key) const; // 支持整数键
     bool contains(const variant& key) const;
+    bool contains(mc::quark key) const;
 
     /**
      * @brief 获取键值对数量
@@ -257,10 +296,19 @@ public:
      * @return 如果键存在并被移除则返回 true，否则返回 false
      * @note 此操作会修改共享数据，影响所有共享该数据的对象
      */
-    bool erase(const std::string& key);
-    bool erase(std::string_view key);
+    bool erase(const mc::string& key);
+    bool erase(mc::string_view key);
+    bool erase(const std::string& key)
+    {
+        return erase(mc::string_view(key.data(), key.size()));
+    }
+    bool erase(std::string_view key)
+    {
+        return erase(mc::string_view(key.data(), key.size()));
+    }
     bool erase(const char* key);
     bool erase(const variant& key);
+    bool erase(mc::quark key);
 
     /**
      * @brief 清空所有键值对
@@ -313,29 +361,56 @@ public:
      * @brief 获取指定键的值（可变）
      * @throw std::out_of_range 如果键不存在
      */
-    variant& at(const std::string& key);
-    variant& at(std::string_view key);
+    variant& at(const mc::string& key);
+    variant& at(mc::string_view key);
+    variant& at(const std::string& key)
+    {
+        return at(mc::string_view(key.data(), key.size()));
+    }
+    variant& at(std::string_view key)
+    {
+        return at(mc::string_view(key.data(), key.size()));
+    }
     variant& at(const char* key);
     variant& at(const variant& key);
+    variant& at(mc::quark key);
 
     /**
      * @brief 获取指定键的值（const 版本）
      * @throw std::out_of_range 如果键不存在
      */
-    const variant& at(const std::string& key) const;
-    const variant& at(std::string_view key) const;
+    const variant& at(const mc::string& key) const;
+    const variant& at(mc::string_view key) const;
+    const variant& at(const std::string& key) const
+    {
+        return at(mc::string_view(key.data(), key.size()));
+    }
+    const variant& at(std::string_view key) const
+    {
+        return at(mc::string_view(key.data(), key.size()));
+    }
     const variant& at(const char* key) const;
     const variant& at(const variant& key) const;
     const variant& at(std::size_t index) const;
+    const variant& at(mc::quark key) const;
 
     /**
      * @brief 查找键的索引位置
      * @return 键的索引位置，如果不存在则返回 -1
      */
-    int find_index(const std::string& key) const;
-    int find_index(std::string_view key) const;
+    int find_index(const mc::string& key) const;
+    int find_index(mc::string_view key) const;
+    int find_index(const std::string& key) const
+    {
+        return find_index(mc::string_view(key.data(), key.size()));
+    }
+    int find_index(std::string_view key) const
+    {
+        return find_index(mc::string_view(key.data(), key.size()));
+    }
     int find_index(const char* key) const;
     int find_index(const variant& key) const;
+    int find_index(mc::quark key) const;
     /**
      * @brief 比较两个 dict 对象是否相等
      * @param other 要比较的 dict 对象
@@ -371,16 +446,22 @@ public:
      * @param key 要查找的键
      * @return 指向找到元素的迭代器，如果不存在则返回 end()
      */
+    iterator       find(const mc::string& key);
+    iterator       find(mc::string_view key);
     iterator       find(const std::string& key);
     iterator       find(std::string_view key);
     iterator       find(const char* key);
     iterator       find(const variant& key);
+    iterator       find(mc::quark key);
+    const_iterator find(const mc::string& key) const;
+    const_iterator find(mc::string_view key) const;
     const_iterator find(const std::string& key) const;
     const_iterator find(std::string_view key) const;
     const_iterator find(const char* key) const;
     const_iterator find(const variant& key) const;
     const_iterator find(std::size_t index) const;
-    std::string    to_string() const;
+    const_iterator find(mc::quark key) const;
+    mc::string     to_string() const;
 
     /**
      * @brief 获取数据指针
@@ -397,7 +478,8 @@ public:
      * @return dict 对象
      * @note 此方法主要用于 Weak<dict> 的 lock() 实现
      */
-    static dict from_data(mc::shared_ptr<data_t> data) {
+    static dict from_data(mc::shared_ptr<data_t> data)
+    {
         dict result;
         result.m_data = std::move(data);
         return result;
@@ -451,10 +533,9 @@ public:
      * @param last 结束迭代器
      */
     template <typename InputIt>
-    auto insert(InputIt first, InputIt last)
-        -> std::enable_if_t<
-            is_variant_constructible_v<typename std::iterator_traits<InputIt>::value_type::first_type> &&
-            is_variant_constructible_v<typename std::iterator_traits<InputIt>::value_type::second_type>>;
+    auto insert(InputIt first, InputIt last) -> std::enable_if_t<
+        is_variant_constructible_v<typename std::iterator_traits<InputIt>::value_type::first_type> &&
+        is_variant_constructible_v<typename std::iterator_traits<InputIt>::value_type::second_type>>;
 
     /**
      * @brief 插入初始化列表
@@ -470,6 +551,12 @@ public:
      */
     template <typename K, typename V>
     void insert(std::initializer_list<std::pair<K, V>> ilist);
+
+    /**
+     * @brief 为指定数量的元素预留空间
+     * @param count 预期元素数量
+     */
+    void reserve(std::size_t count);
 
     /**
      * @brief 尝试原地创建并插入元素
@@ -539,14 +626,17 @@ protected:
      * @brief 查找指定键的元素
      * @return 指向找到的元素的指针，如果不存在则返回 nullptr
      */
-    entry*       find_entry(const std::string& key);
-    entry*       find_entry(std::string_view key);
+    entry*       find_entry(const mc::string& key);
+    entry*       find_entry(mc::string_view key);
     entry*       find_entry(const char* key);
     entry*       find_entry(const variant& key);
-    const entry* find_entry(const std::string& key) const;
-    const entry* find_entry(std::string_view key) const;
+    const entry* find_entry(const mc::string& key) const;
+    const entry* find_entry(mc::string_view key) const;
     const entry* find_entry(const char* key) const;
     const entry* find_entry(const variant& key) const;
+    // 复用调用方已有的 hash_code（如 quark.hash()），省一次 mc::string_hash
+    entry*       find_entry(mc::string_view key, std::size_t hash_code);
+    const entry* find_entry(mc::string_view key, std::size_t hash_code) const;
     /**
      * @brief 计算指定元素在列表中的索引位置
      * @param e 要计算索引的元素指针
@@ -570,4 +660,18 @@ MC_API variant to_variant(const dict& d);
 // 将 variant 实现相关的代码放到单独的文件中
 // 实现细节移到 dict.cpp 中，避免循环依赖
 
-#endif // MC_DICT_H
+#if !defined(MC_DICT_DEFER_ENTRY) && !defined(MC_DICT_ENTRY_H)
+#include <mc/dict/dict_inl.h>
+#endif
+
+namespace std {
+template <>
+struct hash<mc::dict> {
+    size_t operator()(const mc::dict& d) const
+    {
+        return d.hash();
+    }
+};
+} // namespace std
+
+#endif // MC_DICT_DICT_H

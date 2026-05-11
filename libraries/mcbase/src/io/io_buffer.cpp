@@ -386,13 +386,13 @@ std::size_t io_buffer::write(const void* data, std::size_t length)
     return length;
 }
 
-std::string_view io_buffer::read(std::size_t offset, std::size_t length) const
+mc::string_view io_buffer::read(std::size_t offset, std::size_t length) const
 {
     if (offset + length > m_length) {
         MC_THROW(mc::out_of_range_exception, "读取位置超出缓冲区范围");
     }
 
-    return std::string_view(reinterpret_cast<const char*>(m_data + offset), length);
+    return mc::string_view(reinterpret_cast<const char*>(m_data + offset), length);
 }
 
 std::size_t io_buffer::read(std::size_t offset, void* data, std::size_t length) const
@@ -421,23 +421,23 @@ bool io_buffer::try_read(std::size_t offset, void* data, std::size_t length) con
     return memcpy_s(data, length, m_data + offset, length) == EOK;
 }
 
-std::string_view io_buffer::try_read(std::size_t offset, std::size_t length) const noexcept
+mc::string_view io_buffer::try_read(std::size_t offset, std::size_t length) const noexcept
 {
     if (offset + length > m_length) {
         return {};
     }
 
-    return std::string_view(reinterpret_cast<const char*>(m_data + offset), length);
+    return mc::string_view(reinterpret_cast<const char*>(m_data + offset), length);
 }
 
-std::string_view io_buffer::read_some(std::size_t offset, std::size_t length) const
+mc::string_view io_buffer::read_some(std::size_t offset, std::size_t length) const
 {
     if (offset >= m_length) {
         return {};
     }
 
     std::size_t read_length = std::min(length, m_length - offset);
-    return std::string_view(reinterpret_cast<const char*>(m_data + offset), read_length);
+    return mc::string_view(reinterpret_cast<const char*>(m_data + offset), read_length);
 }
 
 std::size_t io_buffer::read_some(std::size_t offset, void* data, std::size_t length) const
@@ -583,10 +583,10 @@ void io_buffer::insert_after(std::unique_ptr<io_buffer>&& buf)
     m_next         = node;
 }
 
-std::string_view io_buffer::normalize()
+mc::string_view io_buffer::normalize()
 {
     if (m_next == this) {
-        return std::string_view(reinterpret_cast<const char*>(m_data), m_length);
+        return mc::string_view(reinterpret_cast<const char*>(m_data), m_length);
     }
 
     std::size_t total_length = compute_chain_length();
@@ -610,7 +610,7 @@ std::string_view io_buffer::normalize()
     new_buf->m_length = total_length;
     *this             = std::move(*new_buf);
 
-    return std::string_view(reinterpret_cast<const char*>(m_data), m_length);
+    return mc::string_view(reinterpret_cast<const char*>(m_data), m_length);
 }
 
 detail::shard_buffer::shard_buffer()

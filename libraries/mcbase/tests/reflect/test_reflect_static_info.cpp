@@ -22,7 +22,7 @@ public:
     MC_REFLECTABLE("test_static_info.test_user");
 
     int         m_id;
-    std::string m_name;
+    mc::string m_name;
     double      m_score;
 };
 
@@ -31,7 +31,7 @@ public:
     MC_REFLECTABLE("test_static_info.test_person");
 
     int         m_id;
-    std::string m_name;
+    mc::string m_name;
     int         m_age;
 };
 } // namespace test_static_info
@@ -45,7 +45,7 @@ using namespace test_static_info;
 TEST(ReflectStaticInfo, GetMemberName)
 {
     // 使用命名空间限定
-    std::string_view name = mc::reflect::get_property_name<test_person>(&test_person::m_id);
+    mc::string_view name = mc::reflect::get_property_name<test_person>(&test_person::m_id);
     EXPECT_EQ(name, "用户ID");
 
     auto person_name_name = mc::reflect::get_property_name<test_person>(&test_person::m_name);
@@ -63,10 +63,10 @@ TEST(ReflectStaticInfo, MemberPtrToValueAccess)
     // 获取m_id成员的指针
     auto get_member_value = [&user](auto member_ptr) {
         mc::variant      result;
-        std::string_view member_name = mc::reflect::get_property_name<test_user>(member_ptr);
+        mc::string_view member_name = mc::reflect::get_property_name<test_user>(member_ptr);
 
         // 使用成员名称通过visit_members获取值
-        mc::reflect::visit_properties<test_user>([&](std::string_view name, auto getter, auto) {
+        mc::reflect::visit_properties<test_user>([&](mc::string_view name, auto getter, auto) {
             if (name == member_name) {
                 result = getter(user);
             }
@@ -77,7 +77,7 @@ TEST(ReflectStaticInfo, MemberPtrToValueAccess)
 
     // 测试各成员的值
     EXPECT_EQ(get_member_value(&test_user::m_id).as<int>(), 1);
-    EXPECT_EQ(get_member_value(&test_user::m_name).as<std::string>(), "张三");
+    EXPECT_EQ(get_member_value(&test_user::m_name).as<mc::string>(), "张三");
     EXPECT_DOUBLE_EQ(get_member_value(&test_user::m_score).as<double>(), 95.5);
 }
 
@@ -88,9 +88,9 @@ TEST(ReflectStaticInfo, SetValueByMemberPtr)
 
     // 设置成员值的函数
     auto set_member_value = [&user](auto member_ptr, const mc::variant& value) {
-        std::string_view member_name = mc::reflect::get_property_name<test_user>(member_ptr);
+        mc::string_view member_name = mc::reflect::get_property_name<test_user>(member_ptr);
 
-        mc::reflect::visit_properties<test_user>([&](std::string_view name, auto, auto setter) {
+        mc::reflect::visit_properties<test_user>([&](mc::string_view name, auto, auto setter) {
             if (name == member_name) {
                 setter(user, value);
             }
@@ -99,7 +99,7 @@ TEST(ReflectStaticInfo, SetValueByMemberPtr)
 
     // 测试设置各成员的值
     set_member_value(&test_user::m_id, 2);
-    set_member_value(&test_user::m_name, std::string("李四"));
+    set_member_value(&test_user::m_name, mc::string("李四"));
     set_member_value(&test_user::m_score, 88.0);
 
     // 验证设置后的值
@@ -115,7 +115,7 @@ TEST(ReflectStaticInfo, GetProperty)
 
     // 使用属性原始名称获取值
     EXPECT_EQ(mc::reflect::get_property(user, "m_id").as<int>(), 10);
-    EXPECT_EQ(mc::reflect::get_property(user, "m_name").as<std::string>(), "王五");
+    EXPECT_EQ(mc::reflect::get_property(user, "m_name").as<mc::string>(), "王五");
     EXPECT_DOUBLE_EQ(mc::reflect::get_property(user, "m_score").as<double>(), 78.5);
 
     // 测试获取不存在的属性
@@ -126,7 +126,7 @@ TEST(ReflectStaticInfo, GetProperty)
 
     // 使用自定义名称获取值
     EXPECT_EQ(mc::reflect::get_property(person, "用户ID").as<int>(), 20);
-    EXPECT_EQ(mc::reflect::get_property(person, "姓名").as<std::string>(), "赵六");
+    EXPECT_EQ(mc::reflect::get_property(person, "姓名").as<mc::string>(), "赵六");
     EXPECT_EQ(mc::reflect::get_property(person, "年龄").as<int>(), 30);
 }
 
@@ -137,7 +137,7 @@ TEST(ReflectStaticInfo, SetProperty)
 
     // 设置属性值
     EXPECT_TRUE(mc::reflect::set_property(user, "m_id", 11));
-    EXPECT_TRUE(mc::reflect::set_property(user, "m_name", std::string("张三丰")));
+    EXPECT_TRUE(mc::reflect::set_property(user, "m_name", mc::string("张三丰")));
     EXPECT_TRUE(mc::reflect::set_property(user, "m_score", 99.9));
 
     // 验证设置结果
@@ -156,7 +156,7 @@ TEST(ReflectStaticInfo, SetProperty)
 
     // 使用自定义名称设置
     EXPECT_TRUE(mc::reflect::set_property(person, "用户ID", 22));
-    EXPECT_TRUE(mc::reflect::set_property(person, "姓名", std::string("李世民")));
+    EXPECT_TRUE(mc::reflect::set_property(person, "姓名", mc::string("李世民")));
     EXPECT_TRUE(mc::reflect::set_property(person, "年龄", 40));
 
     // 验证设置结果

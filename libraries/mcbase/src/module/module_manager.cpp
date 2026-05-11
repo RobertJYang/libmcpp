@@ -13,7 +13,7 @@
 #include <mc/exception.h>
 #include <mc/log/log.h>
 #include <mc/module.h>
-#include <mc/signal_slot.h>
+#include <mc/signal/connection.h>
 #include <mc/singleton.h>
 #include <mc/sync/mutex_box.h>
 
@@ -28,18 +28,18 @@ using impl_ptr        = mc::shared_ptr<module_manager_impl>;
 
 class factory_module : public module_base {
 public:
-    factory_module(std::string_view name, factory_ptr factory) : m_name(name), m_factory(factory)
+    factory_module(mc::string_view name, factory_ptr factory) : m_name(name), m_factory(factory)
     {}
 
     ~factory_module() override
     {}
 
-    std::string_view name() const override
+    mc::string_view name() const override
     {
         return m_name;
     }
 
-    std::string_view version() const override
+    mc::string_view version() const override
     {
         return "1.0.0"; // 默认版本，可以后续从模块元数据获取
     }
@@ -50,13 +50,13 @@ public:
     }
 
 protected:
-    std::string  m_name;
+    mc::string   m_name;
     factory_wptr m_factory;
 };
 
 class library_module : public factory_module {
 public:
-    library_module(std::string_view name, factory_ptr factory) : factory_module(name, factory)
+    library_module(mc::string_view name, factory_ptr factory) : factory_module(name, factory)
     {}
 
     ~library_module() override;
@@ -79,9 +79,9 @@ private:
 
 class module_manager_impl : public mc::enable_shared_from_this<module_manager_impl> {
 public:
-    using module_map    = std::unordered_map<std::string_view, module_ptr>;
+    using module_map    = std::unordered_map<mc::string_view, module_ptr>;
     using module_id_map = std::unordered_map<factory_id_type, module_ptr>;
-    using library_map   = std::unordered_map<std::string_view, library_info_ptr>;
+    using library_map   = std::unordered_map<mc::string_view, library_info_ptr>;
     struct data_t {
         module_map    loaded_modules;
         module_id_map loaded_modules_by_id;
@@ -97,19 +97,19 @@ public:
 
     void clear();
 
-    module_ptr require(std::string_view module_name);
-    void       unload(std::string_view module_name);
+    module_ptr require(mc::string_view module_name);
+    void       unload(mc::string_view module_name);
     void       unload(factory_id_type factory_id);
     void       close_handle(const library_info& info, bool need_unload);
 
-    void remove_library(std::string_view module_name, lock_ptr_type& lock_ptr);
+    void remove_library(mc::string_view module_name, lock_ptr_type& lock_ptr);
 
     void add_module(module_ptr mod, data_t& data);
     void remove_module(module_ptr mod, lock_ptr_type& lock_ptr);
 
-    module_ptr load_module_from_factory(std::string_view module_name);
-    module_ptr load_module_form_library(std::string_view module_name);
-    module_ptr add_library(std::string_view module_name, library_info_ptr info, bool& is_reused, data_t& data);
+    module_ptr load_module_from_factory(mc::string_view module_name);
+    module_ptr load_module_form_library(mc::string_view module_name);
+    module_ptr add_library(mc::string_view module_name, library_info_ptr info, bool& is_reused, data_t& data);
 
     mc::mutex_box<data_t> m_data;
     module_loader         m_loader;
@@ -170,11 +170,11 @@ void module_manager_impl::close_handle(const library_info& info, bool need_unloa
 void module_manager_impl::unload_all()
 {
     // 获取所有已加载模块的名称，然后在锁外逐个卸载
-    std::vector<std::string> module_names;
+    std::vector<mc::string> module_names;
     m_data.with_lock([&](auto& data) {
         module_names.reserve(data.loaded_modules.size());
         for (const auto& [name, _] : data.loaded_modules) {
-            module_names.push_back(std::string(name));
+            module_names.push_back(mc::string(name));
         }
     });
 
@@ -187,13 +187,13 @@ void module_manager_impl::unload_all()
 void module_manager_impl::clear()
 {
     // 先提取所有需要清理的资源
-    library_map handles;
-    module_map modules;
+    library_map   handles;
+    module_map    modules;
     module_id_map modules_by_id;
 
     m_data.with_lock([&](auto& data) {
-        handles = std::move(data.handles);
-        modules = std::move(data.loaded_modules);
+        handles       = std::move(data.handles);
+        modules       = std::move(data.loaded_modules);
         modules_by_id = std::move(data.loaded_modules_by_id);
     });
 
@@ -205,7 +205,7 @@ void module_manager_impl::clear()
     }
 }
 
-module_ptr module_manager_impl::require(std::string_view module_name)
+module_ptr module_manager_impl::require(mc::string_view module_name)
 {
     return m_data.with_lock([&](data_t& data) -> module_ptr {
         auto it = data.loaded_modules.find(module_name);
@@ -244,7 +244,7 @@ void module_manager_impl::remove_module(module_ptr mod, lock_ptr_type& lock_ptr)
     lock_ptr->loaded_modules_by_id.erase(factory_id);
 }
 
-module_ptr module_manager_impl::load_module_from_factory(std::string_view module_name)
+module_ptr module_manager_impl::load_module_from_factory(mc::string_view module_name)
 {
     // 从全局反射工厂中查找模块
     auto& global  = mc::reflect::reflection_factory::global();
@@ -261,7 +261,7 @@ module_ptr module_manager_impl::load_module_from_factory(std::string_view module
     }
 }
 
-module_ptr module_manager_impl::add_library(std::string_view module_name, library_info_ptr info, bool& is_reused,
+module_ptr module_manager_impl::add_library(mc::string_view module_name, library_info_ptr info, bool& is_reused,
                                             data_t& data)
 {
     auto it = data.handles.find(module_name);
@@ -295,7 +295,7 @@ module_ptr module_manager_impl::add_library(std::string_view module_name, librar
     return mod;
 }
 
-module_ptr module_manager_impl::load_module_form_library(std::string_view module_name)
+module_ptr module_manager_impl::load_module_form_library(mc::string_view module_name)
 {
     module_ptr mod = nullptr;
     if (!m_loader.load_module(module_name, [&](library_info_ptr info, bool& is_reused) {
@@ -307,7 +307,7 @@ module_ptr module_manager_impl::load_module_form_library(std::string_view module
     return mod;
 }
 
-void module_manager_impl::unload(std::string_view module_name)
+void module_manager_impl::unload(mc::string_view module_name)
 {
     m_data.with_lock_ptr([&](auto lock_ptr) {
         auto it = lock_ptr->loaded_modules.find(module_name);
@@ -338,7 +338,7 @@ void module_manager_impl::unload(factory_id_type factory_id)
     });
 }
 
-void module_manager_impl::remove_library(std::string_view module_name, lock_ptr_type& lock_ptr)
+void module_manager_impl::remove_library(mc::string_view module_name, lock_ptr_type& lock_ptr)
 {
     auto it = lock_ptr->handles.find(module_name);
     if (it != lock_ptr->handles.end()) {
@@ -380,24 +380,24 @@ void module_manager::reset_for_test()
     mc::singleton<module_manager>::reset_for_test();
 }
 
-module_ptr module_manager::require(std::string_view module_name)
+module_ptr module_manager::require(mc::string_view module_name)
 {
     return m_impl->require(module_name);
 }
 
-void module_manager::unload(std::string_view module_name)
+void module_manager::unload(mc::string_view module_name)
 {
     m_impl->unload(module_name);
 }
 
-void module_manager::add_search_path(std::string_view path)
+void module_manager::add_search_path(mc::string_view path)
 {
     m_impl->m_loader.add_search_path(path);
 }
 
-std::vector<std::string_view> module_manager::loaded_modules() const
+std::vector<mc::string_view> module_manager::loaded_modules() const
 {
-    std::vector<std::string_view> names;
+    std::vector<mc::string_view> names;
     m_impl->m_data.with_lock([&](auto& data) {
         for (const auto& [name, _] : data.loaded_modules) {
             names.push_back(name);
@@ -406,7 +406,7 @@ std::vector<std::string_view> module_manager::loaded_modules() const
     return names;
 }
 
-bool module_manager::is_loaded(std::string_view module_name) const
+bool module_manager::is_loaded(mc::string_view module_name) const
 {
     return m_impl->m_data.with_lock([&](auto& data) {
         return data.loaded_modules.find(module_name) != data.loaded_modules.end();

@@ -81,10 +81,10 @@ TEST(format_test, precision) {
 
 // 缺失精度或非法说明符时的回退与异常
 TEST(format_test, precision_missing_digits_fallback) {
-    auto expect_safe_fallback = [](const std::string& actual, double value) {
+    auto expect_safe_fallback = [](const mc::string& actual, double value) {
         ASSERT_FALSE(actual.empty());
         if (actual.front() == '{') {
-            EXPECT_NE(actual.find('}'), std::string::npos);
+            EXPECT_NE(actual.find('}'), mc::string::npos);
         } else {
             EXPECT_EQ(actual, sformat("{:.6f}", value));
         }
@@ -340,7 +340,7 @@ TEST(format_test, string_format) {
     EXPECT_EQ(sformat("{:.2}", "hello"), "he");
     EXPECT_EQ(sformat("{:*>6.3}", "abcdef"), "***abc");
     EXPECT_EQ(sformat("{}", ""), "");
-    std::string long_str(100, 'a');
+    mc::string long_str(100, 'a');
     EXPECT_EQ(sformat("{}", long_str), long_str);
     EXPECT_THROW(sformat_unsafe("{:d}", "str"), mc::format_error); // 错误格式符
 }
@@ -497,7 +497,7 @@ TEST(format_test, FormatCompileArgVisit) {
 
     // string_type
     EXPECT_EQ(sformat("{}", "hello"), "hello");
-    EXPECT_EQ(sformat("{}", std::string_view("world")), "world");
+    EXPECT_EQ(sformat("{}", mc::string_view("world")), "world");
 
     // pointer_type
     int   value = 0;
@@ -512,7 +512,7 @@ TEST(format_test, FormatDirectOutputBufOverflowEof) {
     // 通过格式化操作来间接测试 direct_outputbuf
     // EOF 分支很难直接触发，因为 streambuf 的 overflow 方法在正常格式化时不会收到 EOF
     // 这里主要验证格式化功能正常工作
-    std::string result;
+    mc::string result;
     result = sformat("{}", 42);
     EXPECT_EQ(result, "42");
 }

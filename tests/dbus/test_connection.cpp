@@ -18,7 +18,7 @@
 #include <mc/dbus/message.h>
 #include <mc/runtime/thread_pool.h>
 
-#include "dbus/connection_impl.h"
+#include "connection_impl.h"
 
 #include <atomic>
 #include <chrono>
@@ -113,7 +113,7 @@ protected:
         return get_dbus_daemon().get_address();
     }
 
-    std::filesystem::path get_socket_path()
+    mc::filesystem::path get_socket_path()
     {
         return get_dbus_daemon().get_socket_path();
     }

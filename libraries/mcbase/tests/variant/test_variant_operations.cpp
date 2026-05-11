@@ -20,6 +20,8 @@
 #include <limits>
 #include <mc/exception.h>
 #include <mc/variant.h>
+#include <string>
+#include <string_view>
 #include <test_utilities/base.h>
 
 namespace mc {
@@ -530,15 +532,15 @@ TEST_F(VariantOperationsTest, StringConcatenationFriend)
     ASSERT_TRUE(result.is_string());
     ASSERT_EQ(result, "Hello, World");
 
-    // std::string + variant
-    std::string prefix = "Goodbye, ";
-    result             = prefix + v1;
+    // mc::string + variant
+    mc::string prefix = "Goodbye, ";
+    result            = prefix + v1;
     ASSERT_TRUE(result.is_string());
     ASSERT_EQ(result, "Goodbye, World");
 
     // string_view + variant
-    std::string_view view = "Hi, ";
-    result                = view + v1;
+    mc::string_view view = "Hi, ";
+    result               = view + v1;
     ASSERT_TRUE(result.is_string());
     ASSERT_EQ(result, "Hi, World");
 
@@ -1187,7 +1189,8 @@ TEST_F(VariantOperationsTest, BlobOperations)
 /**
  * @brief 测试字符串 variant 与 blob 的拼接分支
  */
-TEST_F(VariantOperationsTest, StringVariantBlobCombination) {
+TEST_F(VariantOperationsTest, StringVariantBlobCombination)
+{
     variant  string_value("head");
     mc::blob blob_data = {'t', 'a', 'i', 'l'};
     variant  blob_value(blob_data);
@@ -1224,6 +1227,79 @@ TEST_F(VariantOperationsTest, ArrayAndObjectEdgeCases)
 
     EXPECT_THROW(object_value + variant(7), mc::exception);
     EXPECT_THROW(object_value += variant(8), mc::exception);
+}
+
+TEST_F(VariantOperationsTest, ArrayStringCompatibilityEdgeCases)
+{
+    auto expect_same_variant = [](const variant& lhs, const variant& rhs) {
+        ASSERT_EQ(lhs.get_type_name(), rhs.get_type_name());
+        if (lhs.is_string()) {
+            EXPECT_EQ(lhs.as_string().view(), rhs.as_string().view());
+            return;
+        }
+        EXPECT_EQ(lhs, rhs);
+    };
+
+    variant array_value(variants{1});
+
+    variant expected = array_value + mc::string_view("tail");
+    variant actual   = array_value + std::string("tail");
+    expect_same_variant(actual, expected);
+
+    expected = array_value + mc::string("view");
+    actual   = array_value + std::string_view("view");
+    expect_same_variant(actual, expected);
+}
+
+TEST_F(VariantOperationsTest, ArrayStringPlusEqualsCompatibilityEdgeCases)
+{
+    variant array_with_public_api(variants{1});
+    variant array_with_std_string(variants{1});
+    variant array_with_string_view(variants{1});
+
+    EXPECT_THROW(array_with_public_api += mc::string_view("tail"), mc::invalid_arg_exception);
+    EXPECT_THROW(array_with_std_string += std::string("tail"), mc::invalid_arg_exception);
+    EXPECT_THROW(array_with_string_view += mc::string_view("tail"), mc::invalid_arg_exception);
+    EXPECT_EQ(array_with_public_api.size(), 1U);
+    EXPECT_EQ(array_with_public_api[0].get().as_int32(), 1);
+    EXPECT_EQ(array_with_std_string.size(), 1U);
+    EXPECT_EQ(array_with_std_string[0].get().as_int32(), 1);
+    EXPECT_EQ(array_with_string_view.size(), 1U);
+    EXPECT_EQ(array_with_string_view[0].get().as_int32(), 1);
+}
+
+TEST_F(VariantOperationsTest, ObjectStringCompatibilityEdgeCases)
+{
+    auto expect_same_variant = [](const variant& lhs, const variant& rhs) {
+        ASSERT_EQ(lhs.get_type_name(), rhs.get_type_name());
+        if (lhs.is_string()) {
+            EXPECT_EQ(lhs.as_string().view(), rhs.as_string().view());
+            return;
+        }
+        EXPECT_EQ(lhs, rhs);
+    };
+
+    variant object_value(dict{{"a", 1}});
+    variant expected = object_value + mc::string_view("tail");
+    variant actual   = object_value + std::string("tail");
+    expect_same_variant(actual, expected);
+}
+
+TEST_F(VariantOperationsTest, ObjectStringPlusEqualsCompatibilityEdgeCases)
+{
+    variant object_with_public_api(dict{{"a", 1}});
+    variant object_with_std_string(dict{{"a", 1}});
+    variant object_with_string_view(dict{{"a", 1}});
+
+    EXPECT_THROW(object_with_public_api += mc::string_view("tail"), mc::invalid_arg_exception);
+    EXPECT_THROW(object_with_std_string += std::string("tail"), mc::invalid_arg_exception);
+    EXPECT_THROW(object_with_string_view += mc::string_view("tail"), mc::invalid_arg_exception);
+    EXPECT_EQ(object_with_public_api.size(), 1U);
+    EXPECT_EQ(object_with_public_api["a"].get().as_int32(), 1);
+    EXPECT_EQ(object_with_std_string.size(), 1U);
+    EXPECT_EQ(object_with_std_string["a"].get().as_int32(), 1);
+    EXPECT_EQ(object_with_string_view.size(), 1U);
+    EXPECT_EQ(object_with_string_view["a"].get().as_int32(), 1);
 }
 
 /**
@@ -1267,12 +1343,12 @@ TEST_F(VariantOperationsTest, BlobPlusStringKeepsBinary)
     variant v_blob(blob_data);
 
     // blob + string_view
-    variant result1 = v_blob + std::string_view(", world");
+    variant result1 = v_blob + mc::string_view(", world");
     EXPECT_TRUE(result1.is_blob());
     EXPECT_EQ(result1.get_blob().as_string_view(), "hello, world");
 
     // string_view + blob
-    variant result2 = std::string_view("prefix: ") + v_blob;
+    variant result2 = mc::string_view("prefix: ") + v_blob;
     EXPECT_TRUE(result2.is_string());
     EXPECT_EQ(result2.as_string(), "prefix: hello");
 
@@ -1283,6 +1359,56 @@ TEST_F(VariantOperationsTest, BlobPlusStringKeepsBinary)
     variant result3 = v_blob + v_blob2;
     EXPECT_TRUE(result3.is_blob());
     EXPECT_EQ(result3.get_blob().as_string_view(), "hello, world");
+}
+
+TEST_F(VariantOperationsTest, BlobStdStringCompatibilityOperators)
+{
+    blob blob_data;
+    blob_data.data = {'h', 'e', 'l', 'l', 'o'};
+    variant v_blob(blob_data);
+
+    variant expected = v_blob + mc::string_view(", world");
+    variant actual   = v_blob + std::string(", world");
+    EXPECT_TRUE(actual.is_blob());
+    EXPECT_EQ(actual.get_blob().as_string_view(), expected.get_blob().as_string_view());
+
+    expected = mc::string_view("prefix: ") + v_blob;
+    actual   = std::string("prefix: ") + v_blob;
+    EXPECT_TRUE(actual.is_string());
+    EXPECT_EQ(actual.as_string().view(), expected.as_string().view());
+
+    variant assign_public_api(v_blob);
+    variant assign_std_string(v_blob);
+    variant assign_std_view(v_blob);
+
+    assign_public_api += mc::string_view(", world");
+    assign_std_string += std::string(", world");
+    assign_std_view += std::string_view(", world");
+    EXPECT_TRUE(assign_public_api.is_blob());
+    EXPECT_EQ(assign_std_string.get_blob().as_string_view(), assign_public_api.get_blob().as_string_view());
+    EXPECT_EQ(assign_std_view.get_blob().as_string_view(), assign_public_api.get_blob().as_string_view());
+}
+
+TEST_F(VariantOperationsTest, BlobStdStringCompatibilityPreservesEmbeddedNull)
+{
+    blob blob_data;
+    blob_data.data = {'x', 'y'};
+    variant          v_blob(blob_data);
+    std::string      suffix("a\0b", 3);
+    std::string_view suffix_view(suffix.data(), suffix.size());
+
+    variant expected = v_blob + mc::string_view(suffix.data(), suffix.size());
+    variant actual   = v_blob + suffix;
+    EXPECT_EQ(actual.get_blob().as_string_view(), expected.get_blob().as_string_view());
+
+    variant assign_public_api(v_blob);
+    variant assign_std_string(v_blob);
+    variant assign_std_view(v_blob);
+    assign_public_api += mc::string_view(suffix.data(), suffix.size());
+    assign_std_string += suffix;
+    assign_std_view += suffix_view;
+    EXPECT_EQ(assign_std_string.get_blob().as_string_view(), assign_public_api.get_blob().as_string_view());
+    EXPECT_EQ(assign_std_view.get_blob().as_string_view(), assign_public_api.get_blob().as_string_view());
 }
 
 // 测试无符号减法（无下溢）
@@ -1317,13 +1443,197 @@ TEST_F(VariantOperationsTest, UnaryMinusCoversUnsignedAndFallback)
 TEST_F(VariantOperationsTest, StringViewPlusVariantFallback)
 {
     // 使用 bool 与 string_view 相加，触发 fallback
-    variant          v_bool(true);
-    std::string_view sv = "test";
+    variant         v_bool(true);
+    mc::string_view sv = "test";
 
     // bool + string_view 应该触发 fallback: return *this + variant(other)
     variant result = v_bool + sv;
     EXPECT_TRUE(result.is_string());
     EXPECT_EQ(result.as_string(), "truetest");
+}
+
+TEST_F(VariantOperationsTest, StdStringCompatibilityOperators)
+{
+    variant          value("head");
+    std::string      suffix = "tail";
+    std::string      prefix = "say:";
+    std::string_view infix  = "-";
+    std::string_view label  = "view:";
+
+    value += suffix;
+    EXPECT_EQ(value.as_string(), "headtail");
+
+    variant combined = value + suffix;
+    EXPECT_EQ(combined.as_string(), "headtailtail");
+
+    combined = prefix + value;
+    EXPECT_EQ(combined.as_string(), "say:headtail");
+
+    combined = value + infix;
+    EXPECT_EQ(combined.as_string(), "headtail-");
+
+    value += infix;
+    EXPECT_EQ(value.as_string(), "headtail-");
+
+    combined = label + value;
+    EXPECT_EQ(combined.as_string(), "view:headtail-");
+}
+
+TEST_F(VariantOperationsTest, McStringCompatibilityOperators)
+{
+    variant    value("head");
+    mc::string suffix = "tail";
+
+    value += suffix;
+    EXPECT_EQ(value.as_string(), "headtail");
+
+    variant combined = value + suffix;
+    EXPECT_EQ(combined.as_string(), "headtailtail");
+
+    value += mc::string("!");
+    EXPECT_EQ(value.as_string(), "headtail!");
+
+    combined = value + mc::string("?");
+    EXPECT_EQ(combined.as_string(), "headtail!?");
+}
+
+TEST_F(VariantOperationsTest, StdStringLeftCompatibilityOperators)
+{
+    variant     text_value("tail");
+    variant     numeric_value(42);
+    std::string prefix = "say:";
+
+    variant combined = prefix + text_value;
+    EXPECT_EQ(combined.as_string(), "say:tail");
+
+    combined = std::string("tmp:") + text_value;
+    EXPECT_EQ(combined.as_string(), "tmp:tail");
+
+    combined = prefix + numeric_value;
+    EXPECT_EQ(combined.as_string(), "say:42");
+
+    std::string_view label = "id:";
+    combined               = label + numeric_value;
+    EXPECT_EQ(combined.as_string(), "id:42");
+}
+
+TEST_F(VariantOperationsTest, StdStringLeftCompatibilityPreservesEmbeddedNull)
+{
+    variant          text_value(std::string("cd\0e", 4));
+    std::string      prefix("ab\0", 3);
+    std::string_view prefix_view(prefix.data(), prefix.size());
+
+    variant combined = prefix + text_value;
+    EXPECT_EQ(combined.as_string().view(), mc::string_view("ab\0cd\0e", 7));
+
+    combined = prefix_view + text_value;
+    EXPECT_EQ(combined.as_string().view(), mc::string_view("ab\0cd\0e", 7));
+}
+
+TEST_F(VariantOperationsTest, StringOperatorsWithTemporaryVariantOperand)
+{
+    EXPECT_EQ((std::string("say:") + variant("tail")).as_string(), "say:tail");
+    EXPECT_EQ((std::string("id:") + variant(7)).as_string(), "id:7");
+
+    EXPECT_EQ((std::string_view("tmp:") + variant("v")).as_string(), "tmp:v");
+    EXPECT_EQ((std::string_view("n:") + variant(99)).as_string(), "n:99");
+
+    EXPECT_EQ((mc::string("mc:") + variant("z")).as_string(), "mc:z");
+    EXPECT_EQ((mc::string_view("mv:") + variant(3)).as_string(), "mv:3");
+
+    EXPECT_EQ((variant("tail") + std::string("head")).as_string(), "tailhead");
+    EXPECT_EQ((variant(5) + std::string_view("_x")).as_string(), "5_x");
+    EXPECT_EQ((variant("a") + mc::string("b")).as_string(), "ab");
+    EXPECT_EQ((variant("p") + mc::string_view("q")).as_string(), "pq");
+}
+
+// 临时 variant 参与含内嵌 \\0 的拼接（与具名 variant 路径对照）
+TEST_F(VariantOperationsTest, StringTemporaryVariantPreservesEmbeddedNull)
+{
+    std::string      prefix("ab\0", 3);
+    std::string_view prefix_view(prefix.data(), prefix.size());
+    std::string      body("cd\0e", 4);
+
+    EXPECT_EQ((prefix + variant(body)).as_string().view(), mc::string_view("ab\0cd\0e", 7));
+    EXPECT_EQ((prefix_view + variant(body)).as_string().view(), mc::string_view("ab\0cd\0e", 7));
+    EXPECT_EQ((variant(body) + prefix).as_string().view(), mc::string_view("cd\0eab\0", 7));
+}
+
+TEST_F(VariantOperationsTest, StringPlusEqualsWithTemporaryOperands)
+{
+    variant value("head");
+
+    value += std::string("tail");
+    EXPECT_EQ(value.as_string(), "headtail");
+
+    value += std::string_view("!");
+    EXPECT_EQ(value.as_string(), "headtail!");
+
+    value += mc::string("_mc");
+    EXPECT_EQ(value.as_string(), "headtail!_mc");
+
+    value += mc::string_view("_view");
+    EXPECT_EQ(value.as_string(), "headtail!_mc_view");
+
+    variant from_variant("prefix:");
+    from_variant += variant(std::string("tail"));
+    EXPECT_EQ(from_variant.as_string(), "prefix:tail");
+
+    from_variant += variant(std::string_view("!"));
+    EXPECT_EQ(from_variant.as_string(), "prefix:tail!");
+
+    from_variant += variant(std::string("ab\0", 3));
+    EXPECT_EQ(from_variant.as_string().view(), mc::string_view("prefix:tail!ab\0", 15));
+}
+
+TEST_F(VariantOperationsTest, StringComparisonWithTemporaryOperands)
+{
+    variant value("Alice");
+    variant binary(std::string("ab\0cd", 5));
+
+    EXPECT_TRUE(value == std::string("Alice"));
+    EXPECT_TRUE(std::string("Alice") == value);
+    EXPECT_FALSE(value != std::string("Alice"));
+    EXPECT_TRUE(value != std::string("Bob"));
+    EXPECT_TRUE(value < std::string("Bob"));
+    EXPECT_TRUE(value <= std::string("Alice"));
+    EXPECT_TRUE(value >= std::string("Alice"));
+    EXPECT_TRUE(std::string("Aaron") < value);
+    EXPECT_TRUE(std::string("Bob") > value);
+    EXPECT_TRUE(std::string("Alice") <= value);
+    EXPECT_TRUE(std::string("Alice") >= value);
+
+    EXPECT_TRUE(value == mc::string("Alice"));
+    EXPECT_TRUE(mc::string("Alice") == value);
+    EXPECT_TRUE(value <= mc::string("Alice"));
+    EXPECT_TRUE(mc::string("Alice") >= value);
+
+    EXPECT_TRUE(value == variant(std::string("Alice")));
+    EXPECT_TRUE(variant(std::string("Alice")) == value);
+    EXPECT_TRUE(value <= variant(std::string("Alice")));
+    EXPECT_TRUE(variant(std::string("Alice")) >= value);
+    EXPECT_TRUE(value < variant(std::string("Bob")));
+    EXPECT_TRUE(variant(std::string("Aaron")) < value);
+
+    EXPECT_TRUE(binary == std::string("ab\0cd", 5));
+    EXPECT_TRUE(std::string("ab\0cd", 5) == binary);
+    EXPECT_TRUE(binary < std::string("ab\0ce", 5));
+    EXPECT_TRUE(std::string("ab\0cc", 5) < binary);
+}
+
+TEST_F(VariantOperationsTest, StringVariantPlusEqualsNumericVariant)
+{
+    variant result("Value: ");
+    result += variant(42);
+    EXPECT_EQ(result.as_string(), "Value: 42");
+
+    result = variant("Pi: ");
+    result += variant(3.14159);
+    EXPECT_EQ(result.as_string(), "Pi: 3.14159");
+
+    result = variant("Boolean: ");
+    result += variant(true);
+    EXPECT_EQ(result.as_string(), "Boolean: true");
 }
 
 /**

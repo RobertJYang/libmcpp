@@ -10,12 +10,12 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <boost/asio.hpp>
-
 #include <mc/log/log.h>
 #include <mc/runtime.h>
 #include <mc/runtime/runtime_context.h>
 #include <mc/runtime/runtime_strand.h>
+
+#include "runtime/include/thread_pool_impl.h"
 
 namespace mc::runtime {
 
@@ -27,6 +27,7 @@ runtime_strand::data_t::~data_t()
 {
     destory_queue(&waiting_queue);
     destory_queue(&ready_queue);
+    destroy_free_operations();
 }
 
 void runtime_strand::data_t::destory_queue(task_queue* q)
@@ -35,6 +36,45 @@ void runtime_strand::data_t::destory_queue(task_queue* q)
         task_operation_base* op = q->front();
         q->pop_front();
         op->destroy();
+    }
+}
+
+runtime_strand::task_operation* runtime_strand::data_t::acquire_operation(detail::task task, thread_pool* target_pool)
+{
+    task_operation* operation = nullptr;
+    {
+        std::lock_guard lock(mutex);
+        operation = free_operations;
+        if (operation) {
+            free_operations = static_cast<task_operation*>(free_operations->next);
+        }
+    }
+
+    if (!operation) {
+        operation = new task_operation(this);
+    } else {
+        operation->next = nullptr;
+    }
+
+    operation->reset(std::move(task), target_pool);
+    return operation;
+}
+
+void runtime_strand::data_t::recycle_operation(task_operation* op) noexcept
+{
+    op->func_storage.reset();
+    op->target_pool = nullptr;
+    std::lock_guard lock(mutex);
+    op->next        = free_operations;
+    free_operations = op;
+}
+
+void runtime_strand::data_t::destroy_free_operations() noexcept
+{
+    while (free_operations) {
+        task_operation* operation = free_operations;
+        free_operations           = static_cast<task_operation*>(free_operations->next);
+        delete operation;
     }
 }
 
@@ -72,16 +112,15 @@ bool runtime_strand::invoker::run_ready_handlers()
 
         {
             std::lock_guard lock(m_data->mutex);
-            if (m_data->shutdown || m_data->ready_queue.empty()) {
+            if (m_data->ready_queue.empty()) {
                 break;
             }
 
             op = m_data->ready_queue.front();
 
             // 检查是否需要切换线程池
-            auto*        current_shard = thread_pool::get_current_shard();
-            thread_pool* current_pool  = current_shard ? &current_shard->pool : nullptr;
-            thread_pool* target_pool   = op->target_pool;
+            thread_pool* current_pool = detail::thread_pool_impl::current_pool();
+            thread_pool* target_pool  = op->target_pool;
 
             if (target_pool && current_pool != target_pool) {
                 // 需要切换线程池，转移执行权，不 pop 任务，在新线程池上继续执行
@@ -127,15 +166,7 @@ runtime_strand::runtime_strand() : m_data(mc::make_shared<data_t>())
     ;
 }
 
-runtime_strand::~runtime_strand()
-{
-    if (!m_data) {
-        return;
-    }
-
-    std::lock_guard lock(m_data->mutex);
-    m_data->shutdown = true;
-}
+runtime_strand::~runtime_strand() = default;
 
 bool runtime_strand::running_in_this_thread() const noexcept
 {
@@ -155,27 +186,65 @@ bool runtime_strand::operator!=(const runtime_strand& other) const noexcept
     return !(*this == other);
 }
 
-execution_context& runtime_strand::context() const
+bool runtime_strand::can_execute_in_this_shard() const noexcept
 {
-    if (m_bound_pool) {
-        return *m_bound_pool;
-    }
-    return get_runtime_context().io();
+    return detail::thread_pool_impl::current_pool() == m_bound_pool;
 }
 
 thread_pool::executor_type runtime_strand::get_default_executor()
 {
-    return get_io_executor();
+    return get_io_context().get_executor();
+}
+
+void runtime_strand::dispatch_impl(detail::task task) const
+{
+    if (running_in_this_thread()) {
+        if (!m_bound_pool || can_execute_in_this_shard()) {
+            task();
+            return;
+        }
+    }
+
+    auto* op    = m_data->acquire_operation(std::move(task), m_bound_pool);
+    bool  first = enqueue_op(op);
+    if (first) {
+        if (m_bound_pool) {
+            m_bound_pool->get_executor().post(invoker(m_data), std::allocator<void>{});
+        } else {
+            get_default_executor().post(invoker(m_data), std::allocator<void>{});
+        }
+    }
+}
+
+void runtime_strand::post_impl(detail::task task) const
+{
+    auto* op    = m_data->acquire_operation(std::move(task), m_bound_pool);
+    bool  first = enqueue_op(op);
+    if (first) {
+        if (m_bound_pool) {
+            m_bound_pool->get_executor().post(invoker(m_data), std::allocator<void>{});
+        } else {
+            get_default_executor().post(invoker(m_data), std::allocator<void>{});
+        }
+    }
+}
+
+void runtime_strand::defer_impl(detail::task task) const
+{
+    auto* op    = m_data->acquire_operation(std::move(task), m_bound_pool);
+    bool  first = enqueue_op(op);
+    if (first) {
+        if (m_bound_pool) {
+            m_bound_pool->get_executor().defer(invoker(m_data), std::allocator<void>{});
+        } else {
+            get_default_executor().defer(invoker(m_data), std::allocator<void>{});
+        }
+    }
 }
 
 bool runtime_strand::enqueue_op(task_operation_base* op) const
 {
     std::lock_guard lock(m_data->mutex);
-
-    if (m_data->shutdown) {
-        op->destroy();
-        return false;
-    }
 
     bool was_unlocked = !m_data->locked;
     if (was_unlocked) {
@@ -184,7 +253,6 @@ bool runtime_strand::enqueue_op(task_operation_base* op) const
     } else {
         m_data->waiting_queue.push_back(*op);
     }
-
     return was_unlocked;
 }
 

@@ -14,6 +14,7 @@
 #define MC_EXCEPTION_H
 
 #include <mc/log/log_message.h>
+#include <mc/string.h>
 
 #include <chrono>
 #include <exception>
@@ -67,6 +68,7 @@ enum exception_code {
     insufficient_privilege_exception_code    = 31, // 权限不足异常
     password_changed_required_exception_code = 32, // 需要修改密码异常
     error_engine_exception_code              = 33, // 错误引擎异常
+    signal_recursion_exception_code          = 34, // 信号递归异常
 };
 
 /**
@@ -89,8 +91,8 @@ public:
      * @param name_value 异常名称
      * @param what_value 异常描述
      */
-    exception(int64_t code = unknow_exception_code, const std::string& name_value = "unknow_exception",
-              const std::string& what_value = "未指定异常");
+    exception(int64_t code = unknow_exception_code, mc::string_view name_value = "unknow_exception",
+              mc::string_view what_value = "未指定异常");
 
     /**
      * @brief 带日志消息的构造函数
@@ -101,7 +103,7 @@ public:
      * @param what_value 异常描述
      */
     exception(mc::log::message&& msg, int64_t code = unknow_exception_code,
-              const std::string& name_value = "unknow_exception", const std::string& what_value = "未指定异常");
+              mc::string_view name_value = "unknow_exception", mc::string_view what_value = "未指定异常");
 
     /**
      * @brief 带多条日志消息的构造函数
@@ -111,8 +113,8 @@ public:
      * @param name_value 异常名称
      * @param what_value 异常描述
      */
-    exception(mc::log::messages&& msgs, int64_t code = unknow_exception_code,
-              const std::string& name_value = "exception", const std::string& what_value = "未指定异常");
+    exception(mc::log::messages&& msgs, int64_t code = unknow_exception_code, mc::string_view name_value = "exception",
+              mc::string_view what_value = "未指定异常");
 
     /**
      * @brief 带多条日志消息的构造函数（常量引用版本）
@@ -123,7 +125,7 @@ public:
      * @param what_value 异常描述
      */
     exception(const mc::log::messages& msgs, int64_t code = unknow_exception_code,
-              const std::string& name_value = "exception", const std::string& what_value = "未指定异常");
+              mc::string_view name_value = "exception", mc::string_view what_value = "未指定异常");
 
     // 复制构造函数
     exception(const exception& e);
@@ -141,10 +143,10 @@ public:
     void set_code(int64_t code);
 
     // 获取异常名称
-    std::string_view name() const noexcept;
+    mc::string_view name() const noexcept;
 
     // 设置异常名称
-    void set_name(std::string_view name);
+    void set_name(mc::string_view name);
 
     // 获取异常描述
     virtual const char* what() const noexcept override;
@@ -156,13 +158,13 @@ public:
     void append_log(mc::log::messages msgs) const;
 
     // 获取详细异常信息
-    virtual std::string to_detail_string(mc::log::level ll = mc::log::level::all) const;
+    virtual mc::string to_detail_string(mc::log::level ll = mc::log::level::all) const;
 
     // 获取简要异常信息
-    virtual std::string to_string(mc::log::level ll = mc::log::level::info) const;
+    virtual mc::string to_string(mc::log::level ll = mc::log::level::info) const;
 
     // 获取顶层异常消息
-    const std::string& top_message() const;
+    mc::string_view top_message() const;
 
     // 动态重新抛出异常
     virtual void dynamic_rethrow_exception() const;
@@ -278,8 +280,7 @@ public:
 
     // 构造函数
     explicit std_exception_wrapper(mc::log::message&& msg, std::exception_ptr e = std::current_exception(),
-                                   const std::string& name_value = "exception",
-                                   const std::string& what_value = "未指定异常");
+                                   mc::string_view name_value = "exception", mc::string_view what_value = "未指定异常");
 
     // 获取内部异常
     std::exception_ptr get_inner_exception() const;
@@ -288,7 +289,7 @@ public:
     static std_exception_wrapper from_current_exception(const std::exception& e);
 
     // 获取详细异常信息
-    std::string to_detail_string(mc::log::level ll = mc::log::level::all) const override;
+    mc::string to_detail_string(mc::log::level ll = mc::log::level::all) const override;
 
     // 动态重新抛出异常
     virtual void dynamic_rethrow_exception() const override;
@@ -318,7 +319,7 @@ public:
      * @param args 结构化参数（使用数字键 0, 1, 2...）
      * @param code 异常代码
      */
-    error_exception(const char* error_name, const mc::dict& args, int64_t code = error_engine_exception_code);
+    error_exception(mc::string_view error_name, const mc::dict& args, int64_t code = error_engine_exception_code);
 
     /**
      * @brief 构造函数（带JSON序列化的error对象）
@@ -327,7 +328,7 @@ public:
      * @param error_json error对象的JSON序列化字符串
      * @param code 异常代码
      */
-    error_exception(const char* error_name, const std::string& error_json, int64_t code = error_engine_exception_code);
+    error_exception(mc::string_view error_name, mc::string_view error_json, int64_t code = error_engine_exception_code);
 
     /**
      * @brief 构造函数（带日志消息，用于MC_THROW_ERROR_WITH_MESSAGE宏）
@@ -336,7 +337,7 @@ public:
      * @param message 日志消息
      * @param code 异常代码
      */
-    error_exception(const char* error_name, mc::log::message&& message, int64_t code = error_engine_exception_code);
+    error_exception(mc::string_view error_name, mc::log::message&& message, int64_t code = error_engine_exception_code);
 
     /**
      * @brief 获取结构化参数
@@ -357,7 +358,7 @@ public:
     /**
      * @brief 获取JSON序列化的error对象
      */
-    const std::string& get_json_error() const noexcept
+    mc::string_view get_json_error() const noexcept
     {
         return error_json_;
     }
@@ -373,9 +374,9 @@ public:
     virtual void dynamic_rethrow_exception() const override;
 
 private:
-    mc::dict    args_;
-    std::string error_json_;             // JSON序列化的error对象
-    bool        has_json_error_ = false; // 标识是否包含JSON error
+    mc::dict   args_;
+    mc::string error_json_;             // JSON序列化的error对象
+    bool       has_json_error_ = false; // 标识是否包含JSON error
 };
 
 // 标准异常类定义

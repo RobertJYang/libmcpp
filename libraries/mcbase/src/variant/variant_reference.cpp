@@ -27,8 +27,8 @@ variant_reference::variant_reference(mc::shared_ptr<variant_extension_base> ext,
     : m_holder(extension_accessor(std::move(ext), index))
 {}
 
-variant_reference::variant_reference(mc::shared_ptr<variant_extension_base> ext, std::string key)
-    : m_holder(extension_accessor(std::move(ext), std::move(key)))
+variant_reference::variant_reference(mc::shared_ptr<variant_extension_base> ext, mc::string_view key)
+    : m_holder(extension_accessor(std::move(ext), key))
 {}
 
 variant_reference::variant_reference(variants cont, std::size_t index)
@@ -62,7 +62,7 @@ typename variant_reference::variant_type& variant_reference::get()
                 if (auto* idx = std::get_if<std::size_t>(&holder.key)) {
                     holder.cached_value = holder.extension->get(*idx);
                 } else {
-                    holder.cached_value = holder.extension->get(std::get<std::string>(holder.key));
+                    holder.cached_value = holder.extension->get(std::get<mc::string>(holder.key));
                 }
             }
             return *holder.cached_value;
@@ -99,7 +99,7 @@ const typename variant_reference::variant_type& variant_reference::get() const
                 if (auto* idx = std::get_if<std::size_t>(&holder.key)) {
                     holder.cached_value = holder.extension->get(*idx);
                 } else {
-                    holder.cached_value = holder.extension->get(std::get<std::string>(holder.key));
+                    holder.cached_value = holder.extension->get(std::get<mc::string>(holder.key));
                 }
             }
             return *holder.cached_value;
@@ -146,7 +146,7 @@ variant_reference& variant_reference::operator=(const variant_type& value)
             if (auto* idx = std::get_if<std::size_t>(&holder.key)) {
                 holder.extension->set(*idx, value);
             } else {
-                holder.extension->set(std::get<std::string>(holder.key), value);
+                holder.extension->set(std::get<mc::string>(holder.key), value);
             }
             // 更新缓存
             holder.cached_value = value;
@@ -173,12 +173,12 @@ variant_reference variant_reference::operator[](std::size_t pos) const
     return get()[pos];
 }
 
-variant_reference variant_reference::operator[](std::string_view key)
+variant_reference variant_reference::operator[](mc::string_view key)
 {
     return get()[key];
 }
 
-variant_reference variant_reference::operator[](std::string_view key) const
+variant_reference variant_reference::operator[](mc::string_view key) const
 {
     return get()[key];
 }

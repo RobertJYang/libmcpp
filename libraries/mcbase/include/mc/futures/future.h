@@ -122,7 +122,7 @@ template <typename T, typename Executor>
 auto make_resolved_state(T value, Executor executor)
 {
     auto state = make_pooled_state<T>(std::move(executor));
-    state->set_value(std::move(value));
+    mc::futures::State<T>::set_value(*state, std::move(value));
     state->set_ready();
     return state;
 }
@@ -132,7 +132,7 @@ template <typename Executor>
 auto make_resolved_state(Executor executor)
 {
     auto state = make_pooled_state<void>(std::move(executor));
-    state->set_value();
+    mc::futures::State<void>::set_value(*state);
     state->set_ready();
     return state;
 }
@@ -168,14 +168,10 @@ public:
     using future_type   = Future<T>;
 
     Future() = default;
-    explicit Future(state_ptr<state_type> state)
-        : any_future(state)
-    {
-    }
-    explicit Future(any_future&& future)
-        : any_future(std::forward<any_future>(future))
-    {
-    }
+    explicit Future(state_base_ptr state) : any_future(std::move(state))
+    {}
+    explicit Future(any_future&& future) : any_future(std::forward<any_future>(future))
+    {}
     ~Future() = default;
 
     Future(const Future&)                = default;
@@ -185,30 +181,53 @@ public:
 
     // 链式操作
     template <typename F>
-    auto then(F&& func, launch policy = launch::async, std::optional<mc::any_executor> executor = std::nullopt)
+    auto then(F&& func, launch policy = launch::async)
         -> std::enable_if_t<detail::is_future_v<detail::result_t<T, F>>,
                             Future<typename detail::result_t<T, F>::value_type>>;
 
     template <typename F>
-    auto then(F&& func, launch policy = launch::async, std::optional<mc::any_executor> executor = std::nullopt)
+    auto then(F&& func, launch policy, mc::any_executor executor)
+        -> std::enable_if_t<detail::is_future_v<detail::result_t<T, F>>,
+                            Future<typename detail::result_t<T, F>::value_type>>;
+
+    template <typename F>
+    auto then(F&& func, launch policy = launch::async)
         -> std::enable_if_t<!detail::is_future_v<detail::result_t<T, F>>, Future<detail::result_t<T, F>>>;
 
     template <typename F>
-    auto catch_error(F&& func, launch policy = launch::async, std::optional<mc::any_executor> executor = std::nullopt)
+    auto then(F&& func, launch policy, mc::any_executor executor)
+        -> std::enable_if_t<!detail::is_future_v<detail::result_t<T, F>>, Future<detail::result_t<T, F>>>;
+
+    template <typename F>
+    auto catch_error(F&& func, launch policy = launch::async)
         -> std::enable_if_t<detail::is_future_v<std::invoke_result_t<F, const mc::exception&>> &&
                                 std::is_same_v<typename std::invoke_result_t<F, const mc::exception&>::value_type, T>,
                             Future<T>>;
 
     template <typename F>
-    auto catch_error(F&& func, launch policy = launch::async, std::optional<mc::any_executor> executor = std::nullopt)
+    auto catch_error(F&& func, launch policy, mc::any_executor executor)
+        -> std::enable_if_t<detail::is_future_v<std::invoke_result_t<F, const mc::exception&>> &&
+                                std::is_same_v<typename std::invoke_result_t<F, const mc::exception&>::value_type, T>,
+                            Future<T>>;
+
+    template <typename F>
+    auto catch_error(F&& func, launch policy = launch::async)
+        -> std::enable_if_t<!detail::is_future_v<std::invoke_result_t<F, const mc::exception&>> &&
+                                std::is_same_v<std::invoke_result_t<F, const mc::exception&>, T>,
+                            Future<T>>;
+
+    template <typename F>
+    auto catch_error(F&& func, launch policy, mc::any_executor executor)
         -> std::enable_if_t<!detail::is_future_v<std::invoke_result_t<F, const mc::exception&>> &&
                                 std::is_same_v<std::invoke_result_t<F, const mc::exception&>, T>,
                             Future<T>>;
 
     // 清理操作（无论成功失败都会执行）
     template <typename F>
-    auto finally(F&& cleanup, launch policy = launch::async,
-                 std::optional<mc::any_executor> executor = std::nullopt) -> future_type;
+    auto finally(F&& cleanup, launch policy = launch::async) -> future_type;
+
+    template <typename F>
+    auto finally(F&& cleanup, launch policy, mc::any_executor executor) -> future_type;
 
     // 查看值但不改变
     template <typename F>
@@ -228,8 +247,10 @@ public:
 
     // 获取结果（异步等待）
     template <typename CompletionToken>
-    void async_get(CompletionToken&& token, launch policy = launch::async,
-                   std::optional<mc::any_executor> executor = std::nullopt);
+    void async_get(CompletionToken&& token, launch policy = launch::async);
+
+    template <typename CompletionToken>
+    void async_get(CompletionToken&& token, launch policy, mc::any_executor executor);
 
     // 同步获取结果
     template <typename U = T>
@@ -240,13 +261,10 @@ public:
     T get_for(Duration duration) const;
 
     template <typename OtherT>
-    auto as_future(std::optional<mc::any_executor> executor = std::nullopt) -> Future<detail::state_tt<OtherT>>;
+    auto as_future() -> Future<detail::state_tt<OtherT>>;
 
-    state_ptr<state_type> get_state() const
-    {
-        auto& state = any_future::get_state();
-        return state_ptr<state_type>(static_cast<state_type*>(state.get()));
-    }
+    template <typename OtherT>
+    auto as_future(mc::any_executor executor) -> Future<detail::state_tt<OtherT>>;
 
 private:
     template <typename U>

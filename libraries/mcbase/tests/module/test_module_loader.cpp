@@ -21,7 +21,7 @@
 
 namespace {
 
-std::string_view shared_lib_ext()
+mc::string_view shared_lib_ext()
 {
 #if defined(__APPLE__)
     return ".dylib";
@@ -37,14 +37,14 @@ class mock_lib_loader {
 public:
     // 模拟已存在的库和其导出函数
     struct mock_lib_info {
-        std::string           path;
-        std::set<std::string> exported_symbols;
+        mc::string           path;
+        std::set<mc::string> exported_symbols;
         void*                 mock_open_func  = nullptr;
         void*                 mock_close_func = nullptr;
     };
 
     // 添加模拟库
-    void add_mock_lib(const std::string& path, const std::set<std::string>& symbols)
+    void add_mock_lib(const mc::string& path, const std::set<mc::string>& symbols)
     {
         mock_lib_info info;
         info.path             = path;
@@ -68,7 +68,7 @@ public:
     }
 
     // 检查指定路径的库是否被加载
-    bool is_loaded(const std::string& path) const
+    bool is_loaded(const mc::string& path) const
     {
         for (const auto& pair : m_loaded_libs) {
             if (pair.second == path) {
@@ -79,7 +79,7 @@ public:
     }
 
     // 静态方法，用于实现打桩函数
-    static void* mock_load(std::string_view path, bool /*glb*/)
+    static void* mock_load(mc::string_view path, bool /*glb*/)
     {
         return instance().load_impl(path);
     }
@@ -89,12 +89,12 @@ public:
         instance().unload_impl(handle);
     }
 
-    static void* mock_sym(void* handle, std::string_view symbol_name)
+    static void* mock_sym(void* handle, mc::string_view symbol_name)
     {
         return instance().sym_impl(handle, symbol_name);
     }
 
-    static bool mock_is_readable(std::string_view path)
+    static bool mock_is_readable(mc::string_view path)
     {
         return instance().is_readable_impl(path);
     }
@@ -106,16 +106,16 @@ public:
     }
 
 private:
-    void* load_impl(std::string_view path)
+    void* load_impl(mc::string_view path)
     {
-        std::string path_str(path);
+        mc::string path_str(path);
         auto        it = m_mock_libs.find(path_str);
         if (it == m_mock_libs.end()) {
             return nullptr; // 库不存在
         }
 
         // 使用路径的哈希值作为句柄，确保唯一性
-        void* handle          = reinterpret_cast<void*>(std::hash<std::string>{}(path_str));
+        void* handle          = reinterpret_cast<void*>(std::hash<mc::string>{}(path_str));
         m_loaded_libs[handle] = path_str;
         return handle;
     }
@@ -125,7 +125,7 @@ private:
         m_loaded_libs.erase(handle);
     }
 
-    void* sym_impl(void* handle, std::string_view symbol_name)
+    void* sym_impl(void* handle, mc::string_view symbol_name)
     {
         auto lib_it = m_loaded_libs.find(handle);
         if (lib_it == m_loaded_libs.end()) {
@@ -138,7 +138,7 @@ private:
         }
 
         const auto& symbols = mock_it->second.exported_symbols;
-        std::string symbol_str(symbol_name);
+        mc::string symbol_str(symbol_name);
         if (symbols.find(symbol_str) == symbols.end()) {
             return nullptr; // 符号不存在
         }
@@ -153,14 +153,14 @@ private:
         return reinterpret_cast<void*>(0x3000); // 其他符号的模拟指针
     }
 
-    bool is_readable_impl(std::string_view path)
+    bool is_readable_impl(mc::string_view path)
     {
-        std::string path_str(path);
+        mc::string path_str(path);
         return m_mock_libs.find(path_str) != m_mock_libs.end();
     }
 
-    std::map<std::string, mock_lib_info> m_mock_libs;
-    std::map<void*, std::string>         m_loaded_libs; // handle -> path
+    std::map<mc::string, mock_lib_info> m_mock_libs;
+    std::map<void*, mc::string>         m_loaded_libs; // handle -> path
 };
 
 /**
@@ -210,8 +210,8 @@ TEST_F(ModuleLoaderTest, TestDefaultSearchPaths)
     // 检查是否包含预期的默认路径
     bool              found_basic   = false;
     bool              found_modules = false;
-    const std::string basic_path    = std::string("./?") + std::string(shared_lib_ext());
-    const std::string modules_path  = std::string("./modules/?") + std::string(shared_lib_ext());
+    const mc::string basic_path    = mc::string("./?") + mc::string(shared_lib_ext());
+    const mc::string modules_path  = mc::string("./modules/?") + mc::string(shared_lib_ext());
 
     for (const auto& path : paths) {
         if (path == basic_path) {
@@ -474,7 +474,7 @@ TEST_F(ModuleLoaderTest, TestLoadPathNotReadable)
     loader.add_search_path("./?.so");
 
     // 设置 is_readable 返回 false
-    mock_funcs.is_readable = [](std::string_view) -> bool {
+    mock_funcs.is_readable = [](mc::string_view) -> bool {
         return false;
     };
     loader.set_load_lib_func(mock_funcs);
@@ -500,10 +500,10 @@ TEST_F(ModuleLoaderTest, TestLoadPathDlopenFailed)
     loader.add_search_path("./?.so");
 
     // 设置 is_readable 返回 true，但 load 返回 nullptr
-    mock_funcs.is_readable = [](std::string_view) -> bool {
+    mock_funcs.is_readable = [](mc::string_view) -> bool {
         return true;
     };
-    mock_funcs.load = [](std::string_view, bool) -> void* {
+    mock_funcs.load = [](mc::string_view, bool) -> void* {
         return nullptr;
     };
     loader.set_load_lib_func(mock_funcs);
@@ -601,7 +601,7 @@ TEST_F(ModuleLoaderTest, TestLoadModuleMixedSeparators)
                                              {"mc_open_pkg_driver_module", "mc_close_pkg_driver_module"});
 
     bool        callback_called = false;
-    std::string captured_path;
+    mc::string captured_path;
     auto        callback = [&](auto info, bool&) -> bool {
         callback_called = true;
         captured_path   = info->path;
@@ -626,7 +626,7 @@ TEST_F(ModuleLoaderTest, TestLoadModuleTemplateMultiPlaceholders)
     mock_lib_loader::instance().add_mock_lib("./pkg/tool/bin/pkg/tool.so", {"mc_open_pkg_tool", "mc_close_pkg_tool"});
 
     bool        callback_called = false;
-    std::string captured_path;
+    mc::string captured_path;
     auto        callback = [&](auto info, bool&) -> bool {
         callback_called = true;
         captured_path   = info->path;

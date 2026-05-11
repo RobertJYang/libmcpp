@@ -23,9 +23,9 @@ enum class future_status {
 };
 
 enum class launch {
-    dispatch = 1, // 立即执行
+    dispatch = 1, // 立即派发
     async    = 2, // 异步执行
-    deferred = 3, // 延迟执行，直到第一次调用 get 等操作（TODO:: 暂未实现效果等于 async）
+    deferred = 3, // 延迟模式
 };
 
 } // namespace mc::futures

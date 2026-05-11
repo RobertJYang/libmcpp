@@ -28,7 +28,7 @@ namespace fmt {
  * @param format_str 格式化字符串
  * @param args 参数字典
  */
-MC_API void format_dict(std::string& result, std::string_view format_str, const mc::dict& args);
+MC_API void format_dict(mc::string& result, mc::string_view format_str, const mc::dict& args);
 
 /**
  * @brief 使用字典格式化字符串
@@ -36,7 +36,7 @@ MC_API void format_dict(std::string& result, std::string_view format_str, const 
  * @param args 参数字典
  * @return 格式化后的字符串
  */
-MC_API std::string format_dict(std::string_view format_str, const mc::dict& args);
+MC_API mc::string format_dict(mc::string_view format_str, const mc::dict& args);
 
 /**
  * @brief 使用字典格式化字符串（忽略大小写）
@@ -44,7 +44,7 @@ MC_API std::string format_dict(std::string_view format_str, const mc::dict& args
  * @param format_str 格式化字符串
  * @param args 参数字典
  */
-MC_API void format_dict_icase(std::string& result, std::string_view format_str, const mc::dict& args);
+MC_API void format_dict_icase(mc::string& result, mc::string_view format_str, const mc::dict& args);
 
 /**
  * @brief 使用字典格式化字符串（忽略大小写）
@@ -52,7 +52,7 @@ MC_API void format_dict_icase(std::string& result, std::string_view format_str, 
  * @param args 参数字典
  * @return 格式化后的字符串
  */
-MC_API std::string format_dict_icase(std::string_view format_str, const mc::dict& args);
+MC_API mc::string format_dict_icase(mc::string_view format_str, const mc::dict& args);
 
 /**
  * @brief 解析格式化字符串，获取参数名称
@@ -60,7 +60,7 @@ MC_API std::string format_dict_icase(std::string_view format_str, const mc::dict
  * @param arg_names 存储参数名称的字典
  * @return 如果解析成功返回 true，否则返回 false
  */
-MC_API bool get_format_args(std::string_view format, mc::dict& arg_names);
+MC_API bool get_format_args(mc::string_view format, mc::dict& arg_names);
 
 } // namespace fmt
 

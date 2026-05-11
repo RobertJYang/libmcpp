@@ -14,9 +14,9 @@
 #define MC_RUNTIME_H
 
 #include <mc/runtime/any_executor.h>
-#include <mc/runtime/executor.h>
 #include <mc/runtime/immediate_context.h>
 #include <mc/runtime/runtime_context.h>
+#include <mc/runtime/steady_timer.h>
 #include <mc/runtime/thread_list.h>
 #include <mc/runtime/thread_pool.h>
 
@@ -46,7 +46,7 @@ inline constexpr bool is_executor_tag =
 template <typename CompletionToken>
 auto post(CompletionToken&& token)
 {
-    return boost::asio::post(get_default_executor(), std::forward<CompletionToken>(token));
+    return get_default_executor().post(std::forward<CompletionToken>(token));
 }
 
 /**
@@ -61,9 +61,9 @@ template <typename CompletionToken, typename ExecutorTag>
 auto post(CompletionToken&& token, ExecutorTag)
 {
     if constexpr (std::is_same_v<ExecutorTag, io_executor_tag>) {
-        return boost::asio::post(get_io_executor(), std::forward<CompletionToken>(token));
+        return get_io_executor().post(std::forward<CompletionToken>(token));
     } else if constexpr (std::is_same_v<ExecutorTag, work_executor_tag>) {
-        return boost::asio::post(get_work_executor(), std::forward<CompletionToken>(token));
+        return get_work_executor().post(std::forward<CompletionToken>(token));
     } else {
         static_assert(detail::is_executor_tag<ExecutorTag>, "Invalid executor tag");
     }
@@ -78,7 +78,7 @@ auto post(CompletionToken&& token, ExecutorTag)
 template <typename CompletionToken>
 auto defer(CompletionToken&& token)
 {
-    return boost::asio::defer(get_default_executor(), std::forward<CompletionToken>(token));
+    return get_default_executor().defer(std::forward<CompletionToken>(token));
 }
 
 /**
@@ -93,9 +93,9 @@ template <typename CompletionToken, typename ExecutorTag>
 auto defer(CompletionToken&& token, ExecutorTag)
 {
     if constexpr (std::is_same_v<ExecutorTag, io_executor_tag>) {
-        return boost::asio::defer(get_io_executor(), std::forward<CompletionToken>(token));
+        return get_io_executor().defer(std::forward<CompletionToken>(token));
     } else if constexpr (std::is_same_v<ExecutorTag, work_executor_tag>) {
-        return boost::asio::defer(get_work_executor(), std::forward<CompletionToken>(token));
+        return get_work_executor().defer(std::forward<CompletionToken>(token));
     } else {
         static_assert(detail::is_executor_tag<ExecutorTag>, "Invalid executor tag");
     }
@@ -110,7 +110,7 @@ auto defer(CompletionToken&& token, ExecutorTag)
 template <typename CompletionToken>
 auto dispatch(CompletionToken&& token)
 {
-    return boost::asio::dispatch(get_default_executor(), std::forward<CompletionToken>(token));
+    return get_default_executor().dispatch(std::forward<CompletionToken>(token));
 }
 
 /**
@@ -125,9 +125,9 @@ template <typename CompletionToken, typename ExecutorTag>
 auto dispatch(CompletionToken&& token, ExecutorTag)
 {
     if constexpr (std::is_same_v<ExecutorTag, io_executor_tag>) {
-        return boost::asio::dispatch(get_io_executor(), std::forward<CompletionToken>(token));
+        return get_io_executor().dispatch(std::forward<CompletionToken>(token));
     } else if constexpr (std::is_same_v<ExecutorTag, work_executor_tag>) {
-        return boost::asio::dispatch(get_work_executor(), std::forward<CompletionToken>(token));
+        return get_work_executor().dispatch(std::forward<CompletionToken>(token));
     } else {
         static_assert(detail::is_executor_tag<ExecutorTag>, "Invalid executor tag");
     }
@@ -137,29 +137,22 @@ auto dispatch(CompletionToken&& token, ExecutorTag)
  * @brief 创建strand线程池
  * @return strand线程池
  */
-inline auto make_io_strand()
+inline any_executor make_io_strand()
 {
-    return boost::asio::make_strand(get_io_executor());
+    return get_runtime_context().create_io_strand();
 }
 
-inline auto make_work_strand()
+inline any_executor make_work_strand()
 {
-    return boost::asio::make_strand(get_work_executor());
+    return get_runtime_context().create_work_strand();
 }
-
-template <typename Executor>
-using basic_timer = boost::asio::basic_waitable_timer<
-    std::chrono::steady_clock, boost::asio::wait_traits<std::chrono::steady_clock>,
-    std::conditional_t<std::is_convertible_v<Executor, boost::asio::io_context::executor_type>,
-                       boost::asio::io_context::executor_type, boost::asio::any_io_executor>>;
-using steady_timer = basic_timer<boost::asio::io_context::executor_type>;
 } // namespace mc::runtime
 
 namespace mc {
 using runtime::any_executor;
-using runtime::executor;
 using runtime::immediate_executor;
 using runtime::io_executor;
+using runtime::steady_timer;
 using runtime::work_executor;
 
 using runtime::immediate_context;

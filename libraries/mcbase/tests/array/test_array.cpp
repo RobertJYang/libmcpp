@@ -221,7 +221,7 @@ TEST(array_test, push_back)
 // 测试 emplace_back
 TEST(array_test, emplace_back)
 {
-    mc::array<std::string> arr;
+    mc::array<mc::string> arr;
 
     arr.emplace_back("hello");
     arr.emplace_back(5, 'x'); // 构造 "xxxxx"
@@ -273,7 +273,7 @@ TEST(array_test, insert)
 // 测试 emplace
 TEST(array_test, emplace)
 {
-    mc::array<std::string> arr = {"a", "c"};
+    mc::array<mc::string> arr = {"a", "c"};
 
     auto it = arr.emplace(arr.begin() + 1, 3, 'b'); // 插入 "bbb"
     EXPECT_EQ(*it, "bbb");
@@ -495,7 +495,7 @@ TEST(array_test, compatibility_with_variants)
 // 测试字符串类型
 TEST(array_test, with_string)
 {
-    mc::array<std::string> arr = {"hello", "world", "test"};
+    mc::array<mc::string> arr = {"hello", "world", "test"};
 
     EXPECT_EQ(arr.size(), 3);
     EXPECT_EQ(arr[0], "hello");
@@ -798,7 +798,7 @@ TEST(array_test, assign_iterator_range)
 
 TEST(array_test, assign_initializer_list)
 {
-    mc::array<std::string> arr;
+    mc::array<mc::string> arr;
 
     // 测试 assign(initializer_list)
     arr.assign({"hello", "world", "test"});
@@ -858,7 +858,7 @@ TEST(array_test, std_sort_basic)
 TEST(array_test, std_sort_string)
 {
     // 测试字符串排序
-    mc::array<std::string> arr = {"zebra", "apple", "banana", "cherry"};
+    mc::array<mc::string> arr = {"zebra", "apple", "banana", "cherry"};
 
     std::sort(arr.begin(), arr.end());
 
@@ -889,10 +889,10 @@ TEST(array_test, std_sort_custom_comparator)
 TEST(array_test, std_sort_lambda_comparator)
 {
     // 测试 lambda 比较函数的排序
-    mc::array<std::string> arr = {"apple", "pie", "a", "banana"};
+    mc::array<mc::string> arr = {"apple", "pie", "a", "banana"};
 
     // 按字符串长度排序
-    std::sort(arr.begin(), arr.end(), [](const std::string& a, const std::string& b) {
+    std::sort(arr.begin(), arr.end(), [](const mc::string& a, const mc::string& b) {
         return a.length() < b.length();
     });
 

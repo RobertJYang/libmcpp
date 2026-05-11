@@ -1,0 +1,97 @@
+/*
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
+ * openUBMC is licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *         http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+
+#ifndef MC_SIGNAL_DETAIL_BACKEND_H
+#define MC_SIGNAL_DETAIL_BACKEND_H
+
+#include <atomic>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <mutex>
+#include <vector>
+
+#include <mc/common.h>
+#include <mc/signal/call_stack.h>
+#include <mc/signal/connection.h>
+
+namespace mc::detail {
+
+class MC_API connection_state {
+public:
+    using disconnect_callback_id = std::uint64_t;
+
+    connection_state() noexcept = default;
+
+    bool                   connected() const noexcept;
+    void                   disconnect() noexcept;
+    disconnect_callback_id add_disconnect_callback(std::function<void()> callback);
+    void                   remove_disconnect_callback(disconnect_callback_id callback_id) noexcept;
+
+private:
+    std::atomic<bool>                                                     m_connected{true};
+    std::mutex                                                            m_callback_mutex;
+    disconnect_callback_id                                                m_next_callback_id{1};
+    std::vector<std::pair<disconnect_callback_id, std::function<void()>>> m_disconnect_callbacks;
+};
+
+struct slot_record {
+    int                               priority{0};
+    std::uint64_t                     id{0};
+    std::shared_ptr<void>             callable;
+    std::shared_ptr<connection_state> state;
+};
+
+using slot_record_list = std::vector<slot_record>;
+
+class MC_API signal_emit_guard {
+public:
+    signal_emit_guard(const void* signal_addr, const char* signal_name, std::size_t max_depth = 64);
+    ~signal_emit_guard() noexcept;
+
+    std::size_t depth() const noexcept;
+
+private:
+    std::size_t m_depth{0};
+};
+
+class MC_API signal_backend {
+public:
+    explicit signal_backend(const char* name = nullptr, std::size_t max_depth = 64);
+    ~signal_backend();
+
+    const char* name() const noexcept;
+
+    connection  connect_erased(std::shared_ptr<void> callable, int priority);
+    void        disconnect_all();
+    bool        empty() const;
+    std::size_t slot_count() const;
+    std::size_t max_depth() const noexcept;
+
+    std::shared_ptr<const slot_record_list> snapshot() const;
+
+private:
+    struct state;
+
+    void        ensure_unique_slots_locked(state& backend_state);
+    void        compact_locked(state& backend_state);
+    std::size_t active_slot_count_locked(const state& backend_state) const;
+
+    const char*            m_name{nullptr};
+    std::size_t            m_max_depth{64};
+    std::shared_ptr<state> m_state;
+};
+
+} // namespace mc::detail
+
+#endif // MC_SIGNAL_DETAIL_BACKEND_H

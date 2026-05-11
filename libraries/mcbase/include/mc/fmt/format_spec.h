@@ -23,7 +23,7 @@ class dict;
 }
 
 namespace mc::fmt::detail {
-[[noreturn]] MC_API void throw_format_error(std::string_view fmt_str, const mc::dict& args);
+[[noreturn]] MC_API void throw_format_error(mc::string_view fmt_str, const mc::dict& args);
 
 // 格式说明符
 struct format_spec {
@@ -48,8 +48,8 @@ struct format_spec {
     int              precision       = -1;            // 精度
     size_t           width_index     = INVALID_INDEX; // 动态宽度参数索引，INVALID_INDEX 表示未使用
     size_t           precision_index = INVALID_INDEX; // 动态精度参数索引，INVALID_INDEX 表示未使用
-    std::string_view width_name;                      // 动态宽度参数名称（命名参数）
-    std::string_view precision_name;                  // 动态精度参数名称（命名参数）
+    mc::string_view width_name;                      // 动态宽度参数名称（命名参数）
+    mc::string_view precision_name;                  // 动态精度参数名称（命名参数）
     char             type               = '\0';       // 类型标识符
     bool             zero_pad           = false;      // 是否使用零填充
     bool             alternate_form     = false;      // 支持 # 标志
@@ -165,7 +165,7 @@ struct format_spec {
                 return false;
             }
 
-            std::string_view name(name_start, ptr - name_start);
+            mc::string_view name(name_start, ptr - name_start);
             ++ptr; // 跳过 '}'
 
             if (!name.empty() && !mc::fmt::detail::to_integer(name, width_index)) {
@@ -199,7 +199,7 @@ struct format_spec {
                     return false;
                 }
 
-                std::string_view name(name_start, ptr - name_start);
+                mc::string_view name(name_start, ptr - name_start);
                 ++ptr; // 跳过 '}'
 
                 if (!name.empty() && !mc::fmt::detail::to_integer(name, precision_index)) {

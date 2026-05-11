@@ -37,7 +37,7 @@ TEST(DictConversionTest, DictToVariant)
     // 验证 variant 内容
     dict d2 = v.as<dict>();
     EXPECT_EQ(d2["key1"].as<int>(), 123);
-    EXPECT_EQ(d2["key2"].as<std::string>(), "value");
+    EXPECT_EQ(d2["key2"].as<mc::string>(), "value");
     EXPECT_EQ(d2["key3"].as<bool>(), true);
 }
 
@@ -55,7 +55,7 @@ TEST(DictConversionTest, MutableDictToVariant)
     // 验证 variant 内容
     dict d = v.as<dict>();
     EXPECT_EQ(d["key1"].as<int>(), 123);
-    EXPECT_EQ(d["key2"].as<std::string>(), "value");
+    EXPECT_EQ(d["key2"].as<mc::string>(), "value");
     EXPECT_EQ(d["key3"].as<bool>(), true);
 }
 
@@ -73,7 +73,7 @@ TEST(DictConversionTest, VariantToDict)
     // 验证 dict 内容
     EXPECT_EQ(d2.size(), 3);
     EXPECT_EQ(d2["key1"].as<int>(), 123);
-    EXPECT_EQ(d2["key2"].as<std::string>(), "value");
+    EXPECT_EQ(d2["key2"].as<mc::string>(), "value");
     EXPECT_EQ(d2["key3"].as<bool>(), true);
 }
 
@@ -91,7 +91,7 @@ TEST(DictConversionTest, VariantToMutableDict)
     // 验证 dict 内容
     EXPECT_EQ(md2.size(), 3);
     EXPECT_EQ(md2["key1"].as<int>(), 123);
-    EXPECT_EQ(md2["key2"].as<std::string>(), "value");
+    EXPECT_EQ(md2["key2"].as<mc::string>(), "value");
     EXPECT_EQ(md2["key3"].as<bool>(), true);
 }
 
@@ -99,7 +99,7 @@ TEST(DictConversionTest, VariantToMutableDict)
 TEST(DictConversionTest, StdMapToDict)
 {
     // 创建一个 std::map
-    std::map<std::string, variant> m;
+    std::map<mc::string, variant> m;
     m["key1"] = 123;
     m["key2"] = "value";
     m["key3"] = true;
@@ -115,7 +115,7 @@ TEST(DictConversionTest, StdMapToDict)
     // 验证 dict 内容
     EXPECT_EQ(d.size(), 3);
     EXPECT_EQ(d["key1"].as<int>(), 123);
-    EXPECT_EQ(d["key2"].as<std::string>(), "value");
+    EXPECT_EQ(d["key2"].as<mc::string>(), "value");
     EXPECT_EQ(d["key3"].as<bool>(), true);
 }
 
@@ -123,7 +123,7 @@ TEST(DictConversionTest, StdMapToDict)
 TEST(DictConversionTest, StdUnorderedMapToDict)
 {
     // 创建一个 std::unordered_map
-    std::unordered_map<std::string, variant> m;
+    std::unordered_map<mc::string, variant> m;
     m["key1"] = 123;
     m["key2"] = "value";
     m["key3"] = true;
@@ -139,7 +139,7 @@ TEST(DictConversionTest, StdUnorderedMapToDict)
     // 验证 dict 内容
     EXPECT_EQ(d.size(), 3);
     EXPECT_EQ(d["key1"].as<int>(), 123);
-    EXPECT_EQ(d["key2"].as<std::string>(), "value");
+    EXPECT_EQ(d["key2"].as<mc::string>(), "value");
     EXPECT_EQ(d["key3"].as<bool>(), true);
 }
 
@@ -158,7 +158,7 @@ TEST(DictConversionTest, DictToStdMap)
     // 验证 std::map 内容
     EXPECT_EQ(m.size(), 3);
     EXPECT_EQ(m["key1"].as<int>(), 123);
-    EXPECT_EQ(m["key2"].as<std::string>(), "value");
+    EXPECT_EQ(m["key2"].as<mc::string>(), "value");
     EXPECT_EQ(m["key3"].as<bool>(), true);
 }
 
@@ -177,7 +177,7 @@ TEST(DictConversionTest, DictToStdUnorderedMap)
     // 验证 std::unordered_map 内容
     EXPECT_EQ(m.size(), 3);
     EXPECT_EQ(m["key1"].as<int>(), 123);
-    EXPECT_EQ(m["key2"].as<std::string>(), "value");
+    EXPECT_EQ(m["key2"].as<mc::string>(), "value");
     EXPECT_EQ(m["key3"].as<bool>(), true);
 }
 
@@ -198,7 +198,7 @@ TEST(DictConversionTest, NestedDictConversion)
     dict d = v.as<dict>();
     EXPECT_EQ(d["key2"].as<int>(), 123);
     EXPECT_EQ(d["key1"].as<dict>()["inner1"].as<int>(), 123);
-    EXPECT_EQ(d["key1"].as<dict>()["inner2"].as<std::string>(), "inner_value");
+    EXPECT_EQ(d["key1"].as<dict>()["inner2"].as<mc::string>(), "inner_value");
     EXPECT_EQ(d["key3"].as<dict>()["inner3"].as<bool>(), true);
     EXPECT_DOUBLE_EQ(d["key3"].as<dict>()["inner4"].as<double>(), 456.789);
 }

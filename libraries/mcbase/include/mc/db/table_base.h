@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2024-2026 Huawei Technologies Co., Ltd.
  * openUBMC is licensed under Mulan PSL v2.
  * You can use this software according to the terms and conditions of the Mulan PSL v2.
  * You may obtain a copy of Mulan PSL v2 at:
@@ -13,10 +13,10 @@
 #define MC_DATABASE_TABLE_BASE_H
 
 #include <mc/db/common.h>
-#include <mc/db/query/builder.h>
-#include <mc/db/query/query.h>
+#include <mc/db/local_storage_engine.h>
+#include <mc/db/storage_engine.h>
 #include <mc/db/transaction.h>
-#include <mc/im/radix_tree.h>
+#include <mc/signal/signal.h>
 
 namespace mc::db {
 
@@ -24,43 +24,16 @@ class MC_API table_base {
 public:
     virtual ~table_base() = default;
 
-    virtual uint32_t         get_table_id() const      = 0;
-    virtual void             set_table_id(uint32_t id) = 0;
-    virtual std::string_view get_table_name() const    = 0;
-    virtual bool             empty() const             = 0;
-    virtual size_t           size() const              = 0;
-    virtual void             clear()                   = 0;
+    virtual uint32_t        get_table_id() const      = 0;
+    virtual void            set_table_id(uint32_t id) = 0;
+    virtual mc::string_view get_table_name() const    = 0;
+    virtual bool            empty() const             = 0;
+    virtual size_t          size() const              = 0;
+    virtual void            clear()                   = 0;
 
     object_ptr add_object(const mc::dict& var, transaction* txn = nullptr)
     {
         return do_add_object(var, txn);
-    }
-
-    size_t remove_object(const query_builder& condition, transaction* txn = nullptr)
-    {
-        return do_remove_object(condition, txn);
-    }
-
-    object_ptr find_object(const query_builder& condition)
-    {
-        return do_find_object(condition);
-    }
-
-    using query_handler = std::function<bool(object_base&)>;
-    bool query_object(const query_builder& builder, query_handler&& handler)
-    {
-        return do_query_object(builder, std::forward<query_handler>(handler));
-    }
-
-    size_t update_object(const query_builder& condition, const mc::dict& values, transaction* txn = nullptr)
-    {
-        return do_update_object(condition, values, txn);
-    }
-
-    size_t update_object(const query_builder& condition, const std::map<std::string, variant>& values,
-                         transaction* txn = nullptr)
-    {
-        return do_update_object(condition, values, txn);
     }
 
     /**
@@ -74,25 +47,22 @@ public:
     mc::signal<void(object_base&, object_base&)> on_object_updated;
 
 protected:
-    virtual object_ptr do_add_object(const mc::dict& var, transaction* txn)                   = 0;
-    virtual size_t     do_remove_object(const query_builder& condition, transaction* txn)     = 0;
-    virtual object_ptr do_find_object(const query_builder& condition)                         = 0;
-    virtual bool       do_query_object(const query_builder& builder, query_handler&& handler) = 0;
-
-    virtual size_t do_update_object(const query_builder& condition, const std::map<std::string, variant>& values,
-                                    transaction* txn)                                                         = 0;
-    virtual size_t do_update_object(const query_builder& condition, const mc::dict& values, transaction* txn) = 0;
+    virtual object_ptr do_add_object(const mc::dict& var, transaction* txn) = 0;
 };
 
-template <typename ObjectType, typename Allocator = std::allocator<char>>
+// index_base：索引对外的虚基类（v3）
+//
+// Engine 模板参数决定 raw_iterator 的具体类型。默认 = local_storage_engine
+// 单棵树形态（与 db::index<> 默认 Engine 对齐，方便 standalone 用法）。
+template <typename ObjectType, typename Allocator = std::allocator<char>,
+          typename Engine = local_storage_engine<ObjectType, 1U, Allocator>>
 class index_base {
 public:
     using object_type     = ObjectType;
     using alloc_type      = Allocator;
     using object_ptr_type = mc::shared_ptr<object_type>;
-    using tree_config     = mc::im::tree_config<object_ptr_type, alloc_type>;
-    using tree_type       = mc::im::radix_tree<tree_config>;
-    using raw_iterator    = typename tree_type::iterator;
+    using engine_type     = Engine;
+    using raw_iterator    = engine_raw_iterator_t<Engine>;
 
     virtual ~index_base() = default;
 

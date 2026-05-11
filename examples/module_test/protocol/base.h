@@ -17,7 +17,7 @@
 
 MC_MODULE(mc_protocol)
 
-namespace mc::protocol {
+namespace mc::proto {
 
 /**
  * @brief 消息类型枚举
@@ -37,9 +37,9 @@ enum class protocol_version {
     V2_0  // 版本 2.0
 };
 
-} // namespace mc::protocol
+} // namespace mc::proto
 
-MC_REFLECTABLE("MessageType", mc::protocol::message_type)
-MC_REFLECTABLE("ProtocolVersion", mc::protocol::protocol_version)
+MC_REFLECTABLE("MessageType", mc::proto::message_type)
+MC_REFLECTABLE("ProtocolVersion", mc::proto::protocol_version)
 
 #endif // MC_PROTOCOL_BASE_H

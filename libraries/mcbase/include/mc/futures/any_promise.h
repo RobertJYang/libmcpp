@@ -60,17 +60,31 @@ public:
     void reset();
     void cancel();
 
-    void set_exception(std::exception_ptr e, bool strict_once = true);
     void set_exception(const mc::exception& e, bool strict_once = true);
+    void set_exception(std::exception_ptr e, bool strict_once = true);
+    void set_current_exception(bool strict_once = true);
+
+    template <typename Exception,
+              std::enable_if_t<!std::is_same_v<mc::traits::remove_cvref_t<Exception>, mc::exception>, int> = 0>
+    void set_exception(Exception&& e, bool strict_once = true)
+    {
+        try {
+            throw std::forward<Exception>(e);
+        } catch (const mc::exception& mc_ex) {
+            set_exception(mc_ex, strict_once);
+        } catch (...) {
+            set_current_exception(strict_once);
+        }
+    }
 
     inline launch get_policy() const noexcept
     {
-        return m_state ? m_state->m_policy : launch::async;
+        return m_state ? m_state->get_policy() : launch::async;
     }
     inline void set_policy(launch policy) noexcept
     {
         if (m_state) {
-            m_state->m_policy = policy;
+            m_state->set_policy(policy);
         }
     }
 
@@ -99,14 +113,16 @@ protected:
     template <typename T, typename U = T>
     auto set_value(U&& value, bool strict_once = true) -> std::enable_if_t<!detail::is_future_v<T>, void>
     {
-        if (!m_state || m_state->is_cancelled()) {
+        if (!m_state || m_state->is_cancel_requested()) {
             return;
         }
 
         {
             std::lock_guard lock(m_state->m_mutex);
-            set_result_inner(strict_once);
-            static_cast<State<T>*>(m_state.get())->set_value(std::forward<U>(value));
+            if (!set_result_inner(strict_once)) {
+                return;
+            }
+            mc::futures::State<T>::set_value(*m_state, std::forward<U>(value));
         }
 
         m_state->mark_ready();
@@ -114,14 +130,16 @@ protected:
 
     void set_value(bool strict_once = true)
     {
-        if (!m_state || m_state->is_cancelled()) {
+        if (!m_state || m_state->is_cancel_requested()) {
             return;
         }
 
         {
             std::lock_guard lock(m_state->m_mutex);
-            set_result_inner(strict_once);
-            static_cast<State<void>*>(m_state.get())->set_value();
+            if (!set_result_inner(strict_once)) {
+                return;
+            }
+            mc::futures::State<void>::set_value(*m_state);
         }
 
         m_state->mark_ready();
@@ -131,7 +149,7 @@ protected:
     any_future get_future();
 
 private:
-    void set_result_inner(bool strict_once);
+    bool set_result_inner(bool strict_once);
 
     state_base_ptr m_state;
     bool           m_future_retrieved{false};

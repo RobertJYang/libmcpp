@@ -1,0 +1,22 @@
+/*
+ * Copyright (c) 2024 Huawei Technologies Co., Ltd.
+ * openUBMC is licensed under Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *         http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+
+#include <gtest/gtest.h>
+#include <mc/expr/builtin.h>
+
+int main(int argc, char** argv)
+{
+    // 显式注册 mcexpr 内建模块（conversion / math / string）。
+    // 静态库链接模式下，匿名命名空间静态注册器会被链接器丢弃，必须由可执行文件主动调用。
+    mc::expr::register_builtin_modules();
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
+}

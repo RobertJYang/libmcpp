@@ -2,11 +2,7 @@
 protocol_dir = modules_dir / 'mc' / 'protocol'
 run_command('mkdir', '-p', protocol_dir, check: false)
 
-# 构建 include_directories 列表（使用根目录定义的 stubdir_global）
 example_inc_dirs = [incdir]
-if not enable_conan_compile
-  example_inc_dirs += [stubdir_global]
-endif
 
 # 构建协议模块（使用 init.so 模式）
 protocol_module = shared_library(
@@ -14,11 +10,11 @@ protocol_module = shared_library(
     'init.cpp',
     include_directories: example_inc_dirs,
     dependencies: dep_arr,
-    link_with: [libmcpp_lib],
-    install: true,
+    install: false,
     install_dir: get_option('libdir') / 'libmcpp/modules/mc/protocol',
     name_prefix: 'lib',
     name_suffix: 'so',
+    build_by_default: true,
 )
 
 # 复制模块到测试目录

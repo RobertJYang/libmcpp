@@ -10,9 +10,11 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include <dict/include/index.h>
 #include <mc/dict.h>
 #include <mc/variant.h>
 #include <stdexcept>
+#include <string>
 
 namespace mc {
 
@@ -30,19 +32,18 @@ dict& dict::operator=(std::initializer_list<std::pair<variant, variant>> init)
     return *this;
 }
 
-dict::entry* dict::find_entry(const std::string& key)
+dict::entry* dict::find_entry(const mc::string& key)
 {
-    return find_entry(std::string_view(key));
+    return find_entry(mc::string_view(key));
 }
 
-dict::entry* dict::find_entry(std::string_view key)
+dict::entry* dict::find_entry(mc::string_view key)
 {
     if (!m_data) {
         return nullptr;
     }
 
-    auto it = m_data->index.find(key, m_data->index.hash_function(), m_data->index.key_eq());
-    return it == m_data->index.end() ? nullptr : const_cast<entry*>(&*it);
+    return m_data->index->find(key);
 }
 
 dict::entry* dict::find_entry(const char* key)
@@ -50,7 +51,7 @@ dict::entry* dict::find_entry(const char* key)
     if (key == nullptr) {
         throw std::invalid_argument("键不能为空指针");
     }
-    return find_entry(std::string_view(key));
+    return find_entry(mc::string_view(key));
 }
 
 dict::entry* dict::find_entry(const variant& key)
@@ -59,8 +60,15 @@ dict::entry* dict::find_entry(const variant& key)
         return nullptr;
     }
 
-    auto it = m_data->index.find(key, m_data->index.hash_function(), m_data->index.key_eq());
-    return it == m_data->index.end() ? nullptr : const_cast<entry*>(&*it);
+    return m_data->index->find(key);
+}
+
+dict::entry* dict::find_entry(mc::string_view key, std::size_t hash_code)
+{
+    if (!m_data) {
+        return nullptr;
+    }
+    return m_data->index->find(key, hash_code);
 }
 
 dict& dict::operator()(variant key, variant value)
@@ -70,19 +78,20 @@ dict& dict::operator()(variant key, variant value)
         e->value = std::move(value);
     } else {
         auto&  data      = ensure_data();
-        entry* new_entry = new entry(std::move(key), std::move(value));
+        entry* new_entry = data.create_entry(std::move(key), std::move(value));
         data.entries.push_back(*new_entry);
-        data.index.insert(*new_entry);
+        data.index->insert(*new_entry);
+        data.invalidate_order_cache();
     }
     return *this;
 }
 
-variant& dict::operator[](const std::string& key)
+variant& dict::operator[](const mc::string& key)
 {
-    return (*this)[std::string_view(key)];
+    return (*this)[mc::string_view(key)];
 }
 
-variant& dict::operator[](std::string_view key)
+variant& dict::operator[](mc::string_view key)
 {
     auto* e = find_entry(key);
     if (e) {
@@ -90,9 +99,10 @@ variant& dict::operator[](std::string_view key)
     }
 
     auto&  data      = ensure_data();
-    entry* new_entry = new entry(std::string(key), variant());
+    entry* new_entry = data.create_entry(mc::string(key), variant());
     data.entries.push_back(*new_entry);
-    data.index.insert(*new_entry);
+    data.index->insert(*new_entry);
+    data.invalidate_order_cache();
     return new_entry->value;
 }
 
@@ -101,7 +111,7 @@ variant& dict::operator[](const char* key)
     if (key == nullptr) {
         throw std::invalid_argument("键不能为空指针");
     }
-    return (*this)[std::string_view(key)];
+    return (*this)[mc::string_view(key)];
 }
 
 variant& dict::operator[](const variant& key)
@@ -116,9 +126,10 @@ variant& dict::operator[](const variant& key)
     }
 
     auto&  data      = ensure_data();
-    entry* new_entry = new entry(key, variant());
+    entry* new_entry = data.create_entry(key, variant());
     data.entries.push_back(*new_entry);
-    data.index.insert(*new_entry);
+    data.index->insert(*new_entry);
+    data.invalidate_order_cache();
     return new_entry->value;
 }
 
@@ -133,18 +144,19 @@ variant& dict::operator[](int64_t key)
     return (*this)[mc::variant(key)];
 }
 
-bool dict::erase(const std::string& key)
+bool dict::erase(const mc::string& key)
 {
-    return erase(std::string_view(key));
+    return erase(mc::string_view(key));
 }
 
-bool dict::erase(std::string_view key)
+bool dict::erase(mc::string_view key)
 {
     auto* e = find_entry(key);
     if (e) {
-        m_data->index.erase(m_data->index.iterator_to(*e));
+        m_data->index->erase(*e);
         m_data->entries.erase(m_data->entries.iterator_to(*e));
-        delete e;
+        m_data->invalidate_order_cache();
+        m_data->destroy_entry(e);
         return true;
     }
     return false;
@@ -155,16 +167,17 @@ bool dict::erase(const char* key)
     if (key == nullptr) {
         throw std::invalid_argument("键不能为空指针");
     }
-    return erase(std::string_view(key));
+    return erase(mc::string_view(key));
 }
 
 bool dict::erase(const variant& key)
 {
     auto* e = find_entry(key);
     if (e) {
-        m_data->index.erase(m_data->index.iterator_to(*e));
+        m_data->index->erase(*e);
         m_data->entries.erase(m_data->entries.iterator_to(*e));
-        delete e;
+        m_data->invalidate_order_cache();
+        m_data->destroy_entry(e);
         return true;
     }
     return false;
@@ -194,21 +207,24 @@ dict_types::entry& dict::at_index(size_t index)
         throw std::out_of_range("字典索引越界");
     }
 
-    auto it = m_data->entries.begin();
-    std::advance(it, index);
-    return *it;
+    auto* cached_entry = const_cast<entry*>(m_data->entry_at_index(index));
+    if (cached_entry == nullptr) {
+        throw std::out_of_range("字典索引越界");
+    }
+
+    return *cached_entry;
 }
 
-variant& dict::at(const std::string& key)
+variant& dict::at(const mc::string& key)
 {
-    return at(std::string_view(key));
+    return at(mc::string_view(key));
 }
 
-variant& dict::at(std::string_view key)
+variant& dict::at(mc::string_view key)
 {
     auto* e = find_entry(key);
     if (!e) {
-        throw std::out_of_range("字典中不存在键: " + std::string(key));
+        throw std::out_of_range(mc::to_std_string(mc::string("字典中不存在键: ") + key));
     }
     return e->value;
 }
@@ -218,24 +234,78 @@ variant& dict::at(const char* key)
     if (key == nullptr) {
         throw std::invalid_argument("键不能为空指针");
     }
-    return at(std::string_view(key));
+    return at(mc::string_view(key));
 }
 
 variant& dict::at(const variant& key)
 {
     auto* e = find_entry(key);
     if (!e) {
-        throw std::out_of_range("字典中不存在键: " + key.to_string());
+        throw std::out_of_range(mc::to_std_string(mc::string("字典中不存在键: ") + key.to_string()));
     }
     return e->value;
 }
 
-dict::iterator dict::find(const std::string& key)
+// quark mutable 重载：descriptor() 单次 resolve 拿 (view, hash)，复用 fast-path
+
+dict::iterator dict::find(mc::quark key)
 {
-    return find(std::string_view(key));
+    if (!m_data) {
+        return end();
+    }
+    const auto d = key.descriptor();
+    auto* e = find_entry(d.view, d.hash);
+    if (e) {
+        return m_data->entries.iterator_to(*e);
+    }
+    return m_data->entries.end();
 }
 
-dict::iterator dict::find(std::string_view key)
+variant& dict::operator[](mc::quark key)
+{
+    const auto d = key.descriptor();
+    auto* e = find_entry(d.view, d.hash);
+    if (e) {
+        return e->value;
+    }
+    auto&  data      = ensure_data();
+    entry* new_entry = data.create_entry(mc::string(d.view), variant());
+    data.entries.push_back(*new_entry);
+    data.index->insert(*new_entry);
+    data.invalidate_order_cache();
+    return new_entry->value;
+}
+
+variant& dict::at(mc::quark key)
+{
+    const auto d = key.descriptor();
+    auto* e = find_entry(d.view, d.hash);
+    if (!e) {
+        throw std::out_of_range(mc::to_std_string(mc::string("字典中不存在键: ") + d.view));
+    }
+    return e->value;
+}
+
+bool dict::erase(mc::quark key)
+{
+    const auto d = key.descriptor();
+    auto* e = find_entry(d.view, d.hash);
+    if (e) {
+        m_data->index->erase(*e);
+        m_data->entries.erase(m_data->entries.iterator_to(*e));
+        m_data->invalidate_order_cache();
+        m_data->destroy_entry(e);
+        return true;
+    }
+    return false;
+}
+
+dict::iterator dict::find(const mc::string& key)
+{
+    return find(mc::string_view(key));
+}
+
+dict::iterator dict::find(mc::string_view key)
 {
     if (!m_data) {
         return end();
@@ -253,7 +323,7 @@ dict::iterator dict::find(const char* key)
     if (key == nullptr) {
         throw std::invalid_argument("键不能为空指针");
     }
-    return find(std::string_view(key));
+    return find(mc::string_view(key));
 }
 
 dict::iterator dict::find(const variant& key)
@@ -275,6 +345,11 @@ dict::data_t& dict::ensure_data() const
     return *m_data;
 }
 
+void dict::reserve(std::size_t count)
+{
+    ensure_data().reserve(count);
+}
+
 dict& dict::operator+=(const dict& other)
 {
     for (const auto& item : other.m_data->entries) {
@@ -286,9 +361,10 @@ dict& dict::operator+=(const dict& other)
 dict& dict::insert(dict_types::entry e)
 {
     auto&  data      = ensure_data();
-    entry* new_entry = new entry(std::move(e.key), std::move(e.value));
+    entry* new_entry = data.create_entry(std::move(e.key), std::move(e.value));
     data.entries.push_back(*new_entry);
-    data.index.insert(*new_entry);
+    data.index->insert(*new_entry);
+    data.invalidate_order_cache();
     return *this;
 }
 
@@ -300,9 +376,10 @@ std::pair<dict::iterator, bool> dict::insert(variant key, variant value)
     }
 
     auto&  data      = ensure_data();
-    entry* new_entry = new entry(std::move(key), std::move(value));
+    entry* new_entry = data.create_entry(std::move(key), std::move(value));
     data.entries.push_back(*new_entry);
-    data.index.insert(*new_entry);
+    data.index->insert(*new_entry);
+    data.invalidate_order_cache();
     return {data.entries.iterator_to(*new_entry), true};
 }
 
@@ -314,7 +391,7 @@ dict::iterator dict::insert(const_iterator hint, variant key, variant value)
     }
 
     auto&  data      = ensure_data();
-    entry* new_entry = new entry(std::move(key), std::move(value));
+    entry* new_entry = data.create_entry(std::move(key), std::move(value));
 
     if (hint != data.entries.end()) {
         auto* hint_entry = const_cast<dict_types::entry*>(&*hint);
@@ -323,7 +400,8 @@ dict::iterator dict::insert(const_iterator hint, variant key, variant value)
         data.entries.push_back(*new_entry);
     }
 
-    data.index.insert(*new_entry);
+    data.index->insert(*new_entry);
+    data.invalidate_order_cache();
     return data.entries.iterator_to(*new_entry);
 }
 

@@ -31,7 +31,7 @@ public:
      * @param info 错误信息
      */
     MC_API error_info register_const_error(const error_info& info);
-    MC_API error_info register_const_error(std::string_view name, std::string_view format = {},
+    MC_API error_info register_const_error(mc::string_view name, mc::string_view format = {},
                                            error_level level = error_level::error);
 
     /*
@@ -40,7 +40,8 @@ public:
      * @param name 错误名称
      * @param format 格式化字符串
      */
-    MC_API error_info register_error(std::string name, std::string format, error_level level = error_level::error);
+    MC_API error_info register_error(mc::string_view name, mc::string_view format,
+                                     error_level level = error_level::error);
 
     /*
      * 获取错误信息
@@ -48,7 +49,7 @@ public:
      * @param name 错误名称
      * @return 错误信息
      */
-    MC_API error_info get_error_info(std::string_view name);
+    MC_API error_info get_error_info(mc::string_view name);
 
     /*
      * 检查错误是否已注册
@@ -56,7 +57,7 @@ public:
      * @param name 错误名称
      * @return 如果已注册返回 true，否则返回 false
      */
-    MC_API bool is_registered(std::string_view name);
+    MC_API bool is_registered(mc::string_view name);
 
     /*
      * 报告错误到错误引擎，错误必须预先注册到错误引擎，否则抛出常
@@ -65,7 +66,7 @@ public:
      * @param format 格式化字符串
      * @return 创建的错误
      */
-    MC_API error_ptr report_error(std::string_view name, mc::dict args = {});
+    MC_API error_ptr report_error(mc::string_view name, mc::dict args = {});
     MC_API error_ptr report_error(const error_info& info, mc::dict args = {});
     MC_API error_ptr set_last_error(error_ptr new_error);
     MC_API void      reset_error();

@@ -11,6 +11,7 @@
  */
 
 #include <mc/common.h>
+#include <mc/event.h>
 #include <mc/exception.h>
 #include <mc/log/log.h>
 #include <mc/runtime/runtime_context.h>
@@ -25,6 +26,8 @@
 #include <memory>
 #include <thread>
 #include <vector>
+
+#include "runtime/include/event_dispatcher.h"
 
 #ifndef MC_MAX_IO_THREADS
 #define MC_MAX_IO_THREADS 10
@@ -58,17 +61,6 @@ void immediate_executor::on_work_started() const noexcept
 void immediate_executor::on_work_finished() const noexcept
 {}
 
-immediate_context& immediate_executor::context() const noexcept
-{
-    static immediate_context ctx;
-    return ctx;
-}
-
-immediate_executor immediate_executor::require(boost::asio::execution::blocking_t::never_t) const
-{
-    return *this;
-}
-
 immediate_context::immediate_context()  = default;
 immediate_context::~immediate_context() = default;
 
@@ -79,7 +71,8 @@ immediate_context::executor_type immediate_context::get_executor() const noexcep
 
 class runtime_context::impl {
 public:
-    impl() = default;
+    impl() : m_event_dispatcher(std::make_unique<event_dispatcher>())
+    {}
     ~impl();
 
     void set_config(const runtime_config& new_config);
@@ -94,6 +87,7 @@ public:
 
     void ensure_start();
     void start_impl();
+    void reset_after_fork();
 
     thread_pool& io() noexcept
     {
@@ -108,9 +102,15 @@ public:
         return m_work_pool ? *m_work_pool : *m_io_pool;
     }
 
+    event_dispatcher& dispatcher() noexcept
+    {
+        return *m_event_dispatcher;
+    }
+
 private:
-    std::unique_ptr<thread_pool> m_io_pool;
-    std::unique_ptr<thread_pool> m_work_pool; // 可能为 null（work_threads=0 时）
+    std::unique_ptr<thread_pool>      m_io_pool;
+    std::unique_ptr<thread_pool>      m_work_pool; // 可能为 null（work_threads=0 时）
+    std::unique_ptr<event_dispatcher> m_event_dispatcher;
 
     enum class state_t : std::uint8_t {
         uninitialized = 0, // 未初始化
@@ -257,6 +257,20 @@ void runtime_context::impl::join()
     dlog("runtime_context stopped completely");
 }
 
+void runtime_context::impl::reset_after_fork()
+{
+    // fork 后子进程不能 join 父进程线程池。
+    auto* old_io   = m_io_pool.release();
+    auto* old_work = m_work_pool.release();
+    (void)old_io;
+    (void)old_work;
+
+    auto& data = m_data.unsafe_get_data();
+    data.state = state_t::uninitialized;
+
+    dlog("runtime_context reset after fork: released inherited thread pools");
+}
+
 bool runtime_context::impl::is_stopped() const noexcept
 {
     auto& state = m_data.unsafe_get_data().state;
@@ -294,6 +308,11 @@ void runtime_context::join()
     m_impl->join();
 }
 
+void runtime_context::reset_after_fork()
+{
+    m_impl->reset_after_fork();
+}
+
 bool runtime_context::is_stopped() const noexcept
 {
     return m_impl->is_stopped();
@@ -309,37 +328,72 @@ thread_pool& runtime_context::work() noexcept
     return m_impl->work();
 }
 
-thread_pool::executor_type runtime_context::get_io_executor() noexcept
+any_executor runtime_context::get_io_executor() noexcept
 {
     return m_impl->io().get_executor();
 }
 
-thread_pool::executor_type runtime_context::get_work_executor() noexcept
+any_executor runtime_context::get_work_executor() noexcept
 {
     return m_impl->work().get_executor();
 }
 
-runtime_executor runtime_context::get_executor() noexcept
+any_executor runtime_context::get_executor() noexcept
 {
-    return runtime_executor(*this);
+    return any_executor(runtime_executor(*this));
+}
+
+void runtime_context::send_event(mc::object& target, mc::event& e)
+{
+    m_impl->dispatcher().send_event(target, e);
+}
+
+void runtime_context::post_event(mc::object& target, std::unique_ptr<mc::event> e)
+{
+    post_event(target, std::move(e), 0);
+}
+
+void runtime_context::post_event(mc::object& target, std::unique_ptr<mc::event> e, int priority)
+{
+    m_impl->dispatcher().post_event(target, std::move(e), priority);
+}
+
+void runtime_context::send_posted_events(mc::object* target, mc::event_type_id type)
+{
+    m_impl->dispatcher().send_posted_events(target, type);
+}
+
+void runtime_context::remove_posted_events(mc::object* target, mc::event_type_id type)
+{
+    m_impl->dispatcher().remove_posted_events(target, type);
+}
+
+global_event_filter runtime_context::install_global_filter(mc::event_type_id type, global_event_filter filter)
+{
+    return m_impl->dispatcher().install_global_filter(type, std::move(filter));
+}
+
+void runtime_context::remove_global_filter(mc::event_type_id type)
+{
+    m_impl->dispatcher().remove_global_filter(type);
 }
 
 any_executor runtime_context::create_strand()
 {
-    return executor(runtime_strand());
+    return any_executor(runtime_strand());
 }
 
-thread_pool::strand runtime_context::create_io_strand()
+any_executor runtime_context::create_io_strand()
 {
-    return thread_pool::strand(io().get_executor());
+    return any_executor(runtime_strand().bound_pool(&io()));
 }
 
-thread_pool::strand runtime_context::create_work_strand()
+any_executor runtime_context::create_work_strand()
 {
-    return thread_pool::strand(work().get_executor());
+    return any_executor(runtime_strand().bound_pool(&work()));
 }
 
-thread_pool::executor_type get_default_executor()
+any_executor get_default_executor()
 {
     return get_io_executor();
 }

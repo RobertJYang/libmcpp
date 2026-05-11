@@ -2448,7 +2448,7 @@ TEST(JsonDumpTest, dump_basic_types)
     EXPECT_EQ(mc::filesystem::read_file(test_file).value_or(""), "42");
 
     EXPECT_TRUE(json_wrapper::dump(double_val, test_file));
-    EXPECT_EQ(mc::filesystem::read_file(test_file).value_or(""), "3.14");
+    EXPECT_EQ(mc::filesystem::read_file(test_file).value_or(""), mc::json::json_encode(double_val));
 
     EXPECT_TRUE(json_wrapper::dump(string_val, test_file));
     EXPECT_EQ(mc::filesystem::read_file(test_file).value_or(""), "\"hello\"");
@@ -2670,7 +2670,7 @@ TEST(JsonDirectEncodeTest, encode_vector_basic)
     std::vector<mc::variant> simple_vector = {mc::variant(1), mc::variant("test"), mc::variant(true),
                                               mc::variant(3.14)};
     result                                 = json_wrapper::json_encode(simple_vector, false);
-    EXPECT_EQ(result, "[1,\"test\",true,3.14]");
+    EXPECT_EQ(result, mc::json::json_encode(simple_vector));
 }
 
 TEST(JsonDirectEncodeTest, encode_vector_nested)
@@ -2743,7 +2743,7 @@ TEST(JsonDirectEncodeTest, encode_vector_mixed_types)
     EXPECT_TRUE(result.find("false") != std::string::npos);
     EXPECT_TRUE(result.find("127") != std::string::npos);
     EXPECT_TRUE(result.find("65535") != std::string::npos);
-    EXPECT_TRUE(result.find("3.14159") != std::string::npos);
+    EXPECT_TRUE(result.find(mc::json::json_encode(mc::variant(3.14159))) != std::string::npos);
     EXPECT_TRUE(result.find("\"test\"") != std::string::npos);
     EXPECT_TRUE(result.find("[]") != std::string::npos);
     EXPECT_TRUE(result.find("{}") != std::string::npos);

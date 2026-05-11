@@ -72,7 +72,9 @@ void detail::array_impl<T, Allocator>::do_set(size_t index, const variant& value
             try {
                 from_variant(value, (*this)[index]);
             } catch (const std::exception& e) {
-                throw_bad_cast_error(("Cannot assign value to strongly-typed array: " + std::string(e.what())).c_str());
+                mc::string msg = "Cannot assign value to strongly-typed array: ";
+                msg += e.what();
+                throw_bad_cast_error(msg.view());
             }
         }
     } else {

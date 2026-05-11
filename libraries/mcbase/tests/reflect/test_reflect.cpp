@@ -38,13 +38,13 @@ class test_person {
 public:
     MC_REFLECTABLE("test_person");
 
-    std::string m_name;
-    int         m_age;
-    bool        m_is_male;
+    mc::string m_name;
+    int        m_age;
+    bool       m_is_male;
 
     test_person() : m_name(""), m_age(0), m_is_male(false)
     {}
-    test_person(const std::string& name, int age, bool is_male) : m_name(name), m_age(age), m_is_male(is_male)
+    test_person(const mc::string& name, int age, bool is_male) : m_name(name), m_age(age), m_is_male(is_male)
     {}
 
     bool operator==(const test_person& other) const
@@ -68,6 +68,11 @@ public:
         return id;
     }
 };
+
+class empty_reflect_type {
+public:
+    MC_REFLECTABLE("empty_reflect_type");
+};
 } // namespace test_reflect
 
 MC_REFLECTABLE("test_reflect.test_color", test_reflect::test_color);
@@ -77,11 +82,12 @@ MC_REFLECT_ENUM(test_reflect::test_color, (BLUE)(RED)(GREEN))
 MC_REFLECT(test_reflect::test_person,
            (m_name)(m_age)(m_is_male)(MC_COMPUTED_PROPERTY("id", get_id, set_id))(MC_COMPUTED_PROPERTY("readonly_id",
                                                                                                        get_id)))
+MC_REFLECT(test_reflect::empty_reflect_type, ())
 
 template <typename C>
 struct property_info_base_test {
-    std::string_view name;
-    constexpr property_info_base_test(std::string_view n) : name(n)
+    mc::string_view name;
+    constexpr property_info_base_test(mc::string_view n) : name(n)
     {}
 
     virtual std::type_index typeinfo() const = 0;
@@ -95,7 +101,7 @@ struct property_info_test : public property_info_base_test<C> {
 
     M BaseT::*member_ptr;
 
-    constexpr property_info_test(std::string_view n, M BaseT::*ptr) : property_info_base_test<C>(n), member_ptr(ptr)
+    constexpr property_info_test(mc::string_view n, M BaseT::*ptr) : property_info_base_test<C>(n), member_ptr(ptr)
     {}
 
     virtual std::type_index typeinfo() const override
@@ -113,13 +119,13 @@ public:
     {}
 
     template <typename Getter, typename Setter>
-    void operator()(std::string_view name, Getter&& getter, Setter&& setter) const
+    void operator()(mc::string_view name, Getter&& getter, Setter&& setter) const
     {
-        names.push_back(std::string(name));
+        names.push_back(mc::string(name));
         values.push_back(getter(m_obj));
     }
 
-    mutable std::vector<std::string> names;
+    mutable std::vector<mc::string>  names;
     mutable std::vector<mc::variant> values;
 
 private:
@@ -357,8 +363,8 @@ TEST(ReflectTest, Serialization)
     const mc::dict& d = var.as<mc::dict>();
 
     // 模拟序列化：将字典转换为字符串表示
-    std::string serialized = "{";
-    bool        first      = true;
+    mc::string serialized = "{";
+    bool       first      = true;
     for (const auto& key : d.keys()) {
         if (!first) {
             serialized += ", ";
@@ -366,14 +372,16 @@ TEST(ReflectTest, Serialization)
         first = false;
 
         const mc::variant& value = d[key];
-        serialized += "\"" + key.get_string() + "\": ";
+        serialized += "\"";
+        serialized += key.get_string();
+        serialized += "\": ";
 
         if (value.is_string()) {
-            serialized += "\"" + value.as<std::string>() + "\"";
+            serialized += "\"" + value.as<mc::string>() + "\"";
         } else if (value.is_bool()) {
             serialized += value.as<bool>() ? "true" : "false";
         } else if (value.is_integer()) {
-            serialized += std::to_string(value.as<int>());
+            serialized += mc::to_string(value.as<int>());
         } else if (value.is_object()) {
             serialized += "{...}"; // 简化嵌套对象表示
         }
@@ -381,9 +389,9 @@ TEST(ReflectTest, Serialization)
     serialized += "}";
 
     // 检查序列化结果
-    EXPECT_TRUE(serialized.find("\"m_name\": \"张三\"") != std::string::npos);
-    EXPECT_TRUE(serialized.find("\"m_age\": 30") != std::string::npos);
-    EXPECT_TRUE(serialized.find("\"m_is_male\": true") != std::string::npos);
+    EXPECT_TRUE(serialized.find("\"m_name\": \"张三\"") != mc::string::npos);
+    EXPECT_TRUE(serialized.find("\"m_age\": 30") != mc::string::npos);
+    EXPECT_TRUE(serialized.find("\"m_is_male\": true") != mc::string::npos);
 }
 
 // 测试复杂嵌套结构
@@ -488,7 +496,7 @@ TEST(ReflectTest, TypeNameValidation)
     EXPECT_FALSE(mc::reflect::is_valid_type_name("mc.ab c"));
 
     // 超长名称
-    std::string long_name(256, 'a');
+    mc::string long_name(256, 'a');
     EXPECT_FALSE(mc::reflect::is_valid_type_name(long_name));
 }
 
@@ -506,6 +514,14 @@ TEST(ReflectTest, ToVariantCreatesDict)
     EXPECT_EQ(d["m_name"], "test");
     EXPECT_EQ(d["m_age"], 42);
     EXPECT_EQ(d["m_is_male"], true);
+}
+
+TEST(ReflectTest, EmptyTupleReflectAndStdStringSignatureCompatibility)
+{
+    std::string signature;
+    mc::reflect::reflector<empty_reflect_type>::get_signature(signature);
+    EXPECT_TRUE(signature.empty());
+    EXPECT_EQ(mc::reflect::reflector<empty_reflect_type>::get_name(), "empty_reflect_type");
 }
 
 // 测试 to_variant 直接转换为 dict

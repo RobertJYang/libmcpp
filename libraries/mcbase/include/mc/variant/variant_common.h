@@ -24,6 +24,8 @@
 #include <mc/common.h>
 #include <mc/memory.h>
 #include <mc/pretty_name.h>
+#include <mc/string.h>
+#include <mc/string_view.h>
 
 // 前向声明
 namespace mc {
@@ -42,6 +44,15 @@ class variant_extension_base;
 
 namespace mc {
 
+namespace detail {
+template <typename>
+struct is_std_char_basic_string : std::false_type {};
+template <typename Traits, typename Alloc>
+struct is_std_char_basic_string<std::basic_string<char, Traits, Alloc>> : std::true_type {};
+template <typename T>
+inline constexpr bool is_std_char_basic_string_v = is_std_char_basic_string<std::decay_t<T>>::value;
+} // namespace detail
+
 /**
  * @brief 类型特征，用于识别固定长度的整数类型
  */
@@ -50,7 +61,8 @@ inline constexpr bool is_variant_integer_v =
     std::is_same_v<std::decay_t<T>, bool> || std::is_integral_v<std::decay_t<T>>;
 
 template <typename T>
-inline constexpr bool is_variant_string_v = std::is_same_v<T, std::string_view> || std::is_same_v<T, std::string> ||
+inline constexpr bool is_variant_string_v = std::is_same_v<T, mc::string_view> || std::is_same_v<T, mc::string> ||
+                                            std::is_same_v<T, std::string> || std::is_same_v<T, std::string_view> ||
                                             std::is_same_v<T, char*> || std::is_same_v<T, const char*>;
 
 template <typename T>
@@ -115,15 +127,15 @@ struct blob_base {
 
     bool operator<(const blob_base& other) const
     {
-        auto lhs = std::string_view(data.data(), data.size());
-        auto rhs = std::string_view(other.data.data(), other.data.size());
+        auto lhs = mc::string_view(data.data(), data.size());
+        auto rhs = mc::string_view(other.data.data(), other.data.size());
         return lhs < rhs;
     }
 
     bool operator>(const blob_base& other) const
     {
-        auto lhs = std::string_view(data.data(), data.size());
-        auto rhs = std::string_view(other.data.data(), other.data.size());
+        auto lhs = mc::string_view(data.data(), data.size());
+        auto rhs = mc::string_view(other.data.data(), other.data.size());
         return lhs > rhs;
     }
 
@@ -133,15 +145,15 @@ struct blob_base {
         data.insert(data.end(), other.data.begin(), other.data.end());
     }
 
-    void operator+=(std::string_view other)
+    void operator+=(mc::string_view other)
     {
         data.reserve(data.size() + other.size());
         data.insert(data.end(), other.begin(), other.end());
     }
 
-    std::string_view as_string_view() const
+    mc::string_view as_string_view() const
     {
-        return std::string_view(data.data(), data.size());
+        return mc::string_view(data.data(), data.size());
     }
 };
 using blob = blob_base<>;
@@ -153,7 +165,8 @@ struct variant_config {
     using variant_alloc_type = typename alloc_traits::template rebind_alloc<variant_base>;
 
     using allocator_type = Allocator;
-    using string_type    = std::basic_string<char, std::char_traits<char>, char_alloc_type>;
+    /// variant 内部字符串的稳定类型为 mc::string；与标准库 string 的互操作见 variant_base.h 中内联 to_variant/from_variant
+    using string_type    = mc::string;
     using object_type    = dict;
     using array_type     = variants;
     using blob_type      = blob_base<char_alloc_type>;
@@ -163,7 +176,8 @@ struct variant_config {
     using array_alloc_type  = typename alloc_traits::template rebind_alloc<array_type>;
     using blob_alloc_type   = typename alloc_traits::template rebind_alloc<blob_type>;
 
-    using string_ptr_type    = string_type*;
+    /// 与 array_ptr_type 一致：内嵌存储，非指针
+    using string_ptr_type    = string_type;
     using array_ptr_type     = array_type;
     using blob_ptr_type      = blob_type*;
     using extension_ptr_type = typename mc::shared_ptr<extension_type>;
@@ -196,20 +210,22 @@ enum class type_id : uint8_t {
     max_type        ///< 最大类型值（用于边界检查）
 };
 
-[[noreturn]] MC_API void throw_type_error(const char* expected_type, type_id actual_type);
-MC_API const char*       get_type_name_internal(type_id type);
+[[noreturn]] MC_API void throw_type_error(mc::string_view expected_type, type_id actual_type);
+MC_API mc::string_view  get_type_name_internal(type_id type);
 [[noreturn]] MC_API void throw_unknow_type_error(type_id actual_type);
-[[noreturn]] MC_API void throw_invalid_type_comparison_error(const char* type1, const char* type2, const char* op);
-[[noreturn]] MC_API void throw_invalid_type_operation_error(const char* type1, const char* type2, const char* op);
-[[noreturn]] MC_API void throw_divide_by_zero_exception(const char* msg);
-[[noreturn]] MC_API void throw_out_of_range_error(const char* msg);
+[[noreturn]] MC_API void throw_invalid_type_comparison_error(mc::string_view type1, mc::string_view type2,
+                                                             mc::string_view op);
+[[noreturn]] MC_API void throw_invalid_type_operation_error(mc::string_view type1, mc::string_view type2,
+                                                            mc::string_view op);
+[[noreturn]] MC_API void throw_divide_by_zero_exception(mc::string_view msg);
+[[noreturn]] MC_API void throw_out_of_range_error(mc::string_view msg);
 [[noreturn]] MC_API void throw_out_of_range_error(size_t index, size_t size);
-[[noreturn]] MC_API void throw_bad_cast_error(const char* msg);
-[[noreturn]] MC_API void throw_runtime_error(const char* msg);
-[[noreturn]] MC_API void throw_not_supported_error(const char* operation);
+[[noreturn]] MC_API void throw_bad_cast_error(mc::string_view msg);
+[[noreturn]] MC_API void throw_runtime_error(mc::string_view msg);
+[[noreturn]] MC_API void throw_not_supported_error(mc::string_view operation);
 [[noreturn]] MC_API void throw_extension_null_error();
-[[noreturn]] MC_API void throw_container_overflow_error(const char* container_type);
-MC_API size_t            calculate_str_hash(std::string_view data);
+[[noreturn]] MC_API void throw_container_overflow_error(mc::string_view container_type);
+MC_API size_t            calculate_str_hash(mc::string_view data);
 MC_API size_t            calculate_array_hash(const variants& array_data);
 
 namespace detail {
@@ -312,62 +328,72 @@ T get_numeric(const numeric_t& val)
 
 using variant = variant_base;
 
-MC_API std::string to_string(const variant_base& v);
+MC_API mc::string to_string(const variant_base& v);
 
 namespace detail {
-// 检测是否存在 to_variant 函数
+// 检测是否存在 to_variant 函数（GCC 9 兼容：struct 内部使用函数重载 SFINAE，
+// 避免 inline constexpr bool 在嵌套模板中的 constant-expression 求值问题）
 template <typename T>
-auto has_to_variant_function(int) -> decltype(to_variant(std::declval<T>(), std::declval<mc::variant&>()),
-                                              std::true_type{});
+struct has_to_variant_function_impl {
+private:
+    template <typename U>
+    static auto test(int) -> decltype(to_variant(std::declval<U>(), std::declval<mc::variant&>()), std::true_type{});
+    template <typename>
+    static std::false_type test(...);
+public:
+    static constexpr bool value = decltype(test<T>(0))::value;
+};
 
 template <typename T>
-std::false_type has_to_variant_function(...);
-
-template <typename T>
-inline constexpr bool has_to_variant_function_v = decltype(has_to_variant_function<T>(0))::value;
+inline constexpr bool has_to_variant_function_v = has_to_variant_function_impl<T>::value;
 
 // 检测是否存在 from_variant 函数
 template <typename T>
-auto has_from_variant_function(int)
-    -> decltype(from_variant(std::declval<const mc::variant&>(), std::declval<T&>()), std::true_type{});
+struct has_from_variant_function_impl {
+private:
+    template <typename U>
+    static auto test(int) -> decltype(from_variant(std::declval<const mc::variant&>(), std::declval<U&>()), std::true_type{});
+    template <typename>
+    static std::false_type test(...);
+public:
+    static constexpr bool value = decltype(test<T>(0))::value;
+};
 
 template <typename T>
-std::false_type has_from_variant_function(...);
+inline constexpr bool has_from_variant_function_v = has_from_variant_function_impl<T>::value;
 
-template <typename T>
-inline constexpr bool has_from_variant_function_v = decltype(has_from_variant_function<T>(0))::value;
-
-// 检测类型是否可构造为 variant，分两步检测避免编译错误
-template <typename T>
+// 检测类型是否可与 variant 双向互操作（to_variant + from_variant）
+template <typename T, typename = void>
 struct is_variant_constructible {
-    // 第一步：检查是否可以构造
+    // 第一步：检查是否为可直接构造的基本类型
     static constexpr bool is_constructible =
         mc::is_variant_fundamental_v<T> || std::is_same_v<std::decay_t<T>, mc::dict> ||
         std::is_same_v<std::decay_t<T>, mc::blob> || std::is_same_v<std::decay_t<T>, mc::variants>;
 
-    // 第二步：仅当不可构造时，才检查是否有 to_variant 函数
+    // 第二步：仅当不是基本类型时，同时检查 to_variant 和 from_variant
+    // 要求双向支持，避免仅有隐式转换到基本类型的类型被误判
     template <typename U, bool IsConstructible>
-    struct check_to_variant {
+    struct check_variant_compat {
         static constexpr bool value = true;
     };
 
     template <typename U>
-    struct check_to_variant<U, false> {
-        static constexpr bool value = detail::has_to_variant_function_v<U>;
+    struct check_variant_compat<U, false> {
+        static constexpr bool value =
+            detail::has_to_variant_function_impl<U>::value && detail::has_from_variant_function_impl<U>::value;
     };
 
-    static constexpr bool value = check_to_variant<T, is_constructible>::value;
+    static constexpr bool value = check_variant_compat<T, is_constructible>::value;
 };
 
 // 检测类型是否可从 variant 转换
-template <typename T>
+template <typename T, typename = void>
 struct is_variant_convertible {
     // 基础类型可以直接从 variant 转换
-    static constexpr bool is_fundamental = mc::is_variant_fundamental_v<T> ||
-                                           std::is_same_v<std::decay_t<T>, mc::dict> ||
-                                           std::is_same_v<std::decay_t<T>, mc::blob> ||
-                                           std::is_same_v<std::decay_t<T>, mc::variants> ||
-                                           std::is_same_v<std::decay_t<T>, mc::variant>;
+    static constexpr bool is_fundamental =
+        mc::is_variant_fundamental_v<T> || std::is_same_v<std::decay_t<T>, mc::dict> ||
+        std::is_same_v<std::decay_t<T>, mc::blob> || std::is_same_v<std::decay_t<T>, mc::variants> ||
+        std::is_same_v<std::decay_t<T>, mc::variant>;
 
     // 仅当不是基础类型时，才检查是否有 from_variant 函数
     template <typename U, bool IsFundamental>
@@ -377,7 +403,7 @@ struct is_variant_convertible {
 
     template <typename U>
     struct check_from_variant<U, false> {
-        static constexpr bool value = detail::has_from_variant_function_v<U>;
+        static constexpr bool value = detail::has_from_variant_function_impl<U>::value;
     };
 
     static constexpr bool value = check_from_variant<T, is_fundamental>::value;

@@ -54,7 +54,7 @@ TEST(ErrorClassTest, ToExceptionAndFromException)
     mc::exception ex(mc::exception_code::unknow_exception_code, "", "");
     err->to_exception(ex);
     EXPECT_EQ(ex.name(), "test.error.to_exception");
-    EXPECT_NE(std::string(ex.to_string()).find("to_exception"), std::string::npos);
+    EXPECT_NE(mc::string_view(ex.to_string().view()).find("to_exception"), mc::string_view::npos);
 
     try {
         MC_THROW(mc::invalid_arg_exception, "测试异常: ${value}", ("value", "from_exception"));
@@ -63,7 +63,7 @@ TEST(ErrorClassTest, ToExceptionAndFromException)
         ASSERT_TRUE(converted);
         EXPECT_EQ(converted->get_name(), caught.name());
         EXPECT_TRUE(converted->is_set());
-        EXPECT_NE(converted->get_message().find("from_exception"), std::string::npos);
+        EXPECT_NE(mc::string_view(converted->get_message().view()).find("from_exception"), mc::string_view::npos);
     }
 }
 
@@ -104,7 +104,7 @@ TEST(ErrorClassTest, ComplexErrorChainDeepCopy)
     EXPECT_EQ(copy.get_name(), "test.chain.level3");
     EXPECT_TRUE(copy.has_error("test.chain.level2"));
     EXPECT_TRUE(copy.has_error("test.chain.level1"));
-    EXPECT_EQ(copy.get_message(), "第三层: level3");
+    EXPECT_EQ(mc::string_view(copy.get_message().view()), mc::string_view("第三层: level3"));
 
     // 修改原始错误链，验证不影响拷贝
     auto new_level = mc::make_error("test.chain.new", "新错误");
@@ -173,7 +173,7 @@ TEST(ErrorClassTest, ComplexErrorAssignmentAndMove)
 
     EXPECT_EQ(err3->get_name(), "test.assign.err2");
     EXPECT_TRUE(err3->has_error("test.assign.err1"));
-    EXPECT_EQ(err3->get_message(), "错误2: message2");
+    EXPECT_EQ(mc::string_view(err3->get_message().view()), mc::string_view("错误2: message2"));
 
     // 修改原始错误的名称，验证不影响拷贝（args 是共享的，但名称和格式是拷贝的）
     err2->set_name("test.assign.modified");
@@ -241,9 +241,9 @@ TEST(ErrorClassTest, ToString)
     auto err = mc::make_error("test.tostring", "测试: ${value}");
     err->append_arg("value", "值");
 
-    std::string str = err->to_string();
+    mc::string str(err->to_string().view());
     EXPECT_FALSE(str.empty());
-    EXPECT_NE(str.find("test.tostring"), std::string::npos);
+    EXPECT_NE(str.find("test.tostring"), mc::string::npos);
 }
 
 // 测试 is_set 中 prev_error->is_set() 的路径

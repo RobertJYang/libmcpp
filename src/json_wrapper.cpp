@@ -19,6 +19,9 @@
 
 #include <algorithm>
 #include <cstring>
+#include <iomanip>
+#include <limits>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -173,6 +176,84 @@ bool json_object_equal(const Json* lhs, const Json* rhs)
         child = next;
     }
     return true;
+}
+
+std::string normalize_json_numbers(const std::string& input)
+{
+    std::string output;
+    output.reserve(input.size());
+    for (size_t i = 0; i < input.size();) {
+        const char c = input[i];
+        if (c == '"') {
+            output.push_back(c);
+            ++i;
+            bool escaped = false;
+            while (i < input.size()) {
+                char sc = input[i++];
+                output.push_back(sc);
+                if (escaped) {
+                    escaped = false;
+                } else if (sc == '\\') {
+                    escaped = true;
+                } else if (sc == '"') {
+                    break;
+                }
+            }
+            continue;
+        }
+
+        const bool number_start = (c == '-') || (c >= '0' && c <= '9');
+        if (!number_start) {
+            output.push_back(c);
+            ++i;
+            continue;
+        }
+
+        const size_t start = i;
+        if (input[i] == '-') {
+            ++i;
+        }
+        while (i < input.size() && input[i] >= '0' && input[i] <= '9') {
+            ++i;
+        }
+
+        bool is_float = false;
+        if (i < input.size() && input[i] == '.') {
+            is_float = true;
+            ++i;
+            while (i < input.size() && input[i] >= '0' && input[i] <= '9') {
+                ++i;
+            }
+        }
+        if (i < input.size() && (input[i] == 'e' || input[i] == 'E')) {
+            is_float = true;
+            ++i;
+            if (i < input.size() && (input[i] == '+' || input[i] == '-')) {
+                ++i;
+            }
+            while (i < input.size() && input[i] >= '0' && input[i] <= '9') {
+                ++i;
+            }
+        }
+
+        const auto token = input.substr(start, i - start);
+        if (!is_float) {
+            output += token;
+            continue;
+        }
+
+        char* end = nullptr;
+        const double value = std::strtod(token.c_str(), &end);
+        if (end != token.c_str() + token.size() || !std::isfinite(value)) {
+            output += token;
+            continue;
+        }
+
+        std::ostringstream os;
+        os << std::defaultfloat << std::setprecision(std::numeric_limits<double>::max_digits10) << value;
+        output += os.str();
+    }
+    return output;
 }
 
 bool json_equal(const Json* lhs, const Json* rhs)
@@ -730,13 +811,11 @@ template JsonValue& JsonValue::operator=(const std::vector<int>&);
 template JsonValue& JsonValue::operator=(const std::vector<unsigned int>&);
 template JsonValue& JsonValue::operator=(const std::vector<long>&);
 template JsonValue& JsonValue::operator=(const std::vector<unsigned long>&);
-template JsonValue& JsonValue::operator=(const std::vector<long long>&);
 template JsonValue& JsonValue::operator=(const std::vector<unsigned long long>&);
 template JsonValue::JsonValue(const std::vector<int>&);
 template JsonValue::JsonValue(const std::vector<unsigned int>&);
 template JsonValue::JsonValue(const std::vector<long>&);
 template JsonValue::JsonValue(const std::vector<unsigned long>&);
-template JsonValue::JsonValue(const std::vector<long long>&);
 template JsonValue::JsonValue(const std::vector<unsigned long long>&);
 
 JsonValue JsonValue::make_null()
@@ -1520,11 +1599,23 @@ uint32_t JsonObject::size() const
 
 // ======================== JsonObject::iterator ========================
 
-JsonObject::iterator::iterator(Json* json, Json* child) : m_json(json), m_child(child)
+JsonObject::iterator::iterator(Json* json, Json* child) : m_json(json), m_child(child), m_index(0)
+{}
+
+JsonObject::iterator::iterator(Json* json, std::shared_ptr<std::vector<std::string>> keys, size_t index)
+    : m_json(json), m_child(nullptr), m_keys(std::move(keys)), m_index(index)
 {}
 
 JsonObject::key_value_pair JsonObject::iterator::operator*() const
 {
+    if (m_keys != nullptr) {
+        if (m_index >= m_keys->size()) {
+            MC_THROW(mc::out_of_range_exception, "Dereference invalid iterator");
+        }
+        const std::string& key = (*m_keys)[m_index];
+        return {key, JsonObject(m_json).get(key)};
+    }
+
     if (m_child == nullptr) {
         MC_THROW(mc::out_of_range_exception, "Dereference invalid iterator");
     }
@@ -1547,6 +1638,13 @@ JsonObject::key_value_pair JsonObject::iterator::operator*() const
 
 JsonObject::iterator& JsonObject::iterator::operator++()
 {
+    if (m_keys != nullptr) {
+        if (m_index < m_keys->size()) {
+            ++m_index;
+        }
+        return *this;
+    }
+
     if (m_child != nullptr) {
         Json*    next = nullptr;
         uint32_t ret  = JsonItemNextSibling(m_child, &next);
@@ -1569,6 +1667,16 @@ JsonObject::iterator JsonObject::iterator::operator++(int)
 
 bool JsonObject::iterator::operator==(const iterator& other) const
 {
+    if (m_keys != nullptr || other.m_keys != nullptr) {
+        const auto lhs_size = m_keys ? m_keys->size() : 0;
+        const auto rhs_size = other.m_keys ? other.m_keys->size() : 0;
+        const bool lhs_end  = m_index >= lhs_size;
+        const bool rhs_end  = other.m_index >= rhs_size;
+        if (lhs_end || rhs_end) {
+            return m_json == other.m_json && lhs_end == rhs_end;
+        }
+        return m_json == other.m_json && m_index == other.m_index;
+    }
     return m_json == other.m_json && m_child == other.m_child;
 }
 
@@ -1577,18 +1685,32 @@ JsonObject::iterator JsonObject::begin() const
     if (m_json == nullptr) {
         return iterator(nullptr, nullptr);
     }
+    auto keys = std::make_shared<std::vector<std::string>>();
     Json*    child = nullptr;
     uint32_t ret   = JsonItemFirstChild(const_cast<Json*>(m_json), &child);
     if (ret == JSON_NO_FIRST_CHILD) {
-        return iterator(m_json, nullptr);
+        return iterator(m_json, keys, 0);
     }
     check_json_ret(ret, "Failed to get first child");
-    return iterator(m_json, child);
+    while (child != nullptr) {
+        char* key_c = nullptr;
+        check_json_ret(JsonItemKeyGet(child, &key_c), "Failed to get object key");
+        keys->emplace_back(key_c ? key_c : "");
+
+        Json*    next = nullptr;
+        uint32_t r    = JsonItemNextSibling(child, &next);
+        if (r == JSON_NO_NEXT_SIBLING) {
+            break;
+        }
+        check_json_ret(r, "Failed to get next sibling");
+        child = next;
+    }
+    return iterator(m_json, keys, 0);
 }
 
 JsonObject::iterator JsonObject::end() const
 {
-    return iterator(m_json, nullptr);
+    return iterator(m_json, std::make_shared<std::vector<std::string>>(), 0);
 }
 
 // ======================== json_encode ========================
@@ -1621,7 +1743,7 @@ std::string json_encode(const mc::variant& value, bool pretty_print)
         JsonObjectRelease(json_ptr);
         json_ptr = nullptr;
 
-        return output;
+        return normalize_json_numbers(output);
     } catch (const mc::parse_error_exception&) {
         if (json_ptr != nullptr) {
             JsonObjectRelease(json_ptr);
@@ -1683,7 +1805,7 @@ std::string json_encode(const mc::dict& obj, bool pretty_print)
         JsonObjectRelease(json_obj);
         json_obj = nullptr;
 
-        return output;
+        return normalize_json_numbers(output);
     } catch (const mc::parse_error_exception&) {
         if (json_obj != nullptr) {
             JsonObjectRelease(json_obj);
@@ -1739,7 +1861,7 @@ std::string json_encode(const std::vector<mc::variant>& arr, bool pretty_print)
         JsonObjectRelease(json_arr);
         json_arr = nullptr;
 
-        return output;
+        return normalize_json_numbers(output);
     } catch (const mc::parse_error_exception&) {
         if (json_arr != nullptr) {
             JsonObjectRelease(json_arr);
@@ -1789,7 +1911,7 @@ std::string json_encode(const JsonValue& json_val, bool pretty_print)
         std::string output(result);
         (void)JsonStringValueFree(result);
 
-        return output;
+        return normalize_json_numbers(output);
     } catch (const mc::parse_error_exception&) {
         if (json_ptr != nullptr) {
             JsonObjectRelease(json_ptr);

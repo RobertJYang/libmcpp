@@ -1,0 +1,33 @@
+test_shm_files = files(
+  'container/test_container_basics.cpp',
+  'container/test_list.cpp',
+  'container/test_map.cpp',
+  'container/test_layout_snapshot.cpp',
+  'container/test_map_string.cpp',
+  'container/test_range_queries.cpp',
+  'container/test_set.cpp',
+  'container/test_set_string.cpp',
+  'test_allocator.cpp',
+  'test_byte_string.cpp',
+  'test_intrusive_on_shm.cpp',
+  'test_ipc_mutex.cpp',
+  'test_mq_channel.cpp',
+  'test_mq_proto_node.cpp',
+  'test_mq_queue.cpp',
+  'test_mq_transport_node.cpp',
+  'test_region.cpp',
+  'test_runtime_factory.cpp',
+  'test_shm_runtime.cpp',
+  'test_string.cpp',
+)
+
+# fork 相关测试（会污染进程级状态，需在独立进程中运行）
+test_shm_fork_files = files(
+  'container/test_list_crash.cpp',
+  'container/test_map_crash.cpp',
+  'container/test_set_crash.cpp',
+  'test_allocator_concurrency.cpp',
+  'test_runtime_factory_crash.cpp',
+  'test_runtime_factory_xproc.cpp',
+  'test_string_crash.cpp',
+)

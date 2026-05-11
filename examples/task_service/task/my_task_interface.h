@@ -14,7 +14,7 @@
 #define TASK_INTERFACE_H
 
 #include "gen/task_interface.h"
-#include <mc/core/timer.h>
+#include <mc/timer.h>
 
 namespace test {
 
@@ -35,7 +35,7 @@ struct my_task_interface : public mc::engine::interface<my_task_interface, task_
     void create_timer();
 
     mc::milliseconds m_timeout{1000};
-    mc::core::timer* m_timer{nullptr};
+    mc::timer* m_timer{nullptr};
 };
 
 } // namespace test

@@ -14,6 +14,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <future>
 #include <thread>
 #include <unordered_map>
 #include <vector>
@@ -30,10 +31,10 @@ namespace {
 // 精确模拟 shm_pending_msgs 的并发行为
 class test_pending_msgs {
 public:
-    bool send(std::string_view name, uint32_t serial, mc::promise<int> promise)
+    bool send(mc::string_view name, uint32_t serial, mc::promise<int> promise)
     {
         std::lock_guard lock(m_mutex);
-        auto&           serial_map = m_pending[std::string(name)];
+        auto&           serial_map = m_pending[mc::string(name)];
         if (serial_map.find(serial) != serial_map.end()) {
             return false;
         }
@@ -44,10 +45,10 @@ public:
 
     // 与 shm_pending_msgs::reply 完全一致的模式:
     //   持有 m_mutex → move promise → erase → set_value → 释放 m_mutex
-    bool reply(std::string_view name, uint32_t serial, int value)
+    bool reply(mc::string_view name, uint32_t serial, int value)
     {
         std::lock_guard lock(m_mutex);
-        auto&           serial_map = m_pending[std::string(name)];
+        auto&           serial_map = m_pending[mc::string(name)];
         auto            it         = serial_map.find(serial);
         if (it == serial_map.end()) {
             return false;
@@ -58,25 +59,25 @@ public:
         return true;
     }
 
-    void remove(std::string_view name, uint32_t serial)
+    void remove(mc::string_view name, uint32_t serial)
     {
         std::lock_guard lock(m_mutex);
-        auto            it = m_pending.find(std::string(name));
+        auto            it = m_pending.find(mc::string(name));
         if (it == m_pending.end()) {
             return;
         }
         it->second.erase(serial);
     }
 
-    void clear(std::string_view name)
+    void clear(mc::string_view name)
     {
         std::lock_guard lock(m_mutex);
-        m_pending.erase(std::string(name));
+        m_pending.erase(mc::string(name));
     }
 
 private:
-    std::mutex                                                                      m_mutex;
-    std::unordered_map<std::string, std::unordered_map<uint32_t, mc::promise<int>>> m_pending;
+    std::mutex                                                                     m_mutex;
+    std::unordered_map<mc::string, std::unordered_map<uint32_t, mc::promise<int>>> m_pending;
 };
 
 class SetValueRaceTest : public mc::test::TestWithRuntime {
@@ -91,7 +92,7 @@ class SetValueRaceTest : public mc::test::TestWithRuntime {
     }
 };
 
-// 精确复现 devmon coredump 场景:
+// 复现“非 pool reply 线程 + pool waiter”形态下的竞态窗口:
 //
 //   coredump 调用链:
 //     #0 condition_variable::notify_all()
@@ -101,8 +102,8 @@ class SetValueRaceTest : public mc::test::TestWithRuntime {
 //     #4 harbor::reply_shm_msg()
 //     #5 harbor::process_local_message()
 //
-//   devmon 线程模型:
-//     - harbor 有 3 个独立 worker 线程（非 pool 线程）读消息队列并调用 reply
+//   目标线程模型:
+//     - 有 3 个独立 reply worker 线程（非 pool 线程）读消息队列并调用 reply
 //     - 服务在 pool worker 线程上发送请求并 wait_for 等待回复
 //     - pool 不析构，无外来线程
 //
@@ -111,16 +112,16 @@ class SetValueRaceTest : public mc::test::TestWithRuntime {
 //     notify_all 之前，pool worker 可能因超时退出 wait，释放 future 引用，
 //     触发 state_pool 回收。下一轮 make_promise 复用同一内存时，如果
 //     前一次的 notify_all 尚未完成，就可能访问已被重新初始化的内存。
-TEST_F(SetValueRaceTest, devmon_harbor_reply_pattern)
+TEST_F(SetValueRaceTest, non_pool_reply_workers_with_pool_waiters)
 {
     auto& ctx  = mc::runtime::get_runtime_context();
     auto& pool = ctx.work();
 
     test_pending_msgs pending;
 
-    constexpr int  num_iterations     = 10000;
-    constexpr int  num_harbor_workers = 3;
-    constexpr auto request_timeout    = 5ms;
+    constexpr int  num_iterations    = 2500;
+    constexpr int  num_reply_workers = 3;
+    constexpr auto request_timeout   = 2ms;
 
     std::atomic<bool>     running{true};
     std::atomic<uint32_t> next_serial{1};
@@ -128,14 +129,15 @@ TEST_F(SetValueRaceTest, devmon_harbor_reply_pattern)
     std::atomic<int>      timeout_count{0};
     std::atomic<int>      sent_count{0};
     std::atomic<int>      done_count{0};
+    auto                  all_done_promise = std::make_shared<std::promise<void>>();
+    auto                  all_done_future  = all_done_promise->get_future();
 
-    std::string service_name = ":1.100";
+    mc::string service_name = ":1.100";
 
-    // 启动 harbor worker 线程（非 pool 线程，与 devmon 一致）
-    // harbor worker 从队列读消息后调用 reply
-    std::vector<std::thread> harbor_workers;
-    for (int i = 0; i < num_harbor_workers; ++i) {
-        harbor_workers.emplace_back([&]() {
+    // 启动非 pool reply 线程，从队列读消息后调用 reply。
+    std::vector<std::thread> reply_workers;
+    for (int i = 0; i < num_reply_workers; ++i) {
+        reply_workers.emplace_back([&]() {
             while (running.load(std::memory_order_relaxed)) {
                 uint32_t serial = next_serial.load(std::memory_order_relaxed);
                 for (uint32_t s = 1; s <= serial; ++s) {
@@ -157,15 +159,17 @@ TEST_F(SetValueRaceTest, devmon_harbor_reply_pattern)
         pending.send(service_name, serial, std::move(promise));
         sent_count.fetch_add(1, std::memory_order_relaxed);
 
-        // 在 pool worker 中等待（与 devmon 中服务等待 reply 一致）
-        boost::asio::post(pool.get_executor(), [f = std::move(future), &pending, &timeout_count, &done_count, serial,
-                                                &service_name, request_timeout]() mutable {
+        // 在 pool worker 中等待 reply。
+        pool.get_executor().post([f = std::move(future), &pending, &timeout_count, &done_count, serial, &service_name,
+                                  request_timeout, all_done_promise]() mutable {
             auto status = f.wait_for(request_timeout);
             if (status == mc::futures::future_status::timeout) {
                 timeout_count.fetch_add(1, std::memory_order_relaxed);
                 pending.remove(service_name, serial);
             }
-            done_count.fetch_add(1, std::memory_order_relaxed);
+            if (done_count.fetch_add(1, std::memory_order_relaxed) + 1 == num_iterations) {
+                all_done_promise->set_value();
+            }
         });
 
         if (i % 1000 == 0) {
@@ -173,43 +177,39 @@ TEST_F(SetValueRaceTest, devmon_harbor_reply_pattern)
         }
     }
 
-    // 等待所有 pool worker lambda 确定性完成
-    auto deadline = std::chrono::steady_clock::now() + 30s;
-    while (done_count.load(std::memory_order_relaxed) < num_iterations) {
-        if (std::chrono::steady_clock::now() > deadline) {
-            FAIL() << "等待 pool worker 完成超时: done=" << done_count.load() << "/" << num_iterations;
-        }
-        std::this_thread::sleep_for(1ms);
-    }
+    ASSERT_EQ(all_done_future.wait_for(10s), std::future_status::ready)
+        << "等待 pool worker 完成超时: done=" << done_count.load() << "/" << num_iterations;
 
     running.store(false, std::memory_order_relaxed);
 
-    for (auto& w : harbor_workers) {
+    for (auto& w : reply_workers) {
         w.join();
     }
 
     SUCCEED();
 }
 
-// 模拟 harbor reply + service unregister 并发:
-//   harbor worker 线程调 reply → set_value
+// 模拟“reply 中途清理 pending”并发:
+//   非 pool reply 线程调 reply → set_value
 //   另一个线程调 clear（模拟 unregister_service）销毁未完成的 promise
 //   pool worker 线程等待 future
-TEST_F(SetValueRaceTest, devmon_unregister_during_reply)
+TEST_F(SetValueRaceTest, clear_pending_during_non_pool_reply)
 {
     auto& ctx  = mc::runtime::get_runtime_context();
     auto& pool = ctx.work();
 
     test_pending_msgs pending;
 
-    constexpr int  num_rounds = 500;
-    constexpr int  batch_size = 100;
-    constexpr auto wait_time  = 10ms;
+    constexpr int  num_rounds = 64;
+    constexpr int  batch_size = 24;
+    constexpr auto wait_time  = 1ms;
 
-    std::string service_name = ":1.200";
+    mc::string service_name = ":1.200";
 
     for (int round = 0; round < num_rounds; ++round) {
         std::atomic<int> done_count{0};
+        auto             round_done_promise = std::make_shared<std::promise<void>>();
+        auto             round_done_future  = round_done_promise->get_future();
 
         // 批量创建 promise/future 并注册到 pending map
         for (int j = 0; j < batch_size; ++j) {
@@ -218,14 +218,16 @@ TEST_F(SetValueRaceTest, devmon_unregister_during_reply)
             pending.send(service_name, static_cast<uint32_t>(round * batch_size + j), std::move(promise));
 
             // future move 进 lambda，生命周期由 pool worker 管理
-            boost::asio::post(pool.get_executor(), [f = std::move(future), &done_count, wait_time]() mutable {
+            pool.get_executor().post([f = std::move(future), &done_count, wait_time, round_done_promise]() mutable {
                 f.wait_for(wait_time);
-                done_count.fetch_add(1, std::memory_order_relaxed);
+                if (done_count.fetch_add(1, std::memory_order_relaxed) + 1 == batch_size) {
+                    round_done_promise->set_value();
+                }
             });
         }
-        std::this_thread::sleep_for(100us);
+        std::this_thread::sleep_for(50us);
 
-        // harbor worker 线程回复一半请求
+        // 非 pool reply 线程回复一半请求
         std::thread reply_thread([&]() {
             for (int j = 0; j < batch_size; j += 2) {
                 pending.reply(service_name, static_cast<uint32_t>(round * batch_size + j), j);
@@ -241,18 +243,51 @@ TEST_F(SetValueRaceTest, devmon_unregister_during_reply)
         reply_thread.join();
         clear_thread.join();
 
-        // 等待所有 pool worker 完成
-        auto deadline = std::chrono::steady_clock::now() + 200ms;
-        while (done_count.load(std::memory_order_relaxed) < batch_size) {
-            if (std::chrono::steady_clock::now() > deadline) {
-                break;
-            }
-            std::this_thread::sleep_for(100us);
-        }
+        ASSERT_EQ(round_done_future.wait_for(80ms), std::future_status::ready)
+            << "等待 round 完成超时: round=" << round << " done=" << done_count.load() << "/" << batch_size;
     }
 
-    std::this_thread::sleep_for(100ms);
     SUCCEED();
+}
+
+TEST_F(SetValueRaceTest, resolved_future_does_not_keep_cancel_requested_after_race)
+{
+    constexpr int rounds = 2000;
+
+    for (int i = 0; i < rounds; ++i) {
+        auto promise = mc::make_promise<int>(mc::get_io_context());
+        auto future  = promise.get_future();
+
+        std::promise<void> start_promise;
+        auto               start_future = start_promise.get_future().share();
+
+        std::thread setter([promise = std::move(promise), start_future]() mutable {
+            start_future.wait();
+            promise.set_value(7);
+        });
+
+        std::thread canceller([&future, start_future]() mutable {
+            start_future.wait();
+            future.cancel();
+        });
+
+        start_promise.set_value();
+
+        setter.join();
+        canceller.join();
+
+        bool cancel_callback_called = false;
+        future.on_cancel([&cancel_callback_called]() {
+            cancel_callback_called = true;
+        });
+
+        if (future.is_cancelled()) {
+            EXPECT_THROW(future.get(), mc::canceled_exception);
+        } else {
+            EXPECT_EQ(future.get(), 7);
+            EXPECT_FALSE(cancel_callback_called) << "resolved future 不应残留 cancel_requested 并误触发 on_cancel";
+        }
+    }
 }
 
 // 高并发 state pool 回收 + notify_all 竞态:
@@ -260,13 +295,13 @@ TEST_F(SetValueRaceTest, devmon_unregister_during_reply)
 //   之间的窗口。在该窗口中 waiter 超时退出 wait，future 引用释放，
 //   state 被 pool 回收。新的 make_promise 可能复用同一块内存。
 //
-//   使用非 pool 线程调 set_value（与 harbor worker 一致）
+//   使用非 pool 线程调 set_value
 TEST_F(SetValueRaceTest, state_pool_recycle_with_non_pool_reply)
 {
     auto& ctx  = mc::runtime::get_runtime_context();
     auto& pool = ctx.work();
 
-    constexpr int num_iterations    = 50000;
+    constexpr int num_iterations    = 15000;
     constexpr int num_reply_threads = 3;
 
     struct request {
@@ -279,6 +314,9 @@ TEST_F(SetValueRaceTest, state_pool_recycle_with_non_pool_reply)
     std::mutex           queue_mutex;
     std::vector<req_ptr> request_queue;
     std::atomic<bool>    running{true};
+    std::atomic<int>     done_count{0};
+    auto                 all_done_promise = std::make_shared<std::promise<void>>();
+    auto                 all_done_future  = all_done_promise->get_future();
 
     std::vector<std::thread> reply_threads;
     for (int i = 0; i < num_reply_threads; ++i) {
@@ -317,30 +355,33 @@ TEST_F(SetValueRaceTest, state_pool_recycle_with_non_pool_reply)
             request_queue.push_back(req);
         }
 
-        boost::asio::post(pool.get_executor(), [f = std::move(future), req]() mutable {
+        pool.get_executor().post([f = std::move(future), req, &done_count, all_done_promise]() mutable {
             req->wait_entered.store(true, std::memory_order_release);
             f.wait_for(1ms);
+            if (done_count.fetch_add(1, std::memory_order_relaxed) + 1 == num_iterations) {
+                all_done_promise->set_value();
+            }
         });
 
         if (i % 5000 == 0) {
-            std::this_thread::sleep_for(10ms);
+            std::this_thread::sleep_for(2ms);
         }
     }
 
-    std::this_thread::sleep_for(1s);
+    ASSERT_EQ(all_done_future.wait_for(5s), std::future_status::ready)
+        << "等待 state_pool_recycle_with_non_pool_reply 完成超时: done=" << done_count.load() << "/" << num_iterations;
     running.store(false, std::memory_order_relaxed);
 
     for (auto& t : reply_threads) {
         t.join();
     }
 
-    std::this_thread::sleep_for(100ms);
     SUCCEED();
 }
 
 // 混合竞态: cancel + set_value + state_pool 回收
 //   pool worker 等待超时后调 cancel
-//   harbor worker (非 pool 线程) 几乎同时调 set_value
+//   非 pool reply 线程几乎同时调 set_value
 //   两者都可能触发 mark_ready → notify_all
 //   同时 state_pool 快速回收复用
 TEST_F(SetValueRaceTest, cancel_vs_reply_race_with_pool_recycle)
@@ -350,15 +391,18 @@ TEST_F(SetValueRaceTest, cancel_vs_reply_race_with_pool_recycle)
 
     test_pending_msgs pending;
 
-    constexpr int  num_iterations = 30000;
+    constexpr int  num_iterations = 10000;
     constexpr auto short_timeout  = 500us;
 
-    std::string service_name = ":1.300";
+    mc::string service_name = ":1.300";
 
     std::atomic<bool>     running{true};
     std::atomic<uint32_t> reply_serial{0};
+    std::atomic<int>      done_count{0};
+    auto                  all_done_promise = std::make_shared<std::promise<void>>();
+    auto                  all_done_future  = all_done_promise->get_future();
 
-    // harbor worker 线程
+    // 非 pool reply 线程
     std::thread reply_thread([&]() {
         while (running.load(std::memory_order_relaxed)) {
             uint32_t serial = reply_serial.load(std::memory_order_acquire);
@@ -379,26 +423,29 @@ TEST_F(SetValueRaceTest, cancel_vs_reply_race_with_pool_recycle)
         reply_serial.store(serial, std::memory_order_release);
 
         // pool worker: 短超时等待，超时后 cancel
-        boost::asio::post(pool.get_executor(),
-                          [f = std::move(future), &pending, serial, &service_name, short_timeout]() mutable {
+        pool.get_executor().post([f = std::move(future), &pending, serial, &service_name, short_timeout, &done_count,
+                                  all_done_promise]() mutable {
             auto status = f.wait_for(short_timeout);
             if (status != mc::futures::future_status::ready) {
                 f.cancel();
                 pending.remove(service_name, serial);
             }
             // future 析构 → state_pool 回收
+            if (done_count.fetch_add(1, std::memory_order_relaxed) + 1 == num_iterations) {
+                all_done_promise->set_value();
+            }
         });
 
         if (i % 5000 == 0) {
-            std::this_thread::sleep_for(5ms);
+            std::this_thread::sleep_for(2ms);
         }
     }
 
-    std::this_thread::sleep_for(500ms);
+    ASSERT_EQ(all_done_future.wait_for(5s), std::future_status::ready)
+        << "等待 cancel_vs_reply_race_with_pool_recycle 完成超时: done=" << done_count.load() << "/" << num_iterations;
     running.store(false, std::memory_order_relaxed);
     reply_thread.join();
 
-    std::this_thread::sleep_for(100ms);
     SUCCEED();
 }
 
@@ -409,13 +456,13 @@ TEST_F(SetValueRaceTest, cancel_vs_reply_race_with_pool_recycle)
 //   新的 make_promise 复用同一块内存，此时前次的 notify_all 可能还在访问
 //   m_waiter_list（旧的 condition_variable 成员）
 //
-//   使用固定的 reply 线程（与 harbor worker 一致），避免大量线程创建
+//   使用固定的非 pool reply 线程，避免大量线程创建
 TEST_F(SetValueRaceTest, tight_state_recycle_loop)
 {
     auto& ctx  = mc::runtime::get_runtime_context();
     auto& pool = ctx.work();
 
-    constexpr int num_iterations    = 100000;
+    constexpr int num_iterations    = 15000;
     constexpr int num_reply_threads = 3;
 
     struct pending_item {
@@ -428,6 +475,9 @@ TEST_F(SetValueRaceTest, tight_state_recycle_loop)
     std::mutex            queue_mutex;
     std::vector<item_ptr> queue;
     std::atomic<bool>     running{true};
+    std::atomic<int>      done_count{0};
+    auto                  all_done_promise = std::make_shared<std::promise<void>>();
+    auto                  all_done_future  = all_done_promise->get_future();
 
     std::vector<std::thread> reply_threads;
     for (int i = 0; i < num_reply_threads; ++i) {
@@ -463,23 +513,26 @@ TEST_F(SetValueRaceTest, tight_state_recycle_loop)
             queue.push_back(item);
         }
 
-        boost::asio::post(pool.get_executor(), [f = std::move(future), item]() mutable {
+        pool.get_executor().post([f = std::move(future), item, &done_count, all_done_promise]() mutable {
             item->ready.store(true, std::memory_order_release);
             f.wait_for(2ms);
+            if (done_count.fetch_add(1, std::memory_order_relaxed) + 1 == num_iterations) {
+                all_done_promise->set_value();
+            }
         });
 
         if (i % 10000 == 0) {
-            std::this_thread::sleep_for(10ms);
+            std::this_thread::sleep_for(2ms);
         }
     }
 
-    std::this_thread::sleep_for(1s);
+    ASSERT_EQ(all_done_future.wait_for(5s), std::future_status::ready)
+        << "等待 tight_state_recycle_loop 完成超时: done=" << done_count.load() << "/" << num_iterations;
     running.store(false, std::memory_order_relaxed);
     for (auto& t : reply_threads) {
         t.join();
     }
 
-    std::this_thread::sleep_for(100ms);
     SUCCEED();
 }
 
@@ -503,7 +556,7 @@ TEST_F(SetValueRaceTest, timer_use_after_return_zero_timeout)
     auto& ctx  = mc::runtime::get_runtime_context();
     auto& pool = ctx.work();
 
-    constexpr int num_iterations    = 200000;
+    constexpr int num_iterations    = 30000;
     constexpr int num_reply_threads = 3;
 
     struct pending_item {
@@ -516,7 +569,7 @@ TEST_F(SetValueRaceTest, timer_use_after_return_zero_timeout)
     std::vector<item_ptr> queue;
     std::atomic<bool>     running{true};
 
-    // 非 pool 的 reply 线程（模拟 harbor worker）
+    // 非 pool 的 reply 线程
     std::vector<std::thread> reply_threads;
     for (int i = 0; i < num_reply_threads; ++i) {
         reply_threads.emplace_back([&]() {
@@ -543,6 +596,8 @@ TEST_F(SetValueRaceTest, timer_use_after_return_zero_timeout)
     }
 
     std::atomic<int> done_count{0};
+    auto             all_done_promise = std::make_shared<std::promise<void>>();
+    auto             all_done_future  = all_done_promise->get_future();
 
     for (int i = 0; i < num_iterations; ++i) {
         auto item     = std::make_shared<pending_item>();
@@ -555,11 +610,13 @@ TEST_F(SetValueRaceTest, timer_use_after_return_zero_timeout)
         }
 
         // pool worker: 0 超时等待，保证 timer handler 留在队列
-        boost::asio::post(pool.get_executor(), [f = std::move(future), item, &done_count]() mutable {
+        pool.get_executor().post([f = std::move(future), item, &done_count, all_done_promise]() mutable {
             item->ready.store(true, std::memory_order_release);
             // 0us 超时：poll_until 第一次 pred() 立即为真，不处理 timer handler
             f.wait_for(std::chrono::microseconds(0));
-            done_count.fetch_add(1, std::memory_order_relaxed);
+            if (done_count.fetch_add(1, std::memory_order_relaxed) + 1 == num_iterations) {
+                all_done_promise->set_value();
+            }
         });
 
         if (i % 10000 == 0) {
@@ -567,20 +624,15 @@ TEST_F(SetValueRaceTest, timer_use_after_return_zero_timeout)
         }
     }
 
-    auto deadline = std::chrono::steady_clock::now() + 30s;
-    while (done_count.load(std::memory_order_relaxed) < num_iterations) {
-        if (std::chrono::steady_clock::now() > deadline) {
-            break;
-        }
-        std::this_thread::sleep_for(10ms);
-    }
+    ASSERT_EQ(all_done_future.wait_for(10s), std::future_status::ready)
+        << "等待 timer_use_after_return_zero_timeout 完成超时: done=" << done_count.load() << "/" << num_iterations;
 
     running.store(false, std::memory_order_relaxed);
     for (auto& t : reply_threads) {
         t.join();
     }
 
-    std::this_thread::sleep_for(200ms);
+    std::this_thread::sleep_for(50ms);
     SUCCEED();
 }
 

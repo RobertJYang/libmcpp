@@ -23,11 +23,27 @@
 #include <gtest/gtest.h>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <thread>
+#include <type_traits>
 
 using namespace mc;
 
 namespace {
+
+template <typename Signature, typename = void>
+struct has_time_point_from_iso_signature : std::false_type {};
+
+template <typename Signature>
+struct has_time_point_from_iso_signature<
+    Signature, std::void_t<decltype(static_cast<Signature>(&mc::time_point::from_iso_string))>> : std::true_type {};
+
+template <typename Signature, typename = void>
+struct has_time_point_sec_from_iso_signature : std::false_type {};
+
+template <typename Signature>
+struct has_time_point_sec_from_iso_signature<
+    Signature, std::void_t<decltype(static_cast<Signature>(&mc::time_point_sec::from_iso_string))>> : std::true_type {};
 
 class scoped_env {
 public:
@@ -56,11 +72,24 @@ public:
     }
 
 private:
-    std::string                m_key;
-    std::optional<std::string> m_original;
+    mc::string                m_key;
+    std::optional<mc::string> m_original;
 };
 
 } // namespace
+
+TEST(TimeAbiSafeTest, ExposesStringViewIsoParsingBoundaries)
+{
+    using tp_sv_sig          = mc::time_point (*)(mc::string_view);
+    using tp_std_string_sig  = mc::time_point (*)(const mc::string&);
+    using tps_sv_sig         = mc::time_point_sec (*)(mc::string_view);
+    using tps_std_string_sig = mc::time_point_sec (*)(const mc::string&);
+
+    EXPECT_TRUE((has_time_point_from_iso_signature<tp_sv_sig>::value));
+    EXPECT_FALSE((has_time_point_from_iso_signature<tp_std_string_sig>::value));
+    EXPECT_TRUE((has_time_point_sec_from_iso_signature<tps_sv_sig>::value));
+    EXPECT_FALSE((has_time_point_sec_from_iso_signature<tps_std_string_sig>::value));
+}
 
 // 测试毫秒类
 TEST(TimeTest, MillisecondsTest)
@@ -213,8 +242,8 @@ TEST(TimeTest, TimePointSecTest)
 TEST(TimeTest, IsoStringTest)
 {
     // 时间点与字符串转换 (注意：这个值是1970年开始往后的特定时间戳)
-    time_point  tp1(milliseconds(1577836800000)); // 2020-01-01T00:00:00
-    std::string iso_str = std::string(tp1);
+    time_point tp1(milliseconds(1577836800000)); // 2020-01-01T00:00:00
+    mc::string iso_str = mc::string(tp1);
     EXPECT_EQ(iso_str, "2020-01-01T00:00:00.000");
 
     // 字符串解析测试
@@ -222,8 +251,8 @@ TEST(TimeTest, IsoStringTest)
     EXPECT_EQ(tp2.time_since_epoch().count(), 1577836800000);
 
     // 带毫秒的转换测试
-    time_point  tp3(milliseconds(1577836800123)); // 2020-01-01T00:00:00.123
-    std::string iso_str_ms = std::string(tp3);
+    time_point tp3(milliseconds(1577836800123)); // 2020-01-01T00:00:00.123
+    mc::string iso_str_ms = mc::string(tp3);
     EXPECT_EQ(iso_str_ms, "2020-01-01T00:00:00.123");
 
     time_point tp4 = time_point::from_iso_string("2020-01-01T00:00:00.123");
@@ -231,11 +260,26 @@ TEST(TimeTest, IsoStringTest)
 
     // 秒级时间点的ISO字符串转换
     time_point_sec tps1(1577836800); // 2020-01-01T00:00:00
-    std::string    tps_iso(tps1.to_iso_string());
+    mc::string     tps_iso(tps1.to_iso_string());
     EXPECT_EQ(tps_iso, "2020-01-01T00:00:00");
 
     time_point_sec tps2 = time_point_sec::from_iso_string("2020-01-01T00:00:00");
     EXPECT_EQ(tps2.sec_since_epoch(), 1577836800);
+}
+
+TEST(TimeTest, TimePointSecStdStringViewCompatibility)
+{
+    std::string      iso_std_string = "2020-01-01T00:00:00";
+    std::string_view iso_std_view(iso_std_string.data(), iso_std_string.size());
+
+    time_point_sec from_std_string = time_point_sec::from_iso_string(iso_std_string);
+    time_point_sec from_std_view   = time_point_sec::from_iso_string(iso_std_view);
+    EXPECT_EQ(from_std_string.sec_since_epoch(), 1577836800);
+    EXPECT_EQ(from_std_view.sec_since_epoch(), 1577836800);
+
+    time_point_sec   tps(1577836800);
+    std::string_view exported_view = static_cast<std::string_view>(tps);
+    EXPECT_EQ(exported_view, "2020-01-01T00:00:00");
 }
 
 // 测试variant转换
@@ -256,7 +300,7 @@ TEST(TimeTest, VariantConversionTest)
     time_point tp(milliseconds(1577836800000)); // 2020-01-01T00:00:00
     variant    v2;
     to_variant(tp, v2);
-    EXPECT_EQ(v2.as<std::string>(), "2020-01-01T00:00:00.000");
+    EXPECT_EQ(v2.as<mc::string>(), "2020-01-01T00:00:00.000");
 
     // variant转时间点
     time_point tp2;
@@ -267,7 +311,7 @@ TEST(TimeTest, VariantConversionTest)
     time_point_sec tps(1577836800); // 2020-01-01T00:00:00
     variant        v3;
     to_variant(tps, v3);
-    EXPECT_EQ(v3.as<std::string>(), "2020-01-01T00:00:00");
+    EXPECT_EQ(v3.as<mc::string>(), "2020-01-01T00:00:00");
 
     // variant转秒级时间点
     time_point_sec tps2;
@@ -292,9 +336,9 @@ TEST(TimeTest, SystemTimeTest)
     EXPECT_GE(diff.count(), 100); // 至少过了100毫秒
 
     // 测试ISO字符串解析和格式化的一致性
-    time_point  now     = time_point::from_iso_string("2020-01-01T12:00:00");
-    std::string iso_str = std::string(now);
-    time_point  parsed  = time_point::from_iso_string(iso_str);
+    time_point now     = time_point::from_iso_string("2020-01-01T12:00:00");
+    mc::string iso_str = mc::string(now);
+    time_point parsed  = time_point::from_iso_string(iso_str);
 
     // 检查两个时间点是否相同
     auto time_diff = now - parsed;
@@ -321,7 +365,7 @@ TEST(TimeTest, TimePointNegativeToStringThrows)
 {
     time_point negative(milliseconds(-100));
     EXPECT_THROW([&negative]() {
-        return static_cast<std::string>(negative);
+        return static_cast<mc::string>(negative);
     }(), mc::bad_cast_exception);
 }
 

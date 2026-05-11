@@ -19,13 +19,13 @@
 #define MC_RUNTIME_STRAND_H
 
 #include <atomic>
-#include <functional>
 #include <memory>
 #include <thread>
 #include <type_traits>
 
 #include <mc/common.h>
 #include <mc/memory/shared_ptr.h>
+#include <mc/runtime/detail/task.h>
 #include <mc/runtime/op_queue.h>
 #include <mc/runtime/operation_base.h>
 #include <mc/runtime/thread_pool.h>
@@ -33,19 +33,18 @@
 
 namespace mc::runtime {
 
-using execution_context = boost::asio::execution_context;
-
 class MC_API runtime_strand {
+    struct data_t;
+
     struct task_operation_base : operation_base {
+        data_t*      owner;
         thread_pool* target_pool;
-        task_operation_base(func_type f, destroy_type d, thread_pool* pool) : operation_base(f, d), target_pool(pool)
+        task_operation_base(func_type f, destroy_type d, data_t* owner_, thread_pool* pool)
+            : operation_base(f, d), owner(owner_), target_pool(pool)
         {}
     };
 
-    template <typename Function>
     struct task_operation : task_operation_base {
-        std::decay_t<Function> func_storage;
-
         static void execute_impl(operation_base* op)
         {
             auto* self = static_cast<task_operation*>(op);
@@ -55,12 +54,20 @@ class MC_API runtime_strand {
         static void destroy_impl(operation_base* op)
         {
             auto* self = static_cast<task_operation*>(op);
-            delete self;
+            self->owner->recycle_operation(self);
         }
 
-        task_operation(Function&& f, thread_pool* pool)
-            : task_operation_base(&execute_impl, &destroy_impl, pool), func_storage(std::forward<Function>(f))
+        explicit task_operation(data_t* owner) : task_operation_base(&execute_impl, &destroy_impl, owner, nullptr)
         {}
+
+        void reset(detail::task task, thread_pool* pool)
+        {
+            next         = nullptr;
+            target_pool  = pool;
+            func_storage = std::move(task);
+        }
+
+        detail::task func_storage;
     };
 
     using task_queue = op_queue<task_operation_base>;
@@ -68,13 +75,16 @@ class MC_API runtime_strand {
     struct MC_API data_t : mc::shared_base {
         mutable small_mutex          mutex;
         bool                         locked   = false;
-        bool                         shutdown = false;
         task_queue                   waiting_queue;
         task_queue                   ready_queue;
         std::atomic<std::thread::id> running_thread{};
+        task_operation*              free_operations{nullptr};
 
         ~data_t();
-        void destory_queue(task_queue* q);
+        void            destory_queue(task_queue* q);
+        task_operation* acquire_operation(detail::task task, thread_pool* target_pool);
+        void            recycle_operation(task_operation* op) noexcept;
+        void            destroy_free_operations() noexcept;
     };
     using data_ptr = mc::shared_ptr<data_t>;
 
@@ -88,19 +98,27 @@ public:
     ~runtime_strand();
 
     template <typename Function, typename Allocator = std::allocator<void>>
-    void dispatch(Function&& f, const Allocator& a = Allocator()) const;
+    void dispatch(Function&& f, const Allocator& a = Allocator()) const
+    {
+        dispatch_impl(detail::task(std::forward<Function>(f)));
+    }
 
     template <typename Function, typename Allocator = std::allocator<void>>
-    void post(Function&& f, const Allocator& a = Allocator()) const;
+    void post(Function&& f, const Allocator& a = Allocator()) const
+    {
+        post_impl(detail::task(std::forward<Function>(f)));
+    }
 
     template <typename Function, typename Allocator = std::allocator<void>>
-    void defer(Function&& f, const Allocator& a = Allocator()) const;
+    void defer(Function&& f, const Allocator& a = Allocator()) const
+    {
+        defer_impl(detail::task(std::forward<Function>(f)));
+    }
 
     bool operator==(const runtime_strand& other) const noexcept;
     bool operator!=(const runtime_strand& other) const noexcept;
 
-    bool               running_in_this_thread() const noexcept;
-    execution_context& context() const;
+    bool running_in_this_thread() const noexcept;
 
     void on_work_started() const noexcept
     {}
@@ -135,82 +153,25 @@ private:
     };
 
     template <typename Function>
-    bool enqueue(Function&& f) const;
+    bool enqueue(Function&& f) const
+    {
+        auto* op = m_data->acquire_operation(detail::task(std::forward<Function>(f)), m_bound_pool);
+        return enqueue_op(op);
+    }
     bool enqueue_op(task_operation_base* op) const;
 
-    inline bool can_execute_in_this_shard() const noexcept
-    {
-        auto* shard = thread_pool::get_current_shard();
-        return shard && &shard->pool == m_bound_pool;
-    }
+    bool can_execute_in_this_shard() const noexcept;
 
     static thread_pool::executor_type get_default_executor();
+
+    void dispatch_impl(detail::task task) const;
+    void post_impl(detail::task task) const;
+    void defer_impl(detail::task task) const;
 
     mc::shared_ptr<data_t> m_data;
     thread_pool*           m_bound_pool = nullptr;
 };
 
-template <typename Function, typename Allocator>
-void runtime_strand::dispatch(Function&& f, const Allocator& a) const
-{
-    if (running_in_this_thread()) {
-        // 没有绑定目标 pool 或者当前 shard 就是目标 pool，直接同步执行
-        if (!m_bound_pool || can_execute_in_this_shard()) {
-            std::forward<Function>(f)();
-            return;
-        }
-    }
-
-    bool first = enqueue(std::forward<Function>(f));
-    if (first) {
-        if (m_bound_pool) {
-            m_bound_pool->get_executor().post(invoker(m_data), a);
-        } else {
-            get_default_executor().post(invoker(m_data), a);
-        }
-    }
-}
-
-template <typename Function, typename Allocator>
-void runtime_strand::post(Function&& f, const Allocator& a) const
-{
-    bool first = enqueue(std::forward<Function>(f));
-    if (first) {
-        if (m_bound_pool) {
-            m_bound_pool->get_executor().post(invoker(m_data), a);
-        } else {
-            get_default_executor().post(invoker(m_data), a);
-        }
-    }
-}
-
-template <typename Function, typename Allocator>
-void runtime_strand::defer(Function&& f, const Allocator& a) const
-{
-    bool first = enqueue(std::forward<Function>(f));
-    if (first) {
-        if (m_bound_pool) {
-            m_bound_pool->get_executor().defer(invoker(m_data), a);
-        } else {
-            get_default_executor().defer(invoker(m_data), a);
-        }
-    }
-}
-
-template <typename Function>
-bool runtime_strand::enqueue(Function&& f) const
-{
-    auto* op = new task_operation<Function>(std::forward<Function>(f), m_bound_pool);
-    return enqueue_op(op);
-}
-
 } // namespace mc::runtime
-
-namespace boost::asio {
-
-template <>
-struct is_executor<mc::runtime::runtime_strand> : std::true_type {};
-
-} // namespace boost::asio
 
 #endif // MC_RUNTIME_STRAND_H

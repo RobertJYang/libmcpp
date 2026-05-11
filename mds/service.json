@@ -2,9 +2,15 @@
     "name": "libmcpp",
     "type": "library",
     "deployConfig": "",
-    "version": "1.2.73",
+    "version": "1.2.74",
     "license": "",
     "description": "",
+    "default_options": {
+        "liblogger/*:test": {"Debug": true, "Release": false},
+        "libsomp/*:test":   {"Debug": true, "Release": false},
+        "liblogger/*:enable_luajit": {"Debug": true, "Release": true},
+        "libsomp/*:enable_luajit":   {"Debug": true, "Release": true}
+    },
     "dependencies": {
         "test": [
             {
@@ -16,13 +22,13 @@
         ],
         "build": [
             {
-                "conan": "boost/[>=1.87.0.b003]@openubmc/stable"
+                "conan": "liblogger/[>=1.90.0]@openubmc/stable"
             },
             {
                 "conan": "libsomp/[>=1.80.9]@openubmc/stable"
             },
             {
-                "conan": "liblogger/[>=1.90.0]@openubmc/stable"
+                "conan": "boost/[>=1.87.0.b003]@openubmc/stable"
             },
             {
                 "conan": "skynet/[>=1.8.0]@openubmc/stable"

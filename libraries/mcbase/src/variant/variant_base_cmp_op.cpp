@@ -17,6 +17,7 @@
 
 #include <cmath>
 #include <mc/variant/variant_base.h>
+#include <string_view>
 
 namespace mc {
 
@@ -73,7 +74,7 @@ bool variant_base::same_type_equal(const variant_base& other) const
         case type_id::bool_type:
             return m_bool == other.m_bool;
         case type_id::string_type:
-            return *m_string_ptr == *other.m_string_ptr;
+            return m_string == other.m_string;
         case type_id::array_type:
             if (m_array.size() != other.m_array.size()) {
                 return false;
@@ -174,7 +175,7 @@ bool variant_base::same_type_less(const variant_base& other) const
         case type_id::bool_type:
             return m_bool < other.m_bool;
         case type_id::string_type:
-            return *m_string_ptr < *other.m_string_ptr;
+            return m_string < other.m_string;
         case type_id::blob_type:
             return *m_blob_ptr < *other.m_blob_ptr;
         default:
@@ -238,43 +239,43 @@ bool variant_base::other_type_less(const variant_base& other) const
 
     if (is_string()) {
         if (other.is_blob()) {
-            return *m_string_ptr < other.m_blob_ptr->as_string_view();
+            return m_string.view() < other.m_blob_ptr->as_string_view();
         }
     } else if (is_blob()) {
         if (other.is_string()) {
-            return m_blob_ptr->as_string_view() < *other.m_string_ptr;
+            return m_blob_ptr->as_string_view() < other.m_string.view();
         }
     }
 
     throw_invalid_type_comparison_error(get_type_name(), other.get_type_name(), "<");
 }
 
-// ======== 与 std::string_view 的比较操作符 ========
+// ======== 与 mc::string_view 的比较操作符 ========
 
-bool variant_base::operator==(std::string_view other) const
+bool variant_base::operator==(mc::string_view other) const
 {
     if (is_string()) {
-        return *m_string_ptr == other;
+        return m_string.view() == other;
     } else if (is_blob()) {
         return m_blob_ptr->as_string_view() == other;
     } else if (is_double()) {
         double v;
-        if (mc::string::try_to_number<double>(other, v)) {
+        if (mc::strings::try_to_number<double>(other, v)) {
             return MC_FLOAT_EQUAL(m_double, v, VARIANT_FLOAT_EPSILON);
         }
     } else if (is_signed_integer()) {
         int64_t v;
-        if (mc::string::try_to_number<int64_t>(other, v)) {
+        if (mc::strings::try_to_number<int64_t>(other, v)) {
             return m_int64 == v;
         }
     } else if (is_unsigned_integer()) {
         uint64_t v;
-        if (mc::string::try_to_number<uint64_t>(other, v)) {
+        if (mc::strings::try_to_number<uint64_t>(other, v)) {
             return m_uint64 == v;
         }
     } else if (is_bool()) {
         bool v;
-        if (mc::string::try_to_bool(other, v)) {
+        if (mc::strings::try_to_bool(other, v)) {
             return m_bool == v;
         }
     }
@@ -282,60 +283,60 @@ bool variant_base::operator==(std::string_view other) const
     return false;
 }
 
-bool variant_base::operator<(std::string_view other) const
+bool variant_base::operator<(mc::string_view other) const
 {
     if (is_string()) {
-        return *m_string_ptr < other;
+        return m_string.view() < other;
     } else if (is_blob()) {
         return m_blob_ptr->as_string_view() < other;
     } else if (is_double()) {
         double v;
-        if (mc::string::try_to_number<double>(other, v)) {
+        if (mc::strings::try_to_number<double>(other, v)) {
             return m_double < v;
         }
     } else if (is_signed_integer()) {
         int64_t v;
-        if (mc::string::try_to_number<int64_t>(other, v)) {
+        if (mc::strings::try_to_number<int64_t>(other, v)) {
             return m_int64 < v;
         }
     } else if (is_unsigned_integer()) {
         uint64_t v;
-        if (mc::string::try_to_number<uint64_t>(other, v)) {
+        if (mc::strings::try_to_number<uint64_t>(other, v)) {
             return m_uint64 < v;
         }
     } else if (is_bool()) {
         bool v;
-        if (mc::string::try_to_bool(other, v)) {
+        if (mc::strings::try_to_bool(other, v)) {
             return m_bool < v;
         }
     }
     throw_invalid_type_comparison_error(get_type_name(get_type()), "string_view", "<");
 }
 
-bool variant_base::operator>(std::string_view other) const
+bool variant_base::operator>(mc::string_view other) const
 {
     if (is_string()) {
-        return *m_string_ptr > other;
+        return m_string.view() > other;
     } else if (is_blob()) {
         return m_blob_ptr->as_string_view() > other;
     } else if (is_double()) {
         double v;
-        if (mc::string::try_to_number<double>(other, v)) {
+        if (mc::strings::try_to_number<double>(other, v)) {
             return m_double > v;
         }
     } else if (is_signed_integer()) {
         int64_t v;
-        if (mc::string::try_to_number<int64_t>(other, v)) {
+        if (mc::strings::try_to_number<int64_t>(other, v)) {
             return m_int64 > v;
         }
     } else if (is_unsigned_integer()) {
         uint64_t v;
-        if (mc::string::try_to_number<uint64_t>(other, v)) {
+        if (mc::strings::try_to_number<uint64_t>(other, v)) {
             return m_uint64 > v;
         }
     } else if (is_bool()) {
         bool v;
-        if (mc::string::try_to_bool(other, v)) {
+        if (mc::strings::try_to_bool(other, v)) {
             return m_bool > v;
         }
     }

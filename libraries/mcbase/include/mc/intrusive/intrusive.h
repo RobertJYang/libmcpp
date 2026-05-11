@@ -19,14 +19,9 @@
 
 #include <mc/intrusive/hook.h>
 #include <mc/intrusive/list.h>
+#include <mc/intrusive/offset_ptr.h>
 #include <mc/intrusive/set.h>
+#include <mc/intrusive/trie.h>
 #include <mc/intrusive/unordered_set.h>
-
-/**
- * @namespace mc::intrusive
- * @brief 侵入式容器命名空间
- *
- * 该命名空间包含了对 Boost.Intrusive 库的封装，提供了更加易用的接口
- */
 
 #endif // MC_INTRUSIVE_INTRUSIVE_H

@@ -14,21 +14,19 @@
 #define TEST_SERVICE_H
 
 #include "task/my_task_object.h"
-#include <mc/engine.h>
+#include <mc/app/service.h>
 
 namespace test {
 
-struct test_service : public mc::engine::service {
+struct test_service : public mc::app::service {
 public:
-    test_service(std::string_view name);
-    ~test_service();
-
-    bool init(mc::dict args) override;
-    bool start() override;
-    bool stop() override;
+    explicit test_service(mc::string name);
+    ~test_service() override;
 
 private:
-    void create_task();
+    bool on_start() override;
+    bool on_stop() override;
+    void setup_tasks_root();
 
     tasks_object_ptr m_tasks;
 };

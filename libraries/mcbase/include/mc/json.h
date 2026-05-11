@@ -17,7 +17,7 @@
 #ifndef MC_JSON_H
 #define MC_JSON_H
 
-#include <mc/variant/variant_common.h>
+#include <mc/variant/variant_base.h>
 #include <vector>
 
 namespace mc {
@@ -186,14 +186,14 @@ struct MC_API json_decode_options {
  *
  * @param value 要编码的variant对象
  * @param options 编码选项
- * @return std::string 编码后的JSON字符串
+ * @return mc::string 编码后的JSON字符串
  * @throw mc::parse_error_exception 当编码失败时抛出异常
  */
-MC_API std::string json_encode(const variant&             value,
+MC_API mc::string json_encode(const variant&             value,
                                const json_encode_options& options = json_encode_options::default_encode_options);
-MC_API std::string json_encode(const dict&                obj,
+MC_API mc::string json_encode(const dict&                obj,
                                const json_encode_options& options = json_encode_options::default_encode_options);
-MC_API std::string json_encode(const std::vector<variant>& arr,
+MC_API mc::string json_encode(const std::vector<variant>& arr,
                                const json_encode_options&  options = json_encode_options::default_encode_options);
 
 /**
@@ -204,19 +204,19 @@ MC_API std::string json_encode(const std::vector<variant>& arr,
  * @return variant 解码后的variant对象
  * @throw mc::parse_error_exception 当解码失败时抛出异常
  * @note 此函数可以接受以下类型的参数：
- *       1. std::string - 通过string_view的隐式转换
- *       2. std::string_view - 直接使用
+ *       1. mc::string - 通过string_view的隐式转换
+ *       2. mc::string_view - 直接使用
  *       3. const char* - 通过string_view的隐式转换
  *       4. const char* + size_t - 通过string_view(const char*, size_t)构造
  *
  *       使用示例：
  *       @code
- *       // 使用std::string
- *       std::string str = R"({"name": "张三"})";
+ *       // 使用mc::string
+ *       mc::string str = R"({"name": "张三"})";
  *       variant v1 = json_decode(str);
  *
  *       // 使用string_view
- *       std::string_view sv = R"({"age": 30})";
+ *       mc::string_view sv = R"({"age": 30})";
  *       variant v2 = json_decode(sv);
  *
  *       // 使用C风格字符串
@@ -225,10 +225,10 @@ MC_API std::string json_encode(const std::vector<variant>& arr,
  *
  *       // 使用定长字符数组
  *       const char data[] = R"({"id": 1, "name": "李四"})";
- *       variant v4 = json_decode(std::string_view(data, 10));  // 只解析前10个字符
+ *       variant v4 = json_decode(mc::string_view(data, 10));  // 只解析前10个字符
  *       @endcode
  */
-MC_API variant json_decode(std::string_view           json,
+MC_API variant json_decode(mc::string_view           json,
                            const json_decode_options& options = json_decode_options::default_decode_options);
 
 } // namespace json

@@ -29,10 +29,10 @@ using mc::dbus::match;
 using mc::dbus::message;
 
 namespace {
-constexpr const char* INTROSPECTION_INTERFACE   = "org.freedesktop.DBus.introspectable";
+constexpr const char* INTROSPECTION_INTERFACE   = "org.freedesktop.DBus.Introspectable";
 constexpr const char* INTROSPECT_METHOD         = "Introspect";
 constexpr const char* OBJMGR_INTERFACE          = "org.freedesktop.DBus.ObjectManager";
-constexpr const char* SIGNAL_INTERFACES_REMOVED = "InterfaceRemoved";
+constexpr const char* SIGNAL_INTERFACES_REMOVED = "InterfacesRemoved";
 
 constexpr mc::milliseconds MDB_SERVICE_TIMEOUT   = mc::milliseconds(10 * 60 * 1000);
 constexpr std::string_view MDB_SERVICE_NAME      = "bmc.kepler.maca";

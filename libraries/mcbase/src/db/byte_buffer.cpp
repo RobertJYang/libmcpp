@@ -60,12 +60,12 @@ size_t byte_buffer::capacity() const
     return m_using_bootstrap ? 64 : m_capacity;
 }
 
-std::string_view byte_buffer::bytes() const
+mc::string_view byte_buffer::bytes() const
 {
     if (m_using_bootstrap) {
-        return std::string_view(reinterpret_cast<const char*>(m_bootstrap), m_size);
+        return mc::string_view(reinterpret_cast<const char*>(m_bootstrap), m_size);
     }
-    return std::string_view(reinterpret_cast<const char*>(m_buf.data()), m_size);
+    return mc::string_view(reinterpret_cast<const char*>(m_buf.data()), m_size);
 }
 
 const uint8_t* byte_buffer::data() const
@@ -153,7 +153,7 @@ void byte_buffer::write_byte(uint8_t c)
     }
 }
 
-void byte_buffer::write_string(std::string_view v)
+void byte_buffer::write_string(mc::string_view v)
 {
     write(reinterpret_cast<const uint8_t*>(v.data()), v.size());
 }

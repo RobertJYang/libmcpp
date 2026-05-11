@@ -19,7 +19,7 @@
 namespace mc::fmt::detail {
 
 // 应用对齐和填充
-static void apply_alignment_and_padding(std::string& out, size_t content_start, size_t content_len,
+static void apply_alignment_and_padding(mc::string& out, size_t content_start, size_t content_len,
                                         const format_spec& spec)
 {
     if (spec.width <= static_cast<int>(content_len)) {
@@ -86,7 +86,7 @@ static void write_bit_value(std::ostream& os, const std::bitset<64>& bits, const
         os << (spec.type == 'B' ? "0B" : "0b");
     }
 
-    std::string s = bits.to_string();
+    mc::string s = bits.to_string();
     s.erase(0, s.find_first_not_of('0'));
     if (s.empty()) {
         s = "0";
@@ -134,7 +134,7 @@ void format_integer(format_context& ctx, T value, const format_spec& spec)
 }
 
 // 移除十六进制前缀
-static void remove_hex_prefix(std::string& s, size_t pos)
+static void remove_hex_prefix(mc::string& s, size_t pos)
 {
     if (s.size() < (pos + 2) || s[pos] != '0' || (s[pos + 1] != 'x' && s[pos + 1] != 'X')) {
         return;
@@ -145,7 +145,7 @@ static void remove_hex_prefix(std::string& s, size_t pos)
 
 // 写入浮点数值
 template <typename T>
-void write_double_value(std::ostream& os, std::string& out, char type_char, int precision, T abs_val)
+void write_double_value(std::ostream& os, mc::string& out, char type_char, int precision, T abs_val)
 {
     switch (type_char) {
         case 'f':
@@ -192,7 +192,7 @@ void write_double_value(std::ostream& os, std::string& out, char type_char, int 
 }
 
 // 处理 g/G 格式的替代形式
-static void handle_g_format_alternate(std::string& s, std::size_t pos, int precision, double abs_val,
+static void handle_g_format_alternate(mc::string& s, std::size_t pos, int precision, double abs_val,
                                       const format_spec& spec)
 {
     if (!spec.alternate_form) {
@@ -203,7 +203,7 @@ static void handle_g_format_alternate(std::string& s, std::size_t pos, int preci
 
     // 零值需要补足有效数字
     if (std::fpclassify(abs_val) == FP_ZERO && precision > 0) {
-        if (dot == std::string::npos) {
+        if (dot == mc::string::npos) {
             s += ".";
             dot = s.size() - 1;
         }
@@ -215,27 +215,27 @@ static void handle_g_format_alternate(std::string& s, std::size_t pos, int preci
     }
 
     // .0g 格式需要补小数点
-    if (precision == 0 && dot == std::string::npos) {
+    if (precision == 0 && dot == mc::string::npos) {
         s += ".";
     }
 }
 
 // 处理其他格式的替代形式
-static void handle_format_alternate(std::string& s, std::size_t pos, const format_spec& spec)
+static void handle_format_alternate(mc::string& s, std::size_t pos, const format_spec& spec)
 {
     if (!spec.alternate_form) {
         return;
     }
 
     auto dot = s.find('.', pos);
-    if (dot != std::string::npos) {
+    if (dot != mc::string::npos) {
         return; // 已有小数点
     }
 
     auto type = spec.type;
     if (type == 'e' || type == 'E' || type == 'a' || type == 'A') {
         auto ep = s.find(type == 'a' || type == 'A' ? 'p' : type, pos);
-        if (ep != std::string::npos) {
+        if (ep != mc::string::npos) {
             s.insert(ep, 1, '.');
         }
     } else {
@@ -244,10 +244,10 @@ static void handle_format_alternate(std::string& s, std::size_t pos, const forma
 }
 
 // 去除尾零
-static void remove_trailing_zeros(std::string& s, std::size_t pos, const format_spec& spec)
+static void remove_trailing_zeros(mc::string& s, std::size_t pos, const format_spec& spec)
 {
     auto dot = s.find('.', pos);
-    if (dot == std::string::npos) {
+    if (dot == mc::string::npos) {
         return;
     }
 
@@ -272,7 +272,7 @@ static void remove_trailing_zeros(std::string& s, std::size_t pos, const format_
 }
 
 // 调整浮点数尾部格式
-static void adjust_double_trailing(std::string& s, std::size_t pos, int precision, double abs_val,
+static void adjust_double_trailing(mc::string& s, std::size_t pos, int precision, double abs_val,
                                    const format_spec& spec)
 {
     // 处理 g/G 格式的替代形式
@@ -302,7 +302,7 @@ void format_double(format_context& ctx, T value, const format_spec& spec)
 
 // 格式化数字（带符号处理）
 template <typename WriteAbs>
-void format_number(std::string& out, const format_spec& spec, bool is_negative, WriteAbs&& write_abs)
+void format_number(mc::string& out, const format_spec& spec, bool is_negative, WriteAbs&& write_abs)
 {
     size_t           start_pos = out.size();
     direct_outputbuf buf(out);
@@ -324,7 +324,7 @@ void format_number(std::string& out, const format_spec& spec, bool is_negative, 
 
 // 格式化通用值
 template <typename WriteValue>
-void format_value(std::string& out, const format_spec& spec, WriteValue&& f)
+void format_value(mc::string& out, const format_spec& spec, WriteValue&& f)
 {
     size_t start_pos = out.size();
     f(out);
@@ -359,7 +359,7 @@ void format_parser::format_pointer(format_context& ctx, const void* ptr, const f
     if (spec.type != '\0' && spec.type != 'p') {
         MC_THROW(mc::format_error, "invalid format specifier for pointer");
     }
-    format_value(ctx.out(), spec, [&](std::string& out) {
+    format_value(ctx.out(), spec, [&](mc::string& out) {
         if (ptr == nullptr) {
             out += "0x0"; // 有些平台空指针打印为 0，我们统一成 0x0
         } else {
@@ -386,7 +386,7 @@ void format_parser::format_string(format_context& ctx, string_view str, const fo
         string_spec.alignment = format_spec::align::left;
     }
 
-    format_value(ctx.out(), string_spec, [&](std::string& out) {
+    format_value(ctx.out(), string_spec, [&](mc::string& out) {
         out.append(str.data(), str.size());
     });
 }
@@ -420,7 +420,7 @@ void format_parser::format_char(format_context& ctx, char c, const format_spec& 
         // 输出字符的 ASCII 值
         format_integer(ctx, static_cast<uint64_t>(c), spec);
     } else {
-        format_value(ctx.out(), spec, [&](std::string& out) {
+        format_value(ctx.out(), spec, [&](mc::string& out) {
             out.push_back(c);
         });
     }

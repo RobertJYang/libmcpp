@@ -1,0 +1,230 @@
+/*
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
+ * openUBMC is licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *         http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+
+#include <mc/engine/dispatcher.h>
+
+#include <mc/engine/context.h>
+#include <mc/engine/errors/std_errors.h>
+#include <mc/engine/object.h>
+#include <mc/engine/service.h>
+#include <mc/engine/std_interface.h>
+#include <mc/error.h>
+#include <mc/error_engine.h>
+
+namespace mc::engine {
+namespace {
+
+class scoped_last_error {
+public:
+    scoped_last_error() : m_previous(mc::error_engine::get_instance().set_last_error(mc::error_ptr{}))
+    {}
+
+    ~scoped_last_error()
+    {
+        mc::error_engine::get_instance().set_last_error(std::move(m_previous));
+    }
+
+    mc::error_ptr current() const
+    {
+        return mc::error_engine::get_instance().last_error();
+    }
+
+private:
+    mc::error_ptr m_previous;
+};
+
+message make_response(const message& request, message_type type, mc::shared_ptr<const abstract_payload> body)
+{
+    message response;
+    response.header.type           = type;
+    response.header.destination    = request.header.sender;
+    response.header.sender         = request.header.destination;
+    response.header.path           = request.header.path;
+    response.header.interface_name = request.header.interface_name;
+    response.header.member_name    = request.header.member_name;
+    response.header.serial         = request.header.serial + 1;
+    response.header.reply_serial   = request.header.serial;
+    response.body                  = std::move(body);
+    return response;
+}
+
+message make_error_response(const message& request, mc::string_view name, mc::string_view text)
+{
+    auto body             = make_payload<error_payload>(name, text);
+    auto rsp              = make_response(request, message_type::error, std::move(body));
+    rsp.header.error_name = mc::string(name);
+    return rsp;
+}
+
+message make_engine_error_response(const message& request, const mc::error_info& info, mc::dict args = {})
+{
+    auto err = mc::error_engine::get_instance().report_error(info, std::move(args));
+    return make_error_response(request, err->get_name(), err->get_message());
+}
+
+message make_exception_response(const message& request, const mc::exception& ex)
+{
+    auto err = mc::error::from_exception(ex);
+    if (err && err->is_set()) {
+        return make_error_response(request, err->get_name(), err->get_message());
+    }
+    return make_error_response(request, errors::internal_error.name, ex.top_message());
+}
+
+message make_reported_error_response(const message& request, const mc::error_ptr& err)
+{
+    if (err && err->is_set()) {
+        return make_error_response(request, err->get_name(), err->get_message());
+    }
+    return {};
+}
+
+bool is_wire_context_arg(const mc::variant& value)
+{
+    if (!value.is_dict()) {
+        return false;
+    }
+    auto first_arg = value.as_dict();
+    for (const auto& entry : first_arg) {
+        if (!entry.key.is_string()) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool normalize_method_args(context& ctx, const mc::variants& args, size_t business_arg_count,
+                           bool has_explicit_context_arg, mc::variants& normalized_args)
+{
+    normalized_args.clear();
+
+    if (args.size() == business_arg_count) {
+        if (has_explicit_context_arg) {
+            normalized_args.push_back(ctx.get_args());
+        }
+        for (const auto& arg : args) {
+            normalized_args.push_back(arg);
+        }
+        return true;
+    }
+
+    if (args.size() != business_arg_count + 1 || args.empty() || !is_wire_context_arg(args[0])) {
+        return false;
+    }
+
+    ctx.set_args(args[0].as_dict());
+
+    if (has_explicit_context_arg) {
+        normalized_args.push_back(ctx.get_args());
+    }
+    for (size_t i = 1; i < args.size(); ++i) {
+        normalized_args.push_back(args[i]);
+    }
+    return true;
+}
+
+message dispatch_method_call(const service& svc, const message& request, const method_call_payload& payload)
+{
+    auto&            table = svc.get_object_table();
+    auto             it    = table.find<by_path>(request.header.path);
+    abstract_object* obj   = it.is_end() ? nullptr : const_cast<abstract_object*>(&*it);
+
+    if (obj == nullptr) {
+        if (auto std_hit = standard_interfaces::try_invoke(svc, obj, request.header.path, request.header.member_name,
+                                                           payload.args, request.header.interface_name);
+            std_hit.has_value()) {
+            auto body = make_payload<method_return_payload>(std::move(std_hit->value), std_hit->result_signature);
+            return make_response(request, message_type::method_return, std::move(body));
+        }
+        return make_engine_error_response(request, errors::unknown_object, {{"path", request.header.path}});
+    }
+
+    auto* owner_svc = obj->get_service();
+    if (owner_svc == nullptr) {
+        owner_svc = const_cast<service*>(&svc);
+    }
+    context               ctx(*owner_svc, *obj);
+    detail::variants_call call_info{payload.args, request.header.interface_name, request.header.member_name};
+    call_info.path   = request.header.path;
+    call_info.sender = request.header.sender;
+    ctx.set_call_info(call_info);
+    context_stack::context call_ctx(owner_svc, ctx);
+
+    if (auto std_hit = standard_interfaces::try_invoke(svc, obj, request.header.path, request.header.member_name,
+                                                       payload.args, request.header.interface_name);
+        std_hit.has_value()) {
+        auto body = make_payload<method_return_payload>(std::move(std_hit->value), std_hit->result_signature);
+        return make_response(request, message_type::method_return, std::move(body));
+    }
+
+    if (!obj->has_interface(request.header.interface_name)) {
+        return make_engine_error_response(request, errors::unknown_interface,
+                                          {{"interface", request.header.interface_name}});
+    }
+    if (!obj->has_method(request.header.member_name, request.header.interface_name)) {
+        return make_engine_error_response(request, errors::unknown_method, {{"method", request.header.member_name}});
+    }
+
+    auto info = obj->get_metadata().get_method_info(request.header.member_name, request.header.interface_name);
+    if (info.item == nullptr) {
+        return make_engine_error_response(request, errors::unknown_method, {{"method", request.header.member_name}});
+    }
+
+    mc::variants normalized_args;
+    if (!normalize_method_args(ctx, payload.args, info.item->business_arg_count(),
+                               info.item->has_explicit_context_arg(), normalized_args)) {
+        return make_engine_error_response(request, errors::invalid_args);
+    }
+
+    auto value = obj->invoke(request.header.member_name, normalized_args, request.header.interface_name);
+    auto body  = make_payload<method_return_payload>(
+        std::move(value), info.item == nullptr ? mc::string_view{} : info.item->get_result_signature());
+    return make_response(request, message_type::method_return, std::move(body));
+}
+
+} // namespace
+
+message dispatch(const service& svc, const message& request)
+{
+    if (request.header.type == message_type::signal) {
+        svc.dispatch_event(request);
+        return {};
+    }
+    if (request.header.type != message_type::method_call) {
+        return {};
+    }
+
+    auto* payload = request.try_as<method_call_payload>();
+    if (payload == nullptr) {
+        return make_engine_error_response(request, errors::invalid_args);
+    }
+
+    scoped_last_error last_error_scope;
+
+    try {
+        return dispatch_method_call(svc, request, *payload);
+    } catch (const mc::exception& ex) {
+        auto reported = make_reported_error_response(request, last_error_scope.current());
+        if (reported.header.type == message_type::error) {
+            return reported;
+        }
+        return make_exception_response(request, ex);
+    } catch (const std::exception& ex) {
+        auto reported = make_reported_error_response(request, last_error_scope.current());
+        if (reported.header.type == message_type::error) {
+            return reported;
+        }
+        return make_error_response(request, errors::internal_error.name, ex.what());
+    }
+}
+
+} // namespace mc::engine

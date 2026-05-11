@@ -84,7 +84,7 @@ inline void verify_bool_value(const variant& v, bool expected_value)
 /**
  * @brief 验证 variant 是否为字符串类型并有正确的值
  */
-inline void verify_string_value(const variant& v, const std::string& expected_value)
+inline void verify_string_value(const variant& v, const mc::string& expected_value)
 {
     ASSERT_FALSE(v.is_null()) << "variant 不应该为 null";
     ASSERT_TRUE(v.is_string()) << "variant 应该是 string 类型";

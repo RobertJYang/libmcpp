@@ -17,7 +17,7 @@
 #include <string>
 #include <vector>
 
-namespace mc::protocol {
+namespace mc::proto {
 
 /**
  * @brief 协议处理器类
@@ -129,6 +129,6 @@ private:
     std::vector<std::string> m_notifications;
 };
 
-} // namespace mc::protocol
+} // namespace mc::proto
 
 #endif // MC_PROTOCOL_HANDLER_H

@@ -51,15 +51,15 @@ private:
     // 存储访问信息的结构
     struct extension_accessor {
         mc::shared_ptr<variant_extension_base> extension;
-        std::variant<std::size_t, std::string> key;
+        std::variant<std::size_t, mc::string>  key;
         mutable std::optional<variant_type>    cached_value; // 缓存获取的值
 
         extension_accessor(mc::shared_ptr<variant_extension_base> ext, std::size_t idx)
             : extension(std::move(ext)), key(idx)
         {}
 
-        extension_accessor(mc::shared_ptr<variant_extension_base> ext, std::string k)
-            : extension(std::move(ext)), key(std::move(k))
+        extension_accessor(mc::shared_ptr<variant_extension_base> ext, mc::string_view k)
+            : extension(std::move(ext)), key(mc::string(k))
         {}
     };
 
@@ -96,7 +96,7 @@ public:
     variant_reference(mc::shared_ptr<variant_extension_base> ext, std::size_t index);
 
     // 构造函数：extension 键访问
-    variant_reference(mc::shared_ptr<variant_extension_base> ext, std::string key);
+    variant_reference(mc::shared_ptr<variant_extension_base> ext, mc::string_view key);
 
     // 构造函数：variants 索引访问
     variant_reference(variants cont, std::size_t index);
@@ -161,12 +161,12 @@ public:
     /**
      * @brief 支持链式键访问
      */
-    variant_reference operator[](std::string_view key);
+    variant_reference operator[](mc::string_view key);
 
     /**
      * @brief 支持链式键访问（只读）
      */
-    variant_reference operator[](std::string_view key) const;
+    variant_reference operator[](mc::string_view key) const;
 
     /**
      * @brief 解引用操作符
@@ -231,9 +231,9 @@ public:
     uint64_t as_uint64() const;
 
     // 其他基础类型转换
-    bool        as_bool(bool strict = false) const;
-    double      as_double() const;
-    std::string as_string() const;
+    bool       as_bool(bool strict = false) const;
+    double     as_double() const;
+    mc::string as_string() const;
 
     // 容器类型转换
     typename variant_type::array_type as_array() const;
@@ -246,19 +246,19 @@ public:
     typename variant_type::extension_ptr_type as_extension() const;
 
     // ========== getter 方法 ==========
-    const std::string&                       get_string() const;
+    mc::string_view                          get_string() const;
     const typename variant_type::blob_type&  get_blob() const;
     const typename variant_type::array_type& get_array() const;
     const mc::dict&                          get_object() const;
 
     // ========== 其他常用方法 ==========
-    const char*  get_type_name() const;
-    type_id      get_type() const;
-    bool         contains(std::string_view key) const;
-    std::size_t  size() const;
-    size_t       hash() const;
-    variant_type deep_copy(mc::detail::copy_context* ctx = nullptr) const;
-    void         clear();
+    mc::string_view get_type_name() const;
+    type_id         get_type() const;
+    bool            contains(mc::string_view key) const;
+    std::size_t     size() const;
+    size_t          hash() const;
+    variant_type    deep_copy(mc::detail::copy_context* ctx = nullptr) const;
+    void            clear();
 
     // ========== 算术操作符 ==========
 
@@ -289,9 +289,11 @@ public:
     variant_type operator%(T other) const;
 
     // 字符串拼接
+    variant_type operator+(const mc::string& other) const;
+    variant_type operator+(mc::string_view other) const;
     variant_type operator+(std::string_view other) const;
-    variant_type operator+(const char* other) const;
     variant_type operator+(const std::string& other) const;
+    variant_type operator+(const char* other) const;
 
     // ========== 位操作符 ==========
 
@@ -371,9 +373,11 @@ public:
     variant_reference& operator>>=(const T& other);
 
     // 字符串拼接复合赋值
+    variant_reference& operator+=(const mc::string& other);
+    variant_reference& operator+=(mc::string_view other);
     variant_reference& operator+=(std::string_view other);
-    variant_reference& operator+=(const char* other);
     variant_reference& operator+=(const std::string& other);
+    variant_reference& operator+=(const char* other);
 
     // ========== 自增自减操作符 ==========
     variant_reference& operator++();
@@ -420,29 +424,29 @@ public:
     bool operator>=(const T& other) const;
 
     // 字符串比较
-    bool operator==(std::string_view other) const;
+    bool operator==(mc::string_view other) const;
     bool operator==(const char* other) const;
-    bool operator==(const std::string& other) const;
+    bool operator==(const mc::string& other) const;
 
-    bool operator!=(std::string_view other) const;
+    bool operator!=(mc::string_view other) const;
     bool operator!=(const char* other) const;
-    bool operator!=(const std::string& other) const;
+    bool operator!=(const mc::string& other) const;
 
-    bool operator<(std::string_view other) const;
+    bool operator<(mc::string_view other) const;
     bool operator<(const char* other) const;
-    bool operator<(const std::string& other) const;
+    bool operator<(const mc::string& other) const;
 
-    bool operator>(std::string_view other) const;
+    bool operator>(mc::string_view other) const;
     bool operator>(const char* other) const;
-    bool operator>(const std::string& other) const;
+    bool operator>(const mc::string& other) const;
 
-    bool operator<=(std::string_view other) const;
+    bool operator<=(mc::string_view other) const;
     bool operator<=(const char* other) const;
-    bool operator<=(const std::string& other) const;
+    bool operator<=(const mc::string& other) const;
 
-    bool operator>=(std::string_view other) const;
+    bool operator>=(mc::string_view other) const;
     bool operator>=(const char* other) const;
-    bool operator>=(const std::string& other) const;
+    bool operator>=(const mc::string& other) const;
 
     // dict 比较
     bool operator==(const mc::dict& other) const;
@@ -555,19 +559,29 @@ inline typename variant_reference::variant_type variant_reference::operator%(T o
     return get() % other;
 }
 
-inline typename variant_reference::variant_type variant_reference::operator+(std::string_view other) const
+inline typename variant_reference::variant_type variant_reference::operator+(const mc::string& other) const
+{
+    return get() + mc::string_view(other);
+}
+
+inline typename variant_reference::variant_type variant_reference::operator+(mc::string_view other) const
 {
     return get() + other;
 }
 
-inline typename variant_reference::variant_type variant_reference::operator+(const char* other) const
+inline typename variant_reference::variant_type variant_reference::operator+(std::string_view other) const
 {
-    return get() + std::string_view(other);
+    return get() + mc::string_view(other);
 }
 
 inline typename variant_reference::variant_type variant_reference::operator+(const std::string& other) const
 {
-    return get() + std::string_view(other);
+    return get() + mc::string_view(other.data(), other.size());
+}
+
+inline typename variant_reference::variant_type variant_reference::operator+(const char* other) const
+{
+    return get() + mc::string_view(other);
 }
 
 // 位操作符实现
@@ -849,20 +863,33 @@ inline variant_reference& variant_reference::operator>>=(const T& other)
     return *this;
 }
 
-inline variant_reference& variant_reference::operator+=(std::string_view other)
+inline variant_reference& variant_reference::operator+=(const mc::string& other)
+{
+    *this = get() + mc::string_view(other);
+    return *this;
+}
+
+inline variant_reference& variant_reference::operator+=(mc::string_view other)
 {
     *this = get() + other;
     return *this;
 }
 
-inline variant_reference& variant_reference::operator+=(const char* other)
+inline variant_reference& variant_reference::operator+=(std::string_view other)
 {
-    return operator+=(std::string_view(other));
+    *this = get() + mc::string_view(other);
+    return *this;
 }
 
 inline variant_reference& variant_reference::operator+=(const std::string& other)
 {
-    return operator+=(std::string_view(other));
+    *this = get() + mc::string_view(other.data(), other.size());
+    return *this;
+}
+
+inline variant_reference& variant_reference::operator+=(const char* other)
+{
+    return operator+=(mc::string_view(other));
 }
 
 // 自增自减操作符实现
@@ -1069,7 +1096,7 @@ inline double variant_reference::as_double() const
     return get().as_double();
 }
 
-inline std::string variant_reference::as_string() const
+inline mc::string variant_reference::as_string() const
 {
     return get().as_string();
 }
@@ -1106,7 +1133,7 @@ inline typename variant_reference::variant_type::extension_ptr_type variant_refe
 
 // 简单的访问函数
 
-inline const std::string& variant_reference::get_string() const
+inline mc::string_view variant_reference::get_string() const
 {
     return get().get_string();
 }
@@ -1126,7 +1153,7 @@ inline const mc::dict& variant_reference::get_object() const
     return get().get_object();
 }
 
-inline const char* variant_reference::get_type_name() const
+inline mc::string_view variant_reference::get_type_name() const
 {
     return get().get_type_name();
 }
@@ -1136,7 +1163,7 @@ inline type_id variant_reference::get_type() const
     return get().get_type();
 }
 
-inline bool variant_reference::contains(std::string_view key) const
+inline bool variant_reference::contains(mc::string_view key) const
 {
     return get().contains(key);
 }
@@ -1259,32 +1286,32 @@ inline bool variant_reference::operator>=(const T& other) const
     return get() >= other;
 }
 
-inline bool variant_reference::operator==(std::string_view other) const
+inline bool variant_reference::operator==(mc::string_view other) const
 {
     return get() == other;
 }
 
-inline bool variant_reference::operator!=(std::string_view other) const
+inline bool variant_reference::operator!=(mc::string_view other) const
 {
     return get() != other;
 }
 
-inline bool variant_reference::operator<(std::string_view other) const
+inline bool variant_reference::operator<(mc::string_view other) const
 {
     return get() < other;
 }
 
-inline bool variant_reference::operator>(std::string_view other) const
+inline bool variant_reference::operator>(mc::string_view other) const
 {
     return get() > other;
 }
 
-inline bool variant_reference::operator<=(std::string_view other) const
+inline bool variant_reference::operator<=(mc::string_view other) const
 {
     return get() <= other;
 }
 
-inline bool variant_reference::operator>=(std::string_view other) const
+inline bool variant_reference::operator>=(mc::string_view other) const
 {
     return get() >= other;
 }
@@ -1319,32 +1346,32 @@ inline bool variant_reference::operator>=(const char* other) const
     return get() >= other;
 }
 
-inline bool variant_reference::operator==(const std::string& other) const
+inline bool variant_reference::operator==(const mc::string& other) const
 {
     return get() == other;
 }
 
-inline bool variant_reference::operator!=(const std::string& other) const
+inline bool variant_reference::operator!=(const mc::string& other) const
 {
     return get() != other;
 }
 
-inline bool variant_reference::operator<(const std::string& other) const
+inline bool variant_reference::operator<(const mc::string& other) const
 {
     return get() < other;
 }
 
-inline bool variant_reference::operator>(const std::string& other) const
+inline bool variant_reference::operator>(const mc::string& other) const
 {
     return get() > other;
 }
 
-inline bool variant_reference::operator<=(const std::string& other) const
+inline bool variant_reference::operator<=(const mc::string& other) const
 {
     return get() <= other;
 }
 
-inline bool variant_reference::operator>=(const std::string& other) const
+inline bool variant_reference::operator>=(const mc::string& other) const
 {
     return get() >= other;
 }
@@ -1622,19 +1649,27 @@ inline bool operator>=(const variant_base& lhs, const variant_reference& rhs)
 }
 
 // 字符串拼接：string_view op variant_reference
-inline variant_base operator+(std::string_view lhs, const variant_reference& rhs)
+inline variant_base operator+(const mc::string& lhs, const variant_reference& rhs)
+{
+    return mc::string_view(lhs) + rhs.get();
+}
+inline variant_base operator+(mc::string_view lhs, const variant_reference& rhs)
 {
     return lhs + rhs.get();
+}
+inline variant_base operator+(std::string_view lhs, const variant_reference& rhs)
+{
+    return mc::string_view(lhs) + rhs.get();
+}
+inline variant_base operator+(const std::string& lhs, const variant_reference& rhs)
+{
+    return mc::string_view(lhs.data(), lhs.size()) + rhs.get();
 }
 inline variant_base operator+(const char* lhs, const variant_reference& rhs)
 {
     return lhs + rhs.get();
 }
-inline variant_base operator+(const std::string& lhs, const variant_reference& rhs)
-{
-    return lhs + rhs.get();
-}
-inline bool operator==(std::string_view lhs, const variant_reference& rhs)
+inline bool operator==(mc::string_view lhs, const variant_reference& rhs)
 {
     return lhs == rhs.get();
 }
@@ -1642,11 +1677,7 @@ inline bool operator==(const char* lhs, const variant_reference& rhs)
 {
     return lhs == rhs.get();
 }
-inline bool operator==(const std::string& lhs, const variant_reference& rhs)
-{
-    return lhs == rhs.get();
-}
-inline bool operator!=(std::string_view lhs, const variant_reference& rhs)
+inline bool operator!=(mc::string_view lhs, const variant_reference& rhs)
 {
     return lhs != rhs.get();
 }
@@ -1654,11 +1685,7 @@ inline bool operator!=(const char* lhs, const variant_reference& rhs)
 {
     return lhs != rhs.get();
 }
-inline bool operator!=(const std::string& lhs, const variant_reference& rhs)
-{
-    return lhs != rhs.get();
-}
-inline bool operator<(std::string_view lhs, const variant_reference& rhs)
+inline bool operator<(mc::string_view lhs, const variant_reference& rhs)
 {
     return lhs < rhs.get();
 }
@@ -1666,11 +1693,7 @@ inline bool operator<(const char* lhs, const variant_reference& rhs)
 {
     return lhs < rhs.get();
 }
-inline bool operator<(const std::string& lhs, const variant_reference& rhs)
-{
-    return lhs < rhs.get();
-}
-inline bool operator>(std::string_view lhs, const variant_reference& rhs)
+inline bool operator>(mc::string_view lhs, const variant_reference& rhs)
 {
     return lhs > rhs.get();
 }
@@ -1678,11 +1701,7 @@ inline bool operator>(const char* lhs, const variant_reference& rhs)
 {
     return lhs > rhs.get();
 }
-inline bool operator>(const std::string& lhs, const variant_reference& rhs)
-{
-    return lhs > rhs.get();
-}
-inline bool operator<=(std::string_view lhs, const variant_reference& rhs)
+inline bool operator<=(mc::string_view lhs, const variant_reference& rhs)
 {
     return lhs <= rhs.get();
 }
@@ -1690,11 +1709,7 @@ inline bool operator<=(const char* lhs, const variant_reference& rhs)
 {
     return lhs <= rhs.get();
 }
-inline bool operator<=(const std::string& lhs, const variant_reference& rhs)
-{
-    return lhs <= rhs.get();
-}
-inline bool operator>=(std::string_view lhs, const variant_reference& rhs)
+inline bool operator>=(mc::string_view lhs, const variant_reference& rhs)
 {
     return lhs >= rhs.get();
 }
@@ -1702,11 +1717,55 @@ inline bool operator>=(const char* lhs, const variant_reference& rhs)
 {
     return lhs >= rhs.get();
 }
-inline bool operator>=(const std::string& lhs, const variant_reference& rhs)
+inline bool operator==(const mc::string& lhs, const variant_reference& rhs)
+{
+    return lhs == rhs.get();
+}
+inline bool operator!=(const mc::string& lhs, const variant_reference& rhs)
+{
+    return lhs != rhs.get();
+}
+inline bool operator<(const mc::string& lhs, const variant_reference& rhs)
+{
+    return lhs < rhs.get();
+}
+inline bool operator>(const mc::string& lhs, const variant_reference& rhs)
+{
+    return lhs > rhs.get();
+}
+inline bool operator<=(const mc::string& lhs, const variant_reference& rhs)
+{
+    return lhs <= rhs.get();
+}
+inline bool operator>=(const mc::string& lhs, const variant_reference& rhs)
 {
     return lhs >= rhs.get();
 }
 
+inline bool operator==(const std::string& lhs, const variant_reference& rhs)
+{
+    return lhs == rhs.get();
+}
+inline bool operator!=(const std::string& lhs, const variant_reference& rhs)
+{
+    return lhs != rhs.get();
+}
+inline bool operator<(const std::string& lhs, const variant_reference& rhs)
+{
+    return lhs < rhs.get();
+}
+inline bool operator>(const std::string& lhs, const variant_reference& rhs)
+{
+    return lhs > rhs.get();
+}
+inline bool operator<=(const std::string& lhs, const variant_reference& rhs)
+{
+    return lhs <= rhs.get();
+}
+inline bool operator>=(const std::string& lhs, const variant_reference& rhs)
+{
+    return lhs >= rhs.get();
+}
 } // namespace mc
 
 #endif // MC_VARIANT_REFERENCE_H

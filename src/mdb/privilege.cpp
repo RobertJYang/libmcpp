@@ -33,7 +33,6 @@ std::string get_privilege_str(const std::vector<uint32_t>& privileges)
 
 void validate(uint32_t expected_privilege)
 {
-    // 获取上下文
     mc::engine::context* ctx_ptr = nullptr;
     try {
         ctx_ptr = &mc::engine::context::get_current_context();
@@ -43,33 +42,13 @@ void validate(uint32_t expected_privilege)
 
     auto& ctx = *ctx_ptr;
 
-    // 获取上下文中的 Auth 字段
-    auto auth_var = ctx.get_arg("Auth");
-    // 如果 Auth 字段不是字符串，直接返回
-    if (!auth_var.is_string()) {
+    auto auth = ctx.auth();
+    if (!auth.has_value() || *auth != mc::engine::auth_state::auth_required) {
         return;
     }
 
-    auto auth_str = auth_var.as_string();
-    // 与 auth_required 比较，不等则不做处理直接返回
-    if (auth_str != std::to_string(static_cast<int>(auth_state::auth_required))) {
-        return;
-    }
-
-    // 获取上下文中的 Privilege 字段
-    auto privilege_var = ctx.get_arg("Privilege");
-    // 如果 Privilege 字段不是字符串，直接返回
-    if (!privilege_var.is_string()) {
-        MC_THROW(mc::insufficient_privilege_exception,
-                 "There are insufficient privileges for the account or credentials associated with the current"
-                 " session to perform the requested operation.");
-    }
-
-    // 将 Privilege 字段转化为整型 priv
-    uint32_t priv = 0;
-    try {
-        priv = mc::string::to_number<uint32_t>(privilege_var.as_string());
-    } catch (const std::exception& e) {
+    auto priv = ctx.privilege();
+    if (!priv.has_value()) {
         MC_THROW(mc::insufficient_privilege_exception,
                  "There are insufficient privileges for the account or credentials associated with the current"
                  " session to perform the requested operation.");
@@ -77,7 +56,7 @@ void validate(uint32_t expected_privilege)
 
     // 如果期望权限为 0 且 priv 为 ConfigureSelf，则抛出错误
     if (expected_privilege == 0) {
-        if (priv == privilege::configure_self) {
+        if (*priv == privilege::configure_self) {
             MC_THROW(mc::password_changed_required_exception,
                      "Indicates that the password for the account provided must be changed before accessing the"
                      " service. The password can be changed with a PATCH to the Password property in the manager"
@@ -88,7 +67,7 @@ void validate(uint32_t expected_privilege)
     }
 
     // 将 priv 与期望权限做逻辑与得到交集
-    uint32_t intersection = priv & expected_privilege;
+    uint32_t intersection = *priv & expected_privilege;
     // 如果交集不等于期望权限，则抛出错误
     if (intersection != expected_privilege) {
         MC_THROW(mc::insufficient_privilege_exception,
@@ -96,8 +75,7 @@ void validate(uint32_t expected_privilege)
                  " session to perform the requested operation.");
     }
 
-    // 将上下文中的 Auth 字段置为 no_auth
-    ctx.set_arg("Auth", std::to_string(static_cast<int>(auth_state::no_auth)));
+    ctx.set_auth(mc::engine::auth_state::no_auth);
 }
 
 } // namespace mc::mdb::privilege

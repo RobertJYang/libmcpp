@@ -4,6 +4,7 @@ test_fmt_files = files(
     'test_format_dict.cpp',
     'test_format_errors.cpp',
     'test_format_v.cpp',
+    'test_formatter_subheaders.cpp',
     'test_format_std.cpp',
     'test_mc_formatter.cpp',
     'test_named_args.cpp',
@@ -21,7 +22,10 @@ if get_option('compatibility_tests')
             cpp_args: ['-std=c++17', '-DUSE_MC_FORMAT'], # 使用 mc::format
             dependencies: [gtest_dep, mcbase_dep],
             install: false,
+            build_by_default: false,
         ),
+        is_parallel: false,
+        timeout: 300,
     )
 
     # std::format 兼容性测试（使用 C++20）
@@ -33,6 +37,9 @@ if get_option('compatibility_tests')
             cpp_args: ['-std=c++20'], # 使用 std::format
             dependencies: [gtest_dep],
             install: false,
+            build_by_default: false,
         ),
+        is_parallel: false,
+        timeout: 300,
     )
 endif

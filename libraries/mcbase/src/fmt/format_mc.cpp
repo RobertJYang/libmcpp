@@ -47,7 +47,7 @@ void format_variant(const mc::variant& v, format_context& ctx, const format_spec
                 if (v.is_string()) {
                     detail::format_to(ctx, spec, v.get_string());
                     return;
-                } else if (auto v_string = v.try_as<std::string>()) {
+                } else if (auto v_string = v.try_as<mc::string>()) {
                     detail::format_to(ctx, spec, *v_string);
                     return;
                 }
@@ -68,7 +68,7 @@ void format_variant(const mc::variant& v, format_context& ctx, const format_spec
             out.append("null");
         } else {
             // 对于字符串类型，清除不兼容的格式化参数
-            if constexpr (std::is_same_v<T, std::string>) {
+            if constexpr (std::is_same_v<T, mc::string>) {
                 format_spec clean_spec = spec;
                 if (clean_spec.type != '\0' && clean_spec.type != 's') {
                     clean_spec.type = '\0'; // 清除不兼容的类型参数
@@ -111,7 +111,7 @@ void format_blob(const mc::blob& blob, format_context& ctx, const format_spec& s
     auto& out = ctx.out();
     out.append("blob(");
     // TODO:: 增加 debug 格式化 {?} 后可以打印详细信息
-    out.append(std::to_string(blob.data.size()));
+    out.append(mc::to_string(blob.data.size()));
     out.append(" bytes)");
 }
 

@@ -187,7 +187,7 @@ public:
      * @param length 要读取的字符串长度
      * @return 读取的字符串视图
      */
-    std::string_view read(std::size_t length);
+    mc::string_view read(std::size_t length);
 
     /**
      * @brief 查看数据
@@ -195,7 +195,7 @@ public:
      * @param max_length 最大长度
      * @return 数据视图
      */
-    std::string_view peek(std::size_t max_length = std::numeric_limits<std::size_t>::max()) const;
+    mc::string_view peek(std::size_t max_length = std::numeric_limits<std::size_t>::max()) const;
 
     /**
      * @brief 读取数据到指定缓冲区
@@ -212,7 +212,7 @@ public:
      * @param length 要读取的字符串长度
      * @return 读取的字符串视图
      */
-    std::string_view read_some(std::size_t length);
+    mc::string_view read_some(std::size_t length);
 
     /**
      * @brief 尝试读取数据
@@ -229,7 +229,7 @@ public:
      * @param length 要读取的字符串长度
      * @return 读取的字符串视图
      */
-    std::string_view try_read(std::size_t length);
+    mc::string_view try_read(std::size_t length);
 
     /**
      * @brief 读取基本数据类型
@@ -283,7 +283,7 @@ public:
      * @param str 要写入的字符串
      * @return 实际写入的字节数
      */
-    std::size_t write(std::string_view str);
+    std::size_t write(mc::string_view str);
 
     /**
      * @brief 写入基本数据类型
@@ -349,8 +349,8 @@ public:
      */
     void reserve(std::size_t headroom, std::size_t tailroom);
 
-    std::string_view get_data() const;
-    std::string_view get_writeable_data(std::size_t min_length = 1024);
+    mc::string_view get_data() const;
+    mc::string_view get_writeable_data(std::size_t min_length = 1024);
 
     // 一个辅助机制用于自动回填写入长度
     template <typename LengthType = uint32_t>

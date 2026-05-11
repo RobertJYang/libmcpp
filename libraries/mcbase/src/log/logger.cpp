@@ -16,19 +16,19 @@
 #include <mc/fmt/format_dict.h>
 #include <mc/log/log_manager.h>
 #include <mc/log/logger.h>
-#include <mc/log/log.h>
 
+#include "securec.h"
 #include <algorithm>
 #include <chrono>
 #include <cstdarg>
 #include <cstddef>
 #include <cstdio>
+#include <unistd.h>
 #include <cstring>
 #include <memory>
-#include <mutex>
 #include <string_view>
+#include <mutex>
 #include <unordered_map>
-#include "securec.h"
 
 #include <sys/wait.h>
 
@@ -43,27 +43,11 @@ namespace {
 
 // 周期节流状态：与 logger 配置分离，允许 clone 出来的临时 logger 共享节流信息
 struct throttle_state {
-    std::unordered_map<std::string, std::chrono::system_clock::time_point> m_last_log_time_map;
+    std::unordered_map<mc::string, std::chrono::system_clock::time_point> m_last_log_time_map;
     std::mutex                                                             m_log_mutex;
 };
 
 } // namespace
-
-// 检查串口输出内容是否含 shell 元字符，避免注入
-static bool check_shell_special_character_s(std::string_view s)
-{
-    static constexpr const char* const k_needles[] = {
-        "||", ";", "&&", "$", "|", "&", ">>", ">", "<", "`", "\\", "!", "\n",
-    };
-    for (size_t i = 0; i < sizeof(k_needles) / sizeof(k_needles[0]); ++i) {
-        if (s.find(k_needles[i]) != std::string_view::npos) {
-            elog("cmd_str includes special character ${token} of shell command",
-                ("token", std::string(k_needles[i])));
-            return false;
-        }
-    }
-    return true;
-}
 
 // 日志记录器实现类
 class logger::impl {
@@ -74,7 +58,7 @@ public:
     int                             period_s;         // 日志打印间隔（秒），0表示不限制
     std::shared_ptr<throttle_state> m_throttle_state; // 周期节流状态（可共享）
 
-    impl(const std::string& name = MC_LOG_DEFAULT_LOGGER)
+    impl(mc::string_view name = MC_LOG_DEFAULT_LOGGER)
         : m_config(name), system_id(-1), period_s(0), m_throttle_state(std::make_shared<throttle_state>())
     {}
 
@@ -92,7 +76,7 @@ public:
 };
 
 // 静态方法实现
-logger logger::get(const char* name)
+logger logger::get(mc::string_view name)
 {
     return log_manager::instance().get_logger(name);
 }
@@ -101,7 +85,7 @@ logger::logger() : m_impl(std::make_shared<impl>())
 {}
 
 // 构造函数实现
-logger::logger(const std::string& name) : m_impl(std::make_shared<impl>(name))
+logger::logger(mc::string_view name) : m_impl(std::make_shared<impl>(name))
 {}
 
 logger::logger(const logger& other) : m_impl(other.m_impl)
@@ -142,12 +126,12 @@ level logger::get_level() const
     return m_impl->m_config.level;
 }
 
-void logger::set_name(const std::string& name)
+void logger::set_name(mc::string_view name)
 {
     m_impl->m_config.name = name;
 }
 
-const std::string& logger::get_name() const
+mc::string_view logger::get_name() const
 {
     return m_impl->m_config.name;
 }
@@ -194,31 +178,31 @@ logger logger::clone() const
     return copy;
 }
 
-void logger::raise(const std::string& fmt_template, const mc::dict& args)
+void logger::raise(mc::string_view fmt_template, const mc::dict& args)
 {
-    std::string msg;
+    mc::string msg;
     try {
-        msg = mc::format_dict(fmt_template, args);
+        msg = mc::format_dict(mc::string_view(fmt_template), args);
     } catch (const std::exception& e) {
         // 格式化失败时，降级为原始 fmt + 错误原因
-        msg = fmt_template + " (format_error: " + e.what() + ")";
+        msg = mc::string(fmt_template) + " (format_error: " + e.what() + ")";
     }
 
     // 抛出运行时异常
     MC_THROW(mc::runtime_exception, msg);
 }
 
-static std::string make_period_log_key(int period_s, const message& msg)
+static mc::string make_period_log_key(int period_s, const message& msg)
 {
     // 说明：
     // - 优先使用 format_template 作为标识（更稳定，避免同模板不同参数导致不同标识）
     // - 没有 format_template 时，使用已格式化 message（Lua 侧目前就是这种）
     // - 直接使用字符串组合，不使用 hash，更直观易调试
-    const std::string& tmpl = msg.get_format_template();
-    const std::string& base = tmpl.empty() ? msg.get_message() : tmpl;
+    const auto tmpl = msg.get_format_template();
+    const auto base = tmpl.empty() ? msg.get_message() : tmpl;
 
     // 组合：消息标识 + 周期值，作为唯一标识
-    return base + "|period:" + std::to_string(period_s);
+    return mc::string(base) + "|period:" + mc::to_string(period_s);
 }
 
 bool logger::should_log_period(const message& msg)
@@ -229,7 +213,7 @@ bool logger::should_log_period(const message& msg)
     }
 
     const auto        now = std::chrono::system_clock::now();
-    const std::string key = make_period_log_key(period_s, msg);
+    const mc::string key = make_period_log_key(period_s, msg);
 
     std::lock_guard<std::mutex> lock(m_impl->m_throttle_state->m_log_mutex);
     auto&                       last_time = m_impl->m_throttle_state->m_last_log_time_map[key];
@@ -301,7 +285,7 @@ void logger::log_printf(level lvl, const char* fmt, std::va_list ap)
         return;
     }
 
-    std::string formatted(buf);
+    mc::string formatted(buf);
     context     ctx("", "", 0);
     message     msg(lvl, formatted, ctx);
     msg.set_category(log_category::serial_printf);
@@ -349,7 +333,7 @@ void logger::error_printf(const char* fmt, ...)
 }
 
 // 在子进程中用 execve 执行 sh -c cmd，父进程等待子进程结束
-static void run_shell_cmd(const std::string& cmd)
+static void run_shell_cmd(const mc::string& cmd)
 {
     const pid_t pid = fork();
     if (pid < 0) {
@@ -377,7 +361,7 @@ void logger::log_serial_printf(level lvl, const message& msg)
         return;
     }
 
-    std::string message_str = msg.get_message();
+    mc::string message_str(msg.get_message());
 #ifdef ENABLE_CONAN_COMPILE
     // 过滤无效字符，避免输出控制字符导致终端显示异常
     logging::filter_invalid_chars(message_str);
@@ -386,35 +370,32 @@ void logger::log_serial_printf(level lvl, const message& msg)
         get_log_time_str_ptr = (get_log_time_str_func_t)dlsym(handle, "get_log_time_str_c");
     }
 #endif
-    std::string module_name = "Unknown";
+    mc::string module_name = "Unknown";
     const auto& args        = msg.get_args();
     if (args.contains("module_name")) {
         try {
-            module_name = args["module_name"].as<std::string>();
+            module_name = args["module_name"].as<mc::string>();
         } catch (...) {
         }
     }
 
-    std::string file_str;
+    mc::string file_str;
     file_str.reserve(64);
     context ctx = msg.get_context();
     if (ctx.m_file.empty()) {
         file_str.append("unknown");
     } else {
-        file_str.append(mc::filesystem::basename(ctx.m_file));
+        file_str.append(mc::filesystem::basename(mc::filesystem::path(mc::to_std_string(ctx.m_file))).string());
     }
 
     if (get_log_time_str_ptr) {
         const char* time_str = get_log_time_str_ptr(LOG_US_TIME);
         if (time_str) {
-            std::string str = mc::format_dict(
+            mc::string str = mc::format_dict(
                 "${time} ${module} ${level}: ${file}(${line}): ${message}",
                 mc::dict()("time", time_str)("module", module_name)("level", mc::log::to_string(msg.get_level()))(
-                    "file", file_str)("line", std::to_string(ctx.m_line))("message", message_str));
-            if (!check_shell_special_character_s(str)) {
-                return;
-            }
-            const std::string cmd = "echo \"" + str + "\" > /dev/ttyS0";
+                    "file", file_str)("line", mc::to_string(ctx.m_line))("message", message_str));
+            const mc::string cmd = "echo \"" + str + "\" > /dev/ttyS0";
             run_shell_cmd(cmd);
         }
     }
@@ -427,7 +408,7 @@ void logger::add_appender(const appender_ptr& a)
     }
 }
 
-bool logger::remove_appender(const std::string& name)
+bool logger::remove_appender(mc::string_view name)
 {
     auto& appenders = m_impl->m_appenders;
     auto  it        = std::find_if(appenders.begin(), appenders.end(), [&name](const appender_ptr& a) {
@@ -442,7 +423,7 @@ bool logger::remove_appender(const std::string& name)
     return false;
 }
 
-appender_ptr logger::find_appender(const std::string& name) const
+appender_ptr logger::find_appender(mc::string_view name) const
 {
     const auto& appenders = m_impl->m_appenders;
     auto        it        = std::find_if(appenders.begin(), appenders.end(), [&name](const appender_ptr& a) {

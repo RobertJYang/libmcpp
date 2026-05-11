@@ -17,7 +17,7 @@
 #include <mc/dbus/message.h>
 #include <mc/runtime/thread_pool.h>
 
-#include "dbus/dispatch/pending_call.h"
+#include "dispatch/pending_call.h"
 
 #include <atomic>
 #include <test_utilities/test_base.h>

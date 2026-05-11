@@ -22,10 +22,11 @@
 #include <mc/reflect/reflect.h>
 #include <mc/reflect/reflection.h>
 #include <mc/reflect/reflection_factory.h>
+#include <mc/string_utils.h>
 
 namespace mc {
 template <typename T, std::enable_if_t<mc::reflect::is_reflectable<T>(), int> = 0>
-std::string to_string(const T& v)
+mc::string to_string(const T& v)
 {
     mc::variant var;
     mc::reflect::to_variant(v, var);

@@ -17,6 +17,7 @@
 #ifndef MC_COMMON_H
 #define MC_COMMON_H
 
+#include "securec.h"
 #include <algorithm>
 #include <chrono>
 #include <cstddef>
@@ -31,7 +32,8 @@
 #include <string>
 #include <type_traits>
 #include <vector>
-#include "securec.h"
+
+#include <mc/string_view.h>
 
 /**
  * @brief 主命名空间
@@ -331,21 +333,18 @@ typename std::enable_if<std::is_floating_point<T>::value, T>::type random(T min,
  */
 class scope_timer {
 public:
-    explicit scope_timer(const std::string& name) : m_name(name), m_start(std::chrono::high_resolution_clock::now())
-    {}
+    explicit scope_timer(mc::string_view name);
+    ~scope_timer();
 
-    ~scope_timer()
-    {
-        auto end      = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - m_start).count();
+    scope_timer(scope_timer&&) noexcept;
+    scope_timer& operator=(scope_timer&&) noexcept;
 
-        MC_UNUSED(end);
-        MC_UNUSED(duration);
-    }
+    scope_timer(const scope_timer&)            = delete;
+    scope_timer& operator=(const scope_timer&) = delete;
 
 private:
-    std::string                                                 m_name;
-    std::chrono::time_point<std::chrono::high_resolution_clock> m_start;
+    class impl;
+    std::unique_ptr<impl> m_impl;
 };
 
 //------------------------------------------------------------------------------
@@ -589,7 +588,8 @@ constexpr bool is_first_identifier_char(char c) noexcept
 }
 
 constexpr std::size_t max_identifier_length = 255;
-constexpr bool        is_identifier(std::string_view s) noexcept
+
+constexpr bool is_identifier(mc::string_view s) noexcept
 {
     if (s.empty() || s.size() > max_identifier_length) {
         return false;
@@ -608,7 +608,7 @@ constexpr bool        is_identifier(std::string_view s) noexcept
     return true;
 }
 
-constexpr bool is_valid_interface_name(std::string_view name)
+constexpr bool is_valid_interface_name(mc::string_view name)
 {
     // 必须至少有一个点分隔符
     bool has_dot = false;
@@ -656,7 +656,7 @@ std::uintptr_t get_base_offset()
     return reinterpret_cast<std::uintptr_t>(base_ptr) - reinterpret_cast<std::uintptr_t>(derived_ptr);
 }
 
-MC_API void set_current_thread_name(const std::string& name);
+MC_API void set_current_thread_name(mc::string_view name);
 } // namespace mc
 
 #endif // MC_COMMON_H

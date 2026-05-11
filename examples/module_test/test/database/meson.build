@@ -2,11 +2,7 @@
 test_database_dir = modules_dir / 'mc' / 'test'
 run_command('mkdir', '-p', test_database_dir, check: false)
 
-# 构建 include_directories 列表（使用根目录定义的 stubdir_global）
 example_inc_dirs = [incdir]
-if not enable_conan_compile
-  example_inc_dirs += [stubdir_global]
-endif
 
 # 构建测试数据库模块
 test_database_module = shared_library(
@@ -14,11 +10,11 @@ test_database_module = shared_library(
     'module.cpp',
     include_directories: example_inc_dirs,
     dependencies: dep_arr,
-    link_with: [libmcpp_lib],
-    install: true,
+    install: false,
     install_dir: get_option('libdir') / 'libmcpp/modules/mc/test',
     name_prefix: 'lib',
     name_suffix: 'so',
+    build_by_default: true,
 )
 
 # 复制模块到测试目录

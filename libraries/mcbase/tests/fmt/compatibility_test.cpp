@@ -332,7 +332,7 @@ TEST(compatibility_test, string_format) {
 TEST(compatibility_test, pointer_format) {
     int         x      = 42;
     void*       ptr    = &x;
-    std::string result = format("{}", ptr);
+    mc::string result = format("{}", ptr);
     EXPECT_TRUE(result.find("0x") == 0 || result.find("0X") == 0);
 }
 

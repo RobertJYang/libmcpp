@@ -13,8 +13,9 @@
 #ifndef MC_DICT_ENTRY_H
 #define MC_DICT_ENTRY_H
 
-#include <mc/intrusive/intrusive.h>
+#include <mc/intrusive/list.h>
 #include <mc/variant/variant_base.h>
+#include <memory>
 #include <string>
 #include <string_view>
 
@@ -25,27 +26,30 @@ class dict;
 
 namespace mc::dict_types {
 
+class dict_index;
+class dict_order_cache;
+
 /**
- * @brief 表示键值对的结构体，包含侵入式链表和哈希表的钩子
+ * @brief 表示键值对的结构体，包含侵入式链表钩子和缓存哈希值
  */
-struct entry : public mc::intrusive::list_base_hook<>,
-               public mc::intrusive::unordered_set_base_hook<mc::intrusive::link_mode<mc::intrusive::safe_link>> {
-    variant key;
-    variant value;
+struct entry : public mc::intrusive::list_base_hook<> {
+    variant     key;
+    variant     value;
+    std::size_t hash_code{0};
 
     // 默认构造函数
     entry() = default;
 
     // 带参数的构造函数
-    entry(variant k, variant v) : key(std::move(k)), value(std::move(v))
+    entry(variant k, variant v) : key(std::move(k)), value(std::move(v)), hash_code(key.hash())
     {}
 
     // 拷贝构造函数 - 不拷贝钩子状态
-    entry(const entry& other) : key(other.key), value(other.value)
+    entry(const entry& other) : key(other.key), value(other.value), hash_code(other.hash_code)
     {}
 
     // 移动构造函数 - 不移动钩子状态
-    entry(entry&& other) noexcept : key(std::move(other.key)), value(std::move(other.value))
+    entry(entry&& other) noexcept : key(std::move(other.key)), value(std::move(other.value)), hash_code(other.hash_code)
     {}
 
     // 禁止赋值操作，因为钩子不支持赋值
@@ -68,13 +72,13 @@ struct entry : public mc::intrusive::list_base_hook<>,
 struct key_hash {
     std::size_t operator()(const entry& e) const
     {
-        return e.key.hash();
+        return e.hash_code;
     }
-    std::size_t operator()(const std::string& key) const
+    std::size_t operator()(const mc::string& key) const
     {
         return calculate_str_hash(key);
     }
-    std::size_t operator()(std::string_view key) const
+    std::size_t operator()(mc::string_view key) const
     {
         return calculate_str_hash(key);
     }
@@ -93,18 +97,19 @@ struct key_equal {
     {
         return lhs.key == rhs.key;
     }
-    bool operator()(const std::string& key, const entry& e) const
+    bool operator()(const mc::string& key, const entry& e) const
     {
         return key == e.key;
     }
-    bool operator()(const entry& e, const std::string& key) const
+    bool operator()(const entry& e, const mc::string& key) const
     {
         return e.key == key;
     }
-    // bool operator()(std::string_view key, const entry& e) const {
-    //     return key == e.key;
-    // }
-    bool operator()(const entry& e, std::string_view key) const
+    bool operator()(mc::string_view key, const entry& e) const
+    {
+        return key == e.key;
+    }
+    bool operator()(const entry& e, mc::string_view key) const
     {
         return e.key == key;
     }
@@ -126,10 +131,7 @@ struct key_equal {
     }
 };
 
-// 定义侵入式容器类型
 using entry_list = mc::intrusive::list<entry>;
-using entry_set  = mc::intrusive::unordered_set<entry, mc::intrusive::hash<key_hash>, mc::intrusive::equal<key_equal>,
-                                                mc::intrusive::constant_time_size<true>>;
 
 // 定义迭代器结构体，继承自底层迭代器，方便 dict 中定义前向声明
 struct iterator : public entry_list::iterator {
@@ -239,28 +241,27 @@ struct const_reverse_iterator : public entry_list::const_reverse_iterator {
 #endif
 
 // 完整的 data_t 定义
-struct data_t : public mc::enable_shared_from_this<data_t> {
-    // 哈希表桶数组
-    entry_set::bucket_type buckets[MC_DICT_BUCKET_COUNT];
+struct MC_API data_t : public mc::enable_shared_from_this<data_t> {
     // 有序链表
     entry_list entries;
-    // 哈希表
-    entry_set index;
+    // Robin Hood 索引
+    std::unique_ptr<dict_index> index;
+    // 懒构建的顺序缓存
+    mutable std::unique_ptr<dict_order_cache> order_cache;
 
-    // 构造函数
-    data_t() : index(entry_set::bucket_traits(buckets, MC_DICT_BUCKET_COUNT))
-    {}
+    data_t();
+    ~data_t();
 
-    // 析构函数，清理资源
-    ~data_t()
-    {
-        // 先清空索引，这样钩子就不再链接到容器中
-        index.clear();
-        // 然后清空链表并释放内存
-        entries.clear_and_dispose([](entry* p) {
-            delete p;
-        });
-    }
+    entry*       create_entry(variant key, variant value);
+    void         destroy_entry(entry* item) noexcept;
+    void         reserve(std::size_t count);
+    const entry* entry_at_index(std::size_t index) const;
+    int          entry_index(const entry* item) const;
+    void         invalidate_order_cache() const;
+    std::size_t  index_bucket_count() const;
+    std::size_t  order_cache_size() const;
+
+    void clear_index() noexcept;
 };
 
 } // namespace mc::dict_types

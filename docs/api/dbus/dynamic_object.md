@@ -88,7 +88,7 @@ struct dynamic_signal {
 实现：`src/dbus/dynamic_object.cpp`
 
 ```cpp
-class MC_API dynamic_interface : public mc::core::object {
+class MC_API dynamic_interface : public mc::object {
 public:
     explicit dynamic_interface(std::string_view name);
 
@@ -144,7 +144,7 @@ public:
 ```cpp
 class MC_API dynamic_object : public mc::engine::object_impl {
 public:
-    explicit dynamic_object(mc::core::object* parent = nullptr);
+    explicit dynamic_object(mc::object* parent = nullptr);
 
     mc::variant get_property(std::string_view property_name,
                              std::string_view interface_name,

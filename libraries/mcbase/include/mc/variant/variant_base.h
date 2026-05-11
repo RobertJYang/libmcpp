@@ -24,14 +24,16 @@
 #include <optional>
 #include <ostream>
 #include <string>
+#include <string_view>
 #include <type_traits>
 #include <utility>
 #include <vector>
 
 #include <mc/array.h>
 #include <mc/common.h>
+#define MC_DICT_DEFER_ENTRY
 #include <mc/dict/dict.h>
-#include <mc/json.h>
+#undef MC_DICT_DEFER_ENTRY
 #include <mc/memory/allocator.h>
 #include <mc/pretty_name.h>
 #include <mc/string.h>
@@ -80,8 +82,8 @@ public:
     using blob_ptr_type      = typename Config::blob_ptr_type;
     using extension_ptr_type = typename Config::extension_ptr_type;
 
-    variant_base()
-        : m_uint64(0), m_type(type_id::null_type), m_is_fixed(false) {
+    variant_base() : m_uint64(0), m_type(type_id::null_type), m_is_fixed(false)
+    {
         static_assert(sizeof(uint64_t) >= sizeof(void*) && sizeof(uint64_t) >= sizeof(double),
                       "uint64_t 不是联合体中最大的成员");
     }
@@ -90,7 +92,8 @@ public:
     variant_base(type_id type);
 
     template <typename T, std::enable_if_t<std::is_fundamental_v<T>, int> = 0>
-    variant_base(type_id type, T val) {
+    variant_base(type_id type, T val)
+    {
         if constexpr (std::is_same_v<T, bool>) {
             m_bool = static_cast<bool>(val);
         } else if constexpr (std::is_integral_v<T> && std::is_signed_v<T>) {
@@ -107,16 +110,22 @@ public:
     /**
      * @brief 从字符串构造 variant_base
      */
-    variant_base(const char* str)
-        : variant_base(std::string_view(str)) {
+    variant_base(const char* str) : variant_base(mc::string_view(str))
+    {}
+    variant_base(const mc::string& str) : variant_base(mc::string_view(str))
+    {}
+    variant_base(std::string_view str) : variant_base(mc::string_view(str.data(), str.size()))
+    {}
+    variant_base(mc::string_view str) : m_uint64(0), m_type(type_id::string_type), m_is_fixed(false)
+    {
+        new (&m_string) string_type(str.data(), str.size());
     }
-    variant_base(const std::string& str)
-        : variant_base(std::string_view(str)) {
-    }
-    variant_base(std::string_view str)
-        : m_uint64(0), m_type(type_id::string_type), m_is_fixed(false) {
-        m_string_ptr = mc::allocate_ptr<string_type>(allocator_type(), str.data(), str.size());
-    }
+
+    /** @brief 从 std::string 构造；内联委托 string_view，避免与泛型构造/ to_variant 递归或歧义 */
+    template <typename Traits, typename Alloc>
+    variant_base(const std::basic_string<char, Traits, Alloc>& str)
+        : variant_base(mc::string_view(str.data(), str.size()))
+    {}
 
     /*
      * 从各种基础类型构造 variant_base
@@ -127,30 +136,28 @@ public:
     variant_base(T val) : variant_base(mc::detail::fixed_integer_type<T>(), val)
     {}
     template <typename T, std::enable_if_t<std::is_floating_point_v<T>, int> = 0>
-    variant_base(T val)
-        : variant_base(type_id::double_type, val) {
-    }
-    variant_base(const blob_type& val)
-        : m_type(type_id::blob_type), m_is_fixed(false) {
-        m_blob_ptr =
-            mc::allocate_ptr<blob_type>(allocator_type(), val.data.data(), val.data.size());
+    variant_base(T val) : variant_base(type_id::double_type, val)
+    {}
+    variant_base(const blob_type& val) : m_type(type_id::blob_type), m_is_fixed(false)
+    {
+        m_blob_ptr = mc::allocate_ptr<blob_type>(allocator_type(), val.data.data(), val.data.size());
     }
 
     // 从字典构造 variant_base
-    variant_base(const dict& obj)
-        : m_type(type_id::object_type), m_is_fixed(false) {
+    variant_base(const dict& obj) : m_type(type_id::object_type), m_is_fixed(false)
+    {
         new (&m_object) object_type(obj);
     }
 
     // 从 array_type 构造 variant_base
-    variant_base(const array_type& arr)
-        : m_type(type_id::array_type), m_is_fixed(false) {
+    variant_base(const array_type& arr) : m_type(type_id::array_type), m_is_fixed(false)
+    {
         new (&m_array) array_type(arr);
     }
 
     template <typename T, std::enable_if_t<std::is_base_of_v<variant_extension_base, T>, int> = 0>
-    variant_base(mc::shared_ptr<T> ext)
-        : m_type(type_id::extension_type), m_is_fixed(false) {
+    variant_base(mc::shared_ptr<T> ext) : m_type(type_id::extension_type), m_is_fixed(false)
+    {
         new (&m_extension) extension_ptr_type(mc::static_pointer_cast<variant_extension_base>(ext));
     }
 
@@ -158,7 +165,8 @@ public:
               std::enable_if_t<!is_variant_v<T> && !std::is_pointer_v<T> && !mc::is_variant_fundamental_v<T> &&
                                    !std::is_same_v<std::decay_t<T>, object_type> &&
                                    !std::is_same_v<std::decay_t<T>, blob_type> &&
-                                   !std::is_same_v<std::decay_t<T>, array_type> && mc::is_variant_constructible_v<T>,
+                                   !std::is_same_v<std::decay_t<T>, array_type> &&
+                                   !mc::detail::is_std_char_basic_string_v<T> && mc::is_variant_constructible_v<T>,
                                int> = 0>
     variant_base(const T& obj) : variant_base()
     {
@@ -196,7 +204,7 @@ public:
         virtual void handle(const uint64_t& v) const               = 0;
         virtual void handle(const double& v) const                 = 0;
         virtual void handle(const bool& v) const                   = 0;
-        virtual void handle(const std::string& v) const            = 0;
+        virtual void handle(mc::string_view v) const               = 0;
         virtual void handle(const object_type& v) const            = 0;
         virtual void handle(const array_type& v) const             = 0;
         virtual void handle(const blob_type& v) const              = 0;
@@ -236,7 +244,7 @@ public:
             case type_id::bool_type:
                 return detail::invoke_visitor<Visitor>(std::forward<Visitor>(visitor), m_bool);
             case type_id::string_type:
-                return detail::invoke_visitor<Visitor>(std::forward<Visitor>(visitor), *m_string_ptr);
+                return detail::invoke_visitor<Visitor>(std::forward<Visitor>(visitor), m_string);
             case type_id::object_type:
                 return detail::invoke_visitor<Visitor>(std::forward<Visitor>(visitor), m_object);
             case type_id::array_type:
@@ -515,7 +523,7 @@ public:
     /**
      * @brief 将 variant_base 转换为字符串
      */
-    std::string as_string() const;
+    mc::string as_string() const;
 
     /**
      * @brief 将 variant_base 转换为 dict
@@ -555,7 +563,7 @@ public:
      * @return 返回代理对象
      * @throw mc::invalid_arg_exception 如果variant不是对象类型
      */
-    variant_reference operator[](std::string_view key);
+    variant_reference operator[](mc::string_view key);
 
     /**
      * @brief 获取对象中指定键的值（当variant包含dict对象时）- 只读版本
@@ -564,7 +572,7 @@ public:
      * @throw mc::invalid_arg_exception 如果variant不是对象类型
      * @throw mc::out_of_range_exception 如果键不存在
      */
-    variant_reference operator[](std::string_view key) const;
+    variant_reference operator[](mc::string_view key) const;
 
     /**
      * @brief 获取对象中指定键的值，如果不存在或不是对象类型则返回默认值
@@ -572,56 +580,14 @@ public:
      * @param default_value 默认值
      * @return 指定键对应的值的引用，或者默认值的引用
      */
-    const variant_base& get(const std::string& key, const variant_base& default_value) const
-    {
-        return get(std::string_view(key), default_value);
-    }
-
-    /**
-     * @brief 获取对象中指定键的值，如果不存在或不是对象类型则返回默认值
-     * @param key 要查找的键
-     * @param default_value 默认值
-     * @return 指定键对应的值的引用，或者默认值的引用
-     */
-    const variant_base& get(std::string_view key, const variant_base& default_value) const;
-
-    /**
-     * @brief 获取对象中指定键的值，如果不存在或不是对象类型则返回默认值
-     * @param key 要查找的键
-     * @param default_value 默认值
-     * @return 指定键对应的值的引用，或者默认值的引用
-     */
-    const variant_base& get(const char* key, const variant_base& default_value) const
-    {
-        return get(std::string_view(key), default_value);
-    }
+    const variant_base& get(mc::string_view key, const variant_base& default_value) const;
 
     /**
      * @brief 检查对象是否包含指定键（当variant包含dict对象时）
      * @param key 要查找的键
      * @return 如果包含指定键则返回 true，否则返回 false
      */
-    bool contains(std::string_view key) const;
-
-    /**
-     * @brief 检查对象是否包含指定键（当variant包含dict对象时）
-     * @param key 要查找的键
-     * @return 如果包含指定键则返回 true，否则返回 false
-     */
-    bool contains(const std::string& key) const
-    {
-        return contains(std::string_view(key));
-    }
-
-    /**
-     * @brief 检查对象是否包含指定键（当variant包含dict对象时）
-     * @param key 要查找的键
-     * @return 如果包含指定键则返回 true，否则返回 false
-     */
-    bool contains(const char* key) const
-    {
-        return contains(std::string_view(key));
-    }
+    bool contains(mc::string_view key) const;
 
     /**
      * @brief 获取大小
@@ -694,11 +660,19 @@ public:
     }
     // 字符串赋值优化
     variant_base& operator=(const char* s);
+    variant_base& operator=(const mc::string& s)
+    {
+        return operator=(mc::string_view(s));
+    }
     variant_base& operator=(const std::string& s)
     {
-        return operator=(std::string_view(s));
+        return operator=(mc::string_view(s.data(), s.size()));
     }
-    variant_base& operator=(std::string_view s);
+    variant_base& operator=(std::string_view s)
+    {
+        return operator=(mc::string_view(s.data(), s.size()));
+    }
+    variant_base& operator=(mc::string_view s);
     // 二进制赋值优化
     variant_base& operator=(const blob& b);
 
@@ -758,7 +732,7 @@ public:
      * @return 字符串引用
      * @throw mc::invalid_arg_exception 如果类型不匹配
      */
-    const std::string& get_string() const;
+    mc::string_view get_string() const;
 
     /**
      * @brief 获取blob类型
@@ -786,12 +760,12 @@ public:
      * @param type 类型ID
      * @return 类型名称
      */
-    static const char* get_type_name(type_id type)
+    static mc::string_view get_type_name(type_id type)
     {
         return get_type_name_internal(type);
     }
 
-    const char* get_type_name() const;
+    mc::string_view get_type_name() const;
 
     /**
      * @brief 获取variant的哈希值，用于支持在容器中使用
@@ -888,14 +862,24 @@ public:
     }
 
     // ======== 字符串操作 ========
-    variant_base operator+(std::string_view other) const;
-    variant_base operator+(const char* other) const
+    variant_base operator+(mc::string_view other) const;
+    variant_base operator+(const mc::string& other) const
     {
-        return operator+(std::string_view(other));
+        return operator+(mc::string_view(other));
     }
+    variant_base operator+(std::string_view other) const
+    {
+        return operator+(mc::string_view(other));
+    }
+
     variant_base operator+(const std::string& other) const
     {
-        return operator+(std::string_view(other));
+        return operator+(mc::string_view(other.data(), other.size()));
+    }
+
+    variant_base operator+(const char* other) const
+    {
+        return operator+(mc::string_view(other));
     }
 
     // ======== 复合赋值操作符 ========
@@ -984,15 +968,25 @@ public:
     // 字符串的复合赋值
     variant_base& operator+=(const char* other)
     {
-        return operator+=(std::string_view(other));
+        return operator+=(mc::string_view(other));
+    }
+    variant_base& operator+=(const mc::string& other)
+    {
+        return operator+=(mc::string_view(other));
     }
     variant_base& operator+=(std::string_view other)
     {
-        return set_value(*this + other);
+        return operator+=(mc::string_view(other));
     }
+
     variant_base& operator+=(const std::string& other)
     {
-        return operator+=(std::string_view(other));
+        return operator+=(mc::string_view(other.data(), other.size()));
+    }
+
+    variant_base& operator+=(mc::string_view other)
+    {
+        return set_value(*this + other);
     }
 
     variant_base& operator++();
@@ -1108,15 +1102,39 @@ public:
     }
 
     /*
-     * @brief 添加用于与 std::string_view 的比较
+     * @brief 添加用于与 mc::string_view 的比较
      */
-    bool operator==(std::string_view other) const;
+    bool operator==(mc::string_view other) const;
+    bool operator!=(mc::string_view other) const
+    {
+        return !(*this == other);
+    }
+    bool operator<(mc::string_view other) const;
+    bool operator>(mc::string_view other) const;
+    bool operator<=(mc::string_view other) const
+    {
+        return !(*this > other);
+    }
+    bool operator>=(mc::string_view other) const
+    {
+        return !(*this < other);
+    }
+    bool operator==(std::string_view other) const
+    {
+        return this->operator==(mc::string_view(other));
+    }
     bool operator!=(std::string_view other) const
     {
         return !(*this == other);
     }
-    bool operator<(std::string_view other) const;
-    bool operator>(std::string_view other) const;
+    bool operator<(std::string_view other) const
+    {
+        return this->operator<(mc::string_view(other));
+    }
+    bool operator>(std::string_view other) const
+    {
+        return this->operator>(mc::string_view(other));
+    }
     bool operator<=(std::string_view other) const
     {
         return !(*this > other);
@@ -1125,34 +1143,58 @@ public:
     {
         return !(*this < other);
     }
-    friend bool operator==(std::string_view val, const variant_base& var)
+    friend bool operator==(mc::string_view val, const variant_base& var)
     {
         return var.operator==(val);
     }
-    friend bool operator!=(std::string_view val, const variant_base& var)
+    friend bool operator!=(mc::string_view val, const variant_base& var)
     {
         return !(var.operator==(val));
     }
-    friend bool operator<(std::string_view val, const variant_base& var)
+    friend bool operator<(mc::string_view val, const variant_base& var)
     {
         return var.operator>(val);
     }
-    friend bool operator>(std::string_view val, const variant_base& var)
+    friend bool operator>(mc::string_view val, const variant_base& var)
     {
         return var.operator<(val);
     }
-    friend bool operator<=(std::string_view val, const variant_base& var)
+    friend bool operator<=(mc::string_view val, const variant_base& var)
     {
         return var.operator>=(val);
     }
-    friend bool operator>=(std::string_view val, const variant_base& var)
+    friend bool operator>=(mc::string_view val, const variant_base& var)
     {
         return var.operator<=(val);
     }
 
     /*
-     * @brief 添加用于与 std::string 的比较
+     * @brief 添加用于与 mc::string 的比较
      */
+    bool operator==(const mc::string& other) const
+    {
+        return this->operator==(mc::string_view(other));
+    }
+    bool operator!=(const mc::string& other) const
+    {
+        return !(*this == other);
+    }
+    bool operator<(const mc::string& other) const
+    {
+        return this->operator<(mc::string_view(other));
+    }
+    bool operator>(const mc::string& other) const
+    {
+        return this->operator>(mc::string_view(other));
+    }
+    bool operator<=(const mc::string& other) const
+    {
+        return !(*this > other);
+    }
+    bool operator>=(const mc::string& other) const
+    {
+        return !(*this < other);
+    }
     bool operator==(const std::string& other) const
     {
         return this->operator==(std::string_view(other));
@@ -1183,7 +1225,7 @@ public:
      */
     bool operator==(const char* other) const
     {
-        return this->operator==(std::string_view(other));
+        return this->operator==(mc::string_view(other));
     }
     bool operator!=(const char* other) const
     {
@@ -1191,11 +1233,11 @@ public:
     }
     bool operator<(const char* other) const
     {
-        return this->operator<(std::string_view(other));
+        return this->operator<(mc::string_view(other));
     }
     bool operator>(const char* other) const
     {
-        return this->operator>(std::string_view(other));
+        return this->operator>(mc::string_view(other));
     }
     bool operator<=(const char* other) const
     {
@@ -1226,6 +1268,31 @@ public:
         return var.operator>=(val);
     }
     friend bool operator>=(const char* val, const variant_base& var)
+    {
+        return var.operator<=(val);
+    }
+
+    friend bool operator==(const mc::string& val, const variant_base& var)
+    {
+        return var.operator==(val);
+    }
+    friend bool operator!=(const mc::string& val, const variant_base& var)
+    {
+        return !(var.operator==(val));
+    }
+    friend bool operator<(const mc::string& val, const variant_base& var)
+    {
+        return var.operator>(val);
+    }
+    friend bool operator>(const mc::string& val, const variant_base& var)
+    {
+        return var.operator<(val);
+    }
+    friend bool operator<=(const mc::string& val, const variant_base& var)
+    {
+        return var.operator>=(val);
+    }
+    friend bool operator>=(const mc::string& val, const variant_base& var)
     {
         return var.operator<=(val);
     }
@@ -1528,12 +1595,11 @@ public:
     /**
      * @brief 将 variant 转换为字符串表示
      *
-     * @return std::string variant 的字符串表示
+     * @return mc::string variant 的字符串表示
      */
-    std::string to_string() const
-    {
-        return json::json_encode(*this);
-    }
+    mc::string to_string() const;
+    void       append_stream_string(mc::string& out) const;
+    mc::string to_stream_string() const;
 
 private:
     bool same_type_equal(const variant_base& other) const;
@@ -1547,7 +1613,7 @@ protected:
         int64_t            m_int64;
         uint64_t           m_uint64;
         bool               m_bool;
-        string_ptr_type    m_string_ptr;
+        string_type        m_string; ///< 与 m_array 相同：内嵌 string_type，非堆指针
         blob_ptr_type      m_blob_ptr;
         array_type         m_array; // array 本身就是引用语义，不需要指针
         object_type        m_object;
@@ -1561,10 +1627,9 @@ protected:
      *
      * @return 如果 variant 包含需要追踪的子对象，返回 true
      */
-    bool needs_gc_tracing() const noexcept {
-        return m_type == type_id::array_type ||
-               m_type == type_id::object_type ||
-               m_type == type_id::extension_type;
+    bool needs_gc_tracing() const noexcept
+    {
+        return m_type == type_id::array_type || m_type == type_id::object_type || m_type == type_id::extension_type;
     }
 };
 
@@ -1611,21 +1676,52 @@ inline void from_variant(const variant_base& var, variant_base& vo)
 MC_API void to_variant(bool var, variant_base& vo);
 MC_API void from_variant(const variant_base& var, bool& vo);
 
-// string
+// string：内部为内嵌 mc::string；std::string 仅头文件内联互操作
 template <typename Traits, typename Alloc>
-void to_variant(const std::basic_string<char, Traits, Alloc>& var, variant_base& vo)
+inline void to_variant(const std::basic_string<char, Traits, Alloc>& var, variant_base& vo)
 {
-    variant_base(var).swap(vo);
+    vo = mc::string_view(var.data(), var.size());
 }
 inline void to_variant(std::string_view var, variant_base& vo)
 {
+    vo = mc::string_view(var.data(), var.size());
+}
+inline void to_variant(mc::string_view var, variant_base& vo)
+{
     vo = var;
 }
+inline void to_variant(const mc::string& var, variant_base& vo)
+{
+    vo = mc::string_view(var.view());
+}
 template <typename Traits, typename Alloc>
-void from_variant(const variant_base& var, std::basic_string<char, Traits, Alloc>& vo)
+inline void from_variant(const variant_base& var, std::basic_string<char, Traits, Alloc>& vo)
 {
     if (var.is_string()) {
-        vo = var.get_string();
+        const mc::string_view sv = var.get_string();
+        vo.assign(sv.data(), sv.size());
+        return;
+    }
+
+    const mc::string temp = var.as_string();
+    vo.assign(temp.data(), temp.size());
+}
+inline void from_variant(const variant_base& var, std::string_view& vo)
+{
+    if (var.is_string()) {
+        const mc::string_view sv = var.get_string();
+        vo                       = std::string_view(sv.data(), sv.size());
+        return;
+    }
+
+    static thread_local mc::string temp_storage;
+    temp_storage = var.as_string();
+    vo           = std::string_view(temp_storage.data(), temp_storage.size());
+}
+inline void from_variant(const variant_base& var, mc::string& vo)
+{
+    if (var.is_string()) {
+        vo = mc::string(var.get_string());
     } else {
         vo = var.as_string();
     }
@@ -1743,17 +1839,16 @@ inline variant_base operator>>(T lhs, const variant_base& rhs)
 }
 
 // ======== 字符串操作的友元运算符 ========
-MC_API variant_base operator+(std::string_view lhs, const variant_base& rhs);
+MC_API variant_base operator+(mc::string_view lhs, const variant_base& rhs);
 inline variant_base operator+(const char* lhs, const variant_base& rhs)
 {
-    return std::string_view(lhs) + rhs;
-}
-inline variant_base operator+(const std::string& lhs, const variant_base& rhs)
-{
-    return std::string_view(lhs) + rhs;
+    return mc::string_view(lhs) + rhs;
 }
 
-MC_API std::ostream& operator<<(std::ostream& os, const variant_base& v);
+inline std::ostream& operator<<(std::ostream& os, const variant_base& v)
+{
+    return os << v.to_stream_string();
+}
 
 } // namespace mc
 
@@ -1767,4 +1862,9 @@ struct hash<mc::variant_base> {
     }
 };
 } // namespace std
+
+#if !defined(MC_DICT_ENTRY_H)
+#include <mc/dict/dict_inl.h>
+#endif
+
 #endif // MC_VARIANT_VARIANT_BASE_H

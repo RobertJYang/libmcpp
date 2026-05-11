@@ -17,10 +17,9 @@
 #ifndef MC_DATABASE_QUERY_TABLE_QUERY_H
 #define MC_DATABASE_QUERY_TABLE_QUERY_H
 
-#include <functional>
 #include <string_view>
-#include <tuple>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 #include <mc/db/query/builder.h>
@@ -141,6 +140,11 @@ public:
         return results;
     }
 
+    std::vector<object_ptr_type> query_object(const query_builder& builder, size_t limit = 0)
+    {
+        return query(builder, limit);
+    }
+
     /**
      * 查询记录
      * @param builder 查询构建器
@@ -150,41 +154,29 @@ public:
     template <typename Handler, typename = std::enable_if_t<std::is_invocable_r_v<bool, Handler, object_type&>>>
     bool query(const query_builder& builder, Handler&& handler)
     {
-        query_impl(builder, std::forward<Handler>(handler));
-        return true;
+        return query_impl(builder, std::forward<Handler>(handler));
+    }
+
+    template <typename Handler, typename = std::enable_if_t<std::is_invocable_r_v<bool, Handler, object_type&>>>
+    bool query_object(const query_builder& builder, Handler&& handler)
+    {
+        return query(builder, std::forward<Handler>(handler));
     }
 
 private:
+    struct scan_result {
+        bool found              = false;
+        bool terminated         = false;
+        bool stopped_by_handler = false;
+    };
+
     /**
      * 检查字段是否为非唯一字段
      */
-    bool is_field_non_unique(std::string_view field_name) const
+    bool is_field_non_unique(mc::string_view field_name) const
     {
         const auto& metadata = get_metadata();
         return metadata.has_non_unique_index(field_name);
-    }
-
-    /**
-     * 利用元数据查找索引
-     * @param field 字段名
-     * @return 索引ID，如果没有匹配的索引则返回-1
-     */
-    int find_index_by_metadata(std::string_view field) const
-    {
-        const auto& metadata = get_metadata();
-        return metadata.find_best_index_id(field);
-    }
-
-    /**
-     * 查找可用的索引
-     *
-     * @param field 字段名
-     * @return 索引ID，如果没有匹配的索引则返回-1
-     */
-    int find_index(std::string_view field) const
-    {
-        const auto& metadata = get_metadata();
-        return metadata.find_best_index_id(field);
     }
 
     /**
@@ -205,10 +197,9 @@ private:
             case query_plan_type::composite_key:
                 return query_by_composite_key(builder, plan, std::forward<Handler>(handler));
             case query_plan_type::empty_result:
-                // 直接返回空结果，无需处理
                 return true;
             default:
-                return false;
+                return true;
         }
     }
 
@@ -222,22 +213,21 @@ private:
     template <typename Handler>
     bool query_by_exact_match(const query_builder& builder, const query_plan& plan, Handler&& handler)
     {
-        // 直接使用索引ID
         size_t index_id = plan.index_id;
 
-        // 如果查询计划包含特定值
         if (!plan.key_value.is_null()) {
-            return query_by_single_value(builder, index_id, plan.fields, plan.key_value,
-                                         std::forward<Handler>(handler));
-        }
-        // 处理IN查询（多个值）
-        else if (!plan.values.empty()) {
-            return query_by_multiple_values(builder, index_id, plan.fields, plan.values,
-                                            std::forward<Handler>(handler));
+            return !query_by_single_value(builder, index_id, plan.fields, plan.key_value,
+                                          std::forward<Handler>(handler))
+                        .stopped_by_handler;
         }
 
-        // 没有具体的值，回退到全表扫描
-        return false;
+        if (!plan.values.empty()) {
+            return !query_by_multiple_values(builder, index_id, plan.fields, plan.values,
+                                             std::forward<Handler>(handler))
+                        .stopped_by_handler;
+        }
+
+        return true;
     }
 
     /**
@@ -250,17 +240,18 @@ private:
      * @return 是否成功
      */
     template <typename Handler>
-    bool query_by_single_value(const query_builder& builder, size_t index_id,
-                               const std::vector<std::string_view>& fields, const mc::variant& value, Handler&& handler)
+    scan_result query_by_single_value(const query_builder& builder, size_t index_id,
+                                      const std::vector<mc::string>& fields, const mc::variant& value,
+                                      Handler&& handler)
     {
-        std::string_view field_name          = fields.empty() ? std::string_view() : fields[0];
-        bool             is_non_unique_field = is_field_non_unique(field_name);
+        mc::string_view field_name          = fields.empty() ? mc::string_view{} : mc::string_view(fields[0]);
+        bool            is_non_unique_field = is_field_non_unique(field_name);
 
         if (is_non_unique_field) {
             return query_by_non_unique_index(builder, index_id, value, std::forward<Handler>(handler));
-        } else {
-            return query_by_unique_index(builder, index_id, value, std::forward<Handler>(handler));
         }
+
+        return query_by_unique_index(builder, index_id, value, std::forward<Handler>(handler));
     }
 
     /**
@@ -273,50 +264,12 @@ private:
      * @return 是否中断查询/是否成功
      */
     template <typename Handler>
-    bool query_by_non_unique_index(const query_builder& builder, size_t index_id, const mc::variant& value, bool& found,
-                                   Handler&& handler)
+    scan_result query_by_non_unique_index(const query_builder& builder, size_t index_id, const mc::variant& value,
+                                          Handler&& handler)
     {
-        // 对于非唯一字段，使用索引范围查询
         auto begin_it = m_table.lower_bound_by_index(index_id, value);
         auto end_it   = m_table.upper_bound_by_index(index_id, value);
-
-        size_t count = 0;
-        size_t limit = builder.has_limit() ? builder.get_limit() : 0;
-
-        typename TableType::lock_guard lock(m_table);
-        for (auto it = begin_it; it != end_it && !it.is_end(); ++it) {
-            auto& obj = *it->second;
-            // 检查对象是否满足所有条件
-            if (builder.has_condition() && !builder.matches(obj)) {
-                continue;
-            }
-
-            found = true;
-            if (!handler(obj)) {
-                return true; // 中断查询/查询成功
-            }
-
-            // 检查是否达到限制
-            if (limit > 0) {
-                count++;
-                if (count >= limit) {
-                    return true;
-                }
-            }
-        }
-        return false; // 继续查询/没有找到匹配项
-    }
-
-    /**
-     * 使用非唯一索引查询（单值查询简化接口）
-     */
-    template <typename Handler>
-    bool query_by_non_unique_index(const query_builder& builder, size_t index_id, const mc::variant& value,
-                                   Handler&& handler)
-    {
-        bool found = false;
-        query_by_non_unique_index(builder, index_id, value, found, std::forward<Handler>(handler));
-        return found;
+        return scan_locked_range(begin_it, end_it, &builder, std::forward<Handler>(handler));
     }
 
     /**
@@ -329,35 +282,23 @@ private:
      * @return 是否中断查询
      */
     template <typename Handler>
-    bool query_by_unique_index(const query_builder& builder, size_t index_id, const mc::variant& value, bool& found,
-                               Handler&& handler)
+    scan_result query_by_unique_index(const query_builder& builder, size_t index_id, const mc::variant& value,
+                                      Handler&& handler)
     {
-        // 执行唯一索引查找
-        auto result = m_table.find_by_index(index_id, value);
+        scan_result state;
+        auto        result = m_table.find_by_index(index_id, value);
         if (result) {
-            // 检查对象是否满足所有条件
             if (builder.has_condition() && !builder.matches(*result)) {
-                return false;
+                return state;
             }
 
-            found = true;
+            state.found = true;
             if (!handler(*result)) {
-                return true; // 中断查询
+                state.terminated         = true;
+                state.stopped_by_handler = true;
             }
         }
-        return false; // 继续查询
-    }
-
-    /**
-     * 使用唯一索引查询（单值查询简化接口）
-     */
-    template <typename Handler>
-    bool query_by_unique_index(const query_builder& builder, size_t index_id, const mc::variant& value,
-                               Handler&& handler)
-    {
-        bool found = false;
-        query_by_unique_index(builder, index_id, value, found, std::forward<Handler>(handler));
-        return true; // 对于唯一索引，始终返回true表示查询成功完成
+        return state;
     }
 
     /**
@@ -370,26 +311,31 @@ private:
      * @return 是否成功
      */
     template <typename Handler>
-    bool query_by_multiple_values(const query_builder& builder, size_t index_id,
-                                  const std::vector<std::string_view>& fields, const mc::variants& values,
-                                  Handler&& handler)
+    scan_result query_by_multiple_values(const query_builder& builder, size_t index_id,
+                                         const std::vector<mc::string>& fields, const mc::variants& values,
+                                         Handler&& handler)
     {
-        std::string_view field_name          = fields.empty() ? std::string_view() : fields[0];
-        bool             is_non_unique_field = is_field_non_unique(field_name);
+        mc::string_view field_name          = fields.empty() ? mc::string_view{} : mc::string_view(fields[0]);
+        bool            is_non_unique_field = is_field_non_unique(field_name);
 
-        bool found = false;
+        scan_result state;
         for (const auto& value : values) {
+            scan_result current;
             if (is_non_unique_field) {
-                if (query_by_non_unique_index(builder, index_id, value, found, std::forward<Handler>(handler))) {
-                    return true;
-                }
+                current = query_by_non_unique_index(builder, index_id, value, std::forward<Handler>(handler));
             } else {
-                if (query_by_unique_index(builder, index_id, value, found, std::forward<Handler>(handler))) {
-                    return true;
-                }
+                current = query_by_unique_index(builder, index_id, value, std::forward<Handler>(handler));
+            }
+
+            state.found = state.found || current.found;
+            if (current.terminated) {
+                state.terminated         = true;
+                state.stopped_by_handler = current.stopped_by_handler;
+                return state;
             }
         }
-        return found;
+
+        return state;
     }
 
     /**
@@ -402,18 +348,11 @@ private:
     template <typename Handler>
     bool query_by_range(const query_builder& builder, const query_plan& plan, Handler&& handler)
     {
-        // 直接使用索引ID
-        size_t index_id = plan.index_id;
-
-        // 使用计划中的范围
-        query_range range = plan.range;
-
-        // 获取开始和结束迭代器
-        auto begin_it = get_range_begin_iterator(index_id, range);
-        auto end_it   = get_range_end_iterator(index_id, range);
-
-        // 遍历范围内的所有对象
-        return iterate_range(builder, begin_it, end_it, std::forward<Handler>(handler));
+        size_t      index_id = plan.index_id;
+        query_range range    = plan.range;
+        auto        begin_it = get_range_begin_iterator(index_id, range);
+        auto        end_it   = get_range_end_iterator(index_id, range);
+        return !iterate_range(builder, begin_it, end_it, std::forward<Handler>(handler)).stopped_by_handler;
     }
 
     /**
@@ -463,34 +402,10 @@ private:
      * @return 是否找到匹配对象
      */
     template <typename Handler>
-    bool iterate_range(const query_builder& builder, raw_iterator begin_it, raw_iterator end_it, Handler&& handler)
+    scan_result iterate_range(const query_builder& builder, raw_iterator begin_it, raw_iterator end_it,
+                              Handler&& handler)
     {
-        bool   found = false;
-        size_t count = 0;
-        size_t limit = builder.has_limit() ? builder.get_limit() : 0;
-
-        typename TableType::lock_guard lock(m_table);
-        for (auto it = begin_it; it != end_it && !it.is_end(); ++it) {
-            auto& obj = *it->second;
-            if (!builder.matches(obj)) {
-                continue;
-            }
-
-            found = true;
-            if (!handler(obj)) {
-                break;
-            }
-
-            // 检查是否达到限制
-            if (limit > 0) {
-                count++;
-                if (count >= limit) {
-                    break;
-                }
-            }
-        }
-
-        return found;
+        return scan_locked_range(begin_it, end_it, &builder, std::forward<Handler>(handler));
     }
 
     /**
@@ -503,9 +418,12 @@ private:
     template <typename Handler>
     bool query_by_composite_key(const query_builder& builder, const query_plan& plan, Handler&& handler)
     {
+        (void)builder;
+        (void)plan;
+        (void)handler;
         // 复合键查询实现
         // 此处需要结合具体索引类型进行实现
-        return false; // 暂不支持
+        return true; // 暂不支持
     }
 
     /**
@@ -514,19 +432,18 @@ private:
      * @param handler 结果处理函数
      */
     template <typename Handler>
-    void query_impl(const query_builder& builder, Handler&& handler)
+    bool query_impl(const query_builder& builder, Handler&& handler)
     {
-        // 无条件时，执行全表扫描
         if (!builder.has_condition()) {
-            full_table_scan(std::forward<Handler>(handler));
-            return;
+            if (builder.has_limit()) {
+                return !full_table_scan_with_filter(builder, std::forward<Handler>(handler)).stopped_by_handler;
+            } else {
+                return !full_table_scan(std::forward<Handler>(handler)).stopped_by_handler;
+            }
         }
 
-        // 生成查询计划
         const query_plan plan = generate_query_plan(builder);
-
-        // 执行查询
-        execute_query_plan(builder, plan, std::forward<Handler>(handler));
+        return execute_query_plan(builder, plan, std::forward<Handler>(handler));
     }
 
     /**
@@ -534,15 +451,9 @@ private:
      * @param handler
      */
     template <typename Handler>
-    void full_table_scan(Handler&& handler)
+    scan_result full_table_scan(Handler&& handler)
     {
-        typename TableType::lock_guard lock(m_table);
-        for (auto it = m_table.begin(); !it.is_end(); ++it) {
-            auto& obj = *it->second;
-            if (!handler(obj)) {
-                break;
-            }
-        }
+        return scan_locked_range(m_table.begin(), m_table.end(), nullptr, std::forward<Handler>(handler));
     }
 
     /**
@@ -551,31 +462,9 @@ private:
      * @param handler
      */
     template <typename Handler>
-    void full_table_scan_with_filter(const query_builder& builder, Handler&& handler)
+    scan_result full_table_scan_with_filter(const query_builder& builder, Handler&& handler)
     {
-        size_t count = 0;
-        size_t limit = builder.has_limit() ? builder.get_limit() : 0;
-
-        typename TableType::lock_guard lock(m_table);
-        for (auto it = m_table.begin(); !it.is_end(); ++it) {
-            auto& obj = *it->second;
-
-            if (!builder.matches(obj)) {
-                continue;
-            }
-
-            if (!handler(obj)) {
-                break;
-            }
-
-            if (limit == 0) {
-                continue;
-            }
-
-            if (count++ >= limit) {
-                break;
-            }
-        }
+        return scan_locked_range(m_table.begin(), m_table.end(), &builder, std::forward<Handler>(handler));
     }
 
     /**
@@ -598,21 +487,49 @@ private:
      * @param handler 结果处理函数
      */
     template <typename Handler>
-    void execute_query_plan(const query_builder& builder, const query_plan& plan, Handler&& handler)
+    bool execute_query_plan(const query_builder& builder, const query_plan& plan, Handler&& handler)
     {
-        // 根据查询计划执行查询
         bool use_index =
             plan.plan_type != query_plan_type::full_scan && plan.plan_type != query_plan_type::empty_result;
 
         if (use_index) {
-            query_by_index(builder, plan, std::forward<Handler>(handler));
+            return query_by_index(builder, plan, std::forward<Handler>(handler));
         } else if (plan.plan_type == query_plan_type::empty_result) {
-            // 空结果，不执行任何操作
-            return;
+            return true;
         } else {
-            // 全表扫描
-            full_table_scan_with_filter(builder, std::forward<Handler>(handler));
+            return !full_table_scan_with_filter(builder, std::forward<Handler>(handler)).stopped_by_handler;
         }
+    }
+
+    template <typename Handler>
+    scan_result scan_locked_range(raw_iterator begin_it, raw_iterator end_it, const query_builder* builder,
+                                  Handler&& handler)
+    {
+        scan_result result;
+        size_t      count = 0;
+        size_t      limit = builder != nullptr && builder->has_limit() ? builder->get_limit() : 0;
+
+        typename TableType::lock_guard lock(m_table);
+        for (auto it = begin_it; it != end_it && !it.is_end(); ++it) {
+            auto& obj = *it->second;
+            if (builder != nullptr && builder->has_condition() && !builder->matches(obj)) {
+                continue;
+            }
+
+            result.found = true;
+            if (!handler(obj)) {
+                result.terminated         = true;
+                result.stopped_by_handler = true;
+                break;
+            }
+
+            if (limit > 0 && ++count >= limit) {
+                result.terminated = true;
+                break;
+            }
+        }
+
+        return result;
     }
 
     TableType& m_table;

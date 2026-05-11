@@ -197,7 +197,7 @@ TEST_F(dbus_message_test, test_libdbus_write_mc_dbus_message_read)
 
     // 写入 variant
     DBusMessageIter var_iter;
-    const char*     var_str = data.m_v.get_string().c_str();
+    const char*     var_str = data.m_v.get_string().data();
     dbus_message_iter_open_container(&iter, DBUS_TYPE_VARIANT, "s", &var_iter);
     dbus_message_iter_append_basic(&var_iter, DBUS_TYPE_STRING, &var_str);
     dbus_message_iter_close_container(&iter, &var_iter);
@@ -219,7 +219,7 @@ TEST_F(dbus_message_test, test_libdbus_write_mc_dbus_message_read)
     dbus_message_iter_open_container(&iter, DBUS_TYPE_ARRAY, "{sv}", &dict_iter);
     for (const auto& entry : data.m_dict) {
         dbus_message_iter_open_container(&dict_iter, DBUS_TYPE_DICT_ENTRY, nullptr, &entry_iter);
-        const char* k = entry.key.get_string().c_str();
+        const char* k = entry.key.get_string().data();
         dbus_message_iter_append_basic(&entry_iter, DBUS_TYPE_STRING, &k);
 
         // 根据值类型写入variant
@@ -231,7 +231,7 @@ TEST_F(dbus_message_test, test_libdbus_write_mc_dbus_message_read)
             dbus_message_iter_close_container(&entry_iter, &var_iter);
         } else if (entry.value.get_type() == mc::type_id::string_type) {
             DBusMessageIter var_iter;
-            const char*     s_val = entry.value.get_string().c_str();
+            const char*     s_val = entry.value.get_string().data();
             dbus_message_iter_open_container(&entry_iter, DBUS_TYPE_VARIANT, "s", &var_iter);
             dbus_message_iter_append_basic(&var_iter, DBUS_TYPE_STRING, &s_val);
             dbus_message_iter_close_container(&entry_iter, &var_iter);

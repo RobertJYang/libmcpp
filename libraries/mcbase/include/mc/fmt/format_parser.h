@@ -16,9 +16,6 @@
 #include <mc/fmt/format_arg.h>
 #include <mc/fmt/format_spec.h>
 
-#include <string>
-#include <string_view>
-
 namespace mc::fmt {
 class format_context;
 } // namespace mc::fmt
@@ -77,16 +74,17 @@ struct parser_result {
         err = e;
     }
 
-    const char*      start_ptr{nullptr};
-    const char*      next_ptr{nullptr};
-    std::string_view text;
-    parser_error     err{parser_error::success};
+    const char*     start_ptr{nullptr};
+    const char*     next_ptr{nullptr};
+    mc::string_view text;
+    parser_error    err{parser_error::success};
 };
 
 // 查找匹配的 '}' 位置，正确处理嵌套的 {}
 // 从当前位置开始查找，返回指向匹配 '}' 的下一个位置的指针
 template <typename Context>
-constexpr const char* to_next_brace(parser_result& result, Context& ctx, const char* ptr, const char* end) {
+constexpr const char* to_next_brace(parser_result& result, Context& ctx, const char* ptr, const char* end)
+{
     MC_UNUSED(ctx);
     int brace_count = 1; // 我们已经在一个 { 内部
 
@@ -111,7 +109,8 @@ constexpr const char* to_next_brace(parser_result& result, Context& ctx, const c
 // 解析 { 和 } 之间的内容，提取参数名/索引和格式说明符
 template <typename Context>
 constexpr parser_result parse_placeholder_content(Context& ctx, const char* ptr, const char* end,
-                                                  std::string_view& content, const char*& format_start) {
+                                                  mc::string_view& content, const char*& format_start)
+{
     MC_UNUSED(ctx);
     parser_result result(ptr);
     if (ptr >= end || *ptr != '{') {
@@ -132,7 +131,7 @@ constexpr parser_result parse_placeholder_content(Context& ctx, const char* ptr,
         return result;
     }
 
-    content = std::string_view(content_start, ptr - content_start);
+    content = mc::string_view(content_start, ptr - content_start);
 
     // 处理格式说明符
     if (*ptr == ':') {
@@ -167,7 +166,7 @@ constexpr parser_result parse_named_placeholder(Context& ctx, const char* ptr, c
     ++ptr; // 跳过 '$'
 
     // 使用通用函数解析 {name:format} 部分
-    std::string_view content;
+    mc::string_view content;
     result = parse_placeholder_content(ctx, ptr, end, content, format_start);
     if (result.has_error()) {
         // 修正错误文本，包含完整的占位符（从$开始）
@@ -188,7 +187,7 @@ constexpr parser_result parse_named_placeholder(Context& ctx, const char* ptr, c
 }
 
 // 检查字符串是否为纯数字
-constexpr bool is_numeric_string(std::string_view str)
+constexpr bool is_numeric_string(mc::string_view str)
 {
     if (str.empty()) {
         return true; // 空字符串算作数字（自增索引）
@@ -203,7 +202,8 @@ constexpr bool is_numeric_string(std::string_view str)
 }
 
 template <typename Context>
-constexpr size_t parse_index(Context& ctx, string_view index_str) {
+constexpr size_t parse_index(Context& ctx, string_view index_str)
+{
     MC_UNUSED(ctx);
     size_t index = 0;
     for (char c : index_str) {
@@ -216,17 +216,17 @@ constexpr size_t parse_index(Context& ctx, string_view index_str) {
 // {}, {123}, {name} 等格式
 template <typename Context>
 constexpr parser_result parse_smart_placeholder(Context& ctx, const char* ptr, const char* end, size_t& index,
-                                                std::string_view& name, const char*& format_start)
+                                                mc::string_view& name, const char*& format_start)
 {
-    std::string_view content;
-    parser_result    result = parse_placeholder_content(ctx, ptr, end, content, format_start);
+    mc::string_view content;
+    parser_result   result = parse_placeholder_content(ctx, ptr, end, content, format_start);
     if (result.has_error()) {
         return result;
     }
 
     // 初始化输出参数
     index = INVALID_INDEX;
-    name  = std::string_view();
+    name  = mc::string_view();
 
     // 智能判断内容类型
     if (content.empty()) {
@@ -253,12 +253,12 @@ template <typename Context>
 constexpr parser_result parse_index_placeholder(Context& ctx, const char* ptr, const char* end, size_t& index,
                                                 const char*& format_start)
 {
-    std::string_view name;
+    mc::string_view name;
     return parse_smart_placeholder(ctx, ptr, end, index, name, format_start);
 }
 
 template <typename Context>
-constexpr bool resolve_dynamic_param(Context& ctx, size_t index, std::string_view name, int& out)
+constexpr bool resolve_dynamic_param(Context& ctx, size_t index, mc::string_view name, int& out)
 {
     if (index == INVALID_INDEX && name.empty()) {
         return true; // 没有动态参数
@@ -336,11 +336,11 @@ constexpr parser_result parse_named_arg(Context& ctx, const char*& ptr, const ch
 template <typename Context>
 constexpr parser_result parse_index_arg(Context& ctx, const char*& ptr, const char* end, size_t& arg_index)
 {
-    const char*      original_ptr = ptr; // 保存原始指针，用于错误时重构完整文本
-    size_t           index        = INVALID_INDEX;
-    std::string_view name;
-    const char*      format_start = nullptr;
-    parser_result    result       = parse_smart_placeholder(ctx, ptr, end, index, name, format_start);
+    const char*     original_ptr = ptr; // 保存原始指针，用于错误时重构完整文本
+    size_t          index        = INVALID_INDEX;
+    mc::string_view name;
+    const char*     format_start = nullptr;
+    parser_result   result       = parse_smart_placeholder(ctx, ptr, end, index, name, format_start);
     if (result.has_error()) {
         return result;
     }
@@ -477,14 +477,14 @@ constexpr void parse_format_string(string_view fmt_str, Context& ctx)
 
 class MC_API format_parser {
 public:
-    static void parse(std::string_view fmt_str, format_context& ctx);
+    static void parse(mc::string_view fmt_str, format_context& ctx);
     static void format_arg(format_context& ctx, const format_arg& arg, format_spec& spec);
     static void format_double(format_context& ctx, float value, const format_spec& spec);
     static void format_double(format_context& ctx, double value, const format_spec& spec);
     static void format_double(format_context& ctx, long double value, const format_spec& spec);
     static void format_int(format_context& ctx, int64_t value, const format_spec& spec);
     static void format_uint(format_context& ctx, uint64_t value, const format_spec& spec);
-    static void format_string(format_context& ctx, std::string_view str, const format_spec& spec);
+    static void format_string(format_context& ctx, mc::string_view str, const format_spec& spec);
     static void format_pointer(format_context& ctx, const void* ptr, const format_spec& spec);
     static void format_char(format_context& ctx, char c, const format_spec& spec);
     static void format_bool(format_context& ctx, bool value, const format_spec& spec);

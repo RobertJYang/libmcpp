@@ -59,6 +59,175 @@ template <typename Container>
 void reserve_if_possible(Container&, size_t, std::false_type) {
     // 不支持 reserve 的容器，什么都不做
 }
+
+template <typename T>
+using normalized_variant_element_t = std::remove_cv_t<std::remove_reference_t<T>>;
+
+template <typename T, typename = void>
+struct is_complete_variant_constructible : std::false_type {};
+
+template <typename T>
+struct is_complete_variant_constructible<T, std::void_t<decltype(sizeof(normalized_variant_element_t<T>))>>
+    : std::bool_constant<is_variant_constructible_v<normalized_variant_element_t<T>>> {};
+
+template <typename T, typename = void>
+struct is_complete_variant_convertible : std::false_type {};
+
+template <typename T>
+struct is_complete_variant_convertible<T, std::void_t<decltype(sizeof(normalized_variant_element_t<T>))>>
+    : std::bool_constant<is_variant_convertible_v<normalized_variant_element_t<T>>> {};
+
+template <typename... T>
+inline constexpr bool all_container_variant_constructible_v = (is_complete_variant_constructible<T>::value && ...);
+
+template <typename... T>
+inline constexpr bool all_container_variant_convertible_v = (is_complete_variant_convertible<T>::value && ...);
+
+template <typename... T>
+using enable_if_all_variant_constructible_t = std::enable_if_t<all_container_variant_constructible_v<T...>, void>;
+
+template <typename... T>
+using enable_if_all_variant_convertible_t = std::enable_if_t<all_container_variant_convertible_v<T...>, void>;
+
+namespace detail {
+
+template <typename T, typename Allocator>
+struct is_variant_constructible<std::vector<T, Allocator>, std::enable_if_t<!is_variant_v<T>>>
+    : std::bool_constant<all_container_variant_constructible_v<T>> {};
+
+template <typename T, typename Allocator>
+struct is_variant_convertible<std::vector<T, Allocator>, std::enable_if_t<!is_variant_v<T>>>
+    : std::bool_constant<all_container_variant_convertible_v<T>> {};
+
+template <typename T, typename Allocator>
+struct is_variant_constructible<std::list<T, Allocator>, void>
+    : std::bool_constant<all_container_variant_constructible_v<T>> {};
+
+template <typename T, typename Allocator>
+struct is_variant_convertible<std::list<T, Allocator>, void>
+    : std::bool_constant<all_container_variant_convertible_v<T>> {};
+
+template <typename T, typename Allocator>
+struct is_variant_constructible<std::deque<T, Allocator>, void>
+    : std::bool_constant<all_container_variant_constructible_v<T>> {};
+
+template <typename T, typename Allocator>
+struct is_variant_convertible<std::deque<T, Allocator>, void>
+    : std::bool_constant<all_container_variant_convertible_v<T>> {};
+
+template <typename T, typename Compare, typename Allocator>
+struct is_variant_constructible<std::set<T, Compare, Allocator>, void>
+    : std::bool_constant<all_container_variant_constructible_v<T>> {};
+
+template <typename T, typename Compare, typename Allocator>
+struct is_variant_convertible<std::set<T, Compare, Allocator>, void>
+    : std::bool_constant<all_container_variant_convertible_v<T>> {};
+
+template <typename T, typename Compare, typename Allocator>
+struct is_variant_constructible<std::multiset<T, Compare, Allocator>, void>
+    : std::bool_constant<all_container_variant_constructible_v<T>> {};
+
+template <typename T, typename Compare, typename Allocator>
+struct is_variant_convertible<std::multiset<T, Compare, Allocator>, void>
+    : std::bool_constant<all_container_variant_convertible_v<T>> {};
+
+template <typename T, typename Hash, typename KeyEqual, typename Allocator>
+struct is_variant_constructible<std::unordered_set<T, Hash, KeyEqual, Allocator>, void>
+    : std::bool_constant<all_container_variant_constructible_v<T>> {};
+
+template <typename T, typename Hash, typename KeyEqual, typename Allocator>
+struct is_variant_convertible<std::unordered_set<T, Hash, KeyEqual, Allocator>, void>
+    : std::bool_constant<all_container_variant_convertible_v<T>> {};
+
+template <typename K, typename T, typename Compare, typename Allocator>
+struct is_variant_constructible<std::map<K, T, Compare, Allocator>, void>
+    : std::bool_constant<all_container_variant_constructible_v<K, T>> {};
+
+template <typename K, typename T, typename Compare, typename Allocator>
+struct is_variant_convertible<std::map<K, T, Compare, Allocator>, void>
+    : std::bool_constant<all_container_variant_convertible_v<K, T>> {};
+
+template <typename K, typename T, typename Compare, typename Allocator>
+struct is_variant_constructible<std::multimap<K, T, Compare, Allocator>, void>
+    : std::bool_constant<all_container_variant_constructible_v<K, T>> {};
+
+template <typename K, typename T, typename Compare, typename Allocator>
+struct is_variant_convertible<std::multimap<K, T, Compare, Allocator>, void>
+    : std::bool_constant<all_container_variant_convertible_v<K, T>> {};
+
+template <typename K, typename T, typename Hash, typename KeyEqual, typename Allocator>
+struct is_variant_constructible<std::unordered_map<K, T, Hash, KeyEqual, Allocator>, void>
+    : std::bool_constant<all_container_variant_constructible_v<K, T>> {};
+
+template <typename K, typename T, typename Hash, typename KeyEqual, typename Allocator>
+struct is_variant_convertible<std::unordered_map<K, T, Hash, KeyEqual, Allocator>, void>
+    : std::bool_constant<all_container_variant_convertible_v<K, T>> {};
+
+template <typename T, std::size_t S>
+struct is_variant_constructible<std::array<T, S>, void>
+    : std::bool_constant<all_container_variant_constructible_v<T>> {};
+
+template <typename T, std::size_t S>
+struct is_variant_convertible<std::array<T, S>, void>
+    : std::bool_constant<all_container_variant_convertible_v<T>> {};
+
+template <typename T, typename Allocator>
+struct is_variant_constructible<mc::array<T, Allocator>, void>
+    : std::bool_constant<all_container_variant_constructible_v<T>> {};
+
+template <typename T, typename Allocator>
+struct is_variant_convertible<mc::array<T, Allocator>, void>
+    : std::bool_constant<all_container_variant_convertible_v<T>> {};
+
+template <typename K, typename T>
+struct is_variant_constructible<std::pair<K, T>, void>
+    : std::bool_constant<all_container_variant_constructible_v<K, T>> {};
+
+template <typename K, typename T>
+struct is_variant_convertible<std::pair<K, T>, void>
+    : std::bool_constant<all_container_variant_convertible_v<K, T>> {};
+
+template <typename... T>
+struct is_variant_constructible<std::tuple<T...>, void>
+    : std::bool_constant<all_container_variant_constructible_v<T...>> {};
+
+template <typename... T>
+struct is_variant_convertible<std::tuple<T...>, void>
+    : std::bool_constant<all_container_variant_convertible_v<T...>> {};
+
+template <typename T>
+struct is_variant_constructible<std::shared_ptr<T>, void>
+    : std::bool_constant<all_container_variant_constructible_v<T>> {};
+
+template <typename T>
+struct is_variant_convertible<std::shared_ptr<T>, void>
+    : std::bool_constant<all_container_variant_convertible_v<T>> {};
+
+template <typename T, typename Deleter>
+struct is_variant_constructible<std::unique_ptr<T, Deleter>, void>
+    : std::bool_constant<all_container_variant_constructible_v<T>> {};
+
+template <typename T, typename Deleter>
+struct is_variant_convertible<std::unique_ptr<T, Deleter>, void>
+    : std::bool_constant<all_container_variant_convertible_v<T>> {};
+
+template <typename T>
+struct is_variant_constructible<std::optional<T>, void>
+    : std::bool_constant<all_container_variant_constructible_v<T>> {};
+
+template <typename T>
+struct is_variant_convertible<std::optional<T>, void>
+    : std::bool_constant<all_container_variant_convertible_v<T>> {};
+
+template <typename... T>
+struct is_variant_constructible<std::variant<T...>, void>
+    : std::bool_constant<all_container_variant_constructible_v<T...>> {};
+
+template <typename... T>
+struct is_variant_convertible<std::variant<T...>, void>
+    : std::bool_constant<all_container_variant_convertible_v<T...>> {};
+
+} // namespace detail
 } // namespace mc
 
 namespace mc {
@@ -248,12 +417,12 @@ void map_from_variant(const variant& var, MapType<K, T, Args...>& vo) {
 
 // std::vector 特化
 template <typename T, typename Allocator = std::allocator<T>>
-void to_variant(const std::vector<T, Allocator>& var, variant& vo) {
+enable_if_all_variant_constructible_t<T> to_variant(const std::vector<T, Allocator>& var, variant& vo) {
     sequence_to_variant(var, vo);
 }
 
 template <typename T, typename Allocator = std::allocator<T>>
-void from_variant(const variant& var, std::vector<T, Allocator>& vo) {
+enable_if_all_variant_convertible_t<T> from_variant(const variant& var, std::vector<T, Allocator>& vo) {
     if constexpr (std::is_same_v<T, uint8_t> || std::is_same_v<T, int8_t>) {
         // 兼容string和blob类型转为ay类型
         if (var.is_string()) {
@@ -273,84 +442,88 @@ void from_variant(const variant& var, std::vector<T, Allocator>& vo) {
 
 // std::list 特化
 template <typename T, typename Allocator = std::allocator<T>>
-void to_variant(const std::list<T, Allocator>& var, variant& vo) {
+enable_if_all_variant_constructible_t<T> to_variant(const std::list<T, Allocator>& var, variant& vo) {
     sequence_to_variant(var, vo);
 }
 
 template <typename T, typename Allocator = std::allocator<T>>
-void from_variant(const variant& var, std::list<T, Allocator>& vo) {
+enable_if_all_variant_convertible_t<T> from_variant(const variant& var, std::list<T, Allocator>& vo) {
     sequence_from_variant(var, vo);
 }
 
 // std::deque 特化
 template <typename T, typename Allocator = std::allocator<T>>
-void to_variant(const std::deque<T, Allocator>& var, variant& vo) {
+enable_if_all_variant_constructible_t<T> to_variant(const std::deque<T, Allocator>& var, variant& vo) {
     sequence_to_variant(var, vo);
 }
 
 template <typename T, typename Allocator = std::allocator<T>>
-void from_variant(const variant& var, std::deque<T, Allocator>& vo) {
+enable_if_all_variant_convertible_t<T> from_variant(const variant& var, std::deque<T, Allocator>& vo) {
     sequence_from_variant(var, vo);
 }
 
 // std::set 特化
 template <typename T, typename Compare = std::less<T>, typename Allocator = std::allocator<T>>
-void to_variant(const std::set<T, Compare, Allocator>& var, variant& vo) {
+enable_if_all_variant_constructible_t<T> to_variant(const std::set<T, Compare, Allocator>& var, variant& vo) {
     associative_to_variant(var, vo);
 }
 
 template <typename T, typename Compare = std::less<T>, typename Allocator = std::allocator<T>>
-void from_variant(const variant& var, std::set<T, Compare, Allocator>& vo) {
+enable_if_all_variant_convertible_t<T> from_variant(const variant& var, std::set<T, Compare, Allocator>& vo) {
     associative_from_variant(var, vo);
 }
 
 // std::multiset 特化
 template <typename T, typename Compare = std::less<T>, typename Allocator = std::allocator<T>>
-void to_variant(const std::multiset<T, Compare, Allocator>& var, variant& vo) {
+enable_if_all_variant_constructible_t<T> to_variant(const std::multiset<T, Compare, Allocator>& var, variant& vo) {
     associative_to_variant(var, vo);
 }
 
 template <typename T, typename Compare = std::less<T>, typename Allocator = std::allocator<T>>
-void from_variant(const variant& var, std::multiset<T, Compare, Allocator>& vo) {
+enable_if_all_variant_convertible_t<T> from_variant(const variant& var, std::multiset<T, Compare, Allocator>& vo) {
     associative_from_variant(var, vo);
 }
 
 // std::unordered_set 特化
 template <typename T, typename Hash = std::hash<T>, typename KeyEqual = std::equal_to<T>,
           typename Allocator = std::allocator<T>>
-void to_variant(const std::unordered_set<T, Hash, KeyEqual, Allocator>& var, variant& vo) {
+enable_if_all_variant_constructible_t<T> to_variant(const std::unordered_set<T, Hash, KeyEqual, Allocator>& var,
+                                                    variant& vo) {
     associative_to_variant(var, vo);
 }
 
 template <typename T, typename Hash = std::hash<T>, typename KeyEqual = std::equal_to<T>,
           typename Allocator = std::allocator<T>>
-void from_variant(const variant& var, std::unordered_set<T, Hash, KeyEqual, Allocator>& vo) {
+enable_if_all_variant_convertible_t<T> from_variant(const variant& var,
+                                                    std::unordered_set<T, Hash, KeyEqual, Allocator>& vo) {
     associative_from_variant(var, vo);
 }
 
 // std::map 特化
 template <typename K, typename T, typename Compare = std::less<K>,
           typename Allocator = std::allocator<std::pair<const K, T>>>
-void to_variant(const std::map<K, T, Compare, Allocator>& var, variant& vo) {
+enable_if_all_variant_constructible_t<K, T> to_variant(const std::map<K, T, Compare, Allocator>& var, variant& vo) {
     map_to_variant(var, vo);
 }
 
 template <typename K, typename T, typename Compare = std::less<K>,
           typename Allocator = std::allocator<std::pair<const K, T>>>
-void from_variant(const variant& var, std::map<K, T, Compare, Allocator>& vo) {
+enable_if_all_variant_convertible_t<K, T> from_variant(const variant& var, std::map<K, T, Compare, Allocator>& vo) {
     map_from_variant(var, vo);
 }
 
 // std::multimap 特化
 template <typename K, typename T, typename Compare = std::less<K>,
           typename Allocator = std::allocator<std::pair<const K, T>>>
-void to_variant(const std::multimap<K, T, Compare, Allocator>& var, variant& vo) {
+enable_if_all_variant_constructible_t<K, T> to_variant(const std::multimap<K, T, Compare, Allocator>& var,
+                                                       variant& vo) {
     map_to_variant(var, vo);
 }
 
 template <typename K, typename T, typename Compare = std::less<K>,
           typename Allocator = std::allocator<std::pair<const K, T>>>
-void from_variant(const variant& var, std::multimap<K, T, Compare, Allocator>& vo) {
+enable_if_all_variant_convertible_t<K, T> from_variant(const variant& var,
+                                                       std::multimap<K, T, Compare, Allocator>& vo) {
     map_from_variant(var, vo);
 }
 
@@ -358,25 +531,27 @@ void from_variant(const variant& var, std::multimap<K, T, Compare, Allocator>& v
 template <typename K, typename T, typename Hash = std::hash<K>,
           typename KeyEqual  = std::equal_to<K>,
           typename Allocator = std::allocator<std::pair<const K, T>>>
-void to_variant(const std::unordered_map<K, T, Hash, KeyEqual, Allocator>& var, variant& vo) {
+enable_if_all_variant_constructible_t<K, T> to_variant(const std::unordered_map<K, T, Hash, KeyEqual, Allocator>& var,
+                                                       variant& vo) {
     map_to_variant(var, vo);
 }
 
 template <typename K, typename T, typename Hash = std::hash<K>,
           typename KeyEqual  = std::equal_to<K>,
           typename Allocator = std::allocator<std::pair<const K, T>>>
-void from_variant(const variant& var, std::unordered_map<K, T, Hash, KeyEqual, Allocator>& vo) {
+enable_if_all_variant_convertible_t<K, T> from_variant(const variant& var,
+                                                       std::unordered_map<K, T, Hash, KeyEqual, Allocator>& vo) {
     map_from_variant(var, vo);
 }
 
 // std::array 特化
 template <typename T, std::size_t S>
-void to_variant(const std::array<T, S>& var, variant& vo) {
+enable_if_all_variant_constructible_t<T> to_variant(const std::array<T, S>& var, variant& vo) {
     array_to_variant(var, vo);
 }
 
 template <typename T, std::size_t S>
-void from_variant(const variant& var, std::array<T, S>& vo) {
+enable_if_all_variant_convertible_t<T> from_variant(const variant& var, std::array<T, S>& vo) {
     array_from_variant(var, vo);
 }
 
@@ -396,9 +571,8 @@ void from_variant(const variant& var, mc::array<T, Allocator>& vo,
     }
 
     using impl_type = typename mc::array<T, Allocator>::impl_type;
-    impl_type* data = vars.as<impl_type>();
-    if (data) {
-        vo = mc::array<T, Allocator>::from_impl(mc::shared_ptr<impl_type>(data));
+    if (auto data = mc::dynamic_pointer_cast<impl_type>(vars.shared_data())) {
+        vo = mc::array<T, Allocator>::from_impl(std::move(data));
         return;
     }
 
@@ -414,7 +588,7 @@ void from_variant(const variant& var, mc::array<T, Allocator>& vo,
 
 // std::pair 特化
 template <typename K, typename T>
-void to_variant(const std::pair<K, T>& var, variant& vo) {
+enable_if_all_variant_constructible_t<K, T> to_variant(const std::pair<K, T>& var, variant& vo) {
     variants vars;
     vars.reserve(2);
     variant a, b;
@@ -426,7 +600,7 @@ void to_variant(const std::pair<K, T>& var, variant& vo) {
 }
 
 template <typename K, typename T>
-void from_variant(const variant& var, std::pair<K, T>& vo) {
+enable_if_all_variant_convertible_t<K, T> from_variant(const variant& var, std::pair<K, T>& vo) {
     const variants& vars = var.get_array();
     if (vars.size() != 2) {
         throw_bad_cast_error("pair 大小不匹配");
@@ -437,16 +611,22 @@ void from_variant(const variant& var, std::pair<K, T>& vo) {
 
 // std::pair 特化
 template <typename... T>
-void to_variant(const std::tuple<T...>& var, variant& vo) {
+enable_if_all_variant_constructible_t<T...> to_variant(const std::tuple<T...>& var, variant& vo) {
     variants vars;
     mc::traits::tuple_for_each(var, [&](const auto& item) {
-        vars.emplace_back(item);
+        variant value;
+        if constexpr (std::is_constructible_v<variant, decltype(item)>) {
+            value = variant(item);
+        } else {
+            to_variant(item, value);
+        }
+        vars.emplace_back(std::move(value));
     });
     vo = std::move(vars);
 }
 
 template <typename... T>
-void from_variant(const variant& var, std::tuple<T...>& vo) {
+enable_if_all_variant_convertible_t<T...> from_variant(const variant& var, std::tuple<T...>& vo) {
     const variants& vars = var.get_array();
     if (vars.size() != sizeof...(T)) {
         throw_bad_cast_error("tuple 大小不匹配");
@@ -463,7 +643,7 @@ void from_variant(const variant& var, std::tuple<T...>& vo) {
 
 // 智能指针特化
 template <typename T>
-void to_variant(const std::shared_ptr<T>& var, variant& vo) {
+enable_if_all_variant_constructible_t<T> to_variant(const std::shared_ptr<T>& var, variant& vo) {
     if (var) {
         to_variant(*var, vo);
     } else {
@@ -472,7 +652,7 @@ void to_variant(const std::shared_ptr<T>& var, variant& vo) {
 }
 
 template <typename T>
-void from_variant(const variant& var, std::shared_ptr<T>& vo) {
+enable_if_all_variant_convertible_t<T> from_variant(const variant& var, std::shared_ptr<T>& vo) {
     if (var.is_null()) {
         vo.reset();
     } else {
@@ -484,7 +664,7 @@ void from_variant(const variant& var, std::shared_ptr<T>& vo) {
 }
 
 template <typename T, typename Deleter = std::default_delete<T>>
-void to_variant(const std::unique_ptr<T, Deleter>& var, variant& vo) {
+enable_if_all_variant_constructible_t<T> to_variant(const std::unique_ptr<T, Deleter>& var, variant& vo) {
     if (var) {
         to_variant(*var, vo);
     } else {
@@ -493,7 +673,7 @@ void to_variant(const std::unique_ptr<T, Deleter>& var, variant& vo) {
 }
 
 template <typename T, typename Deleter = std::default_delete<T>>
-void from_variant(const variant& var, std::unique_ptr<T, Deleter>& vo) {
+enable_if_all_variant_convertible_t<T> from_variant(const variant& var, std::unique_ptr<T, Deleter>& vo) {
     if (var.is_null()) {
         vo.reset();
     } else {
@@ -506,7 +686,7 @@ void from_variant(const variant& var, std::unique_ptr<T, Deleter>& vo) {
 
 // std::optional 的转换函数
 template <typename T>
-void to_variant(const std::optional<T>& var, mc::variant& vo) {
+enable_if_all_variant_constructible_t<T> to_variant(const std::optional<T>& var, mc::variant& vo) {
     if (var.has_value()) {
         to_variant(var.value(), vo);
     } else {
@@ -515,7 +695,7 @@ void to_variant(const std::optional<T>& var, mc::variant& vo) {
 }
 
 template <typename T>
-void from_variant(const mc::variant& var, std::optional<T>& vo) {
+enable_if_all_variant_convertible_t<T> from_variant(const mc::variant& var, std::optional<T>& vo) {
     if (var.is_null()) {
         vo = std::nullopt;
         return;
@@ -541,7 +721,7 @@ void from_variant(const mc::variant& var, std::optional<T>& vo) {
 
 // std::variant 的转换函数
 template <typename... T>
-void to_variant(const std::variant<T...>& var, mc::variant& vo) {
+enable_if_all_variant_constructible_t<T...> to_variant(const std::variant<T...>& var, mc::variant& vo) {
     std::visit(
         [&vo](const auto& value) {
         to_variant(value, vo);
@@ -569,7 +749,7 @@ bool try_convert_variant(const mc::variant& var, std::variant<Rest...>& vo, bool
 }
 
 template <typename... T>
-void from_variant(const mc::variant& var, std::variant<T...>& vo) {
+enable_if_all_variant_convertible_t<T...> from_variant(const mc::variant& var, std::variant<T...>& vo) {
     // 尝试将 variant 转换为每种可能的类型
     bool converted = false;
 
@@ -581,8 +761,8 @@ void from_variant(const mc::variant& var, std::variant<T...>& vo) {
     }
 }
 
-// std::string_view 的转换函数
-inline void from_variant(const mc::variant& var, std::string_view& vo) {
+// mc::string_view 的转换函数
+inline void from_variant(const mc::variant& var, mc::string_view& vo) {
     if (var.is_null()) {
         vo = {};
     } else {

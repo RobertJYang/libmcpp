@@ -19,6 +19,7 @@
 #include <vector>
 
 #include <mc/common.h>
+#include <mc/string.h>
 
 namespace mc {
 namespace test_utilities {
@@ -46,7 +47,7 @@ public:
      * @brief 添加临时文件路径，将在清理时删除
      * @param path 文件路径
      */
-    void add_temp_file(const std::string& path);
+    void add_temp_file(const mc::string& path);
 
     /**
      * @brief 创建临时文件并添加到清理列表
@@ -54,7 +55,7 @@ public:
      * @param content 文件内容，默认为空
      * @return 是否创建成功
      */
-    bool create_temp_file(const std::string& path, const std::string& content = "");
+    bool create_temp_file(const mc::string& path, const mc::string& content = "");
 
     /**
      * @brief 添加自定义清理函数
@@ -74,7 +75,7 @@ public:
     void set_auto_cleanup(bool auto_cleanup);
 
 private:
-    std::vector<std::string>           m_temp_files;    // 临时文件列表
+    std::vector<mc::string>           m_temp_files;    // 临时文件列表
     std::vector<std::function<void()>> m_cleanup_funcs; // 自定义清理函数列表
     bool                               m_auto_cleanup;  // 是否自动清理
 };

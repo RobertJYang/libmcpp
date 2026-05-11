@@ -26,12 +26,12 @@ namespace mc::memory {
  * weak_ptr 智能指针，类似 std::weak_ptr 但专门用于管理 enable_shared_from_this 对象
  * 支持共享内存中的 offset_ptr
  */
-template <typename T, typename Deleter, typename PointerType>
+template <typename T, typename PointerType>
 class weak_ptr {
 public:
     using element_type = T;
     using pointer_type = PointerType;
-    using ref_ptr_type = shared_ptr<element_type, Deleter, pointer_type>;
+    using ref_ptr_type = shared_ptr<element_type, pointer_type>;
 
     // 默认构造函数
     constexpr weak_ptr() noexcept : m_ptr(nullptr)
@@ -44,24 +44,30 @@ public:
     // 从 shared_ptr 构造
     weak_ptr(const ref_ptr_type& ref) noexcept : m_ptr(ref.get())
     {
-        if (m_ptr) {
+        if (m_ptr && !m_ptr->is_externally_owned()) {
             m_ptr->add_weak_ref();
+        } else if (m_ptr && m_ptr->is_externally_owned()) {
+            m_ptr = nullptr;
         }
     }
 
     // 接受裸指针的构造函数
     explicit weak_ptr(pointer_type ptr) noexcept : m_ptr(ptr)
     {
-        if (m_ptr) {
+        if (m_ptr && !m_ptr->is_externally_owned()) {
             m_ptr->add_weak_ref();
+        } else if (m_ptr && m_ptr->is_externally_owned()) {
+            m_ptr = nullptr;
         }
     }
 
     // 拷贝构造函数
     weak_ptr(const weak_ptr& other) noexcept : m_ptr(other.m_ptr)
     {
-        if (m_ptr) {
+        if (m_ptr && !m_ptr->is_externally_owned()) {
             m_ptr->add_weak_ref();
+        } else if (m_ptr && m_ptr->is_externally_owned()) {
+            m_ptr = nullptr;
         }
     }
 
@@ -70,8 +76,10 @@ public:
     weak_ptr(const weak_ptr<U, UP>& other) noexcept : m_ptr(other.get())
     {
         static_assert(std::is_convertible_v<U*, T*>, "U* must be convertible to T*");
-        if (m_ptr) {
+        if (m_ptr && !m_ptr->is_externally_owned()) {
             m_ptr->add_weak_ref();
+        } else if (m_ptr && m_ptr->is_externally_owned()) {
+            m_ptr = nullptr;
         }
     }
 
@@ -141,8 +149,7 @@ public:
     ~weak_ptr()
     {
         if (m_ptr && m_ptr->release_weak_ref()) {
-            // 弱引用计数为0且强引用计数也为0时，释放内存
-            mc::deleter_traits<Deleter, element_type>::deallocate(m_ptr);
+            ::mc::memory::detail::deallocate_managed_object(as_shared_base(m_ptr));
         }
     }
 
@@ -167,7 +174,7 @@ public:
     // 检查对象是否已过期（强引用计数为0）
     bool expired() const noexcept
     {
-        return !m_ptr || m_ptr->ref_count() == 0;
+        return !m_ptr || m_ptr->is_externally_owned() || m_ptr->ref_count() == 0;
     }
 
     // 尝试获取强引用，如果对象已过期则返回空的 shared_ptr
@@ -199,8 +206,8 @@ public:
     }
 
     // 相等运算符
-    template <typename U, typename UDeleter, typename UPointerType>
-    bool operator==(const weak_ptr<U, UDeleter, UPointerType>& rhs) noexcept
+    template <typename U, typename UPointerType>
+    bool operator==(const weak_ptr<U, UPointerType>& rhs) noexcept
     {
         return this->get() == rhs.get();
     }
@@ -215,19 +222,19 @@ public:
         return this->get() == rhs;
     }
 
-    friend bool operator==(std::nullptr_t, const weak_ptr<T, Deleter, PointerType>& rhs) noexcept
+    friend bool operator==(std::nullptr_t, const weak_ptr<T, PointerType>& rhs) noexcept
     {
         return nullptr == rhs.get();
     }
 
-    friend bool operator==(T* lhs, const weak_ptr<T, Deleter, PointerType>& rhs) noexcept
+    friend bool operator==(T* lhs, const weak_ptr<T, PointerType>& rhs) noexcept
     {
         return lhs == rhs.get();
     }
 
     // 不等运算符
-    template <typename U, typename UDeleter, typename UPointerType>
-    bool operator!=(const weak_ptr<U, UDeleter, UPointerType>& rhs) noexcept
+    template <typename U, typename UPointerType>
+    bool operator!=(const weak_ptr<U, UPointerType>& rhs) noexcept
     {
         return this->get() != rhs.get();
     }
@@ -242,24 +249,32 @@ public:
         return this->get() != rhs;
     }
 
-    friend bool operator!=(std::nullptr_t, const weak_ptr<T, Deleter, PointerType>& rhs) noexcept
+    friend bool operator!=(std::nullptr_t, const weak_ptr<T, PointerType>& rhs) noexcept
     {
         return nullptr != rhs.get();
     }
 
-    friend bool operator!=(T* lhs, const weak_ptr<T, Deleter, PointerType>& rhs) noexcept
+    friend bool operator!=(T* lhs, const weak_ptr<T, PointerType>& rhs) noexcept
     {
         return lhs != rhs.get();
     }
 
     // 小于运算符，用于排序容器
-    template <typename U, typename UDeleter, typename UPointerType>
-    bool operator<(const weak_ptr<U, UDeleter, UPointerType>& rhs) noexcept
+    template <typename U, typename UPointerType>
+    bool operator<(const weak_ptr<U, UPointerType>& rhs) noexcept
     {
         return this->get() < rhs.get();
     }
 
 private:
+    using raw_element_type = std::remove_const_t<element_type>;
+
+    static ::mc::memory::shared_base* as_shared_base(pointer_type ptr) noexcept
+    {
+        return static_cast<::mc::memory::shared_base*>(
+            const_cast<raw_element_type*>(static_cast<const raw_element_type*>(ptr)));
+    }
+
     pointer_type m_ptr;
 };
 
@@ -267,9 +282,9 @@ private:
 
 // 为 std::hash 提供特化支持
 namespace std {
-template <typename T, typename Deleter, typename PointerType>
-struct hash<mc::memory::weak_ptr<T, Deleter, PointerType>> {
-    size_t operator()(const mc::memory::weak_ptr<T, Deleter, PointerType>& p) const noexcept
+template <typename T, typename PointerType>
+struct hash<mc::memory::weak_ptr<T, PointerType>> {
+    size_t operator()(const mc::memory::weak_ptr<T, PointerType>& p) const noexcept
     {
         return hash<PointerType>{}(p.get());
     }

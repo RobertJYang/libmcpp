@@ -14,43 +14,24 @@
 #define MC_DATABASE_COMMON_H
 
 #include <mc/common.h>
-#include <mc/core/object_base.h>
-#include <mc/db/query/proto_query.h>
+#include <mc/object_base.h>
 
 namespace mc::db {
 
 /**
- * @brief 数据库对象ID类型（与 mc::core::object_id_type 相同）
+ * @brief 数据库对象ID类型（与 mc::object_id_type 相同）
  */
-using db_object_id_type = mc::core::object_id_type;
+using db_object_id_type = mc::object_id_type;
 
 /**
  * @brief 数据库对象指针类型
  */
-using db_object_ptr = mc::shared_ptr<mc::core::object_base>;
+using db_object_ptr = mc::shared_ptr<mc::object_base>;
 
 // 为了向后兼容，保留旧的类型别名
 using object_id_type = db_object_id_type;
-using object_base    = mc::core::object_base;
+using object_base    = mc::object_base;
 using object_ptr     = db_object_ptr;
-
-using query::field;
-
-/**
- * 创建字段引用，通过成员指针自动获取字段名
- * @tparam KeyType 字段类型
- * @param member 成员指针
- * @return 字段引用对象，用于构建查询条件
- */
-template <typename ObjectType, typename KeyType>
-static auto field(KeyType ObjectType::*member)
-{
-    std::string_view name;
-    if constexpr (mc::reflect::is_reflectable<ObjectType>()) {
-        name = mc::reflect::get_property_name<ObjectType>(member);
-    }
-    return query::dsl::field(name);
-}
 
 } // namespace mc::db
 

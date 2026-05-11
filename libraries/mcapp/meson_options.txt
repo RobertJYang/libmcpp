@@ -1,0 +1,35 @@
+option('tests', type: 'boolean', value: false, description: 'Build mcapp tests')
+option(
+  'tests_utilities',
+  type: 'boolean',
+  value: true,
+  description: 'Build mcapp test utilities',
+)
+option(
+  'enable_coverage',
+  type: 'boolean',
+  value: false,
+  description: 'Enable mcapp coverage',
+)
+
+# 旧 dbus/shm 兼容机制（harbor + shm_tree）
+# - true ：mcapp::service 启动时自动挂上 service_backend，
+#          把对象注册/反注册同步到旧 shm_tree，并启动 harbor。
+# - false：mcapp 不引入任何旧 shm 兼容代码，零侵入。
+# mcapp 子工程会以同一个 use_old_shm 透传给 mcdbus 子工程，保持 lockstep。
+# C++ 侧统一使用 mcdbus 的 MCDBUS_USE_OLD_SHM 宏（由 mcdbus_dep 透传），
+# mcapp 不再单独注入 MCAPP_USE_OLD_SHM，避免出现"两个真相"。
+# 与顶层 use_shm 互斥（顶层 meson.build 做互斥校验，mcdbus 子工程额外强校验 skynet）。
+option(
+  'use_old_shm',
+  type: 'boolean',
+  value: false,
+  description: 'mcapp 启用旧 dbus/shm service backend（透传给 mcdbus:use_old_shm 保持一致）',
+)
+
+option(
+  'default_log_appenders_dir',
+  type: 'string',
+  value: '/opt/bmc/log/appenders',
+  description: '无 Logging 配置时默认日志 appender 插件目录（编译期 MCAPP_DEFAULT_LOG_APPENDERS_DIR）',
+)
