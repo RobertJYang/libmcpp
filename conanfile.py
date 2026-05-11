@@ -109,7 +109,9 @@ class AppConan(ConanBase):
 
     def _build_test_utilities(self):
         return (
-            self._build_own_tests()
+            # 依赖场景下也需要随着 test=True 一起产出 test utilities，
+            # 但是否编译 libmcpp 自己的测试目标仍由 _build_own_tests() 单独控制。
+            self._option_enabled("test")
             or self._option_enabled("test_utilities")
             or self._build_examples()
         )
@@ -356,7 +358,7 @@ class AppConan(ConanBase):
         filter_arg = os.environ.get("MCLI_TEST_FILTER")
         verbose = os.environ.get("MCLI_TEST_VERBOSE")
 
-        cmd = ["meson", "test", "-v", "-C", self.build_folder, "--no-rebuild"]
+        cmd = ["meson", "test", "-v", "-C", self.build_folder]
 
         if filter_arg:
             cmd.extend(["--suite", filter_arg])
