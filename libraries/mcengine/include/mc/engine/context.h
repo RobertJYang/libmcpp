@@ -35,7 +35,7 @@ using method_type_info = mc::reflect::method_type_info;
 enum class handler_status {
     accepted, // 已接受（默认行为，消息路由到处理者即已接受）
     ignored,  // 忽略（消息路由到处理者后，处理者主动忽略，消息路由到下一个处理者）
-    error,    // 错误（消息路由到处理者后，主动调用 MC_REPLY_ERROR_AND_THROW 抛出错误，或用 MC_THROW 抛出错误）
+    error, // 错误（消息路由到处理者后，主动调用 MC_REPLY_ERROR_AND_THROW 抛出错误，或用 MC_THROW 抛出错误）
 };
 
 enum class auth_state {
@@ -97,7 +97,7 @@ struct context_frame {
     service*                service_ptr{nullptr};
     abstract_object*        object_ptr{nullptr};
     error_ptr               error;
-    call_info               call_info;
+    call_info               active_call;
     const method_type_info* method{nullptr};
     handler_status          status{handler_status::accepted};
 };

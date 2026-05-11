@@ -530,36 +530,36 @@ abstract_object* context::get_object_ptr() const noexcept
 
 detail::call_info& context::get_call_info()
 {
-    return ensure_frame().call_info;
+    return ensure_frame().active_call;
 }
 
 void context::set_call_info(detail::call_info call_info)
 {
-    ensure_frame().call_info = std::move(call_info);
+    ensure_frame().active_call = std::move(call_info);
 }
 
 mc::string_view context::get_path() const
 {
     auto* frame = frame_ptr();
-    return frame ? frame->call_info.path : mc::string_view{};
+    return frame ? frame->active_call.path : mc::string_view{};
 }
 
 mc::string_view context::get_method_name() const
 {
     auto* frame = frame_ptr();
-    return frame ? frame->call_info.method_name : mc::string_view{};
+    return frame ? frame->active_call.method_name : mc::string_view{};
 }
 
 mc::string_view context::get_interface_name() const
 {
     auto* frame = frame_ptr();
-    return frame ? frame->call_info.interface_name : mc::string_view{};
+    return frame ? frame->active_call.interface_name : mc::string_view{};
 }
 
 mc::string_view context::get_sender() const
 {
     auto* frame = frame_ptr();
-    return frame ? frame->call_info.sender : mc::string_view{};
+    return frame ? frame->active_call.sender : mc::string_view{};
 }
 
 void context::throw_error(mc::string_view error_name, mc::dict args)

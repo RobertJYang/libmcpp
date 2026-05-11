@@ -575,8 +575,9 @@ TEST_F(proxy_test, cross_process_app_interfaces_added_uses_object_path_over_mq)
 
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-                child_app->stop();
-                mc::app::base_app::reset_for_test();
+                // fork_child 外层会直接 _exit()，这里不要再走 application/harbor 的析构链，
+                // 否则子进程会尝试收尾继承自父进程的旧线程状态并卡死。
+                (void)child_app.release();
                 return 0;
             } catch (const std::exception& ex) {
                 std::fprintf(stderr, "child exception: %s\n", ex.what());
