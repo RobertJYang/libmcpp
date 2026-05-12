@@ -1,5 +1,10 @@
 # Changelog
 All notable changes to this project will be documented in this file.
+## [1.2.75] - 2026-05-12
+- 解决mdbctl查询不到对象问题
+
+## [1.2.74] - 2026-05-11
+- 拆分libengine，libdbus，libapp，libexpr为各个子库，调整为独立的动态库
 
 ## [1.2.73] - 2026-04-24
 - smart_build.sh v2.0：新增时间戳显示、日志落盘、阶段计时统计、ccache 自动配置（可写目录探测 + 调优）、cgroup CPU 配额检测、更精确的并发计算、测试超时自动重试、帮助信息、额外 meson 参数支持
