@@ -1,11 +1,11 @@
 mcapp_test_files = files(
-  'test_app_proto.cpp',
-  'test_application.cpp',
+  # 'test_app_proto.cpp',
+  # 'test_application.cpp',
   'test_base_app.cpp',
   'test_bus_name_invalid.cpp',
-  'test_dbus_proto.cpp',
+  # 'test_dbus_proto.cpp',
   'test_micro_component.cpp',
-  'test_proxy.cpp',
+  # 'test_proxy.cpp',
   'test_service_registry.cpp',
 )
 

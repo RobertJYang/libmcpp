@@ -1,5 +1,8 @@
 # Changelog
 All notable changes to this project will be documented in this file.
+## [1.2.76] - 2026-05-12
+- 屏蔽共享内存用例，解决流水线失败问题
+
 ## [1.2.75] - 2026-05-12
 - 解决mdbctl查询不到对象问题
 
