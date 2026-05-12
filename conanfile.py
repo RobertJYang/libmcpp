@@ -183,17 +183,6 @@ class AppConan(ConanBase):
             },
         )
 
-    def source(self):
-        sources = self.conan_data["sources"][self.version]
-        url = sources.get("url")
-        branch = sources.get("branch")
-        if url and branch:
-            Git(self).fetch_commit(url=url, commit=branch.split("/")[-1])
-            return
-
-        source_path = sources["pwd"]
-        copy(self, "*", src=source_path, dst=".", excludes=list(self._source_excludes))
-
     def _active_project_name(self):
         for index, arg in enumerate(sys.argv):
             if arg == "--name" and index + 1 < len(sys.argv):
