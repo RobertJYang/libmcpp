@@ -124,65 +124,6 @@ class AppConan(ConanBase):
         if self._build_test_utilities():
             self.requires("gtest/[>=1.14.0]@openubmc/stable")
 
-    def export(self):
-        super_export = getattr(super(), "export", None)
-        if super_export:
-            super_export()
-        else:
-            copy(self, "conanbase.py", self.recipe_folder, self.export_folder)
-
-        git = Git(self, self.recipe_folder)
-        try:
-            message = git.run("log --no-merges -n 1")
-            commit = git.get_commit()
-        except Exception:
-            self._export_local_source(message="")
-            return
-
-        if git.is_dirty():
-            self._export_local_source(message=message)
-            return
-
-        remote_url = self._find_remote_url(git, commit)
-        if not remote_url:
-            self._export_local_source(message=message)
-            return
-
-        update_conandata(
-            self,
-            {"sources": {self.version: {"branch": commit, "url": remote_url, "message": message}}},
-        )
-
-    def _find_remote_url(self, git, commit):
-        try:
-            remotes = git.run("remote")
-        except Exception:
-            return None
-
-        for remote in remotes.splitlines():
-            try:
-                if git.run(f"ls-remote {remote} {commit}").strip():
-                    return git.get_remote_url(remote)
-            except Exception:
-                continue
-        return None
-
-    def _export_local_source(self, message):
-        update_conandata(
-            self,
-            {
-                "sources": {
-                    self.version: {
-                        "branch": None,
-                        "url": None,
-                        "pwd": os.getcwd(),
-                        "timestamp": int(time.time()),
-                        "message": message,
-                    }
-                }
-            },
-        )
-
     def _active_project_name(self):
         for index, arg in enumerate(sys.argv):
             if arg == "--name" and index + 1 < len(sys.argv):

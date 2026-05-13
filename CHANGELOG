@@ -1,5 +1,8 @@
 # Changelog
 All notable changes to this project will be documented in this file.
+## [1.2.78] - 2026-05-13
+- 解决libmcpp组件conan包发布没有url问题
+
 ## [1.2.77] - 2026-05-12
 - 解决libmcpp组件conan包发布没有url问题
 
